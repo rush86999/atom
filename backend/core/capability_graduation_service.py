@@ -7,9 +7,9 @@ Student, Intern, Supervised, and Autonomous levels.
 import logging
 import json
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Callable, Optional, List
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import Text, and_, cast, select, update
 
 from core.models import AgentRegistry, HITLAction, HITLActionStatus
 
@@ -50,13 +50,105 @@ class CapabilityGraduationService:
             return CapabilityMaturityLevel.STUDENT
 
         config = self._config(agent)
-        maturities = config.get("capability_maturities", {})
+        maturities = config.get("capability_maturities")
+        if not isinstance(maturities, dict):
+            return CapabilityMaturityLevel.STUDENT
         # Per-capability level wins; "*" sets an agent-wide default tier
         # (e.g. register the meta agent at supervised) for capabilities
         # without an explicit entry.
         if capability_name in maturities:
             return maturities[capability_name]
         return maturities.get("*", CapabilityMaturityLevel.STUDENT)
+
+    #: A peer writer may commit between our observed configuration read and
+    #: the conditional UPDATE. Reload and retry a bounded number of times; if
+    #: contention persists we fail closed instead of overwriting the winner.
+    CAS_MAX_ATTEMPTS = 8
+
+    @staticmethod
+    def _json_dict(value: Any) -> dict:
+        """Decode a JSON column (physical text or already-decoded dict)."""
+        if isinstance(value, dict):
+            return dict(value)
+        if isinstance(value, str) and value.strip():
+            try:
+                parsed = json.loads(value)
+            except (TypeError, ValueError):
+                return {}
+            return dict(parsed) if isinstance(parsed, dict) else {}
+        return {}
+
+    def _observed_configuration(self, agent_id: str):
+        """Read the PHYSICAL JSON value without trusting the ORM identity map.
+
+        The returned scalar is exactly what a conditional UPDATE compares
+        against. SQL NULL and JSON ``null`` therefore stay distinguishable on
+        SQLite (NULL vs the text ``"null"``), avoiding the historical
+        NULL/JSON-null mismatch.
+        """
+        row = self.db.execute(
+            select(cast(AgentRegistry.configuration, Text)).where(
+                AgentRegistry.id == str(agent_id))
+        ).first()
+        if row is None:
+            return False, None
+        return True, row[0]
+
+    def _mutate_configuration(
+        self,
+        agent_id: str,
+        mutate: Callable[[dict], dict],
+        *,
+        commit: bool,
+    ) -> bool:
+        """Apply one JSON configuration mutation via database CAS.
+
+        ``with_for_update``/``populate_existing`` are not a compare-and-swap on
+        SQLite (and they silently expire caller state elsewhere). Instead the
+        exact observed physical configuration is bound into the UPDATE's WHERE
+        clause. A peer that commits a revocation/regression between our read and
+        write makes the UPDATE match zero rows; we reload from the database and
+        retry, so a stale success cannot erase the peer's revocation. After the
+        bounded attempts we fail closed (no write) rather than guess.
+        """
+        for _attempt in range(self.CAS_MAX_ATTEMPTS):
+            found, observed = self._observed_configuration(agent_id)
+            if not found:
+                return False
+            configuration = mutate(self._json_dict(observed))
+            if not isinstance(configuration, dict):
+                return False
+            predicate = (
+                AgentRegistry.configuration.is_(None)
+                if observed is None
+                else cast(AgentRegistry.configuration, Text) == observed
+            )
+            statement = (
+                update(AgentRegistry)
+                .where(AgentRegistry.id == str(agent_id), predicate)
+                .values(configuration=configuration)
+                .execution_options(synchronize_session=False)
+            )
+            try:
+                changed = self.db.execute(statement)
+            except Exception as exc:  # noqa: BLE001 - no write is the safe result
+                logger.warning(
+                    "Capability config CAS unavailable for %s (%s)",
+                    agent_id, type(exc).__name__)
+                return False
+            if int(changed.rowcount or 0) == 1:
+                if commit:
+                    self.db.commit()
+                return True
+            # The observed blob changed under us. Loop and reload; the next
+            # mutation is based on the peer's current state, not our stale copy.
+            logger.debug(
+                "Capability config CAS contention for %s (attempt %s)",
+                agent_id, _attempt + 1)
+        logger.warning(
+            "Capability config CAS exhausted for %s; no stale overwrite",
+            agent_id)
+        return False
 
     def record_usage(
         self,
@@ -83,158 +175,181 @@ class CapabilityGraduationService:
             commit: When False the caller owns the surrounding transaction
                 (used by the fleet credit receipt consumer so the receipt and
                 this counter update commit together).
-            lock: Serialize the read/modify/write of the JSON configuration
-                where the database supports row locks. This keeps a concurrent
-                verified regression/revocation from being overwritten by a
-                stale credit writer.
+            lock: Kept for API compatibility. Configuration writes are always
+                a database-level conditional UPDATE (see
+                :meth:`_mutate_configuration`); this argument no longer selects
+                a weaker read/lock path.
         """
-        query = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
-        )
-        if lock:
-            try:
-                query = query.with_for_update()
-                # Refresh any entity already in the identity map; otherwise a
-                # stale pre-regression copy could overwrite a peer's committed
-                # revocation marker with an old configuration blob.
-                query = query.populate_existing()
-            except Exception:
-                # Legacy/mock sessions may not expose FOR UPDATE; correctness
-                # then falls back to the database's normal write serialization.
-                pass
-        agent = query.first()
+        def _apply(config: dict) -> dict:
+            stats_map = config.get("capability_stats")
+            if not isinstance(stats_map, dict):
+                stats_map = {}
+            config["capability_stats"] = stats_map
 
-        if not agent:
-            return
-
-        config = self._config(agent)
-        if "capability_stats" not in config:
-            config["capability_stats"] = {}
-
-        stats = config["capability_stats"].get(
-            capability_name,
-            {"success": 0, "total": 0, "verified_success": 0},
-        )
-        stats["total"] += 1
-        # Self-reported success — tracked but not sufficient for graduation.
-        if success:
-            stats["success"] += 1
-        # Graduation-gating signal: only verified successes count.
-        if success and verified == "verified":
-            stats["verified_success"] = stats.get("verified_success", 0) + 1
-        # P3 asymmetry (R9: slow to gain, fast to lose): externally-verified
-        # failures increment a dedicated penalty counter consumed by
-        # skill_scoped_trust.trust_score. Graduation thresholds unchanged.
-        if verified == "failed_verification":
-            stats["failures_verified"] = stats.get("failures_verified", 0) + 1
-        stats["last_outcome_at"] = datetime.now(timezone.utc).isoformat()
-
-        verified_count = int(stats.get("verified_success") or 0)
-        # Keep a per-capability epoch baseline so old lifetime credit cannot
-        # graduate the capability after the active revocation marker clears.
-        revocations = config.get("autonomy_revocations") or {}
-        active = revocations.get(capability_name) or {}
-        if active:
-            active_baseline = active.get("baseline_verified_success")
-            if active_baseline is None:
-                # Unknown legacy credit cannot certify post-regression work.
-                # Anchor at first observation, before this call's new success.
-                active_baseline = verified_count - int(success and verified == "verified")
-                active["baseline_verified_success"] = active_baseline
-                active["baseline_origin"] = "legacy_first_observed"
-            stats["epoch_baseline_verified_success"] = max(
-                int(stats.get("epoch_baseline_verified_success") or 0),
-                int(active_baseline),
+            stats = stats_map.get(
+                capability_name,
+                {"success": 0, "total": 0, "verified_success": 0},
             )
+            if not isinstance(stats, dict):
+                stats = {"success": 0, "total": 0, "verified_success": 0}
+            stats["total"] = int(stats.get("total") or 0) + 1
+            # Self-reported success — tracked but not sufficient for graduation.
+            if success:
+                stats["success"] = int(stats.get("success") or 0) + 1
+            # Graduation-gating signal: only verified successes count.
+            if success and verified == "verified":
+                stats["verified_success"] = int(
+                    stats.get("verified_success") or 0) + 1
 
-        # VERIFIED REGRESSION revokes earned autonomy. A capability that had
-        # verified successes and then fails external verification is not
-        # "slow to gain, fast to lose" only on a score: the runtime gate must
-        # stop trusting it. Persisted in the agent configuration so the
-        # revocation survives a restart.
-        if (verified == "failed_verification"
-                and verified_count > 0):
-            revocations = config.setdefault("autonomy_revocations", {})
-            previous = revocations.get(capability_name) or {}
-            # Baseline the lifetime counter AT revocation: re-entry needs new
-            # verified successes after this point. A repeated regression starts
-            # a fresh epoch and baseline.
-            stats["epoch_baseline_verified_success"] = verified_count
-            revocations[capability_name] = {
-                "at": datetime.now(timezone.utc).isoformat(),
-                "reason": "verified_regression",
-                "failures_verified": int(stats.get("failures_verified") or 0),
-                "verified_success": verified_count,
-                "baseline_verified_success": verified_count,
-                "epoch": int(previous.get("epoch") or 0) + 1,
-                "reentry_successes": 0,
-            }
-            config.setdefault("capability_maturities", {})[
-                capability_name] = CapabilityMaturityLevel.STUDENT
+            def _maturities(cfg: dict) -> dict:
+                maturities = cfg.get("capability_maturities")
+                if not isinstance(maturities, dict):
+                    maturities = {}
+                cfg["capability_maturities"] = maturities
+                return maturities
+            # P3 asymmetry (R9: slow to gain, fast to lose): externally-verified
+            # failures increment a dedicated penalty counter consumed by
+            # skill_scoped_trust.trust_score. Graduation thresholds unchanged.
+            if verified == "failed_verification":
+                stats["failures_verified"] = stats.get(
+                    "failures_verified", 0) + 1
+            stats["last_outcome_at"] = datetime.now(timezone.utc).isoformat()
 
-        config["capability_stats"][capability_name] = stats
-        # Persist back through the model's JSON column (mutation isn't auto-detected).
-        agent.configuration = dict(config)
-        self.flag_modified(agent, "configuration")
-
-        # Graduation now gates on verified_success — a silent no-op returning
-        # {success: true} without evidence lands as unverified and cannot
-        # promote the capability.
-        verified_successes = int(stats.get("verified_success") or 0)
-        baseline = int(stats.get("epoch_baseline_verified_success") or 0)
-        new_successes = max(0, verified_successes - baseline)
-        revocations = config.get("autonomy_revocations") or {}
-        entry = revocations.get(capability_name)
-        if entry:
-            entry["reentry_successes"] = new_successes
-            revocations[capability_name] = entry
+            verified_count = int(stats.get("verified_success") or 0)
+            # Keep a per-capability epoch baseline so old lifetime credit cannot
+            # graduate the capability after the active revocation marker clears.
+            revocations = config.get("autonomy_revocations")
+            if not isinstance(revocations, dict):
+                revocations = {}
             config["autonomy_revocations"] = revocations
-            reentered = False
-            # Re-entry needs NEW verified successes after the revocation, not
-            # the lifetime total.
-            if (success and verified == "verified"
-                    and new_successes >= self.REVOCATION_REENTRY_SUCCESSES):
-                revocations.pop(capability_name, None)
+            active = revocations.get(capability_name) or {}
+            if not isinstance(active, dict):
+                active = {}
+            if active:
+                active_baseline = active.get("baseline_verified_success")
+                if active_baseline is None:
+                    # Unknown legacy credit cannot certify post-regression work.
+                    # Anchor at first observation, before this call's new success.
+                    active_baseline = verified_count - int(
+                        success and verified == "verified")
+                    active["baseline_verified_success"] = active_baseline
+                    active["baseline_origin"] = "legacy_first_observed"
+                revocations[capability_name] = active
                 config["autonomy_revocations"] = revocations
-                config.setdefault("capability_maturities", {})[
-                    capability_name] = CapabilityMaturityLevel.INTERN
-                reentered = True
-            if not reentered:
-                config.setdefault("capability_maturities", {})[
-                    capability_name] = CapabilityMaturityLevel.STUDENT
-            agent.configuration = dict(config)
-            self.flag_modified(agent, "configuration")
-        # While an active revocation marker remains, hold STUDENT. Only a
-        # verified success may climb; post-regression successes alone count.
-        if success and verified == "verified" and not entry:
-            current = self.get_maturity(agent_id, capability_name)
-            if new_successes >= 5 and current == CapabilityMaturityLevel.STUDENT:
-                self._update_maturity(agent, capability_name, CapabilityMaturityLevel.INTERN)
-            elif new_successes >= 20 and current == CapabilityMaturityLevel.INTERN:
-                self._update_maturity(agent, capability_name, CapabilityMaturityLevel.SUPERVISED)
-            elif new_successes >= 50 and current == CapabilityMaturityLevel.SUPERVISED:
-                # Autonomous requires high confidence
-                self._update_maturity(agent, capability_name, CapabilityMaturityLevel.AUTONOMOUS)
+                stats["epoch_baseline_verified_success"] = max(
+                    int(stats.get("epoch_baseline_verified_success") or 0),
+                    int(active_baseline),
+                )
 
-        if commit:
-            self.db.commit()
+            # VERIFIED REGRESSION revokes earned autonomy. A capability that had
+            # verified successes and then fails external verification is not
+            # "slow to gain, fast to lose" only on a score: the runtime gate
+            # must stop trusting it. Persisted in the agent configuration so the
+            # revocation survives a restart.
+            if (verified == "failed_verification"
+                    and verified_count > 0):
+                revocations = config.setdefault("autonomy_revocations", {})
+                previous = revocations.get(capability_name) or {}
+                # Baseline the lifetime counter AT revocation: re-entry needs
+                # new verified successes after this point. A repeated regression
+                # starts a fresh epoch and baseline.
+                stats["epoch_baseline_verified_success"] = verified_count
+                revocations[capability_name] = {
+                    "at": datetime.now(timezone.utc).isoformat(),
+                    "reason": "verified_regression",
+                    "failures_verified": int(
+                        stats.get("failures_verified") or 0),
+                    "verified_success": verified_count,
+                    "baseline_verified_success": verified_count,
+                    "epoch": int(previous.get("epoch") or 0) + 1,
+                    "reentry_successes": 0,
+                }
+                _maturities(config)[
+                    capability_name] = CapabilityMaturityLevel.STUDENT
+
+            config["capability_stats"][capability_name] = stats
+
+            # Graduation now gates on verified_success — a silent no-op
+            # returning {success: true} without evidence lands as unverified and
+            # cannot promote the capability.
+            verified_successes = int(stats.get("verified_success") or 0)
+            baseline = int(stats.get("epoch_baseline_verified_success") or 0)
+            new_successes = max(0, verified_successes - baseline)
+            revocations = config.get("autonomy_revocations")
+            if not isinstance(revocations, dict):
+                revocations = {}
+            entry = revocations.get(capability_name)
+            if entry:
+                entry["reentry_successes"] = new_successes
+                revocations[capability_name] = entry
+                config["autonomy_revocations"] = revocations
+                reentered = False
+                # Re-entry needs NEW verified successes after the revocation,
+                # not the lifetime total.
+                if (success and verified == "verified"
+                        and new_successes
+                        >= self.REVOCATION_REENTRY_SUCCESSES):
+                    revocations.pop(capability_name, None)
+                    config["autonomy_revocations"] = revocations
+                    _maturities(config)[
+                        capability_name] = CapabilityMaturityLevel.INTERN
+                    reentered = True
+                if not reentered:
+                    _maturities(config)[
+                        capability_name] = CapabilityMaturityLevel.STUDENT
+            # While an active revocation marker remains, hold STUDENT. Only a
+            # verified success may climb; post-regression successes alone count.
+            if success and verified == "verified" and not entry:
+                maturities = _maturities(config)
+                current = maturities.get(
+                    capability_name,
+                    maturities.get("*", CapabilityMaturityLevel.STUDENT))
+                if (new_successes >= 5
+                        and current == CapabilityMaturityLevel.STUDENT):
+                    maturities[capability_name] = CapabilityMaturityLevel.INTERN
+                elif (new_successes >= 20
+                        and current == CapabilityMaturityLevel.INTERN):
+                    maturities[
+                        capability_name] = CapabilityMaturityLevel.SUPERVISED
+                elif (new_successes >= 50
+                        and current == CapabilityMaturityLevel.SUPERVISED):
+                    # Autonomous requires high confidence
+                    maturities[
+                        capability_name] = CapabilityMaturityLevel.AUTONOMOUS
+            return config
+
+        return self._mutate_configuration(
+            agent_id, _apply, commit=commit)
 
     def reset_maturity(self, agent_id: str, capability_name: str, reason: str):
-        """Reset capability maturity to STUDENT level."""
-        agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
-        ).first()
+        """Reset capability maturity to STUDENT level.
 
-        if agent:
-            self._update_maturity(agent, capability_name, CapabilityMaturityLevel.STUDENT)
-            logger.info(f"Reset maturity for {agent_id}:{capability_name} to STUDENT. Reason: {reason}")
-            self.db.commit()
+        Uses the same conditional-UPDATE discipline as :meth:`record_usage`, so
+        a reset racing a revocation/regression cannot resurrect an unrelated
+        stale configuration blob.
+        """
+        def _reset(config: dict) -> dict:
+            maturities = config.get("capability_maturities")
+            if not isinstance(maturities, dict):
+                maturities = {}
+            maturities[capability_name] = CapabilityMaturityLevel.STUDENT
+            config["capability_maturities"] = maturities
+            return config
+
+        changed = self._mutate_configuration(
+            agent_id, _reset, commit=True)
+        if changed:
+            logger.info(
+                f"Reset maturity for {agent_id}:{capability_name} to STUDENT. "
+                f"Reason: {reason}")
 
     def _update_maturity(self, agent: AgentRegistry, capability_name: str, level: str):
         config = self._config(agent)
-        if "capability_maturities" not in config:
-            config["capability_maturities"] = {}
-        config["capability_maturities"][capability_name] = level
+        maturities = config.get("capability_maturities")
+        if not isinstance(maturities, dict):
+            maturities = {}
+        maturities[capability_name] = level
+        config["capability_maturities"] = maturities
         agent.configuration = dict(config)
         self.flag_modified(agent, "configuration")
         logger.info(f"Capability '{capability_name}' for agent {agent.id} graduated to {level}")

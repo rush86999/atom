@@ -134,21 +134,53 @@ def _parse_time(value: Any) -> Optional[datetime]:
         return None
 
 
-def _has_unrelated_pending(db: Any) -> bool:
-    """True when a borrowed session has caller-owned pending work.
+def _caller_owns_session(db: Any) -> bool:
+    """True when a borrowed session may already contain caller-owned work.
 
-    The supplement must never commit or roll back edits it does not own. If
-    such edits are present, the credit write runs in an independent session
-    bound to the same engine instead of touching the caller's unit of work.
+    Checking only ``new``/``dirty``/``deleted`` misses edits the caller has
+    already FLUSHED: those are no longer pending objects, but they still live
+    in the session's uncommitted transaction and must not be committed or
+    rolled back by this supplement. Any active transaction is therefore
+    caller-owned unless this function created it.
     """
     try:
-        return bool(
-            getattr(db, "new", None)
-            or getattr(db, "dirty", None)
-            or getattr(db, "deleted", None)
-        )
+        if (getattr(db, "new", None)
+                or getattr(db, "dirty", None)
+                or getattr(db, "deleted", None)):
+            return True
+        in_transaction = getattr(db, "in_transaction", None)
+        if callable(in_transaction):
+            return bool(in_transaction())
+        get_transaction = getattr(db, "get_transaction", None)
+        if callable(get_transaction):
+            return get_transaction() is not None
+        # Unknown session shape: assume the caller owns an open unit of work.
+        return True
     except Exception:  # noqa: BLE001 - unknown shape -> treat as borrowed
         return True
+
+
+def _independent_writer(db: Any):
+    """Open an owned Session on the same engine when that is genuinely safe.
+
+    A Session bound to a Connection, or an engine pool that hands the very same
+    DBAPI connection to every checkout (StaticPool/SingletonThreadPool), cannot
+    provide an independent transaction. In that case return ``None`` and the
+    caller refuses explicitly instead of touching the caller's unit of work.
+    """
+    try:
+        from sqlalchemy.engine import Engine
+        from sqlalchemy.orm import sessionmaker
+
+        bind = db.get_bind()
+        if not isinstance(bind, Engine):
+            return None
+        if type(bind.pool).__name__ in (
+                "StaticPool", "SingletonThreadPool"):
+            return None
+        return sessionmaker(bind=bind)()
+    except Exception:  # noqa: BLE001 - no independent writer = explicit refusal
+        return None
 
 
 def _resolve_fleet_outcome(
@@ -660,13 +692,20 @@ def _consume_entries(
             with db.begin_nested():
                 db.add(receipt)
                 db.flush()
-                svc.record_usage(
+                applied_usage = svc.record_usage(
                     agent_id,
                     capability,
                     success=True,
                     verified=("verified" if verified else "unverified"),
                     commit=False,
                 )
+                if applied_usage is False:
+                    # The counter CAS could not be published against the
+                    # observed configuration (peer revocation/regression kept
+                    # winning). Roll this entry's savepoint back: no receipt
+                    # may exist without its counter update. A later recovery
+                    # pass can still apply the missing credit.
+                    raise RuntimeError("capability counter CAS not applied")
                 receipt.status = "succeeded"
                 receipt.result_json = {
                     "version": CREDIT_RECEIPT_VERSION,
@@ -691,8 +730,8 @@ def _consume_entries(
             continue
         except Exception as exc:  # noqa: BLE001 - one bad entry != abort all
             logger.warning(
-                "contribution_credit: entry skipped for %s/%s: %s",
-                agent_id, capability, exc)
+                "contribution_credit: entry skipped for %s/%s (%s)",
+                agent_id, capability, type(exc).__name__)
             continue
     if applied:
         db.commit()
@@ -730,8 +769,10 @@ def apply_credit(db: Any, entries: List[Dict[str, Any]]) -> int:
                         and e.get("source_record_id"))
                     else "unverified"
                 )
-                svc.record_usage(
+                recorded = svc.record_usage(
                     agent_id, capability, success=True, verified=verified)
+                if recorded is False:
+                    continue
                 applied += 1
             except Exception as ee:  # noqa: BLE001 — one bad entry ≠ abort all
                 logger.debug(f"apply_credit entry skipped: {ee}")
@@ -767,13 +808,18 @@ def record_chain_credit(
                     session, execution_id, audit_id=audit_id,
                     tenant_id=tenant_id, workspace_id=workspace_id,
                     agent_id=agent_id)
-        if _has_unrelated_pending(db):
-            # Never commit or roll back caller-owned pending edits. Use an
-            # independent unit of work on the same engine for our supplement.
-            from sqlalchemy.orm import sessionmaker
-
-            bind = db.get_bind()
-            writer = sessionmaker(bind=bind)()
+        if _caller_owns_session(db):
+            # Never commit, roll back, expire, or flush caller-owned state
+            # (including already-flushed edits). Write through an independent
+            # owned session when the engine can provide one; otherwise refuse
+            # explicitly and leave the caller's transaction exactly as it was.
+            writer = _independent_writer(db)
+            if writer is None:
+                logger.warning(
+                    "contribution_credit: refusing credit for exec %s because "
+                    "the caller's active transaction cannot be supplemented "
+                    "independently", execution_id)
+                return False
             try:
                 return _record_chain_credit_with_session(
                     writer, execution_id, audit_id=audit_id,
@@ -788,7 +834,9 @@ def record_chain_credit(
     except Exception as e:  # noqa: BLE001 — supplement must never break finalize
         # Do not roll back a borrowed session: caller-owned edits are not ours
         # to discard. Owned/isolated writers roll back when their session closes.
-        logger.warning(f"record_chain_credit failed: {e}")
+        logger.warning(
+            "record_chain_credit failed for exec %s (%s)",
+            execution_id, type(e).__name__)
         return False
 
 

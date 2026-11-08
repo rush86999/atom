@@ -511,6 +511,59 @@ Return JSON matching the TaskAnalysis schema."""
 
         return _factory
 
+    @staticmethod
+    def _dict_value(value: Any) -> Dict[str, Any]:
+        """Decode a nullable JSON column/result without inventing authority."""
+        if isinstance(value, dict):
+            return dict(value)
+        if isinstance(value, str) and value.strip():
+            try:
+                parsed = json.loads(value)
+            except (TypeError, ValueError):
+                return {}
+            return dict(parsed) if isinstance(parsed, dict) else {}
+        return {}
+
+    @classmethod
+    def _recovered_child_output(
+        cls, claim: Optional[Dict[str, Any]], binding: Dict[str, Any],
+        task_digest: str,
+    ) -> Optional[str]:
+        """Return the full specialist output from a succeeded durable claim.
+
+        A cache/link loss must not strand already-completed work, and a
+        truncated ``AgentExecution.output_summary`` is not the specialist's
+        actual output. The fleet child dispatch claim is written server-side in
+        the SAME conditional UPDATE as ``succeeded`` and is bound to the exact
+        child execution/operation/task digest, so its full output is the
+        trustworthy recovery source. Anything mismatched yields ``None`` (and
+        the caller refuses; it never re-dispatches).
+        """
+        if not isinstance(claim, dict):
+            return None
+        if str(claim.get("status") or "") != "succeeded":
+            return None
+        if str(claim.get("operation_id") or "") != str(
+                binding.get("operation_id") or ""):
+            return None
+        result = cls._dict_value(claim.get("result_json"))
+        child = cls._dict_value(result.get("fleet_child_result"))
+        if not child:
+            return None
+        if str(child.get("execution_id") or "") != str(
+                binding.get("execution_id") or ""):
+            return None
+        if str(child.get("binding_sha256") or "") != str(
+                binding.get("binding_sha256") or ""):
+            return None
+        if str(child.get("task_digest") or "") != str(task_digest or ""):
+            return None
+        if child.get("success") is not True or str(
+                child.get("status") or "") != "completed":
+            return None
+        output = str(child.get("output") or "").strip()
+        return output or None
+
     def _claim_child_dispatch(
         self,
         *,
@@ -571,6 +624,7 @@ Return JSON matching the TaskAnalysis schema."""
         claim: Optional[Dict[str, Any]], *,
         binding: Dict[str, Any], status: str, success: bool,
         output_length: int, task_digest: str,
+        output: Optional[str] = None,
     ) -> bool:
         if not claim or not claim.get("won") or not claim.get("record_id"):
             return False
@@ -588,6 +642,11 @@ Return JSON matching the TaskAnalysis schema."""
                     "status": str(status or ""),
                     "success": bool(success),
                     "output_length": int(output_length or 0),
+                    # Full server-produced specialist output, so a later resume
+                    # that lost the chain cache can recover the actual work
+                    # instead of re-dispatching or using the truncated
+                    # AgentExecution.output_summary.
+                    "output": str(output or ""),
                 }
             },
             db_factory=self._claim_db_factory(),
@@ -888,6 +947,35 @@ Return JSON matching the TaskAnalysis schema."""
                     and str(link.status or "") == "completed"
                     and str(existing_result.get("execution_id") or "")
                     == str(binding.get("execution_id") or ""))
+                if already_completed:
+                    recovered = self._recovered_child_output(
+                        claim, binding, digest)
+                    if recovered is None:
+                        recovered = str(existing_result.get("output") or "")
+                else:
+                    recovered = self._recovered_child_output(
+                        claim, binding, digest)
+                if recovered:
+                    # The durable claim proves this exact child already ran.
+                    # Recover its actual output without a second dispatch and
+                    # re-materialize the link/cache material.
+                    self._finish_specialist_link(
+                        link, binding=binding, status="completed",
+                        success=True, output_length=len(recovered),
+                        task_digest=digest)
+                    item_result = {
+                        "agent_id": agent_id,
+                        "agent_name": agent_name,
+                        "domain": domain,
+                        "status": "success",
+                        "output": recovered,
+                        "error": None,
+                        "execution_id": binding["execution_id"],
+                        "recovered": True,
+                    }
+                    results.append(item_result)
+                    successful.append(item_result)
+                    continue
                 if link is not None and not already_completed:
                     link.result_json = {
                         "execution_id": str(binding.get("execution_id") or ""),
@@ -946,7 +1034,7 @@ Return JSON matching the TaskAnalysis schema."""
             except Exception as exc:  # noqa: BLE001 — preserve failure class
                 self._finish_child_claim(
                     claim, binding=binding, status="failed", success=False,
-                    output_length=0, task_digest=digest)
+                    output_length=0, task_digest=digest, output="")
                 self._finish_specialist_link(
                     link, binding=binding, status="failed", success=False,
                     output_length=0, task_digest=digest,
@@ -974,7 +1062,8 @@ Return JSON matching the TaskAnalysis schema."""
                 claim, binding=binding,
                 status="completed" if effective_success else "failed",
                 success=effective_success,
-                output_length=len(output), task_digest=digest)
+                output_length=len(output), task_digest=digest,
+                output=(output if effective_success else ""))
             self._finish_specialist_link(
                 link, binding=binding,
                 status="completed" if effective_success else "failed",
