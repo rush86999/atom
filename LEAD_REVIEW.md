@@ -286,3 +286,82 @@ author.
 - This is a code-and-control delivery only. The earlier evidence packet's
   "filename/key collision behavior" item is repaired in source but is not
   claimed verified until root executes these controls.
+# Multi-day CI failure investigation/repair — lead review
+
+## Exact hosted evidence
+
+- Baseline: `543138cb5` (`codex/bpe-multiday-ci-20261108`).
+- Normal CI run `42440697910`, backend job `128609111550`.
+- Result: 799 passed, 3 failed, 1 skipped; the only failures are
+  `tests/test_generic_information_multiday_contract.py`
+  (`reply after 3 days`, `reply after 14 days`, `two 7-day waits`).
+- Public symptom: resumed answer returns HTTP 503
+  `AGENT_EXECUTION_UNCERTAIN`; the cancellation twin still returns 409 and
+  passes.
+
+The hosted log identifies the concrete cause before the public 503:
+
+```
+2026-11-11 03:05:41 [ ERROR] tasks.create failed: Unable to generate
+pydantic-core schema for <class 'freezegun.api.FakeDatetime'> ...
+2026-11-11 03:05:41 [ INFO] Recorded outcome for a1: failure
+... POST /api/agents/a1/jobs/<id>/answer "HTTP/1.1 503 Service Unavailable"
+```
+
+## Cause
+
+The multi-day module freezes the clock for its tests
+(`pytestmark = pytest.mark.freeze_time(real_asyncio=True)`). On resume, the
+real `tasks.create` registered action runs for the first time in that process
+and its handler (`core/action_registry.py:_tasks_create`) lazily imports
+`core.board_service`, which imports `api/schemas/board_schemas.py`.
+
+`api/schemas/board_schemas.py` uses postponed annotations and declares
+`TaskCreate.due_at: Union[datetime, None]`. Pydantic resolves that annotation
+when the model class is created. Because the first import happened inside the
+frozen resumed pass, `from datetime import datetime` resolved to
+`freezegun.api.FakeDatetime`; Pydantic cannot build a core schema for it, the
+import fails, and the handler's `except Exception` returns
+`{"success": False, "error": "Task creation failed"}`. The framework then
+honestly marks the declared mutation uncertain and the public answer is 503.
+
+This is a controlled-clock import-order artifact, not a production business or
+Oracle defect. In the hosted process no primary-selection module had imported
+`api.schemas.board_schemas` before the frozen pass. A local standalone run can
+only pass if that module was already resident (or the plugin invocation
+differed); the hosted log is direct evidence of the lazy import happening under
+freeze.
+
+## Repair
+
+`backend/tests/test_generic_information_multiday_contract.py` now imports the
+real production handler module (`core.board_service`, which builds the real
+`TaskCreate` schema) at module collection time, before any test-level freeze.
+The resumed `tasks.create` therefore runs the real action and the default
+Oracle verifies the real board row, exactly as the original assertions require.
+
+No production code, assertion, receipt, Oracle verifier, job identity, wait
+identity, or simulated 3/14/7+7-day behavior changed. There is no bypass,
+fallback, retry, skip/xfail, test deletion, or out-of-process test.
+
+## Isolation control
+
+`test_action_schema_was_built_with_real_datetime` runs under the same frozen
+marker and asserts that `TaskCreate.due_at` was built from the real `datetime`
+class, not `FakeDatetime`. It invokes no server, action, or model. If the
+module-level preload is removed, this control fails with the same Pydantic
+error that broke the hosted acceptance path; with the preload it proves the
+production schema is the one being exercised.
+
+Falsifiable prediction: on the exact primary selection, all three previously
+failing multi-day cases pass, the cancellation twin remains green, and the new
+control passes. A failure would mean a second frozen-time lazy import exists;
+the next observation is the first line of the new Pydantic/import error, not a
+business/Oracle assertion change.
+
+## Root-owned validation remaining
+
+Code/test authoring is complete; no Python, pytest, server, model, provider, or
+install command was executed here. Root must serially run the exact primary
+selection and then the full backend gate. This repair is not accepted until
+root verifies it at the exact head.
