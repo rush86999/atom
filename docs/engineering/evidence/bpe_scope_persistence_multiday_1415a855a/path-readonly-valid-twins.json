@@ -1,0 +1,12 @@
+{
+  "source": "201c9fc2fdce1234fe89784f79aef1f462a441d7",
+  "runtime_sha256": "53cbd3940fe924d4d96532c830c06aa1794d1a28c4e04bf35adefe8452071c1e",
+  "checks": {
+    "root_backend_equal": true,
+    "legacy_spelling": true,
+    "relative_backend_anchored": true,
+    "absolute_preserved": true,
+    "explicit_argument_preserved": true
+  },
+  "no_store_read_write": true
+}

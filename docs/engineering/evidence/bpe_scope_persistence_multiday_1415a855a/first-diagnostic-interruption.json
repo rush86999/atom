@@ -1,0 +1,8 @@
+{
+  "pid": 89884,
+  "at": 1794105424.0252411,
+  "reason": "owned test harness used frozen asyncio monotonic time; minimal negative/positive demonstrated default false stalls timers, real_asyncio true succeeds",
+  "not_product_test_failure": true,
+  "stack_sample": "root-multiday-live-sample.txt",
+  "all_scratch_records_retained": true
+}

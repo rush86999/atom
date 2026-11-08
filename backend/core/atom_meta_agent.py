@@ -514,6 +514,29 @@ class AtomMetaAgent:
         from core.agent_action_audit import bind_audit_context, log_agent_action
 
         exec_uuid = execution_id or str(uuid.uuid4())
+
+        # BPE principal scope (2026-11-08): bind the namespace from SERVER
+        # authority only. Some callers merge request/additional context into
+        # this dict, so a caller-supplied workspace/agent/session id must
+        # never choose the buffer. The rendered Prompt, episode reset and
+        # close-out all read this same binding.
+        try:
+            from core.bpe.actions import bind_trusted_scope
+            from core.chat_session_context import current_chat_session_id
+
+            bind_trusted_scope(
+                context,
+                workspace_id=self.workspace_id,
+                agent_id="atom_main",
+                # The caller-supplied ``execution_id`` is not a namespace
+                # source; only a server-bound chat turn or a fresh per-run
+                # key is.
+                scope_key=current_chat_session_id() or str(uuid.uuid4()),
+                user_id=getattr(getattr(self, "user", None), "id", None),
+            )
+        except Exception as _bpe_bind_err:  # noqa: BLE001
+            logger.debug(f"bpe scope bind skipped: {_bpe_bind_err}")
+
         _audit_token = None
         try:
             _audit_token = bind_audit_context(
@@ -1331,12 +1354,12 @@ class AtomMetaAgent:
                 from core.bpe.workspace import get_workspace as _get_ws
 
                 if _bpe_on():
-                    _bpe_ws = _get_ws(
-                        str((context or {}).get("workspace_id") or "default"),
-                        str((context or {}).get("agent_id") or "atom_main"),
-                        str((context or {}).get("session_id") or execution_id or ""),
-                    )
-                    _bpe_ws.reset_episode_counters()
+                    from core.bpe.actions import bpe_scope_from_context
+
+                    _bpe_scope = bpe_scope_from_context(context)
+                    if _bpe_scope[0]:
+                        _bpe_ws = _get_ws(*_bpe_scope)
+                        _bpe_ws.reset_episode_counters()
             except Exception as _bpe_err:
                 logger.debug(f"bpe episode reset skipped: {_bpe_err}")
 
@@ -1783,7 +1806,7 @@ class AtomMetaAgent:
                     else {"dropped_notes": len(_bpe_ws.drain_pending_notes())}
                 )
                 _policy = get_consult_policy()
-                _meta_agent_id = str((context or {}).get("agent_id") or "atom_main")
+                _meta_agent_id = "atom_main"
                 _policy.record_consult_mix(_meta_agent_id, _bpe_ws.episode_commit_notes)
                 _policy.record_episode(
                     _meta_agent_id,
@@ -1930,20 +1953,15 @@ class AtomMetaAgent:
             from core.bpe.workspace import get_workspace
 
             if bpe_enabled():
-                _scope_key = str(
-                    (context or {}).get("session_id")
-                    or (context or {}).get("execution_id")
-                    or ""
-                )
-                _ws = get_workspace(
-                    str((context or {}).get("workspace_id") or "default"),
-                    str((context or {}).get("agent_id") or "atom_main"),
-                    _scope_key,
-                )
-                _policy = get_consult_policy()
-                _agent_id = str((context or {}).get("agent_id") or "atom_main")
-                if _policy.should_render(_agent_id, "moderate", workspace_nonempty=True):
-                    bpe_block = "\n" + _ws.render(mode=_policy.render_mode(_agent_id)) + "\n"
+                from core.bpe.actions import bpe_scope_from_context
+
+                _bpe_scope = bpe_scope_from_context(context or {})
+                _ws = get_workspace(*_bpe_scope) if _bpe_scope[0] else None
+                if _ws is not None:
+                    _policy = get_consult_policy()
+                    _agent_id = "atom_main"
+                    if _policy.should_render(_agent_id, "moderate", workspace_nonempty=True):
+                        bpe_block = "\n" + _ws.render(mode=_policy.render_mode(_agent_id)) + "\n"
         except Exception as e:
             logger.debug(f"bpe workspace render skipped: {e}")
 

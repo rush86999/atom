@@ -517,8 +517,9 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "Genome application: auto (evidence-gated) | true (force apply) | false (proposal only)"),
     S("ATOM_BPE_EVOLUTION_ENABLED", "auto", C_BPE,
       "Legacy per-family apply override: auto | true (force) | false (hold)"),
-    S("ATOM_BPE_DATA_DIR", "backend/data/bpe_workspaces", C_BPE,
-      "Durable workspace snapshot directory"),
+    S("ATOM_BPE_DATA_DIR", "data/bpe_workspaces", C_BPE,
+      "Durable workspace snapshot directory (relative values anchor to backend/; "
+      "absolute paths pass through; legacy backend/data/... accepted)"),
 )
 
 _SPEC_INDEX: dict[str, SettingSpec] = {s.key: s for s in SETTING_CATALOG}

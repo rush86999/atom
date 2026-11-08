@@ -1,0 +1,29 @@
+{
+  "source": "1415a855a2adb63f8de4f20ae30524e4d999112a",
+  "root": "/private/tmp/root-feedback-sqlite-tirq39c8",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-bpe-persistence-write-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_bpe_current_principal_scope.py",
+    "tests/test_lead_bpe_rpc_scope.py",
+    "tests/core/test_bpe_persistence_write_truth.py",
+    "tests/core/test_bpe_persistence_path_anchoring.py",
+    "tests/core/test_bpe_evolution.py",
+    "tests/test_generic_information_multiday_contract.py",
+    "/private/tmp/test_root_bpe_workspace_authority.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-tirq39c8/pytest"
+  ]
+}
