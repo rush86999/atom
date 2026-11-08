@@ -504,10 +504,10 @@ def test_forced_sqlite_stale_writer_cannot_erase_peer_revocation(tmp_path):
     from core.capability_graduation_service import CapabilityGraduationService
     from core.models import AgentRegistry
 
-    # AUTOCOMMIT keeps the observed SELECT from holding a SQLite read snapshot
-    # so the peer commit is visible to the next conditional UPDATE.
-    engine = create_engine(
-        f"sqlite:///{tmp_path / 'cas_race.db'}", isolation_level="AUTOCOMMIT")
+    # Commit the peer immediately before the weak UPDATE reaches SQLite.
+    # An after-SELECT hook leaves its cursor open and prevents the peer commit;
+    # that tests an artificial cursor lock instead of the stale-writer race.
+    engine = create_engine(f"sqlite:///{tmp_path / 'cas_race.db'}")
     AgentRegistry.__table__.create(engine)
     Session = sessionmaker(bind=engine)
     capability = "finance.invoice.post"
@@ -525,30 +525,18 @@ def test_forced_sqlite_stale_writer_cannot_erase_peer_revocation(tmp_path):
 
     armed = [True]
 
-    @event.listens_for(engine, "after_cursor_execute")
+    @event.listens_for(engine, "before_cursor_execute")
     def _peer_commits_revocation(conn, cursor, statement, params, ctx, many):
         if not armed[0]:
             return
-        if "SELECT" not in statement.lstrip().upper()[:16]:
+        if not statement.lstrip().upper().startswith("UPDATE AGENT_REGISTRY"):
             return
         if "agent_registry" not in statement or "CAST" not in statement.upper():
             return
         armed[0] = False
         with Session() as peer:
-            agent = peer.get(AgentRegistry, "ag-race")
-            config = dict(agent.configuration or {})
-            config.setdefault("autonomy_revocations", {})[capability] = {
-                "at": datetime.now(timezone.utc).isoformat(),
-                "reason": "verified_regression",
-                "baseline_verified_success": 5,
-                "verified_success": 5,
-                "epoch": 1,
-                "reentry_successes": 0,
-            }
-            config.setdefault("capability_maturities", {})[
-                capability] = "student"
-            agent.configuration = config
-            peer.commit()
+            assert CapabilityGraduationService(peer).record_usage(
+                "ag-race", capability, False, "failed_verification") is True
 
     with Session() as db:
         service = CapabilityGraduationService(db)
@@ -594,17 +582,25 @@ def test_dirty_new_and_deleted_caller_state_is_never_committed(
         deleted_agent = caller.get(AgentRegistry, "atom-fleet")
         caller.commit()  # end the read transaction; keep dirty objects only
 
-        agent.name = "dirty-caller-name"
-        caller.delete(deleted_agent)
-        caller.add(AgentRegistry(
-            id="ag-pending-new", name="Pending", category="Ops",
-            role="agent", type="personal", module_path="m", class_name="C",
-            tenant_id=TENANT, workspace_id=WORKSPACE))
-        assert caller.new or caller.dirty or caller.deleted
+        # Keep this the unflushed twin. ORM delete cascades can otherwise
+        # autoflush the earlier name edit during fixture construction, turning
+        # it into the separate already-flushed/SQLite-lock refusal case.
+        with caller.no_autoflush:
+            agent.name = "dirty-caller-name"
+            caller.delete(deleted_agent)
+            caller.add(AgentRegistry(
+                id="ag-pending-new", name="Pending", category="Ops",
+                role="agent", type="personal", module_path="m", class_name="C",
+                tenant_id=TENANT, workspace_id=WORKSPACE))
+            assert caller.new or caller.dirty or caller.deleted
 
-        # An independent owned writer applies the credit; the caller's unit of
-        # work is neither committed nor rolled back.
-        assert _credit(caller) is True
+            # An independent owned writer applies the credit; the caller's unit of
+            # work is neither committed nor rolled back.
+            assert _credit(caller) is True
+            assert agent.name == "dirty-caller-name"
+            assert agent in caller.dirty
+            assert deleted_agent in caller.deleted
+            assert any(row.id == "ag-pending-new" for row in caller.new)
 
     with fleet_world.Session() as fresh:
         assert fresh.get(AgentRegistry, "ag-fleet").name == "Fleet Specialist"
