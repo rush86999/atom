@@ -233,3 +233,8 @@ evicted `r1` would look new and could become authority again.
 `backend/tests/test_assignment_external_reply_identity.py` is the authored,
 failure-first test. `LEAD_REVIEW.md` is this review. Nothing else was authored
 or changed.
+
+
+## Root fixture correction before product diagnosis
+
+Root executed bf1 on unchanged main production:3 failed/1 passed. Two controls stopped before the target behavior because an empty artifacts/ws-1 directory was treated as an artifact; a third compared a missing pre-repair receipt field (None) with an empty list. These are test-contract issues, not three product failures. Root corrected the artifact assertion to reject actual files recursively and normalized only the absent optional list in the comparison. All wait/business-result/effect/identity assertions remain. The original log/spec/exit is retained at root-assignment-reply-bf1-baseline. Production remains unchanged; the corrected controls must still demonstrate the actual gap independently before repair.

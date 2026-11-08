@@ -101,7 +101,7 @@ def _assert_wait_and_no_dependent_work(route_env, run_id, artifact_root):
     assert _wait(route_env, run_id)["status"] == "waiting"
     assert _applied(assignment, "invoice.reconcile") == []
     assert _applied(assignment, "artifact.") == []
-    assert not list(artifact_root.glob("*"))
+    assert not any(path.is_file() for path in artifact_root.rglob("*"))
     return assignment
 
 
@@ -224,7 +224,7 @@ def test_same_reply_identity_same_material_is_idempotent(
         assert replay.status_code == 200, replay.text
         assert replay.json()["status"] == "conflict", replay.text
         wait_now = _wait(route_env, run_id)
-        assert wait_now.get("reply_receipts") == receipts_before
+        assert (wait_now.get("reply_receipts") or []) == receipts_before
         assert wait_now["waiting"].get("conflicts") == conflicts_before
         assert len(route_env["lifecycle"].runs.get_decisions(run_id)) == (
             decisions_before)
