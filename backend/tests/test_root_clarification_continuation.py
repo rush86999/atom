@@ -398,3 +398,55 @@ def test_human_answer_rechecks_question_inside_the_cas(
     if peer_change == "resolved_same":
         assert response.json()["status"] == "already_resolved", response.json()
     assert route_env["lifecycle"].get_task(run_id) == winner[0]
+
+
+@pytest.mark.parametrize("answer_route", ["gap", "response"])
+def test_old_operation_on_same_step_cannot_settle_the_new_wait(
+        route_env, monkeypatch, answer_route):
+    import copy
+    from tests.test_assignment_gap_reply_identity import _start, _new_text_adapter
+
+    correlation = "same-step-new-generation"
+    again = {
+        "kind": "missing_evidence", "concept": "second_scope",
+        "question": "Confirm the second scope?", "reason": "another fact is required",
+        "waiting": {"state": "waiting_for_person", "party": "owner",
+                    "resume_on": "answer", "correlation_id": correlation},
+    }
+    adapter, calls = _new_text_adapter(route_env, correlation=correlation, re_raise=again)
+    run_id, _, original_question = _start(
+        route_env, adapter_name="test.clarification.generation." + uuid.uuid4().hex[:8],
+        adapter=adapter)
+    original_operation = original_question["source_operation"]
+    first = route_env["client"].post(
+        f"/api/assignments/{run_id}/responses/{correlation}",
+        json={"reply_id": "first-generation", "response": "first fact"})
+    assert first.status_code == 200, first.text
+    assert calls["n"] == 2
+    current_question = next(v for v in route_env["executor"].status(run_id)["open_gaps"]
+                            if v["question_id"] != original_question["question_id"])
+    assert current_question["source_operation"] != original_operation
+
+    def stale_generation(record):
+        task = copy.deepcopy(record["task_revision"])
+        entry = next(v for v in task["unresolved"]
+                     if v["question_id"] == current_question["question_id"])
+        entry["source_operation"] = original_operation
+        return {}, {"task_revision": task, "assignment": record["assignment"],
+                    "operations": record["operations"],
+                    "conversation_id": record.get("conversation_id")}, {
+                        "kind": "stale_generation", "rationale": "controlled stale binding"}
+    route_env["lifecycle"]._mutate(run_id, stale_generation)
+    before = route_env["lifecycle"].get_task(run_id)
+    if answer_route == "gap":
+        path = f"/api/assignments/{run_id}/gaps/{current_question['question_id']}/resolve"
+        body = {"resolution": "second fact"}
+        expected = 409
+    else:
+        path = f"/api/assignments/{run_id}/responses/{correlation}"
+        body = {"reply_id": "second-generation", "response": "second fact"}
+        expected = 404
+    response = route_env["client"].post(path, json=body)
+    assert response.status_code == expected, response.text
+    assert calls["n"] == 2
+    assert route_env["lifecycle"].get_task(run_id) == before
