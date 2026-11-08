@@ -1,0 +1,23 @@
+{
+  "source": "b7639cd5c90cadd29542db51c4216ff9558c791e",
+  "root": "/private/tmp/root-feedback-sqlite-kkoiiyuy",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-bpe-current-principal-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_bpe_rpc_scope.py",
+    "tests/test_bpe_current_principal_scope.py",
+    "/private/tmp/test_root_bpe_workspace_authority.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-feedback-sqlite-kkoiiyuy/pytest"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "executed_source": "1415a855a2adb63f8de4f20ae30524e4d999112a",
+  "source_files": {
+    "backend/api/rpc_routes.py": "f66596c732f6063eebed73224e95f34e2d6e19445df5040f18457f6ba15dd16d",
+    "backend/core/bpe/actions.py": "7580a4b387c32672f3724e6e9bcfb7546e8084c09b4d96ee624ce95cf436380c",
+    "backend/core/bpe/persistence.py": "53cbd3940fe924d4d96532c830c06aa1794d1a28c4e04bf35adefe8452071c1e",
+    "backend/core/bpe/workspace.py": "b1e9a5ed06416fa38da8ce623289ae2a18c13928534eddb695277d23730c5319",
+    "backend/core/generic_agent.py": "559108ef1e219ea36284f4c0e0112cc76d399807dcfc8de55466a435b76a28ba",
+    "backend/core/atom_meta_agent.py": "ae5d1281f525fd6fe8e42fde3f2a043b8a47ef4071aaf7de2acee38cb371a86d",
+    "backend/core/settings_catalog.py": "ac0b6aeee04353f2b4f0448eb62580ac05ea4662cdeb403daa660f7bf41ef08a",
+    "backend/tests/test_bpe_current_principal_scope.py": "c0495ee0836a6456ecfd1d6d1e655dd530dc3f64bcdd384f58c31c59b286ee62",
+    "backend/tests/test_lead_bpe_rpc_scope.py": "0ae58c8519d29d1d3a1526bce0bfdc749e935fad312bef567c9156b0b8e05e02",
+    "backend/tests/core/test_bpe_persistence_write_truth.py": "1f8938085822deef565b65e37efa65788e96a6e07c9a66d4f1bb009bb7cb7dd0",
+    "backend/tests/core/test_bpe_persistence_path_anchoring.py": "80079cfc382e9c96a986bb99433de7175dcbd7a276b7119847fde3d14f8c0ff4",
+    "backend/tests/core/test_bpe_evolution.py": "2bbbeac25020e0ba2d9c376405e651fa590e7ddf9a30dbee542de2e16ace4e0d",
+    "backend/tests/test_generic_information_multiday_contract.py": "76078d873a207c48255e8cf8ff341a7fac129e3f52ce0edc62305fd3ffed1cbf",
+    ".github/workflows/ci.yml": "3aa75a2baad26facfae97dd607ca2cf8839465cd48f7065268a29baf0b51886f"
+  },
+  "artifacts": {
+    "multiday-4-exit.json": "5bf08c892820c022815edc1c6f16fababed3de591f4c3dca18e90355e4c8c790",
+    "write-path-42.log": "494c2495d7b89650795798fa2d09ee2cafc543b0126990eb2f3f6b73afca5eaa",
+    "write-valid-and-failure-twins.json": "717e5b1de4006f1be7026ce57b4de285f41794392ff295813172c7e2000aed2f",
+    "integrated-spec.json": "2231139aaa8a1ab7d3325b2ec8adad922b37245549c468c90fb0914acb706625",
+    "original-write-negative.json": "cfc58c97242c5eec54e0486ae49cc520887dd3822c230fb60e42de2bc8c70ac2",
+    "integrated-exit.json": "09aa7a010fc059cd70252d5b7a98880853cca79e36defcf147902292d8501e48",
+    "original-path-negative.json": "35f0cfb9e5a3fef6cf95f487a1b70ef8fcc3ca5b1feb13dd5296c47db3441f3c",
+    "README.md": "f73122fc1a50a56ad6d0bacdea17a73424f86db611e4bc79afa8baa030de95fe",
+    "second-diagnostic-interruption.json": "d70b61a6565da0b07b660bc8bba8c5f86e8d5db308c4af17879fd85e0a30ad20",
+    "multiday-4.log": "98914a6f991ebb7dbfa776f132a4b7dd08f587bee1c124d77e4c8bc493f6c329",
+    "first-diagnostic-interruption.json": "57aa869ef44af1a4645127250c24ca310817166be37ba72ba5fb95e2b8330647",
+    "path-readonly-valid-twins.json": "6c85d5fce16fbb9ce9c719e7135704ac42c1b8beb20db678d721502ea6aa561a",
+    "clock-harness-negative-positive.json": "342b7c5748cef0f55b067e49bb24550c5ffb6cf551c48de913ed86e3b382414b",
+    "write-path-42-exit.json": "a6dcbd01277912e681b8bab69adaebfb3ba29ca50c349792144a10172fd4e01e",
+    "integrated.log": "11f3efa39036d73c16c82cedc730e1814859389ffa03763738271a389df1936f"
+  },
+  "scope": "focused scoped BPE and controlled multi-day continuation only"
+}

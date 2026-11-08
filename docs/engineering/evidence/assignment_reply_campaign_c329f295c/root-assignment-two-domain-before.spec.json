@@ -1,0 +1,23 @@
+{
+  "source": "da280ff1752a90648b958c8dbca163f57f8c411f",
+  "root": "/private/tmp/root-feedback-sqlite-imqpdc08",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-assignment-reply-identity-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_employee_two_domain_campaign.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-imqpdc08/pytest"
+  ]
+}

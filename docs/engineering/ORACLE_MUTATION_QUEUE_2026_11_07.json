@@ -1,0 +1,1384 @@
+{
+  "schema": "atom-oracle-mutation-queue-1",
+  "title": "ORACLE mutation queue \u2014 current-main static reconciliation",
+  "generated_at": "2026-11-07",
+  "status": "read-only static inventory and finite work-order preparation; not a qualification, acceptance, merge or runtime claim",
+  "evidence_cut": {
+    "remote_main": "8ded00232c30961a990e675e06ec672ef6a43910",
+    "audit_head": "33a9b541a",
+    "audit_head_note": "docs-only over 8ded; backend/frontend/scripts code diff empty",
+    "selected_candidate_source": "8ded00232c30961a990e675e06ec672ef6a43910"
+  },
+  "source_refs": {
+    "original_inventory": {
+      "commit": "95454de7a",
+      "code_source": "0f9796401",
+      "inventory_json_blob": "6d9734dfa3b1f5b98af4a691ce3eafb0c5c4cefd",
+      "readme_blob": "3f09abc08b27957f2fbdd74cccdaf95f1e3e7522",
+      "path": "docs/acceptance/evidence/oracle_whole_app_inventory_20261102/"
+    },
+    "pr757_snapshot": {
+      "pr": "#757",
+      "head": "7d4ca4d7d",
+      "executed_source": "90eac34a7",
+      "registry_counts_blob": "b9432104f95399aaf3a3cce4afb751b21cf60eea",
+      "path": "docs/acceptance/evidence/oracle_radio_mcp_replay_90eac34a7/",
+      "status": "submitted_not_merged"
+    },
+    "current_main_blobs": {
+      "backend/api/canvas_routes.py": "a27c3ca6446fb8d675ad096582d34e02b3f55949",
+      "backend/tools/canvas_crud_tool.py": "07d1a107228a53850025d11c6c79d5a4919778e5",
+      "backend/core/canvas_write_service.py": "f5425d67f04ee3654ecd39806d0224be2a368590",
+      "backend/core/oracle/postcondition_verifiers.py": "b011e2bc788b3442d470b0a87f887b1b07954d8c",
+      "backend/core/oracle/request_expectations.py": "131b53d7f4b25a703888f80d8a36c8e755f1e231",
+      "backend/core/models.py": "403113778fb29099df4f60d1780367b22906def2",
+      "backend/core/action_registry.py": "a5461ed3267c915027763857bb3a09286da9f224",
+      "backend/core/connected_actions.py": "3c6a611c804648ac573415106d9223fbf780809f",
+      "backend/core/agent_radio/radio_actions.py": "9b92ff68773d765a3d8068cf1b9789830258812c",
+      "backend/core/bpe/actions.py": "4c170ed61edebe4682fbe65b95bce2bbd7124943",
+      "backend/tools/registry.py": "68d38564849d78253c4e9d7b25245db578402621",
+      "backend/integrations/mcp_service.py": "811e953df8261ef6c20568dbae1413895271873f",
+      "backend/core/deployment_audience.py": "7bc92a952fa86a0539bb5a9822101441b7c88c98",
+      "backend/core/personal_scope.py": "ed530e39585f6ed0d2fcbcaeb79e4d51dc62f9a9",
+      "frontend-nextjs/pages/canvas/index.tsx": "403a169b99215f126f933110ed49f8083def7a3a"
+    },
+    "test_blobs": {
+      "backend/tests/test_canvas_crud.py": "6077dfeda1d3df994bfd4638ff680ed08d3f714f",
+      "backend/tests/test_canvas_idor.py": "fcfdb8eb8d02f1f2435f1a06d042793736bb373f",
+      "backend/tests/test_oracle_direct_canvas_writes.py": "426237527894ff500c664cad253a872a2980d764",
+      "backend/tests/test_postgres_compat_canvas_delete.py": "8c056b7c75c54f4f3c65460f5eb3002e47f5a129",
+      "backend/tests/test_covpush_canvasroutes.py": "7022522be0cdc337ec136ed55ce307967117a64b",
+      "backend/tests/integration/canvas/test_canvas_crud.py": "ba5fe8dba65f74577f0c6e9397e6779f8b818548",
+      "backend/tests/integration/contracts/test_canvas_api_contracts.py": "1628cf388f54ccdbc7276c7188a03b7c44c5ff59",
+      "backend/tests/test_canvas_assignment_integration.py": "c87e2091e7eb065e5427da80dca102ce7f0df3bf"
+    },
+    "accepted_put_restore_packet": {
+      "path": "docs/acceptance/evidence/oracle01_direct_canvas_82ac9681a_atomic_scope/",
+      "repair_source": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
+      "previous_source": "18e8af4a63a5f952e14a9c5f27dc81d6d313b918",
+      "scope": "PUT /api/canvas/{canvas_id} and POST /api/canvas/{canvas_id}/restore only",
+      "delete_undelete": "not covered"
+    },
+    "stale_registry_snapshots": {
+      "docs/acceptance/evidence/oracle_registry_coverage_20261107/": {
+        "source": "bb807d62d",
+        "shape": "90 actions / 26 mutations / 15 covered / 11 uncovered",
+        "note": "predates lazy radio/bpe registration and later verifiers; not the current snapshot"
+      }
+    }
+  },
+  "original_inventory": {
+    "preserved": true,
+    "mutating_http_routes": 827,
+    "high_risk_routes": 366,
+    "provider_write_methods": 311,
+    "registered_actions": 90,
+    "external_mutations_total": 6,
+    "external_mutations_covered": 6,
+    "local_mutations_total": 9,
+    "local_mutations_covered": 1,
+    "by_method": {
+      "DELETE": 61,
+      "PATCH": 15,
+      "POST": 711,
+      "PUT": 40
+    }
+  },
+  "current_rederivation": {
+    "source": "8ded00232c30961a990e675e06ec672ef6a43910",
+    "method": "AST replay of scripts/acceptance/oracle_mutation_surface_inventory.py rules over git archive; stdlib only; no app import/server/DB",
+    "mutating_http_routes": 836,
+    "high_risk_routes": 371,
+    "provider_write_methods": 311,
+    "by_method": {
+      "DELETE": 62,
+      "PATCH": 15,
+      "POST": 718,
+      "PUT": 41
+    },
+    "delta": {
+      "routes": 9,
+      "high_risk": 5,
+      "provider_write_methods": 0
+    }
+  },
+  "route_delta": {
+    "added": [
+      {
+        "method": "POST",
+        "declared_path": "/{agent_id}/jobs/{job_id}/answer",
+        "handler": "answer_agent_job_information_wait",
+        "file": "backend/api/agent_routes.py",
+        "line": 3450
+      },
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/sources",
+        "handler": "add_assignment_source",
+        "file": "backend/api/assignment_routes.py",
+        "line": 2087
+      },
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/advance",
+        "handler": "advance_assignment",
+        "file": "backend/api/assignment_routes.py",
+        "line": 2052
+      },
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/budget",
+        "handler": "extend_assignment_budget",
+        "file": "backend/api/assignment_routes.py",
+        "line": 1964
+      },
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/patch",
+        "handler": "patch_assignment_plan",
+        "file": "backend/api/assignment_routes.py",
+        "line": 2458
+      },
+      {
+        "method": "POST",
+        "declared_path": "/from-objective",
+        "handler": "start_employee_objective",
+        "file": "backend/api/assignment_routes.py",
+        "line": 1489
+      },
+      {
+        "method": "POST",
+        "declared_path": "/skills/{candidate_id}/apply",
+        "handler": "apply_skill_candidate",
+        "file": "backend/api/autodev_review_routes.py",
+        "line": 283
+      },
+      {
+        "method": "DELETE",
+        "declared_path": "/{goal_id}/utility",
+        "handler": "clear_goal_utility",
+        "file": "backend/api/goal_routes.py",
+        "line": 256
+      },
+      {
+        "method": "PUT",
+        "declared_path": "/{goal_id}/utility",
+        "handler": "set_goal_utility",
+        "file": "backend/api/goal_routes.py",
+        "line": 221
+      }
+    ],
+    "removed": [],
+    "high_risk_added": [
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/sources",
+        "handler": "add_assignment_source",
+        "file": "backend/api/assignment_routes.py",
+        "line": 2087
+      },
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/advance",
+        "handler": "advance_assignment",
+        "file": "backend/api/assignment_routes.py",
+        "line": 2052
+      },
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/budget",
+        "handler": "extend_assignment_budget",
+        "file": "backend/api/assignment_routes.py",
+        "line": 1964
+      },
+      {
+        "method": "POST",
+        "declared_path": "/{run_id}/patch",
+        "handler": "patch_assignment_plan",
+        "file": "backend/api/assignment_routes.py",
+        "line": 2458
+      },
+      {
+        "method": "POST",
+        "declared_path": "/from-objective",
+        "handler": "start_employee_objective",
+        "file": "backend/api/assignment_routes.py",
+        "line": 1489
+      }
+    ],
+    "high_risk_removed": [],
+    "provider_writes_added": [],
+    "provider_writes_removed": []
+  },
+  "registered_actions": {
+    "original_90_action_scope": {
+      "source": "0f9796401",
+      "note": "runtime import of core.action_registry + core.connected_actions only; lazy radio/bpe modules are not in this 90",
+      "actions": 90
+    },
+    "pr757_90eac34a7": {
+      "actions": 98,
+      "mutations": 30,
+      "covered": 27,
+      "uncovered": [
+        "mini_app_run",
+        "workspace.commit",
+        "workspace.note"
+      ],
+      "status": "submitted_not_merged"
+    },
+    "current_main_8ded": {
+      "actions": 98,
+      "mutations": 30,
+      "covered": 26,
+      "uncovered": [
+        "mini_app_run",
+        "radio.create_thread",
+        "workspace.commit",
+        "workspace.note"
+      ],
+      "verifiers_without_action": [
+        "trigger_workflow"
+      ],
+      "delta_vs_pr757": {
+        "actions_added": [],
+        "actions_removed": [],
+        "effect_changes": [],
+        "verifier_added": [],
+        "verifier_removed": [
+          "radio.create_thread"
+        ],
+        "meaning": "PR #757 adds exactly the radio.create_thread verifier; no action/effect delta"
+      }
+    }
+  },
+  "classification_vocabulary": {
+    "covered_bounded": "recorded bounded family evidence exists for the exact/subset action or route set; never whole-app",
+    "submitted_not_merged": "evidence or PR exists but is review-required/not merged into current main",
+    "unqualified": "no accepted or submitted bounded evidence found for the exact reachable family at current main",
+    "live_authority": "requires live account/provider authority not exercised in this static run",
+    "environment_limited": "requires PostgreSQL/multi-worker/KVM/browser/soak/other missing environment",
+    "deferred_profile": "outside the single-user Personal Edition next slice"
+  },
+  "family_queue": [
+    {
+      "priority": "P0",
+      "family": "canvas.lifecycle.delete_undelete",
+      "category": "unqualified",
+      "routes": [
+        {
+          "method": "DELETE",
+          "path": "/api/canvas/{canvas_id}",
+          "handler": "delete_canvas",
+          "file": "backend/api/canvas_routes.py"
+        },
+        {
+          "method": "POST",
+          "path": "/api/canvas/{canvas_id}/undelete",
+          "handler": "undelete_canvas",
+          "file": "backend/api/canvas_routes.py"
+        }
+      ],
+      "route_count": 2,
+      "high_risk_count": 2,
+      "parallel_consumers": [
+        "tools.registry:delete_canvas (manual, same writer)",
+        "tools.registry:restore_deleted_canvas (auto-discovered, same writer)",
+        "MCP local-tools execute_tool -> tools.registry.call path",
+        "frontend-nextjs/pages/canvas/index.tsx (HTTP caller)"
+      ],
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/oracle01_direct_canvas_82ac9681a_atomic_scope/routes.json",
+          "status": "accepted_put_restore_only",
+          "note": "not_covered lists other canvas routes; delete/undelete are not in the two-route family"
+        }
+      ],
+      "why": "Direct DELETE/undelete share the canvas CRUD writer but bypass the accepted PUT/restore scope+oracle service. Static read shows no tenant/workspace check, no operation identity, no CAS and no postcondition verifier.",
+      "next": "docs/engineering/CANVAS_LIFECYCLE_WORKORDER_2026_11_07.md",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P1",
+      "family": "assignment.delta_20261107",
+      "category": "unqualified",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/assignment/from-objective",
+          "handler": "start_employee_objective",
+          "file": "backend/api/assignment_routes.py"
+        },
+        {
+          "method": "POST",
+          "path": "/api/assignment/{run_id}/budget",
+          "handler": "extend_assignment_budget",
+          "file": "backend/api/assignment_routes.py"
+        },
+        {
+          "method": "POST",
+          "path": "/api/assignment/{run_id}/advance",
+          "handler": "advance_assignment",
+          "file": "backend/api/assignment_routes.py"
+        },
+        {
+          "method": "POST",
+          "path": "/api/assignment/{run_id}/sources",
+          "handler": "add_assignment_source",
+          "file": "backend/api/assignment_routes.py"
+        },
+        {
+          "method": "POST",
+          "path": "/api/assignment/{run_id}/patch",
+          "handler": "patch_assignment_plan",
+          "file": "backend/api/assignment_routes.py"
+        }
+      ],
+      "route_count": 5,
+      "high_risk_count": 5,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/durable_assignment_20261031/",
+          "status": "bounded_prior_family",
+          "note": "covers prior durable-assignment slices, not these five post-inventory routes"
+        }
+      ],
+      "why": "All five are high-risk additions after the canonical inventory. No accepted or submitted packet was found for the exact route set.",
+      "next": "Trace one route's current authority/CAS/receipt before qualifying or excluding it from assignment dispatch.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P1",
+      "family": "agent.jobs.answer",
+      "category": "submitted_not_merged",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/agents/{agent_id}/jobs/{job_id}/answer",
+          "handler": "answer_agent_job_information_wait",
+          "file": "backend/api/agent_routes.py"
+        }
+      ],
+      "route_count": 1,
+      "high_risk_count": 1,
+      "evidence": [
+        {
+          "ref": "docs/engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.md#6-task-wait-01",
+          "status": "task_wait_open"
+        },
+        {
+          "ref": "PR #753 / PR #759",
+          "status": "submitted_review_required"
+        }
+      ],
+      "why": "Route is merged on main; TASK-WAIT-01 is explicitly open and the later evidence heads are review-required/not merged.",
+      "next": "Use the existing TASK-WAIT-01 order; do not add a second wait/event engine.",
+      "runtime_claim": "none",
+      "category_scope": "qualification evidence is submitted_not_merged; the route itself is on main but TASK-WAIT-01 remains open"
+    },
+    {
+      "priority": "P1",
+      "family": "autodev.skill_apply",
+      "category": "unqualified",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/autodev/skills/{candidate_id}/apply",
+          "handler": "apply_skill_candidate",
+          "file": "backend/api/autodev_review_routes.py"
+        }
+      ],
+      "route_count": 1,
+      "high_risk_count": 1,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/employee_evolution_review_e4816e59c/",
+          "status": "bounded_decision_routes_only",
+          "note": "covers two tool-mutation decision routes, not this apply route"
+        }
+      ],
+      "why": "New apply route is not in the recorded evolution-review route set.",
+      "next": "Trace candidate identity, reviewer authority, apply readback and replay before claiming coverage.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P2",
+      "family": "goal.utility",
+      "category": "covered_bounded",
+      "routes": [
+        {
+          "method": "PUT",
+          "path": "/api/goals/{goal_id}/utility",
+          "handler": "set_goal_utility",
+          "file": "backend/api/goal_routes.py"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/goals/{goal_id}/utility",
+          "handler": "clear_goal_utility",
+          "file": "backend/api/goal_routes.py"
+        }
+      ],
+      "route_count": 2,
+      "high_risk_count": 1,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/goal02_utility_target_20261106/",
+          "status": "accepted_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/goal_utility_surface_20261107/",
+          "status": "merged_component_api_bounded"
+        },
+        {
+          "ref": "PR #754 / 8ded00232",
+          "status": "merged"
+        }
+      ],
+      "why": "Deterministic target persistence/ranking and scoped reads are merged and bounded-tested. Ordinary Goal Runs browser set/clear/ranking is still unrun.",
+      "next": "WO-GOAL-UI-03; do not claim ordinary browser or universal ranking.",
+      "runtime_claim": "component/api bounded only"
+    },
+    {
+      "priority": "P2",
+      "family": "canvas.capability",
+      "category": "submitted_not_merged",
+      "category_scope": "receipt/assign/teaching subset only; manifest/bind/select/export/edit/assess remainder is unqualified",
+      "routes": [
+        {
+          "method": "PUT",
+          "declared_path": "/{canvas_id}/capability/manifest",
+          "handler": "put_capability_manifest",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 242
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/bind",
+          "handler": "bind_capability_file",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 256
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/bind-json",
+          "handler": "bind_capability_json",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 283
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/bind-connected",
+          "handler": "bind_capability_connected",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 305
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/select",
+          "handler": "capability_select",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 329
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/calculate",
+          "handler": "capability_calculate",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 343
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/derive",
+          "handler": "capability_derive",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 357
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/derive/{clarification_id}/answer",
+          "handler": "capability_derive_answer",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 393
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/assign",
+          "handler": "capability_assign",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 413
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/teaching/propose",
+          "handler": "capability_teaching_propose",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 548
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/teaching/{proposal_id}/promote",
+          "handler": "capability_teaching_promote",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 570
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/assess",
+          "handler": "capability_assess",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 592
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/assess/{execution_id}/clarify",
+          "handler": "capability_clarify",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 613
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/assess/{execution_id}/approve",
+          "handler": "capability_approve_assessment",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 697
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/edit",
+          "handler": "capability_edit",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 712
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/capability/export",
+          "handler": "capability_export",
+          "file": "backend/api/canvas_capability_routes.py",
+          "line": 728
+        }
+      ],
+      "route_count": 16,
+      "high_risk_count": 2,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/canvas_assignment_batch_20261102/",
+          "status": "submitted_not_merged",
+          "note": "source acc22b9283bc; read its exact route scope before qualifying any subset"
+        }
+      ],
+      "why": "The packet covers typed-canvas receipts, guarded actions and teaching at a submitted source. The file contains more routes than the packet.",
+      "next": "Read the submitted packet's routes.json/README before selecting a subset; do not claim the whole file.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P2",
+      "family": "canvas.pdf",
+      "category": "unqualified",
+      "routes": [
+        {
+          "method": "POST",
+          "declared_path": "/create",
+          "handler": "create_blank_pdf_canvas",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 122
+        },
+        {
+          "method": "POST",
+          "declared_path": "/create/upload",
+          "handler": "create_pdf_canvas_from_upload",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 140
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/pages",
+          "handler": "apply_pdf_page_ops",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 186
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/merge/upload",
+          "handler": "merge_pdf_upload",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 206
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/merge/canvas",
+          "handler": "merge_pdf_from_canvas",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 226
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/extract-text",
+          "handler": "extract_pdf_text",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 245
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/lifecycle/{transition}",
+          "handler": "pdf_lifecycle_transition",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 259
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/attach-to-email",
+          "handler": "attach_pdf_to_email",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 279
+        },
+        {
+          "method": "POST",
+          "declared_path": "/create/generate",
+          "handler": "generate_pdf_canvas",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 305
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/form",
+          "handler": "set_pdf_form_fields",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 339
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/flatten",
+          "handler": "flatten_pdf_form",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 356
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/annotate",
+          "handler": "annotate_pdf",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 369
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/redact",
+          "handler": "redact_pdf",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 385
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/sign",
+          "handler": "sign_pdf",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 402
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/extract-text",
+          "handler": "extract_pdf_text",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 421
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/archive/onedrive",
+          "handler": "archive_pdf_to_onedrive",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 443
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/docusign",
+          "handler": "send_pdf_to_docusign",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 491
+        },
+        {
+          "method": "POST",
+          "declared_path": "/create/from-email-attachment",
+          "handler": "create_pdf_from_email_attachment",
+          "file": "backend/api/canvas_pdf_routes.py",
+          "line": 516
+        }
+      ],
+      "route_count": 18,
+      "high_risk_count": 6,
+      "evidence": [],
+      "why": "PDF page/merge/form/redact/sign/archive/docusign mutation routes have no whole-family oracle packet at this cut.",
+      "next": "After the lifecycle family, trace one high-risk PDF route with an existing caller; do not batch all 18.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P2",
+      "family": "canvas.email.draft_attachments",
+      "category": "unqualified",
+      "routes": [
+        {
+          "method": "PUT",
+          "declared_path": "/signature",
+          "handler": "set_email_signature",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 113
+        },
+        {
+          "method": "POST",
+          "declared_path": "/create",
+          "handler": "create_email_canvas",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 199
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/import-eml",
+          "handler": "import_eml_canvas",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 221
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/message",
+          "handler": "add_message",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 253
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/draft",
+          "handler": "save_draft",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 276
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/categorize",
+          "handler": "categorize_email",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 298
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/attachments",
+          "handler": "upload_email_attachments",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 360
+        },
+        {
+          "method": "DELETE",
+          "declared_path": "/{canvas_id}/attachments/{attachment_id}",
+          "handler": "delete_email_attachment",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 453
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/attachments/{attachment_id}/ingest",
+          "handler": "ingest_email_attachment",
+          "file": "backend/api/canvas_email_routes.py",
+          "line": 475
+        }
+      ],
+      "route_count": 9,
+      "high_risk_count": 4,
+      "evidence": [],
+      "why": "Draft/message/attachment/categorize routes bypass a shared postcondition readback. Send is separated as live authority.",
+      "next": "Trace save-draft and attachment mutation authority/content readback; no live send.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P2",
+      "family": "canvas.email.live_send",
+      "category": "live_authority",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/canvas/email/send",
+          "handler": "send_email_canvas",
+          "file": "backend/api/canvas_email_routes.py"
+        }
+      ],
+      "route_count": 1,
+      "high_risk_count": 1,
+      "evidence": [],
+      "why": "Sending requires a live provider/account and send authority; not exercised in this static run.",
+      "next": "Owner environment decision; no send in this campaign.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P2",
+      "family": "canvas.sheets_docs_coding_terminal",
+      "category": "unqualified",
+      "routes": [
+        {
+          "method": "POST",
+          "declared_path": "/create",
+          "handler": "create_spreadsheet",
+          "file": "backend/api/canvas_sheets_routes.py",
+          "line": 45
+        },
+        {
+          "method": "PUT",
+          "declared_path": "/{canvas_id}/cell",
+          "handler": "update_cell",
+          "file": "backend/api/canvas_sheets_routes.py",
+          "line": 67
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/chart",
+          "handler": "add_chart",
+          "file": "backend/api/canvas_sheets_routes.py",
+          "line": 88
+        },
+        {
+          "method": "POST",
+          "declared_path": "/create",
+          "handler": "create_document_canvas",
+          "file": "backend/api/canvas_docs_routes.py",
+          "line": 92
+        },
+        {
+          "method": "PUT",
+          "declared_path": "/{canvas_id}",
+          "handler": "update_document_content",
+          "file": "backend/api/canvas_docs_routes.py",
+          "line": 168
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/comment",
+          "handler": "add_comment",
+          "file": "backend/api/canvas_docs_routes.py",
+          "line": 199
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/comment/resolve",
+          "handler": "resolve_comment",
+          "file": "backend/api/canvas_docs_routes.py",
+          "line": 234
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/restore",
+          "handler": "restore_version",
+          "file": "backend/api/canvas_docs_routes.py",
+          "line": 292
+        },
+        {
+          "method": "POST",
+          "declared_path": "/create",
+          "handler": "create_coding_canvas",
+          "file": "backend/api/canvas_coding_routes.py",
+          "line": 42
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/file",
+          "handler": "add_file",
+          "file": "backend/api/canvas_coding_routes.py",
+          "line": 71
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/diff",
+          "handler": "add_diff",
+          "file": "backend/api/canvas_coding_routes.py",
+          "line": 100
+        },
+        {
+          "method": "POST",
+          "declared_path": "/create",
+          "handler": "create_terminal_canvas",
+          "file": "backend/api/canvas_terminal_routes.py",
+          "line": 59
+        },
+        {
+          "method": "POST",
+          "declared_path": "/{canvas_id}/output",
+          "handler": "add_output",
+          "file": "backend/api/canvas_terminal_routes.py",
+          "line": 83
+        }
+      ],
+      "route_count": 13,
+      "high_risk_count": 7,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/canvas_typed_canvases_20261101/",
+          "status": "bounded_typed_canvas_family",
+          "note": "does not cover every mutation route in these files"
+        }
+      ],
+      "why": "Typed-canvas content routes exist outside the accepted direct PUT/restore slice.",
+      "next": "Pick one typed route with a real caller and reuse canvas.update-style material/readback.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P2",
+      "family": "office.file_canvas",
+      "category": "unqualified",
+      "routes": [
+        {
+          "method": "POST",
+          "declared_path": "/upload",
+          "handler": "upload_office_file",
+          "file": "backend/api/office_routes.py",
+          "line": 240
+        },
+        {
+          "method": "POST",
+          "declared_path": "/excel",
+          "handler": "write_excel",
+          "file": "backend/api/office_routes.py",
+          "line": 339
+        },
+        {
+          "method": "POST",
+          "declared_path": "/excel/recalculate",
+          "handler": "recalculate_excel",
+          "file": "backend/api/office_routes.py",
+          "line": 354
+        },
+        {
+          "method": "POST",
+          "declared_path": "/excel/insert-rows",
+          "handler": "insert_excel_rows",
+          "file": "backend/api/office_routes.py",
+          "line": 366
+        },
+        {
+          "method": "POST",
+          "declared_path": "/excel/insert-columns",
+          "handler": "insert_excel_columns",
+          "file": "backend/api/office_routes.py",
+          "line": 381
+        },
+        {
+          "method": "POST",
+          "declared_path": "/excel/pivot-table",
+          "handler": "create_excel_pivot_table",
+          "file": "backend/api/office_routes.py",
+          "line": 409
+        },
+        {
+          "method": "POST",
+          "declared_path": "/excel/run-macro",
+          "handler": "run_excel_macro",
+          "file": "backend/api/office_routes.py",
+          "line": 422
+        },
+        {
+          "method": "POST",
+          "declared_path": "/word",
+          "handler": "modify_word",
+          "file": "backend/api/office_routes.py",
+          "line": 442
+        },
+        {
+          "method": "POST",
+          "declared_path": "/pptx",
+          "handler": "modify_pptx",
+          "file": "backend/api/office_routes.py",
+          "line": 467
+        },
+        {
+          "method": "POST",
+          "declared_path": "/present",
+          "handler": "present_coedit",
+          "file": "backend/api/office_routes.py",
+          "line": 481
+        },
+        {
+          "method": "POST",
+          "declared_path": "/sync-update",
+          "handler": "sync_update",
+          "file": "backend/api/office_routes.py",
+          "line": 531
+        }
+      ],
+      "route_count": 11,
+      "high_risk_count": 6,
+      "evidence": [],
+      "why": "Office file-to-canvas snapshot/write routes have no whole-family oracle packet. Only the read-side `deleted_canvas_ids` protection is visible.",
+      "next": "Trace one office write route after the lifecycle order; no browser/office files in this run.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P2",
+      "family": "mini_app.host_writes",
+      "category": "covered_bounded",
+      "routes": [
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps",
+          "handler": "create_mini_app",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 109
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/scaffold",
+          "handler": "scaffold_mini_app",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 139
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/{app_id}/logic",
+          "handler": "save_mini_app_logic",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 164
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/{app_id}/dev-run",
+          "handler": "dev_run_mini_app",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 190
+        },
+        {
+          "method": "PUT",
+          "declared_path": "/mini-apps/{app_id}",
+          "handler": "update_mini_app",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 280
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/{app_id}/publish",
+          "handler": "publish_mini_app",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 312
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/{app_id}/share",
+          "handler": "toggle_app_sharing",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 335
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/{app_id}/approve",
+          "handler": "approve_mini_app",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 356
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/by-token/{share_token}/install",
+          "handler": "install_by_share_token",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 377
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/{app_id}/install",
+          "handler": "install_mini_app",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 431
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/instances/{canvas_id}/assets",
+          "handler": "upload_instance_asset",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 458
+        },
+        {
+          "method": "DELETE",
+          "declared_path": "/mini-apps/instances/{canvas_id}/assets/{key}",
+          "handler": "delete_instance_asset",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 550
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/instances/{canvas_id}/records",
+          "handler": "append_instance_record",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 636
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/instances/{canvas_id}/records/query",
+          "handler": "query_instance_records_body",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 673
+        },
+        {
+          "method": "POST",
+          "declared_path": "/mini-apps/instances/{canvas_id}/records/count",
+          "handler": "count_instance_records",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 693
+        },
+        {
+          "method": "PUT",
+          "declared_path": "/mini-apps/instances/{canvas_id}/records/{record_id}",
+          "handler": "update_instance_record",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 732
+        },
+        {
+          "method": "DELETE",
+          "declared_path": "/mini-apps/instances/{canvas_id}/records/{record_id}",
+          "handler": "delete_instance_record",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 764
+        },
+        {
+          "method": "DELETE",
+          "declared_path": "/mini-apps/instances/{canvas_id}/records",
+          "handler": "delete_instance_record_series",
+          "file": "backend/api/mini_app_routes.py",
+          "line": 787
+        }
+      ],
+      "route_count": 18,
+      "high_risk_count": 10,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/",
+          "status": "bounded_supported_subset"
+        }
+      ],
+      "why": "Host-side producer/verifier evidence exists for supported mini-app writes; it is not every route in the file.",
+      "next": "Use the existing packet; do not re-run unchanged blobs.",
+      "runtime_claim": "bounded host subset only"
+    },
+    {
+      "priority": "P2",
+      "family": "mini_app.run",
+      "category": "unqualified",
+      "routes": [],
+      "route_count": 0,
+      "high_risk_count": 0,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/oracle_registry_coverage_20261107/",
+          "status": "uncovered_declared_mutation"
+        }
+      ],
+      "why": "`mini_app_run` is one of the four current-main uncovered declared mutations.",
+      "next": "Qualify or keep out of mutating assignment dispatch.",
+      "runtime_claim": "none",
+      "registered_action": "mini_app_run",
+      "note": "registered action, not a one-route claim; dev-run route exists separately"
+    },
+    {
+      "priority": "P3",
+      "family": "provider.connected_and_shopify_create",
+      "category": "covered_bounded",
+      "routes": [],
+      "route_count": 0,
+      "high_risk_count": 0,
+      "provider_write_methods": 311,
+      "covered_actions": [
+        "brennan.books.create_bill",
+        "brennan.books.create_estimate",
+        "brennan.outlook.create_draft",
+        "connected.books.create_bill",
+        "connected.books.create_estimate",
+        "connected.outlook.create_draft",
+        "shopify_create_article",
+        "shopify_create_blog",
+        "shopify_create_fulfillment",
+        "shopify_create_product"
+      ],
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/BRENNAN_CONNECTED_BATCH_20261101.md",
+          "status": "accepted_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/shopify_product_material_b71aa4a78/",
+          "status": "bounded_shopify_family"
+        },
+        {
+          "ref": "docs/acceptance/evidence/shopify_article_main_7a75ad486/",
+          "status": "bounded_shopify_family"
+        },
+        {
+          "ref": "docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/",
+          "status": "bounded_shopify_family"
+        }
+      ],
+      "why": "Ten registered create actions have verifiers. The remaining 300+ provider write methods do not become covered by this subset.",
+      "next": "Use merged packets; do not claim provider breadth.",
+      "runtime_claim": "bounded registered actions only"
+    },
+    {
+      "priority": "P3",
+      "family": "provider.live_connect_send_refresh",
+      "category": "live_authority",
+      "routes": [],
+      "route_count": 0,
+      "high_risk_count": 0,
+      "provider_write_methods": 311,
+      "evidence": [],
+      "why": "OAuth/connect/disconnect/refresh/send require live account authority.",
+      "next": "Owner decision; no account/provider action in this campaign.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P3",
+      "family": "provider.non_core_integrations",
+      "category": "deferred_profile",
+      "routes": [],
+      "route_count": 0,
+      "high_risk_count": 0,
+      "provider_write_methods": 311,
+      "evidence": [],
+      "why": "Trello/Dropbox/Asana/Telegram and similar integrations are outside the single-user pilot next slice.",
+      "next": "Defer; no breadth campaign.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P3",
+      "family": "merged_bounded_misc",
+      "category": "covered_bounded",
+      "routes": [],
+      "route_count": 0,
+      "high_risk_count": 0,
+      "evidence": [
+        {
+          "ref": "docs/acceptance/evidence/employee_agent_delete_e34de29d5/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/employee_agent_run_1a76d7151/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/employee_agent_replace_51d7d7821/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/employee_agent_stop_1faccf71c/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/employee_chat_fork_371cb197b/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/employee_agent_marketplace_7530ce554/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/employee_workflow_template_51b48004c/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/employee_memory_authority_88ee1e901/",
+          "status": "audit_records_merged_bounded"
+        },
+        {
+          "ref": "docs/acceptance/evidence/document_delete_truth_20261106/",
+          "status": "bounded_document_delete_truth"
+        }
+      ],
+      "why": "The root audit records these as merged bounded families. This packet does not re-open or rescore them.",
+      "next": "No action without contrary evidence.",
+      "runtime_claim": "bounded recorded sources only"
+    },
+    {
+      "priority": "P3",
+      "family": "postgres_multiwriter_soak",
+      "category": "environment_limited",
+      "routes": [],
+      "route_count": 0,
+      "high_risk_count": 0,
+      "evidence": [],
+      "why": "SQLite CAS and single-process evidence do not qualify PostgreSQL, multi-worker concurrency or soak.",
+      "next": "Separate COMPAT-03 environment/concurrency order.",
+      "runtime_claim": "none"
+    },
+    {
+      "priority": "P3",
+      "family": "installation_profile",
+      "category": "deferred_profile",
+      "routes": [],
+      "route_count": 0,
+      "high_risk_count": 0,
+      "evidence": [],
+      "why": "Install/backup/restore/rollback/restart is its own profile order.",
+      "next": "Separate MINI/installation order.",
+      "runtime_claim": "none"
+    }
+  ],
+  "canvas_lifecycle": {
+    "workorder": "docs/engineering/CANVAS_LIFECYCLE_WORKORDER_2026_11_07.md",
+    "probe_author_file": "docs/engineering/probes/canvas_lifecycle_probe_2026_11_07.py",
+    "http_entrypoints": [
+      "DELETE /api/canvas/{canvas_id} -> api.canvas_routes.delete_canvas:797 -> tools.canvas_crud_tool.delete_canvas:1305",
+      "POST /api/canvas/{canvas_id}/undelete -> api.canvas_routes.undelete_canvas:813 -> tools.canvas_crud_tool.restore_deleted_canvas:1512"
+    ],
+    "parallel_consumers": [
+      "tools.registry manual delete_canvas:751",
+      "tools.registry auto-discovered restore_deleted_canvas",
+      "MCP local-tools execute_tool path",
+      "frontend-nextjs/pages/canvas/index.tsx delete/restore calls"
+    ],
+    "current_authority": "_verify_canvas_owner = creator OR non-submit audit author; no tenant/workspace predicate; HTTP user from get_current_user; tool path can receive model-supplied user_id and MCP does not strip it except operator_*",
+    "current_writer": "append-only CanvasAudit delete tombstone / restore row; no operation_id, expected-prior CAS, audit_id receipt, oracle or fresh-session readback",
+    "hypotheses": [
+      "H1 foreign tenant/workspace co-editor can act because scope is unchecked",
+      "H2 no operation identity/replay/conflict contract",
+      "H3 HTTP 200 is not oracle-verified",
+      "H4 undelete cannot bind exact source content row/digest",
+      "H5 delete/undelete latest ordering lacks id tiebreak",
+      "H6 registered-tool user_id may be model-shaped",
+      "H7 replay may duplicate broadcast/learning without operation dedupe"
+    ],
+    "not_findings": [
+      "no runtime failure proven",
+      "no data corruption proven",
+      "no accepted PUT/restore regression"
+    ],
+    "parallel_delete_ish_paths_checked": [
+      "tools.canvas_tool.close_canvas (broadcast only, no CanvasAudit row)",
+      "core.email_attachment_store.delete_canvas_staged (staged files only)",
+      "core.pdf_canvas_store.delete_canvas_blobs (pdf blobs only)",
+      "core.office_sync_service (parallel updater; skips via deleted_canvas_ids)",
+      "tools.canvas_crud_tool.list_canvases/read_canvas (newest audit row is state)"
+    ]
+  },
+  "read_commands": [
+    "git -C /private/tmp/atom-current-claim-audit-20261107 rev-parse origin/main",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 rev-parse 33a9b541a",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 show 95454de7a:docs/acceptance/evidence/oracle_whole_app_inventory_20261102/inventory.json",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 show 90eac34a7:docs/acceptance/evidence/oracle_radio_mcp_replay_90eac34a7/registry-counts.json",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 show origin/main:backend/api/canvas_routes.py",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 show origin/main:backend/tools/canvas_crud_tool.py",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 show origin/main:backend/core/canvas_write_service.py",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 show origin/main:backend/core/oracle/postcondition_verifiers.py",
+    "python3 docs/engineering/probes/oracle_mutation_inventory_static_2026_11_07.py 0f9796401 origin/main /tmp/atom-oracle-delta",
+    "python3 docs/engineering/probes/oracle_registry_static_2026_11_07.py 0f9796401 origin/main /tmp/atom-oracle-delta",
+    "python3 docs/engineering/probes/oracle_registry_static_2026_11_07.py 90eac34a7 origin/main /tmp/atom-oracle-delta-pr757"
+  ],
+  "boundaries": [
+    "static declaration denominator, not mounted-route/runtime/reachability/effect proof",
+    "original 827/366/311 and 90-action inventory preserved; not overwritten",
+    "all 143 claim dispositions remain with the root audit; no rescore/closure",
+    "whole-app ORACLE-01 remains open",
+    "no tests/imports/server/browser/model/provider/live DB/install/download/spend/send/deploy/merge/review",
+    "no production change in this packet"
+  ],
+  "open_scope": {
+    "whole_app_oracle_01": "open",
+    "claim_campaign": "143-claim campaign scope remains OPEN with root; no claim closed or rescored here",
+    "selected_family": "canvas.lifecycle.delete_undelete",
+    "selected_family_runtime_claim": "none"
+  },
+  "validation": {
+    "route_method_validation": "the AST rules reproduce the original 827/366/311 exactly at 0f9796401",
+    "registry_validation": "the static parser reproduces 98/30/27/3 at 90eac34a7 and 98/30/26/4 at current main",
+    "code_diff_33a_vs_8ded": "docs/engineering only",
+    "no_route_removed": true,
+    "provider_write_delta": 0
+  }
+}

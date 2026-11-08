@@ -110,4 +110,10 @@ async def call_action(
             detail=f"Action '{action_name}' failed",
         )
 
-    return {"success": True, "data": result, "action": action_name}
+    # Do not hide an in-handler no-effect behind a success envelope: the
+    # action's own success flag is authoritative (e.g. BPE scope/authority
+    # refusals, which return a typed no-effect result without raising).
+    action_succeeded = not (
+        isinstance(result, dict) and result.get("success") is False
+    )
+    return {"success": action_succeeded, "data": result, "action": action_name}

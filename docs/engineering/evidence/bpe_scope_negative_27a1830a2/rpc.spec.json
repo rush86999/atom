@@ -1,0 +1,21 @@
+{
+  "source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "root": "/private/tmp/root-feedback-sqlite-7otchnrx",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/test_root_bpe_rpc_scope_v2.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-feedback-sqlite-7otchnrx/pytest"
+  ]
+}
