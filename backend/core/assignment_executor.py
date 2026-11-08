@@ -3293,6 +3293,43 @@ class AssignmentExecutor:
             key = canonical_sha256({
                 "observation_ids": observation_ids, "resolved_answers": answers,
             })[:20]
+        # External waits use the step receipt ledger rather than the question
+        # ledger. A new accepted fact is equally material to recovery, but raw
+        # response text or an unaccepted candidate must not rearm inference.
+        accepted_replies = []
+        for step in assignment.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            external = step.get("external_response")
+            if not isinstance(external, dict):
+                continue
+            identity = {name: external.get(name) for name in (
+                "correlation_id", "reply_id", "identity_kind", "material_sha256")}
+            digest = identity["material_sha256"]
+            step_id = step.get("step_id")
+            if (not isinstance(step_id, str) or not step_id
+                    or not isinstance(identity["correlation_id"], str)
+                    or not identity["correlation_id"]
+                    or not isinstance(identity["reply_id"], str)
+                    or identity["identity_kind"] not in ("explicit", "legacy")
+                    or not isinstance(digest, str) or len(digest) != 64
+                    or any(char not in "0123456789abcdef" for char in digest)):
+                continue
+            if not any(
+                receipt.get("outcome") == "resolved"
+                and all(receipt.get(name) == value for name, value in identity.items())
+                for receipt in _external_reply_receipts(step)
+            ):
+                continue
+            accepted_replies.append({"step_id": step_id, **identity})
+        if accepted_replies:
+            accepted_replies.sort(key=lambda value: (
+                value["step_id"], value["correlation_id"],
+                value["identity_kind"], value["reply_id"], value["material_sha256"]))
+            key = canonical_sha256({
+                "prior_evidence_key": key,
+                "accepted_external_replies": accepted_replies,
+            })[:20]
         return {"key": key, "observation_ids": observation_ids}
 
     def _evidence_recovery_plan(
