@@ -1,0 +1,190 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+FAIL tests/pages/goal-runs/detail.race-tmp.test.tsx
+  GoalRunDetailPage role gating
+    ○ skipped member: read-only banner, no coaching actions, no mode switcher
+    ○ skipped supervisor: mode switcher, coaching actions and promotion evidence
+    ○ skipped unknown role stays fail-open (backend enforces)
+    ○ skipped member still sees a held decision's rationale (record, not action)
+  GoalRunDetailPage journey finish-line (2026-09-10)
+    ○ skipped leads with the goal's title instead of a bare UUID
+    ○ skipped active run names its current step in the guidance banner
+    ○ skipped achieved run: no Advance/Cancel/mode — Distill is the next act
+    ○ skipped failed/cancelled runs can still be distilled (learn from the path taken)
+  GoalRunDetailPage role-based access (any business)
+    ○ skipped the run's OWNER works and approves it, but gets no supervisor powers
+    ○ skipped a DIFFERENT member is read-only on someone else's run
+    ○ skipped a supervisor can act on ANY run they do not own
+  GoalRun detail — coaching
+    ○ skipped links to the run agent's chat
+    ○ skipped teaches THIS goal by default and confirms where it landed
+    ○ skipped teaches all of the agent's work when the scope is switched
+    ○ skipped surfaces a failed teach instead of claiming success
+    ○ skipped shows what the agent learned, badged by scope
+    ○ skipped refreshes to the newer decision after a stale approval conflict
+    ○ skipped sends the override's lesson scope with the resume call
+  GoalRunDetailPage assignment projection ownership
+    ○ skipped shows the assignment plan read-only and sends no native advance
+    ○ skipped a caller-shaped marker without the trusted creation log stays native
+  Goal utility target (GOAL-02)
+    ✕ supervisor sets the existing target and sees the ranking after reload (77 ms)
+    ○ skipped member sees the target and truthful ranking but cannot mutate it
+    ○ skipped clears the target and removes the ranking
+    ○ skipped shows an unknown/no-eligible state without inventing a winner
+    ○ skipped surfaces a load error and retries without claiming a target
+
+  ● Goal utility target (GOAL-02) › supervisor sets the existing target and sees the ranking after reload
+
+    TestingLibraryElementError: Unable to find an element by: [data-testid="goal-utility-metric"]
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"container mx-auto py-8 max-w-4xl"[39m
+          [33mdata-testid[39m=[32m"goal-run-detail"[39m
+        [36m>[39m
+          [36m<title>[39m
+            [0mGoal run — Prepare a quote for the Acme lead[0m
+          [36m</title>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md mb-4"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-arrow-left h-4 w-4"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m12 19-7-7 7-7"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M19 12H5"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m All runs[0m
+          [36m</button>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start justify-between gap-4 mb-6 flex-wrap"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"text-2xl font-semibold flex items-center gap-2 flex-wrap"[39m
+                [33mdata-testid[39m=[32m"run-goal-heading"[39m
+              [36m>[39m
+                [0mPrepare a quote for the Acme lead[0m
+                [36m<div[39m
+                  [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+                [36m>[39m
+                  [0mactive[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+                [36m>[39m
+                  [0mshadow[0m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+                [36m>[39m
+                  [0msales[0m
+                [36m</div>[39m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-sm text-muted-foreground mt-1"[39m
+              [36m>[39m
+                [0m1[0m
+                [0m steps · [0m
+                [0m0[0m
+                [0m replans ·[0m
+                [0m [0m
+                [0m0[0m
+                [0m human interventions[0m
+                [0m · multi-touch sales process[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex gap-2 flex-wrap items-center"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex items-center gap-1 mr-1"[39m
+                [33mdata-testid[39m=[32m"mode-switcher"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md"[39m
+                  [33mtitle[39m=[32m"every decision waits for approval"[39m
+                [36m>[39m
+                  [0mtraining[0m
+                [36m</button>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary-600 text-white hover:bg-primary-700 h-9 px-3 rounded-md"[39m
+                  [33mdisabled[39m=[32m""[39m
+                  [33mtitle[39m=[32m"decisions execute; guardrails pause for you"[39m
+                [36m>[39m
+                  [0mshadow[0m
+                [36m</button>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md"[39m
+                  [33mtitle[39m=[32m"runs alone; checkpoints still notify you"[39m
+                [36m>[39m
+                  [0mautonomous[0m
+                [36m</button>[39m
+              [36m</div>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-play h-4 w-4"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0m Advance[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 f...
+
+      567 |
+      568 |     await waitFor(() => screen.getByTestId("goal-utility-no-target"));
+    > 569 |     fireEvent.change(screen.getByTestId("goal-utility-metric"), {
+          |                             ^
+      570 |       target: { value: "human_interventions" },
+      571 |     });
+      572 |     fireEvent.change(screen.getByTestId("goal-utility-direction"), {
+
+      at Object.getElementError (../../atom-agent4-upload-journey/frontend-nextjs/node_modules/@testing-library/dom/dist/config.js:37:19)
+      at ../../atom-agent4-upload-journey/frontend-nextjs/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+      at ../../atom-agent4-upload-journey/frontend-nextjs/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+      at ../../atom-agent4-upload-journey/frontend-nextjs/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+      at tests/pages/goal-runs/detail.race-tmp.test.tsx:569:29
+      at step (tests/pages/goal-runs/detail.race-tmp.test.tsx:77:23)
+      at Object.next (tests/pages/goal-runs/detail.race-tmp.test.tsx:58:53)
+      at fulfilled (tests/pages/goal-runs/detail.race-tmp.test.tsx:49:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 24 skipped, 25 total
+Snapshots:   0 total
+Time:        2.276 s
+Ran all test suites matching tests/pages/goal-runs/detail.race-tmp.test.tsx with tests matching "supervisor sets the existing target".
+WRAPPER_EXIT=1

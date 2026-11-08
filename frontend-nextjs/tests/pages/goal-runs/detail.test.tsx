@@ -559,19 +559,28 @@ describe("Goal utility target (GOAL-02)", () => {
 
   it("supervisor sets the existing target and sees the ranking after reload", async () => {
     mockUseUserRole.mockReturnValue(supervisorRole);
+    let resolveUtility!: (value: unknown) => void;
     getGoalUtility
       .mockReset()
-      .mockResolvedValueOnce({
-        goal_id: "goal-abcdef12-0000",
-        target: null,
-        ranking: [],
-        winner: null,
-        eligible_count: 0,
-      })
+      // Hold the first utility response open so the initial pre-load
+      // no-target placeholder cannot be mistaken for the settled state.
+      .mockReturnValueOnce(new Promise((resolve) => {
+        resolveUtility = resolve;
+      }))
       .mockResolvedValueOnce(ranked);
     render(<GoalRunDetailPage />);
 
+    await waitFor(() => expect(getGoalUtility).toHaveBeenCalledTimes(1));
+    await screen.findByTestId("goal-utility-loading");
+    resolveUtility({
+      goal_id: "goal-abcdef12-0000",
+      target: null,
+      ranking: [],
+      winner: null,
+      eligible_count: 0,
+    });
     await waitFor(() => screen.getByTestId("goal-utility-no-target"));
+    expect(screen.getByTestId("goal-utility-metric")).toBeInTheDocument();
     fireEvent.change(screen.getByTestId("goal-utility-metric"), {
       target: { value: "human_interventions" },
     });
