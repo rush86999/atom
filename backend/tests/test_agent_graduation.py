@@ -251,8 +251,17 @@ class TestGraduationExam:
     """Tests for graduation exam functionality"""
 
     @patch('core.agent_graduation_service.get_lancedb_handler')
-    def test_run_graduation_exam(self, mock_lancedb, db_session):
-        """Test running graduation exam on edge cases"""
+    def test_run_graduation_exam(
+        self, mock_lancedb, db_session, mock_student_agent, mock_episodes
+    ):
+        """Review three real authorized historical records, not nonexistent ids."""
+        mock_student_agent.tenant_id = "default"
+        mock_student_agent.workspace_id = "default"
+        db_session.add(mock_student_agent)
+        for number, episode in enumerate(mock_episodes[:3], start=1):
+            episode.id = f"edge_case_{number}"
+            db_session.add(episode)
+        db_session.commit()
         service = AgentGraduationService(db_session)
 
         import asyncio
@@ -264,6 +273,8 @@ class TestGraduationExam:
         assert "passed" in result
         assert "score" in result
         assert result["total_cases"] == 3
+        assert len(result["results"]) == 3
+        assert result["candidate_capability_qualified"] is False
 
     @patch('core.agent_graduation_service.get_lancedb_handler')
     def test_validate_constitutional_compliance(self, mock_lancedb, db_session):
