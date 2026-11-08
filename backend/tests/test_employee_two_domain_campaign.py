@@ -819,9 +819,15 @@ def test_procurement_campaign_waits_corrects_and_posts_supported_bill(env):
     # late reply: it reports the prior application without reviving the
     # completed assignment or creating a second effect.
     duplicate = restarted.record_external_response(
-        run_id, "corr-invoice-v2", response="corrected invoice v2 again")
+        run_id, "corr-invoice-v2", response="corrected invoice v2")
     assert duplicate["status"] == "already_applied"
     assert duplicate["assignment_status"] == "completed"
+    # Changed material is a new late reply, not proof of the earlier effect.
+    # It must not borrow that receipt or revive completed bookkeeping work.
+    changed = restarted.record_external_response(
+        run_id, "corr-invoice-v2", response="corrected invoice v2 again")
+    assert changed["status"] == "terminal"
+    assert changed["assignment_status"] == "completed"
     operations = len(env["lifecycle"].get_task(run_id)["operations"])
     _run(restarted.execute(run_id))
     assert len(env["lifecycle"].get_task(run_id)["operations"]) == operations

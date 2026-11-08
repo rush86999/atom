@@ -1,0 +1,23 @@
+{
+  "source": "70512246ba67a3a02bd82eda7bc45090c4eb4344",
+  "root": "/private/tmp/root-feedback-sqlite-zktpy3vy",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-assignment-reply-identity-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_root_assignment_reply_material_probe.py::test_changed_unkeyed_reply_after_completion_is_not_acknowledged_as_replay",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-zktpy3vy/pytest"
+  ]
+}

@@ -1,0 +1,64 @@
+
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_adapts_and_finishes_feasible_quote 
+-------------------------------- live log setup --------------------------------
+2026-11-08 00:42:19 [    INFO] EscalationManager initialized
+2026-11-08 00:42:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:42:19 [    INFO] EscalationManager initialized
+2026-11-08 00:42:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:42:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 00:42:19 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 00:42:19 [    INFO] runtime identity: source_id=c329f295ced2-dirty.0e3032e67265 revision=c329f295ced2 dirty=True (0 modified, 2 untracked)
+PASSED                                                                   [ 25%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_waits_corrects_and_posts_supported_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-08 00:42:21 [    INFO] Created HITL action 1973a6c0-6cf0-4f95-8e5b-cbdbc2fa4e77 for agent None
+PASSED                                                                   [ 50%]
+tests/test_employee_two_domain_campaign.py::test_procurement_campaign_period_close_blocks_bill 
+-------------------------------- live log call ---------------------------------
+2026-11-08 00:42:22 [    INFO] Created HITL action 02168240-ee61-4a6d-815b-dfb5e9dc3c66 for agent None
+PASSED                                                                   [ 75%]
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_refuses_infeasible_delivery PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_employee_two_domain_campaign.py::test_industrial_quote_campaign_adapts_and_finishes_feasible_quote
+  /private/tmp/atom-assignment-reply-identity-20261108/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 4 passed, 14 warnings in 19.20s ========================

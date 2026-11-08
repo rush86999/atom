@@ -116,6 +116,23 @@ class ExternalOutcomeNotApplied(AssignmentError):
         super().__init__(reason)
 
 
+class _ExternalReplyStop(Exception):
+    """Abort one external-reply CAS without writing.
+
+    The callback raises this after re-reading the fresh assignment and
+    deciding that the reply is an idempotent replay, an identity conflict, a
+    terminal refusal, or unmatched. Carrying the public result out this way
+    keeps all checks inside the lifecycle CAS while avoiding a task-version
+    bump, decision entry, or effect for a refused/replayed reply.
+    """
+
+    def __init__(self, result: Dict[str, Any]):
+        self.result = dict(result or {})
+        super().__init__(
+            str(self.result.get("message") or self.result.get("status") or
+                "external reply stopped"))
+
+
 @dataclass
 class AdapterDefinition:
     name: str
@@ -1520,6 +1537,182 @@ def _response_agrees_fact(
         if _canonical_fact_value(value)
     }
     return candidate in established
+
+
+_EXTERNAL_REPLY_NUMERIC_TYPES = ("quantity", "amount", "price")
+
+
+def _external_reply_identity_kind(reply_id: Optional[str]) -> str:
+    """Explicit IDs stay exact; omitted IDs use material-derived identity."""
+    return "explicit" if reply_id is not None else "legacy"
+
+
+def _external_reply_receipts(step: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [
+        dict(item) for item in (step.get("reply_receipts") or [])
+        if isinstance(item, dict)
+    ]
+
+
+def _external_reply_material_sha256(
+    *,
+    correlation_id: str,
+    waiting: Dict[str, Any],
+    response: Any,
+    source: Any,
+    evidence: Any,
+    value: Any,
+) -> str:
+    """Digest the complete reply material at one durable wait scope.
+
+    Every caller-supplied semantic field participates. Text, opaque source
+    refs, subjects and identities are used exactly as supplied: no case
+    folding, whitespace collapse or Unicode rewriting. Only the typed numeric
+    value uses the existing canonicalizer, so ``5.0`` and ``5`` compare equal
+    when the wait explicitly binds a numeric answer type. The digest is never
+    computed from a caller-supplied digest and never from a truncated display
+    projection.
+    """
+    typed_binding = bool(waiting.get("typed_binding"))
+    expected_type = str(waiting.get("expected_answer_type") or "")
+    reply_value = value if value not in (None, "") else response
+    if typed_binding and expected_type in _EXTERNAL_REPLY_NUMERIC_TYPES:
+        canonical_value: Any = _canonical_fact_value(reply_value)
+    elif value not in (None, ""):
+        canonical_value = value
+    else:
+        canonical_value = response
+    material = {
+        "correlation_id": str(correlation_id or ""),
+        "fact": str(waiting.get("fact") or ""),
+        "subject": str(waiting.get("subject") or ""),
+        "party": str(waiting.get("party") or ""),
+        "typed_binding": typed_binding,
+        "expected_answer_type": expected_type,
+        "response": str(response if response is not None else ""),
+        "source": str(source if source is not None else ""),
+        "evidence": str(evidence if evidence is not None else ""),
+        "value": canonical_value,
+    }
+    return canonical_sha256(material)
+
+
+def _external_reply_scope_matches(
+    receipt: Dict[str, Any],
+    *,
+    correlation_id: str,
+    fact: str,
+    subject: str,
+) -> bool:
+    return (
+        str(receipt.get("correlation_id") or "") == str(correlation_id or "")
+        and str(receipt.get("fact") or "") == str(fact or "")
+        and str(receipt.get("subject") or "") == str(subject or "")
+    )
+
+
+def _external_reply_matching_receipts(
+    receipts: Sequence[Dict[str, Any]],
+    *,
+    reply_id: Optional[str],
+    digest: str,
+    correlation_id: str,
+    fact: str,
+    subject: str,
+) -> List[Dict[str, Any]]:
+    kind = _external_reply_identity_kind(reply_id)
+    matches: List[Dict[str, Any]] = []
+    for receipt in receipts:
+        if str(receipt.get("identity_kind") or "") != kind:
+            continue
+        if kind == "explicit":
+            if str(receipt.get("reply_id") or "") != str(reply_id):
+                continue
+        elif str(receipt.get("material_sha256") or "") != digest:
+            continue
+        if not _external_reply_scope_matches(
+                receipt, correlation_id=correlation_id,
+                fact=fact, subject=subject):
+            continue
+        matches.append(receipt)
+    return matches
+
+
+def _external_reply_receipt(
+    *,
+    reply_id: Optional[str],
+    digest: str,
+    correlation_id: str,
+    waiting: Dict[str, Any],
+    outcome: str,
+    reason: str = "",
+    message: str = "",
+    conflict: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    receipt = {
+        "reply_id": reply_id if reply_id is not None else "",
+        "identity_kind": _external_reply_identity_kind(reply_id),
+        "material_sha256": digest,
+        "correlation_id": str(correlation_id or ""),
+        "fact": str(waiting.get("fact") or ""),
+        "subject": str(waiting.get("subject") or ""),
+        "outcome": str(outcome or "conflict"),
+        "reason": str(reason or ""),
+        "message": str(message or ""),
+        "at": _utc_now_iso(),
+    }
+    if conflict is not None:
+        receipt["conflict"] = copy.deepcopy(conflict)
+    return receipt
+
+
+def _external_reply_replay_result(
+    receipt: Dict[str, Any],
+    step: Dict[str, Any],
+    assignment_status: str,
+    *,
+    explicit: bool,
+) -> Dict[str, Any]:
+    outcome = str(receipt.get("outcome") or "conflict")
+    if outcome == "resolved":
+        # Explicit identities name the exact replay. Legacy identities keep
+        # their historical "resumed" outcome while the job is still in flight
+        # (old callers and concurrent tests expect it), but report the settled
+        # outcome once the assignment is terminal. The route/event path uses
+        # ``replayed`` to skip a second execute/advance in both cases.
+        settled_legacy = (
+            not explicit
+            and assignment_status in TERMINAL_ASSIGNMENT_STATES
+        )
+        return {
+            "status": (
+                "already_applied"
+                if explicit or settled_legacy else "resumed"),
+            "assignment_status": assignment_status,
+            "message": (
+                "This authorized reply was already accepted for the durable "
+                "wait; no second effect or resume was made."),
+            "step_id": step.get("step_id"),
+            "reply_id": receipt.get("reply_id") or "",
+            "material_sha256": receipt.get("material_sha256"),
+            "replayed": True,
+            "already_applied": True,
+        }
+    result = {
+        "status": outcome,
+        "assignment_status": assignment_status,
+        "message": receipt.get("message") or (
+            "This reply identity already produced this result; the wait is "
+            "unchanged."),
+        "fact": receipt.get("fact"),
+        "step_id": step.get("step_id"),
+        "reply_id": receipt.get("reply_id") or "",
+        "material_sha256": receipt.get("material_sha256"),
+        "replayed": True,
+    }
+    if receipt.get("conflict") is not None:
+        result["conflict"] = copy.deepcopy(receipt["conflict"])
+    return result
 
 
 def _artifact_text(kind: str, path: str) -> str:
@@ -4404,142 +4597,343 @@ class AssignmentExecutor:
         source: str = "",
         evidence: str = "",
         value: Any = None,
+        reply_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Match an authorized external reply to the waiting question.
 
         Matching is by the durable correlation id, never by message wording.
         An unmatched response is kept as evidence only and does not resume
         work.
+
+        An explicit opaque ``reply_id`` binds this run/wait scope to the exact
+        canonical material. A replay of the same identity + material is
+        idempotent; the same identity with any changed material is refused
+        before a state transition. Omitted IDs retain legacy behaviour by
+        deriving identity from the exact material digest + wait scope, so an
+        identical unkeyed retry replays while a corrected unkeyed reply remains
+        a new event. Reply IDs are identity, never authentication or scope
+        authority.
         """
         record = self.lifecycle.get_task(run_id)
         if record is None:
             raise AssignmentError(f"no task record on run {run_id}")
+
+        # Gap/question waits keep their existing resolution semantics. A
+        # direct step wait carries the typed external-reply contract below.
         assignment_status = str(
             (record.get("assignment") or {}).get("status") or "")
-        # A replay of an already-accepted reply is idempotent even after the
-        # assignment becomes terminal: it neither revives nor re-executes
-        # anything. A brand-new late reply on terminal work still refuses.
-        for step in (record.get("assignment") or {}).get("steps") or []:
-            prior = step.get("external_response") if isinstance(
-                step.get("external_response"), dict) else {}
-            if (str(prior.get("correlation_id") or "") == str(
-                    correlation_id or "")
-                    and str(step.get("status") or "") == "applied"):
-                return {
-                    "status": "already_applied",
-                    "assignment_status": assignment_status,
-                    "message": (
-                        "This authorized reply was already accepted for the "
-                        "durable wait; no second effect or resume was made."),
-                    "step_id": step.get("step_id"),
-                }
-        if assignment_status in TERMINAL_ASSIGNMENT_STATES:
-            # A late reply must not match or wake terminal work, even when a
-            # cancelled step still carries its historical wait record.
-            try:
-                self.lifecycle.runs.append_decision(run_id, {
-                    "kind": "external_response_refused",
-                    "rationale": (
-                        f"assignment {assignment_status}: response for "
-                        f"{correlation_id} not used"),
-                    "correlation_id": str(correlation_id or ""),
-                })
-            except Exception:  # noqa: BLE001 — refusal must still return
-                pass
-            return {
-                "status": "terminal",
-                "assignment_status": assignment_status,
-                "message": (
-                    f"The assignment is {assignment_status}; the response "
-                    "was not used to resume work."),
-            }
-        from core.task_lifecycle import open_unresolved_questions
-
-        assignment = record.get("assignment") or {}
         for question in open_unresolved_questions(record):
             waiting = question.get("waiting") or {}
             if str(waiting.get("correlation_id") or "") != str(
                     correlation_id or ""):
                 continue
+            if assignment_status in TERMINAL_ASSIGNMENT_STATES:
+                # A late reply must not resolve a question on terminal work.
+                try:
+                    self.lifecycle.runs.append_decision(run_id, {
+                        "kind": "external_response_refused",
+                        "rationale": (
+                            f"assignment {assignment_status}: response for "
+                            f"{correlation_id} not used"),
+                        "correlation_id": str(correlation_id or ""),
+                        "reply_id": reply_id if reply_id is not None else "",
+                    })
+                except Exception:  # noqa: BLE001 — refusal must still return
+                    pass
+                return {
+                    "status": "terminal",
+                    "assignment_status": assignment_status,
+                    "message": (
+                        f"The assignment is {assignment_status}; the response "
+                        "was not used to resume work."),
+                }
             return self.resolve_gap(
                 run_id, question["question_id"],
                 resolution=response, resolved_by=source, evidence=evidence)
 
         # A step may wait directly on an external correlation without a
-        # human question (e.g. a controlled reply). Match the step's durable
-        # correlation id, never the message wording.
-        assignment = record.get("assignment") or {}
-        fact_confirmation: Optional[Dict[str, Any]] = None
-        for step in assignment.get("steps") or []:
-            waiting = step.get("waiting") or {}
-            if str(waiting.get("correlation_id") or "") != str(
-                    correlation_id or ""):
-                continue
+        # human question (e.g. a controlled reply). Every identity, terminal,
+        # material and readiness decision is re-evaluated inside the lifecycle
+        # CAS callback below, so a concurrent writer cannot both wake.
+        def compute(record, current):
+            assignment_status = str(current.get("status") or "")
+            steps = [
+                step for step in (current.get("steps") or [])
+                if isinstance(step, dict)
+            ]
+            step = None
+            for candidate in steps:
+                waiting_candidate = candidate.get("waiting")
+                if not isinstance(waiting_candidate, dict):
+                    waiting_candidate = {}
+                if str(waiting_candidate.get("correlation_id") or "") == str(
+                        correlation_id or ""):
+                    step = candidate
+                    break
+            if step is None:
+                for candidate in steps:
+                    prior = candidate.get("external_response")
+                    if not isinstance(prior, dict):
+                        prior = {}
+                    if str(prior.get("correlation_id") or "") == str(
+                            correlation_id or ""):
+                        step = candidate
+                        break
+            if step is None:
+                if assignment_status in TERMINAL_ASSIGNMENT_STATES:
+                    raise _ExternalReplyStop({
+                        "status": "terminal",
+                        "assignment_status": assignment_status,
+                        "message": (
+                            f"The assignment is {assignment_status}; the "
+                            "response was not used to resume work."),
+                    })
+                raise _ExternalReplyStop({
+                    "status": "unmatched",
+                    "message": (
+                        "No open gap carries this correlation id. The "
+                        "response was not used to resume work."),
+                })
+
+            step_id = str(step.get("step_id") or "")
+            waiting = step.get("waiting")
+            if not isinstance(waiting, dict):
+                waiting = {}
+            external = step.get("external_response")
+            if not isinstance(external, dict):
+                external = {}
+            fact = str(waiting.get("fact") or external.get("fact") or "")
+            subject = str(
+                waiting.get("subject") or external.get("subject") or "")
+            open_wait = (
+                bool(waiting)
+                and str(step.get("status") or "") == "waiting"
+            )
+            # Once accepted, ``waiting`` is cleared so the resume loop cannot
+            # treat the step as still blocked. Exact replay must still hash
+            # against the ORIGINAL wait scope stored with the receipt.
+            digest_waiting = dict(waiting)
+            if not digest_waiting and external:
+                digest_waiting = {
+                    "fact": fact,
+                    "subject": subject,
+                    "party": str(external.get("party") or ""),
+                    "typed_binding": bool(external.get("typed_binding")),
+                    "expected_answer_type": str(
+                        external.get("expected_answer_type") or ""),
+                }
+            try:
+                digest = _external_reply_material_sha256(
+                    correlation_id=correlation_id, waiting=digest_waiting,
+                    response=response, source=source, evidence=evidence,
+                    value=value)
+            except (TypeError, ValueError) as exc:
+                raise _ExternalReplyStop({
+                    "status": "reply_conflict",
+                    "message": (
+                        "The authorized reply material could not be bound "
+                        "exactly; no wait state was changed."),
+                    "reason": "reply_material_unbindable",
+                    "step_id": step_id,
+                    "material_sha256": "",
+                    "detail": _bounded(str(exc), 300),
+                })
+            explicit = reply_id is not None
+            receipts = _external_reply_receipts(step)
+
+            def identity_conflict(
+                    reason, message, existing_digest=""):
+                return {
+                    "status": "reply_conflict",
+                    "message": message,
+                    "reason": reason,
+                    "step_id": step_id,
+                    "reply_id": reply_id if reply_id is not None else "",
+                    "material_sha256": digest,
+                    "expected_material_sha256": existing_digest,
+                }
+
+            # An explicit ID names one run/wait scope. Reusing it on another
+            # correlation/fact/subject is a scope conflict, not a new reply.
+            if explicit:
+                for other in steps:
+                    for receipt in _external_reply_receipts(other):
+                        if str(receipt.get("identity_kind") or "") != (
+                                "explicit"):
+                            continue
+                        if str(receipt.get("reply_id") or "") != str(
+                                reply_id):
+                            continue
+                        same_scope = (
+                            other is step
+                            and _external_reply_scope_matches(
+                                receipt,
+                                correlation_id=correlation_id,
+                                fact=fact, subject=subject)
+                        )
+                        if not same_scope:
+                            raise _ExternalReplyStop(identity_conflict(
+                                "reply_scope_conflict",
+                                "This reply identity is already bound to a "
+                                "different durable wait; it was not used.",
+                                str(receipt.get("material_sha256") or "")))
+
+            matches = _external_reply_matching_receipts(
+                receipts, reply_id=reply_id, digest=digest,
+                correlation_id=correlation_id, fact=fact, subject=subject)
+            if matches:
+                if any(str(item.get("material_sha256") or "") != digest
+                       for item in matches):
+                    raise _ExternalReplyStop(identity_conflict(
+                        "reply_id_material_conflict",
+                        "This reply identity was already used with different "
+                        "material; the changed reply was refused before any "
+                        "state transition.",
+                        str(matches[-1].get("material_sha256") or "")))
+                receipt = matches[-1]
+                outcome = str(receipt.get("outcome") or "conflict")
+                if outcome == "resolved" or external:
+                    raise _ExternalReplyStop(
+                        _external_reply_replay_result(
+                            receipt, step, assignment_status,
+                            explicit=explicit))
+                if assignment_status in TERMINAL_ASSIGNMENT_STATES:
+                    raise _ExternalReplyStop({
+                        "status": "terminal",
+                        "assignment_status": assignment_status,
+                        "message": (
+                            f"The assignment is {assignment_status}; the "
+                            "response was not used to resume work."),
+                    })
+                raise _ExternalReplyStop(
+                    _external_reply_replay_result(
+                        receipt, step, assignment_status,
+                        explicit=explicit))
+
+            # An omitted ID is still material-derived. Only the exact digest
+            # matched above can certify a replay; changed terminal input is
+            # a new event and must be refused, never credited to an older
+            # accepted reply. Legacy partial -> corrected replies while the
+            # wait is open remain separate, compatible events.
+            if assignment_status in TERMINAL_ASSIGNMENT_STATES:
+                raise _ExternalReplyStop({
+                    "status": "terminal",
+                    "assignment_status": assignment_status,
+                    "message": (
+                        f"The assignment is {assignment_status}; the "
+                        "response was not used to resume work."),
+                })
+            if not open_wait:
+                raise _ExternalReplyStop({
+                    "status": "terminal",
+                    "assignment_status": assignment_status,
+                    "message": (
+                        "The durable wait is already settled; this new reply "
+                        "identity was not used to resume work."),
+                })
+
             typed_binding = bool(waiting.get("typed_binding"))
             expected_type = str(
                 waiting.get("expected_answer_type") or "").strip()
             reply_value = value if value not in (None, "") else response
+
+            def conflict_entry(reason, message, **extra):
+                entry = {
+                    "correlation_id": str(correlation_id or ""),
+                    "fact": fact,
+                    "subject": subject,
+                    "response": _bounded(response, 2000),
+                    "source": _bounded(source, 200),
+                    "evidence": _bounded(evidence, 500),
+                    "at": _utc_now_iso(),
+                    "reason": reason,
+                    "reply_id": reply_id if reply_id is not None else "",
+                    "identity_kind": _external_reply_identity_kind(reply_id),
+                    "material_sha256": digest,
+                }
+                entry.update(extra)
+                return entry
+
+            def record_non_resolving(outcome, reason, message, conflict):
+                new_plan = copy.deepcopy(current)
+                item = step_by_id(new_plan, step_id)
+                if item is None:
+                    raise _ExternalReplyStop({
+                        "status": "unmatched",
+                        "message": (
+                            "No open gap carries this correlation id. The "
+                            "response was not used to resume work."),
+                    })
+                item_receipts = _external_reply_receipts(item)
+                item_receipts.append(_external_reply_receipt(
+                    reply_id=reply_id, digest=digest,
+                    correlation_id=correlation_id, waiting=waiting,
+                    outcome=outcome, reason=reason, message=message,
+                    conflict=conflict))
+                item["reply_receipts"] = item_receipts
+                waiting_now = dict(item.get("waiting") or {})
+                conflicts = [
+                    dict(entry) for entry in
+                    (waiting_now.get("conflicts") or [])
+                    if isinstance(entry, dict)
+                ]
+                conflicts.append(conflict)
+                waiting_now["conflicts"] = conflicts[-10:]
+                item["waiting"] = waiting_now
+                item["updated_at"] = _utc_now_iso()
+                new_plan["updated_at"] = _utc_now_iso()
+                return new_plan, {
+                    "status": outcome,
+                    "message": message,
+                    "fact": fact,
+                    "conflict": conflict,
+                    "step_id": step_id,
+                    "reply_id": reply_id if reply_id is not None else "",
+                    "material_sha256": digest,
+                }
+
             if typed_binding and expected_type in (
-                    "quantity", "amount", "price"):
+                    _EXTERNAL_REPLY_NUMERIC_TYPES):
                 try:
                     parsed = Decimal(str(reply_value).strip())
                 except (InvalidOperation, ValueError):
-                    return {
-                        "status": "conflict",
-                        "message": (
-                            f"The authorized reply for '{waiting.get('fact')}' "
-                            "does not carry the expected "
-                            f"{expected_type}."),
-                        "fact": waiting.get("fact"),
-                        "conflict": {
-                            "correlation_id": correlation_id,
-                            "reason": "invalid_answer_type",
-                            "expected": expected_type,
-                            "response": _bounded(response, 2000),
-                            "at": _utc_now_iso(),
-                        },
-                    }
+                    message = (
+                        f"The authorized reply for '{fact}' does not carry "
+                        f"the expected {expected_type}.")
+                    conflict = conflict_entry(
+                        "invalid_answer_type", message,
+                        expected=expected_type)
+                    return record_non_resolving(
+                        "conflict", "invalid_answer_type", message, conflict)
                 if not parsed.is_finite() or parsed < 0:
-                    return {
-                        "status": "conflict",
-                        "message": (
-                            f"The authorized reply for '{waiting.get('fact')}' "
-                            f"must be a finite nonnegative {expected_type}."),
-                        "fact": waiting.get("fact"),
-                        "conflict": {
-                            "correlation_id": correlation_id,
-                            "reason": "invalid_answer_value",
-                            "expected": expected_type,
-                            "response": _bounded(response, 2000),
-                            "at": _utc_now_iso(),
-                        },
-                    }
+                    message = (
+                        f"The authorized reply for '{fact}' must be a finite "
+                        f"nonnegative {expected_type}.")
+                    conflict = conflict_entry(
+                        "invalid_answer_value", message,
+                        expected=expected_type)
+                    return record_non_resolving(
+                        "conflict", "invalid_answer_value", message, conflict)
+
             expected_party = _normalized_fact_name(waiting.get("party"))
             actual_party = _normalized_fact_name(source)
             if (typed_binding and expected_party and actual_party
                     and expected_party not in actual_party
                     and actual_party not in expected_party):
-                return {
-                    "status": "conflict",
-                    "message": (
-                        f"The reply came from '{source}', not the expected "
-                        f"authorized source/channel "
-                        f"'{waiting.get('party')}'."),
-                    "fact": waiting.get("fact"),
-                    "conflict": {
-                        "correlation_id": correlation_id,
-                        "reason": "wrong_source_channel",
-                        "expected": waiting.get("party"),
-                        "actual": source,
-                        "response": _bounded(response, 2000),
-                        "at": _utc_now_iso(),
-                    },
-                }
-            fact = str(waiting.get("fact") or "").strip()
+                message = (
+                    f"The reply came from '{source}', not the expected "
+                    f"authorized source/channel '{waiting.get('party')}'.")
+                conflict = conflict_entry(
+                    "wrong_source_channel", message,
+                    expected=waiting.get("party"), actual=source)
+                return record_non_resolving(
+                    "conflict", "wrong_source_channel", message, conflict)
+
             fact_resolution = (
                 _source_fact_resolution(record, fact)
                 if fact else {"status": "unknown", "fact": fact})
             fact_status = str(fact_resolution.get("status") or "unknown")
+            fact_confirmation: Optional[Dict[str, Any]] = None
             if fact and fact_status in (
                     "established", "mixed", "unavailable", "incomplete"):
                 agrees = _response_agrees_fact(
@@ -4568,50 +4962,6 @@ class AssignmentExecutor:
                         "unavailable": "source_fact_unavailable",
                         "incomplete": "source_fact_incomplete",
                     }.get(fact_status, "source_fact_conflict")
-                    conflict = {
-                        "correlation_id": correlation_id,
-                        "fact": fact,
-                        "response": _bounded(response, 2000),
-                        "source": _bounded(source, 200),
-                        "evidence": _bounded(evidence, 500),
-                        "at": _utc_now_iso(),
-                        "reason": conflict_reason,
-                        "column": fact_resolution.get("column"),
-                        "established_values": (
-                            fact_resolution.get("values") or []),
-                        "subjects": fact_resolution.get("subjects") or [],
-                        "blank_subjects": (
-                            fact_resolution.get("blank_subjects") or []),
-                        "source_ref": fact_resolution.get("source") or {},
-                        "source_version": (
-                            fact_resolution.get("source_version")),
-                        "detail": fact_resolution.get("detail"),
-                        "resolution_reason": fact_resolution.get("reason"),
-                    }
-
-                    def record_conflict(record, current):
-                        new_plan = copy.deepcopy(current)
-                        item = step_by_id(new_plan, step["step_id"])
-                        if item is None:
-                            return new_plan, {}
-                        waiting_now = dict(item.get("waiting") or {})
-                        conflicts = [
-                            dict(entry) for entry in
-                            (waiting_now.get("conflicts") or [])
-                            if isinstance(entry, dict)
-                        ]
-                        conflicts.append(conflict)
-                        waiting_now["conflicts"] = conflicts[-10:]
-                        item["waiting"] = waiting_now
-                        item["updated_at"] = _utc_now_iso()
-                        new_plan["updated_at"] = _utc_now_iso()
-                        return new_plan, {"step_id": step["step_id"]}
-
-                    result = self.lifecycle.mutate_assignment(
-                        run_id, record_conflict,
-                        rationale=(
-                            f"external response did not resolve {fact}; "
-                            f"source fact status is {fact_status}"))
                     if conflict_status == "conflict":
                         message = (
                             f"The source already establishes '{fact}' and the "
@@ -4630,89 +4980,139 @@ class AssignmentExecutor:
                             f"The accepted selection for '{fact}' has "
                             "incomplete coverage; the reply was recorded but "
                             "did not complete the wait.")
-                    return {
-                        "status": conflict_status,
-                        "message": message,
-                        "fact": fact,
-                        "conflict": conflict,
-                        **result,
-                    }
-            operation_id = _operation_id_for_step(record, step)
-            if operation_id:
-                operation = _operation_by_id(record, operation_id) or {}
-                if operation.get("status") == "waiting":
-                    try:
-                        self.lifecycle.transition_operation(
-                            run_id, operation_id, "superseded")
-                    except TaskLifecycleError:
-                        pass
+                    conflict = conflict_entry(
+                        conflict_reason, message,
+                        column=fact_resolution.get("column"),
+                        established_values=(
+                            fact_resolution.get("values") or []),
+                        subjects=fact_resolution.get("subjects") or [],
+                        blank_subjects=(
+                            fact_resolution.get("blank_subjects") or []),
+                        source_ref=fact_resolution.get("source") or {},
+                        source_version=(
+                            fact_resolution.get("source_version")),
+                        detail=fact_resolution.get("detail"),
+                        resolution_reason=fact_resolution.get("reason"))
+                    return record_non_resolving(
+                        conflict_status, conflict_reason, message, conflict)
 
-            def compute(record, current):
-                new_plan = copy.deepcopy(current)
-                item = step_by_id(new_plan, step["step_id"])
-                if item is None:
-                    return new_plan, {}
-                waiting_before = dict(item.get("waiting") or {})
-                budget = dict(new_plan.get("budget") or {})
-                active = dict(budget.get("active_wait") or {})
-                current_operation_id = (
-                    item.get("wait_operation_id")
-                    or _operation_id_for_step(record, item)
-                    or operation_id)
-                current_operation = (
-                    _operation_by_id(record, current_operation_id)
-                    if current_operation_id else {}) or {}
-                wait_id = active.get("id") or self._wait_credit_id(
-                    item, waiting_before, current_operation_id)
-                wait_started = (
-                    active.get("started_at")
-                    or waiting_before.get("since")
-                    or current_operation.get("claimed_at"))
-                item["status"] = "pending"
-                item["attempts"] = int(item.get("attempts") or 0) + 1
-                item["operation_id"] = None
-                item["waiting"] = None
-                item["external_response"] = {
-                    "correlation_id": correlation_id,
-                    "fact": fact,
-                    "response": _bounded(response, 2000),
-                    "source": _bounded(source, 200),
-                    "evidence": _bounded(evidence, 500),
-                    "fact_resolution": fact_resolution,
-                    "at": _utc_now_iso(),
-                }
-                if fact_confirmation:
-                    item["external_response"]["fact_confirmation"] = (
-                        fact_confirmation)
-                # Credit the actual wait interval once, keyed by the durable
-                # wait identity. This path clears ``waiting`` before the
-                # executor's resume loop runs, so it must record the interval
-                # here; it never extends to a later retry.
-                self._credit_wait_once(
-                    budget, wait_id=wait_id or "",
-                    started_at=wait_started,
-                    ended_at=item["external_response"]["at"])
-                new_plan["budget"] = budget
-                item["updated_at"] = _utc_now_iso()
-                new_plan["status"] = "planned"
-                new_plan["updated_at"] = _utc_now_iso()
-                return new_plan, {"step_id": step["step_id"]}
+            # The existing typed/source/fact readiness has verified this
+            # reply. Accept it exactly once under the same CAS write.
+            new_plan = copy.deepcopy(current)
+            item = step_by_id(new_plan, step_id)
+            if item is None:
+                raise _ExternalReplyStop({
+                    "status": "unmatched",
+                    "message": (
+                        "No open gap carries this correlation id. The "
+                        "response was not used to resume work."),
+                })
+            operation_id = _operation_id_for_step(record, item)
+            waiting_before = dict(item.get("waiting") or {})
+            budget = dict(new_plan.get("budget") or {})
+            active = dict(budget.get("active_wait") or {})
+            current_operation = (
+                _operation_by_id(record, operation_id)
+                if operation_id else {}) or {}
+            wait_id = active.get("id") or self._wait_credit_id(
+                item, waiting_before, operation_id)
+            wait_started = (
+                active.get("started_at")
+                or waiting_before.get("since")
+                or current_operation.get("claimed_at"))
+            accepted_at = _utc_now_iso()
+            item["status"] = "pending"
+            item["attempts"] = int(item.get("attempts") or 0) + 1
+            item["operation_id"] = None
+            item["waiting"] = None
+            item["external_response"] = {
+                "correlation_id": correlation_id,
+                "fact": fact,
+                "subject": subject,
+                "party": str(waiting.get("party") or ""),
+                "typed_binding": bool(waiting.get("typed_binding")),
+                "expected_answer_type": str(
+                    waiting.get("expected_answer_type") or ""),
+                "response": _bounded(response, 2000),
+                "source": _bounded(source, 200),
+                "evidence": _bounded(evidence, 500),
+                "fact_resolution": fact_resolution,
+                "reply_id": reply_id if reply_id is not None else "",
+                "identity_kind": _external_reply_identity_kind(reply_id),
+                "material_sha256": digest,
+                "at": accepted_at,
+            }
+            if fact_confirmation:
+                item["external_response"]["fact_confirmation"] = (
+                    fact_confirmation)
+            item_receipts = _external_reply_receipts(item)
+            item_receipts.append(_external_reply_receipt(
+                reply_id=reply_id, digest=digest,
+                correlation_id=correlation_id, waiting=waiting,
+                outcome="resolved", reason="source_fact_confirmed",
+                message="The authorized reply completed the durable wait."))
+            item["reply_receipts"] = item_receipts
+            # Credit the actual wait interval once, keyed by the durable wait
+            # identity. This path clears ``waiting`` before the executor's
+            # resume loop runs, so it must record the interval here; it never
+            # extends to a later retry.
+            self._credit_wait_once(
+                budget, wait_id=wait_id or "",
+                started_at=wait_started, ended_at=accepted_at)
+            new_plan["budget"] = budget
+            item["updated_at"] = accepted_at
+            new_plan["status"] = "planned"
+            new_plan["updated_at"] = accepted_at
+            return new_plan, {
+                "status": "resumed",
+                "step_id": step_id,
+                "operation_id": operation_id,
+                "event": str(waiting.get("event") or "email"),
+                "reply_id": reply_id if reply_id is not None else "",
+                "material_sha256": digest,
+            }
 
+        try:
             result = self.lifecycle.mutate_assignment(
                 run_id, compute,
                 rationale=f"external response matched {correlation_id}")
-            self._wake_run(run_id, {
-                "event": str(waiting.get("event") or "email"),
-                "correlation_id": correlation_id,
-                "source": "assignment_external_response",
-            })
-            return {"status": "resumed", **result}
-        return {
-            "status": "unmatched",
-            "message": (
-                "No open gap carries this correlation id. The response was "
-                "not used to resume work."),
-        }
+        except _ExternalReplyStop as stop:
+            result = stop.result
+            if result.get("status") == "terminal":
+                # A late reply must not match or wake terminal work, even when
+                # a cancelled step still carries its historical wait record.
+                try:
+                    self.lifecycle.runs.append_decision(run_id, {
+                        "kind": "external_response_refused",
+                        "rationale": (
+                            f"assignment {result.get('assignment_status')}: "
+                            f"response for {correlation_id} not used"),
+                        "correlation_id": str(correlation_id or ""),
+                        "reply_id": reply_id if reply_id is not None else "",
+                    })
+                except Exception:  # noqa: BLE001 — refusal must still return
+                    pass
+            return result
+
+        if str(result.get("status") or "") != "resumed":
+            return result
+
+        operation_id = str(result.get("operation_id") or "")
+        if operation_id:
+            try:
+                fresh = self.lifecycle.get_task(run_id) or {}
+                operation = _operation_by_id(fresh, operation_id) or {}
+                if operation.get("status") == "waiting":
+                    self.lifecycle.transition_operation(
+                        run_id, operation_id, "superseded")
+            except TaskLifecycleError:
+                pass
+        self._wake_run(run_id, {
+            "event": str(result.get("event") or "email"),
+            "correlation_id": correlation_id,
+            "source": "assignment_external_response",
+        })
+        return result
 
     def retry_step(
         self, run_id: str, step_id: str, *, reason: str = "",
