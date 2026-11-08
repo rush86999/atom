@@ -91,27 +91,75 @@ none of these controls is labeled passing by the author.
   directories and its valid save/load, LRU, oversized-rejection, and corrupt
   read twins remain valid.
 
-## Path anchoring (traced and documented, not rewritten)
+## Path anchoring repair
 
-`DATA_DIR = Path(os.getenv("ATOM_BPE_DATA_DIR", "backend/data/bpe_workspaces"))`
-is CWD-relative and resolved once at import. `__init__()` only substitutes
-`DATA_DIR` when no explicit `data_dir` is supplied, and all three production
-call sites construct `BPEWorkspaceStore()` with no directory. Consequently:
+**Defect.** `DATA_DIR = Path(os.getenv("ATOM_BPE_DATA_DIR",
+"backend/data/bpe_workspaces"))` was resolved against the launch CWD at
+import. The three production call sites (`generic_agent.py:1006`,
+`atom_meta_agent.py:1831`, `workspace.py:455`) construct
+`BPEWorkspaceStore()` with no directory, so a repo-root launch used
+`<repo>/backend/data/bpe_workspaces` while a `backend/` launch used
+`<repo>/backend/backend/data/bpe_workspaces`.
 
-- started from the repo root, the default resolves to
-  `<repo>/backend/data/bpe_workspaces` (the intended location);
-- started from `backend/`, it resolves to
-  `<repo>/backend/backend/data/bpe_workspaces`, diverging from the documented
-  `backend/`-anchored store convention unless `ATOM_BPE_DATA_DIR` is absolute.
+**Repair**
 
-This is the known relative-path anchoring bug class in `AGENTS.md`. It is not
-changed here because it is outside this write-outcome repair; a follow-up
-should anchor the default to `backend/` (as `core.automation_settings` does)
-or require an absolute env override. The authored controls use explicit
-temporary directories, so they do not exercise the default path.
+- `DEFAULT_DATA_DIR` is now the backend-relative `data/bpe_workspaces`.
+  `_resolve_data_dir()` joins relative values to the backend directory
+  (computed from `__file__`, not the CWD), mirroring
+  `core.lancedb_handler._resolve_local_db_path` and the
+  `core.automation_settings` backend-relative convention.
+- Absolute paths pass through unchanged.
+- For compatibility with the previously documented
+  `backend/data/bpe_workspaces` spelling, a leading `backend/` component is
+  treated as the repo-root marker and dropped before backend anchoring, so
+  that legacy relative value still resolves to the same effective path.
+- An explicit `data_dir=` argument is used exactly as supplied (including
+  test `tmp_path` directories and explicitly relative test directories); it
+  is not re-anchored.
+- `settings_catalog.ATOM_BPE_DATA_DIR` now advertises the canonical
+  `data/bpe_workspaces` default and documents the relative/absolute/legacy
+  semantics. Its resolved effective path is unchanged:
+  `<repo>/backend/data/bpe_workspaces` from either launch directory.
+- Nothing is moved, copied, merged, deleted or migrated; no operator store
+  is read. The old `backend/backend/data/...` path was never the documented
+  default, so no compatibility alias is created for it.
+- `DATA_DIR` is still resolved once at import from the environment (the
+  existing behavior). The runtime-settings DB/UI row for this key is not
+  consulted by store construction; that pre-existing configuration gap is
+  documented below rather than silently changed.
+
+## Path-anchoring controls (authored, not executed)
+
+`backend/tests/core/test_bpe_persistence_path_anchoring.py` — read-only
+path-resolution controls; no store save/load/migration:
+
+1. `test_default_store_is_identical_from_repo_root_and_backend` — clean
+   subprocess imports from both launch directories resolve to
+   `<backend>/data/bpe_workspaces`.
+2. `test_configured_catalog_default_matches_canonical_default` — catalog
+   default equals the runtime constant and resolves to the documented path.
+3. `test_default_helper_reads_relative_override` — a configured relative
+   value resolves against backend.
+4. `test_absolute_override_is_preserved_from_either_cwd` — absolute values
+   pass through from both launches.
+5. `test_relative_override_is_backend_relative` — relative values resolve to
+   the same backend-relative path from both launches.
+6. `test_legacy_documented_default_spelling_remains_compatible` — the old
+   `backend/data/bpe_workspaces` relative spelling resolves to the same
+   effective path.
+7. `test_explicit_data_dir_is_used_as_supplied` — explicit `tmp_path` and
+   explicit relative test directories are preserved.
+
+Root owns execution and acceptance; none of these are labeled passing by the
+author.
 
 ## Explicitly open (not claimed here)
 
 - Callers do not log, retry, or otherwise act on a `False` save result.
+- The runtime-settings DB/UI row for `ATOM_BPE_DATA_DIR` is still not
+  consumed by store construction; only the environment value present at
+  import time is used. This is a pre-existing configuration gap, not part of
+  this path-anchoring repair.
 - No fsync/durability guarantee and no multi-process locking semantics.
-- Broader BPE/Oracle gaps and principal/workspace scope work are untouched.
+- Oracle note honesty, broader BPE/Oracle gaps, and principal/workspace scope
+  work remain untouched and are not claimed fixed.
