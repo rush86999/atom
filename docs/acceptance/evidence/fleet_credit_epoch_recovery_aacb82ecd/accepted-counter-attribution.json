@@ -1,0 +1,7 @@
+{
+  "counter_source": "d9a45f559033e4f6ae9a2e50725ade3cddfb2b4b",
+  "counter_path": "backend/core/capability_graduation_service.py",
+  "counter_sha256": "343664942f2b9bbd098e53375d247e7bf4f62ee3fd6a9ba27a4d348d0b4bf732",
+  "harness_source": "4065930f22252d132e59082fa336538c97993073",
+  "scope": "Accepted main counter loaded into current scratch harness; not a whole-main checkout or whole-app qualification."
+}

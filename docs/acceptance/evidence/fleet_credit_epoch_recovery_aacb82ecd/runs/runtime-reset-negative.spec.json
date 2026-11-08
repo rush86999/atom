@@ -1,0 +1,31 @@
+{
+  "source": "4065930f22252d132e59082fa336538c97993073",
+  "root": "/private/tmp/root-feedback-sqlite-dqdqw4vs",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal-wake-failure-boundary-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root_explicit_reset_runtime_cycle_probe_20261108.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-dqdqw4vs/pytest"
+  ]
+}

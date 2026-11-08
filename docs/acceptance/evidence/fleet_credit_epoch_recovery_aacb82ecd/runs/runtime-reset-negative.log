@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_human_correction_does_not_reuse_lifetime_credit _____________
+../../root_explicit_reset_runtime_cycle_probe_20261108.py:22: in test_human_correction_does_not_reuse_lifetime_credit
+    assert autonomy_cycle(fresh,'agent-revocation-1','canvas_edit')['ok'] is False
+E   assert True is False
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_explicit_reset_runtime_cycle_probe_20261108.py::test_human_correction_does_not_reuse_lifetime_credit
+1 failed, 2 warnings in 2.33s
