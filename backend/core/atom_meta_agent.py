@@ -521,18 +521,23 @@ class AtomMetaAgent:
         # never choose the buffer. The rendered Prompt, episode reset and
         # close-out all read this same binding.
         try:
-            from core.bpe.actions import bind_trusted_scope
+            from core.bpe.actions import bind_trusted_scope, stable_run_scope_key
             from core.chat_session_context import current_chat_session_id
 
             bind_trusted_scope(
                 context,
                 workspace_id=self.workspace_id,
                 agent_id="atom_main",
-                # The caller-supplied ``execution_id`` is not a namespace
-                # source; only a server-bound chat turn or a fresh per-run
-                # key is.
-                scope_key=current_chat_session_id() or str(uuid.uuid4()),
-                user_id=getattr(getattr(self, "user", None), "id", None),
+                # A server-bound chat turn, a durable job key, or a fresh
+                # per-run key is the stable identity; never caller params.
+                scope_key=stable_run_scope_key(
+                    job_id=(context or {}).get("job_id"),
+                    chat_session_id=current_chat_session_id(),
+                ),
+                user_id=(
+                    (context or {}).get("actor_id")
+                    or getattr(getattr(self, "user", None), "id", None)
+                ),
             )
         except Exception as _bpe_bind_err:  # noqa: BLE001
             logger.debug(f"bpe scope bind skipped: {_bpe_bind_err}")
@@ -819,14 +824,24 @@ class AtomMetaAgent:
         # run_id/tier, the shared sandbox gate (and _meta_agent_sandbox_check)
         # returns None — "no policy in scope" — so the default-on sandbox never
         # engaged on this, the primary agent surface: every tool call ran
-        # ungated. setdefault keeps caller-supplied values authoritative.
+        # ungated. The governance tier is explicitly rebuilt from the trusted
+        # registry row (never from caller params and never from the transient
+        # execution state); an unverifiable row fails closed to ``student``.
+        from core.governance_tier import canonical_governance_tier
+
         try:
-            _tier = (self._get_atom_registry().status or "autonomous").lower()
-        except Exception:  # noqa: BLE001 — a registry hiccup must not break runs
-            _tier = "autonomous"
-        context.setdefault("run_id", execution_id)
-        context.setdefault("execution_id", execution_id)
-        context.setdefault("tier_at_issuance", _tier)
+            _tier_row = self._get_atom_registry()
+            _tier = canonical_governance_tier(
+                getattr(_tier_row, "status", None)) or "student"
+            if getattr(_tier_row, "enabled", True) is False:
+                _tier = "student"
+        except Exception:  # noqa: BLE001 — a registry hiccup must not widen
+            _tier = "student"
+        context["run_id"] = execution_id
+        context["execution_id"] = execution_id
+        context["governance_tier"] = _tier
+        context["tier_at_issuance"] = _tier
+        context["governance_tier_source"] = "meta_registry"
 
         # 0. Get Tenant ID and Create Execution Record
         tenant_id = None
@@ -1381,6 +1396,7 @@ class AtomMetaAgent:
 
             for current_step in range(1, max_steps + 1):
                 step_start = datetime.now(timezone.utc)
+                _terminal_denial = None
 
                 # AgentRadio — passive awareness: absorb @mentions from the
                 # team's lateral thread before planning the next step. Never
@@ -1492,6 +1508,14 @@ class AtomMetaAgent:
                     for p_index, pr in enumerate(parallel_results):
                         p_tool = pr["tool_name"]
                         p_params = pr.get("params") or {}
+                        if _terminal_denial is None:
+                            try:
+                                from core.action_effects import (
+                                    terminal_authority_denial as _tad,
+                                )
+                                _terminal_denial = _tad(pr.get("output"))
+                            except Exception:
+                                _terminal_denial = None
                         p_record = {
                             "execution_id": execution_id,
                             "step": current_step,
@@ -1547,6 +1571,19 @@ class AtomMetaAgent:
                             dispatch_turn_fact=(p_index == 0),
                         )
                         steps.append(p_record)
+                    if _terminal_denial:
+                        context.setdefault(
+                            "_terminal_authority_denials", []).append(
+                                _terminal_denial)
+                        final_answer = (
+                            "Execution blocked: the admitted actor or "
+                            "workspace authority for this run is no longer "
+                            "valid. No further work was dispatched.")
+                        status = "blocked"
+                        logger.warning(
+                            "Meta agent halted after a terminal authority "
+                            "denial in a parallel batch")
+                        break
                     continue
 
                 # Execute action if provided
@@ -1601,6 +1638,13 @@ class AtomMetaAgent:
                             observation = mark_observation(observation, source=tool_name)
                         except Exception:
                             pass  # marking must never break the agent loop
+                        try:
+                            from core.action_effects import (
+                                terminal_authority_denial as _tad,
+                            )
+                            _terminal_denial = _tad(observation)
+                        except Exception:
+                            _terminal_denial = None
                         execution_history += f"Observation: {observation}\n"
 
                         # Parse the tool return for a verification envelope
@@ -1660,7 +1704,20 @@ class AtomMetaAgent:
                 )
 
                 steps.append(step_record)
-        
+
+                if _terminal_denial:
+                    context.setdefault(
+                        "_terminal_authority_denials", []).append(
+                            _terminal_denial)
+                    final_answer = (
+                        "Execution blocked: the admitted actor or workspace "
+                        "authority for this run is no longer valid. No "
+                        "further work was dispatched.")
+                    status = "blocked"
+                    logger.warning(
+                        "Meta agent halted after a terminal authority denial")
+                    break
+
             # Handle max steps exceeded
             if not final_answer:
                 final_answer = "Maximum reasoning steps reached. Please refine your request."
@@ -1777,6 +1834,13 @@ class AtomMetaAgent:
             raise
 
         # 4. Record Execution
+        _terminal_authority_denials = list(
+            (context or {}).get("_terminal_authority_denials") or [])
+        if _terminal_authority_denials and status == "success":
+            status = "blocked"
+            final_answer = final_answer or (
+                "Execution blocked: the admitted actor or workspace "
+                "authority for this run is no longer valid.")
         result_payload = {
             "final_output": final_answer,
             "actions_executed": steps,
@@ -1790,6 +1854,9 @@ class AtomMetaAgent:
             # the HTTP response so the frontend can render a distinct UI.
             "failure_reason": failure_reason,
             "failure_mode": failure_mode,
+            "terminal_authority_denial": bool(
+                _terminal_authority_denials),
+            "authority_denials": _terminal_authority_denials,
         }
 
         # BPE workspace episode close-out (plan Phase 2) — mirrors
@@ -1801,9 +1868,11 @@ class AtomMetaAgent:
                 from core.bpe.consult_policy import get_consult_policy
 
                 _success = status == "success"
+                # Preserve unresolved/failed notes for recovery instead of
+                # draining the only copy of a fact that may have landed.
                 _bpe_consolidated = (
                     consolidate_workspace_notes(_bpe_ws) if _success
-                    else {"dropped_notes": len(_bpe_ws.drain_pending_notes())}
+                    else {"preserved_notes": len(_bpe_ws._pending_notes)}
                 )
                 _policy = get_consult_policy()
                 _meta_agent_id = "atom_main"
@@ -3397,6 +3466,12 @@ Provide your Mentorship Guidance:"""
             timestamp=datetime.now(timezone.utc)
         )
         await self.world_model.record_experience(experience)
+
+        # External actor/scope revocation is not a model semantic failure and
+        # must not be credited as model success. Keep the durable execution
+        # truth, but do not move the meta-agent maturity signal.
+        if result.get("terminal_authority_denial"):
+            return
 
         # 2. Update Governance Outcome — R87: terminal failure statuses
         # (timeout/budget_exceeded/killed_sandbox/failed) must never be

@@ -38,10 +38,16 @@ from __future__ import annotations
 
 import logging
 import os
+import time
+import uuid
 from typing import Any, Dict, Optional, Tuple
 
 from core.action_registry import register_action
-from core.bpe.workspace import get_workspace
+from core.bpe.workspace import (
+    MAX_NOTE_CHARS,
+    SUBGOAL_STATUSES,
+    get_workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,14 +90,87 @@ def bpe_enabled() -> bool:
 
 
 def _deny(code: str, message: str) -> Dict[str, Any]:
-    """Typed, proven no-effect refusal (never a success wrapper)."""
+    """Typed, proven no-effect terminal authority refusal.
+
+    The actor/scope is no longer authorized for this admitted namespace, so a
+    later model "done" cannot turn it into success. The marker is producer
+    owned; consumers must not infer it from message text.
+    """
     return {
         "success": False,
+        "status": "failed_before_effect",
         "error": code,
         "message": message,
         "action_result": "not_applied",
         "effect_possible": False,
+        "terminal_authority_denial": True,
+        "denial_scope": "actor_or_workspace",
+        "denial_kind": str(code)[:120],
     }
+
+
+def canonical_note_content(value: Any) -> str:
+    """The exact material ``workspace.note`` appends (strip + hard cap)."""
+    return str(value or "").strip()[:MAX_NOTE_CHARS]
+
+
+def canonical_commit_material(args: Any) -> Dict[str, Any]:
+    """The exact business material a ``workspace.commit`` call authorizes."""
+    payload = args if isinstance(args, dict) else {}
+    status = payload.get("status")
+    return {
+        "title": str(payload.get("title") or "").strip()[:200],
+        "status": str(status) if status is not None else None,
+    }
+
+
+def note_material(content: Any) -> Dict[str, Any]:
+    return {"content": canonical_note_content(content)}
+
+
+def bpe_material_sha256(material: Any) -> str:
+    """Stable digest shared by the producer, request freeze and verifier.
+
+    Uses the same binding helper as every other registered mutation so a
+    result envelope cannot supply replacement proof material.
+    """
+    try:
+        from core.oracle.request_expectations import approved_payload_sha256
+
+        return approved_payload_sha256(material)
+    except Exception:  # noqa: BLE001 - a missing binding is refused, not faked
+        return ""
+
+
+def _persist_workspace_state(ws: Any) -> bool:
+    """Persist the current workspace snapshot through the existing file store."""
+    try:
+        from core.bpe.persistence import BPEWorkspaceStore
+
+        return bool(BPEWorkspaceStore().save(ws.to_dict()))
+    except Exception as e:  # noqa: BLE001 - persistence truth is reported
+        logger.debug("bpe durable state write failed: %s", e)
+        return False
+
+
+def _operation_receipt(
+    action: str, scope: Dict[str, Any], operation_id: str,
+    material: Dict[str, Any], **extra: Any,
+) -> Dict[str, Any]:
+    """Build the producer-owned receipt the oracle later re-reads from disk."""
+    receipt = {
+        "action": str(action),
+        "operation_id": str(operation_id),
+        "workspace_id": str(scope.get("workspace_id") or ""),
+        "agent_id": str(scope.get("agent_id") or ""),
+        "scope_key": str(scope.get("scope_key") or ""),
+        "actor_id": str(scope.get("user_id") or ""),
+        "material": dict(material or {}),
+        "material_sha256": bpe_material_sha256(material),
+        "created_at": time.time(),
+    }
+    receipt.update(extra)
+    return receipt
 
 
 def _user_id_from(value: Any) -> Optional[str]:
@@ -282,6 +361,29 @@ def _build_user_scope(
     }, None
 
 
+def _user_scope_for(
+    db: Any,
+    user_id: str,
+    *,
+    agent_id: str,
+    trusted_workspace: Optional[str] = None,
+    run_key: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Resolve one fresh active principal into its canonical BPE scope."""
+    row, denial = _fresh_active_user(db, user_id)
+    if denial:
+        return None, denial
+    scope, denial = _build_user_scope(
+        db, row, user_id, agent_id=agent_id,
+        trusted_workspace=trusted_workspace,
+    )
+    if denial:
+        return None, denial
+    if run_key:
+        scope["scope_key"] = f"user:{user_id}:{run_key}"
+    return scope, None
+
+
 def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     """Resolve the canonical BPE namespace, or a typed no-effect denial.
 
@@ -309,15 +411,11 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
 
     # 1) Authenticated principal (RPC / request-bound MCP).
     if user_id and db is not None:
-        row, denial = _fresh_active_user(db, user_id)
+        scope, denial = _user_scope_for(
+            db, user_id, agent_id=trusted_agent or "atom_main")
         if denial:
             return None, denial
         presented_workspace = _user_workspace_from(presented_user)
-        scope, denial = _build_user_scope(
-            db, row, user_id, agent_id=trusted_agent or "atom_main"
-        )
-        if denial:
-            return None, denial
         # A stale presented row may disagree with the current row; refuse
         # instead of silently moving the buffer or merging two authorities.
         if presented_workspace and presented_workspace != scope["workspace_id"]:
@@ -327,7 +425,7 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
             )
         return scope, None
 
-    # A user object without a DB session cannot prove *current* activity.
+    # A user *object* without a DB session cannot prove current activity.
     if presented_user is not None and user_id and db is None:
         return None, _deny(
             _SCOPE_PRINCIPAL_UNVERIFIED,
@@ -340,20 +438,39 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
         workspace_id = str(trusted.get("workspace_id") or "").strip()
         scope_key = str(trusted.get("scope_key") or "").strip()
         scoped_user_id = str(trusted.get("user_id") or "").strip()
-        if scoped_user_id and db is not None:
-            row, denial = _fresh_active_user(db, scoped_user_id)
-            if denial:
-                return None, denial
-            scope, denial = _build_user_scope(
-                db, row, scoped_user_id,
-                agent_id=str(trusted.get("agent_id") or "atom_main"),
-                trusted_workspace=workspace_id,
-            )
-            if denial:
-                return None, denial
-            if scope_key:
-                scope["scope_key"] = f"user:{scoped_user_id}:{scope_key}"
-            return scope, None
+        if scoped_user_id:
+            # An admitted actor must be re-read from CURRENT User/Workspace
+            # state, never downgraded to the anonymous/server branch. The
+            # agent loop's long-lived context carries no DB session, so use a
+            # bounded owned session for this resolution only (never stored on
+            # the context across model calls/HITL waits).
+            if db is not None:
+                return _user_scope_for(
+                    db, scoped_user_id,
+                    agent_id=str(trusted.get("agent_id") or "atom_main"),
+                    trusted_workspace=workspace_id,
+                    run_key=scope_key or None,
+                )
+            try:
+                from core.database import get_db_session as _get_db_session
+
+                with _get_db_session() as owned_db:
+                    return _user_scope_for(
+                        owned_db, scoped_user_id,
+                        agent_id=str(trusted.get("agent_id") or "atom_main"),
+                        trusted_workspace=workspace_id,
+                        run_key=scope_key or None,
+                    )
+            except Exception as e:  # noqa: BLE001 — unverifiable fails closed
+                logger.warning(
+                    "bpe server-bound principal verification failed closed: %s",
+                    e,
+                )
+                return None, _deny(
+                    _SCOPE_PRINCIPAL_UNVERIFIED,
+                    "BPE workspace could not verify the admitted principal; "
+                    "nothing was written.",
+                )
         # ``default`` is tolerated only for a server-bound agent scope with a
         # real session/run key: that is single-tenant Personal parity, not a
         # shared anonymous buffer.
@@ -405,6 +522,22 @@ def bpe_scope_from_context(context: Dict[str, Any]) -> Tuple[str, str, str]:
     return "", "", ""
 
 
+def stable_run_scope_key(*, job_id: Any = None,
+                         chat_session_id: Any = None) -> str:
+    """Stable BPE run key for a server-bound agent dispatch.
+
+    An admitted job keeps ONE namespace across the initial run and every
+    resume (fresh process included): the durable ``job_id`` is the identity
+    that survives execution-id churn. Non-admitted chat runs keep their
+    server chat-session key, else receive a fresh per-run key.
+    """
+    durable_job = str(job_id or "").strip()
+    if durable_job:
+        return durable_job
+    session = str(chat_session_id or "").strip()
+    return session or str(uuid.uuid4())
+
+
 def bind_trusted_scope(context: Dict[str, Any], *, workspace_id: Any,
                        agent_id: Any, scope_key: Any,
                        user_id: Any = None) -> Optional[Dict[str, Any]]:
@@ -426,21 +559,12 @@ def bind_trusted_scope(context: Dict[str, Any], *, workspace_id: Any,
     return context
 
 
-def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Claim the active principal (and workspace) before an append.
-
-    A conditional no-op UPDATE executes inside the same transaction as the
-    buffer append. Zero rows means the principal was deactivated/changed (or
-    the workspace vanished) after the earlier read, so the append is refused
-    before any effect. Follow-up reads only select the typed error; they never
-    authorize the write.
-    """
-    if scope.get("authority") != "user":
-        return None
-    raw_db = (context or {}).get("db")
-    db = raw_db if _is_db_session(raw_db) else None
+def _claim_authority_in_db(
+    db: Any, scope: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Claim the frozen principal/workspace inside one provided session."""
     user_id = scope.get("user_id")
-    if db is None or not user_id:
+    if not user_id:
         return None
 
     try:
@@ -560,6 +684,41 @@ def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional
     return None
 
 
+def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Claim the active principal (and workspace) before an append.
+
+    A conditional no-op UPDATE executes before the buffer append. Zero rows
+    means the principal was deactivated/changed (or the workspace vanished)
+    after the earlier read, so the append is refused before any effect.
+    Follow-up reads only select the typed error; they never authorize the
+    write.
+
+    The long-lived agent dispatch context carries no DB session (sessions must
+    not stay resident across model calls/HITL waits), so a server-bound
+    principal uses a bounded owned session for this claim only. RPC/request
+    callers keep using the session they supplied.
+    """
+    if scope.get("authority") != "user":
+        return None
+    user_id = scope.get("user_id")
+    if not user_id:
+        return None
+    raw_db = (context or {}).get("db")
+    if _is_db_session(raw_db):
+        return _claim_authority_in_db(raw_db, scope)
+    try:
+        from core.database import get_db_session as _get_db_session
+
+        with _get_db_session() as owned_db:
+            return _claim_authority_in_db(owned_db, scope)
+    except Exception as e:  # noqa: BLE001 — unverifiable authority fails closed
+        logger.warning("bpe authority claim session failed closed: %s", e)
+        return _deny(
+            _SCOPE_AUTHORITY_MISSING,
+            "Could not verify BPE workspace authority; nothing was written.",
+        )
+
+
 def _resolve_workspace(context: Dict[str, Any], *, claim: bool = False):
     scope, denial = resolve_scope(context)
     if denial:
@@ -635,11 +794,53 @@ async def _bpe_track(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str,
     effects=[{"effect": "update", "scope": "local"}],
 )
 async def _bpe_commit(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    ws, _scope, denial = _resolve_workspace(context, claim=True)
+    # Material validation precedes workspace creation/claim: an invalid request
+    # is a proven no-effect refusal, not an uncertain mutation.
+    material = canonical_commit_material(args)
+    if not material["title"]:
+        return {
+            "success": False,
+            "error": "commit requires a subgoal title",
+            "action_result": "not_applied",
+            "effect_possible": False,
+        }
+    if (
+        material["status"] is not None
+        and material["status"] not in SUBGOAL_STATUSES
+    ):
+        return {
+            "success": False,
+            "error": f"status must be one of {SUBGOAL_STATUSES}",
+            "action_result": "not_applied",
+            "effect_possible": False,
+        }
+    ws, scope, denial = _resolve_workspace(context, claim=True)
     if denial:
         return denial
-    payload = {"title": args.get("title") or "", "status": args.get("status")}
-    return await ws.apply("commit", payload)
+    payload = {"title": material["title"], "status": material["status"]}
+    result = await ws.apply("commit", payload)
+    if not result.get("success"):
+        # Validation/no-match refusal happens before any Progress mutation.
+        out = dict(result)
+        out.update({
+            "action_result": "not_applied",
+            "effect_possible": False,
+        })
+        return out
+    operation_id = str((context or {}).get("operation_id") or "").strip()
+    if not operation_id:
+        return result
+    receipt = _operation_receipt(
+        "workspace.commit", scope, operation_id, material,
+        resolved_title=str(result.get("title") or material["title"]),
+    )
+    if not receipt["material_sha256"]:
+        # No durable binding could be formed; the oracle will honestly refuse
+        # to certify the effect. Keep the historical handler result shape.
+        return result
+    ws.record_operation_receipt(receipt)
+    _persist_workspace_state(ws)
+    return result
 
 
 @register_action(
@@ -678,7 +879,36 @@ async def _bpe_recall(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str
     effects=[{"effect": "create", "scope": "local"}],
 )
 async def _bpe_note(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    ws, _scope, denial = _resolve_workspace(context, claim=True)
+    # Proven before-effect refusal: validate before creating a namespace or
+    # claiming authority, so nothing is appended or persisted.
+    content = canonical_note_content(args.get("content"))
+    if not content:
+        return {
+            "success": False,
+            "error": "note requires content",
+            "action_result": "not_applied",
+            "effect_possible": False,
+        }
+    ws, scope, denial = _resolve_workspace(context, claim=True)
     if denial:
         return denial
-    return await ws.apply("note", args.get("content") or "")
+    result = await ws.apply("note", content)
+    if not result.get("success"):
+        out = dict(result)
+        out.update({
+            "action_result": "not_applied",
+            "effect_possible": False,
+        })
+        return out
+    operation_id = str((context or {}).get("operation_id") or "").strip()
+    if not operation_id:
+        return result
+    receipt = _operation_receipt(
+        "workspace.note", scope, operation_id, note_material(content))
+    if not receipt["material_sha256"]:
+        # The oracle will refuse to certify without a durable binding; keep the
+        # historical handler result shape instead of inventing proof fields.
+        return result
+    ws.record_operation_receipt(receipt)
+    _persist_workspace_state(ws)
+    return result

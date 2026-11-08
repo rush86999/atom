@@ -3344,3 +3344,187 @@ async def _verify_radio_create_thread(ctx: Dict[str, Any]) -> OracleResult:
         action, True,
         f"radio thread {observed_id} re-read; authorized material and current "
         f"AgentRegistry authority match (payload {expected_digest[:12]})")
+
+
+# ===========================================================================
+# BPE harness mutations — workspace.note / workspace.commit
+# ===========================================================================
+# These actions mutate the per-scope workspace state persisted by the existing
+# BPE JSON store. The producer records an exact operation/scope/material
+# receipt in that same snapshot; these verifiers independently re-load the
+# snapshot from disk. They never read the tool's result envelope, so a forged
+# echo or an in-memory-only state cannot certify the request.
+
+def _bpe_expected_binding(ctx: Dict[str, Any], action: str):
+    expected = {
+        "operation_id": str(
+            ctx.get("_oracle_expected_operation_id") or "").strip(),
+        "workspace_id": str(
+            ctx.get("_oracle_expected_bpe_workspace_id") or "").strip(),
+        "agent_id": str(
+            ctx.get("_oracle_expected_bpe_agent_id") or "").strip(),
+        "scope_key": str(
+            ctx.get("_oracle_expected_bpe_scope_key") or ""),
+        "actor_id": str(
+            ctx.get("_oracle_expected_bpe_actor_id") or ""),
+        "material": ctx.get("_oracle_expected_bpe_material"),
+        "material_sha256": _digest(
+            ctx.get("_oracle_expected_bpe_material_sha256")),
+    }
+    missing = [
+        key for key in (
+            "operation_id", "workspace_id", "agent_id", "scope_key",
+            "material", "material_sha256",
+        )
+        if expected[key] in (None, "", {}, [])
+    ]
+    if missing:
+        return None, (
+            "missing frozen BPE operation/scope/material binding: "
+            + ", ".join(missing))
+    if not isinstance(expected["material"], dict):
+        return None, "frozen BPE material is not an object"
+    if not _valid_digest(expected["material_sha256"]):
+        return None, "frozen BPE material digest is not sha256"
+    return expected, ""
+
+
+def _bpe_receipt_mismatches(
+    receipt: Dict[str, Any], expected: Dict[str, Any], action: str,
+) -> list:
+    mismatches = []
+    if str(receipt.get("action") or "") != action:
+        mismatches.append("action")
+    for field in (
+        "operation_id", "workspace_id", "agent_id", "scope_key", "actor_id",
+    ):
+        if str(receipt.get(field) or "") != str(expected[field]):
+            mismatches.append(field)
+    receipt_digest = _digest(receipt.get("material_sha256"))
+    if receipt_digest != expected["material_sha256"]:
+        mismatches.append("material_sha256")
+    if receipt.get("material") != expected["material"]:
+        mismatches.append("material")
+    return mismatches
+
+
+def _bpe_receipt(snapshot: Dict[str, Any], action: str, operation_id: str):
+    receipts = snapshot.get("operation_receipts")
+    if not isinstance(receipts, list):
+        return None
+    for receipt in reversed(receipts):
+        if not isinstance(receipt, dict):
+            continue
+        if (
+            str(receipt.get("action") or "") == action
+            and str(receipt.get("operation_id") or "") == operation_id
+        ):
+            return receipt
+    return None
+
+
+def _bpe_note_in_state(snapshot: Dict[str, Any], content: str) -> bool:
+    pending = snapshot.get("pending_notes")
+    if isinstance(pending, list) and any(
+            str(item) == content for item in pending):
+        return True
+    experience = snapshot.get("experience")
+    if isinstance(experience, dict):
+        for entries in experience.values():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if isinstance(entry, dict) and str(
+                        entry.get("content") or "") == content:
+                    return True
+    return False
+
+
+def _bpe_commit_in_state(
+    snapshot: Dict[str, Any], receipt: Dict[str, Any],
+    material: Dict[str, Any],
+) -> bool:
+    resolved_title = str(
+        receipt.get("resolved_title") or material.get("title") or "")
+    if not resolved_title:
+        return False
+    expected_status = material.get("status")
+    progress = snapshot.get("progress")
+    if not isinstance(progress, list):
+        return False
+    for subgoal in progress:
+        if not isinstance(subgoal, dict):
+            continue
+        if str(subgoal.get("title") or "") != resolved_title:
+            continue
+        if expected_status is None:
+            # A new subgoal starts pending. An existing same-title done entry
+            # cannot stand in for the append this operation authorized.
+            if str(subgoal.get("status") or "pending") == "pending":
+                return True
+        elif str(subgoal.get("status") or "") == str(expected_status):
+            return True
+    return False
+
+
+def _bpe_postcondition(action: str):
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        expected, problem = _bpe_expected_binding(ctx, action)
+        if problem:
+            return OracleResult(action, False, problem)
+        try:
+            from core.bpe.persistence import BPEWorkspaceStore
+
+            snapshot = BPEWorkspaceStore().load(
+                expected["workspace_id"], expected["agent_id"],
+                expected["scope_key"])
+        except Exception as exc:  # noqa: BLE001 - unreadable is not verified
+            return OracleResult(
+                action, False,
+                "BPE durable read-back failed: "
+                f"{type(exc).__name__}: {str(exc)[:200]}")
+        if not isinstance(snapshot, dict) or not snapshot:
+            return OracleResult(
+                action, False,
+                "no persisted BPE scope for the frozen workspace/agent/run")
+        receipt = _bpe_receipt(snapshot, action, expected["operation_id"])
+        if receipt is None:
+            return OracleResult(
+                action, False,
+                "no durable receipt for the exact operation/scope in the "
+                "persisted BPE state")
+        mismatches = _bpe_receipt_mismatches(receipt, expected, action)
+        if mismatches:
+            return OracleResult(
+                action, False,
+                "durable BPE receipt contradicts the frozen request: "
+                + ", ".join(mismatches))
+        material = expected["material"]
+        if action == "workspace.note":
+            content = str(material.get("content") or "")
+            if not content or not _bpe_note_in_state(snapshot, content):
+                return OracleResult(
+                    action, False,
+                    "note content is absent from the independently reloaded "
+                    "pending/consolidated workspace state")
+            return OracleResult(
+                action, True,
+                "durable note receipt matches operation/scope/material and "
+                f"the content is present in reloaded state "
+                f"(payload {expected['material_sha256'][:12]})")
+        if not _bpe_commit_in_state(snapshot, receipt, material):
+            return OracleResult(
+                action, False,
+                "the authorized subgoal/status is absent from the "
+                "independently reloaded Progress state")
+        return OracleResult(
+            action, True,
+            "durable commit receipt matches operation/scope/material and the "
+            f"subgoal is present in reloaded Progress state "
+            f"(payload {expected['material_sha256'][:12]})")
+    return _verify
+
+
+register_postcondition("workspace.note")(_bpe_postcondition("workspace.note"))
+register_postcondition("workspace.commit")(
+    _bpe_postcondition("workspace.commit"))

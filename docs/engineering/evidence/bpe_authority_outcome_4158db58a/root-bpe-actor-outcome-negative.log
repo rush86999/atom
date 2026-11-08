@@ -1,0 +1,158 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-08 00:13:36 [    INFO] MCP Service initialized
+
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[False] 
+-------------------------------- live log setup --------------------------------
+2026-11-08 00:13:36 [    INFO] EscalationManager initialized
+2026-11-08 00:13:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:13:36 [    INFO] EscalationManager initialized
+2026-11-08 00:13:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:13:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 00:13:36 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 00:13:37 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-08 00:13:37 [    INFO] EscalationManager initialized
+2026-11-08 00:13:37 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-08 00:13:37 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-08 00:13:37 [    INFO] EscalationManager initialized
+2026-11-08 00:13:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:13:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 00:13:37 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Record a task fact
+2026-11-08 00:13:37 [    INFO] Agent Agent One (a1) starting task: Record a task fact
+2026-11-08 00:13:37 [    INFO] EscalationManager initialized
+2026-11-08 00:13:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:13:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 00:13:37 [    INFO] LanceDBHandler initialized. ID: 5091472272. LANCEDB_AVAILABLE: True
+2026-11-08 00:13:37 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 00:13:37 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-y11_keeu/lance with storage_options=None
+2026-11-08 00:13:37 [    INFO] LanceDB connected successfully
+2026-11-08 00:13:37 [    INFO] Action workspace.note requires approval. Pausing agent...
+2026-11-08 00:13:37 [    INFO] Action workspace.note APPROVED. Proceeding...
+2026-11-08 00:13:37 [    INFO] Recorded outcome for a1: success
+2026-11-08 00:13:37 [    INFO] EscalationManager initialized
+2026-11-08 00:13:37 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-08 00:13:37 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-08 00:13:37 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-08 00:13:37 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-public-note-False "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 00:13:38 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-08 00:13:38 [    INFO] EscalationManager initialized
+2026-11-08 00:13:38 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-08 00:13:38 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-08 00:13:38 [    INFO] EscalationManager initialized
+2026-11-08 00:13:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:13:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 00:13:38 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Record a task fact
+2026-11-08 00:13:38 [    INFO] Agent Agent One (a1) starting task: Record a task fact
+2026-11-08 00:13:38 [    INFO] EscalationManager initialized
+2026-11-08 00:13:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 00:13:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 00:13:38 [    INFO] LanceDBHandler initialized. ID: 5101999184. LANCEDB_AVAILABLE: True
+2026-11-08 00:13:38 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 00:13:38 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-y11_keeu/lance with storage_options=None
+2026-11-08 00:13:38 [    INFO] LanceDB connected successfully
+2026-11-08 00:13:38 [    INFO] Action workspace.note requires approval. Pausing agent...
+2026-11-08 00:13:38 [    INFO] Action workspace.note APPROVED. Proceeding...
+2026-11-08 00:13:38 [    INFO] Recorded outcome for a1: success
+2026-11-08 00:13:38 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-08 00:13:38 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-08 00:13:38 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-public-note-True "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+________ test_public_note_respects_actor_revocation_at_tool_time[True] _________
+tests/test_root_bpe_public_actor_probe.py:70: in test_public_note_respects_actor_revocation_at_tool_time
+    assert capture['outcome'] != 'success', capture
+E   AssertionError: {'revoked': True, 'http': 200, 'persisted_marker': False, 'transport_trace': [{'type': 'dict', 'result': "{'success': False, 'error': 'scope_principal_inactive', 'message': 'BPE workspace requires the principal to be active.', 'action_result': 'not_applied', 'effect_possible': False}", 'tier_at_issuance': 'autonomous'}], ...}
+E   assert 'success' != 'success'
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:1178 Starting agent Agent One (ID: a1)...
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws1
+WARNING  core.lancedb_service:lancedb_service.py:39 LanceDBService initialized in stub mode (no-op)
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     api.agent_routes:agent_routes.py:1284 Executing Agent Agent One with ReAct Loop. Input: Record a task fact
+INFO     core.generic_agent:generic_agent.py:306 Agent Agent One (a1) starting task: Record a task fact
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:221 LanceDBHandler initialized. ID: 5101999184. LANCEDB_AVAILABLE: True
+INFO     core.lancedb_handler:lancedb_handler.py:229 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:326 Connecting to LanceDB at /private/tmp/root-feedback-sqlite-y11_keeu/lance with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:331 LanceDB connected successfully
+INFO     core.generic_agent:generic_agent.py:2956 Action workspace.note requires approval. Pausing agent...
+INFO     core.generic_agent:generic_agent.py:2971 Action workspace.note APPROVED. Proceeding...
+INFO     core.agent_governance_service:agent_governance_service.py:1196 Recorded outcome for a1: success
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-public-note-True "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[False]
+  /private/tmp/atom-bpe-oracle-note-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[False]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[True]
+  /private/tmp/atom-bpe-oracle-note-20261108/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[False]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[False]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[True]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[True]
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[False]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[True]
+  /private/tmp/atom-bpe-oracle-note-20261108/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[True]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 1 failed, 1 passed, 20 warnings in 10.44s ===================
