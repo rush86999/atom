@@ -2359,7 +2359,7 @@ def _byok_config_content_probe(
             if (re.search(
                     r"(api_key|secret|token|password|credential|ciphertext|"
                     r"encrypted_key)$", key, flags=re.I)
-                    and key != "api_key_env_var"):
+                    and key not in {"api_key_env_var", "cost_per_token"}):
                 credential_fields.append(key)
         provider_id = entry.get("id")
         if not isinstance(provider_id, str) or not provider_id:

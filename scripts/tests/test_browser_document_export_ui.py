@@ -954,3 +954,21 @@ def test_worker_defaults_true_actual_env_fails_even_with_diagnostic(
     }
     proof = driver._worker_defaults_probe(1, log, runtime_defaults=runtime)
     assert proof["checks"]["worker_flags_proven"] is False
+
+
+def test_pricing_token_metric_is_not_a_credential_value(driver):
+    contract = driver._byok_source_contract(BYOK_SOURCE)
+    config = _byok_config()
+    config["providers"][0]["cost_per_token"] = 0.0123
+    proof = driver._byok_config_content_probe(config, contract)
+    assert proof["ok"], proof
+    assert proof["checks"]["no_credential_value_fields"] is True
+
+
+def test_pricing_token_metric_still_requires_numeric_material(driver):
+    contract = driver._byok_source_contract(BYOK_SOURCE)
+    config = _byok_config()
+    config["providers"][0]["cost_per_token"] = "not-a-number"
+    proof = driver._byok_config_content_probe(config, contract)
+    assert proof["ok"] is False
+    assert proof["checks"]["provider_types_valid"] is False
