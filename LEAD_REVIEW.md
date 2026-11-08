@@ -210,3 +210,20 @@ adding Temporal or an in-memory lock as database authority.
 ## Root independent verification and legacy follow-through
 
 Frozen381 passed16 focused controls, including the original root public changed-explicit-ID negative. Root then tested the documented legacy terminal exception at70512246b: changed unkeyed material received HTTP200/already_applied on a completed assignment. This is not an exact replay and was misleading even though it did not create a second effect. The original failing log/spec/exit is retained at root-assignment-reply-legacy-negative. Root removed that exception: material-derived legacy identity must match the original digest just like any exact retry; changed late input reaches existing terminal refusal. Legitimate unkeyed partial->corrected answers while waiting remain allowed. No business-result, authority, artifact or source-readiness check is weakened. Retest/affected gates remain required. Direct gap/question resolution remains a separately open compatibility/integration row, not full coordination acceptance.
+
+
+## Root verification at fa6a047f6
+
+The seven-module affected assignment/executor/routes/durable-wait/source-
+continuation/event selection passes 220/220 on Python 3.14 and 3.11. The
+source remained fa6a047f67ad762b5c04e97ea3a8124ea323a004 for both runs.
+This includes the permanent external reply identity and independent changed-
+material probes, now added to the existing source-continuation CI step.
+Raw logs/specs/exits remain at root-assignment-reply-fa6-affected (3.14) and
+root-assignment-reply-fa6-affected-py311 (3.11) in retained scratch evidence.
+The 3.14 completed world was byte-verified into the portable-drive archive
+before removing its internal uncompressed copy.
+
+Scope: direct-step replies only. The question/gap response path is under a
+separate read-only review; no general repeated-partial or days-long coordination
+claim follows from these controls. No live model/provider/effect was used.
