@@ -85,7 +85,7 @@ def test_task_schema_cold_import_freezer_negative_and_valid_twin(preload):
         "from freezegun import freeze_time\n"
         "with freeze_time(real_asyncio=True):\n"
         "    from api.schemas.board_schemas import TaskCreate\n"
-        "    assert TaskCreate.model_fields['due_at'].annotation is not None\n"
+        "    print(repr(TaskCreate.model_fields['due_at'].annotation))\n"
         "print('schema-ready')\n"
     )
     result = subprocess.run(
@@ -96,8 +96,14 @@ def test_task_schema_cold_import_freezer_negative_and_valid_twin(preload):
     )
     if preload:
         assert result.returncode == 0, result.stderr
-        assert result.stdout.strip() == "schema-ready"
+        assert result.stdout.strip().endswith("schema-ready")
+        assert "FakeDatetime" not in result.stdout
     else:
-        assert result.returncode != 0
-        assert "FakeDatetime" in result.stderr
-        assert "schema" in result.stderr.lower()
+        # Pydantic initialization order/version can either reject the fake
+        # type (as hosted CI did) or compile it. Neither is a real-type schema
+        # qualification: detect the fake annotation even when import succeeds.
+        if result.returncode == 0:
+            assert "FakeDatetime" in result.stdout
+        else:
+            assert "FakeDatetime" in result.stderr
+            assert "schema" in result.stderr.lower()
