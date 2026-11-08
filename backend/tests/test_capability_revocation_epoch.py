@@ -113,3 +113,28 @@ def test_second_regression_starts_another_fresh_epoch(store):
             elif new_count < 50:
                 assert service.get_maturity(agent_id, "canvas_edit") != "autonomous"
         assert service.get_maturity(agent_id, "canvas_edit") == "autonomous"
+
+
+@pytest.mark.parametrize("legacy", ["unknown_baseline", "stale_stats_baseline"])
+def test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit(store, legacy):
+    _Session, db = store
+    agent = db.query(AgentRegistry).filter_by(id="agent-revocation-1").one()
+    config = deepcopy(agent.configuration)
+    config["capability_maturities"]["canvas_edit"] = "student"
+    stats = config["capability_stats"]["canvas_edit"]
+    stats.update(success=50, total=51, verified_success=50)
+    marker = {"reason": "verified_regression", "epoch": 1}
+    if legacy == "stale_stats_baseline":
+        marker["baseline_verified_success"] = 50
+        stats["epoch_baseline_verified_success"] = 0
+    config["autonomy_revocations"] = {"canvas_edit": marker}
+    agent.configuration = config
+    db.commit()
+    service = CapabilityGraduationService(db)
+    service.record_usage(agent.id, "canvas_edit", True, "verified")
+    assert service.get_maturity(agent.id, "canvas_edit") == "student"
+    for _ in range(service.REVOCATION_REENTRY_SUCCESSES - 2):
+        service.record_usage(agent.id, "canvas_edit", True, "verified")
+    assert service.get_maturity(agent.id, "canvas_edit") == "student"
+    service.record_usage(agent.id, "canvas_edit", True, "verified")
+    assert service.get_maturity(agent.id, "canvas_edit") == "intern"

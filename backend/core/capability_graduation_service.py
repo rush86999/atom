@@ -112,10 +112,18 @@ class CapabilityGraduationService:
         # graduate the capability after the active revocation marker clears.
         revocations = config.get("autonomy_revocations") or {}
         active = revocations.get(capability_name) or {}
-        if ("epoch_baseline_verified_success" not in stats
-                and active.get("baseline_verified_success") is not None):
-            stats["epoch_baseline_verified_success"] = int(
-                active.get("baseline_verified_success") or 0)
+        if active:
+            active_baseline = active.get("baseline_verified_success")
+            if active_baseline is None:
+                # Unknown legacy credit cannot certify post-regression work.
+                # Anchor at first observation, before this call's new success.
+                active_baseline = verified_count - int(success and verified == "verified")
+                active["baseline_verified_success"] = active_baseline
+                active["baseline_origin"] = "legacy_first_observed"
+            stats["epoch_baseline_verified_success"] = max(
+                int(stats.get("epoch_baseline_verified_success") or 0),
+                int(active_baseline),
+            )
 
         # VERIFIED REGRESSION revokes earned autonomy. A capability that had
         # verified successes and then fails external verification is not
