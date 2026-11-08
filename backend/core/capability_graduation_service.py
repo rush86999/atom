@@ -78,7 +78,22 @@ class CapabilityGraduationService:
             return dict(parsed) if isinstance(parsed, dict) else {}
         return {}
 
-    def _observed_configuration(self, agent_id: str):
+    @staticmethod
+    def _scope_predicates(expected_scope):
+        if expected_scope is None:
+            return []
+        if not isinstance(expected_scope, dict) or set(expected_scope) != {"tenant_id", "workspace_id"}:
+            raise ValueError("invalid_expected_scope")
+        predicates = []
+        for name in ("tenant_id", "workspace_id"):
+            value = expected_scope[name]
+            if value is not None and not isinstance(value, str):
+                raise ValueError("invalid_expected_scope")
+            column = getattr(AgentRegistry, name)
+            predicates.append(column.is_(None) if value is None else column == value)
+        return predicates
+
+    def _observed_configuration(self, agent_id: str, expected_scope=None):
         """Read the PHYSICAL JSON value without trusting the ORM identity map.
 
         The returned scalar is exactly what a conditional UPDATE compares
@@ -88,7 +103,8 @@ class CapabilityGraduationService:
         """
         row = self.db.execute(
             select(cast(AgentRegistry.configuration, Text)).where(
-                AgentRegistry.id == str(agent_id))
+                AgentRegistry.id == str(agent_id),
+                *self._scope_predicates(expected_scope))
         ).first()
         if row is None:
             return False, None
@@ -100,6 +116,7 @@ class CapabilityGraduationService:
         mutate: Callable[[dict], dict],
         *,
         commit: bool,
+        expected_scope=None,
     ) -> bool:
         """Apply one JSON configuration mutation via database CAS.
 
@@ -112,7 +129,7 @@ class CapabilityGraduationService:
         bounded attempts we fail closed (no write) rather than guess.
         """
         for _attempt in range(self.CAS_MAX_ATTEMPTS):
-            found, observed = self._observed_configuration(agent_id)
+            found, observed = self._observed_configuration(agent_id, expected_scope)
             if not found:
                 return False
             configuration = mutate(self._json_dict(observed))
@@ -125,7 +142,8 @@ class CapabilityGraduationService:
             )
             statement = (
                 update(AgentRegistry)
-                .where(AgentRegistry.id == str(agent_id), predicate)
+                .where(AgentRegistry.id == str(agent_id), predicate,
+                       *self._scope_predicates(expected_scope))
                 .values(configuration=configuration)
                 .execution_options(synchronize_session=False)
             )
@@ -159,6 +177,7 @@ class CapabilityGraduationService:
         *,
         commit: bool = True,
         lock: bool = True,
+        expected_scope=None,
     ):
         """
         Record usage of a capability to progress maturity.
@@ -319,7 +338,7 @@ class CapabilityGraduationService:
             return config
 
         return self._mutate_configuration(
-            agent_id, _apply, commit=commit)
+            agent_id, _apply, commit=commit, expected_scope=expected_scope)
 
     def reset_maturity(self, agent_id: str, capability_name: str, reason: str):
         """Reset capability maturity to STUDENT level.

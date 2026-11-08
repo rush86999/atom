@@ -495,6 +495,10 @@ def _collect_credit_entries(
             if _text(getattr(row, "operation_type", None)).startswith(
                 "generic:agent:")
         ]
+        # A contradictory durable row cannot become a generic unverified win.
+        if any(_text(getattr(row, "tenant_id", None)) != outcome["tenant_id"]
+               for row in generic_rows):
+            continue
         if not generic_rows:
             # No tool receipt at all: keep the completed work visible without
             # claiming that the roster domain was verified.
@@ -645,13 +649,24 @@ def _consume_entries(
             # Column query: do not preload a stale entity into the identity map
             # before record_usage takes its serialized read/modify/write.
             target = (
-                db.query(AgentRegistry.id)
+                db.query(AgentRegistry.id, AgentRegistry.tenant_id,
+                         AgentRegistry.workspace_id)
                 .filter(AgentRegistry.id == agent_id)
                 .first()
             )
         except Exception:  # noqa: BLE001 - unreadable target is not a receipt
             continue
         if target is None:
+            continue
+        # Preserve Personal aliases at admission, but bind the exact raw values
+        # in the counter DML: a concurrent scope move must match zero rows.
+        expected_scope = {"tenant_id": target.tenant_id,
+                          "workspace_id": target.workspace_id}
+        def admitted_scope(raw, accepted):
+            return _text(raw) == accepted or (
+                accepted == "default" and _text(raw) in ("", "default"))
+        if not all(admitted_scope(raw, outcome[name])
+                   for name, raw in expected_scope.items()):
             continue
 
         run_id, key, payload_hash = _credit_receipt_identity(entry, outcome)
@@ -698,6 +713,7 @@ def _consume_entries(
                     success=True,
                     verified=("verified" if verified else "unverified"),
                     commit=False,
+                    expected_scope=expected_scope,
                 )
                 if applied_usage is False:
                     # The counter CAS could not be published against the
