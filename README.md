@@ -1,10 +1,10 @@
 <div align="center">
 
-# Atom — Open-source AI workflow automation
+# Atom — Open-source AI agents with built-in governance
 
-### Turn business knowledge into reviewable work.
+### Put AI to work. Keep control of its actions.
 
-**Self-hosted AI agents for spreadsheet automation, document workflows and business tasks—with source-backed results you can review.**
+**Automate business tasks with AI agents, reviewable results and controls over what they can do.**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE.md)
 [![Python](https://img.shields.io/badge/Python-3.11%E2%80%933.13-blue)](docs/getting_started/quick-start.md)
@@ -16,13 +16,16 @@
 
 ![Atom workspace](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
 
-## Put your business knowledge to work
+## Start with a job you already do
 
-Atom is an **open-source AI agent workspace for business workflow automation**.
-Run it locally, bring your data, and teach an AI employee the rules your team
-uses. Start with a useful job: prepare a sales quote, review a document or work
-through a spreadsheet. Inspect the source records, calculations and deliverable
-before using the result.
+Atom is a self-hosted AI agent platform for business automation and AI governance.
+Give it files, instructions and rules; inspect the work and control which actions
+require human review. For example, give Atom a price list to prepare a quote,
+or check an invoice against purchase and receiving records, then produce a document showing
+the result. Inspect the source records, calculations and output before using it.
+
+**Open source and self-hosted.** Run your own copy and configure a supported
+local or hosted model. The starter sample below needs no model or cloud key.
 
 **Teach your rules. Review the work. Keep the context.**
 
@@ -50,6 +53,35 @@ business automation remain development goals.
 [**Run the local sample →**](#try-atom-locally) ·
 [**Explore demonstrated workflows →**](#see-what-an-employee-can-do) ·
 [**Check the evidence and limits →**](#what-you-can-rely-on)
+
+## AI governance: control what agents can do
+
+Useful AI needs more than a convincing answer. It needs boundaries around data,
+actions and authority. Atom brings AI governance into the execution path through
+permissions, policy checks, human approval checkpoints and durable audit records
+on supported paths. A model proposal is not permission to act.
+
+- **Human-in-the-loop approvals:** supported governed actions pause for a bound
+  review; missing, rejected or mismatched approval cannot authorize the action.
+- **Reviewable execution:** supported results retain source and operation
+  provenance. Unresolved requirements block completion and dependent reports.
+- **Controlled autonomy:** agent graduation toward greater autonomy is an
+  explicit project goal; broad autonomous competence is not claimed.
+
+These are engineering controls with recorded acceptance boundaries, not a claim
+of regulatory certification or universal protection against AI risks.
+
+## An agent framework beyond a single task
+
+Quotes and invoices make the behavior easy to inspect; they are examples, not
+an industry restriction. The broader project covers **multi-agent orchestration,
+durable workflows, agent memory, human oversight, BYOK model and cost routing,
+MCP tools, and business integrations**. Availability and qualification differ by feature and
+release profile; a registered capability does not mean every connected service
+or autonomous use case is verified.
+
+Start with the demonstrated workflows below. Consult the evidence and limits
+before relying on a broader capability in production.
 
 ## Try Atom locally
 
