@@ -138,7 +138,7 @@ export default function IntegrationsPanel({
       <div style={ps.header}>
         <span style={ps.title}>Integrations</span>
         <span
-          style={{...ps.count}} data-count= ${healthy === total && total > 0 ? "all-healthy" : ""}`}
+          style={{...ps.count}} data-count={`${healthy === total && total > 0 ? "all-healthy" : ""}`}
           data-testid="integrations-summary"
         >
           {loading ? "Checking…" : `${healthy} of ${total} healthy`}

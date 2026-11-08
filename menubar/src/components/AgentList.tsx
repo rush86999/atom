@@ -35,7 +35,7 @@ export default function AgentList({ agents, getMaturityColor, onAgentClick }: Ag
             {agent.execution_count} executions
             {agent.last_execution && (
               <span>
-                {" • Last: {new Date(agent.last_execution).toLocaleDateString()}
+                {" • Last: "}{new Date(agent.last_execution).toLocaleDateString()}
               </span>
             )}
           </div>
