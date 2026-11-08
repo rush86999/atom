@@ -235,3 +235,27 @@ async def test_graduation_racing_peer_receipt_is_exactly_reconciled(graduation_w
     with sessions() as fresh:
         assert fresh.query(AuditLog).count() == 1
         assert fresh.get(AgentRegistry, "graduate").status == "autonomous"
+
+
+async def _assert_real_promotion(sessions, prior, target):
+    """Positive transition proof uses actual account/agent rows, not mock authority."""
+    with sessions() as db:
+        agent = db.get(AgentRegistry, "graduate")
+        agent.status = prior
+        db.commit()
+        service = AgentGraduationService(db)
+
+        async def ready(**kwargs):
+            return {"ready": True, "gaps": [], "episodes_analyzed": 60,
+                    "readiness_score": 1.0, "success_rate": 1.0,
+                    "avg_constitutional_score": 1.0, "intervention_rate": 0.0,
+                    "avg_confidence_score": 0.99}
+
+        service.calculate_readiness_score = ready
+        assert await service.promote_agent(
+            "graduate", target, "supervisor", tenant_id="company", workspace_id="ws-a") is True
+    with sessions() as fresh:
+        agent = fresh.get(AgentRegistry, "graduate")
+        assert agent.status == target.lower()
+        assert agent.configuration["promoted_by"] == "supervisor"
+        assert agent.configuration["accepted"] == "original"
