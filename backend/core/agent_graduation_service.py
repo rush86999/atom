@@ -110,6 +110,30 @@ class AgentGraduationService:
             except Exception as e:
                 logger.warning(f"Failed to initialize POMDP framework: {e}")
 
+    def _query_in_scope(self, query, model, tenant_id=None, workspace_id=None):
+        """Apply the existing Personal/scope policy to an authoritative SQL query."""
+        if tenant_id is not None:
+            resolved_tenant = str(tenant_id) or PERSONAL_TENANT_ID
+            tenant_scope = model.tenant_id == resolved_tenant
+            if resolved_tenant == PERSONAL_TENANT_ID:
+                tenant_scope = or_(
+                    tenant_scope,
+                    model.tenant_id.is_(None),
+                    model.tenant_id == "",
+                )
+            query = query.filter(tenant_scope)
+        if workspace_id is not None:
+            resolved_workspace = str(workspace_id) or PERSONAL_WORKSPACE_ID
+            workspace_scope = model.workspace_id == resolved_workspace
+            if resolved_workspace == PERSONAL_WORKSPACE_ID:
+                workspace_scope = or_(
+                    workspace_scope,
+                    model.workspace_id.is_(None),
+                    model.workspace_id == "",
+                )
+            query = query.filter(workspace_scope)
+        return query
+
     def get_agent_in_scope(
         self,
         agent_id: str,
@@ -117,26 +141,7 @@ class AgentGraduationService:
         workspace_id: Optional[str] = None,
     ) -> Optional[AgentRegistry]:
         query = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id)
-        if tenant_id is not None:
-            resolved_tenant = str(tenant_id) or PERSONAL_TENANT_ID
-            tenant_scope = AgentRegistry.tenant_id == resolved_tenant
-            if resolved_tenant == PERSONAL_TENANT_ID:
-                tenant_scope = or_(
-                    tenant_scope,
-                    AgentRegistry.tenant_id.is_(None),
-                    AgentRegistry.tenant_id == "",
-                )
-            query = query.filter(tenant_scope)
-        if workspace_id is not None:
-            resolved_workspace = str(workspace_id) or PERSONAL_WORKSPACE_ID
-            workspace_scope = AgentRegistry.workspace_id == resolved_workspace
-            if resolved_workspace == PERSONAL_WORKSPACE_ID:
-                workspace_scope = or_(
-                    workspace_scope,
-                    AgentRegistry.workspace_id.is_(None),
-                    AgentRegistry.workspace_id == "",
-                )
-            query = query.filter(workspace_scope)
+        query = self._query_in_scope(query, AgentRegistry, tenant_id, workspace_id)
         return query.first()
 
     async def calculate_readiness_score(
@@ -1025,7 +1030,9 @@ class AgentGraduationService:
 
     async def get_graduation_audit_trail(
         self,
-        agent_id: str
+        agent_id: str,
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Get full audit trail for agent graduation.
@@ -1043,16 +1050,15 @@ class AgentGraduationService:
                 "summary_stats": Dict
             }
         """
-        agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
-        ).first()
+        agent = self.get_agent_in_scope(agent_id, tenant_id, workspace_id)
 
         if not agent:
             return {"error": "Agent not found"}
 
         # Get all episodes for this agent
-        episodes = self.db.query(Episode).filter(
-            Episode.agent_id == agent_id
+        query = self.db.query(Episode).filter(Episode.agent_id == agent_id)
+        episodes = self._query_in_scope(
+            query, Episode, tenant_id, workspace_id,
         ).order_by(Episode.started_at.desc()).all()
 
         # Calculate summary stats

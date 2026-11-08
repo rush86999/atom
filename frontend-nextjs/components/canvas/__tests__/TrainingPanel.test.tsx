@@ -340,7 +340,7 @@ describe('TrainingPanel', () => {
     render(<TrainingPanel canvasId="cv-1" />);
     await waitFor(() => screen.getByTestId('promote-agent-button'));
 
-    expect(screen.getByTestId('readiness-score')).toHaveTextContent('41/100');
+    expect(await screen.findByTestId('readiness-score')).toHaveTextContent('41/100');
     fireEvent.click(screen.getByTestId('promote-agent-button'));
 
     await waitFor(() =>
