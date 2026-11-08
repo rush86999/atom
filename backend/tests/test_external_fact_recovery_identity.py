@@ -79,3 +79,54 @@ def test_recovery_key_requires_exact_resolved_receipt(monkeypatch, case, accepte
     assert (key != old) is accepted
     assert executor._unconsumed_evidence_key(record)["key"] == key
     assert record == before
+
+
+def test_external_fact_recovery_runs_existing_adaptation_once(
+        route_env, tmp_path, monkeypatch):
+    """Real receipt/recovery/compiler/executor join; only proposal transport is controlled."""
+    import asyncio
+    import api.assignment_routes as routes
+    from tests.test_assignment_external_reply_identity import _rebuilt_executor
+
+    run_id, correlation, _ = _open_wait(route_env, tmp_path, monkeypatch)
+    executor = route_env["executor"]
+    before = executor.lifecycle.get_task(run_id)
+    quote = next(step for step in before["assignment"]["steps"]
+                 if step["adapter"] == "quote.calculate")
+    old = executor._evidence_recovery_plan(before)
+    assert old is not None
+    claim = executor._claim_evidence_recovery(run_id, old["key"])
+    assert claim is not None
+    executor._finish_evidence_recovery(
+        run_id, old["key"], "attempted", claim_token=claim["claim_token"])
+    accepted = executor.record_external_response(
+        run_id, correlation, response="received 2 units", source=REPLY_SOURCE,
+        value="2", reply_id="accepted-recovery-reply")
+    assert accepted["status"] == "resumed"
+    proposal = routes.propose_adaptation
+    calls = []
+
+    async def counted_proposal(*args, **kwargs):
+        calls.append(run_id)
+        return await proposal(*args, **kwargs)
+
+    monkeypatch.setattr(routes, "propose_adaptation", counted_proposal)
+    monkeypatch.setattr(routes, "_employee_llm_for_scope", lambda *_: object())
+    fresh = _rebuilt_executor(route_env)
+    recovered = asyncio.run(fresh._recover_accepted_evidence(run_id))
+    assert recovered["status"] == "completed", recovered
+    assert calls == [run_id]
+    final = fresh.lifecycle.get_task(run_id)
+    assert final["assignment"]["status"] == "completed"
+    reconciliation = next(step for step in final["assignment"]["steps"]
+                          if step["adapter"] == "invoice.reconcile")
+    assert reconciliation["status"] == "applied"
+    assert reconciliation["result"]["value"] == "270.00"
+    retained_quote = next(step for step in final["assignment"]["steps"]
+                          if step["step_id"] == quote["step_id"])
+    assert retained_quote["operation_id"] == quote["operation_id"]
+    assert retained_quote["result"] == quote["result"]
+    again = _rebuilt_executor(route_env)
+    assert asyncio.run(again._recover_accepted_evidence(run_id)) is None
+    assert calls == [run_id]
+    assert again.lifecycle.get_task(run_id) == final
