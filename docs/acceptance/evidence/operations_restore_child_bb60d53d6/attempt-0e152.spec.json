@@ -1,0 +1,21 @@
+{
+  "source": "0e152492ed40dc8b614ac66d99a928c54b7d96a3",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-oracle-refresh-20261107",
+    "--profile",
+    "heavy",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "/private/tmp/atom-oracle-refresh-20261107/scripts/acceptance/restore_child_smoke.py",
+    "--execute",
+    "--scratch",
+    "/private/tmp/root-restore-child-0e152-20261107",
+    "--python",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "--expected-revision",
+    "0e152492ed40dc8b614ac66d99a928c54b7d96a3"
+  ],
+  "scope": "scratch restore normal child HTTP/restart; no real model or memory search"
+}

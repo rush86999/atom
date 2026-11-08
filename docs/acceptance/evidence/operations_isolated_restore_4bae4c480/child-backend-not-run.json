@@ -1,0 +1,25 @@
+{
+  "status": "not_run",
+  "previous_status": "OPEN",
+  "reason": "No child backend/world was launched. The measured free space was 4413313024 bytes, only 118345728 bytes above the literal 4 GiB floor. The preceding 80-test bounded gate consumed more than 700 MB of scratch space; a full-app child needs a scratch source world, restore target, DB/LanceDB files and logs, so launching it would not maintain the required >=4 GiB working margin. The exact workorder and harness are frozen below for root to run after cleanup.",
+  "free_bytes_at_decision": 4413313024,
+  "minimum_bytes": 4294967296,
+  "headroom_bytes": 118345728,
+  "workorder": "CHILD_RESTORE_SMOKE_WORKORDER.md",
+  "harness": [
+    "child_restore_seed.py",
+    "child_restore_readback.py"
+  ],
+  "no_process_or_world_launched": true,
+  "http_acceptance_claimed": false,
+  "required_before_full_restore_claim": [
+    ">=4 GiB free before launch and maintained while the child runs",
+    "scratch source world seeded only through ordinary product models/fixtures",
+    "backup -> restore into a fresh target -> original source renamed/unavailable",
+    "isolated uvicorn child with target DATABASE_URL/ATOM_DATA_DIR/ATOM_OFFICE_DIR/ATOM_EMAIL_ATTACHMENT_DIR/LANCEDB_URI",
+    "normal /api/auth/login; /api/auth/me; /api/canvas/{id}; /api/goals/{id}",
+    "ingested_documents row and target office artifact readable after source absence",
+    "stop and start again; same reads and restart agreement",
+    "no model/provider/account/send/spend/deploy; no live DB/world"
+  ]
+}
