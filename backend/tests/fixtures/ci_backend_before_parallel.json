@@ -215,6 +215,15 @@
     {
       "name": "Run capability reentry epoch and runtime revocation controls",
       "run": "python -m pytest tests/test_autonomy_revocation.py tests/test_capability_revocation_epoch.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run cache benchmark reproducer contract",
+      "timeout-minutes": 3,
+      "env": {
+        "TESTING": "1",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+      },
+      "run": "python -m pytest --noconftest tests/test_governance_cache_benchmark_cli.py -q --tb=short\n"
     }
   ]
 }
