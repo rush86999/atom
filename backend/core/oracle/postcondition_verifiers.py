@@ -1829,6 +1829,322 @@ def _canvas_write_postcondition(restore: bool):
     return _verify
 
 
+def _canvas_lifecycle_postcondition(kind: str):
+    """Independent readback for the append-only delete/undelete rows.
+
+    This is the same postcondition oracle the accepted canvas update/restore
+    uses, parameterized by the lifecycle action. It reads the exact appended
+    row and its prior/tombstone/source rows in a FRESH session, then refuses
+    unless action, actor, scope, operation identity, source material and
+    recency all match the authority frozen before dispatch.
+    """
+    expected_action = "delete" if kind == "delete" else "restore"
+
+    def _details(row: Any) -> Dict[str, Any]:
+        value = getattr(row, "details_json", None) or {}
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (TypeError, ValueError):
+                value = {}
+        return value if isinstance(value, dict) else {}
+
+    def _scope_allowed(observed: Any, expected: Any) -> bool:
+        observed = str(observed or "").strip()
+        expected = str(expected or "").strip()
+        if not observed:
+            return True
+        if expected:
+            return observed == expected
+        return observed.lower() == "default"
+
+    def _content_of(row: Any) -> Any:
+        if row is None:
+            return None
+        details = _details(row)
+        for key in ("content", "data"):
+            if key in details and details[key] is not None:
+                return details[key]
+        return None
+
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        action = str(ctx.get("_oracle_action") or f"canvas.{kind}")
+        canvas_id = str(
+            ctx.get("_oracle_expected_canvas_id")
+            or ctx.get("canvas_id") or "").strip()
+        audit_id = str(ctx.get("audit_id") or "").strip()
+        expected_operation = str(
+            ctx.get("_oracle_expected_operation_id") or "").strip()
+        operation_optional = bool(
+            ctx.get("_oracle_lifecycle_operation_optional"))
+        expected_actor = str(
+            ctx.get("_oracle_expected_actor_id") or "").strip()
+        expected_tenant = str(
+            ctx.get("_oracle_expected_tenant_id") or "").strip()
+        expected_workspace = str(
+            ctx.get("_oracle_expected_workspace_id") or "").strip()
+        expected_prior = str(
+            ctx.get("_oracle_expected_prior_audit_id") or "").strip()
+        expected_tombstone = str(
+            ctx.get("_oracle_expected_tombstone_audit_id") or "").strip()
+        expected_source = str(
+            ctx.get("_oracle_expected_source_audit_id") or "").strip()
+        expected_digest = str(
+            ctx.get("_oracle_expected_canvas_content_sha256") or "").strip()
+        write_outcome = str(ctx.get("write_outcome") or "")
+        already_applied = bool(ctx.get("already_applied"))
+        strict_scope = bool(ctx.get("_oracle_require_scope_match"))
+
+        if not canvas_id:
+            return OracleResult(action, False, "missing canvas_id")
+        if not audit_id:
+            return OracleResult(
+                action, False, "no appended audit_id in the result")
+        if not operation_optional and not expected_operation:
+            return OracleResult(
+                action, False, "no frozen operation identity")
+        if write_outcome and write_outcome != "committed":
+            return OracleResult(
+                action, False,
+                f"write_outcome == {write_outcome!r}, not committed")
+
+        def _read_head(session):
+            from core.models import Canvas, CanvasAudit
+            from sqlalchemy import desc
+
+            row = (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.id == audit_id,
+                        CanvasAudit.canvas_id == canvas_id)
+                .first()
+            )
+            canvas = (
+                session.query(Canvas)
+                .filter(Canvas.id == canvas_id)
+                .first()
+            )
+            latest = (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.canvas_id == canvas_id)
+                .order_by(desc(CanvasAudit.created_at),
+                          desc(CanvasAudit.id))
+                .first()
+            )
+            return row, canvas, latest
+
+        def _read_audit(session, target_id: str):
+            from core.models import CanvasAudit
+
+            return (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.id == str(target_id),
+                        CanvasAudit.canvas_id == canvas_id)
+                .first()
+            )
+
+        try:
+            row, canvas, latest = _fresh_read_with_db(ctx, _read_head)
+            if row is None:
+                return OracleResult(
+                    action, False,
+                    f"canvas_audit {audit_id[:12]} not found for canvas "
+                    f"{canvas_id}")
+            if str(row.action_type or "") != expected_action:
+                return OracleResult(
+                    action, False,
+                    f"canvas_audit action_type == {row.action_type!r}")
+            if expected_actor and str(row.user_id or "") != expected_actor:
+                return OracleResult(
+                    action, False,
+                    f"audit actor={row.user_id!r}, expected {expected_actor!r}")
+
+            details = _details(row)
+            if (not operation_optional and str(
+                    details.get("operation_id") or "") != expected_operation):
+                return OracleResult(
+                    action, False,
+                    "audit operation_id does not match the authorized "
+                    "operation")
+            if expected_tenant or strict_scope:
+                if not _scope_allowed(row.tenant_id, expected_tenant):
+                    return OracleResult(
+                        action, False,
+                        f"audit tenant={row.tenant_id!r}, expected "
+                        f"{expected_tenant!r}")
+            if canvas is not None:
+                if (expected_tenant or strict_scope) and (
+                        not _scope_allowed(
+                            canvas.tenant_id, expected_tenant)):
+                    return OracleResult(
+                        action, False,
+                        f"canvas tenant={canvas.tenant_id!r}, expected "
+                        f"{expected_tenant!r}")
+                if (expected_workspace or strict_scope) and (
+                        not _scope_allowed(
+                            canvas.workspace_id, expected_workspace)):
+                    return OracleResult(
+                        action, False,
+                        f"canvas workspace={canvas.workspace_id!r}, expected "
+                        f"{expected_workspace!r}")
+            # Audit-only canvases have no workspace column; workspace stays
+            # legacy/unqualified rather than becoming a foreign grant.
+
+            if not already_applied:
+                if latest is None or str(latest.id) != audit_id:
+                    return OracleResult(
+                        action, False,
+                        "audit is not the current lifecycle row; a later "
+                        "audit exists")
+
+            stored_digest = str(details.get("content_sha256") or "")
+
+            if kind == "delete":
+                stored_prior = str(details.get("prior_audit_id") or "")
+                if expected_prior and stored_prior != expected_prior:
+                    return OracleResult(
+                        action, False,
+                        "audit prior_audit_id does not match the authorized "
+                        "prior row")
+                source_id = str(details.get("source_audit_id") or "")
+                if expected_source and source_id != expected_source:
+                    return OracleResult(
+                        action, False,
+                        "audit source_audit_id does not match the authorized "
+                        "source row")
+                prior = (
+                    _fresh_read_with_db(
+                        ctx, lambda session: _read_audit(
+                            session, expected_prior))
+                    if expected_prior else None)
+                if expected_prior and prior is None:
+                    return OracleResult(
+                        action, False,
+                        "authorized prior audit row not found")
+                if prior is not None and str(
+                        prior.action_type or "") == "delete":
+                    return OracleResult(
+                        action, False,
+                        "authorized prior row is a deletion marker")
+                source = (
+                    _fresh_read_with_db(
+                        ctx, lambda session: _read_audit(
+                            session, source_id))
+                    if source_id else None)
+                if source_id and source is None:
+                    return OracleResult(
+                        action, False, "source content row not found")
+                if source is not None:
+                    if str(source.action_type or "") == "delete":
+                        return OracleResult(
+                            action, False,
+                            "source content row is a deletion marker")
+                    from tools.canvas_crud_tool import _EVENT_ONLY_ACTIONS
+                    if str(source.action_type or "") in _EVENT_ONLY_ACTIONS:
+                        return OracleResult(
+                            action, False,
+                            "source content row is an event-only stamp")
+                    source_content = _content_of(source)
+                    if source_content is None:
+                        return OracleResult(
+                            action, False,
+                            "source content row carries no content")
+                    source_digest = _content_digest(source_content)
+                    if stored_digest and source_digest != stored_digest:
+                        return OracleResult(
+                            action, False,
+                            "stored content digest does not match the source "
+                            "row")
+                    if expected_digest and source_digest != expected_digest:
+                        return OracleResult(
+                            action, False,
+                            "source content does not match the authorized "
+                            "material")
+                return OracleResult(
+                    action, True,
+                    f"canvas_audit {audit_id[:12]} action_type=delete "
+                    f"prior={(stored_prior or '-')[:12]} "
+                    f"content={(stored_digest or '-')[:12]} "
+                    f"canvas_id={canvas_id}")
+
+            stored_tombstone = str(
+                details.get("tombstone_audit_id")
+                or details.get("restored_from_tombstone_id") or "")
+            if expected_tombstone and stored_tombstone != expected_tombstone:
+                return OracleResult(
+                    action, False,
+                    "audit tombstone_audit_id does not match the authorized "
+                    "tombstone")
+            if not stored_tombstone:
+                return OracleResult(
+                    action, False, "audit carries no tombstone identity")
+            tombstone = _fresh_read_with_db(
+                ctx, lambda session: _read_audit(
+                    session, stored_tombstone))
+            if tombstone is None:
+                return OracleResult(
+                    action, False, "authorized tombstone row not found")
+            if str(tombstone.action_type or "") != "delete":
+                return OracleResult(
+                    action, False,
+                    "tombstone row is not a deletion marker")
+
+            source_id = str(details.get("source_audit_id") or "")
+            if expected_source and source_id != expected_source:
+                return OracleResult(
+                    action, False,
+                    "audit source_audit_id does not match the authorized "
+                    "source row")
+            if not source_id:
+                return OracleResult(
+                    action, False, "audit carries no source content row")
+            source = _fresh_read_with_db(
+                ctx, lambda session: _read_audit(session, source_id))
+            if source is None:
+                return OracleResult(
+                    action, False, "authorized source content row not found")
+            if str(source.action_type or "") == "delete":
+                return OracleResult(
+                    action, False,
+                    "source content row is a deletion marker")
+            from tools.canvas_crud_tool import _EVENT_ONLY_ACTIONS
+            if str(source.action_type or "") in _EVENT_ONLY_ACTIONS:
+                return OracleResult(
+                    action, False,
+                    "source content row is an event-only stamp")
+            source_content = _content_of(source)
+            if source_content is None:
+                return OracleResult(
+                    action, False,
+                    "source content row carries no content")
+            source_digest = _content_digest(source_content)
+            if stored_digest and source_digest != stored_digest:
+                return OracleResult(
+                    action, False,
+                    "stored content digest does not match the source row")
+            if expected_digest and source_digest != expected_digest:
+                return OracleResult(
+                    action, False,
+                    "source content does not match the authorized material")
+            restored_content = _content_of(row)
+            if restored_content is None:
+                return OracleResult(
+                    action, False, "restore row carries no restored content")
+            if _content_digest(restored_content) != source_digest:
+                return OracleResult(
+                    action, False,
+                    "restored content does not match the exact source row")
+            return OracleResult(
+                action, True,
+                f"canvas_audit {audit_id[:12]} action_type=restore "
+                f"tombstone={stored_tombstone[:12]} "
+                f"source={source_id[:12]} content={source_digest[:12]} "
+                f"canvas_id={canvas_id}")
+        except Exception as e:  # noqa: BLE001 - unreadable is not verified
+            return OracleResult(
+                action, False, f"canvas lifecycle read-back failed: {e}")
+    return _verify
+
+
 def _goal_postcondition(mode: str):
     async def _verify(ctx: Dict[str, Any]) -> OracleResult:
         action = str(ctx.get("_oracle_action") or "goals")
@@ -1990,6 +2306,10 @@ register_postcondition("canvas.update")(
     _canvas_write_postcondition(restore=False))
 register_postcondition("canvas.restore_version")(
     _canvas_write_postcondition(restore=True))
+register_postcondition("canvas.delete")(
+    _canvas_lifecycle_postcondition("delete"))
+register_postcondition("canvas.undelete")(
+    _canvas_lifecycle_postcondition("undelete"))
 register_postcondition("goals.create")(_goal_postcondition("create"))
 register_postcondition("goals.evaluate")(_goal_postcondition("evaluate"))
 register_postcondition("goal_runs.start")(_goal_postcondition("run"))
