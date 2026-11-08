@@ -1,0 +1,23 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+____________ test_exact_workspace_material_type[numeric-wrong-type] ____________
+../../test_root_feedback_json_binding_type.py:22: in test_exact_workspace_material_type
+    assert result['recorded'] is False,(result,after)
+E   AssertionError: ({'recorded': True, 'status': 'annotated', 'evaluation': 'failed', 'failure_kind': 'wrong_evidence_selection', ...}, {...lection', 'failure_kind': 'wrong_evidence_selection', 'verdict_rule': 'business_outcome_v1', 'workspace_id': 123, ...})
+E   assert True is False
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_root_feedback_json_binding_type.py::test_exact_workspace_material_type[numeric-wrong-type]
+1 failed, 1 passed, 5 warnings in 2.42s

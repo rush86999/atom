@@ -726,6 +726,118 @@ def test_business_write_binding_refuses_wrong_or_missing_receipt_fields(
         assert (row.prompt_features or {}).get("business_outcome") is None
 
 
+_BINDING_REFUSALS = {
+    "workspace_id": "refused_workspace",
+    "route_provider": "refused_provider",
+    "capability_profile": "refused_profile",
+    "profile_version": "refused_profile_version",
+}
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["workspace_id", "route_provider", "capability_profile",
+     "profile_version"],
+)
+@pytest.mark.parametrize(
+    ("stored", "valid"),
+    [(123, False), ("123", True)],
+    ids=["numeric-wrong-type", "opaque-string-valid"],
+)
+def test_business_binding_requires_an_exact_json_string_type(
+        feedback_db, fresh_router, field, stored, valid):
+    """A stored JSON number 123 must not satisfy the string "123" binding."""
+    from core.employee_routing_feedback import record_attempt_evaluation
+
+    generation = f"binding-type-{field}-{type(stored).__name__}"
+    row_overrides = {}
+    result_overrides = {}
+    workspace_id = "ws-ctrl"
+    if field == "workspace_id":
+        row_overrides["workspace"] = stored
+        workspace_id = "123"
+    elif field == "route_provider":
+        row_overrides["provider"] = stored
+        result_overrides["provider"] = "123"
+    elif field == "capability_profile":
+        row_overrides["profile"] = stored
+        result_overrides["profile"] = "123"
+    else:
+        row_overrides["version"] = stored
+        result_overrides["version"] = "123"
+    row_id = _insert_outcome_row(
+        feedback_db, generation, **row_overrides)
+    before = _row_by_id(feedback_db, row_id).prompt_features.copy()
+    recorded = asyncio.run(record_attempt_evaluation(
+        _synthetic_result(generation, **result_overrides),
+        stage="employee_evidence_selection",
+        evaluation="failed",
+        failure_kind="wrong_evidence_selection",
+        workspace_id=workspace_id,
+        tenant_id="tenant-ctrl"))
+    row = _row_by_id(feedback_db, row_id)
+    if valid:
+        assert recorded["recorded"] is True, recorded
+        assert recorded["status"] == "annotated", recorded
+        assert row.success is False
+        assert row.prompt_features["business_outcome"] == "failed"
+    else:
+        assert recorded["recorded"] is False, recorded
+        assert recorded["status"] == _BINDING_REFUSALS[field], recorded
+        assert row.success is True
+        assert row.prompt_features == before, (before, row.prompt_features)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["workspace_id", "route_provider", "capability_profile",
+     "profile_version"],
+)
+@pytest.mark.parametrize(
+    "stored",
+    [123, 0, True, False, ["123"], {"value": "123"}],
+    ids=["int", "zero", "true", "false", "list", "object"],
+)
+def test_business_binding_error_refuses_non_string_json_types(
+        field, stored):
+    """No str() coercion of a malformed stored binding into authority."""
+    from types import SimpleNamespace as NS
+
+    from core.learning_llm_router import (
+        LearningBasedRouter,
+        RoutingFeedback,
+    )
+
+    row = NS(tenant_id="tenant-ctrl", model_id="llama3.1:8b")
+    feedback = RoutingFeedback(
+        routing_result_id="generation-type",
+        tenant_id="tenant-ctrl",
+        model_id="llama3.1:8b",
+        task_type="general",
+        success=True,
+        quality_satisfied=True,
+        cost_within_budget=True,
+        provider_id="123",
+        workspace_id="123",
+        capability_profile="123",
+        capability_profile_version="123",
+    )
+    features = {
+        "route_provider": "123",
+        "workspace_id": "123",
+        "capability_profile": "123",
+        "profile_version": "123",
+    }
+    features[field] = stored
+    assert LearningBasedRouter._business_binding_error(
+        row, features, feedback) == {
+        "workspace_id": "workspace",
+        "route_provider": "provider",
+        "capability_profile": "profile",
+        "profile_version": "profile_version",
+    }[field]
+
+
 def test_business_write_binding_annotates_exactly_the_receipt(
         feedback_db, fresh_router):
     from core.employee_routing_feedback import record_business_outcome
