@@ -46,7 +46,7 @@ from tests.test_assignment_routes import route_env  # noqa: E402,F401
 @pytest.mark.parametrize("target,expected", [("owned", 200), ("outside", 403), ("foreign", 404)])
 def test_allocated_artifact_and_download_use_same_owned_root(
         route_env, tmp_path, monkeypatch, target, expected):
-    from core.assignment_plan import new_assignment
+    from core.assignment_plan import new_assignment, new_step
     from core.assignment_resources import allocate_output_path
 
     office = tmp_path / "configured-office"
@@ -62,6 +62,9 @@ def test_allocated_artifact_and_download_use_same_owned_root(
         path.write_bytes(b"not authorized by the configured artifact root")
     plan = new_assignment(
         objective="Download an owned artifact", workspace_id="ws-1", tenant_id="tenant-1",
+        steps=[new_step(step_id="calculate", title="Pending calculation",
+                        operation_type="calculate", adapter="formula.calculate",
+                        inputs={"expression": "1+1"})],
         deliverables=[{"deliverable_id": "result-1", "kind": "document", "artifact_path": str(path)}])
     record = route_env["executor"].create_assignment(
         "path-contract-conversation", "Download an owned artifact", assignment=plan)
