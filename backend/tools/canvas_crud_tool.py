@@ -179,6 +179,364 @@ def canvas_write_scope_error(
     return None
 
 
+def _latest_canvas_audit(db, canvas_id: str, *, lock: bool = False):
+    """Newest audit row, with the same ``created_at, id`` tiebreak every
+    other canvas read uses.
+
+    Delete/undelete historically ordered by ``created_at`` only, so a
+    legacy same-second tie could pick the wrong state. The order is part of
+    the lifecycle contract now, not an accident of UUID ordering.
+    """
+    from core.models import CanvasAudit
+    from sqlalchemy import desc
+
+    query = db.query(CanvasAudit).filter(
+        CanvasAudit.canvas_id == canvas_id)
+    if lock:
+        query = query.with_for_update()
+    return query.order_by(
+        desc(CanvasAudit.created_at), desc(CanvasAudit.id)).first()
+
+
+def latest_canvas_content_audit(db, canvas_id: str):
+    """Newest non-delete row that actually carries a canvas body.
+
+    Contentless event rows (``email_send`` / ``email_send_attempt``) append
+    after the real revision. The lifecycle source row must be the same one
+    ``read_canvas`` would serve, or undelete would restore an event stamp
+    instead of the user's content.
+    """
+    from core.models import CanvasAudit
+    from sqlalchemy import desc
+
+    try:
+        rows = (
+            db.query(CanvasAudit)
+            .filter(
+                CanvasAudit.canvas_id == canvas_id,
+                CanvasAudit.action_type.notin_(
+                    ("delete",) + _EVENT_ONLY_ACTIONS),
+            )
+            .order_by(desc(CanvasAudit.created_at), desc(CanvasAudit.id))
+            .limit(50)
+            .all()
+        )
+    except Exception:  # noqa: BLE001 - a legacy shape has no content row
+        return None
+    for row in rows or []:
+        details = row.details_json or {}
+        if _audit_content(details) is not None:
+            return row
+    return None
+
+
+def _audit_content(details: Any) -> Any:
+    """Body from audit details, preserving falsy-but-valid values."""
+    if not isinstance(details, dict):
+        return None
+    for key in ("content", "data"):
+        if key in details and details[key] is not None:
+            return details[key]
+    return None
+
+
+def canvas_lifecycle_scope_error(
+    db,
+    canvas_id: str,
+    user_id: str,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    *,
+    lock: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Scope gate for the delete/undelete lifecycle writers.
+
+    The accepted update/restore gate (``canvas_write_scope_error``) assumes a
+    ``Canvas`` mirror exists. Agent-created canvases are audit-only, so the
+    lifecycle gate must authorize those against the newest audit tenant
+    instead of 404-ing a supported path. The rules are otherwise the same:
+
+    * ownership is still the FIRST gate (creator or historical co-editor);
+    * a Canvas-backed canvas is authorized against its current
+      tenant/workspace snapshot (``_scope_allows`` incl. Personal null/default);
+    * an audit-only canvas is authorized against the newest audit tenant and
+      its workspace is legacy/unqualified — never a foreign-scope grant.
+    """
+    from core.models import Canvas
+
+    canvas_query = db.query(Canvas).filter(Canvas.id == canvas_id)
+    if lock:
+        canvas_query = canvas_query.with_for_update()
+    canvas = canvas_query.first()
+
+    if not _verify_canvas_owner(db, canvas_id, user_id):
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+
+    latest = _latest_canvas_audit(db, canvas_id, lock=lock)
+    if latest is None:
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+
+    if canvas is not None:
+        if not _scope_allows(canvas.tenant_id, tenant_id):
+            return {
+                "http_status": 403,
+                "error": "Canvas belongs to a different tenant",
+            }
+        if not _scope_allows(canvas.workspace_id, workspace_id):
+            return {
+                "http_status": 403,
+                "error": "Canvas belongs to a different workspace",
+            }
+        return None
+
+    # Audit-only canvas: the newest audit tenant is the only scope evidence.
+    # A workspace claim cannot be checked against a row that has no workspace
+    # column, so it is recorded as legacy rather than treated as a grant.
+    if not _scope_allows(latest.tenant_id, tenant_id):
+        return {
+            "http_status": 403,
+            "error": "Canvas belongs to a different tenant",
+        }
+    return None
+
+
+def canvas_lifecycle_snapshot(
+    db,
+    canvas_id: str,
+    user_id: str,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Read-only identity/material snapshot frozen before a lifecycle write.
+
+    The service uses this to bind one logical operation to the exact scope,
+    prior row, tombstone and source content before dispatch. The writer
+    repeats every check inside its own transaction; this snapshot is not
+    authority, only the expectation the verifier will grade.
+    """
+    from core.models import Canvas
+    from core.oracle.postcondition_verifiers import canvas_content_digest
+
+    scope_error = canvas_lifecycle_scope_error(
+        db, canvas_id, user_id, tenant_id, workspace_id)
+    if scope_error:
+        return scope_error
+
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    latest = _latest_canvas_audit(db, canvas_id)
+    if latest is None:
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+
+    latest_details = latest.details_json or {}
+    if not isinstance(latest_details, dict):
+        latest_details = {}
+    source = latest_canvas_content_audit(db, canvas_id)
+    source_details = (
+        source.details_json or {} if source is not None else {})
+    if not isinstance(source_details, dict):
+        source_details = {}
+    content = _audit_content(source_details)
+    try:
+        digest = (
+            canvas_content_digest(content) if content is not None else "")
+    except Exception:  # noqa: BLE001 - unreadable material is missing proof
+        digest = ""
+
+    is_tombstone = str(latest.action_type or "") == "delete"
+    return {
+        "canvas_id": canvas_id,
+        "mirror": canvas is not None,
+        "canvas_tenant_id": str(
+            getattr(canvas, "tenant_id", "") or "") if canvas is not None else "",
+        "canvas_workspace_id": str(
+            getattr(canvas, "workspace_id", "") or "") if canvas is not None else "",
+        "authoritative_tenant_id": str(
+            (getattr(canvas, "tenant_id", None) if canvas is not None else None)
+            or latest.tenant_id or ""),
+        "latest_audit_id": str(latest.id),
+        "latest_action_type": str(latest.action_type or ""),
+        "tombstone_audit_id": str(latest.id) if is_tombstone else "",
+        "tombstone_prior_audit_id": (
+            str(latest_details.get("prior_audit_id") or "")
+            if is_tombstone else ""),
+        "tombstone_source_audit_id": (
+            str(latest_details.get("source_audit_id") or "")
+            if is_tombstone else ""),
+        "tombstone_content_sha256": (
+            str(latest_details.get("content_sha256") or "")
+            if is_tombstone else ""),
+        "tombstone_operation_id": (
+            str(latest_details.get("operation_id") or "")
+            if is_tombstone else ""),
+        "source_audit_id": str(source.id) if source is not None else "",
+        "content_sha256": digest,
+        "canvas_type": str(
+            latest.canvas_type
+            or (getattr(source, "canvas_type", None) if source is not None else None)
+            or "generic"),
+        "title": source_details.get("title") if source is not None else None,
+    }
+
+
+def canvas_lifecycle_owner_error(
+    db,
+    canvas_id: str,
+    user_id: str,
+) -> Optional[Dict[str, Any]]:
+    """Ownership/latest-only first gate for the verified lifecycle consumer.
+
+    Ownership remains the first gate, exactly as in the existing owner or
+    historical-coeditor policy: a non-owner gets 404 without learning whether
+    the User is active. Only an owner/coeditor proceeds to the active-User
+    authority checks. This keeps the legacy IDOR response and lets the
+    verified path distinguish "not yours" from "your account is inactive".
+    """
+    if not _verify_canvas_owner(db, canvas_id, user_id):
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+    if _latest_canvas_audit(db, canvas_id) is None:
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+    return None
+
+
+def _raw_exact(column, value: Any):
+    """Exact raw-value predicate for an actor scope column.
+
+    NULL, empty string and ``default`` are distinct stored values. The
+    authorization policy treats null/empty/default as legacy, but a concurrent
+    move between any of them is still a move and must fail the claim.
+    """
+    if value is None:
+        return column.is_(None)
+    return column == str(value)
+
+
+def active_canvas_actor(db, user_id: Optional[str]) -> Dict[str, Any]:
+    """Load the authoritative current actor for a verified canvas write.
+
+    The current User row — not the request/context scope — is authority. A
+    missing, unreadable, inactive or status-changed actor is refused; there is
+    no context-scope fallback. The returned raw tenant/workspace/status/
+    is_active snapshot is frozen by the writer's guarded claim in the SAME
+    transaction as the lifecycle CAS and append.
+    """
+    from core.models import User
+
+    actor_id = str(user_id or "").strip()
+    if not actor_id:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Acting user is required",
+        }
+    try:
+        user = db.query(User).filter(User.id == actor_id).first()
+    except Exception as exc:  # noqa: BLE001 - unreadable is not permission
+        logger.warning("canvas actor authority read failed: %s", exc)
+        return {
+            "ok": False,
+            "http_status": 503,
+            "error": "Acting user could not be verified",
+        }
+    if user is None:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Acting user not found",
+        }
+    raw_status = getattr(user, "status", "")
+    status = str(getattr(raw_status, "value", raw_status) or "")
+    is_active = bool(getattr(user, "is_active", False))
+    if status != "active" or not is_active:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Acting user is not active",
+            "user_found": True,
+            "status": status,
+            "is_active": is_active,
+        }
+    return {
+        "ok": True,
+        "user": user,
+        "user_found": True,
+        "id": str(user.id),
+        "tenant_id": getattr(user, "tenant_id", None),
+        "workspace_id": getattr(user, "workspace_id", None),
+        "status": status,
+        "is_active": is_active,
+    }
+
+
+def _claim_canvas_actor(db, actor: Dict[str, Any]) -> bool:
+    """Bind the write transaction to the exact active User snapshot.
+
+    The guarded no-op UPDATE is the actor linearization point. It matches the
+    exact raw tenant/workspace (NULL distinct from empty), the exact status
+    string, and ``is_active=True``. A move/deactivation committed before the
+    claim makes it match zero rows; a change after the claim waits for this
+    transaction (PostgreSQL row lock / SQLite write reservation). The caller
+    rolls back on failure, preserving the winning User change.
+    """
+    from sqlalchemy import update
+
+    from core.models import User
+
+    statement = (
+        update(User)
+        .where(
+            User.id == str(actor["id"]),
+            User.is_active.is_(True),
+            User.status == str(actor["status"]),
+            _raw_exact(User.tenant_id, actor.get("tenant_id")),
+            _raw_exact(User.workspace_id, actor.get("workspace_id")),
+        )
+        .values(updated_at=User.updated_at)
+    )
+    with db.no_autoflush:
+        try:
+            result = db.execute(statement)
+        except Exception as exc:  # noqa: BLE001 - unreadable claim is refusal
+            logger.warning("canvas actor authority claim failed: %s", exc)
+            return False
+        if result.rowcount != 1:
+            return False
+    return True
+
+
+def _audit_scope_claim_cas(
+    db,
+    canvas_id: str,
+    expected_audit_id: str,
+    expected_tenant: Any,
+) -> bool:
+    """Bind an audit-only lifecycle append to the authorized audit row.
+
+    There is no Canvas mirror to lock, so the newest authorized audit row is
+    the reservation: a same-tenant move that replaced it (or a foreign tenant
+    stamp) makes the guarded DML match zero rows and the caller rolls back
+    before effect.
+    """
+    from sqlalchemy import update
+
+    from core.models import CanvasAudit
+
+    statement = (
+        update(CanvasAudit)
+        .where(
+            CanvasAudit.id == str(expected_audit_id),
+            CanvasAudit.canvas_id == canvas_id,
+            CanvasAudit.tenant_id == str(expected_tenant or ""),
+        )
+        .values(action_type=CanvasAudit.action_type)
+    )
+    with db.no_autoflush:
+        result = db.execute(statement)
+        if result.rowcount != 1:
+            db.rollback()
+            return False
+    return True
+
+
 def deleted_canvas_ids(db, canvas_ids) -> set:
     """Subset of ``canvas_ids`` whose NEWEST audit row is a delete tombstone.
 
@@ -433,6 +791,50 @@ def _operation_audit_row(db: Any, canvas_id: str, operation_id: str):
 def find_operation_audit(db: Any, canvas_id: str, operation_id: str):
     """Public lookup for the direct verified-write service."""
     return _operation_audit_row(db, canvas_id, operation_id)
+
+
+def find_operation_audits(
+    db: Any, canvas_id: str, operation_id: str,
+) -> List[Any]:
+    """ALL audit rows carrying one logical operation id, newest first.
+
+    A logical operation id must name one durable event. Duplicate rows for
+    one key are ambiguous identity, not a replay: callers fail closed rather
+    than certifying whichever row happens to sort first.
+    """
+    from core.models import CanvasAudit
+    from sqlalchemy import desc
+
+    try:
+        from core.sql_json import json_field_equals
+
+        predicate = json_field_equals(
+            db, CanvasAudit.details_json, "$.operation_id", operation_id)
+        query = db.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == canvas_id)
+        if predicate is not None:
+            query = query.filter(predicate)
+        return query.order_by(
+            desc(CanvasAudit.created_at), desc(CanvasAudit.id)).all() or []
+    except Exception:
+        try:
+            rows = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+            ).all()
+            matches = []
+            for row in rows or []:
+                details = row.details_json or {}
+                if (isinstance(details, dict)
+                        and details.get("operation_id") == operation_id):
+                    matches.append(row)
+            matches.sort(
+                key=lambda row: (
+                    str(getattr(row, "created_at", "") or ""),
+                    str(getattr(row, "id", "") or "")),
+                reverse=True)
+            return matches
+        except Exception:
+            return []
 
 
 def canonical_update_content(
@@ -1303,55 +1705,263 @@ async def restore_canvas_version(
 
 
 async def delete_canvas(
-    user_id: str,
+    user_id: Optional[str],
     canvas_id: str,
+    *,
+    operation_id: Optional[str] = None,
+    expected_prior_audit_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    expected_actor_status: Optional[str] = None,
+    expected_actor_is_active: Optional[bool] = None,
+    scope_required: bool = False,
 ) -> Dict[str, Any]:
     """Delete (close) a specific canvas by ID.
 
     Writes a CanvasAudit with action_type="delete" and broadcasts a WS close.
     The audit trail is preserved (append-only), so the history is recoverable.
 
-    Unlike the old close_canvas (which closed ALL canvases for a user), this
-    targets a specific canvas_id.
+    ``scope_required`` is the verified consumer contract (HTTP route and the
+    registered-tool service). It resolves the CURRENT active User row and
+    authorizes that row's raw tenant/workspace against the authoritative
+    Canvas row — or, for an audit-only canvas, against the newest audit tenant.
+    The request ``tenant_id``/``workspace_id`` arguments are retained for
+    caller compatibility and are NOT authority. A historical co-editor whose
+    scope has since moved, or a User that is missing/inactive/status-changed,
+    is refused before effect. The exact active User snapshot is claimed in the
+    same transaction as the lifecycle CAS/append. Verified callers pass the
+    preflight-frozen ``tenant_id``/``workspace_id``/``expected_actor_status``/
+    ``expected_actor_is_active``; any mismatch (including a move between NULL,
+    empty and ``default``) refuses before effect. Direct tool callers that omit
+    ``scope_required`` keep the legacy owner/co-editor ownership gate.
+
+    ``operation_id`` is the server-owned identity of one LOGICAL delete. The
+    same id with the same target/prior state replays the original tombstone
+    id with no second row or broadcast. Reusing it for a different target or
+    prior state is a conflict. ``expected_prior_audit_id`` is the optional
+    optimistic token; a mismatch refuses before effect.
 
     Args:
         user_id: User requesting the action
         canvas_id: The canvas ID to delete
     """
+    write_outcome = WRITE_NOT_ATTEMPTED
+    appended_audit_id = ""
     try:
         from core.database import get_db_session
-        from core.models import CanvasAudit
+        from core.models import Canvas, CanvasAudit
+        from core.oracle.postcondition_verifiers import canvas_content_digest
         from core.websockets import manager as ws_manager
-        from sqlalchemy import desc
 
         with get_db_session() as db:
-            # IDOR guard: only the owner may delete this canvas.
-            if not _verify_canvas_owner(db, canvas_id, user_id):
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+            canvas_row = (
+                db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            )
+            expected_tenant = (
+                str(getattr(canvas_row, "tenant_id", None) or "")
+                if canvas_row is not None else "")
+            expected_workspace = (
+                str(getattr(canvas_row, "workspace_id", None) or "")
+                if canvas_row is not None else "")
 
-            # Verify the canvas exists.
-            latest = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id,
-            ).order_by(desc(CanvasAudit.created_at)).first()
+            actor = None
+            if scope_required:
+                # Ownership is the first gate: a non-owner gets the legacy
+                # 404 without learning whether the account is active.
+                owner_error = canvas_lifecycle_owner_error(
+                    db, canvas_id, user_id)
+                if owner_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **owner_error,
+                    }
+                # The request/context scope is NOT authority. The current
+                # active User row is resolved and frozen here; the same
+                # snapshot is claimed in the append transaction below.
+                actor = active_canvas_actor(db, user_id)
+                if not actor.get("ok"):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": int(
+                            actor.get("http_status") or 403),
+                        "error": (
+                            actor.get("error")
+                            or "Acting user is not active"),
+                    }
+                if (expected_actor_status is None
+                        or expected_actor_is_active is None):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": 503,
+                        "error": (
+                            "actor authority snapshot is required"),
+                    }
+                if (actor.get("tenant_id") != tenant_id
+                        or actor.get("workspace_id") != workspace_id
+                        or str(actor.get("status") or "")
+                        != str(expected_actor_status)
+                        or bool(actor.get("is_active"))
+                        != bool(expected_actor_is_active)):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "delete refused"),
+                    }
+                # Authoritative scope gate in the SAME transaction as the
+                # append. The guarded write below is the linearization point.
+                scope_error = canvas_lifecycle_scope_error(
+                    db, canvas_id, user_id, tenant_id, workspace_id,
+                    lock=True)
+                if scope_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **scope_error,
+                    }
+            elif not _verify_canvas_owner(db, canvas_id, user_id):
+                # IDOR guard: only the owner/co-editor may delete this canvas.
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
 
+            latest = _latest_canvas_audit(db, canvas_id, lock=scope_required)
             if not latest:
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
+
+            latest_details = latest.details_json or {}
+            if not isinstance(latest_details, dict):
+                latest_details = {}
+            existing_operation = str(
+                latest_details.get("operation_id") or "")
+            operation_id = (operation_id or "").strip() or None
+
+            if operation_id:
+                existing = _operation_audit_row(db, canvas_id, operation_id)
+                if existing is not None:
+                    existing_details = existing.details_json or {}
+                    if not isinstance(existing_details, dict):
+                        existing_details = {}
+                    existing_prior = str(
+                        existing_details.get("prior_audit_id") or "")
+                    intended_prior = str(expected_prior_audit_id or "")
+                    if not intended_prior and latest.action_type != "delete":
+                        intended_prior = str(latest.id)
+                    if (str(existing.action_type or "") != "delete"
+                            or (existing_prior and intended_prior
+                                and existing_prior != intended_prior)):
+                        return {
+                            "success": False,
+                            "conflict": True,
+                            "write_outcome": write_outcome,
+                            "http_status": 409,
+                            "operation_id": operation_id,
+                            "error": (
+                                "operation_id already used with different "
+                                "material or target"),
+                        }
+                    return {
+                        "success": True,
+                        "already_applied": True,
+                        "replayed": True,
+                        "no_change": True,
+                        "write_outcome": WRITE_COMMITTED,
+                        "canvas_id": canvas_id,
+                        "audit_id": str(existing.id),
+                        "operation_id": operation_id,
+                        "action_type": "delete",
+                        "prior_audit_id": existing_prior or None,
+                        "source_audit_id":
+                            existing_details.get("source_audit_id"),
+                        "content_sha256":
+                            existing_details.get("content_sha256"),
+                        "canvas_type": existing.canvas_type,
+                        "message": "Canvas delete already applied",
+                    }
+
+            if (expected_prior_audit_id
+                    and str(latest.id) != str(expected_prior_audit_id)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "canvas changed since the delete was planned "
+                        f"(expected audit {str(expected_prior_audit_id)[:12]}…, "
+                        f"latest {str(latest.id)[:12]}…) — write refused"),
+                }
 
             if latest.action_type == "delete":
                 # IDEMPOTENT: deleting an already-deleted canvas succeeds.
                 # The gallery's delete button raced the refetch window once
                 # and the non-idempotent 400 surfaced as an AxiosError
                 # overlay (observed live 2026-09-01). REST DELETE is
-                # idempotent by contract; the outcome is identical.
+                # idempotent by contract; the outcome is identical. A
+                # DIFFERENT operation id still reports the original
+                # tombstone, and never appends a second row or broadcast.
                 return {
                     "success": True,
-                    "canvas_id": canvas_id,
+                    "already_applied": True,
+                    "replayed": False,
+                    "no_change": True,
                     "already_deleted": True,
+                    "write_outcome": WRITE_COMMITTED,
+                    "canvas_id": canvas_id,
+                    "audit_id": str(latest.id),
+                    "operation_id": operation_id,
+                    "applied_operation_id": existing_operation or None,
+                    "action_type": "delete",
+                    "prior_audit_id":
+                        latest_details.get("prior_audit_id"),
+                    "source_audit_id":
+                        latest_details.get("source_audit_id"),
+                    "content_sha256":
+                        latest_details.get("content_sha256"),
+                    "canvas_type": latest.canvas_type,
+                    "message": "Canvas was already deleted",
                 }
 
-            canvas_type = latest.canvas_type
+            source = latest_canvas_content_audit(db, canvas_id)
+            source_details = (
+                source.details_json or {} if source is not None else {})
+            if not isinstance(source_details, dict):
+                source_details = {}
+            content = _audit_content(source_details)
+            try:
+                content_sha256 = (
+                    canvas_content_digest(content)
+                    if content is not None else "")
+            except Exception:  # noqa: BLE001 - unreadable material is no proof
+                content_sha256 = ""
+            canvas_type = (
+                latest.canvas_type
+                or (getattr(source, "canvas_type", None)
+                    if source is not None else None)
+                or "generic")
 
-            # Write the delete audit. Carry tenant_id (NOT NULL).
+            details: Dict[str, Any] = {
+                "deleted": True,
+                "previous_action": latest.action_type,
+                "prior_audit_id": str(latest.id),
+                "content_sha256": content_sha256,
+            }
+            if source is not None:
+                details["source_audit_id"] = str(source.id)
+            if operation_id:
+                details["operation_id"] = operation_id
+
+            # Write the delete audit. Carry the AUTHORITATIVE Canvas tenant
+            # when the mirror exists (never a foreign audit tenant).
             # STRICT RECENCY: legacy audit rows carry SECOND-precision
             # timestamps (func.now() server default), so a delete fired in the
             # same second as the action it supersedes tied on created_at and
@@ -1366,19 +1976,73 @@ async def delete_canvas(
                 _prev_ts = _prev_ts.replace(tzinfo=_tz.utc)
             delete_audit = CanvasAudit(
                 canvas_id=canvas_id,
-                tenant_id=latest.tenant_id,
+                tenant_id=(
+                    (getattr(canvas_row, "tenant_id", None)
+                     if canvas_row is not None else None)
+                    or latest.tenant_id
+                ),
                 session_id=audit_session_id(None),
                 agent_id=audit_agent_id(None),
                 canvas_type=canvas_type,
                 action_type="delete",
                 user_id=user_id,
                 created_at=max(_dt.now(_tz.utc), _prev_ts + _td(microseconds=1)),
-                details_json={"deleted": True, "previous_action": latest.action_type},
+                details_json=details,
             )
+            if scope_required:
+                # Claim the exact active User snapshot in the SAME transaction
+                # as the lifecycle CAS/append. A move/deactivation committed
+                # after the scope read but before this claim matches zero rows;
+                # roll back so the winning User state and all canvas history
+                # survive with no broadcast.
+                if not _claim_canvas_actor(db, actor):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "delete refused"),
+                    }
             db.add(delete_audit)
-            db.commit()
 
-        # Broadcast close via WebSocket.
+            if scope_required:
+                if canvas_row is not None:
+                    guarded = _scope_claim_cas(
+                        db, canvas_row, canvas_id,
+                        expected_tenant, expected_workspace)
+                else:
+                    guarded = _audit_scope_claim_cas(
+                        db, canvas_id, latest.id, latest.tenant_id)
+                if not guarded:
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "canvas scope changed after authorization; "
+                            "delete refused"),
+                    }
+
+            try:
+                db.flush()
+                appended_audit_id = str(delete_audit.id)
+            except Exception:
+                write_outcome = WRITE_UNKNOWN
+                raise
+            # From here the row is going to the database: past this point a
+            # failure is NOT proof that nothing changed.
+            write_outcome = WRITE_UNKNOWN
+            db.commit()
+            write_outcome = WRITE_COMMITTED
+            appended_audit_id = str(delete_audit.id)
+
+        # Broadcast close via WebSocket — ONE frame for a NEW effect only.
         try:
             user_channel = f"user:{user_id}"
             await ws_manager.broadcast(user_channel, {
@@ -1394,12 +2058,26 @@ async def delete_canvas(
         logger.info(f"Deleted canvas {canvas_id}")
         return {
             "success": True,
+            "write_outcome": write_outcome,
             "canvas_id": canvas_id,
+            "audit_id": appended_audit_id,
+            "operation_id": operation_id,
+            "action_type": "delete",
+            "prior_audit_id": details["prior_audit_id"],
+            "source_audit_id": details.get("source_audit_id"),
+            "content_sha256": content_sha256,
+            "canvas_type": canvas_type,
             "message": "Canvas deleted successfully",
         }
     except Exception as e:
         logger.error(f"Canvas delete failed: {e}")
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e),
+            "write_outcome": write_outcome,
+            "audit_id": appended_audit_id or None,
+            "operation_id": operation_id,
+        }
 
 
 # ----------------------------------------------------------------------------
@@ -1510,8 +2188,17 @@ def _content_snippet(body: Any, q: Optional[str], cap: int = 140) -> Optional[st
 
 
 async def restore_deleted_canvas(
-    user_id: str,
+    user_id: Optional[str],
     canvas_id: str,
+    *,
+    operation_id: Optional[str] = None,
+    expected_tombstone_audit_id: Optional[str] = None,
+    expected_source_audit_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    expected_actor_status: Optional[str] = None,
+    expected_actor_is_active: Optional[bool] = None,
+    scope_required: bool = False,
 ) -> Dict[str, Any]:
     """Un-delete a tombstoned canvas.
 
@@ -1520,76 +2207,362 @@ async def restore_deleted_canvas(
     forward — nothing is rewritten, the delete stays in history. After this,
     the latest row is no longer a tombstone: listings include the canvas
     again, read_canvas serves the restored content, and update_canvas_content
-    accepts writes. Owner-only, like delete. Best-effort WS broadcast re-
-    presents the canvas to open clients.
+    accepts writes.
+
+    ``scope_required`` is the verified consumer contract (HTTP route and the
+    registered-tool service). It resolves the CURRENT active User row and
+    authorizes that row's raw tenant/workspace against the authoritative
+    Canvas row — or, for an audit-only canvas, against the newest audit tenant.
+    The request ``tenant_id``/``workspace_id`` arguments are retained for
+    caller compatibility and are NOT authority. A historical co-editor whose
+    scope has since moved, or a User that is missing/inactive/status-changed,
+    is refused before effect. The exact active User snapshot is claimed in the
+    same transaction as the lifecycle CAS/append. Verified callers pass the
+    preflight-frozen ``tenant_id``/``workspace_id``/``expected_actor_status``/
+    ``expected_actor_is_active``; any mismatch (including a move between NULL,
+    empty and ``default``) refuses before effect.
+
+    ``operation_id`` is the server-owned identity of one LOGICAL undelete.
+    The same id replays the original restore row with no second row or
+    broadcast; reusing it for a different tombstone/source is a conflict.
+    ``expected_tombstone_audit_id`` / ``expected_source_audit_id`` are the
+    optional optimistic tokens; a mismatch refuses before effect.
+
+    The source is the newest CONTENT-bearing non-delete row (the same row
+    ``read_canvas`` would serve), and the new row records its exact id and
+    content digest so the receipt binds the restored material.
     """
+    write_outcome = WRITE_NOT_ATTEMPTED
+    appended_audit_id = ""
+    operation_id = (operation_id or "").strip() or None
     try:
         from core.database import get_db_session
-        from core.models import CanvasAudit
-        from sqlalchemy import desc
+        from core.models import Canvas, CanvasAudit
+        from core.oracle.postcondition_verifiers import canvas_content_digest
 
         with get_db_session() as db:
-            if not _verify_canvas_owner(db, canvas_id, user_id):
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+            canvas_row = (
+                db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            )
+            expected_tenant = (
+                str(getattr(canvas_row, "tenant_id", None) or "")
+                if canvas_row is not None else "")
+            expected_workspace = (
+                str(getattr(canvas_row, "workspace_id", None) or "")
+                if canvas_row is not None else "")
 
-            latest = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id,
-            ).order_by(desc(CanvasAudit.created_at)).first()
+            actor = None
+            if scope_required:
+                # Ownership is the first gate: a non-owner gets the legacy
+                # 404 without learning whether the account is active.
+                owner_error = canvas_lifecycle_owner_error(
+                    db, canvas_id, user_id)
+                if owner_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **owner_error,
+                    }
+                # The request/context scope is NOT authority. The current
+                # active User row is resolved here; the same snapshot is
+                # claimed in the append transaction below.
+                actor = active_canvas_actor(db, user_id)
+                if not actor.get("ok"):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": int(
+                            actor.get("http_status") or 403),
+                        "error": (
+                            actor.get("error")
+                            or "Acting user is not active"),
+                    }
+                if (expected_actor_status is None
+                        or expected_actor_is_active is None):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": 503,
+                        "error": (
+                            "actor authority snapshot is required"),
+                    }
+                if (actor.get("tenant_id") != tenant_id
+                        or actor.get("workspace_id") != workspace_id
+                        or str(actor.get("status") or "")
+                        != str(expected_actor_status)
+                        or bool(actor.get("is_active"))
+                        != bool(expected_actor_is_active)):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "undelete refused"),
+                    }
+                scope_error = canvas_lifecycle_scope_error(
+                    db, canvas_id, user_id, tenant_id, workspace_id,
+                    lock=True)
+                if scope_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **scope_error,
+                    }
+            elif not _verify_canvas_owner(db, canvas_id, user_id):
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
 
+            latest = _latest_canvas_audit(db, canvas_id, lock=scope_required)
             if not latest:
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+                return {"success": False, "write_outcome": write_outcome,
+                        "error": f"Canvas {canvas_id} not found"}
+
+            if operation_id:
+                existing = _operation_audit_row(db, canvas_id, operation_id)
+                if existing is not None:
+                    existing_details = existing.details_json or {}
+                    if not isinstance(existing_details, dict):
+                        existing_details = {}
+                    existing_tombstone = str(
+                        existing_details.get("tombstone_audit_id") or "")
+                    existing_source = str(
+                        existing_details.get("source_audit_id") or "")
+                    mismatch = (
+                        str(existing.action_type or "") != "restore"
+                        or (expected_tombstone_audit_id
+                            and existing_tombstone
+                            and existing_tombstone != str(
+                                expected_tombstone_audit_id))
+                        or (expected_source_audit_id
+                            and existing_source
+                            and existing_source != str(
+                                expected_source_audit_id)))
+                    if mismatch:
+                        return {
+                            "success": False,
+                            "conflict": True,
+                            "write_outcome": write_outcome,
+                            "http_status": 409,
+                            "operation_id": operation_id,
+                            "error": (
+                                "operation_id already used with different "
+                                "material or target"),
+                        }
+                    return {
+                        "success": True,
+                        "already_applied": True,
+                        "replayed": True,
+                        "no_change": True,
+                        "write_outcome": WRITE_COMMITTED,
+                        "canvas_id": canvas_id,
+                        "audit_id": str(existing.id),
+                        "operation_id": operation_id,
+                        "action_type": "restore",
+                        "tombstone_audit_id": existing_tombstone or None,
+                        "restored_from_tombstone_id":
+                            existing_tombstone or None,
+                        "source_audit_id": existing_source or None,
+                        "content_sha256":
+                            existing_details.get("content_sha256"),
+                        "canvas_type": existing.canvas_type,
+                        "message": "Canvas undelete already applied",
+                    }
+
             if latest.action_type != "delete":
-                return {"success": False, "error": "Canvas is not deleted"}
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "conflict": True,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": "Canvas is not deleted",
+                }
+            if (expected_tombstone_audit_id
+                    and str(latest.id) != str(expected_tombstone_audit_id)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "canvas tombstone changed since the undelete was "
+                        "planned — write refused"),
+                }
 
-            # The pre-delete content: the most recent row that is not the
-            # tombstone (the tombstone itself carries no content).
-            content_row = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id,
-                CanvasAudit.action_type != "delete",
-            ).order_by(desc(CanvasAudit.created_at)).first()
-            if not content_row:
-                return {"success": False, "error": "No content to restore"}
+            # The pre-delete content: the most recent CONTENT-bearing row
+            # that is not a tombstone. Event-only rows (email_send_stamp)
+            # carry no body and must not replace the restored draft.
+            source = latest_canvas_content_audit(db, canvas_id)
+            if source is None:
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "conflict": True,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": "No content to restore",
+                }
+            if (expected_source_audit_id
+                    and str(source.id) != str(expected_source_audit_id)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "canvas source content changed since the undelete "
+                        "was planned — write refused"),
+                }
 
-            details = dict(content_row.details_json or {})
+            source_details = dict(source.details_json or {})
+            content = _audit_content(source_details)
+            try:
+                content_sha256 = (
+                    canvas_content_digest(content)
+                    if content is not None else "")
+            except Exception:  # noqa: BLE001 - unreadable material is no proof
+                content_sha256 = ""
+            if content is None:
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "conflict": True,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": "No content to restore",
+                }
+
+            details = dict(source_details)
             details.pop("operation_id", None)
             details.pop("evidence_refs", None)
             details.pop("postconditions", None)
             details["restored_from_delete"] = True
+            details["tombstone_audit_id"] = str(latest.id)
+            details["source_audit_id"] = str(source.id)
+            details["content_sha256"] = content_sha256
+            if operation_id:
+                details["operation_id"] = operation_id
 
             from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 
             _prev_ts2 = latest.created_at or _dt.min.replace(tzinfo=_tz.utc)
             if _prev_ts2.tzinfo is None:
                 _prev_ts2 = _prev_ts2.replace(tzinfo=_tz.utc)
+            tombstone_audit_id = str(latest.id)
+            source_audit_id = str(source.id)
+            canvas_type = str(
+                latest.canvas_type
+                or (getattr(source, "canvas_type", None))
+                or "generic")
             restore_audit = CanvasAudit(
                 canvas_id=canvas_id,
-                tenant_id=latest.tenant_id,
+                tenant_id=(
+                    (getattr(canvas_row, "tenant_id", None)
+                     if canvas_row is not None else None)
+                    or latest.tenant_id
+                ),
                 session_id=audit_session_id(None),
                 agent_id=audit_agent_id(None),
-                canvas_type=latest.canvas_type,
+                canvas_type=canvas_type,
                 action_type="restore",
                 user_id=user_id,
                 created_at=max(_dt.now(_tz.utc), _prev_ts2 + _td(microseconds=1)),
                 details_json=details,
             )
+            if scope_required:
+                # Claim the exact active User snapshot in the SAME transaction
+                # as the lifecycle CAS/append. A move/deactivation committed
+                # after the scope read but before this claim matches zero rows;
+                # roll back so the winning User state and all canvas history
+                # survive with no broadcast.
+                if not _claim_canvas_actor(db, actor):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "undelete refused"),
+                    }
             db.add(restore_audit)
-            db.commit()
 
-        canvas_type = str(latest.canvas_type or "generic")
+            if scope_required:
+                if canvas_row is not None:
+                    guarded = _scope_claim_cas(
+                        db, canvas_row, canvas_id,
+                        expected_tenant, expected_workspace)
+                else:
+                    guarded = _audit_scope_claim_cas(
+                        db, canvas_id, latest.id, latest.tenant_id)
+                if not guarded:
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "canvas scope changed after authorization; "
+                            "undelete refused"),
+                    }
+
+            try:
+                db.flush()
+                appended_audit_id = str(restore_audit.id)
+            except Exception:
+                write_outcome = WRITE_UNKNOWN
+                raise
+            write_outcome = WRITE_UNKNOWN
+            db.commit()
+            write_outcome = WRITE_COMMITTED
+            appended_audit_id = str(restore_audit.id)
+
+        canvas_type = str(canvas_type or "generic")
+        broadcast_content = None
+        for _body_key in ("content", "data"):
+            if (_body_key in details
+                    and details[_body_key] is not None):
+                broadcast_content = details[_body_key]
+                break
         await _broadcast_canvas_update(
             user_id, canvas_id, canvas_type,
-            details.get("content"), details.get("title"),
+            broadcast_content, details.get("title"),
         )
 
         logger.info(f"Restored deleted canvas {canvas_id}")
         return {
             "success": True,
+            "write_outcome": write_outcome,
             "canvas_id": canvas_id,
+            "audit_id": appended_audit_id,
+            "operation_id": operation_id,
             "action_type": "restore",
+            "tombstone_audit_id": tombstone_audit_id,
+            "restored_from_tombstone_id": tombstone_audit_id,
+            "source_audit_id": source_audit_id,
+            "content_sha256": content_sha256,
+            "canvas_type": canvas_type,
+            "restored_from_delete": True,
+            "message": "Canvas restored (append-only undelete)",
         }
     except Exception as e:
         logger.warning(f"Canvas restore failed for {canvas_id}: {e}")
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e),
+            "write_outcome": write_outcome,
+            "audit_id": appended_audit_id or None,
+            "operation_id": operation_id,
+        }
 
 
 async def list_canvases(

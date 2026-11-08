@@ -1,0 +1,490 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 19:40:53 [    INFO] MCP Service initialized
+
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_read_canvas_tool_exists 
+-------------------------------- live log setup --------------------------------
+2026-11-07 19:40:54 [    INFO] EscalationManager initialized
+2026-11-07 19:40:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 19:40:54 [    INFO] EscalationManager initialized
+2026-11-07 19:40:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 19:40:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 19:40:54 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_update_canvas_tool_exists PASSED [  1%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_delete_canvas_tool_exists PASSED [  1%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_list_canvases_tool_exists PASSED [  2%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_read_canvas_not_found PASSED [  2%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_delete_canvas_not_found PASSED [  3%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_read_endpoint_exists PASSED [  3%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_delete_endpoint_exists PASSED [  4%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_list_endpoint_exists PASSED [  5%]
+tests/test_canvas_crud.py::TestCanvasAwareLearning::test_routing_feedback_has_canvas_type PASSED [  5%]
+tests/test_canvas_crud.py::TestCanvasAwareLearning::test_routing_feedback_canvas_type_default_none PASSED [  6%]
+tests/test_canvas_crud.py::TestEpisodeCanvasCapture::test_episode_has_canvas_snapshots_in_metadata PASSED [  6%]
+tests/test_canvas_crud.py::TestEpisodeCanvasCapture::test_episode_captures_canvas_by_session PASSED [  7%]
+tests/test_canvas_crud.py::TestReadCanvasAfterEventRows::test_read_skips_trailing_send_event_row PASSED [  7%]
+tests/test_canvas_crud.py::TestReadCanvasAfterEventRows::test_read_still_falls_back_for_legacy_canvas PASSED [  8%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_appends_row_and_makes_canvas_listed_again 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] Restored deleted canvas cv-03b9bf34
+PASSED                                                                   [  9%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_carries_pre_delete_content 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] Restored deleted canvas cv-9c4cac6b
+PASSED                                                                   [  9%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_rejects_non_deleted_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Restored deleted canvas cv-5f20a83c
+PASSED                                                                   [ 10%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_is_owner_only PASSED [ 10%]
+tests/test_canvas_crud.py::TestSameSecondStrictRecency::test_restore_beats_same_second_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] Restored deleted canvas cv-389bef18
+PASSED                                                                   [ 11%]
+tests/test_canvas_crud.py::TestSameSecondStrictRecency::test_delete_beats_same_second_restore 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] Restored deleted canvas cv-f01c7128
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Deleted canvas cv-f01c7128
+PASSED                                                                   [ 11%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_is_verified_against_durable_material 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-09b81541'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-a542307a8e17 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-a542307a8e17 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_same_title_and_length_still_checks_exact_content 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-43a1d2d5'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-3502b9798000 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-3502b9798000?title=same%20title "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-b7f9af70'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-1168c60f8a8b (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-1168c60f8a8b?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-1168c60f8a8b?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_byte_identical_without_operation_is_a_distinct_edit 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-9840dbf4'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-3ea23a8a1761 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-3ea23a8a1761 "HTTP/1.1 200 OK"
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-9840dbf4'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-3ea23a8a1761 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-3ea23a8a1761 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_is_verified_and_append_only 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-53355b63'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Restored canvas c-ec888fed7614 to version 6059b1d1-0c24-4741-9741-98da4d4cc87c (email) — appended as a new version
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ec888fed7614/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_is_truthful_and_adds_no_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1ca03731afa6/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-4aa394659b6f "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 15%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_stale_prior_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-07ea5d80'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-fd3fd035699d (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-fd3fd035699d "HTTP/1.1 200 OK"
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-fd3fd035699d?expected_prior_audit_id=4c0e8b41-40b3-4efb-9bc9-8d6c27802f0a "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 16%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_canvas_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-316f5367d4fd/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 16%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_unavailable_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-60f04c42'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-c880df75881d (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c880df75881d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_refuted_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-9ad4b0be'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-9eba180d3bb8 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-9eba180d3bb8 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_kill_switch_never_fabricates_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-08ff4e84'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-8c543faaa91e (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-8c543faaa91e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_verifier_gets_no_request_session 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-52e93d29'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-14c542ea4fdf (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-14c542ea4fdf "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-31462550e124 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 19%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_exception_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-751df4b8'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-68bbf75bb6ac (generic)
+2026-11-07 19:40:55 [ WARNING] direct canvas canvas.update oracle unavailable: oracle crashed
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-68bbf75bb6ac "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_wrong_canvas_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-5aa26c8654a1/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_old_identical_material_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-3fd43666087e/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_operation_mismatch PASSED [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_absent_audit PASSED [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_stale_mirror PASSED [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_restore_target_mismatch PASSED [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_after_later_edit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5ef284b3'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-52ae699fb979 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-52ae699fb979?operation_id=op-late-1 "HTTP/1.1 200 OK"
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5ef284b3'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-52ae699fb979 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-52ae699fb979 "HTTP/1.1 200 OK"
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-52ae699fb979?operation_id=op-late-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_effect_unknown_keeps_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-93021d132768?operation_id=op-unknown-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_kill_switch_is_unverified_no_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-4431ddeb9f14/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-21b7692e4693/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-e10bd3f5b1ec/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 26%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_stale_mirror_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-3ecea09ebe9b/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_old_identical_audit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-83f1877bd566 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_manual_save_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-ec77c10b'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-f6738703734d (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f6738703734d "HTTP/1.1 200 OK"
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-ec77c10b'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-f6738703734d (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f6738703734d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_operation_id_different_material_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4d1a642a'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-c30051214ccc (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c30051214ccc?operation_id=op-bound-1 "HTTP/1.1 200 OK"
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c30051214ccc?operation_id=op-bound-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-f1f6eba0'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Restored canvas c-8791652ba8b6 to version 1566c5aa-8c45-4680-b0fb-8e3bd7c2aa3d (generic) — appended as a new version
+2026-11-07 19:40:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-8791652ba8b6/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_oracle_direct_canvas_writes.py::test_writer_rechecks_scope_after_service_preflight 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-155c606ebfcf "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 29%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_stale_mirror_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-0d6dd5b0'. type='canvas:update'
+2026-11-07 19:40:55 [    INFO] Updated canvas c-b44902003055 (generic)
+2026-11-07 19:40:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b44902003055 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_oracle_direct_canvas_writes.py::test_same_scope_coeditor_can_save_without_creator_ownership 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-35af86b7'. type='canvas:update'
+2026-11-07 19:40:56 [    INFO] Updated canvas c-081f5c3fc344 (generic)
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-081f5c3fc344 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_commits_across_real_sessions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-multisession'. type='canvas:update'
+2026-11-07 19:40:56 [    INFO] Updated canvas c-multisession (generic)
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-multisession "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_target_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-49ee5ea7caa5/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_null_workspace_cannot_edit_scoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-68355cf0b43e "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_workspace_principal_can_edit_legacy_unscoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-81d9187a'. type='canvas:update'
+2026-11-07 19:40:56 [    INFO] Updated canvas c-28c68ff6834b (generic)
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-28c68ff6834b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_scope_change_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-05c0fb71'. type='canvas:update'
+2026-11-07 19:40:56 [    INFO] Updated canvas c-532a32fec009 (generic)
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-532a32fec009 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_scope_move_after_writer_check_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-4431a7522c58 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_scope_move_after_writer_check_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-71102d6cd74a/restore "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 35%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_scope_move_refuses_mirror_refresh 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4cb5e519'. type='canvas:update'
+2026-11-07 19:40:56 [    INFO] Updated canvas c-c984cd9c11af (generic)
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c984cd9c11af?operation_id=op-scope-dup "HTTP/1.1 200 OK"
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c984cd9c11af?operation_id=op-scope-dup "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 35%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_workspace_scoped_unchanged_still_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-cf827db1'. type='canvas:update'
+2026-11-07 19:40:56 [    INFO] Updated canvas c-7e47cd4f42ab (generic)
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7e47cd4f42ab "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_workspace_scoped_unchanged_still_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-7887bac8'. type='canvas:update'
+2026-11-07 19:40:56 [    INFO] Restored canvas c-b364ba671296 to version fb4dfdc3-e3fc-47eb-9bae-e6c88ca347d7 (generic) — appended as a new version
+2026-11-07 19:40:56 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-b364ba671296/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_null_to_default_scope_move_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-21c5755b5e38 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 37%]
+tests/test_oracle_canvas_postcondition.py::test_exact_material_and_operation_verifies PASSED [ 37%]
+tests/test_oracle_canvas_postcondition.py::test_missing_audit_row_is_a_refutation_not_a_pass PASSED [ 38%]
+tests/test_oracle_canvas_postcondition.py::test_component_mismatch_is_a_refutation PASSED [ 38%]
+tests/test_oracle_canvas_postcondition.py::test_missing_identity_is_unavailable_not_applied PASSED [ 39%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_content_with_same_title_is_refuted PASSED [ 40%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_chart_values_with_same_count_are_refuted PASSED [ 40%]
+tests/test_oracle_canvas_postcondition.py::test_old_audit_with_identical_content_cannot_certify_new_operation PASSED [ 41%]
+tests/test_oracle_canvas_postcondition.py::test_missing_material_cannot_verify PASSED [ 41%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_workspace_is_refuted PASSED [ 42%]
+tests/test_oracle_canvas_postcondition.py::test_exact_audit_id_wins_over_a_newer_latest_row PASSED [ 42%]
+tests/test_oracle_canvas_postcondition.py::test_chart_positive_binds_all_values PASSED [ 43%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[allowed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:58 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [ 44%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[capability_denied] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:40:59 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+PASSED                                                                   [ 44%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[hard_stop] PASSED [ 45%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[reviewable_hard_stop] PASSED [ 45%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[explicit] PASSED [ 46%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] PASSED [ 46%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] PASSED [ 47%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[personal_null] PASSED [ 48%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] PASSED [ 48%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] PASSED [ 49%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[legacy_unbound] PASSED [ 49%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[unconfigured] PASSED [ 50%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-async] PASSED [ 50%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync] PASSED [ 51%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync_in_async] PASSED [ 51%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-async] PASSED [ 52%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync] PASSED [ 53%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync_in_async] PASSED [ 53%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-async] PASSED [ 54%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync] PASSED [ 54%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync_in_async] PASSED [ 55%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-async] PASSED [ 55%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync] PASSED [ 56%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync_in_async] PASSED [ 57%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-False] PASSED [ 57%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-True] PASSED [ 58%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:13 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-07 19:41:13 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 58%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:14 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-07 19:41:14 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 59%]
+tests/test_budget_caller_transaction_contract.py::test_explicit_rollup_writer_still_persists_cache PASSED [ 59%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_duplicate_registration_overwrites_and_keeps_single_entry PASSED [ 60%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_decorator_reregistration_overwrites PASSED [ 61%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_register_decorator_returns_original_function PASSED [ 61%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_registered_action_keeps_given_description PASSED [ 62%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_unknown_action_returns_404 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:14 [    INFO] HTTP Request: POST http://testserver/api/rpc/no.such.action "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 62%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_known_action_dispatches 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:14 [    INFO] HTTP Request: POST http://testserver/api/rpc/test.r79.rpc.ok "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_params_user_id_cannot_impersonate_actor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:14 [    INFO] HTTP Request: POST http://testserver/api/rpc/test.r79.rpc.actor "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_action_exception_returns_generic_500_without_leak 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:14 [   ERROR] RPC action test.r79.rpc.explode failed: secret-internal-detail
+2026-11-07 19:41:14 [    INFO] HTTP Request: POST http://testserver/api/rpc/test.r79.rpc.explode "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 64%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:14 [    INFO] HTTP Request: GET http://testserver/api/rpc/actions "HTTP/1.1 200 OK"
+FAILED                                                                   [ 64%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_register_overwrites_existing_name PASSED [ 65%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_get_action_returns_none_for_unknown PASSED [ 66%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_get_action_returns_definition_for_known PASSED [ 66%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_get_all_definitions_returns_list_copy PASSED [ 67%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_list_actions_sorted PASSED [ 67%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_list_action_names_alias PASSED [ 68%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_execute_action_unknown_raises PASSED [ 68%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_execute_action_invokes_handler_with_args PASSED [ 69%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_action_not_found_error_is_lookup_error PASSED [ 70%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_description_falls_back_to_handler_docstring PASSED [ 70%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_description_falls_back_to_default_when_no_doc PASSED [ 71%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_explicit_description_wins_over_docstring PASSED [ 71%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_default_parameters_schema PASSED [ 72%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_explicit_parameters_schema_used PASSED [ 72%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_repr PASSED [ 73%]
+tests/core/test_action_registry_coverage.py::TestRegisterActionDecorator::test_decorator_registers_and_returns_callable PASSED [ 74%]
+tests/core/test_action_registry_coverage.py::TestRegisterActionDecorator::test_decorator_passes_schema_through PASSED [ 74%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_empty_context_returns_none PASSED [ 75%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_user_id_key PASSED [ 75%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_userId_camel_case_key PASSED [ 76%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_actor_id_key PASSED [ 76%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_falsy_values_skipped PASSED [ 77%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_user_object_with_id PASSED [ 77%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_user_object_without_id_returns_none PASSED [ 78%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_no_user_key_returns_none PASSED [ 79%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_empty_query_returns_error PASSED [ 79%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_missing_query_returns_error PASSED [ 80%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_successful_search_combines_sources PASSED [ 80%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_passes_filters PASSED [ 81%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_exception_returns_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:15 [   ERROR] documents.search failed: db down
+PASSED                                                                   [ 81%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off FAILED [ 82%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_missing_id PASSED [ 83%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_missing_user PASSED [ 83%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_dispatches PASSED [ 84%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_id PASSED [ 84%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_content PASSED [ 85%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_user PASSED [ 85%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_dispatches_with_optional_fields PASSED [ 86%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_missing_title PASSED [ 87%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_missing_board_id PASSED [ 87%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_blank_title_treated_as_missing PASSED [ 88%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_successful_create_returns_task_fields PASSED [ 88%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_create_exception_returns_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:15 [   ERROR] tasks.create failed: boom
+PASSED                                                                   [ 89%]
+tests/core/test_action_registry_coverage.py::TestAgentsListAction::test_list_no_category PASSED [ 89%]
+tests/core/test_action_registry_coverage.py::TestAgentsListAction::test_list_with_category_filter PASSED [ 90%]
+tests/core/test_action_registry_coverage.py::TestAgentsListAction::test_list_exception_returns_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-07 19:41:15 [   ERROR] agents.list failed: db
+PASSED                                                                   [ 90%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_scaffold-mini_app_scaffold] PASSED [ 91%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_write_logic-mini_app_write_logic] PASSED [ 92%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_dev_run-mini_app_dev_run] PASSED [ 92%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_publish-mini_app_publish] PASSED [ 93%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_install-mini_app_install] PASSED [ 93%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_run-mini_app_run] PASSED [ 94%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_list-mini_app_list] PASSED [ 94%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_get_state-mini_app_get_state] PASSED [ 95%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_set_tests-mini_app_set_tests] PASSED [ 96%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_run_tests-mini_app_run_tests] PASSED [ 96%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_logic_history-mini_app_logic_history] PASSED [ 97%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_revert_logic-mini_app_revert_logic] PASSED [ 97%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_status-mini_app_status] PASSED [ 98%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_db_query-mini_app_db_query] PASSED [ 98%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_db_write-mini_app_db_write] PASSED [ 99%]
+tests/core/test_action_registry_coverage.py::test_singleton_has_expected_seed_actions_registered PASSED [100%]
+
+=================================== FAILURES ===================================
+____ TestRpcRouteAuthenticated.test_list_actions_includes_registered_names _____
+tests/test_r79_action_registry_rpc.py:145: in test_list_actions_includes_registered_names
+    assert "test.r79.rpc.ok" in names
+E   AssertionError: assert 'test.r79.rpc.ok' in ['documents.search', 'search_communications', 'recall_episodes', 'canvas.read', 'documents.ls', 'documents.cat', ...]
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/rpc/actions "HTTP/1.1 200 OK"
+__________ TestDocumentsSearchAction.test_search_legacy_path_flag_off __________
+tests/core/test_action_registry_coverage.py:361: in test_search_legacy_path_flag_off
+    assert result["results"][0]["source"] == "ingested"
+           ^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 354 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_canvas_crud.py: 8 warnings
+tests/test_oracle_direct_canvas_writes.py: 44 warnings
+  /private/tmp/atom-oracle-refresh-20261107/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names
+FAILED tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 2 failed, 175 passed, 413 warnings in 32.89s =================

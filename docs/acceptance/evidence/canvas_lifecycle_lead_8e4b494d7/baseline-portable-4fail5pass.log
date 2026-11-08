@@ -1,0 +1,46 @@
+...FFF.F.                                                                [100%]
+=================================== FAILURES ===================================
+_ test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-tenant] __
+../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py:274: in test_former_coeditor_current_foreign_scope_has_zero_effect
+    assert response.status_code in (403, 404), observed
+E   AssertionError: {'scope': 'tenant', 'operation': 'undelete', 'http': 200, 'body': {'success': True, 'canvas_id': 'probe-canvas', 'action_type': 'restore'}, ...}
+E   assert 200 in (403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+_ test_former_coeditor_current_foreign_scope_has_zero_effect[delete-workspace] _
+../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py:274: in test_former_coeditor_current_foreign_scope_has_zero_effect
+    assert response.status_code in (403, 404), observed
+E   AssertionError: {'scope': 'workspace', 'operation': 'delete', 'http': 200, 'body': {'success': True, 'canvas_id': 'probe-canvas', 'message': 'Canvas deleted successfully'}, ...}
+E   assert 200 in (403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+_ test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-workspace] _
+../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py:274: in test_former_coeditor_current_foreign_scope_has_zero_effect
+    assert response.status_code in (403, 404), observed
+E   AssertionError: {'scope': 'workspace', 'operation': 'undelete', 'http': 200, 'body': {'success': True, 'canvas_id': 'probe-canvas', 'action_type': 'restore'}, ...}
+E   assert 200 in (403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+__ test_former_coeditor_current_foreign_scope_has_zero_effect[delete-tenant] ___
+../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py:274: in test_former_coeditor_current_foreign_scope_has_zero_effect
+    assert response.status_code in (403, 404), observed
+E   AssertionError: {'scope': 'tenant', 'operation': 'delete', 'http': 200, 'body': {'success': True, 'canvas_id': 'probe-canvas', 'message': 'Canvas deleted successfully'}, ...}
+E   assert 200 in (403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 18 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-tenant]
+FAILED ../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-workspace]
+FAILED ../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-workspace]
+FAILED ../../atom-current-claim-audit-20261107/docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-tenant]
+4 failed, 5 passed, 20 warnings in 6.51s
