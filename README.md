@@ -2,9 +2,9 @@
 
 # Atom — Open-source AI workflow automation
 
-### Teach an AI employee your business. Give it work. Come back to a result.
+### Turn business knowledge into reviewable work.
 
-**AI agents for spreadsheets, documents and repeatable business work—with source-backed results you can review.**
+**Self-hosted AI agents for spreadsheet automation, document workflows and business tasks—with source-backed results you can review.**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE.md)
 [![Python](https://img.shields.io/badge/Python-3.11%E2%80%933.13-blue)](docs/getting_started/quick-start.md)
@@ -24,7 +24,7 @@ uses. Start with a useful job: prepare a sales quote, review a document or work
 through a spreadsheet. Inspect the source records, calculations and deliverable
 before using the result.
 
-**Teach it once. Review the work. Keep the context.**
+**Teach your rules. Review the work. Keep the context.**
 
 - **Turn company data into deliverables.** Demonstrated workflows map unfamiliar
   spreadsheet columns, calculate against source records and produce cited
