@@ -512,6 +512,31 @@ The affected work must persist an actionable question/prerequisite and its exact
 
 A relevant authorized user answer, source upload/selection or supported information event must automatically wake the matching wait and resume the **same task**. The normal happy path must not require the owner to prompt the agent again, submit a second objective, manually call an advance endpoint or recreate the job. Information arrival authorizes a continuation attempt; only fulfilled verified business outcomes authorize completion. Additional missing prerequisites, no suitable model or execution errors stay explicit and unresolved.
 
+### Multi-day duration requirement — owner clarification
+
+Long-running means days, not merely a long HTTP request or a minutes-long demo.
+A task may remain durably waiting across application shutdowns, worker replacement
+and several calendar days. No resident process, browser tab, login session,
+continuous model call or repeated owner prompt may be required to preserve it.
+Durable accepted input received while a worker is offline must be discoverable
+and consumed safely when service returns; do not claim events can be received
+while every receiving service is offline without a supported durable inbox.
+
+Measure active execution allowance separately from elapsed waiting time. Model
+calls and CPU budgets do not run down while waiting; explicitly configured
+absolute deadlines, input validity, approvals, cancellation and authority changes
+still apply. Revalidate them before resuming. Do not silently extend deadlines,
+reuse expired consent or re-send an uncertain outbound request. Long waits can
+require an explicit authorized follow-up/escalation or a fresh fact request.
+
+Acceptance requires a controlled-clock multi-day boundary matrix plus real
+process shutdown/restart and durable event replay, including replies before/after
+deadline and expiry during downtime. Label simulated elapsed time honestly.
+Keep a separate real multi-day elapsed observation open until actually recorded;
+fast tests alone do not prove real multi-day soak reliability. The UI must show
+waiting age, outstanding prerequisites and any actual deadline without presenting
+waiting as failure or completion.
+
 ### Domain-independent coordination requirement — owner clarification
 
 The task must coordinate missing variables with authorized external people or

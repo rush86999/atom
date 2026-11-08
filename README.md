@@ -137,8 +137,8 @@ for exact source identities, retained negative results and remaining requirement
 
 A task should be able to request a missing fact from an authorized person or
 system, wait durably without repeated prompting, continue independent work,
-and resume the same task when the relevant information arrives—even after a
-restart. It may need several request/wait/resume cycles before delivering a
+and resume the same task when the relevant information arrives—even after days
+of waiting and application restarts. It may need several request/wait/resume cycles before delivering a
 verified result. This is a **general app goal with bounded demonstrations**,
 not a claim of universal autonomous coordination or live third-party outreach.
 
