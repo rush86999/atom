@@ -1,0 +1,11 @@
+{
+  "frozen_source": "38111baf83c30d46fa9c8a3d0ed82cc3965f33a4",
+  "local_contracts": {
+    "python3.11": 42,
+    "python3.14": 42
+  },
+  "actual_python3.12_installation": "pending hosted qualification",
+  "actual_python3.13_installation": "pending hosted qualification",
+  "candidate_hashes_equal_committed_source": true,
+  "scope": "CI construction/preservation and actual fail-closed gate shell; no new interpreter installation result claimed"
+}
