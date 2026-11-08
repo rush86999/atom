@@ -372,3 +372,113 @@ or an empty note still reports `uncertain`, or the note is dropped after an
 unresolved run, this repair failed. Conversely, if a prior same-content note,
 wrong scope/actor, changed material, partial receipt, or forged result echo is
 accepted as verified, the verifier is too weak and this repair failed.
+
+---
+
+# LEAD REVIEW — root integration rerun at `eb3e2168b` (test-double + isolation repair)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. Root ran the integrated module plus the
+original external probe at `eb3e2168b` and retained
+`/private/tmp/root-bpe-note-eb3-independent.log`: **2 failed, 25 passed,
+5 skipped**. This section records the two failures, the trace, and the
+test-only repair. No production source changed in this round.
+
+## Failure 1 — exact-retry test double rejected the real call signature
+
+Observed: `test_exact_retry_replays_without_duplicating_the_note` failed on the
+first `oracle_verified` assertion with an `uncertain` envelope before the
+handler was reached.
+
+Trace: the production consumer invokes the MCP leaf as
+`self.mcp.call_tool(tool_name, copy.deepcopy(authorized),
+context=handler_context)`. The authored double was
+`async def leaf(tool, arguments, inner_context=None)`, so the `context=`
+keyword raised `TypeError` after `dispatch_started=True`. The post-dispatch
+exception path correctly treated that as ambiguous and exposed `uncertain`.
+
+Repair: **test double only**. The leaf now accepts
+`async def leaf(tool, arguments, context=None)` and forwards that context to
+the real registry. The exact-retry business assertions are unchanged: first
+result independently verified, one handler call, second result replayed with
+no second dispatch, one pending note, claim `succeeded`.
+
+## Failure 2 — external probe storage isolation (documented, probe unchanged)
+
+Observed: external
+`test_note_material_is_stripped_and_truncated_to_400` saw
+`{'success': True, 'buffered': 2}`.
+
+Trace: the external probe's autouse fixture calls `reset_registry()` but does
+not bind `bpe_persistence.DATA_DIR`. `reset_registry()` only clears the
+process cache; the next `get_workspace()` lazily restores the durable JSON
+snapshot. The probe's earlier landed-note control persists to the default
+store at the same `(workspace, agent, session)` keys, so the material control
+restores that pending note and appends a second one.
+
+Decision: the original external author-only probe stays unchanged. Clearing
+pending notes on `reset_registry()` or otherwise wiping production state would
+be broad production behavior change and is explicitly rejected. The correct
+fix is per-test storage isolation in the probe fixture (bind
+`bpe_persistence.DATA_DIR` to a `tmp_path`), which root can apply separately
+if desired.
+
+Our module now does exactly that in its own autouse fixture and adds permanent
+controls:
+
+- `test_per_test_storage_isolation_binds_the_store_to_tmp_path` — every case
+  binds `DATA_DIR` to this test's `tmp_path`, and another test's scope is
+  invisible.
+- `test_reset_registry_restores_only_the_current_isolated_store` — restore is
+  real, but only from this test's root.
+- `test_note_material_transform_is_isolated_like_the_external_probe` — the
+  external transform reports `buffered=1` under isolation.
+- `test_shared_store_without_storage_isolation_would_restore_prior_buffer` —
+  reproduces the external probe's `buffered=2` sequence under a temporary
+  shared root only; it documents why fixture isolation, not production
+  clearing, is the remedy.
+
+Expected root behavior after this commit: our module no longer leaks into any
+default store. The external probe's own material control remains subject to
+its unchanged fixture if it is run after its own persisted-note control in a
+shared store; that is disclosed here rather than hidden by production code.
+
+## New current-User / DB-session authority controls
+
+Traced consumers: `api/rpc_routes.call_action` builds
+`{"user", "user_id", "db"}` from the authenticated dependency;
+`core.bpe.actions.resolve_scope` branch 1 re-reads that User row
+(`_fresh_active_user`), builds the canonical `user:<id>` namespace
+(`_build_user_scope`), and refuses a presented row whose workspace no longer
+matches current authority. The handler then claims the principal inside the
+write transaction; the receipt records `actor_id` when the scope has one.
+
+Added real scratch `Tenant` / `Workspace` / `User` controls (no fake actor
+strings, no authority weakening):
+
+- `test_current_user_authority_accepts_active_actor_through_registered_handler`
+  — active current User + fresh DB session, RPC-shaped context, real handler
+  append/persist, `user:<id>` scope, receipt `actor_id` bound to the principal.
+- `test_current_user_authority_refuses_without_a_db_session` — User object but
+  no DB session → `scope_principal_unverified`, typed no-effect, no buffer or
+  durable state.
+- `test_current_user_authority_refuses_stale_workspace_after_change` — a
+  detached stale User row presented with a fresh DB session after the current
+  row moved to another real Workspace → `scope_authority_changed`, typed
+  no-effect in both old and new namespaces.
+
+These are authority controls, not replacements for the existing
+`pre_approved=True` outcome-consumer matrix; the latter still isolates
+governance while the new controls exercise real current-User re-read and
+refusal behavior.
+
+## Round-2 falsifiable result
+
+- `test_exact_retry_replays_without_duplicating_the_note` should now pass with
+  the original business assertions.
+- Every case in `test_bpe_note_commit_outcome.py` should run without touching
+  the repository default BPE store; the isolation controls should pass.
+- The new real-User controls should pass: active current principal accepted;
+  missing DB and changed workspace refused with typed no-effect.
+- The external material control is expected to remain a fixture-isolation
+  issue unless its own runner binds `DATA_DIR` per test; it is not repaired by
+  changing production restore/clear semantics.

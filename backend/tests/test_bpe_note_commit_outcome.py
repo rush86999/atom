@@ -56,7 +56,15 @@ ACTOR = "user-bpe-outcome"
 
 
 @pytest.fixture(autouse=True)
-def _bpe_env(monkeypatch):
+def _bpe_env(tmp_path, monkeypatch):
+    """Hermetic BPE environment for EVERY test in this module.
+
+    ``reset_registry()`` only clears the process cache; the durable store is
+    restored lazily on the next access. Binding ``DATA_DIR`` to this test's
+    ``tmp_path`` is therefore part of isolation, not just registry hygiene.
+    The external author-only probe lacks this storage binding and can restore
+    a previous test's pending note (see ``LEAD_REVIEW.md``).
+    """
     monkeypatch.setenv("ATOM_BPE_WORKSPACE_ENABLED", "true")
     monkeypatch.setenv("ATOM_ORACLE_ENFORCE", "true")
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
@@ -66,9 +74,11 @@ def _bpe_env(monkeypatch):
     # each case while this module import is cached; re-run the production
     # decorators so every control starts with workspace.* registered.
     importlib.reload(bpe_actions)
+    data_dir = tmp_path / "bpe_workspaces_isolated"
+    monkeypatch.setattr(bpe_persistence, "DATA_DIR", data_dir)
     bpe_workspace.reset_registry()
     try:
-        yield
+        yield data_dir
     finally:
         bpe_workspace.reset_registry()
 
@@ -115,12 +125,35 @@ def scratch(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def bpe_data(tmp_path, monkeypatch):
-    data_dir = tmp_path / "bpe_workspaces"
-    # DATA_DIR is read by BPEWorkspaceStore.__init__ at call time. Rebinding
-    # the module root is isolation, not a fake persistence/readback verdict.
-    monkeypatch.setattr(bpe_persistence, "DATA_DIR", data_dir)
-    return data_dir
+def bpe_data(_bpe_env):
+    """The SAME per-test storage root the autouse fixture bound.
+
+    Tests that explicitly exercise the durable file use this fixture; tests
+    that do not still get the autouse binding, so no case can touch the
+    repository's default BPE store.
+    """
+    return _bpe_env
+
+
+@pytest.fixture
+def principal(scratch):
+    """One real, active current-User row (workspace-scoped)."""
+    from core.models import User
+
+    with scratch["Session"]() as db:
+        db.add(User(
+            id=ACTOR,
+            email="bpe-outcome@example.invalid",
+            first_name="BPE",
+            last_name="Outcome",
+            role="member",
+            status="active",
+            is_active=True,
+            tenant_id=TENANT,
+            workspace_id=WS,
+        ))
+        db.commit()
+    return ACTOR
 
 
 def _agent(leaf=None):
@@ -310,6 +343,236 @@ def test_registered_shape_and_read_twin_stay_usable(scratch, bpe_data):
     assert result["success"] is True, result
     assert result.get("requires_reconciliation") is not True, result
     assert _claim_row(scratch["path"], operation_id) is None
+
+
+# ---------------------------------------------------------------------------
+# Per-test storage isolation (the external probe's fixture issue)
+# ---------------------------------------------------------------------------
+
+
+def test_per_test_storage_isolation_binds_the_store_to_tmp_path(
+        bpe_data, tmp_path):
+    """Every case in this module is hermetically scoped.
+
+    ``reset_registry()`` only clears the cache; a durable snapshot is restored
+    lazily. The autouse fixture therefore also binds ``DATA_DIR`` to this
+    test's ``tmp_path``.
+    """
+    assert BPEWorkspaceStore().data_dir == bpe_data
+    assert bpe_data.parent == tmp_path
+    assert bpe_data.name == "bpe_workspaces_isolated"
+    # No other test's durable scope is visible from this root.
+    assert BPEWorkspaceStore().load(WS, AGENT, SESSION) is None
+
+
+def test_reset_registry_restores_only_the_current_isolated_store(
+        bpe_data, tmp_path):
+    """A persisted fact is restored, but only from THIS test's root."""
+    workspace = bpe_workspace.BPEWorkspace(
+        "isolation-ws", "isolation-agent", "isolation-session")
+    workspace._pending_notes.append("restored only in this test")
+    assert BPEWorkspaceStore().save(workspace.to_dict()) is True
+
+    bpe_workspace.reset_registry()  # exactly what the external probe does
+    restored = bpe_workspace.get_workspace(
+        "isolation-ws", "isolation-agent", "isolation-session")
+    assert restored._pending_notes == ["restored only in this test"]
+
+    # A different per-test root cannot see the fact.
+    other_root = BPEWorkspaceStore(data_dir=tmp_path / "other-test-root")
+    assert other_root.load(
+        "isolation-ws", "isolation-agent", "isolation-session") is None
+
+
+def test_note_material_transform_is_isolated_like_the_external_probe(
+        scratch, bpe_data):
+    """The external probe's transform control, run under per-test isolation.
+
+    The same canonical transform must report ``buffered=1`` when the store is
+    not carrying another test's restored pending note.
+    """
+    content = "  " + ("a" * 450) + "  "
+    result = asyncio.run(action_registry.execute_action(
+        NOTE, {"content": content}, _context()))
+    assert result["success"] is True, result
+    assert result["buffered"] == 1, result
+    assert _snapshot()["pending_notes"] == ["a" * 400]
+
+
+def test_shared_store_without_storage_isolation_would_restore_prior_buffer(
+        scratch, bpe_data, tmp_path, monkeypatch):
+    """Documents the external probe fixture issue without touching production.
+
+    The original external probe resets the registry but does not bind
+    ``DATA_DIR``. In a shared store, the next access restores the previous
+    test's pending buffer, so a new note reports ``buffered=2``. This control
+    recreates that sequence under a temporary shared root only; the module's
+    autouse fixture above prevents it for every real case here.
+    """
+    shared_root = tmp_path / "simulated_shared_store"
+    monkeypatch.setattr(bpe_persistence, "DATA_DIR", shared_root)
+    prior = bpe_workspace.BPEWorkspace(WS, AGENT, SESSION)
+    prior._pending_notes.append("from an earlier test")
+    assert BPEWorkspaceStore().save(prior.to_dict()) is True
+
+    bpe_workspace.reset_registry()
+    result = _dispatch(
+        NOTE, {"content": "new note"}, _context(f"op-shared-{uuid.uuid4().hex}"))
+
+    assert result["success"] is True, result
+    assert result["buffered"] == 2, result
+    assert _snapshot()["pending_notes"] == [
+        "from an earlier test", "new note"]
+
+
+# ---------------------------------------------------------------------------
+# Current-User / DB-session authority (real scratch principals)
+# ---------------------------------------------------------------------------
+
+
+def test_current_user_authority_accepts_active_actor_through_registered_handler(
+        scratch, principal, bpe_data):
+    """A real active User row + fresh DB session is current authority.
+
+    The context shape is the one the normal RPC admission builds
+    (``user``/``user_id``/``db``); the handler's ``resolve_scope`` branch 1
+    re-reads the User, claims the principal inside the write transaction,
+    appends, persists the receipt, and binds the actor.
+    """
+    from core.bpe.actions import resolve_scope
+    from core.models import User
+
+    content = "active principal insight"
+    operation_id = f"op-user-ok-{uuid.uuid4().hex}"
+    scope_key = f"user:{ACTOR}"
+
+    with scratch["Session"]() as db:
+        row = (
+            db.query(User)
+            .filter(User.id == ACTOR)
+            .populate_existing()
+            .one()
+        )
+        context = {
+            "user": row,
+            "user_id": ACTOR,
+            "db": db,
+            "workspace_id": WS,
+            "tenant_id": TENANT,
+            "session_id": f"sess-fresh-{uuid.uuid4().hex}",
+            "agent_id": AGENT,
+            "operation_id": operation_id,
+        }
+        resolved, denial = resolve_scope(context)
+        assert denial is None, denial
+        assert resolved["workspace_id"] == WS
+        assert resolved["scope_key"] == scope_key
+        result = asyncio.run(action_registry.execute_action(
+            NOTE, {"content": content}, context))
+
+    assert result.get("success") is True, result
+    assert result.get("buffered") == 1, result
+    assert result.get("action_result") != "not_applied", result
+
+    snapshot = bpe_workspace.get_workspace_snapshot(
+        WS, "atom_main", scope_key)
+    assert snapshot["pending_notes"] == [content]
+    stored = BPEWorkspaceStore().load(WS, "atom_main", scope_key)
+    receipt = stored["operation_receipts"][0]
+    assert receipt["actor_id"] == ACTOR
+    assert receipt["scope_key"] == scope_key
+
+
+def test_current_user_authority_refuses_without_a_db_session(
+        scratch, principal, bpe_data):
+    """A User object alone cannot prove current activity: typed no-effect."""
+    from core.models import User
+
+    with scratch["Session"]() as db:
+        row = (
+            db.query(User)
+            .filter(User.id == ACTOR)
+            .populate_existing()
+            .one()
+        )
+        result = asyncio.run(action_registry.execute_action(
+            NOTE,
+            {"content": "must not land without a session"},
+            {
+                "user": row,
+                "user_id": ACTOR,
+                "session_id": f"sess-no-db-{uuid.uuid4().hex}",
+                "operation_id": f"op-no-db-{uuid.uuid4().hex}",
+            },
+        ))
+
+    assert result.get("success") is False, result
+    assert result.get("error") == "scope_principal_unverified", result
+    assert result.get("action_result") == "not_applied", result
+    assert result.get("effect_possible") is False, result
+    assert bpe_workspace.get_workspace_snapshot(
+        WS, "atom_main", f"user:{ACTOR}") is None
+    assert BPEWorkspaceStore().load(
+        WS, "atom_main", f"user:{ACTOR}") is None
+
+
+def test_current_user_authority_refuses_stale_workspace_after_change(
+        scratch, principal, bpe_data):
+    """A stale presented User row cannot write to its old namespace.
+
+    A fresh session re-reads the current row; the changed workspace is refused
+    before any append/persist.
+    """
+    from core.models import User, Workspace
+
+    other_workspace = f"{WS}-other"
+    with scratch["Session"]() as db:
+        stale = (
+            db.query(User)
+            .filter(User.id == ACTOR)
+            .populate_existing()
+            .one()
+        )
+        assert stale.workspace_id == WS
+
+    with scratch["Session"]() as db:
+        db.add(Workspace(
+            id=other_workspace,
+            name="BPE outcome other workspace",
+            tenant_id=TENANT,
+        ))
+        db.commit()
+
+    with scratch["Session"]() as db:
+        current = db.query(User).filter(User.id == ACTOR).one()
+        current.workspace_id = other_workspace
+        db.commit()
+
+    with scratch["Session"]() as db:
+        result = asyncio.run(action_registry.execute_action(
+            NOTE,
+            {"content": "stale authority must not land"},
+            {
+                "user": stale,
+                "user_id": ACTOR,
+                "db": db,
+                "session_id": f"sess-stale-{uuid.uuid4().hex}",
+                "operation_id": f"op-stale-{uuid.uuid4().hex}",
+            },
+        ))
+
+    assert result.get("success") is False, result
+    assert result.get("error") == "scope_authority_changed", result
+    assert result.get("action_result") == "not_applied", result
+    assert result.get("effect_possible") is False, result
+    assert bpe_workspace.get_workspace_snapshot(
+        WS, "atom_main", f"user:{ACTOR}") is None
+    assert bpe_workspace.get_workspace_snapshot(
+        other_workspace, "atom_main", f"user:{ACTOR}") is None
+    assert BPEWorkspaceStore().load(
+        WS, "atom_main", f"user:{ACTOR}") is None
+    assert BPEWorkspaceStore().load(
+        other_workspace, "atom_main", f"user:{ACTOR}") is None
 
 
 # ---------------------------------------------------------------------------
@@ -503,10 +766,15 @@ def test_exact_retry_replays_without_duplicating_the_note(scratch, bpe_data):
     context = _context(operation_id)
     calls = []
 
-    async def leaf(tool, arguments, inner_context=None):
+    async def leaf(tool, arguments, context=None):
+        # The real Generic consumer invokes
+        # ``mcp.call_tool(tool, args, context=handler_context)``. A double that
+        # accepts only a positional ``inner_context`` raises TypeError before
+        # dispatch and manufactures the uncertainty this control is meant to
+        # disprove.
         calls.append(tool)
         return await action_registry.execute_action(
-            tool, arguments, inner_context or {})
+            tool, arguments, context or {})
 
     agent = _agent(leaf)
     first = asyncio.run(agent._step_act_unaudited(
