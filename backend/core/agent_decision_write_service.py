@@ -1950,3 +1950,85 @@ async def stop_agent(
     return _committed_unverified(
         operation_id, audit_state, target_id=agent_id,
         data={"agent_id": agent_id, "cancelled_tasks": cancelled})
+
+# Episodic graduation shares the decision ledger; manual promotion retains its
+# separate permission/readiness semantics above.
+def _graduation_material(agent: AgentRegistry, *, status=None, configuration=None):
+    material = _replace_state_material(agent)
+    material.update(_state_material(agent))
+    material["configuration_digest"] = _replace_config_digest(
+        agent.configuration if configuration is None else configuration)
+    if status is not None:
+        material["status"] = status
+    for field in ("module_path", "class_name", "user_id", "confidence_score",
+                  "required_role_for_autonomy"):
+        material[field] = getattr(agent, field)
+    return material
+
+
+def _graduation_target_matches(db: Session, expected: Dict[str, Any]) -> bool:
+    current = _load_agent(db, expected["target_id"])
+    return (current is not None
+            and _state_digest(_graduation_material(current)) == expected["result_digest"])
+
+
+def graduation_request(*, operation_id, agent_id, target_status, actor, tenant_id, workspace_id):
+    return {
+        "operation_id": operation_id, "schema": REVIEW_SCHEMA,
+        "action": "agent_graduated", "event_type": AuditEventType.UPDATE.value,
+        "target_id": str(agent_id), "actor_id": actor["id"],
+        "request_digest": _fingerprint("graduation-request", _canonical({
+            "agent_id": str(agent_id), "target_status": target_status,
+            "tenant_id": tenant_id, "workspace_id": workspace_id})),
+    }
+
+
+def replay_graduation(db: Session, *, request, actor):
+    return _replay(db, request["operation_id"], request, authority=actor,
+                   target_check=lambda expected: _graduation_target_matches(db, expected))
+
+
+def commit_graduation(db: Session, *, reviewed, actor, request, predicates,
+                      claim_params, target_status, configuration):
+    expected = _audit_expected(
+        operation_id=request["operation_id"], action=request["action"],
+        event_type=AuditEventType.UPDATE.value, agent=reviewed,
+        prior_status=str(reviewed.status), result_status=target_status,
+        request_digest=request["request_digest"],
+        prior_digest=_state_digest(_graduation_material(reviewed)),
+        result_digest=_state_digest(_graduation_material(
+            reviewed, status=target_status, configuration=configuration)), actor=actor)
+    try:
+        if not _claim_actor(db, actor):
+            db.rollback()
+            return _conflict("Supervisor authority changed", code="AUTHORITY_CHANGED")
+        changed = db.execute(update(AgentRegistry).where(*predicates).values(
+            status=target_status, updated_at=datetime.now(timezone.utc),
+            configuration=configuration).execution_options(synchronize_session=False), claim_params)
+        if changed.rowcount != 1:
+            db.rollback()
+            # A peer may have committed this exact operation after our first
+            # replay read. Reconcile its durable receipt, never re-dispatch.
+            # The rollback released the actor claim: confirm authority again.
+            from types import SimpleNamespace
+            current_actor = _resolve_actor(
+                db, SimpleNamespace(id=actor["id"]),
+                minimum_role=UserRole.TEAM_LEAD, authority_label="GRADUATION")
+            binding = ("id", "role", "status", "raw_tenant_id", "raw_workspace_id")
+            if not current_actor.get("ok") or any(
+                    current_actor.get(key) != actor.get(key) for key in binding):
+                return _conflict("Supervisor authority changed", code="AUTHORITY_CHANGED")
+            replay = replay_graduation(db, request=request, actor=current_actor)
+            if replay is not None:
+                return replay
+            return _conflict("Reviewed agent changed", code="STALE_TARGET")
+    except Exception as exc:
+        db.rollback()
+        logger.warning("Graduation claim failed: error_class=%s", type(exc).__name__)
+        return _not_applied("Graduation was not applied")
+    return _commit_and_verify(
+        db, expected=expected, audit_row=_audit_row(expected=expected, actor=actor),
+        target_check=lambda: _graduation_target_matches(db, expected),
+        replay_check=lambda value: _graduation_target_matches(db, value),
+        success_data={"agent_id": str(reviewed.id), "agent_status": target_status},
+        authority=actor)

@@ -248,8 +248,46 @@ describe('maturity-api canvas training surface', () => {
     expect(out.promoted).toBe(true);
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe('/api/episodes/graduation/promote?agent_id=a1&new_maturity=intern');
+    expect(init.retry).toBe(false);
     expect((init as RequestInit).method).toBe('POST');
     expect((init as RequestInit).body).toBeUndefined();
+  });
+
+  test.each([
+    { agent_id: 'a1', new_maturity: 'intern', promoted: false },
+    { success: true, data: { agent_id: 'a1', new_maturity: 'intern', promoted: false } },
+    { agent_id: 'a1', new_maturity: 'intern', promoted: 'true' },
+    { agent_id: 'other', new_maturity: 'intern', promoted: true },
+    { agent_id: 'a1', new_maturity: 'autonomous', promoted: true },
+    { agent_id: 'a1', new_maturity: 'intern', promoted: true,
+      verification: { status: 'unavailable', effect: 'unknown' } },
+    { agent_id: 'a1', new_maturity: 'intern', promoted: true,
+      verification: { status: 'verified', effect: 'none' } },
+  ])('refuses an unconfirmed promotion response %#', async (body) => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(body));
+    await expect(promoteAgent('a1', 'intern')).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('unwraps a confirmed promotion envelope', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ success: true, data: {
+      agent_id: 'a1', new_maturity: 'INTERN', promoted: true,
+    } }));
+    expect((await promoteAgent('a1', 'intern')).promoted).toBe(true);
+  });
+
+  test('keeps uncertain operation identity without retrying or exposing server errors', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ detail: {
+      status: 'effect_unknown', operation_id: 'agent:graduate:original-operation',
+      message: 'private provider exception',
+      verification: { status: 'unavailable', effect: 'unknown', replay: 'do_not_repeat' },
+    } }, false, 503));
+    const error = await promoteAgent('a1', 'intern').catch((value) => value);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toMatch(/could not be confirmed.*do not repeat/);
+    expect(error.message).not.toContain('private provider exception');
+    expect(error.operationId).toBe('agent:graduate:original-operation');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   test('getAgentGraduationProgress hits the shared agents surface', async () => {

@@ -155,7 +155,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_bpe_governance_tier_issuance.py tests/test_root_bpe_public_actor_probe.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_bpe_governance_tier_issuance.py tests/test_root_bpe_public_actor_probe.py tests/test_graduation_authority_boundary.py tests/test_governance_graduation_integration.py tests/test_graduation_readiness_tenant_scoping.py tests/test_graduation_readiness_gap_evidence.py tests/test_agent_graduation_service.py tests/test_agent_graduation.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run board owner and atomic-authority controls
         env:
           TESTING: "1"
@@ -609,6 +609,11 @@ jobs:
       - name: Run agent information question UI controls
         working-directory: frontend-nextjs
         run: npx jest components/Agents/__tests__/AgentJobWaitPanel.test.tsx lib/__tests__/agent-job-ref.test.ts tests/pages/agents-index.test.tsx tests/pages/agents-information-job.test.tsx --runInBand --no-coverage
+      - name: Graduation outcome and client retry regression tests
+        working-directory: frontend-nextjs
+        # Positive HTTP alone is not promotion; opt-out must reach the shared
+        # retry interceptor so an uncertain mutation is never re-dispatched.
+        run: npx jest lib/__tests__/api/maturity-api.test.ts tests/pages/approvals-page.test.tsx components/canvas/__tests__/TrainingPanel.test.tsx lib/__tests__/api-interceptors.test.ts --runInBand --no-coverage --watchman=false
       - name: Goal utility surface regression tests
         working-directory: frontend-nextjs
         run: npx jest tests/pages/goal-runs/detail.test.tsx --runInBand --no-coverage

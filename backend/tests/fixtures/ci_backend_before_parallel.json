@@ -43,7 +43,7 @@
         "SECRET_KEY": "ci-test-secret-key",
         "ENVIRONMENT": "development"
       },
-      "run": "python -m pytest tests/test_bpe_governance_tier_issuance.py tests/test_root_bpe_public_actor_probe.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+      "run": "python -m pytest tests/test_bpe_governance_tier_issuance.py tests/test_root_bpe_public_actor_probe.py tests/test_graduation_authority_boundary.py tests/test_governance_graduation_integration.py tests/test_graduation_readiness_tenant_scoping.py tests/test_graduation_readiness_gap_evidence.py tests/test_agent_graduation_service.py tests/test_agent_graduation.py -q --tb=short --timeout=300 --timeout-method=thread\n"
     },
     {
       "name": "Run board owner and atomic-authority controls",

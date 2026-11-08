@@ -283,6 +283,35 @@ describe('apiClient.fetch (fetch-style helper)', () => {
     await expect((apiClient as any).fetch('/api/x')).rejects.toThrow('ECONNREFUSED');
   });
 
+  it('preserves explicit no-retry through the real fetch adapter and retry interceptor', async () => {
+    (retry as jest.Mock).mockReset();
+    instance.request.mockReset();
+    (retry as jest.Mock).mockResolvedValue({ status: 200, statusText: 'OK', data: { retried: true } });
+    instance.request.mockImplementationOnce((config: any) => {
+      const error = makeHttpError(503);
+      error.config = config;
+      return retryRejected(error);
+    });
+    const res = await (apiClient as any).fetch('/api/example', { method: 'POST', retry: false });
+    expect(res.status).toBe(503);
+    expect(retry).not.toHaveBeenCalled();
+    expect(instance.request).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves ordinary fetch retry behavior when no opt-out is supplied', async () => {
+    (retry as jest.Mock).mockReset();
+    instance.request.mockReset();
+    (retry as jest.Mock).mockResolvedValue({ status: 200, statusText: 'OK', data: { recovered: true } });
+    instance.request.mockImplementationOnce((config: any) => {
+      const error = makeHttpError(503);
+      error.config = config;
+      return retryRejected(error);
+    });
+    const res = await (apiClient as any).fetch('/api/example');
+    expect(res.status).toBe(200);
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
   it('passes through method, body, headers and signal', async () => {
     const signal = new AbortController().signal;
     instance.request.mockResolvedValueOnce({ status: 201, statusText: 'Created', data: null });

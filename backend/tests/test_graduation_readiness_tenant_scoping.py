@@ -37,7 +37,7 @@ from core.agent_graduation_service import AgentGraduationService
 from core.auth import get_current_user
 from core.database import get_db
 from core.episode_service import EpisodeService
-from core.models import AgentEpisode, AgentRegistry, AgentStatus, User, UserRole
+from core.models import AgentEpisode, AgentRegistry, AgentStatus, AuditLog, User, UserRole
 
 
 @pytest.fixture()
@@ -49,6 +49,7 @@ def db_session(tmp_path):
     User.__table__.create(engine)
     AgentRegistry.__table__.create(engine)
     AgentEpisode.__table__.create(engine)
+    AuditLog.__table__.create(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as session:
         yield session
