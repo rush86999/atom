@@ -344,3 +344,57 @@ def test_question_only_candidate_rejection_keeps_receipt_without_step_wait(
     assert len(plan["reply_receipts"]) == 2
     assert not plan.get("waiting")
     assert not route_env["executor"].status(run_id)["open_gaps"]
+
+
+@pytest.mark.parametrize("peer_change", [
+    "removed", "resolved_same", "resolved_different", "material_changed",
+])
+def test_human_answer_rechecks_question_inside_the_cas(
+        route_env, tmp_path, monkeypatch, peer_change):
+    import copy
+    from api.assignment_routes import _record_information_wait
+    from core.task_lifecycle import TaskLifecycle
+
+    run_id = _create_ready_job(route_env, tmp_path, use_model=False)
+    question = _run(_record_information_wait(route_env["executor"], run_id, [{
+        "kind": "business_decision", "concept": "scope", "question": "Confirm scope?",
+        "next_action": "Answer", "waiting": {
+            "state": "waiting_for_person", "party": "owner",
+            "correlation_id": "human-cas-answer"},
+    }]))[0]
+    original = TaskLifecycle.mutate_assignment_and_task
+    winner = []
+
+    def interleave(self, target_run, compute, **kwargs):
+        if target_run == run_id and not winner:
+            def peer(record):
+                task = copy.deepcopy(record["task_revision"])
+                entries = task["unresolved"]
+                entry = next(v for v in entries if v["question_id"] == question["question_id"])
+                if peer_change == "removed":
+                    task["unresolved"] = [v for v in entries if v is not entry]
+                elif peer_change.startswith("resolved_"):
+                    value = "scope confirmed" if peer_change == "resolved_same" else "peer chose other scope"
+                    entry.update(status="resolved", resolution=value, resolution_value=value,
+                                 resolved_at="2026-11-08T08:00:00+00:00")
+                else:
+                    entry["question"] = "Confirm a different scope?"
+                return {}, {
+                    "task_revision": task, "operations": record["operations"],
+                    "assignment": record["assignment"],
+                    "conversation_id": record.get("conversation_id"),
+                }, {"kind": "peer_question_change", "rationale": peer_change}
+            route_env["lifecycle"]._mutate(run_id, peer)
+            winner.append(route_env["lifecycle"].get_task(run_id))
+        return original(self, target_run, compute, **kwargs)
+
+    monkeypatch.setattr(TaskLifecycle, "mutate_assignment_and_task", interleave)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{question['question_id']}/resolve",
+        json={"resolution": "scope confirmed"})
+    assert len(winner) == 1
+    expected = 200 if peer_change == "resolved_same" else 409
+    assert response.status_code == expected, response.text
+    if peer_change == "resolved_same":
+        assert response.json()["status"] == "already_resolved", response.json()
+    assert route_env["lifecycle"].get_task(run_id) == winner[0]
