@@ -6,6 +6,7 @@ import {
     type ActionProposal,
     type ActionProposalApprovalResult,
     SelfDirectedAgentProgress,
+    readGraduationPromotionResponse,
 } from "@/lib/maturity-api";
 import { useActionProposals } from "@/hooks/useActionProposals";
 import { buildActionProposalPreview } from "@/lib/action-proposal-preview";
@@ -274,6 +275,7 @@ export default function ApprovalsPage() {
 
   const promoteFromQueue = async (agentId: string) => {
     setNotice(null);
+    setError(null);
     setPromotingAgentId(agentId);
     try {
       // Raw fetch (page convention — matches decideProposal) so the call
@@ -282,14 +284,11 @@ export default function ApprovalsPage() {
         `${API}/api/episodes/graduation/promote?agent_id=${agentId}&new_maturity=INTERN`,
         { method: "POST", headers: headers() }
       );
-      if (!res.ok) {
-        setError(`Promotion failed (${res.status}). Supervisor permission required.`);
-        return;
-      }
+      await readGraduationPromotionResponse(res, agentId, "INTERN");
       setNotice("Agent promoted to INTERN.");
       await loadSelfDirected();
     } catch (e) {
-      setError(`Promotion failed: ${String(e)}`);
+      setError(e instanceof Error ? e.message : 'Promotion could not be confirmed. Refresh the agent status.');
     } finally {
       setPromotingAgentId(null);
     }

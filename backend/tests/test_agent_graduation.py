@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from core.agent_graduation_service import AgentGraduationService
 from core.models import AgentRegistry, AgentStatus, Episode
+from tests.test_graduation_authority_boundary import graduation_world, _assert_real_promotion
 
 
 @pytest.fixture
@@ -204,41 +205,9 @@ class TestGraduationReadiness:
 class TestAgentPromotion:
     """Tests for agent promotion"""
 
-    @patch('core.agent_graduation_service.get_lancedb_handler')
-    def test_promote_agent_success(self, mock_lancedb, db_session, mock_student_agent):
-        """Test successful agent promotion"""
-        # Use a callable that returns the agent object to simulate proper query behavior
-        def query_return_value(model):
-            if model == AgentRegistry:
-                agent_query = Mock()
-                agent_query.filter = Mock(return_value=agent_query)
-                agent_query.first = Mock(return_value=mock_student_agent)
-                return agent_query
-            return Mock()
-
-        db_session.query = query_return_value
-
-        service = AgentGraduationService(db_session)
-        readiness = AsyncMock(return_value={"ready": True, "gaps": []})
-
+    def test_promote_agent_success(self, graduation_world):
         import asyncio
-        with patch.object(
-            service,
-            "calculate_readiness_score",
-            new=readiness,
-        ), patch("core.agent_graduation_service.POMDP_AVAILABLE", False), \
-             patch("core.notification_service.NotificationService",
-                   side_effect=RuntimeError("mocked")):
-            result = asyncio.run(service.promote_agent(
-                agent_id="student_agent_123",
-                new_maturity="INTERN",
-                validated_by="admin_user"
-            ))
-
-        assert result is True
-        # Check that configuration was updated
-        assert mock_student_agent.configuration is not None
-        assert mock_student_agent.configuration.get("promoted_by") == "admin_user"
+        asyncio.run(_assert_real_promotion(graduation_world, "student", "INTERN"))
 
     @patch('core.agent_graduation_service.get_lancedb_handler')
     def test_promote_agent_not_found(self, mock_lancedb, db_session):

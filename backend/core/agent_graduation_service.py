@@ -14,7 +14,6 @@ import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import flag_modified
 
 from core.lancedb_handler import get_lancedb_handler
 from core.episode_service import EpisodeService
@@ -762,13 +761,23 @@ class AgentGraduationService:
         }
 
     async def promote_agent(
+        self, agent_id: str, new_maturity: str, validated_by: str,
+        tenant_id: Optional[str] = None, workspace_id: Optional[str] = None,
+    ) -> bool:
+        """Compatibility bool; HTTP callers use the explicit decision outcome."""
+        result = await self.promote_agent_decision(
+            agent_id, new_maturity, validated_by, tenant_id, workspace_id)
+        return result.get("status") in ("verified", "already_applied")
+
+    async def promote_agent_decision(
         self,
         agent_id: str,
         new_maturity: str,
         validated_by: str,
         tenant_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
-    ) -> bool:
+        operation_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Update agent metadata in PostgreSQL after successful graduation.
 
@@ -780,29 +789,77 @@ class AgentGraduationService:
         Returns:
             True if successful
         """
+        # Scope lookup itself can autoflush: refuse pending caller material
+        # before issuing any query, not merely before the final commit.
+        if self.db.new or self.db.dirty or self.db.deleted:
+            return {"status": "not_applied", "verification": {"effect": "none"}}
         try:
             agent = self.get_agent_in_scope(agent_id, tenant_id, workspace_id)
         except Exception as e:
             logger.error(f"Database error querying agent {agent_id}: {e}")
-            return False
+            return {"status": "not_applied", "verification": {"effect": "none"}}
 
         if not agent:
             logger.error(f"Agent {agent_id} not found for promotion")
-            return False
+            return {"status": "not_applied", "verification": {"effect": "none"}}
 
         target_name = str(new_maturity).upper()
         if target_name not in self.PROMOTION_SOURCES:
             logger.error(f"Invalid maturity level: {new_maturity}")
-            return False
+            return {"status": "not_applied", "verification": {"effect": "none"}}
 
         target_status = AgentStatus[target_name].value
+        # Freeze authority and physical target material before the readiness
+        # await. Reuse the shared writer's claims; a fresh read after the await
+        # alone would silently authorize a different reviewed target.
+        from types import SimpleNamespace
+        from core.models import UserRole
+        from core import agent_decision_write_service as writes
+
+        if self.db.new or self.db.dirty or self.db.deleted:
+            return {"status": "not_applied", "verification": {"effect": "none"}}  # Never flush unrelated caller work as a promotion.
+        actor = writes._resolve_actor(
+            self.db, SimpleNamespace(id=validated_by),
+            minimum_role=UserRole.TEAM_LEAD, authority_label="GRADUATION")
+        if not actor.get("ok") or not writes._agent_visible(actor, agent):
+            return {"status": "not_applied", "verification": {"effect": "none"}}
+        try:
+            operation_id = writes._operation_id("graduate", operation_id)
+        except ValueError:
+            return writes._refused("Invalid operation identity", http_status=422,
+                                   error_code="VALIDATION_ERROR")
+        request = writes.graduation_request(
+            operation_id=operation_id, agent_id=agent_id, target_status=target_status,
+            actor=actor, tenant_id=tenant_id, workspace_id=workspace_id)
+        replay = writes.replay_graduation(self.db, request=request, actor=actor)
+        if replay is not None:
+            return replay
         current_status = agent.status.value if hasattr(agent.status, "value") else str(agent.status)
         if current_status != self.PROMOTION_SOURCES[target_name]:
             logger.error(
                 f"Invalid promotion transition for {agent_id}: "
                 f"{current_status} -> {target_status}"
             )
-            return False
+            return {"status": "not_applied", "verification": {"effect": "none"}}
+
+        try:
+            reviewed, raw_config, raw_schedule = writes._load_replace_source(self.db, agent_id)
+            if reviewed is None or (
+                reviewed.tenant_id != agent.tenant_id
+                or reviewed.workspace_id != agent.workspace_id
+                or reviewed.status != agent.status
+            ):
+                return {"status": "not_applied", "verification": {"effect": "none"}}
+            predicates, claim_params = writes._replace_agent_predicates(
+                reviewed, raw_config, raw_schedule)
+            predicates.extend(writes._agent_predicates(reviewed, current_status))
+            for field in ("module_path", "class_name", "user_id", "confidence_score",
+                          "required_role_for_autonomy"):
+                predicates.append(writes._exact(getattr(AgentRegistry, field),
+                                               getattr(reviewed, field)))
+        except Exception as exc:
+            logger.warning("Graduation snapshot unavailable: error_class=%s", type(exc).__name__)
+            return {"status": "not_applied", "verification": {"effect": "none"}}
 
         try:
             readiness = await self.calculate_readiness_score(
@@ -816,14 +873,14 @@ class AgentGraduationService:
                 f"Promotion for {agent_id} denied: readiness evidence unavailable "
                 f"({readiness_err})"
             )
-            return False
+            return {"status": "not_applied", "verification": {"effect": "none"}}
 
         if (
             readiness.get("error")
             or readiness.get("ready") is not True
             or readiness.get("gaps")
         ):
-            return False
+            return {"status": "not_applied", "verification": {"effect": "none"}}
 
         if target_status == AgentStatus.AUTONOMOUS.value:
             from core.governance import DynamicGovernanceManager, GovernanceLayer
@@ -848,31 +905,30 @@ class AgentGraduationService:
                     f"Autonomous promotion for {agent_id} denied: governance "
                     f"evidence unavailable ({governance_err})"
                 )
-                return False
+                return {"status": "not_applied", "verification": {"effect": "none"}}
 
             if not decision.allowed:
                 logger.warning(
                     f"Autonomous promotion DENIED by governance policy for "
                     f"{agent_id}: {'; '.join(decision.reasons)}"
                 )
-                return False
+                return {"status": "not_applied", "verification": {"effect": "none"}}
 
-        previous_status = agent.status
-        agent.status = target_status
+        previous_status = reviewed.status
+        configuration = dict(reviewed.configuration or {})
+        configuration.update(promoted_at=datetime.now().isoformat(), promoted_by=validated_by)
 
-        agent.updated_at = datetime.now()
-
-        # Add promotion metadata to configuration
-        if not agent.configuration:
-            agent.configuration = {}
-        agent.configuration["promoted_at"] = datetime.now().isoformat()
-        agent.configuration["promoted_by"] = validated_by
-
-        # Flag configuration as modified for SQLAlchemy JSON tracking
-        flag_modified(agent, "configuration")
-
+        decision = None
         try:
-            self.db.commit()
+            if self.db.new or self.db.dirty or self.db.deleted:
+                return {"status": "not_applied", "verification": {"effect": "none"}}
+            decision = writes.commit_graduation(
+                self.db, reviewed=reviewed, actor=actor, request=request,
+                predicates=predicates, claim_params=claim_params,
+                target_status=target_status, configuration=configuration)
+            if decision.get("status") != "verified":
+                return decision
+            self.db.expire(agent)
             logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")
 
             # Real-time circuit: the tier just moved — drop the GovernanceCache
@@ -963,11 +1019,14 @@ class AgentGraduationService:
                 except Exception as mem_exc:
                     logger.warning(f"POMDP memory consolidation failed on graduation: {mem_exc}")
 
-            return True
+            return decision
         except Exception as e:
-            logger.error(f"Database error during promotion of agent {agent_id}: {e}")
+            logger.error("Graduation finalization error: error_class=%s", type(e).__name__)
             self.db.rollback()
-            return False
+            # A post-commit ancillary failure cannot erase the durable verdict.
+            if decision is not None:
+                return decision
+            return {"status": "not_applied", "verification": {"effect": "none"}}
 
     async def get_graduation_audit_trail(
         self,

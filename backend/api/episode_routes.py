@@ -714,6 +714,7 @@ async def run_exam(
 async def promote_agent(
     agent_id: str,
     new_maturity: str,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -724,13 +725,19 @@ async def promote_agent(
     workspace_id = resolve_workspace_id(current_user)
     if service.get_agent_in_scope(agent_id, tenant_id, workspace_id) is None:
         raise HTTPException(status_code=404, detail="Agent not found")
-    success = await service.promote_agent(
+    decision = await service.promote_agent_decision(
         agent_id=agent_id,
         new_maturity=new_maturity,
         validated_by=current_user.id,
         tenant_id=tenant_id,
         workspace_id=workspace_id,
+        operation_id=operation_id,
     )
+    success = decision.get("status") in ("verified", "already_applied")
+    if decision.get("status") in ("effect_unknown", "committed_unverified"):
+        raise HTTPException(status_code=503, detail=decision)
+    if decision.get("status") in ("refused", "conflict"):
+        raise HTTPException(status_code=int(decision.get("http_status") or 409), detail=decision)
     if not success and service.get_agent_in_scope(agent_id, tenant_id, workspace_id) is None:
         raise HTTPException(status_code=404, detail="Agent not found")
 
@@ -738,7 +745,8 @@ async def promote_agent(
         data={
             "agent_id": agent_id,
             "new_maturity": new_maturity,
-            "promoted": success
+            "promoted": success,
+            **(decision.get("data") or {}),
         },
         message=f"Agent promoted to {new_maturity}" if success else "Promotion failed"
     )

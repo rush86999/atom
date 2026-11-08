@@ -351,6 +351,18 @@ describe('TrainingPanel', () => {
     );
   });
 
+  test('an unconfirmed promotion shows the next action without a graduation notice', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    mockApi.promoteAgent.mockRejectedValue(new Error(
+      'Promotion could not be confirmed. Refresh the agent status; do not repeat the request.'
+    ));
+    render(<TrainingPanel canvasId="cv-1" />);
+    fireEvent.click(await screen.findByTestId('promote-agent-button'));
+    await waitFor(() => expect(screen.getByText(/Promotion could not be confirmed/)).toBeInTheDocument());
+    expect(screen.queryByText(/graduated to INTERN/)).not.toBeInTheDocument();
+    expect(mockApi.promoteAgent).toHaveBeenCalledTimes(1);
+  });
+
   test('non-supervisor viewers get teach + progress only', async () => {
     mockApi.getCanvasTrainingContext.mockResolvedValue(
       makeContext({ viewer_is_supervisor: false })

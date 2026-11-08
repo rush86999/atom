@@ -413,4 +413,20 @@ describe("Self-directed graduation queue", () => {
       expect(promoteCalls[0][1]?.method).toBe("POST");
     });
   });
+  it("does not announce a denied promotion from the queue", async () => {
+    const original = mockFetch.getMockImplementation();
+    mockFetch.mockImplementation((url: any, init: any) =>
+      String(url).includes("/episodes/graduation/promote")
+        ? Promise.resolve(okJson({ success: true, data: {
+            agent_id: "sd-1", new_maturity: "INTERN", promoted: false,
+          } }))
+        : original!(url, init));
+    render(<ApprovalsPage />);
+    fireEvent.click(await screen.findByTestId("self-directed-promote-button"));
+    await waitFor(() => expect(screen.getByText(/Promotion was not applied/)).toBeInTheDocument());
+    expect(screen.queryByText("Agent promoted to INTERN.")).not.toBeInTheDocument();
+    expect(mockFetch.mock.calls.filter((c: any[]) =>
+      String(c[0]).includes("/episodes/graduation/promote"))).toHaveLength(1);
+  });
+
 });

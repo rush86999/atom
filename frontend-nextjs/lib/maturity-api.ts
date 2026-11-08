@@ -1,4 +1,5 @@
 import { apiClient } from './api-client';
+import type { ApiFetchOptions } from './api-client';
 
 // Types for the agent maturity journey API (/api/maturity/*, restored R81).
 // Supervisor-facing: review STUDENT training proposals, complete training
@@ -138,7 +139,7 @@ export interface ActionProposalApprovalResult {
 // apiClient.fetch exists at runtime (attached in lib/api.ts) but is not part
 // of the axios type surface — route through one typed accessor instead of
 // sprinkling casts at every call site.
-type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+type FetchLike = (url: string, init?: ApiFetchOptions) => Promise<Response>;
 const rawFetch = apiClient as unknown as { fetch: FetchLike };
 const fetchJson: FetchLike = (url, init) => rawFetch.fetch(url, init);
 
@@ -504,21 +505,70 @@ export async function getGraduationReadiness(
   return res.json();
 }
 
+export interface GraduationPromotionResult {
+  agent_id: string;
+  new_maturity: string;
+  promoted: true;
+  operation_id?: string;
+  audit_id?: string;
+  verification?: Record<string, unknown>;
+}
+
+const promotionRecord = (value: unknown): Record<string, unknown> | undefined =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown> : undefined;
+
+/** One response boundary for fetch and API-client graduation consumers. */
+export async function readGraduationPromotionResponse(
+  res: Response, agentId: string, newMaturity: string
+): Promise<GraduationPromotionResult> {
+  let raw: unknown;
+  try { raw = await res.json(); } catch { /* Unreadable is never confirmation. */ }
+  const body = promotionRecord(raw);
+  const data = body && 'data' in body ? promotionRecord(body.data) : body;
+  const detail = promotionRecord(body?.detail) ?? body;
+  const verification = promotionRecord(data?.verification) ?? promotionRecord(detail?.verification);
+  const receiptConfirmed = verification === undefined || (
+    ['verified', 'already_applied'].includes(String(verification.status)) &&
+    verification.effect === 'committed'
+  );
+  const uncertain = res.status === 503 || (
+    verification !== undefined && verification.effect !== 'none' && !receiptConfirmed
+  );
+  const target = newMaturity.toUpperCase();
+  const confirmed = res.ok && body?.success !== false && data?.promoted === true &&
+    data.agent_id === agentId && typeof data.new_maturity === 'string' &&
+    ['INTERN', 'SUPERVISED', 'AUTONOMOUS'].includes(target) &&
+    data.new_maturity.toUpperCase() === target && receiptConfirmed && !uncertain;
+  if (!confirmed) {
+    const denied = data?.promoted === false || (res.status >= 400 && res.status < 500);
+    const message = uncertain || !denied
+      ? 'Promotion could not be confirmed. Refresh the agent status before trying again; do not repeat the request.'
+      : 'Promotion was not applied. Review the current readiness and refresh the agent status.';
+    // Preserve the original opaque identity for reconciliation without showing
+    // raw server/provider errors or automatically sending another request.
+    const operationId = detail?.operation_id ?? data?.operation_id;
+    throw Object.assign(new Error(message), {
+      operationId: typeof operationId === 'string' ? operationId : undefined,
+      verification,
+    });
+  }
+  return data as unknown as GraduationPromotionResult;
+}
+
 /** Promote an agent to the next tier (graduation). Supervisor-only backend. */
 export async function promoteAgent(
   agentId: string,
   newMaturity: string
-): Promise<{ agent_id: string; new_maturity: string; promoted: boolean }> {
-  // This endpoint takes query params, not a JSON body.
+): Promise<GraduationPromotionResult> {
   const res = await fetchJson(
     `/api/episodes/graduation/promote${query({
       agent_id: agentId,
       new_maturity: newMaturity,
     })}`,
-    { method: 'POST' }
+    { method: 'POST', retry: false }
   );
-  if (!res.ok) throw new Error(`Promote failed (${res.status})`);
-  return res.json();
+  return readGraduationPromotionResponse(res, agentId, newMaturity);
 }
 
 export interface GraduationProgress {

@@ -31,6 +31,8 @@ pytest.importorskip("core.service_factory", reason="ServiceFactory dependency - 
 pytest.importorskip("core.sandbox_executor", reason="Sandbox executor dependency - requires execution environment")
 
 from core.agent_graduation_service import AgentGraduationService
+from core.models import AgentRegistry
+from tests.test_graduation_authority_boundary import graduation_world, _assert_real_promotion
 
 
 # ============================================================================
@@ -510,71 +512,16 @@ class TestMaturityTransitions:
     """Test agent maturity level transitions and promotions."""
 
     @pytest.mark.asyncio
-    async def test_promote_student_to_intern(self, graduation_service, mock_agent):
-        """Test STUDENT → INTERN promotion."""
-        # Arrange
-        mock_agent.status = "STUDENT"
-        graduation_service.db.query().filter().first.return_value = mock_agent
-
-        # Act - promote_agent takes agent_id, new_maturity, validated_by
-        result = await graduation_service.promote_agent(
-            agent_id="agent-001",
-            new_maturity="INTERN",
-            validated_by="supervisor-001"
-        )
-
-        # Assert - agent status should be updated
-        assert graduation_service.db.commit.called
+    async def test_promote_student_to_intern(self, graduation_world):
+        await _assert_real_promotion(graduation_world, "student", "INTERN")
 
     @pytest.mark.asyncio
-    async def test_promote_intern_to_supervised(self, graduation_service, mock_agent):
-        """Test INTERN → SUPERVISED promotion."""
-        # Arrange
-        mock_agent.status = "INTERN"
-        graduation_service.db.query().filter().first.return_value = mock_agent
-
-        # Act
-        result = await graduation_service.promote_agent(
-            agent_id="agent-001",
-            new_maturity="SUPERVISED",
-            validated_by="supervisor-001"
-        )
-
-        # Assert
-        assert graduation_service.db.commit.called
+    async def test_promote_intern_to_supervised(self, graduation_world):
+        await _assert_real_promotion(graduation_world, "intern", "SUPERVISED")
 
     @pytest.mark.asyncio
-    async def test_promote_supervised_to_autonomous(self, graduation_service, mock_agent):
-        """Test SUPERVISED → AUTONOMOUS promotion.
-
-        AUTONOMOUS is the STRATEGIC governance tier: promote_agent
-        re-evaluates the graduation policy against live episode evidence
-        before granting it, so the test supplies passing evidence.
-        """
-        from types import SimpleNamespace
-
-        # Arrange
-        mock_agent.status = "SUPERVISED"
-        graduation_service.db.query().filter().first.return_value = mock_agent
-
-        strong_readiness = SimpleNamespace(
-            readiness_score=0.96, zero_intervention_ratio=0.95,
-            avg_constitutional_score=0.97, avg_confidence_score=0.93,
-            success_rate=0.97, episodes_analyzed=60,
-        )
-
-        # Act
-        with patch("core.agent_graduation_service.EpisodeService") as episode_svc:
-            episode_svc.return_value.get_graduation_readiness.return_value = strong_readiness
-            result = await graduation_service.promote_agent(
-                agent_id="agent-001",
-                new_maturity="AUTONOMOUS",
-                validated_by="supervisor-001"
-            )
-
-        # Assert
-        assert result is True
-        assert graduation_service.db.commit.called
+    async def test_promote_supervised_to_autonomous(self, graduation_world):
+        await _assert_real_promotion(graduation_world, "supervised", "AUTONOMOUS")
 
     @pytest.mark.asyncio
     async def test_promotion_notification(self, graduation_service):
