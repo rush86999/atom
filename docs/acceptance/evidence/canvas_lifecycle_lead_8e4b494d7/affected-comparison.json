@@ -1,0 +1,19 @@
+{
+  "candidate_source": "8e4b494d722b5ca07c79cc487adab65e1350f2b8",
+  "baseline_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "candidate_failures": [
+    "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+    "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names"
+  ],
+  "baseline_failures": [
+    "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+    "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names"
+  ],
+  "identical_failure_ids": true,
+  "candidate_summary": [
+    "================= 2 failed, 175 passed, 414 warnings in 31.57s ================="
+  ],
+  "baseline_summary": [
+    "================= 2 failed, 175 passed, 413 warnings in 32.89s ================="
+  ]
+}
