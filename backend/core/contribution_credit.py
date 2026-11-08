@@ -42,7 +42,7 @@ import hashlib
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -123,13 +123,23 @@ def _as_dict(value: Any) -> Dict[str, Any]:
 
 
 def _parse_time(value: Any) -> Optional[datetime]:
+    """Normalize server timestamps; SQLite's naive DateTime values are UTC."""
     if isinstance(value, datetime):
-        return value
-    text = _text(value)
-    if not text:
+        parsed = value
+    elif isinstance(value, str):
+        text = value.strip()
+        # A date alone cannot prove a post-epoch observation instant.
+        if not text or ("T" not in text and " " not in text):
+            return None
+        try:
+            parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+    else:
         return None
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return (parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None
+                else parsed.astimezone(timezone.utc))
     except (TypeError, ValueError):
         return None
 

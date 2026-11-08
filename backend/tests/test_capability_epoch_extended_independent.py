@@ -79,3 +79,27 @@ def test_unknown_epoch_clock_is_not_evidence(store,baseline):
     anchor=datetime.fromisoformat(new["epoch_started_at"])
     assert _pre_revocation(db,row.id,"canvas_edit",anchor-timedelta(seconds=1))[0] is True
     assert _pre_revocation(db,row.id,"canvas_edit",anchor+timedelta(seconds=1))[0] is False
+
+
+@pytest.mark.parametrize("value",[
+    "2026-11-08T12:00:00Z",
+    "2026-11-08T07:00:00-05:00",
+    "2026-11-08 12:00:00",
+    "2026-11-08T13:00:00+01:00",
+])
+def test_epoch_clock_normalizes_server_timestamp_strings(value):
+    from datetime import datetime,timezone
+    from core.contribution_credit import _parse_time
+    assert _parse_time(value)==datetime(2026,11,8,12,tzinfo=timezone.utc)
+
+
+def test_epoch_clock_normalizes_sqlite_naive_datetime():
+    from datetime import datetime,timezone
+    from core.contribution_credit import _parse_time
+    assert _parse_time(datetime(2026,11,8,12))==datetime(2026,11,8,12,tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("value",[None,"","not-a-time","2026-11-08"])
+def test_incomplete_epoch_clock_is_unknown(value):
+    from core.contribution_credit import _parse_time
+    assert _parse_time(value) is None
