@@ -1715,6 +1715,205 @@ def _external_reply_replay_result(
     return result
 
 
+def _gap_reply_scope(question: Dict[str, Any]) -> Tuple[str, str]:
+    """Deterministic question/wait scope for a shared reply receipt.
+
+    A question's concept and affected subjects are durable, structured fields;
+    they are never derived from the human question text or from the bounded
+    audit string. Subjects are de-duplicated and sorted so a re-derived
+    question keeps the same identity.
+    """
+    fact = str(question.get("concept") or question.get("item") or "")
+    subjects = sorted({
+        str(subject).strip()
+        for subject in (question.get("affected_subjects") or [])
+        if str(subject).strip()
+    })
+    return fact, "|".join(subjects)
+
+
+def _gap_reply_waiting_projection(question: Dict[str, Any]) -> Dict[str, Any]:
+    """The canonical wait projection used by question reply material.
+
+    Question waits are human/external answers, not typed direct-step waits, so
+    the projection carries no invented typed binding. It still includes the
+    durable party so the same opaque reply id cannot move to another channel.
+    """
+    fact, subject = _gap_reply_scope(question)
+    waiting = question.get("waiting") or {}
+    return {
+        "fact": fact,
+        "subject": subject,
+        "party": str(waiting.get("party") or ""),
+        "typed_binding": False,
+        "expected_answer_type": "",
+    }
+
+
+def _step_for_gap_question(
+    assignment: Dict[str, Any], question: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """The backing step for a question, by explicit step_id then gap_ids."""
+    question_id = str(question.get("question_id") or "")
+    step_id = str(question.get("step_id") or "")
+    if step_id:
+        step = step_by_id(assignment, step_id)
+        if step is not None:
+            return step
+    if not question_id:
+        return None
+    for step in assignment.get("steps") or []:
+        if question_id in (step.get("gap_ids") or []):
+            return step
+    return None
+
+
+def _find_gap_reply_target(
+    record: Dict[str, Any], correlation_id: str,
+) -> Optional[Dict[str, Any]]:
+    """Find the question (open or settled) bound to a correlation id.
+
+    ``open_unresolved_questions`` intentionally stays open-only. A reply after
+    closure still needs its durable receipt for exact replay/conflict checks,
+    so this read also consults settled questions and the backing steps' wait
+    records. An OPEN question always wins over its older settled twin.
+    """
+    correlation = str(correlation_id or "")
+    if not correlation:
+        return None
+    questions = [
+        dict(item) for item in
+        (record.get("task_revision") or {}).get("unresolved") or []
+        if isinstance(item, dict)
+    ]
+
+    def bound(question):
+        waiting = question.get("waiting") or {}
+        return str(waiting.get("correlation_id") or "") == correlation
+
+    for question in questions:
+        if question.get("status") == "open" and bound(question):
+            return question
+    for question in questions:
+        if bound(question):
+            return question
+    # Legacy/questions whose waiting projection was cleared still have the
+    # correlation on the backing step/receipt.
+    assignment = record.get("assignment") or {}
+    steps = [
+        item for item in (assignment.get("steps") or [])
+        if isinstance(item, dict)
+    ]
+    question_ids = {
+        str(question.get("question_id") or "") for question in questions
+    }
+    for step in steps:
+        waiting = step.get("waiting")
+        external = step.get("external_response")
+        wait_corr = str(
+            (waiting or {}).get("correlation_id")
+            if isinstance(waiting, dict) else "") or ""
+        external_corr = str(
+            (external or {}).get("correlation_id")
+            if isinstance(external, dict) else "") or ""
+        if correlation not in (wait_corr, external_corr):
+            continue
+        for question in questions:
+            question_id = str(question.get("question_id") or "")
+            if (question_id and question_id in question_ids
+                    and (question_id in (step.get("gap_ids") or [])
+                         or str(question.get("step_id") or "")
+                         == str(step.get("step_id") or ""))):
+                return question
+    return None
+
+
+def _reopen_resolved_gap_steps(
+    new_plan: Dict[str, Any],
+    question_id: str,
+    *,
+    mapping: Dict[str, Any],
+    mapping_applied: bool,
+    confirmed_mapping: Dict[str, Any],
+) -> List[str]:
+    """Apply a confirmed mapping and reopen the step(s) the gap blocked.
+
+    Kept pure over the supplied plan so both the human /gaps route and the
+    /responses settlement re-run it on fresh CAS state with identical rules.
+    """
+    reopened: List[str] = []
+    if mapping_applied:
+        missing = str(mapping.get("missing_column") or "")
+        for step in new_plan.get("steps") or []:
+            step["inputs"] = _replace_mapping_value(
+                step.get("inputs") or {}, missing,
+                str(confirmed_mapping.get("column") or ""))
+        snapshot = dict(new_plan.get("teaching_snapshot") or {})
+        mappings = [
+            dict(item) for item in (snapshot.get("field_mappings") or [])
+            if isinstance(item, dict)
+        ]
+        concept = str(mapping.get("concept") or missing)
+        mappings = [
+            item for item in mappings
+            if not (str(item.get("concept") or "").lower()
+                    == concept.lower()
+                    and str(item.get("sheet") or "")
+                    == str(mapping.get("sheet") or ""))
+        ]
+        mappings.append(dict(confirmed_mapping))
+        snapshot = new_teaching_snapshot(
+            revision=(
+                str(snapshot.get("revision") or "untrained")
+                + "+map"),
+            effective_lesson_ids=snapshot.get("effective_lesson_ids") or [],
+            applicable_conditions=snapshot.get("applicable_conditions") or {},
+            matched_context=snapshot.get("matched_context") or {},
+            unresolved_conditions=snapshot.get("unresolved_conditions") or [],
+            conflicting_conditions=snapshot.get("conflicting_conditions") or [],
+            field_mappings=mappings,
+            source_versions=snapshot.get("source_versions") or {},
+            output_requirements=snapshot.get("output_requirements") or {},
+            decision_schema=snapshot.get("decision_schema") or [],
+            artifact_requirements=snapshot.get("artifact_requirements") or {},
+        )
+        new_plan["teaching_snapshot"] = snapshot
+    for step in new_plan.get("steps") or []:
+        if question_id not in (step.get("gap_ids") or []):
+            continue
+        if step.get("status") in ("applied", "cancelled", "superseded"):
+            continue
+        step["status"] = "pending"
+        step["attempts"] = int(step.get("attempts") or 0) + 1
+        step["operation_id"] = None
+        step["waiting"] = None
+        step["updated_at"] = _utc_now_iso()
+        reopened.append(step["step_id"])
+    # A confirmed mapping changes evidence/calculation identity: reopen only
+    # the affected step and its transitive dependants.
+    if mapping_applied:
+        roots = [
+            step["step_id"] for step in new_plan.get("steps") or []
+            if question_id in (step.get("gap_ids") or [])
+        ]
+        affected = set(downstream_step_ids(new_plan, roots))
+        for step in new_plan.get("steps") or []:
+            if step.get("step_id") not in affected:
+                continue
+            if step.get("status") in ("cancelled", "superseded"):
+                continue
+            step["operation_id"] = None
+            step["status"] = "pending"
+            step["result"] = None
+            step["artifact_revision"] = None
+            step["updated_at"] = _utc_now_iso()
+            if step["step_id"] not in reopened:
+                reopened.append(step["step_id"])
+    new_plan["status"] = "planned"
+    new_plan["updated_at"] = _utc_now_iso()
+    return reopened
+
+
 def _artifact_text(kind: str, path: str) -> str:
     if kind == "document":
         import docx
@@ -3840,6 +4039,206 @@ class AssignmentExecutor:
 
     # --------------------------------------------------------------- gaps
 
+    def _build_gap_resolution_plan(
+        self,
+        record: Dict[str, Any],
+        question: Dict[str, Any],
+        *,
+        resolution: str,
+        current_source: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Read + validate one gap answer without mutating anything.
+
+        This is the pure portion shared by the direct human answer route and
+        the external-reply settlement. It re-runs on fresh CAS state; mapping,
+        source, unit and teaching authority checks are unchanged from the
+        original resolve_gap implementation.
+        """
+        question_id = str(question.get("question_id") or "")
+        mapping = dict((question.get("inputs") or {}).get("mapping") or {})
+        plan: Dict[str, Any] = {
+            "question_id": question_id,
+            "mapping": mapping,
+            "mapping_applied": False,
+            "confirmed_mapping": {},
+            "selected_column": "",
+            "selected_unit": "",
+            "outcome": "resolved",
+        }
+        if not mapping:
+            return plan
+        try:
+            parsed = json.loads(str(resolution))
+        except (TypeError, ValueError):
+            parsed = {"column": str(resolution or "").strip()}
+        if not isinstance(parsed, dict):
+            raise AssignmentError("a mapping resolution must be an object")
+        request_id = str(parsed.get("request_id") or "").strip()
+        assignment_id = str(parsed.get("assignment_id") or "").strip()
+        if not request_id or request_id != question_id:
+            raise AssignmentError(
+                "the confirmation does not identify the outstanding mapping request")
+        if not assignment_id or assignment_id != str(
+                (record.get("assignment") or {}).get("assignment_id") or ""):
+            raise AssignmentError(
+                "the confirmation belongs to a different assignment")
+        if parsed.get("rejected") is True:
+            # Rejection is an acknowledgement, not a resolution: the same
+            # request and candidate evidence stay outstanding so a restart
+            # cannot fork a second clarification.
+            plan["outcome"] = "rejected_candidates"
+            return plan
+        selected_column = str(parsed.get("column") or "").strip()
+        selected_unit = str(parsed.get("unit") or "").strip()
+        requested_source_version = str(
+            parsed.get("source_version") or "").strip()
+        if (requested_source_version
+                and str(mapping.get("source_version") or "")
+                and requested_source_version != str(
+                    mapping.get("source_version") or "")):
+            raise AssignmentError(
+                "stale source version: reconfirm the mapping against "
+                "the current schema")
+        requested_teaching_revision = str(
+            parsed.get("teaching_revision") or "").strip()
+        proposal_teaching_revision = str(
+            mapping.get("teaching_revision") or "").strip()
+        snapshot_teaching_revision = str(
+            ((record.get("assignment") or {}).get(
+                "teaching_snapshot") or {}).get("revision") or "").strip()
+        if requested_teaching_revision:
+            if (proposal_teaching_revision
+                    and requested_teaching_revision
+                    != proposal_teaching_revision):
+                raise AssignmentError(
+                    "stale teaching revision: reconfirm the mapping "
+                    "against the current teaching")
+            if (snapshot_teaching_revision
+                    and requested_teaching_revision
+                    != snapshot_teaching_revision):
+                raise AssignmentError(
+                    "stale teaching revision: the assignment teaching "
+                    "changed after this request was raised")
+        candidates = [
+            str(item.get("column") or "")
+            for item in (mapping.get("candidates") or [])
+            if isinstance(item, dict)
+        ]
+        if not selected_column or selected_column not in candidates:
+            raise AssignmentError(
+                "the confirmed mapping is not one of the current schema candidates")
+        if current_source:
+            current_sheet = str(current_source.get("sheet") or "")
+            if (current_sheet and str(mapping.get("sheet") or "")
+                    and current_sheet != str(mapping.get("sheet") or "")):
+                raise AssignmentError(
+                    "the current authorized source does not match this "
+                    "mapping request")
+            current_source_version = str(
+                current_source.get("source_version") or "")
+            if (current_source_version
+                    and str(mapping.get("source_version") or "")
+                    and current_source_version != str(
+                        mapping.get("source_version") or "")):
+                raise AssignmentError(
+                    "stale source version: the current authorized source "
+                    "changed after this request was raised")
+            allowed_columns = [
+                str(column) for column in
+                current_source.get("columns") or []
+                if str(column)
+            ]
+            if allowed_columns and selected_column not in allowed_columns:
+                raise AssignmentError(
+                    "the confirmed mapping is not in the current "
+                    "authorized source schema")
+        source = next((
+            item for item in (record.get("assignment") or {}).get("sources") or []
+            if str((item.get("binding") or {}).get("external_id") or "")
+            == str(mapping.get("external_id") or "")
+            and str((item.get("binding") or {}).get("sheet") or "")
+            == str(mapping.get("sheet") or "")
+        ), None)
+        current_version = str(
+            ((source or {}).get("binding") or {}).get("source_version") or "")
+        if (str(mapping.get("source_version") or "")
+                and current_version != str(mapping.get("source_version"))):
+            raise AssignmentError(
+                "the source version changed; reconfirm the mapping against the current schema")
+        required_unit = str(mapping.get("required_unit") or "").strip()
+        source_unit = str(mapping.get("source_unit") or "").strip()
+        # Three separate authorities: taught requirement, source evidence,
+        # and the user's explicit confirmation. A taught unit is never
+        # substituted for missing source information, and a source unit is
+        # not silently certified when the source does not establish one.
+        unit_authority = ""
+        if selected_unit:
+            unit_authority = (
+                "source_evidence" if source_unit else "user_confirmed")
+        elif source_unit:
+            selected_unit = source_unit
+            unit_authority = "source_evidence"
+        elif required_unit:
+            raise AssignmentError(
+                "the taught method requires an explicit unit confirmation")
+        if source_unit and selected_unit and (
+                source_unit.lower() != selected_unit.lower()):
+            raise AssignmentError(
+                f"the confirmed unit '{selected_unit}' conflicts with "
+                f"the source evidence unit '{source_unit}'")
+        if required_unit and selected_unit and (
+                required_unit.lower() != selected_unit.lower()):
+            raise AssignmentError(
+                f"the confirmed unit '{selected_unit}' does not match "
+                f"the taught unit '{required_unit}'; no conversion is authorized")
+        source_mapping = dict(mapping.get("mapping_source") or {})
+        confirmed_mapping = {
+            "concept": str(
+                mapping.get("concept")
+                or mapping.get("missing_column") or ""),
+            "sheet": str(mapping.get("sheet") or ""),
+            "column": selected_column,
+            "unit": selected_unit or str(source_mapping.get("unit") or ""),
+            "unit_authority": unit_authority,
+            "required_unit": required_unit,
+            "source_unit": source_unit,
+            "source_unit_column": str(
+                mapping.get("source_unit_column") or ""),
+            "source_version": str(mapping.get("source_version") or ""),
+            "revision": int(source_mapping.get("revision") or 1) + 1,
+        }
+        if source_mapping.get("lesson_id"):
+            confirmed_mapping["lesson_id"] = source_mapping["lesson_id"]
+        plan.update({
+            "mapping_applied": True,
+            "confirmed_mapping": confirmed_mapping,
+            "selected_column": selected_column,
+            "selected_unit": selected_unit,
+        })
+        return plan
+
+    def _persist_gap_mapping_lesson(
+        self,
+        lesson_id: str,
+        agent_id: str,
+        confirmed_mapping: Dict[str, Any],
+    ) -> None:
+        """Persist a confirmed mapping to the shared teaching point (best effort)."""
+        if not lesson_id or not agent_id:
+            return
+        try:
+            from core.database import get_db_session
+            from core.student_learning_service import update_teaching_point
+
+            with get_db_session() as db:
+                update_teaching_point(
+                    db, agent_id, lesson_id,
+                    context={"field_mappings": [dict(confirmed_mapping)]},
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "mapping lesson update skipped for %s: %s", lesson_id, exc)
+
     def resolve_gap(
         self,
         run_id: str,
@@ -3869,7 +4268,9 @@ class AssignmentExecutor:
         if not question:
             raise AssignmentError("the outstanding request was not found")
         if question.get("status") != "open":
-            if resolution_matches(question.get("resolution"), resolution):
+            if resolution_matches(
+                    question.get("resolution"), resolution,
+                    question.get("resolution_value")):
                 current = self.status(run_id)
                 return {
                     "status": "already_resolved",
@@ -3878,159 +4279,29 @@ class AssignmentExecutor:
                 }
             raise AssignmentError(
                 "the gap was already resolved with a different answer")
-        mapping = dict((question.get("inputs") or {}).get("mapping") or {})
-        selected_column = ""
-        selected_unit = ""
-        mapping_applied = False
-        if mapping:
-            try:
-                parsed = json.loads(str(resolution))
-            except (TypeError, ValueError):
-                parsed = {"column": str(resolution or "").strip()}
-            if not isinstance(parsed, dict):
-                raise AssignmentError("a mapping resolution must be an object")
-            request_id = str(parsed.get("request_id") or "").strip()
-            assignment_id = str(parsed.get("assignment_id") or "").strip()
-            if not request_id or request_id != question_id:
-                raise AssignmentError(
-                    "the confirmation does not identify the outstanding mapping request")
-            if not assignment_id or assignment_id != str(
-                    (record.get("assignment") or {}).get("assignment_id") or ""):
-                raise AssignmentError(
-                    "the confirmation belongs to a different assignment")
-            if parsed.get("rejected") is True:
-                # Rejection is an acknowledgement, not a resolution: the
-                # same request and candidate evidence stay outstanding so a
-                # restart cannot fork a second clarification.
-                current = self.status(run_id)
-                return {
-                    "status": "rejected_candidates",
-                    "assignment": current.get("assignment"),
-                    "open_gaps": current.get("open_gaps") or [],
-                }
-            selected_column = str(parsed.get("column") or "").strip()
-            selected_unit = str(parsed.get("unit") or "").strip()
-            requested_source_version = str(
-                parsed.get("source_version") or "").strip()
-            if (requested_source_version
-                    and str(mapping.get("source_version") or "")
-                    and requested_source_version != str(
-                        mapping.get("source_version") or "")):
-                raise AssignmentError(
-                    "stale source version: reconfirm the mapping against "
-                    "the current schema")
-            requested_teaching_revision = str(
-                parsed.get("teaching_revision") or "").strip()
-            proposal_teaching_revision = str(
-                mapping.get("teaching_revision") or "").strip()
-            snapshot_teaching_revision = str(
-                ((record.get("assignment") or {}).get(
-                    "teaching_snapshot") or {}).get("revision") or "").strip()
-            if requested_teaching_revision:
-                if (proposal_teaching_revision
-                        and requested_teaching_revision
-                        != proposal_teaching_revision):
-                    raise AssignmentError(
-                        "stale teaching revision: reconfirm the mapping "
-                        "against the current teaching")
-                if (snapshot_teaching_revision
-                        and requested_teaching_revision
-                        != snapshot_teaching_revision):
-                    raise AssignmentError(
-                        "stale teaching revision: the assignment teaching "
-                        "changed after this request was raised")
-            candidates = [
-                str(item.get("column") or "")
-                for item in (mapping.get("candidates") or [])
-                if isinstance(item, dict)
-            ]
-            if not selected_column or selected_column not in candidates:
-                raise AssignmentError(
-                    "the confirmed mapping is not one of the current schema candidates")
-            if current_source:
-                current_sheet = str(current_source.get("sheet") or "")
-                if (current_sheet and str(mapping.get("sheet") or "")
-                        and current_sheet != str(mapping.get("sheet") or "")):
-                    raise AssignmentError(
-                        "the current authorized source does not match this "
-                        "mapping request")
-                current_source_version = str(
-                    current_source.get("source_version") or "")
-                if (current_source_version
-                        and str(mapping.get("source_version") or "")
-                        and current_source_version != str(
-                            mapping.get("source_version") or "")):
-                    raise AssignmentError(
-                        "stale source version: the current authorized source "
-                        "changed after this request was raised")
-                allowed_columns = [
-                    str(column) for column in
-                    current_source.get("columns") or []
-                    if str(column)
-                ]
-                if allowed_columns and selected_column not in allowed_columns:
-                    raise AssignmentError(
-                        "the confirmed mapping is not in the current "
-                        "authorized source schema")
-            source = next((
-                item for item in (record.get("assignment") or {}).get("sources") or []
-                if str((item.get("binding") or {}).get("external_id") or "")
-                == str(mapping.get("external_id") or "")
-                and str((item.get("binding") or {}).get("sheet") or "")
-                == str(mapping.get("sheet") or "")
-            ), None)
-            current_version = str(
-                ((source or {}).get("binding") or {}).get("source_version") or "")
-            if (str(mapping.get("source_version") or "")
-                    and current_version != str(mapping.get("source_version"))):
-                raise AssignmentError(
-                    "the source version changed; reconfirm the mapping against the current schema")
-            required_unit = str(mapping.get("required_unit") or "").strip()
-            source_unit = str(mapping.get("source_unit") or "").strip()
-            # Three separate authorities: taught requirement, source evidence,
-            # and the user's explicit confirmation. A taught unit is never
-            # substituted for missing source information, and a source unit is
-            # not silently certified when the source does not establish one.
-            unit_authority = ""
-            if selected_unit:
-                unit_authority = (
-                    "source_evidence" if source_unit else "user_confirmed")
-            elif source_unit:
-                selected_unit = source_unit
-                unit_authority = "source_evidence"
-            elif required_unit:
-                raise AssignmentError(
-                    "the taught method requires an explicit unit confirmation")
-            if source_unit and selected_unit and (
-                    source_unit.lower() != selected_unit.lower()):
-                raise AssignmentError(
-                    f"the confirmed unit '{selected_unit}' conflicts with "
-                    f"the source evidence unit '{source_unit}'")
-            if required_unit and selected_unit and (
-                    required_unit.lower() != selected_unit.lower()):
-                raise AssignmentError(
-                    f"the confirmed unit '{selected_unit}' does not match "
-                    f"the taught unit '{required_unit}'; no conversion is authorized")
-            source_mapping = dict(mapping.get("mapping_source") or {})
-            confirmed_mapping = {
-                "concept": str(
-                    mapping.get("concept")
-                    or mapping.get("missing_column") or ""),
-                "sheet": str(mapping.get("sheet") or ""),
-                "column": selected_column,
-                "unit": selected_unit or str(source_mapping.get("unit") or ""),
-                "unit_authority": unit_authority,
-                "required_unit": required_unit,
-                "source_unit": source_unit,
-                "source_unit_column": str(
-                    mapping.get("source_unit_column") or ""),
-                "source_version": str(mapping.get("source_version") or ""),
-                "revision": int(source_mapping.get("revision") or 1) + 1,
+        plan = self._build_gap_resolution_plan(
+            record, question, resolution=resolution,
+            current_source=current_source)
+        if plan.get("outcome") == "rejected_candidates":
+            current = self.status(run_id)
+            return {
+                "status": "rejected_candidates",
+                "assignment": current.get("assignment"),
+                "open_gaps": current.get("open_gaps") or [],
             }
-            if source_mapping.get("lesson_id"):
-                confirmed_mapping["lesson_id"] = source_mapping["lesson_id"]
-            mapping_applied = True
-        self.lifecycle.apply_transition(run_id, {
+        mapping = plan["mapping"]
+        mapping_applied = bool(plan.get("mapping_applied"))
+        confirmed_mapping = plan.get("confirmed_mapping") or {}
+        # Close the waiting attempt honestly; the reopened step gets a NEW
+        # operation under the next attempt key. Reusing the waiting record
+        # would make the executor believe it is still blocked.
+        waiting_operation_id = ""
+        for step in record.get("assignment", {}).get("steps") or []:
+            if question_id not in (step.get("gap_ids") or []):
+                continue
+            waiting_operation_id = _operation_id_for_step(record, step) or ""
+            break
+        transition = {
             "kind": "record_unresolved",
             "requested_change": f"resolved {question_id}",
             "resolutions": [{
@@ -4042,121 +4313,28 @@ class AssignmentExecutor:
                     400),
                 "value": _bounded(resolution, 400),
             }],
-        })
-        # Close the waiting attempt honestly; the reopened step gets a NEW
-        # operation under the next attempt key. Reusing the waiting record
-        # would make the executor believe it is still blocked.
-        for step in record.get("assignment", {}).get("steps") or []:
-            if question_id not in (step.get("gap_ids") or []):
-                continue
-            operation_id = _operation_id_for_step(record, step)
-            if not operation_id:
-                continue
-            operation = _operation_by_id(record, operation_id) or {}
+        }
+        if waiting_operation_id:
+            operation = _operation_by_id(record, waiting_operation_id) or {}
             if operation.get("status") == "waiting":
-                try:
-                    self.lifecycle.transition_operation(
-                        run_id, operation_id, "superseded")
-                except TaskLifecycleError:
-                    pass
+                transition["supersede_operations"] = [waiting_operation_id]
 
         def compute(record, assignment):
             new_plan = copy.deepcopy(assignment)
-            reopened: List[str] = []
-            if mapping_applied:
-                missing = str(mapping.get("missing_column") or "")
-                for step in new_plan.get("steps") or []:
-                    step["inputs"] = _replace_mapping_value(
-                        step.get("inputs") or {}, missing, selected_column)
-                snapshot = dict(new_plan.get("teaching_snapshot") or {})
-                mappings = [
-                    dict(item) for item in (snapshot.get("field_mappings") or [])
-                    if isinstance(item, dict)
-                ]
-                concept = str(mapping.get("concept") or missing)
-                mappings = [
-                    item for item in mappings
-                    if not (str(item.get("concept") or "").lower()
-                            == concept.lower()
-                            and str(item.get("sheet") or "")
-                            == str(mapping.get("sheet") or ""))
-                ]
-                mappings.append(dict(confirmed_mapping))
-                snapshot = new_teaching_snapshot(
-                    revision=(
-                        str(snapshot.get("revision") or "untrained")
-                        + "+map"),
-                    effective_lesson_ids=snapshot.get("effective_lesson_ids") or [],
-                    applicable_conditions=snapshot.get("applicable_conditions") or {},
-                    matched_context=snapshot.get("matched_context") or {},
-                    unresolved_conditions=snapshot.get("unresolved_conditions") or [],
-                    conflicting_conditions=snapshot.get("conflicting_conditions") or [],
-                    field_mappings=mappings,
-                    source_versions=snapshot.get("source_versions") or {},
-                    output_requirements=snapshot.get("output_requirements") or {},
-                    decision_schema=snapshot.get("decision_schema") or [],
-                    artifact_requirements=snapshot.get("artifact_requirements") or {},
-                )
-                new_plan["teaching_snapshot"] = snapshot
-            for step in new_plan.get("steps") or []:
-                if question_id not in (step.get("gap_ids") or []):
-                    continue
-                if step.get("status") in ("applied", "cancelled", "superseded"):
-                    continue
-                step["status"] = "pending"
-                step["attempts"] = int(step.get("attempts") or 0) + 1
-                step["operation_id"] = None
-                step["waiting"] = None
-                step["updated_at"] = _utc_now_iso()
-                reopened.append(step["step_id"])
-            # A confirmed mapping changes evidence/calculation identity:
-            # reopen only the affected step and its transitive dependants.
-            if mapping_applied:
-                roots = [
-                    step["step_id"] for step in new_plan.get("steps") or []
-                    if question_id in (step.get("gap_ids") or [])
-                ]
-                affected = set(downstream_step_ids(new_plan, roots))
-                for step in new_plan.get("steps") or []:
-                    if step.get("step_id") not in affected:
-                        continue
-                    if step.get("status") in ("cancelled", "superseded"):
-                        continue
-                    step["operation_id"] = None
-                    step["status"] = "pending"
-                    step["result"] = None
-                    step["artifact_revision"] = None
-                    step["updated_at"] = _utc_now_iso()
-                    if step["step_id"] not in reopened:
-                        reopened.append(step["step_id"])
-            new_plan["status"] = "planned"
-            new_plan["updated_at"] = _utc_now_iso()
-            return new_plan, {"reopened_steps": reopened}
+            reopened = _reopen_resolved_gap_steps(
+                new_plan, question_id,
+                mapping=mapping, mapping_applied=mapping_applied,
+                confirmed_mapping=confirmed_mapping)
+            return new_plan, {"reopened_steps": reopened}, transition
 
-        result = self.lifecycle.mutate_assignment(
+        result = self.lifecycle.mutate_assignment_and_task(
             run_id, compute, rationale=f"gap {question_id} resolved")
         if mapping_applied:
-            lesson_id = str(
-                (mapping.get("mapping_source") or {}).get("lesson_id") or "")
-            agent_id = str(
-                ((record.get("assignment") or {}).get("provenance") or {}
-                 ).get("agent_id") or "")
-            if lesson_id and agent_id:
-                try:
-                    from core.database import get_db_session
-                    from core.student_learning_service import update_teaching_point
-
-                    source_mapping = dict(mapping.get("mapping_source") or {})
-                    with get_db_session() as db:
-                        update_teaching_point(
-                            db, agent_id, lesson_id,
-                            context={"field_mappings": [
-                                dict(confirmed_mapping)]},
-                        )
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning(
-                        "mapping lesson update skipped for %s: %s",
-                        lesson_id, exc)
+            self._persist_gap_mapping_lesson(
+                str((mapping.get("mapping_source") or {}).get("lesson_id") or ""),
+                str(((record.get("assignment") or {}).get("provenance") or {}
+                     ).get("agent_id") or ""),
+                confirmed_mapping)
         self._wake_run(run_id, {
             "event": str(waiting.get("event") or "human_input"),
             "correlation_id": waiting.get("correlation_id"),
@@ -4588,6 +4766,284 @@ class AssignmentExecutor:
                     lesson_id, exc)
         return {"status": "corrected", **result}
 
+    def _compute_gap_external_response(
+        self,
+        record: Dict[str, Any],
+        current: Dict[str, Any],
+        question: Dict[str, Any],
+        *,
+        correlation_id: str,
+        response: str,
+        source: str,
+        evidence: str,
+        value: Any,
+        reply_id: Optional[str],
+    ):
+        """Settle one question reply inside the shared lifecycle CAS.
+
+        The question and its backing step are re-read from the fresh record.
+        Identity/material checks, the accepted receipt, the question
+        resolution, the reopened step and the superseded waiting operation all
+        commit in one ``_mutate`` write. Non-resolving outcomes retain a
+        receipt/conflict but never resolve, reopen or wake.
+        """
+        assignment_status = str(current.get("status") or "")
+        question_id = str(question.get("question_id") or "")
+        step = _step_for_gap_question(current, question)
+        if step is None:
+            raise _ExternalReplyStop({
+                "status": "unmatched",
+                "message": (
+                    "No step carries this gap question. The response was not "
+                    "used to resume work."),
+            })
+        step_id = str(step.get("step_id") or "")
+        waiting = dict(question.get("waiting") or {})
+        projection = _gap_reply_waiting_projection(question)
+        fact = str(projection.get("fact") or "")
+        subject = str(projection.get("subject") or "")
+        try:
+            digest = _external_reply_material_sha256(
+                correlation_id=correlation_id, waiting=projection,
+                response=response, source=source, evidence=evidence,
+                value=value)
+        except (TypeError, ValueError) as exc:
+            raise _ExternalReplyStop({
+                "status": "reply_conflict",
+                "message": (
+                    "The authorized reply material could not be bound "
+                    "exactly; no question or wait state was changed."),
+                "reason": "reply_material_unbindable",
+                "step_id": step_id,
+                "material_sha256": "",
+                "detail": _bounded(str(exc), 300),
+            })
+        explicit = reply_id is not None
+        steps = [
+            item for item in (current.get("steps") or [])
+            if isinstance(item, dict)
+        ]
+
+        def identity_conflict(reason, message, existing_digest=""):
+            return {
+                "status": "reply_conflict",
+                "message": message,
+                "reason": reason,
+                "step_id": step_id,
+                "question_id": question_id,
+                "reply_id": reply_id if reply_id is not None else "",
+                "material_sha256": digest,
+                "expected_material_sha256": existing_digest,
+            }
+
+        # An explicit id names one run/wait scope. Question scope is its
+        # structured concept + stable affected subjects + correlation, not the
+        # backing step identity (a re-raised question on the same conceptual
+        # wait is the same scope).
+        if explicit:
+            for other in steps:
+                for receipt in _external_reply_receipts(other):
+                    if str(receipt.get("identity_kind") or "") != "explicit":
+                        continue
+                    if str(receipt.get("reply_id") or "") != str(reply_id):
+                        continue
+                    if not _external_reply_scope_matches(
+                            receipt,
+                            correlation_id=correlation_id,
+                            fact=fact, subject=subject):
+                        raise _ExternalReplyStop(identity_conflict(
+                            "reply_scope_conflict",
+                            "This reply identity is already bound to a "
+                            "different durable question/wait; it was not used.",
+                            str(receipt.get("material_sha256") or "")))
+
+        # Receipts are append-only on the backing step, but a re-raised
+        # question may legitimately live on a new step. Read the whole
+        # assignment's question receipts so exact replay still works after the
+        # original wait is cleared/closed.
+        all_receipts: List[Dict[str, Any]] = []
+        for item in steps:
+            all_receipts.extend(_external_reply_receipts(item))
+        matches = _external_reply_matching_receipts(
+            all_receipts, reply_id=reply_id, digest=digest,
+            correlation_id=correlation_id, fact=fact, subject=subject)
+        if matches:
+            if any(str(item.get("material_sha256") or "") != digest
+                   for item in matches):
+                raise _ExternalReplyStop(identity_conflict(
+                    "reply_id_material_conflict",
+                    "This reply identity was already used with different "
+                    "material; the changed reply was refused before any "
+                    "question, step or receipt write.",
+                    str(matches[-1].get("material_sha256") or "")))
+            raise _ExternalReplyStop(
+                _external_reply_replay_result(
+                    matches[-1], step, assignment_status,
+                    explicit=explicit))
+
+        # Exact receipt replay is checked first; only a new/changed reply can
+        # meet a terminal assignment or an already-settled question.
+        if (assignment_status in TERMINAL_ASSIGNMENT_STATES
+                or str(question.get("status") or "") != "open"):
+            raise _ExternalReplyStop({
+                "status": "terminal",
+                "assignment_status": assignment_status,
+                "message": (
+                    f"The assignment/question wait is {assignment_status or 'settled'}; "
+                    "this new or changed reply identity was not used."),
+            })
+
+        resolution_text = str(response or "")
+        if not resolution_text.strip() and value not in (None, ""):
+            resolution_text = str(value)
+        plan = self._build_gap_resolution_plan(
+            record, question, resolution=resolution_text)
+        if plan.get("outcome") != "resolved":
+            outcome = str(plan.get("outcome") or "conflict")
+            conflict = {
+                "correlation_id": str(correlation_id or ""),
+                "fact": fact,
+                "subject": subject,
+                "response": _bounded(response, 2000),
+                "source": _bounded(source, 200),
+                "evidence": _bounded(evidence, 500),
+                "at": _utc_now_iso(),
+                "reason": "candidates_rejected",
+                "reply_id": reply_id if reply_id is not None else "",
+                "identity_kind": _external_reply_identity_kind(reply_id),
+                "material_sha256": digest,
+                "rejected": True,
+            }
+            message = (
+                "The reply rejected the current candidates; the question "
+                "remains open and was not reopened or woken.")
+            new_plan = copy.deepcopy(current)
+            item = step_by_id(new_plan, step_id)
+            if item is None:
+                raise _ExternalReplyStop({
+                    "status": "unmatched",
+                    "message": (
+                        "No step carries this gap question. The response was "
+                        "not used to resume work."),
+                })
+            item_receipts = _external_reply_receipts(item)
+            item_receipts.append(_external_reply_receipt(
+                reply_id=reply_id, digest=digest,
+                correlation_id=correlation_id, waiting=projection,
+                outcome=outcome, reason="candidates_rejected",
+                message=message, conflict=conflict))
+            item["reply_receipts"] = item_receipts
+            waiting_now = dict(item.get("waiting") or {})
+            conflicts = [
+                dict(entry) for entry in
+                (waiting_now.get("conflicts") or [])
+                if isinstance(entry, dict)
+            ]
+            conflicts.append(conflict)
+            waiting_now["conflicts"] = conflicts[-10:]
+            item["waiting"] = waiting_now
+            item["updated_at"] = _utc_now_iso()
+            new_plan["updated_at"] = _utc_now_iso()
+            return new_plan, {
+                "status": outcome,
+                "message": message,
+                "fact": fact,
+                "conflict": conflict,
+                "step_id": step_id,
+                "question_id": question_id,
+                "reply_id": reply_id if reply_id is not None else "",
+                "material_sha256": digest,
+                "replayed": False,
+            }, None
+
+        # Resolve the question, reopen the blocked step, keep the accepted
+        # receipt and supersede the old waiting operation in ONE CAS write.
+        operation_id = _operation_id_for_step(record, step) or ""
+        accepted_at = _utc_now_iso()
+        new_plan = copy.deepcopy(current)
+        reopened = _reopen_resolved_gap_steps(
+            new_plan, question_id,
+            mapping=plan["mapping"],
+            mapping_applied=bool(plan.get("mapping_applied")),
+            confirmed_mapping=plan.get("confirmed_mapping") or {})
+        item = step_by_id(new_plan, step_id)
+        if item is None:
+            raise _ExternalReplyStop({
+                "status": "unmatched",
+                "message": (
+                    "No step carries this gap question. The response was not "
+                    "used to resume work."),
+            })
+        item["external_response"] = {
+            "correlation_id": correlation_id,
+            "fact": fact,
+            "subject": subject,
+            "party": str(waiting.get("party") or ""),
+            "typed_binding": False,
+            "expected_answer_type": "",
+            "response": _bounded(response, 2000),
+            "source": _bounded(source, 200),
+            "evidence": _bounded(evidence, 500),
+            "fact_resolution": {},
+            "reply_id": reply_id if reply_id is not None else "",
+            "identity_kind": _external_reply_identity_kind(reply_id),
+            "material_sha256": digest,
+            "at": accepted_at,
+        }
+        item_receipts = _external_reply_receipts(item)
+        item_receipts.append(_external_reply_receipt(
+            reply_id=reply_id, digest=digest,
+            correlation_id=correlation_id, waiting=projection,
+            outcome="resolved", reason="gap_resolved",
+            message="The authorized reply resolved the durable question."))
+        item["reply_receipts"] = item_receipts
+        item["updated_at"] = accepted_at
+        new_plan["status"] = "planned"
+        new_plan["updated_at"] = accepted_at
+
+        resolution_value = (
+            value if value not in (None, "") else resolution_text)
+        transition = {
+            "kind": "record_unresolved",
+            "requested_change": f"resolved {question_id}",
+            "resolutions": [{
+                "question_id": question_id,
+                "resolution": _bounded(
+                    f"{resolution_text}"
+                    + (f" [by {source}]" if source else "")
+                    + (f" [evidence: {evidence}]" if evidence else ""),
+                    400),
+                "value": _bounded(resolution_value, 400),
+            }],
+        }
+        if operation_id:
+            operation = _operation_by_id(record, operation_id) or {}
+            if operation.get("status") == "waiting":
+                transition["supersede_operations"] = [operation_id]
+        result = {
+            "status": "resolved",
+            "reopened_steps": reopened,
+            "step_id": step_id,
+            "question_id": question_id,
+            "operation_id": operation_id or None,
+            "event": str(waiting.get("event") or "human_input"),
+            "correlation_id": correlation_id,
+            "reply_id": reply_id if reply_id is not None else "",
+            "material_sha256": digest,
+        }
+        if plan.get("mapping_applied"):
+            mapping = plan["mapping"]
+            result["_mapping_lesson"] = {
+                "lesson_id": str(
+                    (mapping.get("mapping_source") or {}).get(
+                        "lesson_id") or ""),
+                "agent_id": str(
+                    ((record.get("assignment") or {}).get("provenance") or {}
+                     ).get("agent_id") or ""),
+                "confirmed_mapping": plan.get("confirmed_mapping") or {},
+            }
+        return new_plan, result, transition
+
     def record_external_response(
         self,
         run_id: str,
@@ -4618,44 +5074,18 @@ class AssignmentExecutor:
         if record is None:
             raise AssignmentError(f"no task record on run {run_id}")
 
-        # Gap/question waits keep their existing resolution semantics. A
-        # direct step wait carries the typed external-reply contract below.
-        assignment_status = str(
-            (record.get("assignment") or {}).get("status") or "")
-        for question in open_unresolved_questions(record):
-            waiting = question.get("waiting") or {}
-            if str(waiting.get("correlation_id") or "") != str(
-                    correlation_id or ""):
-                continue
-            if assignment_status in TERMINAL_ASSIGNMENT_STATES:
-                # A late reply must not resolve a question on terminal work.
-                try:
-                    self.lifecycle.runs.append_decision(run_id, {
-                        "kind": "external_response_refused",
-                        "rationale": (
-                            f"assignment {assignment_status}: response for "
-                            f"{correlation_id} not used"),
-                        "correlation_id": str(correlation_id or ""),
-                        "reply_id": reply_id if reply_id is not None else "",
-                    })
-                except Exception:  # noqa: BLE001 — refusal must still return
-                    pass
-                return {
-                    "status": "terminal",
-                    "assignment_status": assignment_status,
-                    "message": (
-                        f"The assignment is {assignment_status}; the response "
-                        "was not used to resume work."),
-                }
-            return self.resolve_gap(
-                run_id, question["question_id"],
-                resolution=response, resolved_by=source, evidence=evidence)
-
-        # A step may wait directly on an external correlation without a
-        # human question (e.g. a controlled reply). Every identity, terminal,
-        # material and readiness decision is re-evaluated inside the lifecycle
-        # CAS callback below, so a concurrent writer cannot both wake.
+        # Every identity, terminal, material and readiness decision is
+        # re-evaluated inside the lifecycle CAS callback below, so a concurrent
+        # writer cannot both wake. A question wait and a direct step wait share
+        # the same append-only step receipts; they are not separate authority.
         def compute(record, current):
+            gap_question = _find_gap_reply_target(record, correlation_id)
+            if gap_question is not None:
+                return self._compute_gap_external_response(
+                    record, current, gap_question,
+                    correlation_id=correlation_id, response=response,
+                    source=source, evidence=evidence, value=value,
+                    reply_id=reply_id)
             assignment_status = str(current.get("status") or "")
             steps = [
                 step for step in (current.get("steps") or [])
@@ -5073,7 +5503,7 @@ class AssignmentExecutor:
             }
 
         try:
-            result = self.lifecycle.mutate_assignment(
+            result = self.lifecycle.mutate_assignment_and_task(
                 run_id, compute,
                 rationale=f"external response matched {correlation_id}")
         except _ExternalReplyStop as stop:
@@ -5092,6 +5522,23 @@ class AssignmentExecutor:
                     })
                 except Exception:  # noqa: BLE001 — refusal must still return
                     pass
+            return result
+
+        mapping_lesson = result.pop("_mapping_lesson", None)
+        if mapping_lesson:
+            self._persist_gap_mapping_lesson(
+                mapping_lesson.get("lesson_id") or "",
+                mapping_lesson.get("agent_id") or "",
+                mapping_lesson.get("confirmed_mapping") or {})
+        if str(result.get("status") or "") == "resolved":
+            # A question settlement already reopened the step in the same CAS;
+            # wake once, exactly like the direct human-answer path.
+            self._wake_run(run_id, {
+                "event": str(result.get("event") or "human_input"),
+                "correlation_id": correlation_id,
+                "question_id": result.get("question_id"),
+                "source": "assignment_gap_resolution",
+            })
             return result
 
         if str(result.get("status") or "") != "resumed":
@@ -8475,20 +8922,26 @@ def _established_source_unit(
     return "", ""
 
 
-def resolution_matches(stored: Any, incoming: Any) -> bool:
-    """Whether a replay is the same resolution, ignoring audit metadata.
+def resolution_matches(
+    stored: Any,
+    incoming: Any,
+    stored_value: Any = None,
+) -> bool:
+    """Whether a replay is EXACTLY the same structured resolution.
 
-    ``resolve_gap`` appends ``[by ...]`` and ``[evidence: ...]`` to the
-    durable resolution. A byte-identical retry is still the same request,
-    while a different answer remains a conflict.
+    ``resolve_gap`` stores the caller's answer in ``resolution_value`` and a
+    bounded human audit string (with ``[by ...]`` / ``[evidence: ...]``) in
+    ``resolution``. Identity is the structured value, never a prefix of the
+    audit text: a stored ``"price 100 [subject to approval]"`` must not match an
+    incoming ``"price 100"``. Legacy records without ``resolution_value`` fail
+    closed to byte equality; a truncated audit string never invents identity.
     """
-    stored_text = str(stored or "")
     incoming_text = str(incoming or "")
     if not incoming_text:
         return False
-    if stored_text == incoming_text:
-        return True
-    return stored_text.startswith(incoming_text + " [")
+    if stored_value is not None:
+        return str(stored_value) == incoming_text
+    return str(stored or "") == incoming_text
 
 
 def select_confirmed_mapping(

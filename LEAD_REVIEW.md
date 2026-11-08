@@ -229,6 +229,83 @@ separate read-only review; no general repeated-partial or days-long coordination
 claim follows from these controls. No live model/provider/effect was used.
 
 
+## Question/gap reply identity — finite repair (authored, NOT RUN)
+
+**IMPLEMENTED-NOTRUN.** Author baseline: `c329f295c` in the private standalone
+worktree `/private/tmp/atom-assignment-gap-reply-identity-20261108` (Git root
+and empty prefix verified before reading/editing). No pytest, Python/Node
+runtime, provider, credential, browser, DB or app action was executed by the
+author. Root owns execution and acceptance; no pass claim is made.
+
+### Contract repaired
+
+- `record_external_response` no longer delegates open question/gap replies to a
+  pre-CAS `resolve_gap` call that dropped `reply_id`/`value`.
+- Question and direct-step waits now share the append-only
+  `step["reply_receipts"]` and the canonical material helpers; no parallel
+  store, router, table or review engine was added.
+- One `mutate_assignment_and_task` CAS commits the question resolution, reopened
+  step, accepted receipt, `external_response` and (for the settlement only)
+  the waiting-operation supersede together, or commits nothing.
+- Ordering is exact receipt replay first, then terminal refusal for new/changed
+  replies. A rejected/partial mapping answer retains a receipt, keeps the
+  question open and neither reopens nor wakes.
+- Same explicit ID with changed text/value/source/evidence conflicts; a new ID
+  may resolve. A re-raised question keeps the old receipt authority for the
+  same correlation/concept/subject scope; cross-correlation reuse refuses.
+- `resolution_matches` now compares the exact structured `resolution_value`
+  (legacy records fail closed to byte equality). The literal
+  `"price 100 [subject to approval]"` twin no longer matches `"price 100"`.
+- Direct `POST /gaps/{id}/resolve` behavior is preserved: identical answer is
+  `already_resolved`, a different/prefix answer is 409, and the rejected
+  candidate acknowledgement does not mutate.
+
+### CAS/transition trust boundary
+
+`apply_transition` itself remains a general task API. Operation supersede is
+NOT honored generically: `mutate_assignment_and_task` runs
+`_supersede_gap_settlement_operations` after the fresh assignment is known. It
+only supersedes a named operation when all hold: transition kind is
+`record_unresolved`, it resolves a question, the operation belongs to this
+assignment, its step carries one of the questions resolved in that same
+transition, and the operation is still `waiting`. Caller/model metadata cannot
+name an arbitrary applied/foreign operation.
+
+### Files
+
+- `backend/core/assignment_executor.py`
+- `backend/core/task_lifecycle.py` (shared CAS + narrow supersede validation)
+- `backend/api/assignment_routes.py` (409/early-return caller wiring)
+- `backend/core/goals/goal_run_events.py` (existing event caller passes value
+  and treats partial/rejected as non-resuming)
+- `backend/tests/test_assignment_gap_reply_identity.py` (new focused file)
+- `.github/workflows/ci.yml` (adds the focused file to the existing source-
+  continuation step; all previously listed modules preserved)
+- `LEAD_REVIEW.md`
+
+### Tests authored, NOT RUN
+
+`backend/tests/test_assignment_gap_reply_identity.py` covers: partial/rejected
+receipt retention; exact partial replay without version/decision/receipt
+movement; same-ID changed response/source/evidence/value conflicts; new-ID
+resolution; accepted receipt + `external_response`; post-closure
+`already_applied`; changed terminal refusal; fresh-session restart readback;
+cross-correlation scope refusal; re-raised-question exact replay that leaves
+the new question open; CAS competitor recheck; literal-bracket vs audit-suffix
+predicate; and direct `/gaps` exact-answer replay compatibility.
+
+### Known limits / risks for root
+
+1. No test was run; root must execute the focused file and the affected
+   assignment suites.
+2. The focused file is added to the existing CI step only; it was not inserted
+   into any broader selection beyond that step.
+3. `resolution_matches` deliberately fails closed for legacy records whose only
+   stored answer is a bounded audit string. A legacy prefixed replay now
+   conflicts rather than being inferred as identical.
+4. No days-long/full-app qualification, provider effect or merge claim follows.
+
+
 ## Independent caller audit: two-domain campaign expectation
 
 DeepSeek's read-only review identified a caller control outside the original

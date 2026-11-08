@@ -2536,14 +2536,22 @@ async def record_assignment_response(
 ) -> Dict[str, Any]:
     run = _scoped_run(run_id, current_user)
     executor = _executor(run)
-    result = executor.record_external_response(
-        run_id, correlation_id,
-        response=body.response,
-        source=body.source or str(current_user.id),
-        evidence=body.evidence,
-        value=body.value,
-        reply_id=body.reply_id,
-    )
+    from core.assignment_executor import AssignmentError
+
+    try:
+        result = executor.record_external_response(
+            run_id, correlation_id,
+            response=body.response,
+            source=body.source or str(current_user.id),
+            evidence=body.evidence,
+            value=body.value,
+            reply_id=body.reply_id,
+        )
+    except AssignmentError as exc:
+        # A refused question/mapping confirmation is a conflict with durable
+        # state, not a server failure. The settlement validates before any
+        # lifecycle write.
+        raise HTTPException(status_code=409, detail=str(exc))
     if result.get("status") == "terminal":
         # The run exists and is terminal; the reply is refused rather than
         # matched to a historical wait and woken.
@@ -2557,10 +2565,12 @@ async def record_assignment_response(
         # wait. Refuse before any state transition, wake or execute.
         raise HTTPException(status_code=409, detail=result)
     if result.get("status") in (
-            "conflict", "partial", "unavailable", "incomplete"):
+            "conflict", "partial", "unavailable", "incomplete",
+            "rejected_candidates"):
         # The reply was retained as a durable conflict or record-specific
-        # partial answer and the wait remains open. Do not resume and do not
-        # turn it into a generic assignment projection the UI cannot explain.
+        # partial/rejected answer and the wait remains open. Do not resume and
+        # do not turn it into a generic assignment projection the UI cannot
+        # explain.
         return result
     if result.get("status") == "already_applied" or result.get("replayed"):
         # Exact replay (explicit or legacy) is idempotent: it must not execute
@@ -2608,7 +2618,9 @@ async def resolve_assignment_gap(
     from core.assignment_executor import AssignmentError, resolution_matches
 
     if question.get("status") != "open":
-        if resolution_matches(question.get("resolution"), body.resolution):
+        if resolution_matches(
+                question.get("resolution"), body.resolution,
+                question.get("resolution_value")):
             current = executor.status(run_id)
             return {"status": "already_resolved",
                     "assignment": current.get("assignment"),

@@ -92,13 +92,15 @@ async def _resume_woken_run(svc, run_id: str, event: Dict[str, Any]) -> Dict[str
                         or event.get("response") or ""),
                     source=str(event.get("source") or event.get("from") or ""),
                     evidence=str(event.get("message_id") or event.get("id") or ""),
+                    value=event.get("value"),
                     reply_id=(
                         str(reply_id) if reply_id is not None else None),
                 )
                 if (result.get("status") in (
-                        "reply_conflict", "terminal", "unmatched",
+                        "reply_conflict", "reply_scope_conflict",
+                        "reply_identity_conflict", "terminal", "unmatched",
                         "conflict", "partial", "unavailable", "incomplete",
-                        "already_applied")
+                        "rejected_candidates", "already_applied")
                         or result.get("replayed")):
                     # A refused, non-resolving or exact-replay reply must not
                     # execute or advance the same job again.
