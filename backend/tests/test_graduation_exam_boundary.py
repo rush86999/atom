@@ -69,3 +69,76 @@ def test_public_exam_preflights_scope_and_cannot_pass_no_results(db_session, con
         assert response.json()["passed"] is True, observed
         executor.assert_awaited_once_with(episode_id="authorized-case", strict_mode=True)
         assert evaluations.await_args.kwargs["tenant_id"] == "company"
+
+
+@pytest.mark.parametrize("moved", ["episode", "target"])
+def test_exam_rechecks_scope_after_an_awaited_case(db_session, controlled_exam, moved):
+    from sqlalchemy import update
+    from core.models import AgentRegistry
+    executor, evaluations = controlled_exam
+    user = make_user(db_session, "reviewer", "company", "ws-a")
+    agent = make_agent(db_session, "company", workspace_id="ws-a")
+    _case(db_session, agent, "first-case", "ws-a")
+    _case(db_session, agent, "later-case", "ws-a")
+
+    async def move_after_first(**kwargs):
+        if kwargs["episode_id"] == "first-case":
+            model = AgentEpisode if moved == "episode" else AgentRegistry
+            record_id = "later-case" if moved == "episode" else agent.id
+            db_session.execute(update(model).where(model.id == record_id).values(workspace_id="ws-b")
+                               .execution_options(synchronize_session=False))
+            db_session.commit()
+        return SimpleNamespace(passed=True, interventions=0, safety_violations=[], replayed_actions=1)
+
+    executor.side_effect = move_after_first
+    response = make_client(db_session, user).post(
+        "/api/episodes/graduation/exam", params={"agent_id": agent.id},
+        json=["first-case", "later-case"])
+    assert response.status_code == 404, response.json()
+    assert executor.await_count == 1
+    assert evaluations.await_count == 0
+    model = AgentEpisode if moved == "episode" else AgentRegistry
+    record_id = "later-case" if moved == "episode" else agent.id
+    db_session.expire_all()
+    assert db_session.get(model, record_id).workspace_id == "ws-b"
+
+
+def test_exam_allows_real_installation_only_review_without_claiming_candidate_quality(db_session, controlled_exam):
+    executor, evaluations = controlled_exam
+    user = make_user(db_session, "reviewer", "company", "ws-a")
+    agent = make_agent(db_session, "company", workspace_id="ws-a")
+    evaluations.return_value = {"ran": 2, "passed": 2, "failed": 0, "skipped": 0}
+    response = make_client(db_session, user).post(
+        "/api/episodes/graduation/exam", params={"agent_id": agent.id}, json=[])
+    assert response.status_code == 200
+    data = response.json()
+    assert data["passed"] is True
+    assert data["total_cases"] == len(data["results"]) == 1
+    assert data["assessment_scope"] == "historical_trace_safety_review"
+    assert data["candidate_capability_qualified"] is False
+    assert executor.await_count == 0
+    evaluations.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_service_refusal_never_passes_even_after_one_successful_review(db_session, controlled_exam):
+    from sqlalchemy import update
+    executor, evaluations = controlled_exam
+    agent = make_agent(db_session, "company", workspace_id="ws-a")
+    _case(db_session, agent, "review-first", "ws-a")
+    _case(db_session, agent, "moved-later", "ws-a")
+
+    async def move_later(**kwargs):
+        db_session.execute(AgentEpisode.__table__.update().where(AgentEpisode.id == "moved-later")
+                           .values(workspace_id="ws-b"))
+        db_session.commit()
+        return SimpleNamespace(passed=True, interventions=0, safety_violations=[], replayed_actions=1)
+
+    executor.side_effect = move_later
+    result = await graduation.AgentGraduationService(db_session).run_graduation_exam(
+        agent.id, ["review-first", "moved-later"], tenant_id="company", workspace_id="ws-a")
+    assert result.get("error"), result
+    assert result["passed"] is False, result
+    assert len(result["results"]) == 1
+    assert executor.await_count == 1
+    assert evaluations.await_count == 0
