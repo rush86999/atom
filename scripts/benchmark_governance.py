@@ -281,7 +281,12 @@ def _load_module_from_path(module_name: str, path: Path):
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     try:
-        spec.loader.exec_module(module)
+        # Execute the exact bytes we attest. SourceFileLoader may otherwise
+        # accept timestamp/size-valid stale .pyc after a rapid source edit.
+        source_bytes = path.read_bytes()
+        code = compile(source_bytes, str(path), "exec", dont_inherit=True)
+        exec(code, module.__dict__)
+        module.__benchmark_loaded_source_sha256__ = hashlib.sha256(source_bytes).hexdigest()
     except Exception as exc:
         sys.modules.pop(module_name, None)
         raise BenchmarkError(
@@ -759,6 +764,13 @@ def _run_benchmark(
     cache_identity_before = _file_identity(actual_cache_path)
     compat_identity_before = _file_identity(actual_compat_path)
     script_identity_before = _file_identity(script_path)
+    for loaded_module, identity in (
+        (cache_module, cache_identity_before),
+        (compat_module, compat_identity_before),
+    ):
+        loaded_hash = getattr(loaded_module, "__benchmark_loaded_source_sha256__", None)
+        if loaded_hash != identity["sha256"]:
+            raise BenchmarkError("selected source changed while loading: " + identity["path"])
 
     timer_metadata = _timer_metadata()
     warm_hit_measurements, warm_hit_validation = _run_warm_hit_scope(
@@ -907,8 +919,10 @@ def _run_benchmark(
             "repo_root": str(repo_root),
             "cache_module_loaded_from": str(actual_cache_path),
             "asyncio_compat_loaded_from": str(actual_compat_path),
-            "governance_cache": cache_identity_after,
-            "asyncio_compat": compat_identity_after,
+            "governance_cache": {**cache_identity_after,
+                                 "loaded_sha256": cache_module.__benchmark_loaded_source_sha256__},
+            "asyncio_compat": {**compat_identity_after,
+                               "loaded_sha256": compat_module.__benchmark_loaded_source_sha256__},
             "script": script_identity_after,
             "identity_checks": {
                 "cache_module_name": cache_module.__name__,

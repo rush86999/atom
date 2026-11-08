@@ -381,3 +381,55 @@ def test_inherited_database_url_sentinel_is_not_read_or_written(tmp_path):
     assert not sentinel_db.exists()
     assert os.environ.get("DATABASE_URL") == database_url_before
     assert json.loads(completed.stdout)["schema_version"] == "1.0"
+
+
+def test_loader_executes_attested_source_despite_valid_stale_bytecode(copied_repo):
+    import py_compile
+
+    target = copied_repo / "backend/core/governance_cache.py"
+    target.write_text(target.read_text() + "\nSOURCE_BINDING_PROBE = 'old'\n")
+    py_compile.compile(str(target), doraise=True)
+    before = target.stat()
+    target.write_text(target.read_text().replace("SOURCE_BINDING_PROBE = 'old'",
+                                                "SOURCE_BINDING_PROBE = 'new'"))
+    os.utime(target, ns=(before.st_atime_ns, before.st_mtime_ns))
+    code = """import importlib.util, json, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('benchmark_probe', sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+cache, path, _ = m._load_repo_modules(Path(sys.argv[2]))
+print(json.dumps({'marker': cache.SOURCE_BINDING_PROBE,
+                  'loaded': cache.__benchmark_loaded_source_sha256__,
+                  'disk': m._file_identity(path)['sha256']}))
+"""
+    result = subprocess.run([sys.executable, "-c", code, str(SCRIPT), str(copied_repo)],
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["marker"] == "new"
+    assert data["loaded"] == data["disk"] == _sha256(target)
+
+
+@pytest.mark.parametrize("target_name", ["governance_cache.py", "asyncio_compat.py"])
+def test_source_change_during_import_refuses_measurement(copied_repo, target_name, tmp_path):
+    target = copied_repo / "backend/core" / target_name
+    target.write_text(target.read_text() + "\nSOURCE_BINDING_PROBE = 'old'\n")
+    cache = copied_repo / "backend/core/governance_cache.py"
+    cache.write_text(cache.read_text() + (
+        "\nfrom pathlib import Path as _ProbePath\n"
+        f"_probe_file = _ProbePath({str(target)!r})\n"
+        "_probe_file.write_text(_probe_file.read_text().replace(\"SOURCE_BINDING_PROBE = 'old'\", "
+        "\"SOURCE_BINDING_PROBE = 'new'\"))\n"))
+    output = tmp_path / "must-not-publish.json"
+    completed = _run(["--repo", str(copied_repo), *SMOKE_ARGS, "--output", str(output)])
+    assert completed.returncode != 0
+    assert "changed while loading" in completed.stderr
+    assert not output.exists()
+
+
+def test_report_binds_loaded_and_retained_source_hashes():
+    data = _run_ok(["--repo", str(REPO_ROOT), *SMOKE_ARGS])
+    for name in ("governance_cache", "asyncio_compat"):
+        identity = data["source_identity"][name]
+        assert identity["loaded_sha256"] == identity["sha256"]
