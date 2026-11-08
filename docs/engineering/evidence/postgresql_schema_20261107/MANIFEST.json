@@ -1,0 +1,17 @@
+{
+  "executed_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "source_files": {
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/models_registration.py": "87e51e95544b656e4ff18fd525f87d0100bd106b7e30ab7626945540ac95e323",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e"
+  },
+  "artifacts": {
+    "adjusted_postgres.log": "da433f1c1bcec7f8eb27845d0019ae6b205886a41687a0dd1ecb1d6aebbdc206",
+    "adjusted_runner.py": "b2c7e5d4a587519daccabab30f43eda52103af9be19fbdff72279a3e033f3020",
+    "initial_postgres.log": "1c931dd6a5a60b5a24b2b92907bd2ae25d43e83ccbb5ae05f8afeeb582b674d6",
+    "README.md": "434d2c57b926282e907b4844ed2a87243364340a6ee53c6578ad32d2a928483a",
+    "initial_runner.py": "ef949578ad08c2afd7e803041dcc0476cc4122d019df75e49233c91c9374b636",
+    "initial_result.json": "e8706ab613ff20560f309a2650ec5f58b8e04d9ac8c3d67ad8105d851243fc9a",
+    "adjusted_result.json": "069251c704170d42647bb01c9421eb2af8044d4e92eabe7a6ff8bce6fdd9fae1"
+  }
+}

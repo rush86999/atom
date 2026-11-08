@@ -9,7 +9,11 @@ submitted evidence at `origin/main` `248a2329623b433e68104c4d89d2965683d81013`
 acceptance, changes no claim denominator, and does not re-score the historical
 **111/123 (90.2%)** result.
 
-## Current queue overlay — 2026-11-07, main `2d251acdf`
+## Current queue pointer — 2026-11-08
+
+Use the [current delivery checkpoint](../engineering/APP_COMPLETION_STATE_2026_11_07.md#current-delivery-checkpoint--2026-11-08-main-c97dada13) for current assignments. The queue overlay below is a retained historical cut, not a new assignment or acceptance. The 143-claim inventory and historical scores remain unchanged.
+
+## Historical queue overlay — 2026-11-07, main `2d251acdf`
 
 The November6 evidence cut below is historical, not a fresh queue. Use the [current leading checkpoint](../engineering/APP_COMPLETION_STATE_2026_11_07.md#current-leading-checkpoint--main-2d251acdf) before assigning work. PR738 Personal answer, PR739 product, PR743 neutral wait maturity and PR746 blog/Article are merged. Blog PR741 is closed as redundant after exact retained-evidence verification. PR744 browser evidence and PR745 positive-maturity repair remain submitted at heads `1f6018fd7` and `0664c9456`; re-read actual hosted checks before any merge.
 
@@ -511,6 +515,75 @@ Owner requirement added November7: when a long-running task cannot continue beca
 The affected work must persist an actionable question/prerequisite and its exact task, wait, subject and authorized input binding. Show what is missing, why it blocks progress and how to supply it. Preserve useful completed work and allow independently ready authorized branches to progress. Dependent calculations, writes and final artifacts remain blocked. Waiting is neither completed nor a fabricated business result; it is not a failure merely because information has not arrived.
 
 A relevant authorized user answer, source upload/selection or supported information event must automatically wake the matching wait and resume the **same task**. The normal happy path must not require the owner to prompt the agent again, submit a second objective, manually call an advance endpoint or recreate the job. Information arrival authorizes a continuation attempt; only fulfilled verified business outcomes authorize completion. Additional missing prerequisites, no suitable model or execution errors stay explicit and unresolved.
+
+### Multi-day duration requirement — owner clarification
+
+Long-running means days, not merely a long HTTP request or a minutes-long demo.
+A task may remain durably waiting across application shutdowns, worker replacement
+and several calendar days. No resident process, browser tab, login session,
+continuous model call or repeated owner prompt may be required to preserve it.
+Durable accepted input received while a worker is offline must be discoverable
+and consumed safely when service returns; do not claim events can be received
+while every receiving service is offline without a supported durable inbox.
+
+Measure active execution allowance separately from elapsed waiting time. Model
+calls and CPU budgets do not run down while waiting; explicitly configured
+absolute deadlines, input validity, approvals, cancellation and authority changes
+still apply. Revalidate them before resuming. Do not silently extend deadlines,
+reuse expired consent or re-send an uncertain outbound request. Long waits can
+require an explicit authorized follow-up/escalation or a fresh fact request.
+
+Acceptance requires a controlled-clock multi-day boundary matrix plus real
+process shutdown/restart and durable event replay, including replies before/after
+deadline and expiry during downtime. Label simulated elapsed time honestly.
+Keep a separate real multi-day elapsed observation open until actually recorded;
+fast tests alone do not prove real multi-day soak reliability. The UI must show
+waiting age, outstanding prerequisites and any actual deadline without presenting
+waiting as failure or completion.
+
+### Domain-independent coordination requirement — owner clarification
+
+The task must coordinate missing variables with authorized external people or
+systems, not only accept a manually supplied answer. Persist the missing fact's
+subject, required fields, authorized responder/source, request/delivery identity,
+freshness conditions and the dependent operations. Use supported authorized
+channels; if a channel or sending authority is unavailable, expose that blocker
+and a supported manual source-answer path without claiming outreach occurred.
+A reply/event is evidence to validate, not a new task or automatic approval.
+
+The motivating example is an unavailable item requiring a vendor response before
+a client quote: request availability, pricing and lead time; retain independent
+work while waiting; validate the response; calculate landed cost and taught
+margin/markup; and prepare the requested quote with defensible delivery timing.
+This is an example, not a procurement-specific router, hardcoded workflow or
+license to buy/send. Implement dependencies and accepted facts through existing
+general task, wait, integration, authority and verification mechanisms.
+
+Required additional acceptance twins:
+
+- Demonstrate the same request/wait/event/continuation mechanism in a second
+  domain with different facts and outputs; no business-name intent branches.
+- Exercise multiple responders or prerequisites, partial replies, a follow-up
+  question and a repeated wait on the same task. Only newly ready dependent work
+  proceeds; unrelated verified work is retained.
+- Refuse wrong-subject, stale, contradictory or unauthorized replies. A revised
+  accepted fact invalidates dependent calculations/output selectively. Preserve
+  units, currency, quantity, tax/freight/fees and commercial qualifiers; refuse
+  implicit conversions or invented defaults. Margin and markup are distinct.
+- Bind lead-time evidence to its actual starting condition, date/calendar/unit
+  assumptions and availability/transport dependencies. Missing assumptions cause
+  a question or conditional draft, never an unsupported delivery promise.
+- Prove outbound request identity, delivery uncertainty/reconciliation and
+  no-resend separately from inbound-answer correlation. A controlled transport
+  qualifies that scope only; live contact/order/send/spend requires its own
+  authority and evidence. Drafting a quote does not authorize sending it.
+- Surface what is awaited, from whom/source, last verified update, the next
+  expected event, and any owner-set timeout/escalation. Preserve cancellation,
+  explicit deadlines, replay safety and real-restart recovery throughout.
+
+This clarification expands the acceptance contract, not the completed claim
+count. Existing controlled episodes remain reusable at their exact scopes;
+end-to-end external coordination and broad adaptive judgment remain open.
 
 ### Required testing
 

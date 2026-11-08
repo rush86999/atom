@@ -1,0 +1,9 @@
+# Observed governance-cache microbenchmark — not a full check benchmark
+
+Root ran the actual main8ded GovernanceCache source (byte-equal in checkout27a1830a2) on macOS26.5.2 arm64,12logicalCPUs,Python3.14.7. The method and clock implementation/resolution are in measurement.json. Clock overhead is reported, not subtracted. Five200000-operation batches include key formatting and exact returned-fixture identity checks; warmup10000, latency50000hits,10000uncached-keymisses. Other development processes were running; CPU isolation/soak is not claimed. Seeded in-memory policy-shaped values are not actual governance decisions.
+
+Observed median cached throughput:2,619,759.87operations/second; warm lookup P99:500ns (0.0005ms). These are same-process cache-get measurements, not HTTP, database, current-authority, budget, oracle or full governance latency. PERF-01 remains unqualified. PERF-02 has finite machine-specific evidence, pending independent review/reproducible public command; no universal throughput or historical rescore is granted.
+
+The inventory points to scripts/benchmark_governance.py, absent both at main8ded and the historical88bf baseline. This readback is a precise missing-reproducer finding, not permission to substitute the cache for the full check. measurement.py retains the actual executed absolute checkout path so bytes are not regenerated to fit a source claim. A portable public benchmark successor should accept an explicit source/repository, report cold/full checks separately, preserve safety gates and use no live DB/provider. Do not weaken production permission checks to meet a latency number.
+
+No app DB/server/provider/model/network/dependency installation was used. The script ran once through the shared heavy disk gate. Actual source file hash and checkout identity are recorded; the historic143-claim inventory and score remain unchanged.
