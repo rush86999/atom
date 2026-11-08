@@ -19,7 +19,12 @@ def test_actual_jsoncolumn_cas_preserves_receipt_and_revision(dialect,business):
     for binding in ["provider-a","workspace-a","profile-a","version-a"]:
         assert (binding in values) is business
     assert "coalesce" in str(compiled).lower()
-    if dialect=="postgresql":assert "->>" in str(compiled)
+    if dialect=="postgresql":
+        assert "->>" in str(compiled)
+        # ``->>`` is type-blind; business bindings additionally pin the JSON
+        # type to string. 123 and "123" then no longer share a predicate.
+        assert ("jsonb_typeof" in str(compiled)) is business
+        if business:assert "string" in values
     else:assert "json_extract" in str(compiled)
 
 
