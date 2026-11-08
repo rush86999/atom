@@ -52,8 +52,14 @@ def test_docx_without_extracted_content_does_not_become_fresh_evidence(
     payload = b'not a DOCX archive' if invalid == 'malformed' else _docx_bytes()
     before = exported.session.query(IngestedDocument).count()
     response = _post(exported, payload, invalid+'.docx')
-    assert response.status_code in (415, 422), {
-        'status': response.status_code, 'body': response.json(),
-        'expected': 'typed refusal, not a fresh placeholder document'}
+    capture = {'status': response.status_code, 'body': response.json(),
+               'expected': 'typed refusal, not a fresh placeholder document'}
+    if response.status_code == 200:
+        doc_id = response.json()['id']
+        downloaded = exported.client.get(f'/api/documents/{doc_id}/export?format=text')
+        capture['export_status'] = downloaded.status_code
+        capture['export_provenance'] = downloaded.headers.get('X-Document-Provenance')
+        capture['export_text'] = downloaded.text
+    assert response.status_code in (415, 422), capture
     exported.session.expire_all()
     assert exported.session.query(IngestedDocument).count() == before
