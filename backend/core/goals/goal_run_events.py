@@ -106,9 +106,17 @@ async def _resume_woken_run(svc, run_id: str, event: Dict[str, Any]) -> Dict[str
                     # execute or advance the same job again.
                     return result
             return await executor.resume(run_id)
-    except Exception as exc:  # noqa: BLE001 — fall back to the existing loop
+    except Exception as exc:  # noqa: BLE001 — ingestion isolates each run
+        # An assignment may already have accepted the reply or applied work.
+        # Uncertainty here is not permission to dispatch through another engine.
         logger.warning(
-            f"goal run {run_id}: assignment wake resume failed: {exc}")
+            "goal run %s: assignment wake resume unavailable (%s)",
+            run_id, type(exc).__name__)
+        return {
+            "status": "unavailable",
+            "code": "assignment_wake_resume_unavailable",
+            "run_id": run_id,
+        }
     return await svc.advance(run_id, event=event)
 
 
