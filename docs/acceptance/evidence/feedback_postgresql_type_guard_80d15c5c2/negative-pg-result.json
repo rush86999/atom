@@ -1,0 +1,39 @@
+{
+  "scratch": "/private/tmp/root-pg-schema-45pn47kf",
+  "scope": "actual main-equivalent ORM metadata on installed PostgreSQL14 private unix-socket cluster; no TCP/live DB/provider",
+  "status": "feedback_controls_failed",
+  "postgres_version": "postgres (PostgreSQL) 14.24 (Homebrew)",
+  "crash_durability_qualified": false,
+  "initdb_no_sync": true,
+  "max_locks_per_transaction": 512,
+  "initdb_exit": 0,
+  "pid": 68695,
+  "server_identity": [
+    "atom_scratch",
+    "postgres",
+    "/private/tmp/root-pg-schema-45pn47kf/data",
+    null,
+    "PostgreSQL 14.24 (Homebrew) on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit"
+  ],
+  "checkout_source": "54dafd9885ab1e2874e0891859e5a0cdcf6abd52",
+  "model_sha256": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+  "feedback_source_sha256": "4c7f99359a1ac883f480db41957e2561d31fdfc2d8f57ebc3f0b31be7098c949",
+  "metadata_table_count": 376,
+  "created_public_tables": 376,
+  "schema_status": "schema_created",
+  "whole_postgresql_qualified": false,
+  "test_command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/test_root_feedback_json_binding_type.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-pg-schema-45pn47kf/pytest"
+  ],
+  "test_exit": 1,
+  "process_exit": 0,
+  "finished": 1794098563.877247
+}
