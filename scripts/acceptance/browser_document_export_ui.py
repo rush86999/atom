@@ -1651,7 +1651,7 @@ def _run_preflight(args: argparse.Namespace) -> int:
             "backend_tree_clean": source.get("backend_tree_clean") is True,
             "per_file_git_source_proof": (
                 source.get("per_file", {}).get("ok") is True),
-            "retained_37_case_source_bytes_unchanged": (
+            "committed_api_packet_and_current_source_match": (
                 retained.get("ok") is True),
             "core_documents_profile_enabled": profile.get("ok") is True,
             "search_deferred": profile.get("search_enabled") is False,
