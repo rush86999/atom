@@ -49,8 +49,32 @@ or replacement failed.
 6. **Valid twin** — a successful save still returns `True` and loads back the
    same snapshot.
 
-Root owns the failure-first tests and the serial acceptance run; no Python or
-pytest was executed in this bounded task.
+## Authored regression controls (not executed here)
+
+`backend/tests/core/test_bpe_persistence_write_truth.py` — permanent pytest
+controls using the real `BPEWorkspaceStore` and `tmp_path`, injecting failure
+only at storage seams:
+
+1. `test_replace_failure_returns_false_and_preserves_previous_file` —
+   `os.replace` raises, `save()` is `False`, old bytes and `load()` content
+   are unchanged, no `.tmp` remains.
+2. `test_json_dump_failure_returns_false_and_preserves_previous_file` —
+   `json.dump` raises mid-write, same preservation/cleanup/return checks.
+3. `test_mkstemp_failure_returns_false_and_preserves_previous_file` —
+   temp creation raises before any temp exists; old file preserved.
+4. `test_mkdir_failure_returns_false_without_creating_temp` — a file blocks
+   the store's parent directory; `save()` is `False`, blocker untouched.
+5. `test_fdopen_failure_closes_fd_and_removes_temp_file` — `os.fdopen` raises,
+   `save()` is `False`, old file preserved, no temp remains, and `fstat` on
+   the captured descriptor raises `OSError` (descriptor closed on the
+   ownership-failure path).
+6. `test_valid_save_and_load_round_trip` — real workspace snapshot saves as
+   `True`, loads back through `BPEWorkspace.from_dict`, and leaves no temp.
+7. `test_save_succeeds_after_failed_replacement` — a failed replacement does
+   not poison the store; a later valid save returns `True` and loads.
+
+Root owns execution and acceptance; no Python or pytest was run here, and
+none of these controls is labeled passing by the author.
 
 ## Caller implications
 
@@ -83,8 +107,8 @@ call sites construct `BPEWorkspaceStore()` with no directory. Consequently:
 This is the known relative-path anchoring bug class in `AGENTS.md`. It is not
 changed here because it is outside this write-outcome repair; a follow-up
 should anchor the default to `backend/` (as `core.automation_settings` does)
-or require an absolute env override. Root tests pass explicit temp
-directories, so they do not exercise the default path.
+or require an absolute env override. The authored controls use explicit
+temporary directories, so they do not exercise the default path.
 
 ## Explicitly open (not claimed here)
 
