@@ -227,3 +227,16 @@ before removing its internal uncompressed copy.
 Scope: direct-step replies only. The question/gap response path is under a
 separate read-only review; no general repeated-partial or days-long coordination
 claim follows from these controls. No live model/provider/effect was used.
+
+
+## Independent caller audit: two-domain campaign expectation
+
+DeepSeek's read-only review identified a caller control outside the original
+seven-module 220-test selection. Executing it unchanged at da280ff17 gives
+1 failed / 3 passed: the procurement campaign calls a changed terminal answer
+"exact replay" and expects already_applied. This contradicts the intentionally
+repaired exact-material contract. The test now has both twins: original
+accepted material must replay; changed material must return terminal while
+keeping the completed assignment and one bill effect. No runtime guard was
+relaxed. The campaign is added to the existing CI step. Earlier220 results
+remain accurate for their named selection and are not expanded retroactively.
