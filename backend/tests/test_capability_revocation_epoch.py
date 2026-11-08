@@ -56,3 +56,60 @@ def test_fresh_verified_work_preserves_existing_ladder(store):
         if count in (5, 20, 50):
             expected = {5: "intern", 20: "supervised", 50: "autonomous"}[count]
             assert service.get_maturity("agent-revocation-1", "new_capability") == expected
+
+
+@pytest.mark.parametrize("success,verification", [
+    (True, "unverified"), (False, "unverified"), (False, "verified"),
+])
+def test_bookkeeping_without_a_verified_success_cannot_advance(store, success, verification):
+    _Session, db = store
+    agent = db.query(AgentRegistry).filter_by(id="agent-revocation-1").one()
+    config = deepcopy(agent.configuration)
+    config["capability_maturities"]["canvas_edit"] = "student"
+    agent.configuration = config
+    db.commit()
+    service = CapabilityGraduationService(db)
+    service.record_usage(agent.id, "canvas_edit", success, verification)
+    assert service.get_maturity(agent.id, "canvas_edit") == "student"
+
+
+def test_existing_revocation_baseline_survives_marker_clear_and_restart(store):
+    Session, db = store
+    agent = db.query(AgentRegistry).filter_by(id="agent-revocation-1").one()
+    config = deepcopy(agent.configuration)
+    config["capability_maturities"]["canvas_edit"] = "student"
+    config["capability_stats"]["canvas_edit"].update(
+        success=44, total=45, verified_success=44)
+    config["autonomy_revocations"] = {
+        "canvas_edit": {"baseline_verified_success": 25, "epoch": 1}}
+    agent.configuration = config
+    db.commit()
+    service = CapabilityGraduationService(db)
+    service.record_usage(agent.id, "canvas_edit", True, "verified")
+    assert service.get_maturity(agent.id, "canvas_edit") == "intern"
+    db.close()
+    with Session() as fresh:
+        service = CapabilityGraduationService(fresh)
+        for new_count in range(21, 51):
+            service.record_usage("agent-revocation-1", "canvas_edit", True, "verified")
+            if new_count < 50:
+                assert service.get_maturity("agent-revocation-1", "canvas_edit") != "autonomous"
+        assert service.get_maturity("agent-revocation-1", "canvas_edit") == "autonomous"
+
+
+def test_second_regression_starts_another_fresh_epoch(store):
+    _Session, db = store
+    service = CapabilityGraduationService(db)
+    agent_id = "agent-revocation-1"
+    for _epoch in range(2):
+        service.record_usage(agent_id, "canvas_edit", False, "failed_verification")
+        assert service.get_maturity(agent_id, "canvas_edit") == "student"
+        for new_count in range(1, 51):
+            service.record_usage(agent_id, "canvas_edit", True, "verified")
+            if new_count < 20:
+                assert service.get_maturity(agent_id, "canvas_edit") == "student"
+            elif new_count == 20:
+                assert service.get_maturity(agent_id, "canvas_edit") == "intern"
+            elif new_count < 50:
+                assert service.get_maturity(agent_id, "canvas_edit") != "autonomous"
+        assert service.get_maturity(agent_id, "canvas_edit") == "autonomous"
