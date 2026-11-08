@@ -1,0 +1,23 @@
+{
+  "source": "011b8373e1662ce29ce911c04e04ec085aea812c",
+  "scratch": "/private/tmp/root-wait-source-final-review-cs9htdz8",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-document-stored-export-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_document_export.py",
+    "tests/test_lead_document_export_authority.py",
+    "tests/test_lead_document_export_nullable_scope.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-wait-source-final-review-cs9htdz8/pytest"
+  ]
+}

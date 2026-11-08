@@ -1390,6 +1390,14 @@ class MCPService(IntegrationService):
             )
             return await self.execute_entity_tool(context, tool_name, arguments)
 
+        # Canvas delete/undelete are ToolRegistry tools, not entries in the
+        # hardcoded local-tools catalog. Resolve them through the shared
+        # verified lifecycle service before the catalog fallback (the
+        # capability/privilege/sandbox gates above have already run).
+        if tool_name in ("delete_canvas", "restore_deleted_canvas"):
+            return await self._execute_canvas_lifecycle_tool(
+                tool_name, arguments, context or {})
+
         # 0. Check Ontology Action Registry first
         from core.action_registry import action_registry
         action = action_registry.get_action(tool_name)
@@ -1654,10 +1662,113 @@ class MCPService(IntegrationService):
                 "requires_approval": True,
             }
 
+    async def _execute_canvas_lifecycle_tool(
+        self,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        context: Dict[str, Any],
+    ) -> Any:
+        """Dispatch delete/undelete through the verified lifecycle service.
+
+        The dispatch CONTEXT is the actor authority; the model-visible
+        ``user_id`` / ``tenant_id`` / ``workspace_id`` arguments are stripped
+        before the call. If no trusted context actor exists the write is
+        refused before effect instead of falling back to model-supplied
+        identity.
+        """
+        from core.canvas_write_service import (
+            delete_canvas_verified,
+            resolve_actor_scope,
+            restore_deleted_canvas_verified,
+        )
+
+        actor_id = str(
+            context.get("user_id")
+            or context.get("actor_id")
+            or "").strip()
+        if not actor_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "error": (
+                    "Canvas lifecycle write requires a trusted dispatch user"),
+                "verification": {
+                    "status": "not_attempted", "effect": "none"},
+            }
+
+        args = dict(arguments or {})
+        # A model may still send these keys (the tool schema predates the
+        # context contract); they must never shape authority.
+        for key in ("user_id", "actor_id", "tenant_id", "workspace_id"):
+            args.pop(key, None)
+        for key in list(args):
+            if str(key).startswith("_oracle_expected_"):
+                args.pop(key, None)
+        canvas_id = str(args.get("canvas_id") or "").strip()
+        if not canvas_id:
+            return {
+                "success": False,
+                "status": "refused",
+                "error": "canvas_id is required",
+                "verification": {
+                    "status": "not_attempted", "effect": "none"},
+            }
+
+        scope = resolve_actor_scope(
+            actor_id,
+            context.get("tenant_id"),
+            context.get("workspace_id"),
+        )
+        if not scope.get("ok") or not scope.get("active"):
+            return {
+                "success": False,
+                "status": "refused",
+                "http_status": int(scope.get("http_status") or 403),
+                "error": (
+                    scope.get("error")
+                    or "Trusted actor is not active"),
+                "verification": {
+                    "status": "not_attempted", "effect": "none"},
+            }
+        operation_id = (
+            args.get("operation_id") or context.get("operation_id"))
+
+        if tool_name == "delete_canvas":
+            return await delete_canvas_verified(
+                user_id=actor_id,
+                canvas_id=canvas_id,
+                operation_id=operation_id,
+                expected_prior_audit_id=args.get(
+                    "expected_prior_audit_id"),
+                tenant_id=scope.get("tenant_id"),
+                workspace_id=scope.get("workspace_id"),
+            )
+        return await restore_deleted_canvas_verified(
+            user_id=actor_id,
+            canvas_id=canvas_id,
+            operation_id=operation_id,
+            tombstone_audit_id=(
+                args.get("tombstone_audit_id")
+                or args.get("expected_tombstone_audit_id")),
+            source_audit_id=(
+                args.get("source_audit_id")
+                or args.get("expected_source_audit_id")),
+            tenant_id=scope.get("tenant_id"),
+            workspace_id=scope.get("workspace_id"),
+        )
+
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""
         logger.info(f"Executing MCP tool {tool_name} on server {server_id} with args: {arguments}")
         context = context or {}
+
+        # Canvas delete/undelete: identity comes from the dispatch CONTEXT
+        # only. The model-visible user_id is stripped and the shared verified
+        # lifecycle service owns scope, idempotency, receipt and readback.
+        if (tool_name in ("delete_canvas", "restore_deleted_canvas")
+                and server_id in ("local-tools", "google-search")):
+            return await self._execute_canvas_lifecycle_tool(
+                tool_name, arguments, context)
 
         # Check if tool exists in registry for google-search and local-tools
         if server_id in ["google-search", "local-tools"] and get_tool_registry().get(tool_name):

@@ -1,0 +1,28 @@
+{
+  "source": "6d9fbbd3b7d7938d90754d36eb314fa6f295ef8e",
+  "root": "/private/tmp/root-export-browser-6d9-_37kc2h4",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-document-stored-export-20261107",
+    "--profile",
+    "heavy",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "scripts/acceptance/browser_document_export_ui.py",
+    "--execute",
+    "--expect-source-sha",
+    "6d9fbbd3b7d7938d90754d36eb314fa6f295ef8e",
+    "--world",
+    "document_export_ui_6d9_root_20261108",
+    "--backend-port",
+    "8047",
+    "--frontend-port",
+    "3147",
+    "--out",
+    "/private/tmp/root-export-browser-6d9-_37kc2h4/capture",
+    "--root-heavy-approved",
+    "--provision-admin-password"
+  ],
+  "scope": "ordinary TXT upload/open/reload/stored-text exports; cached local indexing only; no model decision or search qualification"
+}

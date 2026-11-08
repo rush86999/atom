@@ -1,0 +1,97 @@
+{
+  "schema": "atom-canvas-lifecycle-lead-evidence-1",
+  "status": "evidence-only delivery for independent root verification; not self-accepted; not merged",
+  "lane": "canvas.lifecycle.delete_undelete current-scope verified consumer",
+  "branch": "codex/canvas-lifecycle-verified-20261107",
+  "executed_source": "8e4b494d722b5ca07c79cc487adab65e1350f2b8",
+  "candidate_tree": "c2c8abf6661d98fc54ff0cd5da15736e6d59c321",
+  "candidate_backend_tree": "ae203eef0063835ce6d3f5a034b2126e65b49dce",
+  "baseline_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "baseline_tree": "cd5bc30aaa8ed41af5f625e697dd4e27eb850468",
+  "baseline_backend_tree": "5a8ff02bf90dafe34e99cf564d50f8929b7fec17",
+  "main_equivalent_source": "8ded00232c30961a990e675e06ec672ef6a43910",
+  "main_equivalent_backend_tree": "5a8ff02bf90dafe34e99cf564d50f8929b7fec17",
+  "baseline_backend_equals_main_backend": true,
+  "independent_probe_origin": {
+    "repo": "/private/tmp/atom-current-claim-audit-20261107",
+    "branch": "codex/current-claim-reconciliation-20261107",
+    "commit": "de180672830e66e49ed87bcf4f7abedf9ff0f199",
+    "path": "docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py",
+    "blob": "ede2276fa2292558d77ed2b12928b887d1d6414d"
+  },
+  "source_files": {
+    "backend/api/canvas_routes.py": "563d5dabaea1df918de3594c63d3ecc0b8e5c15214965408da50fc4ba01c4970",
+    "backend/core/canvas_write_service.py": "ac56045770053dbaafdb05bb16c0ff9d6307a4e2c758bdbc25f692737ac5a190",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/oracle/postcondition_verifiers.py": "63678b93d34780c341282de8e05c1b30d1a9fdda6d257557925b20657eebc7fe",
+    "backend/core/oracle/request_expectations.py": "19b7f7bae14ac46609e39201dc796810d03316641af41533ea95821d2557b5e7",
+    "backend/integrations/mcp_service.py": "ce81d1ca229857aea9fbb380a7a78e148dc798b47733e635bf93b2638c82d735",
+    "backend/tests/test_canvas_lifecycle_verified.py": "0b9093db10ba7811536df26769cf212736cb018b51347a2e2dff2114cfb84d3c",
+    "backend/tools/canvas_crud_tool.py": "6469a3c8ef09c32a7f6923263ea134a9559d44417d855a0c0c92fe59e51b32fd"
+  },
+  "artifacts": {
+    "README.md": "b44c9dff352dfc6c974014d4cf4d68568fd39d0dca52af5b16d955d6d3b20704",
+    "SOURCE_IDENTITY.json": "aac2f32578cf9ccf8e51cf0c50e26e91c835da446a979f3c3253fdd704221e48",
+    "TEST_RESULTS.md": "b63b10ca4483736e93b8dac95be00e256e35b4e9ecaddd2eb0151b8f062e8f46",
+    "affected-comparison.json": "b7ff2bf0d407c7f0fc38fa8979e6d6f2e20d0db65be39155beb2f39da37e8319",
+    "baseline-affected-main27a.exit.json": "b787294654bd443c66558ee3463ac97fe0575daf4da599a2ea7bb4f41cffce7a",
+    "baseline-affected-main27a.log": "58564a5b50d842cc958f31c1bc477a11c244cdb5bf47cab578bd3137c1d19bd5",
+    "baseline-affected-main27a.spec.json": "9e1f3e42ca4bba0e97f813bae002616cdfd553f942528309e31c1ad7c2c864df",
+    "baseline-portable-4fail5pass.exit.json": "a9349e9d476c613d381d124b0c2240568d0669df391d9551b037e38e3cf0db21",
+    "baseline-portable-4fail5pass.log": "f531018a00a512c636392f1cf13746e4d31a9c062b76d9d48354e2f01357fafa",
+    "baseline-portable-4fail5pass.spec.json": "47f652604c0732bad84a30ea45a9a697f53eaf081218b63310bcd8f91596ba6b",
+    "candidate-affected-8e4.exit.json": "eaf84d2e08f1da01d4e0a60602b30c73c8acfb97e4a52522851f8d2611a83c64",
+    "candidate-affected-8e4.log": "fc726d9d4ddbbb28aa72eae030147c4961bc98e476f71f599a72019a2e16ec79",
+    "candidate-affected-8e4.spec.json": "540a353f4a3e34d9ab908df0f44f024cd11f4148e5b87d9e85a368784408a1cc",
+    "candidate-independent-8e4.exit.json": "190861fa2dc55eafd1ba770486406cb9376377cd666ef814fb7f4d914204ce38",
+    "candidate-independent-8e4.log": "27be6e12617a0fc42d6ad42173dbde26ae47366e2b8f924f4a2bf75ebbd10b03",
+    "candidate-independent-8e4.spec.json": "69957da677c36894a93c63718afde51f919f3697550da9b4bfe7e48e9cb4a08f",
+    "candidate-native-8e4.exit.json": "cc30eacca84375aec6747d4102c4f1d80dbcb41bcee1ba515fe2891e2fd43e9c",
+    "candidate-native-8e4.log": "2a0c1cfbf6f6d91b9b3b96e9177d46ab91daa9479d72a823eb3ba0569512108b",
+    "candidate-native-8e4.spec.json": "1bb790ab45182d57d3811c868bbe1bfa99358a67510e3eb3ff36c637d02710a7",
+    "independent-probe.py": "332b911fa3a421b56a5e0714e74d925355987fbd4610035df4353159d229678e"
+  },
+  "checks": {
+    "independent_probe_candidate": "9 passed",
+    "independent_probe_baseline": "4 failed, 5 passed",
+    "independent_probe_defect_cases_now_pass": 4,
+    "independent_probe_preserved_controls_pass": 5,
+    "native_candidate": "31 passed",
+    "affected_candidate": "175 passed, 2 failed",
+    "affected_baseline": "175 passed, 2 failed",
+    "affected_failure_ids_identical": true,
+    "candidate_affected_failure_ids": [
+      "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+      "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names"
+    ],
+    "baseline_affected_failure_ids": [
+      "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+      "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names"
+    ],
+    "model_calls": 0,
+    "provider_calls": 0,
+    "browser_calls": 0,
+    "postgresql_runs": 0,
+    "multiworker_runs": 0,
+    "normal_login_runs": 0
+  },
+  "count_discipline": "Do not sum 9 + 31 + 175 or add baseline passes. The independent probe is the only independent capability gate; the native and affected selections overlap and are supporting/regression evidence.",
+  "runner_label_note": "The root helper runner prints 'Actual SQLite feedback gate exit: <code>'. That is an inherited generic runner-template label, not a test name or a SQLite-feedback claim. Scope is established by the spec.json command and its named source files.",
+  "historical_negatives": {
+    "policy": "retained untouched; no relabel, no rescore, no copy-overwrite",
+    "references": [
+      "/private/tmp/atom-agent-cli/canvas-lifecycle-confirmed-negative.json",
+      "/private/tmp/test_lead_canvas_lifecycle_scoped_history.py",
+      "/private/tmp/root-canvas-lifecycle-scoped-history-authorized.log",
+      "docs/engineering/CANVAS_LIFECYCLE_WORKORDER_2026_11_07.md"
+    ]
+  },
+  "boundaries": [
+    "bounded mounted-route/native/affected canvas lifecycle evidence, not whole-app ORACLE coverage",
+    "no live provider, browser, PostgreSQL, multi-worker or soak run is claimed",
+    "no normal-login/browser qualification; the independent probe injects the current-user dependency",
+    "the two identical affected-selection failures are pre-existing and remain open/unclaimed",
+    "no merge, deployment, send, spend, review comment or self-acceptance is claimed",
+    "the 5 baseline passes and 175 baseline passes are preservation evidence, not new capability"
+  ]
+}

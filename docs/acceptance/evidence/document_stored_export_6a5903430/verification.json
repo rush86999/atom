@@ -1,0 +1,35 @@
+{
+  "kind": "document_stored_export_implementation",
+  "branch": "codex/document-stored-export-20261107",
+  "base_main": "cf5e981917bc31809ca9e8824a2363bdbc9c8f68",
+  "executed_source": "6a5903430dc7adabfdaa1d56f8272265a59f73f7",
+  "source_tree_clean": true,
+  "g3_worktree_frozen": "b493abb30143894a982d6285ad4f3a93ccca4cb0",
+  "backend_export_passed": 26,
+  "frontend_detail_passed": 3,
+  "frontend_documents_passed": 17,
+  "typescript_noemit_exit": 0,
+  "compat_passed": 39,
+  "compat_pre_existing_failed": 3,
+  "baseline_no_export_passed": 2,
+  "baseline_no_export_exit": 0,
+  "pre_existing_failures": [
+    "TestIngestDocument.test_ingest_success",
+    "TestIngestDocument.test_ingest_empty_content_placeholder",
+    "TestWorkspaceBranches.test_upload_workspace_resolution_exception_warned"
+  ],
+  "pre_existing_baseline_same_failures": true,
+  "formats": [
+    "text",
+    "markdown",
+    "json"
+  ],
+  "original_binary_promised": false,
+  "search_force_enabled": false,
+  "upload_format_broadened": false,
+  "no_new_store_router_ingestion": true,
+  "no_live_actions": true,
+  "no_dependency_install": true,
+  "task_wait_01": "open",
+  "self_acceptance": false
+}

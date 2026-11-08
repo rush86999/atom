@@ -1,0 +1,186 @@
+diff --git a/backend/api/document_routes.py b/backend/api/document_routes.py
+index d31d56590..9ec9963ff 100644
+--- a/backend/api/document_routes.py
++++ b/backend/api/document_routes.py
+@@ -222,20 +222,21 @@ def _export_identity_failure(code: str, message: str) -> HTTPException:
+ 
+ 
+ def _document_export_provenance(
+-    db: Session, workspace_id: Optional[str], doc_id: str,
+-    document: Dict[str, Any],
++    db: Session, workspace_id: Optional[str], tenant_id: Optional[str],
++    doc_id: str, document: Dict[str, Any],
+ ) -> Dict[str, Any]:
+     """Validate the indexed/SQL identity before any export body is produced.
+ 
+     Current automated/versioned evidence must match the authoritative SQL
+-    revision through the existing strict matcher. A missing/contradictory
+-    revision on a known indexed binding refuses. Only producer-marked
++    revision through the existing strict matcher. Indexed/SQL document,
++    workspace and tenant identity must agree wherever both sides are present.
++    A missing/contradictory revision or scope on a known binding refuses, and
++    only an explicit ``fresh`` SQL row is authoritative. Only producer-marked
+     manual/legacy vector rows with no SQL/index binding may be exported as an
+     explicitly snapshot-only, unknown-source-version document.
+     """
+     from core.doc_freshness_service import (
+         ExtractionIdentityError,
+-        NON_FRESH_STATUSES,
+         current_extraction_revision,
+         extraction_identity,
+     )
+@@ -249,14 +250,59 @@ def _document_export_provenance(
+             "DOCUMENT_IDENTITY_MISMATCH",
+             "The indexed extraction belongs to a different document.",
+         )
++    indexed_row_id = str(document.get("id") or "").strip()
++    if indexed_row_id and indexed_row_id != str(doc_id):
++        raise _export_identity_failure(
++            "DOCUMENT_IDENTITY_MISMATCH",
++            "The indexed extraction row identity does not match the requested "
++            "document.",
++        )
++
++    # Scope is part of identity wherever it is present. An indexed metadata
++    # workspace/tenant that disagrees with the request scope or its SQL row is
++    # a contradictory extraction, never an authoritative export source. The
++    # existing Personal-Edition null/default policy is preserved by comparing
++    # only values that are actually present on both sides.
++    indexed_workspace = str(metadata.get("workspace_id") or "").strip()
++    if indexed_workspace and workspace_id and (
++            indexed_workspace != str(workspace_id)):
++        raise _export_not_found(str(doc_id))
+ 
+     indexed_version = str(
+         metadata.get("source_content_hash") or "").strip()
++    indexed_tenant = str(metadata.get("tenant_id") or "").strip()
+     row = db.query(IngestedDocument).filter(
+         IngestedDocument.id == str(doc_id)).first()
+     if row is not None and workspace_id and str(
+             row.workspace_id or "") != str(workspace_id):
+         raise _export_not_found(str(doc_id))
++    if row is not None and indexed_workspace and str(
++            row.workspace_id or "") and (
++            indexed_workspace != str(row.workspace_id)):
++        raise _export_identity_failure(
++            "DOCUMENT_SCOPE_MISMATCH",
++            "The indexed extraction workspace does not match its authoritative "
++            "document record.",
++        )
++    if row is not None and tenant_id and str(
++            row.tenant_id or "") and str(row.tenant_id) != str(tenant_id):
++        raise _export_identity_failure(
++            "DOCUMENT_SCOPE_MISMATCH",
++            "The authoritative document record belongs to a different tenant.",
++        )
++    if indexed_tenant:
++        # When a SQL row exists, its tenant is the authoritative comparison.
++        # A NULL/legacy tenant is absent, not a contradictory value; only a
++        # vector-only row falls back to the request's Personal-Edition tenant.
++        reference_tenant = (
++            str(row.tenant_id or "") if row is not None
++            else str(tenant_id or ""))
++        if reference_tenant and indexed_tenant != reference_tenant:
++            raise _export_identity_failure(
++                "DOCUMENT_SCOPE_MISMATCH",
++                "The indexed extraction tenant does not match the authoritative "
++                "scope.",
++            )
+ 
+     row_version = str(
+         getattr(row, "source_content_hash", "") or "").strip() if row else ""
+@@ -264,13 +310,16 @@ def _document_export_provenance(
+         getattr(row, "freshness_status", "") or "").strip().lower() if row else ""
+     if freshness == "removed":
+         raise _export_not_found(str(doc_id))
+-    if freshness in NON_FRESH_STATUSES:
++    # Only an explicit ``fresh`` SQL row can carry authoritative provenance.
++    # Empty/NULL/unknown/revoked and every other non-fresh status fail closed
++    # here; checking only NON_FRESH_STATUSES let unknown values through.
++    if row is not None and freshness != "fresh":
+         raise router.error_response(
+             error_code="DOCUMENT_NOT_CURRENT",
+             message=(
+                 "The authoritative document is not current; refresh or "
+                 "re-ingest it before exporting."),
+-            details={"freshness_status": freshness},
++            details={"freshness_status": freshness or None},
+             status_code=409,
+         )
+ 
+@@ -761,8 +810,11 @@ async def export_document(
+         document = handler.get_document_by_id("documents", str(doc_id))
+         if not document:
+             raise _export_not_found(str(doc_id))
++        from core.personal_scope import resolve_tenant_id
++
+         provenance = _document_export_provenance(
+-            db, workspace_id, str(doc_id), document)
++            db, workspace_id, resolve_tenant_id(current_user),
++            str(doc_id), document)
+         text = str(document.get("text") or "")
+         if not text.strip():
+             raise router.error_response(
+diff --git a/backend/tests/test_document_export.py b/backend/tests/test_document_export.py
+index 0a50cf48e..641678868 100644
+--- a/backend/tests/test_document_export.py
++++ b/backend/tests/test_document_export.py
+@@ -451,6 +451,33 @@ def test_explicit_non_fresh_authority_refuses(exported, freshness, status, code)
+     assert text not in response.text
+ 
+ 
++@pytest.mark.parametrize("freshness", ["", "unknown", "revoked", "pending"])
++def test_unrecognized_or_revoked_freshness_is_never_authoritative(
++        exported, freshness):
++    """Only an explicit ``fresh`` SQL row can carry authoritative provenance.
++
++    The old gate checked only NON_FRESH_STATUSES, so an empty/unknown/revoked
++    status fell through as authoritative. These are distinct unknown states,
++    not ``fresh`` and not a legacy snapshot: refuse before any body is made.
++    """
++    text = f"Unrecognized freshness {freshness!r} content.\n"
++    doc_id = f"unknownfresh-{uuid.uuid4().hex[:12]}"
++    version = "ev4:" + "a" * 64
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "unknown-fresh.txt", "file_name": "unknown-fresh.txt",
++                  "source_content_hash": version,
++                  "pg_document_id": doc_id},
++        source="upload:unknown-fresh.txt",
++    )
++    _seed_sql(exported, doc_id, version=version, freshness=freshness)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    assert response.status_code == 409, response.text
++    assert _error_code(response) == "DOCUMENT_NOT_CURRENT"
++    assert text not in response.text
++
++
+ def test_foreign_workspace_and_unknown_document_are_not_found(exported):
+     text = "Foreign workspace content.\n"
+     doc_id = f"foreign-{uuid.uuid4().hex[:12]}"
+diff --git a/backend/tests/test_lead_document_export_authority.py b/backend/tests/test_lead_document_export_authority.py
+new file mode 100644
+index 000000000..fac084683
+--- /dev/null
++++ b/backend/tests/test_lead_document_export_authority.py
+@@ -0,0 +1,19 @@
++import pytest
++from tests.test_document_export import exported, _seed_vector, _seed_sql
++
++@pytest.mark.parametrize('change', ['matching','indexed_workspace','indexed_tenant','unknown_freshness'])
++def test_export_rejects_contradictory_extraction_scope_and_unknown_freshness(exported,change):
++    doc_id='lead-export-'+change
++    version='ev4:'+'a'*64
++    meta={'pg_document_id':doc_id,'source_content_hash':version,'workspace_id':exported.workspace,'tenant_id':'t1'}
++    if change=='indexed_workspace': meta['workspace_id']='foreign-workspace'
++    if change=='indexed_tenant': meta['tenant_id']='foreign-tenant'
++    _seed_vector(exported,text='Current scoped document.',doc_id=doc_id,metadata=meta,source='connector:document')
++    row=_seed_sql(exported,doc_id,version=version,integration='connector',external_id='connector-record')
++    if change=='unknown_freshness':
++        row.freshness_status='';exported.session.commit()
++    response=exported.client.get(f'/api/documents/{doc_id}/export?format=json')
++    if change=='matching':
++        assert response.status_code==200,response.text
++    else:
++        assert response.status_code in (403,404,409),(change,response.status_code,response.text)
