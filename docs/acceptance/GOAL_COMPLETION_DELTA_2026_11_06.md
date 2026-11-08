@@ -512,6 +512,50 @@ The affected work must persist an actionable question/prerequisite and its exact
 
 A relevant authorized user answer, source upload/selection or supported information event must automatically wake the matching wait and resume the **same task**. The normal happy path must not require the owner to prompt the agent again, submit a second objective, manually call an advance endpoint or recreate the job. Information arrival authorizes a continuation attempt; only fulfilled verified business outcomes authorize completion. Additional missing prerequisites, no suitable model or execution errors stay explicit and unresolved.
 
+### Domain-independent coordination requirement — owner clarification
+
+The task must coordinate missing variables with authorized external people or
+systems, not only accept a manually supplied answer. Persist the missing fact's
+subject, required fields, authorized responder/source, request/delivery identity,
+freshness conditions and the dependent operations. Use supported authorized
+channels; if a channel or sending authority is unavailable, expose that blocker
+and a supported manual source-answer path without claiming outreach occurred.
+A reply/event is evidence to validate, not a new task or automatic approval.
+
+The motivating example is an unavailable item requiring a vendor response before
+a client quote: request availability, pricing and lead time; retain independent
+work while waiting; validate the response; calculate landed cost and taught
+margin/markup; and prepare the requested quote with defensible delivery timing.
+This is an example, not a procurement-specific router, hardcoded workflow or
+license to buy/send. Implement dependencies and accepted facts through existing
+general task, wait, integration, authority and verification mechanisms.
+
+Required additional acceptance twins:
+
+- Demonstrate the same request/wait/event/continuation mechanism in a second
+  domain with different facts and outputs; no business-name intent branches.
+- Exercise multiple responders or prerequisites, partial replies, a follow-up
+  question and a repeated wait on the same task. Only newly ready dependent work
+  proceeds; unrelated verified work is retained.
+- Refuse wrong-subject, stale, contradictory or unauthorized replies. A revised
+  accepted fact invalidates dependent calculations/output selectively. Preserve
+  units, currency, quantity, tax/freight/fees and commercial qualifiers; refuse
+  implicit conversions or invented defaults. Margin and markup are distinct.
+- Bind lead-time evidence to its actual starting condition, date/calendar/unit
+  assumptions and availability/transport dependencies. Missing assumptions cause
+  a question or conditional draft, never an unsupported delivery promise.
+- Prove outbound request identity, delivery uncertainty/reconciliation and
+  no-resend separately from inbound-answer correlation. A controlled transport
+  qualifies that scope only; live contact/order/send/spend requires its own
+  authority and evidence. Drafting a quote does not authorize sending it.
+- Surface what is awaited, from whom/source, last verified update, the next
+  expected event, and any owner-set timeout/escalation. Preserve cancellation,
+  explicit deadlines, replay safety and real-restart recovery throughout.
+
+This clarification expands the acceptance contract, not the completed claim
+count. Existing controlled episodes remain reusable at their exact scopes;
+end-to-end external coordination and broad adaptive judgment remain open.
+
 ### Required testing
 
 | Case | Required observation |

@@ -118,6 +118,38 @@ coverage milestone, not a promise of 90% accuracy or universal reliability.
 To use the fixed snapshot rather than development `main`, run
 `git checkout successor-first-use-2026-11-01` **before** `make setup`.
 
+### Recent verified progress
+
+Development `main` also includes newer, separately scoped evidence. These do
+not change the frozen 111/123 score or qualify universal employee judgment.
+
+| Capability | Verified boundary |
+|---|---|
+| **Information-triggered continuation** | An ordinary source-answer UI episode preserved the same task, wait and source version through a real restart; an authorized answer triggered continuation to one verified task effect and final UI. Model responses were controlled, not a model-quality benchmark. |
+| **Goal controls** | Ordinary UI goal set, ranking, reload and clear, with a member read-only/refusal twin. Analytics history used synthetic fixtures. |
+| **Backup and restore** | A normal application child-process restart verified restored records and exact document bytes in an isolated local world; this is not whole-app disaster-recovery or crash-durability qualification. |
+| **Model-routing feedback** | Scoped business verdicts and shared conditional updates have SQLite and targeted PostgreSQL verification. Grounding support, unresolved decisions and satisfied business outcomes remain distinct. Served multi-model quality is still open. |
+
+See the [current completion and evidence map](docs/engineering/APP_COMPLETION_STATE_2026_11_07.md)
+for exact source identities, retained negative results and remaining requirements.
+
+### Long-running coordination: the product goal
+
+A task should be able to request a missing fact from an authorized person or
+system, wait durably without repeated prompting, continue independent work,
+and resume the same task when the relevant information arrives—even after a
+restart. It may need several request/wait/resume cycles before delivering a
+verified result. This is a **general app goal with bounded demonstrations**,
+not a claim of universal autonomous coordination or live third-party outreach.
+
+For example, a customer quote may depend on a vendor's availability, price and
+lead time. Once authorized information arrives, dependent work should calculate
+landed cost and the taught margin or markup, then prepare a quote with supported
+lead-time assumptions. Procurement is only an illustration: the same mechanism
+must handle dependencies, facts and outputs across domains. It must never invent
+missing values, treat an unanswered request as completion, or send/order/spend
+without the required authority. See [TASK-WAIT-01 acceptance requirements](docs/acceptance/GOAL_COMPLETION_DELTA_2026_11_06.md#task-wait-01--long-running-tasks-pause-for-information-and-resume-on-its-arrival).
+
 ### Clear boundaries
 
 - The demonstrated local topology is **single worker**. Multi-worker execution
