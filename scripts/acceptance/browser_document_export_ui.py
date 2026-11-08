@@ -29,6 +29,15 @@ Reused existing infrastructure (no new engine):
   * ``scripts/acceptance/browser_agent_job_wait.py``
     (source/health/source-binding/API/DB/screenshot/wait helpers)
 
+Credential isolation: before launch the driver installs value-free
+``world/.env`` and ``world/backend_root/.env`` shadow guards. Without them a
+bare ``load_dotenv()`` in world code walks up from
+``backend/data/acceptance_worlds`` and can load the live ``backend/.env``
+(operator model config, BYOK Fernet key, API keys) into the sandboxed server.
+The core-profile evolution OFF default is proven from the exported source plus
+the live ``/api/product/profile`` core response; an explicit actual-env
+``true`` still fails.
+
 Why the retained 37-case API suite is referenced, not re-run
 ------------------------------------------------------------
 ``docs/acceptance/evidence/document_export_lead_011b8373e`` retains the
@@ -109,6 +118,10 @@ FASTEMBED_REQUIRED_FILES = (
     "special_tokens_map.json",
 )
 HEAVY_THRESHOLD_BYTES = 4 * 1024 * 1024 * 1024
+DOTENV_SHADOW_TEXT = (
+    "# Acceptance-world guard: shadow live backend/.env discovery.\n"
+    "# This file intentionally defines no values.\n"
+)
 DOC_ID_RE = re.compile(r"^doc_[0-9a-f]{24}$")
 EXTRACTION_RE = re.compile(r"^ev4:[0-9a-f]{64}$")
 
@@ -1841,6 +1854,74 @@ def _execute_ready(args: argparse.Namespace) -> Dict[str, Any]:
     return {"dependencies": deps, "ports": {str(k): v for k, v in ports.items()}}
 
 
+def _install_dotenv_shadow_guard(world: Path) -> Dict[str, Any]:
+    """Stop python-dotenv's upward search before it reaches the live .env.
+
+    The isolated export lives under ``backend/data/acceptance_worlds``, so a
+    bare ``load_dotenv()`` in product code can walk up from the world and load
+    the live ``backend/.env`` (operator credentials, BYOK key, model config)
+    into the sandboxed server. A value-free guard at the world root and the
+    backend farm root shadows that search. This is a harness safety guard, not
+    product configuration.
+    """
+    targets = [Path(world) / ".env", Path(world) / "backend_root" / ".env"]
+    files: Dict[str, Any] = {}
+    problems: List[str] = []
+    for path in targets:
+        try:
+            if path.is_symlink():
+                problems.append(
+                    f"{path} is a symlink; refusing to follow it")
+                files[str(path)] = {
+                    "present": True,
+                    "guard_installed": False,
+                    "symlink": True,
+                }
+                continue
+            if path.exists():
+                current = path.read_text(encoding="utf-8", errors="replace")
+                if current.strip() and current != DOTENV_SHADOW_TEXT:
+                    problems.append(
+                        f"{path} already has content; refusing to overwrite")
+                    files[str(path)] = {
+                        "present": True,
+                        "guard_installed": False,
+                        "bytes": path.stat().st_size,
+                    }
+                    continue
+            path.write_text(DOTENV_SHADOW_TEXT, encoding="utf-8")
+            os.chmod(path, 0o600)
+            readback = path.read_text(encoding="utf-8")
+            files[str(path)] = {
+                "present": True,
+                "guard_installed": readback == DOTENV_SHADOW_TEXT,
+                "bytes": path.stat().st_size,
+                "contains_values": any(
+                    line.strip() and not line.strip().startswith("#")
+                    for line in readback.splitlines()),
+            }
+        except OSError as exc:
+            problems.append(f"{path}: {type(exc).__name__}: {exc}")
+            files[str(path)] = {
+                "present": path.exists(),
+                "guard_installed": False,
+            }
+    ok = bool(files) and all(
+        entry.get("guard_installed") is True
+        and entry.get("contains_values") is not True
+        for entry in files.values()) and not problems
+    return {
+        "ok": ok,
+        "files": files,
+        "problems": problems,
+        "live_dotenv_shadowed": ok,
+        "note": (
+            "A bare load_dotenv() walks up from the world/code export under "
+            "backend/data/acceptance_worlds and would otherwise load the live "
+            "backend/.env. These value-free guards stop that walk."),
+    }
+
+
 def _build_world(world: Path, source_sha: str,
                  heavy_approved: bool) -> Dict[str, Any]:
     from core.world_storage_guard import require_storage_ready
@@ -1875,6 +1956,11 @@ def _build_world(world: Path, source_sha: str,
     R.build_world.snapshot_working_tree = True
     R.build_world.full_dev_db = False
     R.build_world(world, refreeze_db=True)
+    dotenv_guard = _install_dotenv_shadow_guard(world)
+    if not dotenv_guard.get("ok"):
+        raise DriverError(
+            "dotenv shadow guard failed; the sandboxed server could load the "
+            f"live backend/.env: {dotenv_guard}")
     manifest = world / "MANIFEST.json"
     fixture = world / "fixture" / "atom.db"
     if not manifest.exists() or not fixture.exists():
@@ -1913,6 +1999,7 @@ def _build_world(world: Path, source_sha: str,
         "acc_metadata": support["launcher"]["acc_metadata"],
         "fixture_inventory": support["fixture_inventory"],
         "prebuild_support": support["checks"],
+        "dotenv_guard": dotenv_guard,
         "manifest_path": str(manifest),
         "fixture_path": str(fixture),
         "preflight": pre,
@@ -2123,7 +2210,634 @@ def _process_env_probe(pid: int, keys: Tuple[str, ...]) -> Dict[str, Any]:
         }
 
 
-def _worker_defaults_probe(pid: int, log_path: Path) -> Dict[str, Any]:
+def _ast_constant(node: Any) -> Any:
+    if isinstance(node, ast.Constant):
+        return node.value
+    return None
+
+
+def _ast_call_name(node: Any) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return ""
+
+
+def _module_level_statements(tree: ast.AST) -> List[ast.stmt]:
+    """Module-level statements, descending into top-level try/if blocks."""
+    out: List[ast.stmt] = []
+
+    def walk(statements: List[ast.stmt]) -> None:
+        for statement in statements:
+            out.append(statement)
+            if isinstance(statement, (ast.Try, ast.If)):
+                walk(statement.body)
+                walk(statement.orelse)
+            if isinstance(statement, ast.Try):
+                for handler in statement.handlers:
+                    walk(handler.body)
+                walk(statement.finalbody)
+
+    walk(list(getattr(tree, "body", [])))
+    return out
+
+
+def _runtime_defaults_source_probe(
+    product_profile_source: str,
+    main_api_app_source: str,
+) -> Dict[str, Any]:
+    """Prove the exported core profile applies a safe evolution OFF default.
+
+    ``main_api_app`` imports ``apply_runtime_defaults`` and calls it at module
+    import, before the app is built. The function early-returns for non-core
+    profiles and sets ``ATOM_AGENT_EVOLUTION_ENABLED=false`` for core. This is
+    a source-bound proof of the runtime default, not a claim that ``ps eww``
+    can see a post-exec ``setenv`` (it cannot on macOS).
+    """
+    problems: List[str] = []
+    try:
+        profile_tree = ast.parse(product_profile_source)
+        app_tree = ast.parse(main_api_app_source)
+    except SyntaxError as exc:
+        return {
+            "ok": False,
+            "checks": {"source_parse_ok": False},
+            "problems": [f"{type(exc).__name__}: {exc}"],
+            "defaults": {},
+        }
+    default_profile = None
+    for node in _module_level_statements(profile_tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "DEFAULT_PROFILE":
+                    default_profile = _ast_constant(node.value)
+    apply_func = next((
+        node for node in profile_tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "apply_runtime_defaults"), None)
+    defaults: Dict[str, str] = {}
+    if apply_func is not None:
+        for node in ast.walk(apply_func):
+            if not isinstance(node, ast.Assign):
+                continue
+            if not any(
+                    isinstance(target, ast.Name) and target.id == "defaults"
+                    for target in node.targets):
+                continue
+            if isinstance(node.value, ast.Dict):
+                for key_node, value_node in zip(
+                        node.value.keys, node.value.values):
+                    key = _ast_constant(key_node)
+                    value = _ast_constant(value_node)
+                    if isinstance(key, str) and isinstance(value, str):
+                        defaults[key] = value
+    imported_defaults = any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "core.product_profile"
+        and any(alias.name == "apply_runtime_defaults" for alias in node.names)
+        for node in ast.walk(app_tree))
+    applied_at_import = any(
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Call)
+        and _ast_call_name(node.value.func) in {
+            "_apply_profile_defaults", "apply_runtime_defaults"}
+        for node in _module_level_statements(app_tree))
+    checks = {
+        "source_parse_ok": True,
+        "default_profile_core": default_profile == "core",
+        "evolution_default_false": (
+            defaults.get("ATOM_AGENT_EVOLUTION_ENABLED") == "false"),
+        "scheduler_default_false": (
+            defaults.get("ENABLE_SCHEDULER") == "false"),
+        "ingestion_default_false": (
+            defaults.get("ENABLE_INGESTION_SYNC") == "false"),
+        "main_api_app_imports_runtime_defaults": imported_defaults,
+        "main_api_app_applies_defaults_at_import": applied_at_import,
+    }
+    if apply_func is None:
+        problems.append("apply_runtime_defaults not found in product_profile")
+    if not imported_defaults:
+        problems.append("main_api_app does not import apply_runtime_defaults")
+    if not applied_at_import:
+        problems.append("main_api_app does not call the defaults at import")
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "default_profile": default_profile,
+        "defaults": defaults,
+        "problems": problems,
+    }
+
+
+def _runtime_defaults_probe(
+    world: Path,
+    descriptor: Dict[str, Any],
+    live_profile: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Combine exported-source proof with the live core profile response."""
+    profile_path = Path(world) / "code" / "backend" / "core" / "product_profile.py"
+    app_path = Path(world) / "code" / "backend" / "main_api_app.py"
+    try:
+        source = _runtime_defaults_source_probe(
+            profile_path.read_text(encoding="utf-8"),
+            app_path.read_text(encoding="utf-8"),
+        )
+    except OSError as exc:
+        return {
+            "ok": False,
+            "checks": {"source_readable": False},
+            "error": f"{type(exc).__name__}: {exc}",
+            "problems": ["exported product_profile/main_api_app is unreadable"],
+        }
+    env = descriptor.get("effective_env") or {}
+    live_body = (live_profile or {}).get("body") or {}
+    live_core = live_body.get("profile") == "core"
+    no_evolution_override = (
+        env.get("ATOM_AGENT_EVOLUTION_ENABLED") in (None, "false"))
+    no_profile_override = env.get("ATOM_PRODUCT_PROFILE") in (None, "core")
+    source_checks = source.get("checks") or {}
+    evolution_runtime_default_false = bool(
+        source_checks.get("evolution_default_false") is True
+        and source_checks.get("main_api_app_applies_defaults_at_import") is True
+        and source_checks.get("default_profile_core") is True
+        and live_core
+        and no_evolution_override)
+    checks = {
+        **source_checks,
+        "live_profile_core": live_core,
+        "no_evolution_env_override": no_evolution_override,
+        "no_profile_env_override": no_profile_override,
+        "evolution_runtime_default_false": evolution_runtime_default_false,
+    }
+    problems = list(source.get("problems") or [])
+    if not live_core:
+        problems.append("live /api/product/profile did not report core")
+    if not no_evolution_override:
+        problems.append("launch env carries an evolution override")
+    if not no_profile_override:
+        problems.append("launch env carries a non-core profile override")
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "source": {
+            "product_profile": {
+                "path": str(profile_path),
+                "sha256": _sha256_file(profile_path),
+            },
+            "main_api_app": {
+                "path": str(app_path),
+                "sha256": _sha256_file(app_path),
+            },
+        },
+        "default_profile": source.get("default_profile"),
+        "defaults": source.get("defaults"),
+        "live_profile": {
+            "status": (live_profile or {}).get("status"),
+            "profile": live_body.get("profile"),
+        },
+        "launch_env_override": {
+            "ATOM_AGENT_EVOLUTION_ENABLED": env.get(
+                "ATOM_AGENT_EVOLUTION_ENABLED"),
+            "ATOM_PRODUCT_PROFILE": env.get("ATOM_PRODUCT_PROFILE"),
+        },
+        "evidence_note": (
+            "The running app answered /api/product/profile with core; the "
+            "exported main_api_app calls apply_runtime_defaults at import and "
+            "the exported core profile sets ATOM_AGENT_EVOLUTION_ENABLED=false "
+            "unless an operator override is present. ps eww cannot show that "
+            "post-exec setenv, and the info log is emitted before logging is "
+            "configured."),
+        "problems": problems,
+    }
+
+
+def _ast_expectation(node: Any) -> Dict[str, Any]:
+    """Describe a provider field default: literal, env-with-default, unknown."""
+    if isinstance(node, ast.Call) and _ast_call_name(node.func) in {
+            "getenv", "os.getenv"}:
+        args = list(node.args)
+        env_var = _ast_constant(args[0]) if args else None
+        default = _ast_constant(args[1]) if len(args) > 1 else None
+        if isinstance(env_var, str) and (
+                default is None or isinstance(default, str)):
+            return {
+                "kind": "env_default",
+                "env_var": env_var,
+                "default": default,
+            }
+    if isinstance(node, ast.Constant):
+        return {"kind": "literal", "value": node.value}
+    return {"kind": "unknown"}
+
+
+def _expectation_matches(value: Any, expectation: Any) -> bool:
+    if not isinstance(expectation, dict):
+        return value == expectation
+    kind = expectation.get("kind")
+    if kind == "literal":
+        return value == expectation.get("value")
+    if kind == "env_default":
+        # The exported source itself resolves this field from the environment;
+        # accept the declared default or an environment-provided string.
+        return (
+            value == expectation.get("default")
+            or isinstance(value, str))
+    return False
+
+
+def _byok_source_contract(source_text: str) -> Dict[str, Any]:
+    """Read the exported BYOK manager's default-provider contract."""
+    problems: List[str] = []
+    try:
+        tree = ast.parse(source_text)
+    except SyntaxError as exc:
+        return {
+            "ok": False,
+            "checks": {"source_parse_ok": False},
+            "provider_defaults": {},
+            "allowed_fields": [],
+            "problems": [f"{type(exc).__name__}: {exc}"],
+        }
+    manager = next((
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "BYOKManager"), None)
+    funcs: Dict[str, ast.FunctionDef] = {}
+    if manager is not None:
+        funcs = {
+            node.name: node for node in manager.body
+            if isinstance(node, ast.FunctionDef)
+        }
+    init_func = funcs.get("_initialize_default_providers")
+    to_dict_func = funcs.get("_provider_to_dict")
+    provider_defaults: Dict[str, Dict[str, Any]] = {}
+    bad_defaults = 0
+    if init_func is not None:
+        for node in ast.walk(init_func):
+            if not (isinstance(node, ast.Call)
+                    and _ast_call_name(node.func) == "AIProviderConfig"):
+                continue
+            values = {kw.arg: _ast_constant(kw.value) for kw in node.keywords}
+            expectations = {
+                kw.arg: _ast_expectation(kw.value) for kw in node.keywords}
+            provider_id = values.get("id")
+            env_var = values.get("api_key_env_var")
+            if not isinstance(provider_id, str) or not isinstance(env_var, str):
+                bad_defaults += 1
+                continue
+
+            def _expect(field: str) -> Dict[str, Any]:
+                if field in expectations:
+                    return expectations[field]
+                return {"kind": "literal", "value": None}
+
+            provider_defaults[provider_id] = {
+                "name": _expect("name"),
+                "api_key_env_var": env_var,
+                "base_url": _expect("base_url"),
+                "model": _expect("model"),
+            }
+    allowed_fields: List[str] = []
+    if to_dict_func is not None:
+        for node in ast.walk(to_dict_func):
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict):
+                allowed_fields = sorted({
+                    key for key in (
+                        _ast_constant(k) for k in node.value.keys)
+                    if isinstance(key, str)
+                })
+                break
+    checks = {
+        "source_parse_ok": True,
+        "manager_found": manager is not None,
+        "defaults_function_found": init_func is not None,
+        "defaults_have_literal_identity": (
+            bool(provider_defaults) and bad_defaults == 0),
+        "provider_to_dict_found": to_dict_func is not None,
+        "allowed_fields_include_identity": (
+            {"id", "api_key_env_var"}.issubset(set(allowed_fields))),
+    }
+    if manager is None:
+        problems.append("BYOKManager class not found")
+    if init_func is None:
+        problems.append("_initialize_default_providers not found")
+    if to_dict_func is None:
+        problems.append("_provider_to_dict not found")
+    if bad_defaults:
+        problems.append(f"{bad_defaults} default provider(s) lack literal id/env")
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "provider_defaults": provider_defaults,
+        "allowed_fields": allowed_fields,
+        "problems": problems,
+    }
+
+
+def _byok_config_content_probe(
+    config: Any,
+    source_contract: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Strict allow-list proof that the config is the generated default catalog."""
+    problems: List[str] = []
+    expected = source_contract.get("provider_defaults") or {}
+    allowed = set(source_contract.get("allowed_fields") or [])
+    top_level_exact = (
+        isinstance(config, dict) and sorted(config.keys()) == ["providers"])
+    providers = config.get("providers") if isinstance(config, dict) else None
+    providers_is_list = isinstance(providers, list)
+    entries = providers if isinstance(providers, list) else []
+    ids: List[str] = []
+    field_violations: List[str] = []
+    identity_mismatches: List[str] = []
+    credential_fields: List[str] = []
+    type_violations: List[str] = []
+    env_derived_fields: List[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            type_violations.append("provider entry is not an object")
+            continue
+        keys = set(entry.keys())
+        if allowed and keys != allowed:
+            field_violations.append(
+                f"fields differ: {sorted(keys ^ allowed)[:5]}")
+        for key in keys:
+            if (re.search(
+                    r"(api_key|secret|token|password|credential|ciphertext|"
+                    r"encrypted_key)$", key, flags=re.I)
+                    and key != "api_key_env_var"):
+                credential_fields.append(key)
+        provider_id = entry.get("id")
+        if not isinstance(provider_id, str) or not provider_id:
+            type_violations.append("provider id is not a non-empty string")
+            continue
+        ids.append(provider_id)
+        expected_entry = expected.get(provider_id)
+        if expected_entry is None:
+            identity_mismatches.append(f"unexpected provider {provider_id}")
+        else:
+            for field in ("name", "base_url", "model"):
+                if not _expectation_matches(
+                        entry.get(field), expected_entry.get(field)):
+                    identity_mismatches.append(f"{provider_id}.{field}")
+                expectation = expected_entry.get(field)
+                if (isinstance(expectation, dict)
+                        and expectation.get("kind") == "env_default"):
+                    env_derived_fields.append(f"{provider_id}.{field}")
+            if entry.get("api_key_env_var") != expected_entry.get(
+                    "api_key_env_var"):
+                identity_mismatches.append(
+                    f"{provider_id}.api_key_env_var")
+        for field in ("name", "description", "api_key_env_var"):
+            if not isinstance(entry.get(field), str):
+                type_violations.append(f"{provider_id}.{field} is not a string")
+        for field in (
+                "supports_vision", "supports_tools", "supports_cache",
+                "supports_structured_output", "is_active",
+                "requires_encryption"):
+            if not isinstance(entry.get(field), bool):
+                type_violations.append(f"{provider_id}.{field} is not a bool")
+        for field in ("cost_per_token", "quality_score"):
+            if not isinstance(entry.get(field), (int, float)) or isinstance(
+                    entry.get(field), bool):
+                type_violations.append(
+                    f"{provider_id}.{field} is not a number")
+        for field in (
+                "reasoning_level", "max_requests_per_minute",
+                "rate_limit_window"):
+            if not isinstance(entry.get(field), int) or isinstance(
+                    entry.get(field), bool):
+                type_violations.append(f"{provider_id}.{field} is not an int")
+        tasks = entry.get("supported_tasks")
+        if not isinstance(tasks, list) or not all(
+                isinstance(task, str) for task in tasks):
+            type_violations.append(
+                f"{provider_id}.supported_tasks is not a string list")
+        env_var = entry.get("api_key_env_var")
+        if not isinstance(env_var, str) or not re.fullmatch(
+                r"[A-Z][A-Z0-9_]*", env_var):
+            identity_mismatches.append(
+                f"{provider_id}.api_key_env_var is not an env name")
+    checks = {
+        "top_level_exact": top_level_exact,
+        "providers_is_list": providers_is_list,
+        "provider_count_matches_source": (
+            len(entries) == len(expected) and bool(expected)),
+        "provider_ids_exact": (
+            bool(expected) and len(ids) == len(set(ids))
+            and set(ids) == set(expected)),
+        "provider_fields_exact": bool(allowed) and not field_violations,
+        "no_credential_value_fields": not credential_fields,
+        "provider_types_valid": not type_violations,
+        "default_identity_matches_source": not identity_mismatches,
+    }
+    problems.extend(field_violations[:5])
+    problems.extend(identity_mismatches[:5])
+    problems.extend(credential_fields[:5])
+    problems.extend(type_violations[:5])
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "provider_count": len(entries),
+        "provider_ids": sorted(ids),
+        "field_names": sorted(allowed),
+        "env_derived_fields": sorted(env_derived_fields),
+        "problems": problems,
+    }
+
+
+def _byok_keys_content_probe(keys_doc: Any) -> Dict[str, Any]:
+    checks = {
+        "keys_top_level_object": isinstance(keys_doc, dict),
+        "keys_top_level_exact": (
+            isinstance(keys_doc, dict)
+            and sorted(keys_doc.keys()) == ["keys"]),
+        "key_store_empty": (
+            isinstance(keys_doc, dict)
+            and isinstance(keys_doc.get("keys"), dict)
+            and len(keys_doc.get("keys") or {}) == 0),
+    }
+    return {"ok": all(checks.values()), "checks": checks}
+
+
+def _byok_encryption_key_probe(text: str) -> Dict[str, Any]:
+    value = (text or "").strip()
+    checks = {
+        "fernet_key_length_44": len(value) == 44,
+        "fernet_key_charset": bool(
+            re.fullmatch(r"[A-Za-z0-9_-]{43}=", value)),
+    }
+    return {"ok": all(checks.values()), "checks": checks}
+
+
+def _sanitized_file(path: Path) -> Dict[str, Any]:
+    if path.is_symlink():
+        return {"path": str(path), "present": True, "symlink": True}
+    if not path.is_file():
+        return {"path": str(path), "present": False}
+    return {
+        "path": str(path),
+        "present": True,
+        "bytes": path.stat().st_size,
+        "sha256": _sha256_file(path),
+        "symlink": False,
+    }
+
+
+def _byok_generated_default_probe(
+    world: Path,
+    run_dir: Path,
+    descriptor: Dict[str, Any],
+    source_text: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Prove the world's BYOK files are the product's generated default catalog.
+
+    Read-only and sanitized: content values, API keys and the Fernet key are
+    never returned; only shapes, provider ids, field names, sizes and hashes.
+    Any operator-supplied provider config or non-empty key store fails closed.
+    """
+    data_dir = Path(run_dir) / "data"
+    config_path = data_dir / "byok_config.json"
+    keys_path = data_dir / "byok_keys.json"
+    enc_path = data_dir / "byok_encryption_key"
+    source_path = Path(world) / "code" / "backend" / "core" / "byok_endpoints.py"
+    problems: List[str] = []
+    if source_text is None:
+        try:
+            source_text = source_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            return {
+                "ok": False,
+                "checks": {"source_readable": False},
+                "error": f"{type(exc).__name__}: {exc}",
+                "operator_config_present": False,
+                "generated_default_catalog": False,
+                "credential_free": False,
+            }
+    source_contract = _byok_source_contract(source_text)
+    config_regular = config_path.is_file() and not config_path.is_symlink()
+    keys_regular = keys_path.is_file() and not keys_path.is_symlink()
+    enc_regular = enc_path.is_file() and not enc_path.is_symlink()
+    config_doc: Any = None
+    keys_doc: Any = None
+    enc_text = ""
+    if config_regular:
+        try:
+            config_doc = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            problems.append(f"config parse failed: {type(exc).__name__}: {exc}")
+    if keys_regular:
+        try:
+            keys_doc = json.loads(keys_path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            problems.append(f"keys parse failed: {type(exc).__name__}: {exc}")
+    if enc_regular:
+        try:
+            enc_text = enc_path.read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            problems.append(
+                f"encryption key read failed: {type(exc).__name__}: {exc}")
+    config_content = _byok_config_content_probe(config_doc, source_contract)
+    keys_content = _byok_keys_content_probe(keys_doc)
+    enc_content = _byok_encryption_key_probe(enc_text)
+    env = descriptor.get("effective_env") or {}
+    byok_env_keys = sorted(key for key in env if key.startswith("BYOK_"))
+    world_code_seed = any(
+        (Path(world) / "code" / "backend" / "data" / name).exists()
+        for name in ("byok_config.json", "byok_keys.json",
+                     "byok_encryption_key"))
+    config_ok = bool(config_regular and config_content["ok"])
+    keys_ok = bool(
+        (not keys_path.exists())
+        or (keys_regular and keys_content["ok"]))
+    enc_ok = bool(
+        (not enc_path.exists())
+        or (enc_regular and enc_content["ok"]))
+    credential_free = bool(
+        (not keys_path.exists()
+         or (keys_regular and keys_content["checks"]["key_store_empty"]))
+        and (not config_path.exists()
+             or (config_regular
+                 and config_content["checks"]["no_credential_value_fields"])))
+    generated_default_catalog = bool(
+        config_ok and keys_ok and enc_ok and not world_code_seed
+        and not byok_env_keys and credential_free)
+    operator_config_present = bool(
+        (config_path.exists() and not generated_default_catalog)
+        or (keys_path.exists()
+            and not (keys_regular
+                     and keys_content["checks"]["key_store_empty"])))
+    checks = {
+        "source_contract_ok": source_contract["ok"] is True,
+        "config_regular_if_present": (not config_path.exists()) or config_regular,
+        "keys_regular_if_present": (not keys_path.exists()) or keys_regular,
+        "encryption_key_regular_if_present": (
+            (not enc_path.exists()) or enc_regular),
+        "config_generated_default": config_ok,
+        "key_store_empty": (
+            not keys_path.exists()
+            or (keys_regular
+                and keys_content["checks"]["key_store_empty"])),
+        "encryption_key_generated_shape": enc_ok,
+        "no_world_code_byok_seed": not world_code_seed,
+        "no_byok_env_forwarded": not byok_env_keys,
+        "credential_free": credential_free,
+        "generated_or_absent": (
+            (not config_path.exists() and not keys_path.exists())
+            or generated_default_catalog),
+        "no_operator_config": not operator_config_present,
+    }
+    if not source_contract["ok"]:
+        problems.extend(source_contract.get("problems") or [])
+    if config_path.exists() and not config_regular:
+        problems.append("byok_config.json is a symlink or not a regular file")
+    if keys_path.exists() and not keys_regular:
+        problems.append("byok_keys.json is a symlink or not a regular file")
+    if enc_path.exists() and not enc_regular:
+        problems.append("byok_encryption_key is a symlink or not a regular file")
+    if config_regular and not config_ok:
+        problems.extend(config_content.get("problems") or [])
+    if keys_regular and not keys_content["ok"]:
+        problems.append("byok_keys.json is not the empty generated store")
+    if enc_regular and not enc_content["ok"]:
+        problems.append("byok_encryption_key is not a generated Fernet key")
+    if world_code_seed:
+        problems.append("BYOK files are seeded inside the code export")
+    if byok_env_keys:
+        problems.append(
+            f"BYOK env override forwarded: {byok_env_keys}")
+    return {
+        "ok": bool(
+            checks["no_operator_config"] and checks["credential_free"]
+            and checks["no_world_code_byok_seed"]
+            and checks["no_byok_env_forwarded"]
+            and checks["generated_or_absent"]),
+        "checks": checks,
+        "config_present": config_regular,
+        "keys_present": keys_regular,
+        "encryption_key_present": enc_regular,
+        "provider_count": config_content.get("provider_count"),
+        "provider_ids": config_content.get("provider_ids"),
+        "field_names": config_content.get("field_names"),
+        "env_derived_fields": config_content.get("env_derived_fields"),
+        "generated_default_catalog": generated_default_catalog,
+        "operator_config_present": operator_config_present,
+        "credential_free": credential_free,
+        "byok_env_keys": byok_env_keys,
+        "files": {
+            "config": _sanitized_file(config_path),
+            "keys": _sanitized_file(keys_path),
+            "encryption_key": _sanitized_file(enc_path),
+        },
+        "problems": problems,
+    }
+
+
+def _worker_defaults_probe(
+    pid: int,
+    log_path: Path,
+    runtime_defaults: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     keys = (
         "ENABLE_SCHEDULER",
         "ENABLE_INGESTION_SYNC",
@@ -2146,12 +2860,29 @@ def _worker_defaults_probe(pid: int, log_path: Path) -> Dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         log_error = f"{type(exc).__name__}: {exc}"
     values = env.get("values") or {}
-    env_flags = all(values.get(key) == "false" for key in (
-        "ENABLE_SCHEDULER", "ENABLE_INGESTION_SYNC",
-        "ATOM_AGENT_EVOLUTION_ENABLED"))
-    log_flags = all(str(log_defaults.get(key)) == "false" for key in (
-        "ENABLE_SCHEDULER", "ENABLE_INGESTION_SYNC",
-        "ATOM_AGENT_EVOLUTION_ENABLED"))
+    worker_keys = (
+        "ENABLE_SCHEDULER",
+        "ENABLE_INGESTION_SYNC",
+        "ATOM_AGENT_EVOLUTION_ENABLED",
+    )
+    runtime_evolution = bool(
+        (runtime_defaults or {}).get("checks", {}).get(
+            "evolution_runtime_default_false") is True)
+    evidence: Dict[str, bool] = {}
+    for key in worker_keys:
+        actual = values.get(key)
+        if actual is not None:
+            # The actual process environment is authoritative: an explicit
+            # true is never rescued by a log line or a source default.
+            evidence[key] = actual == "false"
+            continue
+        evidence[key] = bool(
+            str(log_defaults.get(key)) == "false"
+            or (key == "ATOM_AGENT_EVOLUTION_ENABLED"
+                and runtime_evolution))
+    env_flags = all(values.get(key) == "false" for key in worker_keys)
+    log_flags = all(str(log_defaults.get(key)) == "false"
+                    for key in worker_keys)
     env_ok = env.get("ok") is True
     provider_not_forwarded = (
         "EMBEDDING_PROVIDER" not in R.SERVER_ENV_WHITELIST)
@@ -2168,7 +2899,8 @@ def _worker_defaults_probe(pid: int, log_path: Path) -> Dict[str, Any]:
         "env_probe_ok": env_ok,
         "worker_flags_off_from_actual_env": env_flags,
         "worker_flags_off_from_startup_log": log_flags,
-        "worker_flags_proven": env_flags or log_flags,
+        "evolution_runtime_default_false": runtime_evolution,
+        "worker_flags_proven": all(evidence.values()),
         "embedding_provider_default": (
             values.get("EMBEDDING_PROVIDER") in (None, "fastembed")
             or provider_not_forwarded),
@@ -2186,6 +2918,8 @@ def _worker_defaults_probe(pid: int, log_path: Path) -> Dict[str, Any]:
         "ok": all(checks.values()),
         "pid": pid,
         "env": env,
+        "worker_flag_evidence": evidence,
+        "runtime_defaults": runtime_defaults,
         "startup_log_defaults": log_defaults,
         "startup_log_error": log_error,
         "hf_hub_offline_present": values.get("HF_HUB_OFFLINE") is not None,
@@ -2540,6 +3274,7 @@ def _run_execute(args: argparse.Namespace) -> int:
             key: value for key, value in build.items()
             if key not in ("code_manifest", "export_tree", "manifest_doc")
         }
+        scenario["dotenv_guard"] = build.get("dotenv_guard")
         step("fresh_marked_world_built_once", {
             "manifest_present": Path(build["manifest_path"]).is_file(),
             "fixture_present": Path(build["fixture_path"]).is_file(),
@@ -2565,6 +3300,8 @@ def _run_execute(args: argparse.Namespace) -> int:
             "legacy_fixture_set_rechecked_before_build": (
                 (build.get("prebuild_support") or {}).get(
                     "legacy_fixture_inventory_verified") is True),
+            "dotenv_shadow_guard_installed": (
+                (build.get("dotenv_guard") or {}).get("ok") is True),
             "storage_guard_was_required": True,
         }, details={"world": str(world), "marker": build["marker"]})
 
@@ -2582,6 +3319,19 @@ def _run_execute(args: argparse.Namespace) -> int:
         db_path = run_dir / "data" / "atom.db"
         health = D3._health(args.backend_port)
         identity = health.get("identity") or {}
+        with D3._api_client(args.backend_port) as live_profile_api:
+            live_profile_response = live_profile_api.get("/api/product/profile")
+        live_profile = {
+            "status": live_profile_response.status_code,
+            "body": (
+                live_profile_response.json()
+                if live_profile_response.status_code == 200 else {}),
+        }
+        runtime_defaults = _runtime_defaults_probe(
+            world, descriptor, live_profile)
+        byok = _byok_generated_default_probe(world, run_dir, descriptor)
+        scenario["runtime_defaults"] = runtime_defaults
+        scenario["byok"] = byok
         scenario["stack"] = {
             "world": str(world),
             "run_dir": str(run_dir),
@@ -2592,10 +3342,9 @@ def _run_execute(args: argparse.Namespace) -> int:
             "backend_descriptor": descriptor,
             "health": health,
             "provider_shim": False,
-            "byok_config_in_world": (
-                (world / "code" / "backend" / "data" / "byok_config.json"
-                 ).exists()
-                or (run_dir / "data" / "byok_config.json").exists()),
+            "byok_config_in_world": byok["operator_config_present"],
+            "byok_generated_default_catalog": byok[
+                "generated_default_catalog"],
         }
         binding = D3._backend_source_binding(
             frozen_source_sha=source["head"],
@@ -2617,7 +3366,8 @@ def _run_execute(args: argparse.Namespace) -> int:
         backend_pid = int(descriptor.get("pid") or backend_proc.pid)
         backend_ps = _ps_fields(backend_pid)
         worker = _worker_defaults_probe(
-            backend_pid, world / "server.log")
+            backend_pid, world / "server.log",
+            runtime_defaults=runtime_defaults)
         effective_env_keys = sorted(
             (descriptor.get("effective_env") or {}).keys())
         credential_env_keys = [
@@ -2648,6 +3398,14 @@ def _run_execute(args: argparse.Namespace) -> int:
             "db_parent_is_run_data": (
                 db_path.parent.resolve()
                 == (run_dir / "data").resolve()),
+            "scheduler_and_ingestion_explicitly_off": (
+                (worker.get("env", {}).get("values") or {}).get(
+                    "ENABLE_SCHEDULER") == "false"
+                and (worker.get("env", {}).get("values") or {}).get(
+                    "ENABLE_INGESTION_SYNC") == "false"),
+            "evolution_runtime_default_false": (
+                worker.get("checks", {}).get(
+                    "evolution_runtime_default_false") is True),
             "worker_flags_proven_off": (
                 worker.get("checks", {}).get("worker_flags_proven") is True),
             "embedding_provider_default": (
@@ -2669,7 +3427,15 @@ def _run_execute(args: argparse.Namespace) -> int:
                 and "(deny network*)" in (
                     world / "local_only.sb").read_text(encoding="utf-8")),
             "no_byok_config_in_world": (
-                scenario["stack"]["byok_config_in_world"] is False),
+                byok.get("operator_config_present") is False),
+            "byok_config_generated_or_absent": (
+                byok.get("checks", {}).get("generated_or_absent") is True),
+            "byok_key_store_empty": (
+                byok.get("checks", {}).get("key_store_empty") is True),
+            "byok_credential_free": (
+                byok.get("credential_free") is True),
+            "byok_env_not_forwarded": (
+                byok.get("checks", {}).get("no_byok_env_forwarded") is True),
             "no_credential_env_forwarded": len(credential_env_keys) == 0,
         }, details={
             "descriptor": {
@@ -2678,9 +3444,12 @@ def _run_execute(args: argparse.Namespace) -> int:
                     "expected_cwd")},
             "worker_defaults": {
                 "checks": worker.get("checks"),
+                "worker_flag_evidence": worker.get("worker_flag_evidence"),
                 "startup_log_defaults": worker.get("startup_log_defaults"),
                 "values": worker.get("env", {}).get("values"),
             },
+            "runtime_defaults": runtime_defaults,
+            "byok": byok,
         })
 
         from scripts.orchestration_acceptance import (

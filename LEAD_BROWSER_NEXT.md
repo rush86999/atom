@@ -66,6 +66,54 @@ No world, DB, server, browser, model, pytest run or download was run for this
 repair. The retained half-built world `document_export_ui_b324_root_20261108`
 is not reused, deleted or rebuilt.
 
+### Runtime-flag/BYOK repair after the second real attempt
+
+The authorized `bf3eb98cb` attempt passed preflight 55/55, built
+`document_export_ui_bf3_root_20261108`, bound the backend to 7751 Git blobs,
+and used an isolated scratch DB. It failed **before frontend/login/upload** at
+`backend_process_identity_and_runtime_flags`:
+
+- `ATOM_AGENT_EVOLUTION_ENABLED` was absent from the actual process env (the
+  launcher explicitly sets scheduler/ingestion false, but that key is not in
+  `SERVER_ENV_WHITELIST`), and the startup log line was absent.
+- `byok_config_in_world` was true despite `provider_shim=False`.
+
+Diagnosis (from the launcher/default-worker/config producers):
+
+- The core profile **does** apply `ATOM_AGENT_EVOLUTION_ENABLED=false` at
+  import in `main_api_app`, but it logs before logging is configured and
+  `ps eww` cannot observe a post-exec `setenv` on macOS. The harness now proves
+  the runtime default from the exported source plus the live
+  `/api/product/profile` core response, and treats an explicit actual-env
+  `true` as authoritative (it is never rescued by a log/source default).
+- `byok_config.json` is the product's generated 33-provider default catalog;
+  `byok_keys.json` is the empty generated store. The harness now validates the
+  exact source-derived provider ids/fields, rejects any credential-bearing
+  field or non-empty key store, and returns only sanitized shapes/keys/hashes.
+- **Security finding:** the retained world's `byok_encryption_key` was mirrored
+  from the live `backend/.env`, because a bare `load_dotenv()` in world code
+  walks up from `backend/data/acceptance_worlds` into the live backend tree.
+  That also exposed live operator model config. The harness now installs
+  value-free `.env` shadow guards at `world/.env` and
+  `world/backend_root/.env` before launch, so dotenv stops at the world and
+  the Fernet key is generated inside the run data. The guard refuses symlinks
+  or any pre-existing values. The retained world/logs were **not** modified.
+  Do not reuse or distribute that retained run data; root should handle the
+  mirrored key per its secrets policy (never print it).
+
+The minimal broader launcher change, if root wants the evolution flag
+explicitly present in the actual env, is to add
+`ATOM_AGENT_EVOLUTION_ENABLED` to `SERVER_ENV_WHITELIST` and set it to `"false"`
+in `launch_server`'s env alongside `ENABLE_SCHEDULER`/`ENABLE_INGESTION_SYNC`.
+This repair deliberately did **not** edit `run_isolated.py`; the runtime default
+is proven instead. A broader dotenv-isolation fix should keep worlds outside the
+live backend tree or pass an explicit non-live dotenv path.
+
+Operational note: the first `bf3` preflight exited `2` because the retained
+API packet was missing; root restored the existing Git packet and the rerun
+passed. That capture report is separate; the raw log prefix was reused and no
+earlier raw log is fabricated.
+
 ## 3. Preflight (safe; launches nothing)
 
 Use a scratch env for the driver's own imports (never the live DB):
@@ -240,6 +288,17 @@ runs the real gate.
   workspace is created.
 - Background worker defaults are proven off from the actual server process
   env and/or the startup log; no provider shim, no BYOK config, no live DB.
+  Specifically: scheduler/ingestion are explicit actual-env `false`, and
+  `ATOM_AGENT_EVOLUTION_ENABLED=false` is proven from the exported core
+  profile's import-time default plus the live `/api/product/profile` core
+  response. An explicit actual-env `true` fails closed.
+- `world/.env` and `world/backend_root/.env` are value-free guards installed
+  before launch, so `load_dotenv()` cannot walk up into the live
+  `backend/.env`. The BYOK files, if present, are the product-generated default
+  catalog, the empty generated key store, and a run-local generated Fernet key;
+  operator config, non-empty keys, credential-bearing fields or BYOK env
+  overrides fail closed. Evidence carries only provider ids, field names,
+  sizes and hashes.
 - Only this harness's own backend/frontend PIDs are stopped and their actual
   exit is recorded. The world is preserved, never reset.
 - The 55 checksummed files are legacy framework inputs required by the builder,
@@ -250,15 +309,19 @@ runs the real gate.
 
 `preflight.json`, `source.json`, `scenario.json`, `requests.json`,
 `network.json`, `retained_evidence.json`, `DOCUMENT_EXPORT_UI_RUN.json`,
-`fixture/*.txt`, `downloads/<format>__<filename>`, `page_text/*.txt`,
-`screenshots/*.png`. No raw token, password, cookie, JWT or Authorization
-header is written; response headers are restricted to the safe document
-metadata set.
+`prebuild_blocker.json` (only on a prebuild refusal), `fixture/*.txt`,
+`downloads/<format>__<filename>`, `page_text/*.txt`, `screenshots/*.png`. No
+raw token, password, cookie, JWT or Authorization header is written; response
+headers are restricted to the safe document metadata set. The BYOK section in
+`scenario.json` contains only provider ids, field names, file sizes and hashes
+— never the Fernet key, API keys or config values.
 
 ## 8. Unrun limits / not claimed
 
 - No tests, pytest, server, browser, app model/provider, embedding computation,
   download, install, deploy or merge was run by this preparation.
+- The bf3 runtime-flag/BYOK repair was also code-only: no preflight, pytest,
+  server, world, browser or model was launched to produce it.
 - The retained half-built world `document_export_ui_b324_root_20261108` was not
   reused, deleted or rebuilt; it is root-owned evidence of the failed attempt.
 - The harness-only repair is not a claim that the new checks were executed

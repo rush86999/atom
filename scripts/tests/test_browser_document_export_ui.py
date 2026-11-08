@@ -10,6 +10,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -579,3 +580,344 @@ def test_build_world_refuses_missing_prereq_before_builder(
 
     assert built == []
     assert not world.exists()
+
+
+BYOK_SOURCE = '''\
+class BYOKManager:
+    def _initialize_default_providers(self):
+        defaults = [
+            AIProviderConfig(
+                id="alpha",
+                name="Alpha",
+                api_key_env_var="ALPHA_API_KEY",
+                base_url="https://alpha.invalid/v1",
+                model="alpha-1",
+            ),
+            AIProviderConfig(
+                id="local",
+                name="Local",
+                api_key_env_var="LOCAL_API_KEY",
+                base_url=os.getenv("LOCAL_BASE_URL", "http://localhost:11434/v1"),
+                model=os.getenv("LOCAL_MODEL", "local-1"),
+            ),
+        ]
+        self._save_configuration()
+
+    @staticmethod
+    def _provider_to_dict(provider):
+        return {
+            "id": provider.id,
+            "name": provider.name,
+            "description": provider.description,
+            "api_key_env_var": provider.api_key_env_var,
+            "base_url": provider.base_url,
+            "model": provider.model,
+            "cost_per_token": provider.cost_per_token,
+            "supported_tasks": list(provider.supported_tasks or []),
+            "supports_vision": provider.supports_vision,
+            "supports_tools": provider.supports_tools,
+            "supports_cache": provider.supports_cache,
+            "supports_structured_output": provider.supports_structured_output,
+            "reasoning_level": provider.reasoning_level,
+            "quality_score": provider.quality_score,
+            "max_requests_per_minute": provider.max_requests_per_minute,
+            "rate_limit_window": provider.rate_limit_window,
+            "is_active": provider.is_active,
+            "requires_encryption": provider.requires_encryption,
+        }
+'''
+
+RUNTIME_PROFILE_SOURCE = '''\
+DEFAULT_PROFILE = "core"
+
+def apply_runtime_defaults():
+    applied = {}
+    if active_profile() != "core":
+        return applied
+    defaults = {
+        "ENABLE_SCHEDULER": "false",
+        "ENABLE_INGESTION_SYNC": "false",
+        "ATOM_AGENT_EVOLUTION_ENABLED": "false",
+    }
+    for key, value in defaults.items():
+        applied[key] = value
+    return applied
+'''
+
+RUNTIME_APP_SOURCE = '''\
+try:
+    from core.product_profile import apply_runtime_defaults as _apply_profile_defaults
+    _apply_profile_defaults()
+except Exception:
+    pass
+'''
+
+
+def _byok_entry(provider_id: str, name: str, env_var: str,
+                base_url: str, model: str) -> dict:
+    return {
+        "id": provider_id,
+        "name": name,
+        "description": "synthetic",
+        "api_key_env_var": env_var,
+        "base_url": base_url,
+        "model": model,
+        "cost_per_token": 0.0,
+        "supported_tasks": ["chat"],
+        "supports_vision": False,
+        "supports_tools": False,
+        "supports_cache": False,
+        "supports_structured_output": False,
+        "reasoning_level": 1,
+        "quality_score": 0.0,
+        "max_requests_per_minute": 60,
+        "rate_limit_window": 60,
+        "is_active": True,
+        "requires_encryption": True,
+    }
+
+
+def _byok_config() -> dict:
+    return {"providers": [
+        _byok_entry("alpha", "Alpha", "ALPHA_API_KEY",
+                    "https://alpha.invalid/v1", "alpha-1"),
+        _byok_entry("local", "Local", "LOCAL_API_KEY",
+                    "http://localhost:11434/v1", "local-1"),
+    ]}
+
+
+def _write_byok_files(run_dir: Path, *, config: dict | None = None,
+                      keys: dict | None = None,
+                      encryption_key: str = "A" * 43 + "=") -> None:
+    data = run_dir / "data"
+    data.mkdir(parents=True, exist_ok=True)
+    (data / "byok_config.json").write_text(
+        json.dumps(config if config is not None else _byok_config()),
+        encoding="utf-8")
+    (data / "byok_keys.json").write_text(
+        json.dumps(keys if keys is not None else {"keys": {}}),
+        encoding="utf-8")
+    (data / "byok_encryption_key").write_text(
+        encryption_key, encoding="utf-8")
+
+
+def test_runtime_defaults_source_probe_accepts_core_off_default(driver):
+    proof = driver._runtime_defaults_source_probe(
+        RUNTIME_PROFILE_SOURCE, RUNTIME_APP_SOURCE)
+    assert proof["ok"], proof["problems"]
+    assert proof["checks"]["evolution_default_false"] is True
+    assert proof["checks"]["main_api_app_applies_defaults_at_import"] is True
+
+
+def test_runtime_defaults_source_probe_rejects_on_or_uncalled(driver):
+    on = RUNTIME_PROFILE_SOURCE.replace(
+        '"ATOM_AGENT_EVOLUTION_ENABLED": "false"',
+        '"ATOM_AGENT_EVOLUTION_ENABLED": "true"')
+    assert not driver._runtime_defaults_source_probe(
+        on, RUNTIME_APP_SOURCE)["ok"]
+    uncalled = RUNTIME_APP_SOURCE.replace("_apply_profile_defaults()", "pass")
+    assert not driver._runtime_defaults_source_probe(
+        RUNTIME_PROFILE_SOURCE, uncalled)["ok"]
+    full = RUNTIME_PROFILE_SOURCE.replace(
+        'DEFAULT_PROFILE = "core"', 'DEFAULT_PROFILE = "full"')
+    assert not driver._runtime_defaults_source_probe(
+        full, RUNTIME_APP_SOURCE)["ok"]
+
+
+def test_runtime_defaults_probe_requires_live_core_and_no_override(
+        driver, tmp_path):
+    world = tmp_path / "world"
+    core = world / "code" / "backend" / "core"
+    core.mkdir(parents=True)
+    (core / "product_profile.py").write_text(
+        RUNTIME_PROFILE_SOURCE, encoding="utf-8")
+    (world / "code" / "backend" / "main_api_app.py").write_text(
+        RUNTIME_APP_SOURCE, encoding="utf-8")
+    live = {"status": 200, "body": {"profile": "core"}}
+    proof = driver._runtime_defaults_probe(
+        world, {"effective_env": {}}, live)
+    assert proof["ok"], proof["problems"]
+    assert proof["checks"]["evolution_runtime_default_false"] is True
+
+    overridden = driver._runtime_defaults_probe(
+        world, {"effective_env": {
+            "ATOM_AGENT_EVOLUTION_ENABLED": "true"}}, live)
+    assert not overridden["ok"]
+    assert overridden["checks"]["no_evolution_env_override"] is False
+
+    full_live = driver._runtime_defaults_probe(
+        world, {"effective_env": {}},
+        {"status": 200, "body": {"profile": "full"}})
+    assert not full_live["ok"]
+    assert full_live["checks"]["live_profile_core"] is False
+
+
+def test_byok_source_and_generated_config_accept(driver):
+    source = driver._byok_source_contract(BYOK_SOURCE)
+    assert source["ok"], source["problems"]
+    proof = driver._byok_config_content_probe(_byok_config(), source)
+    assert proof["ok"], proof["problems"]
+    assert proof["provider_count"] == 2
+    assert "local.base_url" in proof["env_derived_fields"]
+    assert "local.model" in proof["env_derived_fields"]
+
+
+def test_byok_config_rejects_credential_field_and_wrong_provider(driver):
+    source = driver._byok_source_contract(BYOK_SOURCE)
+    credential = _byok_config()
+    credential["providers"][0]["api_key"] = "sk-not-allowed"
+    proof = driver._byok_config_content_probe(credential, source)
+    assert not proof["ok"]
+    assert proof["checks"]["no_credential_value_fields"] is False
+    assert proof["checks"]["provider_fields_exact"] is False
+
+    wrong = _byok_config()
+    wrong["providers"][0]["id"] = "not-alpha"
+    proof = driver._byok_config_content_probe(wrong, source)
+    assert not proof["ok"]
+    assert proof["checks"]["provider_ids_exact"] is False
+
+
+def test_byok_generated_default_probe_accepts_generated_files(
+        driver, tmp_path):
+    world = tmp_path / "world"
+    run_dir = tmp_path / "run"
+    _write_byok_files(run_dir)
+    proof = driver._byok_generated_default_probe(
+        world, run_dir, {"effective_env": {}}, source_text=BYOK_SOURCE)
+    assert proof["ok"], proof["problems"]
+    assert proof["generated_default_catalog"] is True
+    assert proof["operator_config_present"] is False
+    assert proof["credential_free"] is True
+    assert proof["checks"]["generated_or_absent"] is True
+    assert "byok_encryption_key" in proof["files"]
+    assert "content" not in proof["files"]["encryption_key"]
+
+
+def test_byok_generated_default_probe_rejects_keys_or_env_override(
+        driver, tmp_path):
+    world = tmp_path / "world"
+    run_dir = tmp_path / "run"
+    _write_byok_files(
+        run_dir, keys={"keys": {"alpha": {"encrypted_key": "x"}}})
+    proof = driver._byok_generated_default_probe(
+        world, run_dir, {"effective_env": {}}, source_text=BYOK_SOURCE)
+    assert not proof["ok"]
+    assert proof["operator_config_present"] is True
+    assert proof["credential_free"] is False
+
+    run_dir_2 = tmp_path / "run2"
+    _write_byok_files(run_dir_2)
+    overridden = driver._byok_generated_default_probe(
+        world, run_dir_2,
+        {"effective_env": {"BYOK_CONFIG_FILE": "/tmp/live.json"}},
+        source_text=BYOK_SOURCE)
+    assert not overridden["ok"]
+    assert overridden["checks"]["no_byok_env_forwarded"] is False
+    assert overridden["byok_env_keys"] == ["BYOK_CONFIG_FILE"]
+
+
+def test_byok_generated_default_probe_rejects_operator_encryption_key(
+        driver, tmp_path):
+    world = tmp_path / "world"
+    run_dir = tmp_path / "run"
+    _write_byok_files(run_dir, encryption_key="A" * 42 + "/=")
+    proof = driver._byok_generated_default_probe(
+        world, run_dir, {"effective_env": {}}, source_text=BYOK_SOURCE)
+    assert not proof["ok"]
+    assert proof["checks"]["encryption_key_generated_shape"] is False
+    assert proof["generated_default_catalog"] is False
+    assert proof["operator_config_present"] is True
+
+
+def test_byok_generated_default_probe_rejects_world_code_seed(
+        driver, tmp_path):
+    world = tmp_path / "world"
+    run_dir = tmp_path / "run"
+    _write_byok_files(run_dir)
+    seed = world / "code" / "backend" / "data" / "byok_config.json"
+    seed.parent.mkdir(parents=True)
+    seed.write_text("{}", encoding="utf-8")
+    proof = driver._byok_generated_default_probe(
+        world, run_dir, {"effective_env": {}}, source_text=BYOK_SOURCE)
+    assert not proof["ok"]
+    assert proof["checks"]["no_world_code_byok_seed"] is False
+
+
+def test_dotenv_shadow_guard_installs_value_free_files(driver, tmp_path):
+    world = tmp_path / "world"
+    (world / "backend_root").mkdir(parents=True)
+    proof = driver._install_dotenv_shadow_guard(world)
+    assert proof["ok"], proof["problems"]
+    for path in (world / ".env", world / "backend_root" / ".env"):
+        text = path.read_text(encoding="utf-8")
+        assert text == driver.DOTENV_SHADOW_TEXT
+        assert all(
+            not line.strip() or line.strip().startswith("#")
+            for line in text.splitlines())
+    assert proof["live_dotenv_shadowed"] is True
+
+
+def test_dotenv_shadow_guard_refuses_existing_values(driver, tmp_path):
+    world = tmp_path / "world"
+    (world / "backend_root").mkdir(parents=True)
+    (world / ".env").write_text("OPENAI_API_KEY=not-a-real-key\n",
+                                encoding="utf-8")
+    proof = driver._install_dotenv_shadow_guard(world)
+    assert not proof["ok"]
+    assert proof["live_dotenv_shadowed"] is False
+    assert (world / ".env").read_text(encoding="utf-8").startswith(
+        "OPENAI_API_KEY=")
+
+
+def test_dotenv_shadow_guard_refuses_symlink(driver, tmp_path):
+    world = tmp_path / "world"
+    (world / "backend_root").mkdir(parents=True)
+    live = tmp_path / "live.env"
+    live.write_text("OPENAI_API_KEY=not-a-real-key\n", encoding="utf-8")
+    (world / ".env").symlink_to(live)
+    proof = driver._install_dotenv_shadow_guard(world)
+    assert not proof["ok"]
+    assert proof["live_dotenv_shadowed"] is False
+    assert live.read_text(encoding="utf-8").startswith("OPENAI_API_KEY=")
+
+
+def test_worker_defaults_accepts_runtime_evolution_default(
+        driver, tmp_path, monkeypatch):
+    log = tmp_path / "server.log"
+    log.write_text("no worker defaults line\n", encoding="utf-8")
+    values = {
+        "ENABLE_SCHEDULER": "false",
+        "ENABLE_INGESTION_SYNC": "false",
+        "ATOM_AGENT_EVOLUTION_ENABLED": None,
+        "TMPDIR": tempfile.gettempdir(),
+    }
+    monkeypatch.setattr(
+        driver, "_process_env_probe",
+        lambda pid, keys: {"ok": True, "values": dict(values)})
+    runtime = {"checks": {"evolution_runtime_default_false": True}}
+    proven = driver._worker_defaults_probe(1, log, runtime_defaults=runtime)
+    assert proven["checks"]["evolution_runtime_default_false"] is True
+    assert proven["checks"]["worker_flags_proven"] is True
+
+    unproven = driver._worker_defaults_probe(1, log)
+    assert unproven["checks"]["evolution_runtime_default_false"] is False
+    assert unproven["checks"]["worker_flags_proven"] is False
+
+
+def test_worker_defaults_rejects_runtime_proof_when_env_flag_is_on(
+        driver, tmp_path, monkeypatch):
+    log = tmp_path / "server.log"
+    log.write_text("no worker defaults line\n", encoding="utf-8")
+    values = {
+        "ENABLE_SCHEDULER": "false",
+        "ENABLE_INGESTION_SYNC": "false",
+        "ATOM_AGENT_EVOLUTION_ENABLED": "true",
+        "TMPDIR": tempfile.gettempdir(),
+    }
+    monkeypatch.setattr(
+        driver, "_process_env_probe",
+        lambda pid, keys: {"ok": True, "values": dict(values)})
+    runtime = {"checks": {"evolution_runtime_default_false": True}}
+    proof = driver._worker_defaults_probe(1, log, runtime_defaults=runtime)
+    assert proof["checks"]["worker_flags_proven"] is False
