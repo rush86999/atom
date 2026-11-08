@@ -252,6 +252,25 @@ describe('maturity-api canvas training surface', () => {
     expect((init as RequestInit).body).toBeUndefined();
   });
 
+  test.each([
+    { agent_id: 'a1', new_maturity: 'intern', promoted: false },
+    { success: true, data: { agent_id: 'a1', new_maturity: 'intern', promoted: false } },
+    { agent_id: 'a1', new_maturity: 'intern', promoted: 'true' },
+    { agent_id: 'other', new_maturity: 'intern', promoted: true },
+    { agent_id: 'a1', new_maturity: 'autonomous', promoted: true },
+  ])('refuses an unconfirmed promotion response %#', async (body) => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(body));
+    await expect(promoteAgent('a1', 'intern')).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('unwraps a confirmed promotion envelope', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ success: true, data: {
+      agent_id: 'a1', new_maturity: 'INTERN', promoted: true,
+    } }));
+    expect((await promoteAgent('a1', 'intern')).promoted).toBe(true);
+  });
+
   test('getAgentGraduationProgress hits the shared agents surface', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ current_tier: 'student', next_tier: 'intern', episode_count: 4 })
