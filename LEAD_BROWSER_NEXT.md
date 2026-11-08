@@ -108,9 +108,9 @@ It proves/refuses:
 - the complete existing FastEmbed ONNX cache and the installed fastembed
   source behaviour (read-only; no import/instantiation).
 
-It returns `1` when a real prerequisite is absent (report is still written) and
-`2` for wrong source/profile/output/world/fixture/SHA. It does not create a
-world or a cache.
+It returns `1` when a real prerequisite or the fixture inventory is absent or
+unverified (the report is still written) and `2` for wrong source/profile/
+output/world/port. It does not create a world or a cache.
 
 ### Materialize the exact Git fixtures (no regeneration)
 
