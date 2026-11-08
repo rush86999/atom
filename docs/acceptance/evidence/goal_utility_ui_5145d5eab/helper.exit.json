@@ -1,0 +1,9 @@
+{
+  "source": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+  "actual_exit": 0,
+  "after": {
+    "scripts/acceptance/browser_goal_utility_ui.py": "8a1ca21a46923800b5e56a39f89a5932eb9aafde1838cfc3b63a9f046f0589d7",
+    "scripts/tests/test_goal_ui_onboarding_contract.py": "c40e41b7c7bd64e46c4d64d18316b60af33f68adb000271c7913dcd25e332599"
+  },
+  "bytes_unchanged": true
+}

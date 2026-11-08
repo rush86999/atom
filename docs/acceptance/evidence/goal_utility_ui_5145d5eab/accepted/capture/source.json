@@ -1,0 +1,133 @@
+{
+  "repo": "/private/tmp/atom-goal-utility-surface-20261107",
+  "head": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+  "expected_sha": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+  "matches_expected": true,
+  "tracked_dirty": [],
+  "tracked_dirty_count": 0,
+  "backend_dirty": [],
+  "backend_dirty_count": 0,
+  "driver_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+  "driver_path": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/browser_agent_job_wait.py",
+  "runtime_identity": {
+    "source_id": "5145d5eab76c-dirty.01462e5ab539",
+    "revision": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+    "dirty": true,
+    "dirty_paths_count": 0,
+    "untracked_paths_count": 1,
+    "error": null
+  },
+  "tracked_tree_clean": true,
+  "backend_tree_clean": true,
+  "expected_sha_ok": true,
+  "per_file": {
+    "ok": true,
+    "files": {
+      "backend/api/goal_routes.py": {
+        "git_blob": "53fad2a43b3fcb48ea47376c3eb24b0b014b95b3",
+        "git_sha256": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+        "git_bytes": 12677,
+        "worktree_sha256": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+        "worktree_bytes": 12677,
+        "matches": true
+      },
+      "backend/core/goals/goal_service.py": {
+        "git_blob": "64581cc066dc9e98d391b1076d34d2cb91c892bd",
+        "git_sha256": "b75a5473dc242736558085b39746d4040e32374a6b192b99a830c53f7b2f5069",
+        "git_bytes": 15541,
+        "worktree_sha256": "b75a5473dc242736558085b39746d4040e32374a6b192b99a830c53f7b2f5069",
+        "worktree_bytes": 15541,
+        "matches": true
+      },
+      "backend/core/goals/goal_run_router.py": {
+        "git_blob": "c06b55e5324015be44277b63fcae72ce56875013",
+        "git_sha256": "b47009432e4f4b7c956b07e796bf48bb80288b16299b81c7bcb512af69267a63",
+        "git_bytes": 18783,
+        "worktree_sha256": "b47009432e4f4b7c956b07e796bf48bb80288b16299b81c7bcb512af69267a63",
+        "worktree_bytes": 18783,
+        "matches": true
+      },
+      "backend/core/goals/goal_run_service.py": {
+        "git_blob": "1cd21bdca20a3aea53a7a8b1e8e3a219f913f2f1",
+        "git_sha256": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+        "git_bytes": 60925,
+        "worktree_sha256": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+        "worktree_bytes": 60925,
+        "matches": true
+      },
+      "backend/core/goals/goal_write_service.py": {
+        "git_blob": "646d5c263544a108ac82df1efea1872006983d19",
+        "git_sha256": "d43f0cdc9fdc391ff9a0fb1464fceef5bf232c95a48fa9f5291d46e976d310c4",
+        "git_bytes": 43812,
+        "worktree_sha256": "d43f0cdc9fdc391ff9a0fb1464fceef5bf232c95a48fa9f5291d46e976d310c4",
+        "worktree_bytes": 43812,
+        "matches": true
+      },
+      "backend/core/goals/utility_target.py": {
+        "git_blob": "c6d45de025361072887c37751fbe1c9ead26e56e",
+        "git_sha256": "5b47b606fbf99faaba404e46ac6de0639500af9255bacfa3c32b1a2b79d90005",
+        "git_bytes": 8842,
+        "worktree_sha256": "5b47b606fbf99faaba404e46ac6de0639500af9255bacfa3c32b1a2b79d90005",
+        "worktree_bytes": 8842,
+        "matches": true
+      },
+      "backend/core/personal_scope.py": {
+        "git_blob": "ed530e39585f6ed0d2fcbcaeb79e4d51dc62f9a9",
+        "git_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+        "git_bytes": 2789,
+        "worktree_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+        "worktree_bytes": 2789,
+        "matches": true
+      },
+      "backend/core/product_profile.py": {
+        "git_blob": "27d93c97cf1913f8760dbd1f0556ff82985f7066",
+        "git_sha256": "97e55d80513c768663915997aca3014e10711086aeb72f8d993c6870184fd182",
+        "git_bytes": 10386,
+        "worktree_sha256": "97e55d80513c768663915997aca3014e10711086aeb72f8d993c6870184fd182",
+        "worktree_bytes": 10386,
+        "matches": true
+      },
+      "frontend-nextjs/lib/goal-run-api.ts": {
+        "git_blob": "035164cebb0c3ec1abd30cc7993a3b7363ebb32c",
+        "git_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+        "git_bytes": 20391,
+        "worktree_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+        "worktree_bytes": 20391,
+        "matches": true
+      },
+      "frontend-nextjs/pages/goal-runs/[id].tsx": {
+        "git_blob": "a34e0459f1ff062ba02a6bb803dac972c31bbfe4",
+        "git_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+        "git_bytes": 55074,
+        "worktree_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+        "worktree_bytes": 55074,
+        "matches": true
+      },
+      "scripts/acceptance/browser_goal_utility_ui.py": {
+        "git_blob": "a2c35a5aecb857740ba9e6a74360442a317fb5b4",
+        "git_sha256": "8a1ca21a46923800b5e56a39f89a5932eb9aafde1838cfc3b63a9f046f0589d7",
+        "git_bytes": 67989,
+        "worktree_sha256": "8a1ca21a46923800b5e56a39f89a5932eb9aafde1838cfc3b63a9f046f0589d7",
+        "worktree_bytes": 67989,
+        "matches": true
+      },
+      "scripts/acceptance/browser_agent_job_wait.py": {
+        "git_blob": "7fd4877bb3ec060c7538fbba56a0ec3d5e848ed3",
+        "git_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+        "git_bytes": 114529,
+        "worktree_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+        "worktree_bytes": 114529,
+        "matches": true
+      },
+      "backend/scripts/orchestration_acceptance/run_isolated.py": {
+        "git_blob": "02e0e52af69192b22658e5b97c76ec40fde00099",
+        "git_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+        "git_bytes": 299764,
+        "worktree_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+        "worktree_bytes": 299764,
+        "matches": true
+      }
+    }
+  },
+  "source_proof_ok": true
+}

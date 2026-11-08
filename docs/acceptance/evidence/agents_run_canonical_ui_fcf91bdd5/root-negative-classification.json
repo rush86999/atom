@@ -1,0 +1,128 @@
+{
+  "kind": "root_negative_redirect_classification_1",
+  "source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "retained_capture": {
+    "root": "/private/tmp/root-source-ui-episode-728lqjcb",
+    "scenario": "capture/scenario.json",
+    "server_log": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_source_0bb931831_root_20261107/server.log",
+    "old_scenario_status": "FAIL",
+    "failed_check": "single_run_post",
+    "business_step_source_answer_verified": "all other checks passed",
+    "raw_run_posts": [
+      "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/",
+      "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run"
+    ],
+    "server_observed": "POST .../run/ -> 307 Temporary Redirect, then POST .../run -> 200 OK",
+    "capture_reconstructed_for_classifier": true,
+    "old_capture_regenerated": false
+  },
+  "reconstructed_chain": {
+    "request_a": {
+      "method": "POST",
+      "origin": "http://localhost:18501",
+      "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/",
+      "operation_id": null,
+      "body_sha256": "eee974db7f31bb9f14efbf80a6058b5e6fcd6944e4535a541ae08c3239b0091d",
+      "request_key": "d8b8608647630ed9fbcfb239368bd13b3bee094ff2fde16f159f98cbeab358ed",
+      "redirected_from_key": null,
+      "redirected_to_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332",
+      "controlled_objective": "Create a closing task from the authorized source I attach after you ask for it."
+    },
+    "request_b": {
+      "method": "POST",
+      "origin": "http://localhost:18501",
+      "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+      "operation_id": null,
+      "body_sha256": "eee974db7f31bb9f14efbf80a6058b5e6fcd6944e4535a541ae08c3239b0091d",
+      "request_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332",
+      "redirected_from_key": "d8b8608647630ed9fbcfb239368bd13b3bee094ff2fde16f159f98cbeab358ed",
+      "redirected_to_key": null,
+      "controlled_objective": "Create a closing task from the authorized source I attach after you ask for it."
+    },
+    "responses": [
+      {
+        "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/",
+        "status": 307,
+        "method": "POST",
+        "origin": "http://localhost:18501",
+        "location": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+        "request_key": "d8b8608647630ed9fbcfb239368bd13b3bee094ff2fde16f159f98cbeab358ed"
+      },
+      {
+        "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+        "status": 200,
+        "method": "POST",
+        "origin": "http://localhost:18501",
+        "location": "",
+        "request_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332"
+      }
+    ],
+    "successful_run": {
+      "status": 200,
+      "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+      "origin": "http://localhost:18501",
+      "method": "POST",
+      "operation_id": null,
+      "request_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332",
+      "job_id": "c262a73e-df9f-4cf2-9840-9203a92aa978",
+      "execution_id": "15e48c9d-759d-4d67-9fcd-cd7ba40338ef"
+    }
+  },
+  "positive_classification": {
+    "ok": true,
+    "logical_admissions": 1,
+    "root_count": 1,
+    "terminal_count": 1,
+    "redirect_hops": 1,
+    "redirect_edges": [
+      {
+        "parent": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/",
+        "child": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+        "status": 307,
+        "origin": "http://localhost:18501",
+        "operation_id": null
+      }
+    ],
+    "invalid_edges": [],
+    "raw_run_post_count": 2,
+    "successful_admission_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332",
+    "successful_admission": {
+      "status": 200,
+      "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+      "origin": "http://localhost:18501",
+      "method": "POST",
+      "operation_id": null,
+      "request_id": null,
+      "request_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332",
+      "job_id": "c262a73e-df9f-4cf2-9840-9203a92aa978",
+      "execution_id": "15e48c9d-759d-4d67-9fcd-cd7ba40338ef"
+    },
+    "reason": "ok",
+    "note": "one validated 307/308 transport hop is one intent; two independent 2xx admissions or changed/foreign redirects refuse"
+  },
+  "two_independent_twin": {
+    "ok": false,
+    "logical_admissions": 2,
+    "root_count": 2,
+    "terminal_count": 2,
+    "redirect_hops": 0,
+    "redirect_edges": [],
+    "invalid_edges": [],
+    "raw_run_post_count": 2,
+    "successful_admission_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332",
+    "successful_admission": {
+      "status": 200,
+      "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+      "origin": "http://localhost:18501",
+      "method": "POST",
+      "operation_id": null,
+      "request_id": null,
+      "request_key": "eadb2c1e6a7a81a95c0715113567ecd00f205e9a1770d182982ab5155ad89332",
+      "job_id": "c262a73e-df9f-4cf2-9840-9203a92aa978",
+      "execution_id": "15e48c9d-759d-4d67-9fcd-cd7ba40338ef"
+    },
+    "reason": "not_one_logical_admission",
+    "note": "one validated 307/308 transport hop is one intent; two independent 2xx admissions or changed/foreign redirects refuse"
+  },
+  "note": "The old scenario remains FAIL; this is a pure harness interpretation of the retained 307 transport chain. It is not a rerun and not a claim that the old packet passed."
+}

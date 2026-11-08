@@ -1,0 +1,22 @@
+{
+  "executed_source": "eeb3e3e2df2443ac7eef2373321312cf98f3a3c4",
+  "source_files": {
+    "backend/core/assignment_executor.py": "0e8212f7932a0f3100409cde7e6f3264a57e5a1bd05bf2f81413fcae836001a2",
+    "backend/api/assignment_routes.py": "7cf3091d48a23952c9c56f945bf79cb04171ce6f7b166337af1da544b722902d",
+    "backend/core/assignment_resources.py": "4f67e795a96999e12323173d5f84f6033deba27cf3a9c35c827ca790c53ad034",
+    "backend/core/doc_freshness_service.py": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+    "backend/tests/test_lead_wait_source_progress_and_extraction.py": "61b13fc1c0dede10e670f67b347ed5fd2bc4a3e3d64245ff86560166e7d288b3",
+    "backend/tests/test_lead_wait_source_disappears.py": "b08d90fc3bdf65c4e43186cff5bb60b2647b45421768199645722c89f4c3449c",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "03e789789dbeeb5c501ef6ddad9074608e9e3c590588c3433bd60fcf31446199",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_lead_wait_missing_authoritative_revision.py": "1db1eea8687d6bdb404a254b25c153ed2c41967806fcc5fefc165da1c8552e78",
+    "backend/tests/test_assignment_resource_boundary.py": "0051929937e5f4774793a15c8e136a4d5f1efa31c61087cf63a0d33d03c1b791",
+    ".github/workflows/ci.yml": "213b14836b16ae9313354215677d12ca3f80d0e4509106b61eb15e1d336ee5aa"
+  },
+  "artifacts": {
+    "root-wait-source-main-affected.exit.json": "8b8a17565db435bdd673472d90c5af89d0374ae882c7b00c6c73488e63a82525",
+    "root-wait-source-main-affected.spec.json": "7a3fa2d1a625e390f3610e36110743cc10c0e644d67631a309b4d019b95f0870",
+    "README.md": "823e9ec82e69d399d13508da30959ae2dfd14e6e6d8ac81125da15c624e33d25",
+    "root-wait-source-main-affected.log": "35bc1f9bd408eae369f42417b699ca63ef9f6635ec5a0099ba01faee1c21beb1"
+  }
+}

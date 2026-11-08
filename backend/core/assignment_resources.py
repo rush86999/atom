@@ -212,6 +212,7 @@ def resolve_assignment_source(
             "source_version": version,
             "workspace_id": row.workspace_id,
             "tenant_id": row.tenant_id,
+            "access_scope": _access_scope(user),
             "representation": "document_text",
             "path": row.file_path,
             "original_file_name": row.file_name,

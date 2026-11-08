@@ -1,0 +1,699 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index c45a6f466..26483b3f8 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -175,7 +175,7 @@ jobs:
+           SECRET_KEY: "ci-test-secret-key"
+           ENVIRONMENT: "development"
+         run: |
+-          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_task_wait_source_version_after_acceptance.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
++          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_task_wait_source_version_after_acceptance.py tests/test_lead_wait_source_disappears.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
+       - name: Run evidence manifest Git-ref controls
+         env:
+           TESTING: "1"
+diff --git a/backend/api/assignment_routes.py b/backend/api/assignment_routes.py
+index 446c56cee..6e6bfb9a2 100644
+--- a/backend/api/assignment_routes.py
++++ b/backend/api/assignment_routes.py
+@@ -2127,6 +2127,7 @@ async def add_assignment_source(
+         or "").strip().lower()
+     resolved_version = str(resolved.get("source_version") or "")
+     same_resource_previous_version = False
++    prior_source_step = None
+     for existing_step in assignment.get("steps") or []:
+         inputs = (existing_step.get("inputs")
+                   if isinstance(existing_step.get("inputs"), dict) else {})
+@@ -2142,6 +2143,8 @@ async def add_assignment_source(
+             binding) == resolved_name
+         if same_resource or same_name:
+             same_resource_previous_version = True
++            if previous_version and previous_version != resolved_version:
++                prior_source_step = existing_step
+             break
+     # A duplicate source addition must not add another read step or cause
+     # duplicate arithmetic/effects later. Same resource identity/version is
+@@ -2184,49 +2187,81 @@ async def add_assignment_source(
+             "step_id": step.get("step_id"),
+         }
+     else:
+-        indexes = []
+-        for step in assignment.get("steps") or []:
+-            step_id = str(step.get("step_id") or "")
+-            if step_id.startswith("source-"):
+-                try:
+-                    indexes.append(int(step_id.split("-", 1)[1]))
+-                except ValueError:
+-                    pass
+-        raw_step = _source_step(
+-            resolved, (max(indexes) if indexes else 0) + 1)
+-        step = {
+-            key: raw_step.get(key) for key in (
+-                "step_id", "title", "operation_type", "adapter", "depends_on",
+-                "inputs", "effect", "requires", "required")
+-            if raw_step.get(key) is not None
+-        }
+-        identity = _hashlib.sha256(json.dumps(
+-            {"resource_id": resolved.get("resource_id"),
+-             "source_version": resolved.get("source_version")},
+-            sort_keys=True, default=str).encode()).hexdigest()[:16]
+-        patch = {
+-            "patch_id": f"source-add-{identity}",
+-            "base_task_version": int(record.get("task_version") or 0),
+-            "base_plan_revision": int(assignment.get("plan_revision") or 1),
+-            "reason": body.reason,
+-            "observations": [{
+-                "kind": "authorized_source_added",
+-                "resource_id": resolved.get("resource_id"),
+-                "source_version": resolved.get("source_version"),
+-            }],
+-            "invalidate_steps": [],
+-            "remove_steps": [],
+-            "add_steps": [step],
+-            "update_steps": [],
+-            "add_facts": [],
+-            "set_requires": {},
+-        }
+-        try:
+-            adopted = apply_plan_patch(
+-                executor.lifecycle, run_id, patch, rationale=body.reason)
+-            status = await executor.execute(run_id, max_steps=12)
+-        except Exception as exc:  # noqa: BLE001 — durable state remains
+-            raise HTTPException(status_code=409, detail=str(exc)) from exc
++        # The caller explicitly supplied a newer version of the same
++        # authorized source. Reuse the existing source step and its
++        # descendants; do not add a second source identity or silently keep
++        # the stale cached result. Existing invalidation/CAS preserves the
++        # prior result for audit and reopens only the affected branch.
++        prior_path = ""
++        if prior_source_step is not None:
++            prior_inputs = prior_source_step.get("inputs")
++            prior_path = str(
++                (prior_inputs or {}).get("path") or "") if isinstance(
++                    prior_inputs, dict) else ""
++        resolved_path = str(resolved.get("path") or "")
++        if (prior_source_step is not None and not was_completed
++                and prior_path and resolved_path
++                and os.path.realpath(prior_path) == os.path.realpath(
++                    resolved_path)):
++            try:
++                executor.invalidate_step(
++                    run_id, prior_source_step["step_id"],
++                    reason=(
++                        "explicitly authorized newer source version; "
++                        "re-reading the current accepted source"))
++                status = await executor.execute(run_id, max_steps=12)
++            except Exception as exc:  # noqa: BLE001 — durable state remains
++                raise HTTPException(status_code=409, detail=str(exc)) from exc
++            step = prior_source_step
++            adopted = {
++                "status": "source_replaced",
++                "reason": "explicitly authorized newer source version",
++                "step_id": step.get("step_id"),
++            }
++        else:
++            indexes = []
++            for step in assignment.get("steps") or []:
++                step_id = str(step.get("step_id") or "")
++                if step_id.startswith("source-"):
++                    try:
++                        indexes.append(int(step_id.split("-", 1)[1]))
++                    except ValueError:
++                        pass
++                raw_step = _source_step(
++                    resolved, (max(indexes) if indexes else 0) + 1)
++            step = {
++                key: raw_step.get(key) for key in (
++                    "step_id", "title", "operation_type", "adapter", "depends_on",
++                    "inputs", "effect", "requires", "required")
++                if raw_step.get(key) is not None
++            }
++            identity = _hashlib.sha256(json.dumps(
++                {"resource_id": resolved.get("resource_id"),
++                 "source_version": resolved.get("source_version")},
++                sort_keys=True, default=str).encode()).hexdigest()[:16]
++            patch = {
++                "patch_id": f"source-add-{identity}",
++                "base_task_version": int(record.get("task_version") or 0),
++                "base_plan_revision": int(assignment.get("plan_revision") or 1),
++                "reason": body.reason,
++                "observations": [{
++                    "kind": "authorized_source_added",
++                    "resource_id": resolved.get("resource_id"),
++                    "source_version": resolved.get("source_version"),
++                }],
++                "invalidate_steps": [],
++                "remove_steps": [],
++                "add_steps": [step],
++                "update_steps": [],
++                "add_facts": [],
++                "set_requires": {},
++            }
++            try:
++                adopted = apply_plan_patch(
++                    executor.lifecycle, run_id, patch, rationale=body.reason)
++                status = await executor.execute(run_id, max_steps=12)
++            except Exception as exc:  # noqa: BLE001 — durable state remains
++                raise HTTPException(status_code=409, detail=str(exc)) from exc
+     # A genuinely new authorized version on a completed job is fresh
+     # evidence: let the same employee adaptation contract decide whether the
+     # changed evidence supports more work or a material clarification. The
+diff --git a/backend/core/assignment_executor.py b/backend/core/assignment_executor.py
+index 8eb1cdb6d..b5343fe5b 100644
+--- a/backend/core/assignment_executor.py
++++ b/backend/core/assignment_executor.py
+@@ -2021,43 +2021,352 @@ class AssignmentExecutor:
+ 
+     # ----------------------------------------------------------- execution
+ 
+-    def _source_version_drift(self, assignment: Dict[str, Any]) -> Optional[str]:
+-        """Return an applied local source whose current bytes changed.
+-
+-        A source accepted/read earlier remains authoritative only for the
+-        version that was read. If its local file changed before dependent
+-        work consumes it, invalidate that source and its descendants so the
+-        executor re-reads the current version instead of certifying a stale
+-        value. Connected sources keep their existing resolution checks.
++    @staticmethod
++    def _source_gap(
++        binding: Dict[str, Any],
++        step: Dict[str, Any],
++        *,
++        code: str,
++        detail: str,
++        version: bool = False,
++        access: bool = False,
++    ) -> Dict[str, Any]:
++        if access:
++            state = ("source_access_revoked" if "revoked" in code
++                     else "source_access_required")
++            question = (
++                "The accepted source is no longer authorized for this task. "
++                "Reauthorize it, then retry the dependent work.")
++            resume_on = "source_reauthorized"
++        elif version:
++            state = "source_version_changed"
++            question = (
++                "The accepted source version changed. Confirm and supply the "
++                "current authorized version, then retry the dependent work.")
++            resume_on = "source_refreshed"
++        else:
++            state = "source_unavailable"
++            question = (
++                "The accepted source is no longer available. Restore or "
++                "re-upload it, or select a current authorized source, then "
++                "retry the dependent work.")
++            resume_on = "resource_restored"
++        waiting = {
++            "state": state,
++            "party": "source owner",
++            "resume_on": resume_on,
++            "since": _utc_now_iso(),
++            "detail": _bounded(detail, 500),
++            "code": code,
++        }
++        return {
++            "concept": "source_access",
++            "reason": f"{code}: {_bounded(detail, 500)}",
++            "question": question,
++            "checked_evidence": [
++                f"resource={binding.get('dataset_name') or binding.get('resource_id') or binding.get('document_id')}",
++                f"sheet={binding.get('sheet')}",
++                f"version={str(binding.get('source_version') or '')[:12]}",
++                code,
++            ],
++            "next_retrieval": "recheck source access, availability and active version",
++            "kind": "missing_evidence",
++            "waiting": waiting,
++        }
++
++    def _source_consumption_gap(
++        self,
++        assignment: Dict[str, Any],
++        record: Dict[str, Any],
++    ) -> Optional[Tuple[Dict[str, Any], Dict[str, Any]]]:
++        """Reauthorize and recheck an accepted source before consumption.
++
++        An applied read is not perpetual authority. The current principal and
++        workspace/tenant are checked before touching bytes; the current
++        resource row/grant and the accepted version pin are checked before any
++        dependent step or final artifact may use the cached result. Missing,
++        removed, unreadable, moved or changed sources produce a typed gap on
++        the source step. This method never silently substitutes a replacement
++        version.
+         """
++        provenance = assignment.get("provenance") or {}
++        context = {
++            "workspace_id": (
++                assignment.get("workspace_id")
++                or provenance.get("workspace_id") or ""),
++            "tenant_id": (
++                assignment.get("tenant_id")
++                or provenance.get("tenant_id") or ""),
++            "employee_id": (
++                provenance.get("employee_id")
++                or provenance.get("agent_id") or ""),
++            "actor_id": (
++                provenance.get("actor_id")
++                or provenance.get("user_id") or ""),
++        }
++        source_adapters = (
++            "workbook.read", "document.read", "document.text", "dataset.read")
+         for step in assignment.get("steps") or []:
+             if str(step.get("status") or "") != "applied":
+                 continue
+-            if str(step.get("adapter") or "") not in (
+-                    "workbook.read", "document.read", "document.text"):
++            if str(step.get("adapter") or "") not in source_adapters:
+                 continue
+             inputs = step.get("inputs") if isinstance(
+                 step.get("inputs"), dict) else {}
+             binding = inputs.get("resource_binding") if isinstance(
+                 inputs.get("resource_binding"), dict) else {}
+-            path = str(inputs.get("path") or binding.get("path") or "")
+             result = step.get("result") if isinstance(
+                 step.get("result"), dict) else {}
+-            accepted = str(
+-                result.get("sha256") or result.get("source_version")
+-                or binding.get("source_version") or "")
+-            if not path or not accepted or not os.path.isfile(path):
+-                continue
+-            if not re.fullmatch(r"[0-9a-fA-F]{64}", accepted):
+-                continue
++            if not binding:
++                return step, self._source_gap(
++                    binding, step, code="resource_binding_missing",
++                    detail="the applied source step has no typed binding",
++                    access=True)
++            document_id = str(
++                binding.get("document_id")
++                or (binding.get("resource_id")
++                    if str(binding.get("source") or "").lower() == "upload"
++                    else "") or "")
++            expected = str(
++                binding.get("source_version")
++                or result.get("source_version") or "")
++            accepted_sha = str(result.get("sha256") or "")
+             try:
+-                current = _sha256_file(path)
+-            except OSError:
+-                continue
+-            if current != accepted:
+-                return str(step.get("step_id") or "")
++                if document_id:
++                    # Uploaded document authority is the workspace-scoped
++                    # IngestedDocument row, not a path handed in earlier.
++                    from core.database import get_db_session
++                    from core.models import IngestedDocument, User
++                    scope = binding.get("access_scope") if isinstance(
++                        binding.get("access_scope"), dict) else {}
++                    expected_user = str(
++                        scope.get("user_id") or context.get("actor_id")
++                        or context.get("employee_id") or "")
++                    expected_workspace = str(
++                        scope.get("workspace_id")
++                        or context.get("workspace_id") or "")
++                    expected_tenant = str(
++                        scope.get("tenant_id")
++                        or context.get("tenant_id") or "")
++                    with get_db_session() as db:
++                        user_id = expected_user
++                        if user_id:
++                            user = db.query(User).filter(
++                                User.id == user_id).first()
++                            if user is None or not bool(
++                                    getattr(user, "is_active", True)):
++                                return step, self._source_gap(
++                                    binding, step,
++                                    code="authenticated_principal_unavailable",
++                                    detail="the accepted reader is missing or inactive",
++                                    access=True)
++                            user_workspace = str(
++                                getattr(user, "workspace_id", "") or "default")
++                            user_tenant = str(
++                                getattr(user, "tenant_id", "") or "default")
++                            if ((expected_workspace
++                                 and user_workspace != expected_workspace)
++                                or (expected_tenant
++                                    and user_tenant != expected_tenant)):
++                                return step, self._source_gap(
++                                    binding, step,
++                                    code="resource_workspace_mismatch",
++                                    detail="the accepted reader moved workspace/tenant",
++                                    access=True)
++                        row = db.query(IngestedDocument).filter(
++                            IngestedDocument.id == document_id).first()
++                    if row is None:
++                        return step, self._source_gap(
++                            binding, step, code="resource_not_found",
++                            detail="the authoritative uploaded document row is gone")
++                    if (expected_workspace
++                            and str(row.workspace_id or "")
++                            and str(row.workspace_id) != expected_workspace):
++                        return step, self._source_gap(
++                            binding, step, code="resource_workspace_mismatch",
++                            detail="the uploaded document moved workspace",
++                            access=True)
++                    if (expected_tenant and row.tenant_id is not None
++                            and str(row.tenant_id) != expected_tenant):
++                        return step, self._source_gap(
++                            binding, step, code="resource_workspace_mismatch",
++                            detail="the uploaded document moved tenant",
++                            access=True)
++                    freshness = str(
++                        getattr(row, "freshness_status", "fresh")
++                        or "fresh").lower()
++                    if freshness not in ("fresh", "current", "active"):
++                        return step, self._source_gap(
++                            binding, step, code="stale_source_version",
++                            detail=f"the uploaded document is {freshness}",
++                            version=True)
++                    authoritative = str(
++                        getattr(row, "source_content_hash", "") or "")
++                    if expected and authoritative and expected != authoritative:
++                        return step, self._source_gap(
++                            binding, step, code="stale_source_version",
++                            detail="the authoritative upload version no longer matches the accepted pin",
++                            version=True)
++                    path = str(
++                        getattr(row, "file_path", "")
++                        or inputs.get("path") or binding.get("path") or "")
++                    if path:
++                        if not os.path.isfile(path):
++                            return step, self._source_gap(
++                                binding, step, code="source_unavailable",
++                                detail="the uploaded document file is missing")
++                        try:
++                            current = _sha256_file(path)
++                        except (OSError, PermissionError):
++                            return step, self._source_gap(
++                                binding, step, code="source_unreadable",
++                                detail="the uploaded document file is unreadable")
++                        pinned_sha = accepted_sha or expected
++                        if pinned_sha and current != pinned_sha:
++                            return step, self._source_gap(
++                                binding, step, code="stale_source_version",
++                                detail="the uploaded document bytes changed after acceptance",
++                                version=True)
++                    continue
++
++                if binding.get("internal_fixture"):
++                    _recheck_binding(binding, context)
++                    path = str(
++                        inputs.get("path") or binding.get("path") or "")
++                    if not path or not os.path.isfile(path):
++                        return step, self._source_gap(
++                            binding, step, code="source_unavailable",
++                            detail="the accepted controlled source file is missing")
++                    try:
++                        current = _sha256_file(path)
++                    except (OSError, PermissionError):
++                        return step, self._source_gap(
++                            binding, step, code="source_unreadable",
++                            detail="the accepted controlled source is unreadable")
++                    pinned_sha = accepted_sha or expected
++                    if pinned_sha and current != pinned_sha:
++                        return step, self._source_gap(
++                            binding, step, code="stale_source_version",
++                            detail="the accepted controlled source bytes changed",
++                            version=True)
++                    continue
++
++                # Connected dataset: re-resolve the current grant, scope,
++                # resource and active version through the existing checker.
++                resolved = _recheck_binding(binding, context)
++                current_version = str(
++                    resolved.get("source_version") or "")
++                if expected and current_version and expected != current_version:
++                    return step, self._source_gap(
++                        binding, step, code="stale_source_version",
++                        detail="the active connected source version changed",
++                        version=True)
++                path = str(resolved.get("path") or "")
++                if not path or not os.path.isfile(path):
++                    return step, self._source_gap(
++                        binding, step, code="source_unavailable",
++                        detail="the current materialized source is missing")
++                try:
++                    _sha256_file(path)
++                except (OSError, PermissionError):
++                    return step, self._source_gap(
++                        binding, step, code="source_unreadable",
++                        detail="the current materialized source is unreadable")
++            except NeedsContext as exc:
++                return step, exc.gap
+         return None
+ 
++    async def _record_applied_source_gap(
++        self,
++        run_id: str,
++        record: Dict[str, Any],
++        assignment: Dict[str, Any],
++        step: Dict[str, Any],
++        gap: Dict[str, Any],
++    ) -> None:
++        """Persist a typed gap for an already-applied source.
++
++        The source operation stays applied for audit; it cannot be moved back
++        to running/waiting. The plan marks the source step waiting so only its
++        dependents and the final artifact are blocked; unrelated branches stay
++        runnable.
++        """
++        gap = dict(gap or {})
++        waiting = gap.get("waiting") or {
++            "state": "source_unavailable",
++            "party": "source owner",
++            "resume_on": "resource_restored",
++            "since": _utc_now_iso(),
++        }
++        if not gap.get("question"):
++            gap["question"] = (
++                "The accepted source is unavailable; restore it before "
++                "dependent work can continue.")
++        if not gap.get("next_action"):
++            gap["next_action"] = (
++                gap.get("next_retrieval")
++                or "Restore/re-authorize the source and retry.")
++        binding_key = _gap_binding_key(gap)
++        existing = [
++            q for q in (record.get("task_revision") or {}).get(
++                "unresolved") or []
++            if isinstance(q, dict)
++            and q.get("status") == "open"
++            and q.get("step_id") == step.get("step_id")
++            and str(q.get("concept") or "") == str(gap.get("concept") or "")
++            and _gap_binding_key(q) == binding_key
++        ]
++        if existing:
++            question_id = existing[0]["question_id"]
++        else:
++            question = {
++                "question_id": gap.get("question_id"),
++                "item": gap.get("item") or step.get("title") or "",
++                "question": gap["question"],
++                "kind": gap.get("kind") or "missing_evidence",
++                "evidence": gap.get("evidence") or "",
++                "next_action": gap.get("next_action"),
++                "inputs": gap.get("inputs") or {},
++                "concept": gap.get("concept") or "",
++                "reason": gap.get("reason") or "",
++                "affected_subjects": gap.get("affected_subjects") or [],
++                "checked_evidence": gap.get("checked_evidence") or [],
++                "next_retrieval": gap.get("next_retrieval") or "",
++                "resolver": gap.get("resolver") or "",
++                "step_id": step.get("step_id"),
++                "waiting": waiting,
++                "binding_key": binding_key,
++            }
++            self.lifecycle.apply_transition(run_id, {
++                "kind": "record_unresolved",
++                "requested_change": _bounded(gap["question"], 500),
++                "questions": [question],
++                "source_operation": str(step.get("operation_id") or ""),
++            })
++            refreshed = self.lifecycle.get_task(run_id) or record
++            question_id = None
++            for item in (refreshed.get("task_revision") or {}).get(
++                    "unresolved") or []:
++                if (item.get("status") == "open"
++                        and item.get("step_id") == step.get("step_id")
++                        and str(item.get("concept") or "")
++                        == str(gap.get("concept") or "")
++                        and _gap_binding_key(item) == binding_key):
++                    question_id = item["question_id"]
++            question_id = question_id or str(gap.get("question_id") or "")
++        assignment = self._mark_step(assignment, step["step_id"], {
++            "status": "waiting",
++            "gap_ids": sorted(set(
++                list(step.get("gap_ids") or []) + [question_id])),
++            "waiting": _json_safe(waiting),
++            "updated_at": _utc_now_iso()})
++        self._enter_wait(
++            run_id,
++            waiting={**waiting, "gap_question_id": question_id},
++            summary=gap["question"])
++        self._persist_assignment(
++            run_id, assignment, "applied source needs reauthorization")
++
+     async def execute(
+         self,
+         run_id: str,
+@@ -2090,18 +2399,11 @@ class AssignmentExecutor:
+             expected_task_revision = None
+ 
+             assignment = self._sync_assignment(record, assignment)
+-            drifted_source = self._source_version_drift(assignment)
+-            if drifted_source:
+-                # Re-read the current authorized version before dependent
+-                # consumption. Existing invalidation preserves prior results
+-                # for audit, refreshes the local binding version and reopens
+-                # only this source and its descendants.
+-                self.invalidate_step(
+-                    run_id, drifted_source,
+-                    reason=(
+-                        "authorized source changed after acceptance; "
+-                        "re-reading the current version before dependent "
+-                        "consumption"))
++            source_problem = self._source_consumption_gap(assignment, record)
++            if source_problem:
++                source_step, source_gap = source_problem
++                await self._record_applied_source_gap(
++                    run_id, record, assignment, source_step, source_gap)
+                 continue
+             task_authorization = str(
+                 (record.get("task_revision") or {}).get("authorization")
+diff --git a/backend/core/assignment_resources.py b/backend/core/assignment_resources.py
+index b79847a68..6969a0535 100644
+--- a/backend/core/assignment_resources.py
++++ b/backend/core/assignment_resources.py
+@@ -212,6 +212,7 @@ def resolve_assignment_source(
+             "source_version": version,
+             "workspace_id": row.workspace_id,
+             "tenant_id": row.tenant_id,
++            "access_scope": _access_scope(user),
+             "representation": "document_text",
+             "path": row.file_path,
+             "original_file_name": row.file_name,
+diff --git a/backend/tests/test_lead_wait_source_disappears.py b/backend/tests/test_lead_wait_source_disappears.py
+new file mode 100644
+index 000000000..80d4abc5e
+--- /dev/null
++++ b/backend/tests/test_lead_wait_source_disappears.py
+@@ -0,0 +1,55 @@
++"""Accepted source disappearance/read failure cannot leave stale dependent work ready."""
++import os
++import pytest
++from tests.test_assignment_routes import route_env
++from tests.test_task_wait_two_fact_events import _fixtures, _install_transport, _questions, _reconciliations, _applied_artifacts, _start
++
++
++@pytest.mark.parametrize('failure', ['removed', 'unreadable'])
++def test_accepted_invoice_unavailable_before_consumption_stays_unresolved(route_env, tmp_path, monkeypatch, failure):
++    monkeypatch.setenv('ATOM_ASSIGNMENT_OUTPUT_DIR', str(tmp_path/'artifacts'))
++    po, invoice, receiving = _fixtures(tmp_path)
++    _install_transport(monkeypatch)
++    client, lifecycle = route_env['client'], route_env['lifecycle']
++    run = _start(client, po)
++    accepted = client.post(f'/api/assignments/{run}/sources', json={'source':{'path':str(invoice)}, 'reason':'authorized invoice'})
++    assert accepted.status_code == 200, accepted.text
++    assert _questions(lifecycle, run)[0]['inputs']['missing'] == ['receiving']
++    if failure == 'removed':
++        invoice.unlink()
++    else:
++        import core.assignment_executor as executor
++        real_hash = executor._sha256_file
++        def denied_hash(path):
++            if os.fspath(path) == os.fspath(invoice):
++                raise PermissionError('controlled source became unreadable')
++            return real_hash(path)
++        monkeypatch.setattr(executor, '_sha256_file', denied_hash)
++    answer = client.post(f'/api/assignments/{run}/sources', json={'source':{'path':str(receiving)}, 'reason':'authorized receiving'})
++    final = lifecycle.get_assignment(run)
++    assert final['status'] != 'completed', (failure, answer.status_code, final['status'])
++    assert not _reconciliations(final), 'unavailable accepted source certified a cached reconciliation'
++    assert not _applied_artifacts(final), 'unavailable accepted source published a final artifact'
++
++
++def test_removed_authoritative_upload_cannot_use_cached_invoice(route_env, tmp_path, monkeypatch):
++    import hashlib
++    from core.models import IngestedDocument
++    monkeypatch.setenv('ATOM_ASSIGNMENT_OUTPUT_DIR', str(tmp_path/'artifacts'))
++    po, invoice, receiving = _fixtures(tmp_path)
++    _install_transport(monkeypatch)
++    doc = IngestedDocument(id='lead-invoice-upload', workspace_id='ws-1', tenant_id='tenant-1', file_name=invoice.name, file_path=str(invoice), file_type='json', integration_id='upload', external_id='lead-upload', source_content_hash=hashlib.sha256(invoice.read_bytes()).hexdigest(), freshness_status='fresh')
++    route_env['db'].add(doc)
++    route_env['db'].commit()
++    client, lifecycle = route_env['client'], route_env['lifecycle']
++    run = _start(client, po)
++    accepted = client.post(f'/api/assignments/{run}/sources', json={'source':{'document_id':doc.id, 'source_version':doc.source_content_hash}, 'reason':'authorized uploaded invoice'})
++    assert accepted.status_code == 200, accepted.text
++    assert _questions(lifecycle, run)[0]['inputs']['missing'] == ['receiving']
++    route_env['db'].delete(doc)
++    route_env['db'].commit()
++    answer = client.post(f'/api/assignments/{run}/sources', json={'source':{'path':str(receiving)}, 'reason':'authorized receiving'})
++    final = lifecycle.get_assignment(run)
++    assert final['status'] != 'completed', (answer.status_code, final['status'])
++    assert not _reconciliations(final), 'removed upload authority certified a cached invoice'
++    assert not _applied_artifacts(final)
+diff --git a/backend/tests/test_task_wait_source_version_after_acceptance.py b/backend/tests/test_task_wait_source_version_after_acceptance.py
+index fe58dada4..660c94e92 100644
+--- a/backend/tests/test_task_wait_source_version_after_acceptance.py
++++ b/backend/tests/test_task_wait_source_version_after_acceptance.py
+@@ -90,3 +90,58 @@ def test_source_change_after_acceptance_is_revalidated_before_consumption(
+         # published while the source version is unresolved.
+         assert _applied_artifacts(final) == [], (
+             "a stale artifact was published", _applied_artifacts(final))
++
++
++def test_explicitly_authorized_newer_version_replaces_cached_result(
++        route_env, tmp_path, monkeypatch):
++    """A caller-supplied newer version is allowed; stale bytes are not.
++
++    Re-posting the same authorized source path after the bytes change is the
++    explicit newer-version action. It must reuse/invalidate the existing
++    source step and let dependent work use the new value, not the accepted
++    cached 130.00.
++    """
++    monkeypatch.setenv(
++        "ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "artifacts"))
++    po, invoice, receiving = _fixtures(tmp_path)
++    _install_transport(monkeypatch)
++    client = route_env["client"]
++    lifecycle = route_env["lifecycle"]
++
++    run_id = _start(client, po)
++    first = _questions(lifecycle, run_id)
++    accepted = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(invoice)},
++              "reason": "authorized invoice accepted before receiving"})
++    assert accepted.status_code == 200, accepted.text
++    assert accepted.json()["resolved_question_ids"] == [
++        first[0]["question_id"]], accepted.json()
++
++    invoice.write_text(json.dumps(_invoice("4", "50.00", "10.00")))
++    replaced = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(invoice)},
++              "reason": "explicitly authorized newer invoice version"})
++    assert replaced.status_code == 200, replaced.text
++
++    second = _questions(lifecycle, run_id)
++    assert len(second) == 1, second
++    assert second[0]["inputs"]["missing"] == ["receiving"]
++    answered = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(receiving)},
++              "reason": "authorized receiving record"})
++    assert answered.status_code == 200, answered.text
++
++    final = lifecycle.get_assignment(run_id)
++    reconciliations = _reconciliations(final)
++    assert final["status"] == "completed", (
++        final["status"], reconciliations,
++        lifecycle.get_task(run_id).get("task_revision", {}).get("unresolved"))
++    assert len(reconciliations) == 1, reconciliations
++    assert str(reconciliations[0]["result"]["value"]) == "210.00", (
++        reconciliations[0]["result"])
++    assert not [
++        step for step in reconciliations
++        if str((step.get("result") or {}).get("value") or "") == "130.00"]

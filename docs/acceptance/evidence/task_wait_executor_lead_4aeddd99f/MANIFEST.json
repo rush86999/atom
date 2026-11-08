@@ -1,0 +1,24 @@
+{
+  "executed_source": "4aeddd99fd371ec6384073c67fa3679a2d8d9613",
+  "source_files": {
+    "backend/core/assignment_executor.py": "0e8212f7932a0f3100409cde7e6f3264a57e5a1bd05bf2f81413fcae836001a2",
+    "backend/core/assignment_readiness.py": "1e85caa08b4c6d2188e0e45d82feced099a0440970f7c4d00d6c4c44d597bebc",
+    "backend/core/assignment_resources.py": "4f67e795a96999e12323173d5f84f6033deba27cf3a9c35c827ca790c53ad034",
+    "backend/tests/source_authority_fixtures.py": "fc84fc1d4b05bec0171bbe8c80e47e67e76dc3f1e9cd48687bba7f3faa3e2dad",
+    "backend/tests/test_assignment_executor.py": "7183ccf90ca40aef9530fc684b7628eb98bffa2639ae43469755816e79e667c1",
+    "backend/tests/test_assignment_routes.py": "febc83254b06b6c6de49a344024df8232fdd6d6729bc83c14a10bbb796adf450",
+    "backend/tests/test_employee_work_request_matrix.py": "38ed567db9d82c1cbd3eabf4589152346c7aa7898b989634b769f028f27c224b",
+    "backend/tests/test_employee_work_requests.py": "05daf1cfa2f9fd68750af02ac5d5440cda7407efb0fcd273b0e9b190d8e8c387",
+    "backend/tests/test_lead_wait_missing_authoritative_revision.py": "1db1eea8687d6bdb404a254b25c153ed2c41967806fcc5fefc165da1c8552e78",
+    "backend/tests/test_lead_wait_source_disappears.py": "b08d90fc3bdf65c4e43186cff5bb60b2647b45421768199645722c89f4c3449c",
+    "backend/tests/test_lead_wait_source_progress_and_extraction.py": "61b13fc1c0dede10e670f67b347ed5fd2bc4a3e3d64245ff86560166e7d288b3",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "03e789789dbeeb5c501ef6ddad9074608e9e3c590588c3433bd60fcf31446199",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9"
+  },
+  "artifacts": {
+    "root-pr753-executor-independent.exit.json": "e9d73fb547fc3413343e3d9ef7433be410895d88bd4f108b1d9129e87a5ad95c",
+    "root-pr753-executor-independent.spec.json": "40b5e1fcd9d407c605c7e8f6d42d65c94dba45ec057bf61d2f6e049b6b5c05c0",
+    "root-pr753-executor-independent.log": "665a63d4073f0d76d44da9906390cdc1f7ac5b8b146e444459e93b659b047495",
+    "README.md": "b414a6357b52abdd3c920eea3ac3ed33cb8cce150fd1b30a479bc553907f7af0"
+  }
+}

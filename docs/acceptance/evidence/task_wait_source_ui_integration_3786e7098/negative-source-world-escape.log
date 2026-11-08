@@ -1,0 +1,7 @@
+rc=2
+head=3786e7098fa04dc26d8ba78c3847b5327ec215bd
+cmd=["/private/tmp/atom-goal-utility-surface-20261107/backend/venv314/bin/python", "scripts/acceptance/browser_agent_source_answer.py", "--preflight", "--out", "/private/tmp/atom-ui-preflight-neg-thzzfx1i/out/src-escape", "--expect-source-sha", "3786e7098fa04dc26d8ba78c3847b5327ec215bd", "--world", "../__preflight_escape_should_not_exist__"]
+
+
+--- stderr ---
+[preflight] REFUSED: --world '../__preflight_escape_should_not_exist__' resolves outside the configured worlds root /private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds

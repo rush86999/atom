@@ -1,0 +1,397 @@
+diff --git a/backend/api/agent_routes.py b/backend/api/agent_routes.py
+index fa53049f0..316605862 100644
+--- a/backend/api/agent_routes.py
++++ b/backend/api/agent_routes.py
+@@ -40,6 +40,7 @@ from core.models import (
+     HITLActionStatus,
+     NEW_AGENT_CONFIDENCE,
+     User,
++    UserRole,
+     UserStatus,
+ )
+ from core.notification_manager import notification_manager
+@@ -2724,6 +2725,8 @@ def _claim_waiting_job_for_resume(
+     actor_id: Optional[str],
+     workspace_id: Optional[str],
+     tenant_id: Optional[str],
++    reviewer_id: Optional[str] = None,
++    reviewer_authority: Optional[Dict[str, Any]] = None,
+ ) -> bool:
+     """CAS the SAME waiting job into a resumed run slot.
+ 
+@@ -2742,6 +2745,8 @@ def _claim_waiting_job_for_resume(
+     makes the authority predicate unsatisfiable instead of acting as a
+     wildcard.
+     """
++    if reviewer_id and not reviewer_authority:
++        return False
+     session = Session(bind=bind)
+     try:
+         job = session.get(AgentJob, job_id)
+@@ -2798,6 +2803,12 @@ def _claim_waiting_job_for_resume(
+         if authority_conditions:
+             conditions.append(
+                 exists(select(User.id).where(*authority_conditions)))
++        if reviewer_authority:
++            from core.information_wait import reviewer_authority_conditions
++
++            conditions.append(exists(
++                select(User.id).where(
++                    *reviewer_authority_conditions(reviewer_authority))))
+         claimed = session.execute(
+             update(AgentJob)
+             .where(*conditions)
+@@ -2915,6 +2926,7 @@ async def resume_information_wait_action(
+     """
+     from core.information_wait import (
+         current_actor_authority,
++        current_reviewer_authority,
+         is_information_wait_action,
+     )
+ 
+@@ -2986,10 +2998,37 @@ async def resume_information_wait_action(
+                 "status": "refused",
+             }
+ 
+-        # The original admitted actor remains the execution authority; an
+-        # authorized answerer does not replace it. Accepted input is not
+-        # perpetual authority: the same current User scope/status/RBAC check
+-        # that guards startup recovery also guards the normal answer path.
++        # The original admitted actor remains the execution authority; a
++        # proxy answerer does not replace it. The actual proxy reviewer is a
++        # second authority: freeze its current SQL state before any source
++        # await and bind it into the same job claim below. A same-actor answer
++        # is already bound by the admitted-owner authority condition and keeps
++        # its established refusal semantics.
++        proxy_reviewer = bool(actor_id) and bool(reviewer_id) and (
++            str(reviewer_id) != str(actor_id))
++        reviewer_state = None
++        if proxy_reviewer:
++            reviewer_state, reviewer_reason = current_reviewer_authority(
++                session,
++                reviewer_id=reviewer_id,
++                admitted_actor_id=actor_id,
++                workspace_id=target_workspace,
++                tenant_id=target_tenant,
++                proxy_permission=Permission.AGENT_MANAGE,
++            )
++            if reviewer_reason:
++                return {
++                    "handled": True,
++                    "resumed": False,
++                    "reason": reviewer_reason,
++                    "status": "refused",
++                    "job_id": job_id,
++                    "execution_id": execution_id,
++                }
++
++        # Accepted input is not perpetual authority: the same current User
++        # scope/status/RBAC check that guards startup recovery also guards the
++        # normal answer path.
+         _actor, authority_reason = current_actor_authority(
+             session,
+             actor_id=actor_id,
+@@ -3065,6 +3104,8 @@ async def resume_information_wait_action(
+             actor_id=actor_id or None,
+             workspace_id=target_workspace,
+             tenant_id=target_tenant,
++            reviewer_id=reviewer_id if proxy_reviewer else None,
++            reviewer_authority=reviewer_state,
+         ):
+             # The claim itself just refused. Explain authority drift if that
+             # is the cause; otherwise the job/receipt changed concurrently.
+@@ -3083,6 +3124,24 @@ async def resume_information_wait_action(
+                     "job_id": job_id,
+                     "execution_id": execution_id,
+                 }
++            if proxy_reviewer:
++                _reviewer, reviewer_reason = current_reviewer_authority(
++                    session,
++                    reviewer_id=reviewer_id,
++                    admitted_actor_id=actor_id,
++                    workspace_id=target_workspace,
++                    tenant_id=target_tenant,
++                    proxy_permission=Permission.AGENT_MANAGE,
++                )
++                if reviewer_reason:
++                    return {
++                        "handled": True,
++                        "resumed": False,
++                        "reason": reviewer_reason,
++                        "status": "refused",
++                        "job_id": job_id,
++                        "execution_id": execution_id,
++                    }
+             current = _job_outcome_projection(job_id, bind)
+             return {
+                 "handled": True,
+@@ -3906,7 +3965,11 @@ async def answer_agent_job_information_wait(
+     the actor-scoped input path (members have AGENT_RUN, not AGENT_MANAGE).
+     The answer is a fact, never effect approval.
+     """
+-    from core.information_wait import is_information_wait_action
++    from core.information_wait import (
++        current_reviewer_authority,
++        is_information_wait_action,
++        reviewer_authority_conditions,
++    )
+ 
+     job = db.get(AgentJob, str(job_id))
+     if job is None or str(job.agent_id or "") != str(agent_id):
+@@ -3968,14 +4031,39 @@ async def answer_agent_job_information_wait(
+     wait_actor = str(
+         snapshot.get("actor_id") or snapshot.get("user_id")
+         or action.user_id or "")
+-    if wait_actor and wait_actor != str(current_user.id):
+-        from core.models import UserRole
++    # A real proxy (answerer != admitted owner) must currently be an admin.
++    # The same-actor case keeps the established admitted-owner actor authority
++    # path, including its existing 409 refusal semantics.
++    proxy_reviewer = bool(wait_actor) and wait_actor != str(current_user.id)
++    if proxy_reviewer:
+         from core.security.rbac import user_meets_role
+ 
+         if not user_meets_role(current_user, UserRole.ADMIN):
+             raise HTTPException(
+                 status_code=403,
+                 detail="Only the waiting actor or an admin may answer this wait")
++    # Re-read the ACTUAL proxy reviewer from SQL before any source await. The
++    # dependency object may be stale, and the approved answer must remain a
++    # decision by a currently authorized reviewer, not only by the admitted
++    # owner. The raw fields are frozen for the same UPDATE as the wait claim.
++    # The admitted owner is already bound by the actor-authority condition.
++    reviewer_state = None
++    if proxy_reviewer:
++        reviewer_state, reviewer_reason = current_reviewer_authority(
++            db,
++            reviewer_id=current_user.id,
++            admitted_actor_id=wait_actor,
++            workspace_id=str(snapshot.get("workspace_id") or ""),
++            tenant_id=snapshot.get("tenant_id"),
++            proxy_role=UserRole.ADMIN,
++        )
++        if reviewer_reason:
++            raise HTTPException(
++                status_code=403,
++                detail={
++                    "code": reviewer_reason,
++                    "message": "Reviewer authority is no longer valid.",
++                })
+     expected_correlation = str(
+         snapshot.get("correlation_id")
+         or (action.params or {}).get("correlation_id") or "")
+@@ -4029,6 +4117,23 @@ async def answer_agent_job_information_wait(
+                 status_code=409,
+                 detail="This information wait changed concurrently; "
+                        "reload the authoritative state")
++        if proxy_reviewer:
++            _current_reviewer, current_reviewer_reason = (
++                current_reviewer_authority(
++                    db,
++                    reviewer_id=current_user.id,
++                    admitted_actor_id=wait_actor,
++                    workspace_id=str(snapshot.get("workspace_id") or ""),
++                    tenant_id=snapshot.get("tenant_id"),
++                    proxy_role=UserRole.ADMIN,
++                ))
++            if current_reviewer_reason:
++                raise HTTPException(
++                    status_code=403,
++                    detail={
++                        "code": current_reviewer_reason,
++                        "message": "Reviewer authority is no longer valid.",
++                    })
+         current_snapshot = (
+             current.context_snapshot
+             if isinstance(current.context_snapshot, dict) else {})
+@@ -4065,6 +4170,10 @@ async def answer_agent_job_information_wait(
+         authority_condition = _wait_actor_authority_condition(snapshot)
+         if authority_condition is not None:
+             conditions.append(authority_condition)
++        if reviewer_state is not None:
++            conditions.append(exists(
++                select(User.id).where(
++                    *reviewer_authority_conditions(reviewer_state))))
+         claimed = db.execute(
+             update(HITLAction)
+             .where(*conditions)
+@@ -4088,6 +4197,23 @@ async def answer_agent_job_information_wait(
+                     status_code=409,
+                     detail="This information wait changed concurrently; "
+                            "reload the authoritative state")
++            if proxy_reviewer:
++                _current_reviewer, current_reviewer_reason = (
++                    current_reviewer_authority(
++                        db,
++                        reviewer_id=current_user.id,
++                        admitted_actor_id=wait_actor,
++                        workspace_id=str(snapshot.get("workspace_id") or ""),
++                        tenant_id=snapshot.get("tenant_id"),
++                        proxy_role=UserRole.ADMIN,
++                    ))
++                if current_reviewer_reason:
++                    raise HTTPException(
++                        status_code=403,
++                        detail={
++                            "code": current_reviewer_reason,
++                            "message": "Reviewer authority is no longer valid.",
++                        })
+             current_snapshot = (
+                 current.context_snapshot
+                 if isinstance(current.context_snapshot, dict) else {})
+diff --git a/backend/core/information_wait.py b/backend/core/information_wait.py
+index da8773144..2511f753d 100644
+--- a/backend/core/information_wait.py
++++ b/backend/core/information_wait.py
+@@ -288,6 +288,77 @@ def current_actor_authority(
+         actor, workspace_id=workspace_id, tenant_id=tenant_id)
+ 
+ 
++def current_reviewer_authority(
++    session, *, reviewer_id: Any, admitted_actor_id: Any,
++    workspace_id: Any, tenant_id: Any,
++    proxy_role: Any = None, proxy_permission: Any = None,
++) -> tuple:
++    """Re-read the actual reviewer and freeze its raw authority fields.
++
++    The admitted owner remains the execution authority. This helper binds the
++    *reviewer* (which may be an admin proxy) to the same current SQL row:
++    status, is_active, role, tenant and raw workspace are captured for the
++    caller's CAS. A proxy (reviewer != admitted owner) must still hold the
++    existing admin role; the admitted owner may remain an ordinary member.
++    """
++    reviewer_id = str(reviewer_id or "").strip()
++    if not reviewer_id:
++        return None, "reviewer_missing"
++    actor, reason = current_actor_authority(
++        session,
++        actor_id=reviewer_id,
++        workspace_id=workspace_id,
++        tenant_id=tenant_id,
++    )
++    if actor is None:
++        return None, reason or "reviewer_missing"
++    if reason:
++        return None, reason
++    admitted = str(admitted_actor_id or "").strip()
++    if admitted and reviewer_id != admitted:
++        allowed = True
++        if proxy_role is not None:
++            from core.security.rbac import user_meets_role
++
++            allowed = user_meets_role(actor, proxy_role)
++        elif proxy_permission is not None:
++            from core.rbac_service import RBACService
++
++            allowed = RBACService.check_permission(actor, proxy_permission)
++        if not allowed:
++            return None, "reviewer_permission_revoked"
++    return {
++        "id": str(actor.id),
++        "status": getattr(actor, "status", None),
++        "is_active": getattr(actor, "is_active", None),
++        "role": getattr(actor, "role", None),
++        "tenant_id": getattr(actor, "tenant_id", None),
++        "workspace_id": getattr(actor, "workspace_id", None),
++    }, ""
++
++
++def reviewer_authority_conditions(state: Optional[Dict[str, Any]]) -> list:
++    """Exact SQL conditions for one frozen reviewer authority snapshot."""
++    from sqlalchemy import false
++
++    from core.models import User
++
++    if not isinstance(state, dict) or not str(state.get("id") or ""):
++        return [false()]
++    conditions = [User.id == str(state["id"])]
++    for key, column in (
++        ("status", User.status),
++        ("is_active", User.is_active),
++        ("role", User.role),
++        ("tenant_id", User.tenant_id),
++        ("workspace_id", User.workspace_id),
++    ):
++        value = state.get(key)
++        conditions.append(
++            column.is_(None) if value is None else column == value)
++    return conditions
++
++
+ def actor_authority_conditions(
+     *, actor_id: Any, workspace_id: Any, tenant_id: Any,
+ ) -> list:
+diff --git a/backend/tests/test_lead_generic_source_reviewer_authority.py b/backend/tests/test_lead_generic_source_reviewer_authority.py
+index 82d0f72f9..98131deac 100644
+--- a/backend/tests/test_lead_generic_source_reviewer_authority.py
++++ b/backend/tests/test_lead_generic_source_reviewer_authority.py
+@@ -9,7 +9,10 @@ from tests.test_agent_generic_information_wait import _install_model, _seed_boar
+ from tests.test_agent_run_outcome_join_contract import real_env, _run, _client
+ 
+ 
+-@pytest.mark.parametrize("change", ["unchanged", "demoted", "disabled", "moved"])
++@pytest.mark.parametrize(
++    "change",
++    ["unchanged", "demoted", "disabled", "moved", "tenant", "deleted"],
++)
+ def test_proxy_reviewer_authority_at_claim(real_env,tmp_path,monkeypatch,change):
+     import api.agent_routes as routes
+     from core.models import User
+@@ -40,6 +43,8 @@ def test_proxy_reviewer_authority_at_claim(real_env,tmp_path,monkeypatch,change)
+                 if change=='demoted': actor.role='member'
+                 elif change=='disabled': actor.is_active=False;actor.status='disabled'
+                 elif change=='moved': actor.workspace_id='ws2'
++                elif change=='tenant': actor.tenant_id='t2'
++                elif change=='deleted': db.delete(actor)
+                 db.commit()
+         return result
+     monkeypatch.setattr(routes,'_load_generic_source_payload',peer_changes_after_source_read)
+@@ -53,3 +58,48 @@ def test_proxy_reviewer_authority_at_claim(real_env,tmp_path,monkeypatch,change)
+         with real_env.SessionLocal() as db:
+             assert db.query(BoardTask).filter(BoardTask.title=='Peer snapshot task').count()==0
+             assert db.query(HITLAction).filter(HITLAction.status=='pending').count()==1
++
++def test_approved_source_replay_rechecks_current_reviewer(
++        real_env,tmp_path,monkeypatch):
++    """A demoted proxy cannot replay an already approved source answer."""
++    import api.agent_routes as routes
++    from core.models import User
++    with real_env.SessionLocal() as db:
++        actor=db.get(User,'admin-2');actor.tenant_id='t1';actor.workspace_id='ws1';db.commit()
++        db.refresh(actor);db.expunge(actor);real_env.actors['admin-2']=actor
++    board,column=_seed_board(real_env)
++    doc,version=_source_fixture(real_env,tmp_path,monkeypatch)
++    observed=[]
++    def wait(task_input,history,context):
++        observed.append('wait')
++        return ReActStep(thought='Need authorized evidence.',information_wait=InformationWaitRequest(question='Which source?',missing_fact='source'))
++    def resumed(task_input,history,context):
++        observed.append('resumed')
++        return ReActStep(thought='Use accepted fact.',action=ToolCall(tool='tasks.create',params={'board_id':board,'column_id':column,'title':'Reviewer replay task','status':'backlog'}))
++    def final(task_input,history,context):
++        observed.append('final')
++        return ReActStep(thought='Verified.',final_answer='Created.')
++    _install_model(monkeypatch,[wait,resumed,final])
++    initial=_run(real_env,operation_id='lead-source-reviewer-replay',parameters={'sync':True,'task_input':'Create a task when source arrives.'})
++    assert initial.status_code==202,initial.text
++    data=initial.json()['data']
++    body={'answer':'source supplied','correlation_id':data['wait_receipt']['correlation_id'],'source':{'document_id':doc.id,'source_version':version}}
++    first=_client(real_env,'admin-2').post(f"/api/agents/a1/jobs/{data['job_id']}/answer",json=body)
++    assert first.status_code==200,first.text
++    assert observed==['wait','resumed','final'],observed
++    with real_env.SessionLocal() as db:
++        assert db.query(BoardTask).filter(BoardTask.title=='Reviewer replay task').count()==1
++    original=routes._load_generic_source_payload; armed=[True]
++    async def demote_after_read(*args,**kwargs):
++        result=await original(*args,**kwargs)
++        if armed[0]:
++            armed[0]=False
++            with real_env.SessionLocal() as db:
++                actor=db.get(User,'admin-2');actor.role='member';db.commit()
++        return result
++    monkeypatch.setattr(routes,'_load_generic_source_payload',demote_after_read)
++    replay=_client(real_env,'admin-2').post(f"/api/agents/a1/jobs/{data['job_id']}/answer",json=body)
++    assert replay.status_code in (403,404,409),(replay.status_code,replay.text,observed)
++    assert observed==['wait','resumed','final'],observed
++    with real_env.SessionLocal() as db:
++        assert db.query(BoardTask).filter(BoardTask.title=='Reviewer replay task').count()==1

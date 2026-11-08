@@ -40,6 +40,10 @@ from core.models import (
     IngestedDocument, IntegrationToken, User,
 )
 from core.task_lifecycle import TaskLifecycle
+from tests.source_authority_fixtures import (
+    SourceAuthority,
+    bind_applied_read,
+)
 
 
 def _run(coro):
@@ -1128,6 +1132,13 @@ def _source_resolver(binding):
         return dict(binding)
 
     return resolve
+
+
+def _route_source_authority(tmp_path):
+    """A controlled source bound to the route's authenticated lead reader."""
+    return SourceAuthority(
+        tmp_path, user_id="lead-1", workspace_id="ws-1",
+        tenant_id="tenant-1")
 
 
 def _durable_assignment_route(route_env, run_id):
@@ -3451,12 +3462,15 @@ def test_objective_only_runs_typed_adaptive_follow_up(
 
 
 def test_advance_route_adopts_typed_work_from_applied_evidence(
-        route_env, monkeypatch):
+        route_env, tmp_path, monkeypatch):
     from core.employee_adaptation import WorkAdaptationProposal
     from tests.test_employee_work_requests import (
         _quote_request, _verified_quote_evidence,
     )
 
+    read = bind_applied_read(
+        _verified_quote_evidence(), _route_source_authority(tmp_path),
+        "heldout-prices.json")
     teaching = new_teaching_snapshot(revision="route-advance-1")
     teaching["terms"] = {
         "currency": "USD", "freight": "20.00", "tax_basis": "none",
@@ -3464,7 +3478,7 @@ def test_advance_route_adopts_typed_work_from_applied_evidence(
     plan = new_assignment(
         objective="Quote the accepted customer request",
         employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
-        teaching_snapshot=teaching, steps=[_verified_quote_evidence()],
+        teaching_snapshot=teaching, steps=[read],
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[
             {"kind": "required_work_complete", "required": True},
@@ -3507,12 +3521,15 @@ def test_advance_route_adopts_typed_work_from_applied_evidence(
 
 
 def test_advance_route_accepts_model_wait_choice_source(
-        route_env, monkeypatch):
+        route_env, tmp_path, monkeypatch):
     from core.employee_adaptation import WorkAdaptationProposal
     from tests.test_employee_work_requests import (
         _quote_request, _verified_quote_evidence,
     )
 
+    read = bind_applied_read(
+        _verified_quote_evidence(), _route_source_authority(tmp_path),
+        "heldout-prices.json")
     teaching = new_teaching_snapshot(revision="route-wait-choice-1")
     teaching["terms"] = {
         "currency": "USD", "freight": "20.00", "tax_basis": "none",
@@ -3520,7 +3537,7 @@ def test_advance_route_accepts_model_wait_choice_source(
     plan = new_assignment(
         objective="Quote the accepted customer request",
         employee_id="owner-1", workspace_id="ws-1", tenant_id="tenant-1",
-        teaching_snapshot=teaching, steps=[_verified_quote_evidence()],
+        teaching_snapshot=teaching, steps=[read],
         authorized_actions=["retrieve", "calculate"],
         completion_criteria=[
             {"kind": "required_work_complete", "required": True},
@@ -3570,22 +3587,14 @@ def test_advance_route_does_not_adopt_a_policy_forbidden_wait(
     monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
     monkeypatch.setenv(
         "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+    authority = _route_source_authority(tmp_path)
 
     def applied(step_id, data):
         step = new_step(
             step_id=step_id, title=step_id, operation_type="retrieve",
             adapter="document.read", inputs={}, effect="read_only")
-        payload = tmp_path / f"{step_id}.json"
-        payload.write_text(json.dumps(data))
         step.update(
             status="applied", operation_id=f"op-{step_id}",
-            inputs={
-                "path": str(payload),
-                "resource_binding": {
-                    "resource_id": f"resource-{step_id}",
-                    "source_version": "v1",
-                },
-            },
             result={
                 "data": data, "resource_id": step_id,
                 "source_version": "v1",
@@ -3595,6 +3604,7 @@ def test_advance_route_does_not_adopt_a_policy_forbidden_wait(
                     "status": "verified", "resource_id": step_id,
                     "version": "v1"},
             })
+        authority.bind(step, f"{step_id}.json")
         return step
 
     plan = new_assignment(
@@ -3705,16 +3715,14 @@ def test_source_addition_settles_missing_prerequisite_without_duplicates(
     monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
     monkeypatch.setenv(
         "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
+    authority = _route_source_authority(tmp_path)
 
     def applied(step_id, data):
         step = new_step(
             step_id=step_id, title=step_id, operation_type="retrieve",
             adapter="document.read", inputs={}, effect="read_only")
-        payload = tmp_path / f"{step_id}.json"
-        payload.write_text(json.dumps(data))
         step.update(
             status="applied", operation_id=f"op-{step_id}",
-            inputs={"path": str(payload)},
             result={
                 "data": data, "resource_id": step_id,
                 "source_version": "v1",
@@ -3724,6 +3732,7 @@ def test_source_addition_settles_missing_prerequisite_without_duplicates(
                     "status": "verified", "resource_id": step_id,
                     "version": "v1"},
             })
+        authority.bind(step, f"{step_id}.json")
         return step
 
     plan = new_assignment(

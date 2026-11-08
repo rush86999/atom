@@ -1,0 +1,28 @@
+{
+  "source": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+  "actual_exit": 0,
+  "stages": 18,
+  "assertions": 107,
+  "helper_controls": 6,
+  "main_reference": "8ded00232c30961a990e675e06ec672ef6a43910",
+  "relevant_product_blob_equivalence": {
+    "backend/api/goal_routes.py": true,
+    "backend/api/goal_run_routes.py": true,
+    "backend/core/goals/goal_service.py": true,
+    "backend/core/goals/goal_run_service.py": true,
+    "backend/core/goals/utility_target.py": true,
+    "frontend-nextjs/pages/goal-runs/[id].tsx": true,
+    "frontend-nextjs/lib/goal-run-api.ts": true,
+    "frontend-nextjs/lib/user-role.ts": true,
+    "frontend-nextjs/components/Onboarding/OnboardingWizardHost.tsx": true,
+    "frontend-nextjs/components/Onboarding/OnboardingWizard.tsx": true
+  },
+  "scope": "ordinary UI/API/DB utility presentation with explicitly synthetic analytics history; no agent/model work",
+  "negative_source": "367daad91c61d1933f8455380798fdf6528d595a",
+  "negative_actual_exit": 1,
+  "negative_reason": "late member onboarding overlay intercepted link after helper skipped optional visibility check",
+  "visual_review": [
+    "member readonly ranking visible/no edit actions",
+    "supervisor cleared target: no ranking and supported Save action"
+  ]
+}

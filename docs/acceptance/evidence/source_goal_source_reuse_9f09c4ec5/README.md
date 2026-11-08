@@ -1,0 +1,5 @@
+# Integration source reuse
+
+Static Git comparison only, no new application execution. Integration9f09c4ec5 normally merges the already-reviewed Goal test synchronization758 into the Goal helper/evidence successor. Entire backend tree and relevant Agents UI/source driver bytes equal the source-answer f179 episode. Goal product bytes equal the5145 ordinary Goal episode. Original source/evidence identities remain unchanged; no browser rerun solely for test/docs/merge changes.
+
+Source UI:30 stages/195 assertions, packetgeneric_source_ui_f179c73ce (12sources20artifacts). Goal UI:18 stages/107 assertions, packetgoal_utility_ui_5145d5eab (13sources25artifacts), explicit synthetic analytics rows and no model work. Both preserved negatives remain failed. This comparison does not establish whole-app completion, real model judgment or a new runtime test count. The original raw failed Goal log has a trailing blank line and is preserved unchanged; no clean-whitespace-check claim for that raw artifact.

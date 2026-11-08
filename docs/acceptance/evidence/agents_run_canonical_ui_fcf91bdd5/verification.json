@@ -1,0 +1,79 @@
+{
+  "schema": "agents_run_canonical_ui_verification_1",
+  "status": "prepared, not executed",
+  "branch": "codex/agents-run-canonical-ui-20261107",
+  "base_source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "fix_source": "fcf91bdd518a39a579ff64f041782572a0cea7ce",
+  "canonical_source_sha256": "ac3c86947747dec83732e3cdb99f3628418916daa14724287b861cf3f06ac559",
+  "root_negative": {
+    "source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+    "scenario_overall_status": "FAIL",
+    "failed_check": "single_run_post",
+    "business_checks_passed_except_single_run_post": true,
+    "status_307_observed": true,
+    "provider_shim_calls": 3,
+    "job_id": "c262a73e-df9f-4cf2-9840-9203a92aa978",
+    "execution_id": "15e48c9d-759d-4d67-9fcd-cd7ba40338ef",
+    "task_id": "4e192bf5-cc76-4d2a-bdb1-30e11e6e3219",
+    "one_job_status_success": true,
+    "one_task": true,
+    "final_ui_idempotence_controls_reached": false,
+    "old_packet_rewritten_or_rerun": false
+  },
+  "fix": {
+    "frontend_url": "/api/agents/{id}/run",
+    "trailing_slash_removed": true,
+    "backend_route_role_authority_changed": false,
+    "goal_driver_changed": false,
+    "reviewer_cas_authority_changed": false
+  },
+  "classifier": {
+    "one_307_hop": "one logical admission (ok)",
+    "two_independent_admissions": "refuted (ok=false)",
+    "foreign_or_changed_redirect": "refuted",
+    "raw_paths_and_statuses_retained": true,
+    "scoped_job_execution_retained": true
+  },
+  "preflight": {
+    "source_answer": {
+      "ok": true,
+      "source_files": "9/9",
+      "fixtures": "55/55"
+    },
+    "goal_utility": {
+      "ok": true,
+      "source_files": "13/13",
+      "fixtures": "55/55"
+    }
+  },
+  "tests": {
+    "harness_classifier": {
+      "passed": 11
+    },
+    "frontend_run_contract": {
+      "suites": 2,
+      "passed": 38
+    }
+  },
+  "bounds": {
+    "profile": "bounded",
+    "max_tests_per_run": 38,
+    "free_space_at_run_GiB": 3.72,
+    "unique_TESTING_scratch": true
+  },
+  "no_live_actions": {
+    "browser": false,
+    "world": false,
+    "model_provider": false,
+    "live_database": false,
+    "install": false,
+    "deploy": false
+  },
+  "not_claimed": [
+    "the old scenario passed",
+    "product resend or model failure",
+    "full UI pass",
+    "browser qualification",
+    "Goal completion"
+  ]
+}

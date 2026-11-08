@@ -1,0 +1,21 @@
+{
+  "source": "dbd1d24225fa858be51e7f024475a7586191a26f",
+  "scratch": "/private/tmp/root-goal-ci-sync-ant_klx7",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal-utility-surface-20261107/frontend-nextjs",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/node",
+    "node_modules/jest/bin/jest.js",
+    "--runInBand",
+    "--watchman=false",
+    "--no-cache",
+    "--runTestsByPath",
+    "tests/pages/agents-information-job.test.tsx",
+    "tests/pages/agents-index.test.tsx"
+  ],
+  "seam": "existing installed node_modules; no Watchman; UI service doubles unchanged"
+}
