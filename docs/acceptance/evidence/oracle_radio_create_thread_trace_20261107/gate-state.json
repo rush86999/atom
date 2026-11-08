@@ -1,0 +1,1 @@
+{"owner_pid": 63334, "cwd": "/private/tmp/atom-oracle-refresh-20261107/backend", "started": 1794074218.23107, "status": "interrupted_or_launch_error", "free_before": 5121454080, "actual_exit": 1, "finished": 1794074224.4994361, "free_after": 5106831360, "error_class": "SystemExit"}

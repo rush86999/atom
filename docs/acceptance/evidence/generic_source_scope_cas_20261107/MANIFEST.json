@@ -1,0 +1,52 @@
+{
+  "files": [
+    {
+      "bytes": 2406,
+      "path": "README.md",
+      "sha256": "73ea8c433fafca98ad157038ea7814ec541eb521569a597eb26ed75469933f05"
+    },
+    {
+      "bytes": 146739,
+      "path": "after-final52-pass.log",
+      "sha256": "2c853dccb8ba805fdce7d1aabe01bd2c02e0f233866a56103792e5ca7c311102"
+    },
+    {
+      "bytes": 24423,
+      "path": "after-scope11-pass.log",
+      "sha256": "5e28891c05be8779cf0843fab74211b198967e1fd1481ade3fa4b8cc73f101d3"
+    },
+    {
+      "bytes": 38720,
+      "path": "before-22-pass.log",
+      "sha256": "a0c5de4aee232f6f98a09d040db90804c51de4335202039f8d9dd9a7cfcc54d0"
+    },
+    {
+      "bytes": 52472,
+      "path": "before-scope4-fail.log",
+      "sha256": "a43b95142697c6fdc91666c14837b86de191ed87dfee5bdb5d4d1c5526cbc90d"
+    },
+    {
+      "bytes": 1046,
+      "path": "root-scope-cas4-negative.exit.json",
+      "sha256": "769c7fcba74e46b8ab969e3d7e497e5b3459a292e5f332fe591157fe857018a6"
+    },
+    {
+      "bytes": 23517,
+      "path": "root-scope-cas4-negative.log",
+      "sha256": "24f4e17fbc2d09193b1a63fe72c13d4267c6e813ad26e939f5a45915d425dcf0"
+    },
+    {
+      "bytes": 2128,
+      "path": "root-scope-cas4-negative.py",
+      "sha256": "dc09d2d64a432072e284dc8bfeae66a0f100ff0ce1a2f0681b822903d0a4a0c2"
+    },
+    {
+      "bytes": 618,
+      "path": "root-scope-cas4-negative.spec.json",
+      "sha256": "219fd40e2e8fad1d5d298c1d71b3d9a272988073e85c7f4e3cc9fab98e5e456a"
+    }
+  ],
+  "merged_source": "20946867e2413530138a6370ed98ec5ada9ece1c",
+  "probe_source": "1ac32d01530f2ac33f44cfd071d386873dcaab1b",
+  "source_base": "9e69b9a9c38b55c2b39c39923403d6f1c659d173"
+}

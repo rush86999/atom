@@ -139,7 +139,7 @@ jobs:
           # for triage) instead of burning the 6h job limit — the 2026-09-05
           # run hung 6h on one test (exhausted MagicMock side_effect raised
           # StopIteration inside to_thread; fixed in byok_handler + w27 test).
-          python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py tests/test_provider_wiring.py tests/api/test_a2a_routes.py tests/api/test_sso_oidc_routes.py tests/api/test_scim_routes.py tests/core/test_observability_tracing.py tests/core/test_oracle_and_two_tier_confidence.py tests/test_memory_p2.py tests/test_memory_consolidator_llm.py tests/test_memory_eval_gate.py tests/test_memory_backfill_unified.py tests/test_opencode_go_provider.py tests/test_covpush_w27_opencode_retry.py tests/test_covpush_w57_byok_handler_a.py tests/test_covpush_w57_byok_handler_d.py tests/unit/core/test_stage_router_wiring.py tests/unit/core/test_traffic_split.py tests/test_deepseek_harness_gaps.py tests/test_stream_retry_state_contract.py tests/test_community_skill_write_contract.py tests/test_quickstart_python_guard.py tests/test_workflow_hitl_resume_once.py tests/test_workflow_hitl_persisted_resume.py tests/test_workflow_scheduler_recovery.py tests/test_workflow_approval_scope.py tests/test_workflow_public_approval_flow.py tests/test_workflow_scheduled_process_restart.py tests/test_recording_review_scope.py tests/test_tool_error_memento_lifecycle.py tests/test_tool_error_evolution.py -q --tb=line --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py tests/test_provider_wiring.py tests/api/test_a2a_routes.py tests/api/test_sso_oidc_routes.py tests/api/test_scim_routes.py tests/core/test_observability_tracing.py tests/core/test_oracle_and_two_tier_confidence.py tests/test_memory_p2.py tests/test_memory_consolidator_llm.py tests/test_memory_eval_gate.py tests/test_memory_backfill_unified.py tests/test_opencode_go_provider.py tests/test_covpush_w27_opencode_retry.py tests/test_covpush_w57_byok_handler_a.py tests/test_covpush_w57_byok_handler_d.py tests/unit/core/test_stage_router_wiring.py tests/unit/core/test_traffic_split.py tests/test_deepseek_harness_gaps.py tests/test_stream_retry_state_contract.py tests/test_community_skill_write_contract.py tests/test_quickstart_python_guard.py tests/test_workflow_hitl_resume_once.py tests/test_workflow_hitl_persisted_resume.py tests/test_workflow_scheduler_recovery.py tests/test_workflow_approval_scope.py tests/test_workflow_public_approval_flow.py tests/test_workflow_scheduled_process_restart.py tests/test_recording_review_scope.py tests/test_tool_error_memento_lifecycle.py tests/test_tool_error_evolution.py tests/test_employee_business_feedback.py tests/test_employee_feedback_interleaving.py tests/test_feedback_cas_dialect_contract.py -q --tb=line --timeout=300 --timeout-method=thread
       - name: Run board owner and atomic-authority controls
         env:
           TESTING: "1"
@@ -183,7 +183,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_task_wait_source_version_after_acceptance.py tests/test_lead_wait_source_disappears.py tests/test_lead_wait_source_progress_and_extraction.py tests/test_lead_wait_missing_authoritative_revision.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run evidence manifest Git-ref controls
         env:
           TESTING: "1"
@@ -229,10 +229,21 @@ jobs:
             tests/test_lead_shopify_article_rest_shape.py \
             tests/test_lead_shopify_error_privacy.py \
             tests/test_generic_request_expectations.py \
+            tests/test_oracle_radio_create_thread.py \
+            tests/test_lead_radio_thread_authority_linearization.py \
+            tests/test_lead_radio_mcp_replay.py \
+            tests/test_oracle_radio_thread_replay.py \
+            tests/unit/agents/test_radio_actions.py \
+            tests/unit/agents/test_agent_radio_tool.py \
             tests/test_generic_reconcile_commit_contract.py \
             tests/test_generic_normal_retry_identity.py \
             tests/test_oracle_mini_app_host_mutations.py \
             tests/test_agent_generic_information_wait.py \
+            tests/test_generic_source_answer_contract.py \
+            tests/test_lead_generic_source_answer_material.py \
+            tests/test_lead_generic_source_snapshot_cas.py \
+            tests/test_generic_information_idle_contract.py \
+            tests/test_generic_information_two_job_isolation.py \
             tests/test_information_wait_maturity_neutral.py \
             tests/test_positive_maturity_no_demotion.py \
             ../scripts/tests/test_browser_agent_job_wait_identity.py \
@@ -259,6 +270,20 @@ jobs:
             tests/test_agent_job_outcome_projection.py \
             tests/integration/journeys/test_oracle_registry_mutation_journey.py \
             tests/integration/journeys/test_mini_app_host_receipts_journey.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+      - name: Run local backup/restore contract
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_binding_interleavings.py \
+            ../scripts/tests/test_restore_child_smoke_contract.py \
             -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run natural reviewed-improvement lifecycle controls
         env:

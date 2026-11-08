@@ -1,0 +1,12 @@
+[2026-11-07 16:12:20] [INFO] [main_api_app] 🚀 [ULTRA LOUD] OPTIONS /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/
+[2026-11-07 16:12:20] [INFO] [main_api_app] 🏁 [ULTRA LOUD] OPTIONS /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/ -> 200
+INFO:     127.0.0.1:51211 - "OPTIONS /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/ HTTP/1.1" 200 OK
+[2026-11-07 16:12:20] [INFO] [main_api_app] 🚀 [ULTRA LOUD] POST /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/
+[2026-11-07 16:12:20] [INFO] [main_api_app] 🏁 [ULTRA LOUD] POST /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/ -> 307
+INFO:     127.0.0.1:51515 - "POST /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/ HTTP/1.1" 307 Temporary Redirect
+[2026-11-07 16:12:26] [INFO] [main_api_app] 🚀 [ULTRA LOUD] OPTIONS /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run
+[2026-11-07 16:12:26] [INFO] [main_api_app] 🏁 [ULTRA LOUD] OPTIONS /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run -> 200
+INFO:     127.0.0.1:51211 - "OPTIONS /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run HTTP/1.1" 200 OK
+[2026-11-07 16:12:26] [INFO] [main_api_app] 🚀 [ULTRA LOUD] POST /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run
+[2026-11-07 16:12:27] [INFO] [main_api_app] 🏁 [ULTRA LOUD] POST /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run -> 200
+INFO:     127.0.0.1:51515 - "POST /api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run HTTP/1.1" 200 OK

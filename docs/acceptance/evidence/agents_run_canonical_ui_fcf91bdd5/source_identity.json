@@ -1,0 +1,106 @@
+{
+  "schema": "agents_run_canonical_ui_source_identity_1",
+  "branch": "codex/agents-run-canonical-ui-20261107",
+  "base_source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "fix_source": "fcf91bdd518a39a579ff64f041782572a0cea7ce",
+  "canonical_source_string": "[[\"backend/api/agent_routes.py\",\"11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790\"],[\"backend/core/generic_agent.py\",\"2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a\"],[\"backend/core/information_wait.py\",\"7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17\"],[\"backend/scripts/orchestration_acceptance/run_isolated.py\",\"d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c\"],[\"backend/tests/test_generic_source_answer_contract.py\",\"d671b8c6b33623f0693d09547c26427058e861497047bab94c865e99f3cf2d97\"],[\"backend/tests/test_lead_generic_source_reviewer_authority.py\",\"b218cb451b3b2d9106ca52c4e5ec1bad6acfe445cd9e03830813433ebc4aa4b1\"],[\"backend/tests/test_lead_generic_source_scope_cas.py\",\"5f6769bfaa5f3a080e0b60776a655dec97e82f5a0c636481ca9ec30feddbe4e7\"],[\"backend/tests/test_lead_generic_source_snapshot_cas.py\",\"fa6e5a95e52979d4214585bfd9c795dac1d5e02bb2bf618229246beaadba41ac\"],[\"frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx\",\"30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301\"],[\"frontend-nextjs/components/Agents/AgentStudio.tsx\",\"fd031679f7245bcd3c515b2cadf42f48fd7ddd8b779a382c5fe5940d9c1a85be\"],[\"frontend-nextjs/pages/agents/index.tsx\",\"7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103\"],[\"frontend-nextjs/tests/pages/agents-information-job.test.tsx\",\"ca5992d20bfe75c2ab14e486532ec3d8b775d11adc5a31354105cd7df970c2c1\"],[\"scripts/acceptance/browser_agent_job_wait.py\",\"66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e\"],[\"scripts/acceptance/browser_agent_source_answer.py\",\"5dda763625afbb33abb90c6b3086c71b516ad4e10b83f68da1cc8e52ef76bc4d\"],[\"scripts/acceptance/browser_goal_utility_ui.py\",\"af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9\"],[\"scripts/tests/test_browser_agent_source_answer_preflight.py\",\"7936857f6dde196e11e66b7690a49f117b2b7b34ac4999d0e8a1338167951841\"]]",
+  "canonical_source_sha256": "ac3c86947747dec83732e3cdb99f3628418916daa14724287b861cf3f06ac559",
+  "files": {
+    "frontend-nextjs/pages/agents/index.tsx": {
+      "blob": "c662d90bce0d25e681b08c2e02cec8acf289d8b1",
+      "sha256": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+      "bytes": 42159,
+      "changed_vs_base": true
+    },
+    "frontend-nextjs/tests/pages/agents-information-job.test.tsx": {
+      "blob": "3fdc67d0a65c2301581fe8b242ee3a68654920b4",
+      "sha256": "ca5992d20bfe75c2ab14e486532ec3d8b775d11adc5a31354105cd7df970c2c1",
+      "bytes": 7464,
+      "changed_vs_base": true
+    },
+    "scripts/acceptance/browser_agent_source_answer.py": {
+      "blob": "210c449c7036b939c14affab9c37c9ce096febab",
+      "sha256": "5dda763625afbb33abb90c6b3086c71b516ad4e10b83f68da1cc8e52ef76bc4d",
+      "bytes": 100277,
+      "changed_vs_base": true
+    },
+    "scripts/tests/test_browser_agent_source_answer_preflight.py": {
+      "blob": "218f4bcd1ca9d349044bbf98de99475d3675f197",
+      "sha256": "7936857f6dde196e11e66b7690a49f117b2b7b34ac4999d0e8a1338167951841",
+      "bytes": 8127,
+      "changed_vs_base": true
+    },
+    "backend/api/agent_routes.py": {
+      "blob": "3166058626c5fcd8a467d255c64dcb1b34fc1ede",
+      "sha256": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+      "bytes": 175736,
+      "changed_vs_base": false
+    },
+    "backend/core/information_wait.py": {
+      "blob": "2511f753d04a91b6684d8693cbab4a54e2103a0f",
+      "sha256": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+      "bytes": 33957,
+      "changed_vs_base": false
+    },
+    "backend/core/generic_agent.py": {
+      "blob": "5170a76448cc724c9e428a854c9cd09f2b91993e",
+      "sha256": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+      "bytes": 171864,
+      "changed_vs_base": false
+    },
+    "backend/tests/test_generic_source_answer_contract.py": {
+      "blob": "601f8fd25d5c4cfd35b8f7d19474a2c2e25fba96",
+      "sha256": "d671b8c6b33623f0693d09547c26427058e861497047bab94c865e99f3cf2d97",
+      "bytes": 17805,
+      "changed_vs_base": false
+    },
+    "backend/tests/test_lead_generic_source_reviewer_authority.py": {
+      "blob": "98131deac7c5150393f1f81e78f3b812bd19bdab",
+      "sha256": "b218cb451b3b2d9106ca52c4e5ec1bad6acfe445cd9e03830813433ebc4aa4b1",
+      "bytes": 6320,
+      "changed_vs_base": false
+    },
+    "backend/tests/test_lead_generic_source_scope_cas.py": {
+      "blob": "59fb6a3b068cd8165806b3653e36ab8b7fe844c0",
+      "sha256": "5f6769bfaa5f3a080e0b60776a655dec97e82f5a0c636481ca9ec30feddbe4e7",
+      "bytes": 8717,
+      "changed_vs_base": false
+    },
+    "backend/tests/test_lead_generic_source_snapshot_cas.py": {
+      "blob": "f355f11db9530d536ecbedd06cdcb10047c74df5",
+      "sha256": "fa6e5a95e52979d4214585bfd9c795dac1d5e02bb2bf618229246beaadba41ac",
+      "bytes": 2989,
+      "changed_vs_base": false
+    },
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": {
+      "blob": "bc81725b0b859e62a2106b8a184ecff9dd77ac3f",
+      "sha256": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301",
+      "bytes": 21896,
+      "changed_vs_base": false
+    },
+    "frontend-nextjs/components/Agents/AgentStudio.tsx": {
+      "blob": "262702e8559d917ac562021c957351e100d37e52",
+      "sha256": "fd031679f7245bcd3c515b2cadf42f48fd7ddd8b779a382c5fe5940d9c1a85be",
+      "bytes": 29996,
+      "changed_vs_base": false
+    },
+    "scripts/acceptance/browser_goal_utility_ui.py": {
+      "blob": "311296f25b4846f3b95e9122655b45392c5a666a",
+      "sha256": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9",
+      "bytes": 66778,
+      "changed_vs_base": false
+    },
+    "scripts/acceptance/browser_agent_job_wait.py": {
+      "blob": "7fd4877bb3ec060c7538fbba56a0ec3d5e848ed3",
+      "sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+      "bytes": 114529,
+      "changed_vs_base": false
+    },
+    "backend/scripts/orchestration_acceptance/run_isolated.py": {
+      "blob": "02e0e52af69192b22658e5b97c76ec40fde00099",
+      "sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+      "bytes": 299764,
+      "changed_vs_base": false
+    }
+  }
+}

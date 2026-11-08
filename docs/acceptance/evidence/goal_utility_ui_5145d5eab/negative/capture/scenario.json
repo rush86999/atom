@@ -1,0 +1,2023 @@
+{
+  "kind": "goal_utility_ui_scenario",
+  "status": "failed",
+  "started_at": "2026-11-07T16:55:24-0500",
+  "labels": {
+    "fixture_history": "CONTROLLED ANALYTICS FIXTURE: two trusted achieved GoalRun rows with fixed metric counts plus one failed and one unknown-metric candidate. This is synthetic history, not completed agent work or model output.",
+    "production_boundary": "The existing public goal routes, GoalService/GoalRunService, goal_write_service CAS, durable GoalObjective/GoalRun rows, normal login form, Activity navigation and Goal Runs detail UI run in production code.",
+    "not_claimed": [
+      "served model or provider quality",
+      "general model judgment or prompt quality",
+      "that the fixture rows are real agent work",
+      "TASK-WAIT-01, source upload/answer, downloads or a Generic model call",
+      "live provider/account/credential/send/spend/install/deploy",
+      "full application, PostgreSQL, multi-worker or soak acceptance"
+    ]
+  },
+  "source": {
+    "repo": "/private/tmp/atom-goal-utility-surface-20261107",
+    "head": "367daad91c61d1933f8455380798fdf6528d595a",
+    "expected_sha": "367daad91c61d1933f8455380798fdf6528d595a",
+    "matches_expected": true,
+    "tracked_dirty": [],
+    "tracked_dirty_count": 0,
+    "backend_dirty": [],
+    "backend_dirty_count": 0,
+    "driver_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+    "driver_path": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/browser_agent_job_wait.py",
+    "runtime_identity": {
+      "source_id": "367daad91c61",
+      "revision": "367daad91c61d1933f8455380798fdf6528d595a",
+      "dirty": false,
+      "dirty_paths_count": 0,
+      "untracked_paths_count": 0,
+      "error": null
+    },
+    "tracked_tree_clean": true,
+    "backend_tree_clean": true,
+    "expected_sha_ok": true,
+    "per_file": {
+      "ok": true,
+      "files": {
+        "backend/api/goal_routes.py": {
+          "git_blob": "53fad2a43b3fcb48ea47376c3eb24b0b014b95b3",
+          "git_sha256": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+          "git_bytes": 12677,
+          "worktree_sha256": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+          "worktree_bytes": 12677,
+          "matches": true
+        },
+        "backend/core/goals/goal_service.py": {
+          "git_blob": "64581cc066dc9e98d391b1076d34d2cb91c892bd",
+          "git_sha256": "b75a5473dc242736558085b39746d4040e32374a6b192b99a830c53f7b2f5069",
+          "git_bytes": 15541,
+          "worktree_sha256": "b75a5473dc242736558085b39746d4040e32374a6b192b99a830c53f7b2f5069",
+          "worktree_bytes": 15541,
+          "matches": true
+        },
+        "backend/core/goals/goal_run_router.py": {
+          "git_blob": "c06b55e5324015be44277b63fcae72ce56875013",
+          "git_sha256": "b47009432e4f4b7c956b07e796bf48bb80288b16299b81c7bcb512af69267a63",
+          "git_bytes": 18783,
+          "worktree_sha256": "b47009432e4f4b7c956b07e796bf48bb80288b16299b81c7bcb512af69267a63",
+          "worktree_bytes": 18783,
+          "matches": true
+        },
+        "backend/core/goals/goal_run_service.py": {
+          "git_blob": "1cd21bdca20a3aea53a7a8b1e8e3a219f913f2f1",
+          "git_sha256": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+          "git_bytes": 60925,
+          "worktree_sha256": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+          "worktree_bytes": 60925,
+          "matches": true
+        },
+        "backend/core/goals/goal_write_service.py": {
+          "git_blob": "646d5c263544a108ac82df1efea1872006983d19",
+          "git_sha256": "d43f0cdc9fdc391ff9a0fb1464fceef5bf232c95a48fa9f5291d46e976d310c4",
+          "git_bytes": 43812,
+          "worktree_sha256": "d43f0cdc9fdc391ff9a0fb1464fceef5bf232c95a48fa9f5291d46e976d310c4",
+          "worktree_bytes": 43812,
+          "matches": true
+        },
+        "backend/core/goals/utility_target.py": {
+          "git_blob": "c6d45de025361072887c37751fbe1c9ead26e56e",
+          "git_sha256": "5b47b606fbf99faaba404e46ac6de0639500af9255bacfa3c32b1a2b79d90005",
+          "git_bytes": 8842,
+          "worktree_sha256": "5b47b606fbf99faaba404e46ac6de0639500af9255bacfa3c32b1a2b79d90005",
+          "worktree_bytes": 8842,
+          "matches": true
+        },
+        "backend/core/personal_scope.py": {
+          "git_blob": "ed530e39585f6ed0d2fcbcaeb79e4d51dc62f9a9",
+          "git_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+          "git_bytes": 2789,
+          "worktree_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+          "worktree_bytes": 2789,
+          "matches": true
+        },
+        "backend/core/product_profile.py": {
+          "git_blob": "27d93c97cf1913f8760dbd1f0556ff82985f7066",
+          "git_sha256": "97e55d80513c768663915997aca3014e10711086aeb72f8d993c6870184fd182",
+          "git_bytes": 10386,
+          "worktree_sha256": "97e55d80513c768663915997aca3014e10711086aeb72f8d993c6870184fd182",
+          "worktree_bytes": 10386,
+          "matches": true
+        },
+        "frontend-nextjs/lib/goal-run-api.ts": {
+          "git_blob": "035164cebb0c3ec1abd30cc7993a3b7363ebb32c",
+          "git_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+          "git_bytes": 20391,
+          "worktree_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+          "worktree_bytes": 20391,
+          "matches": true
+        },
+        "frontend-nextjs/pages/goal-runs/[id].tsx": {
+          "git_blob": "a34e0459f1ff062ba02a6bb803dac972c31bbfe4",
+          "git_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+          "git_bytes": 55074,
+          "worktree_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+          "worktree_bytes": 55074,
+          "matches": true
+        },
+        "scripts/acceptance/browser_goal_utility_ui.py": {
+          "git_blob": "311296f25b4846f3b95e9122655b45392c5a666a",
+          "git_sha256": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9",
+          "git_bytes": 66778,
+          "worktree_sha256": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9",
+          "worktree_bytes": 66778,
+          "matches": true
+        },
+        "scripts/acceptance/browser_agent_job_wait.py": {
+          "git_blob": "7fd4877bb3ec060c7538fbba56a0ec3d5e848ed3",
+          "git_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+          "git_bytes": 114529,
+          "worktree_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+          "worktree_bytes": 114529,
+          "matches": true
+        },
+        "backend/scripts/orchestration_acceptance/run_isolated.py": {
+          "git_blob": "02e0e52af69192b22658e5b97c76ec40fde00099",
+          "git_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+          "git_bytes": 299764,
+          "worktree_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+          "worktree_bytes": 299764,
+          "matches": true
+        }
+      }
+    },
+    "source_proof_ok": true
+  },
+  "fixture": {
+    "target": {
+      "metric": "human_interventions",
+      "direction": "minimize",
+      "source": "goal_run",
+      "description": "fixture analytics: prefer fewer human interventions"
+    },
+    "rows": [
+      {
+        "fixture_id": "eligible-low",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": 2,
+          "steps_executed": 5,
+          "replan_count": 1
+        },
+        "expected": "eligible"
+      },
+      {
+        "fixture_id": "eligible-high",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": 5,
+          "steps_executed": 8,
+          "replan_count": 2
+        },
+        "expected": "eligible"
+      },
+      {
+        "fixture_id": "failed-candidate",
+        "status": "failed",
+        "metrics": {
+          "human_interventions": 0,
+          "steps_executed": 4,
+          "replan_count": 1
+        },
+        "expected": "not_completed"
+      },
+      {
+        "fixture_id": "unknown-candidate",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": -1,
+          "steps_executed": 6,
+          "replan_count": 0
+        },
+        "expected": "metric_unknown"
+      }
+    ],
+    "ranking": {
+      "target": {
+        "metric": "human_interventions",
+        "direction": "minimize",
+        "source": "goal_run",
+        "description": "fixture analytics: prefer fewer human interventions"
+      },
+      "ranking": [
+        {
+          "id": "eligible-low",
+          "utility": -2.0,
+          "rank": 1,
+          "eligible": true,
+          "reason": "ranked",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "eligible-low",
+            "goal_id": "fixture-goal",
+            "status": "achieved",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        },
+        {
+          "id": "eligible-high",
+          "utility": -5.0,
+          "rank": 2,
+          "eligible": true,
+          "reason": "ranked",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "eligible-high",
+            "goal_id": "fixture-goal",
+            "status": "achieved",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        },
+        {
+          "id": "failed-candidate",
+          "utility": null,
+          "rank": null,
+          "eligible": false,
+          "reason": "not_completed",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "failed-candidate",
+            "goal_id": "fixture-goal",
+            "status": "failed",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        },
+        {
+          "id": "unknown-candidate",
+          "utility": null,
+          "rank": null,
+          "eligible": false,
+          "reason": "metric_unknown",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "unknown-candidate",
+            "goal_id": "fixture-goal",
+            "status": "achieved",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        }
+      ],
+      "winner": "eligible-low",
+      "eligible_count": 2
+    },
+    "eligible_count": 2,
+    "winner": "eligible-low",
+    "eligible_ids": [
+      "eligible-low",
+      "eligible-high"
+    ],
+    "withheld": [
+      {
+        "id": "failed-candidate",
+        "reason": "not_completed"
+      },
+      {
+        "id": "unknown-candidate",
+        "reason": "metric_unknown"
+      }
+    ],
+    "expected_reasons_ok": true,
+    "winner_expected": "eligible-low",
+    "ok": true
+  },
+  "steps": [
+    {
+      "name": "source_and_fixture_proof",
+      "status": "PASS",
+      "checks": {
+        "source_proof_ok": true,
+        "expected_sha_ok": true,
+        "tracked_tree_clean": true,
+        "per_file_match": true,
+        "fixture_ok": true
+      },
+      "details": {
+        "head": "367daad91c61d1933f8455380798fdf6528d595a",
+        "files": [
+          "backend/api/goal_routes.py",
+          "backend/core/goals/goal_service.py",
+          "backend/core/goals/goal_run_router.py",
+          "backend/core/goals/goal_run_service.py",
+          "backend/core/goals/goal_write_service.py",
+          "backend/core/goals/utility_target.py",
+          "backend/core/personal_scope.py",
+          "backend/core/product_profile.py",
+          "frontend-nextjs/lib/goal-run-api.ts",
+          "frontend-nextjs/pages/goal-runs/[id].tsx",
+          "scripts/acceptance/browser_goal_utility_ui.py",
+          "scripts/acceptance/browser_agent_job_wait.py",
+          "backend/scripts/orchestration_acceptance/run_isolated.py"
+        ]
+      },
+      "at": "2026-11-07T16:55:24-0500"
+    },
+    {
+      "name": "fresh_marked_world_built_once",
+      "status": "PASS",
+      "checks": {
+        "manifest_present": true,
+        "fixture_present": true,
+        "marker_present": true,
+        "marker_source_matches": true,
+        "marker_fixture_labelled": true,
+        "disk_preflight_ok": true,
+        "preflight_source_matches_frozen": true,
+        "export_tree_matches_manifest": true
+      },
+      "details": {
+        "world": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107",
+        "marker": {
+          "schema": "atom-goal-utility-ui-episode-world-1",
+          "kind": "controlled_analytics_fixture",
+          "source_sha": "367daad91c61d1933f8455380798fdf6528d595a",
+          "world": "goal_utility_ui_367daad_ready_20261107",
+          "fixture_history": "CONTROLLED ANALYTICS FIXTURE: two trusted achieved GoalRun rows with fixed metric counts plus one failed and one unknown-metric candidate. This is synthetic history, not completed agent work or model output.",
+          "not_real_model_outcomes": true,
+          "created_at": "2026-11-07T16:55:32-0500"
+        }
+      },
+      "at": "2026-11-07T16:55:32-0500"
+    },
+    {
+      "name": "backend_source_bound",
+      "status": "PASS",
+      "checks": {
+        "frozen_source_sha_present": true,
+        "frozen_source_matches_head": true,
+        "preflight_source_matches_frozen": true,
+        "git_repo_present": true,
+        "git_commit_resolved": true,
+        "tracked_backend_files_present": true,
+        "all_tracked_backend_files_exported": true,
+        "no_unexpected_backend_files": true,
+        "git_blob_read_ok": true,
+        "git_blob_bytes_match_export": true,
+        "code_manifest_matches_git_blobs": true,
+        "export_tree_matches_git_blobs": true,
+        "code_manifest_keys_match_export": true,
+        "export_tree_keys_match_export": true,
+        "all_git_modes_supported": true,
+        "manifest_export_hash_present": true,
+        "manifest_source_revision_not_conflicting": true,
+        "export_tree_matches_code_manifest": true,
+        "backend_export_hash_present": true,
+        "backend_export_hash_bound": true,
+        "health_cwd_exact": true,
+        "descriptor_export_exact": true,
+        "health_source_id_observed": true
+      },
+      "details": {
+        "git_blob_files_checked": 7760,
+        "git_backend_export": {
+          "prefix": "backend/",
+          "file_count": 7760,
+          "sha256": "debdc90d0539abd8b93d71064fa19c5be699074ca8435a92fb295a584a900c2b"
+        }
+      },
+      "at": "2026-11-07T16:55:42-0500"
+    },
+    {
+      "name": "backend_identity",
+      "status": "PASS",
+      "checks": {
+        "health_ok": true,
+        "cwd_is_world_backend_root": true,
+        "db_is_run_db": true,
+        "db_not_live": true
+      },
+      "details": {
+        "descriptor": {
+          "run_id": "run-8a92f4c752a9",
+          "pid": 23457,
+          "port": 18701,
+          "export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+          "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9/data/atom.db",
+          "world": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107",
+          "log_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/server.log",
+          "expected_cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+          "health_identity": {
+            "pid": 23457,
+            "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+            "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+            "instance_id": "ec69e24f4385-dirty.d48cacd2123b.23457.1794088540"
+          },
+          "effective_env": {
+            "ATOM_DATA_DIR": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9/data",
+            "ATOM_SHEET_DATASETS": "1",
+            "ATOM_CHAT_STREAMING": "false",
+            "ENABLE_SCHEDULER": "false",
+            "ENABLE_INGESTION_SYNC": "false"
+          },
+          "descriptor_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/launch_descriptor.json"
+        },
+        "health_identity": {
+          "pid": 23457,
+          "started_at": "2026-11-07T21:55:37.886492+00:00",
+          "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+          "git_commit": "ec69e24f4385",
+          "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+          "instance_id": "ec69e24f4385-dirty.d48cacd2123b.23457.1794088540",
+          "revision": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+          "dirty": true,
+          "dirty_digest": "d48cacd2123b",
+          "dirty_paths": [
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/summary.json",
+            "frontend-nextjs/.preview-instance/299-08-execution-summary.md",
+            "frontend-nextjs/.preview-instance/299-11-PROGRESS.md",
+            "frontend-nextjs/.preview-instance/ACCESSIBILITY.md",
+            "frontend-nextjs/.preview-instance/DEPLOYMENT.md",
+            "frontend-nextjs/.preview-instance/Dockerfile",
+            "frontend-nextjs/.preview-instance/Dockerfile.production",
+            "frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md",
+            "frontend-nextjs/.preview-instance/LIGHTHOUSE.md",
+            "frontend-nextjs/.preview-instance/PERCY.md",
+            "frontend-nextjs/.preview-instance/README.md",
+            "frontend-nextjs/.preview-instance/README_TEAM_CHAT.md",
+            "frontend-nextjs/.preview-instance/a11y-test-results.json",
+            "frontend-nextjs/.preview-instance/advanced-management.js",
+            "frontend-nextjs/.preview-instance/analyze_coverage.js",
+            "frontend-nextjs/.preview-instance/components",
+            "frontend-nextjs/.preview-instance/components.json",
+            "frontend-nextjs/.preview-instance/config",
+            "frontend-nextjs/.preview-instance/contexts",
+            "frontend-nextjs/.preview-instance/coverage",
+            "frontend-nextjs/.preview-instance/coverage-reports",
+            "frontend-nextjs/.preview-instance/data",
+            "frontend-nextjs/.preview-instance/docs",
+            "frontend-nextjs/.preview-instance/e2e",
+            "frontend-nextjs/.preview-instance/element-not-found-patterns.md",
+            "frontend-nextjs/.preview-instance/enterprise-dashboard.js",
+            "frontend-nextjs/.preview-instance/eslint.config.mjs",
+            "frontend-nextjs/.preview-instance/final-implementation.js",
+            "frontend-nextjs/.preview-instance/find-uncovered-files.js",
+            "frontend-nextjs/.preview-instance/fix-eslint-errors.js",
+            "frontend-nextjs/.preview-instance/fix-parsing-errors.js",
+            "frontend-nextjs/.preview-instance/hooks",
+            "frontend-nextjs/.preview-instance/jest.config.js",
+            "frontend-nextjs/.preview-instance/jest.setup.js",
+            "frontend-nextjs/.preview-instance/k8s",
+            "frontend-nextjs/.preview-instance/layouts",
+            "frontend-nextjs/.preview-instance/lib",
+            "frontend-nextjs/.preview-instance/lighthouserc.json",
+            "frontend-nextjs/.preview-instance/middleware.ts",
+            "frontend-nextjs/.preview-instance/next-env.d.ts"
+          ],
+          "untracked_paths": [
+            "backend/replay_subject_admission.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_221948/deployment_smoke_20261017_221948.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_222902/deployment_smoke_20261017_222902.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/deployment_smoke_20261017_223251.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/deployment_smoke_20261017_223554.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j2_live_20261013_e8b01dcec.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j4_r16_20261013_164740_e5bc38.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j5_r16_20261013_165009_e69d41.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/driver_j45_r17.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j4_r17_20261014_065311_3ccbf8.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j5_r17_20261014_065402_02a9bb.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105549/j4_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105935/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_110533/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_20261014_204321.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_benchmark.py",
+            "backend/tests/test_direct_read_settlement_facts.py",
+            "backend/tests/test_probe_exec_row_tmp.py",
+            "backend/tests/test_t1_investigate_end_to_end.py",
+            "backend/tests/test_unmet_obligation_replay.py",
+            "docs/architecture/orchestration_migration/BRENNAN_FIRST_PRODUCT_COMPLETION_PLAN_2026_10_06.md",
+            "docs/architecture/orchestration_migration/DOMAIN_INDEPENDENT_JOB_COMPLETION_AGENT_GUIDE_2026_10_07.md",
+            "docs/architecture/orchestration_migration/INTENT_AND_FRESH_INSTALL_COMPLETION_GUIDE_2026_10_08.md",
+            "docs/architecture/orchestration_migration/RESEARCH_TO_DRAFT_COMPLETION_REPAIR_GUIDE_2026_10_08.md"
+          ],
+          "captured_at": "2026-11-07T21:55:40.860741+00:00",
+          "process_started_at": "2026-11-07T21:55:40.860739+00:00",
+          "port": null,
+          "repo_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107",
+          "backend_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+          "error": null,
+          "database": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9/data/atom.db",
+          "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root/data/byok_keys.json"
+        }
+      },
+      "at": "2026-11-07T16:55:42-0500"
+    },
+    {
+      "name": "frontend_source_bytes_match_git",
+      "status": "PASS",
+      "checks": {
+        "source_proof_ok": true,
+        "files_checked": true
+      },
+      "details": {
+        "ok": true,
+        "files": {
+          "frontend-nextjs/lib/goal-run-api.ts": {
+            "path": "frontend-nextjs/lib/goal-run-api.ts",
+            "snapshot_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/frontend_snapshot/lib/goal-run-api.ts",
+            "git_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+            "snapshot_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+            "matches": true
+          },
+          "frontend-nextjs/pages/goal-runs/[id].tsx": {
+            "path": "frontend-nextjs/pages/goal-runs/[id].tsx",
+            "snapshot_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/frontend_snapshot/pages/goal-runs/[id].tsx",
+            "git_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+            "snapshot_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+            "matches": true
+          }
+        }
+      },
+      "at": "2026-11-07T16:56:33-0500"
+    },
+    {
+      "name": "core_activity_profile_enabled",
+      "status": "PASS",
+      "checks": {
+        "profile_core": true,
+        "activity_enabled": true,
+        "tasks_not_forced": true,
+        "boards_not_forced": true
+      },
+      "details": {
+        "status": 200,
+        "body": {
+          "profile": "core",
+          "version": "2026-10-27",
+          "statement": "Company data + trained agent workspace",
+          "capabilities": {
+            "chat": {
+              "label": "Chat",
+              "enabled": true,
+              "job": "Ask questions and direct work."
+            },
+            "documents": {
+              "label": "Data",
+              "enabled": true,
+              "job": "Upload, find and inspect company records."
+            },
+            "canvas": {
+              "label": "Workspace",
+              "enabled": true,
+              "job": "Review and edit deliverables: documents, tables, email drafts and presentations."
+            },
+            "agents": {
+              "label": "Agents",
+              "enabled": true,
+              "job": "Create, teach and correct an agent."
+            },
+            "learning": {
+              "label": "Learning",
+              "enabled": true,
+              "job": "Review lessons learned from conversations before they become standing guidance."
+            },
+            "activity": {
+              "label": "Activity",
+              "enabled": true,
+              "job": "See results, failures and unfinished work."
+            },
+            "settings": {
+              "label": "Settings",
+              "enabled": true,
+              "job": "Sign-in, providers and data configuration."
+            },
+            "approvals": {
+              "label": "Approvals",
+              "enabled": true,
+              "nav": false,
+              "min_role": "team_lead",
+              "job": "Supervise work that is waiting for a human decision."
+            },
+            "search": {
+              "label": "Search",
+              "enabled": false,
+              "job": "Cross-surface search (documents search stays available)."
+            },
+            "tasks": {
+              "label": "Tasks",
+              "enabled": false,
+              "job": "Task tracking."
+            },
+            "boards": {
+              "label": "Kanban",
+              "enabled": false,
+              "job": "Kanban boards."
+            },
+            "automations": {
+              "label": "Automations",
+              "enabled": false,
+              "job": "Workflow builder, scheduling and unattended automation."
+            },
+            "marketplace": {
+              "label": "Marketplace",
+              "enabled": false,
+              "job": "Agent/template marketplace."
+            },
+            "command_centers": {
+              "label": "Command Centers",
+              "enabled": false,
+              "job": "Projects, sales, support and knowledge dashboards."
+            },
+            "business_dashboards": {
+              "label": "Business Dashboards",
+              "enabled": false,
+              "job": "Sales, marketing, finance and analytics dashboards."
+            },
+            "productivity": {
+              "label": "Productivity",
+              "enabled": false,
+              "job": "Calendar, business health and voice."
+            },
+            "governance": {
+              "label": "Governance",
+              "enabled": false,
+              "job": "Admin, audit, forensics and self-healing tools."
+            },
+            "connectors": {
+              "label": "Connector Management",
+              "enabled": false,
+              "job": "Broad third-party connector setup (providers stay in Settings)."
+            },
+            "team_chat": {
+              "label": "Team Chat",
+              "enabled": false,
+              "job": "Internal team messaging."
+            }
+          },
+          "enabled_capabilities": [
+            "chat",
+            "documents",
+            "canvas",
+            "agents",
+            "learning",
+            "activity",
+            "settings",
+            "approvals"
+          ],
+          "deferred_capabilities": [
+            "search",
+            "tasks",
+            "boards",
+            "automations",
+            "marketplace",
+            "command_centers",
+            "business_dashboards",
+            "productivity",
+            "governance",
+            "connectors",
+            "team_chat"
+          ],
+          "routes": {
+            "/dashboard": "chat",
+            "/chat": "chat",
+            "/documents": "documents",
+            "/canvas": "canvas",
+            "/agents": "agents",
+            "/learning": "learning",
+            "/goal-runs": "activity",
+            "/execution-history": "activity",
+            "/activity": "activity",
+            "/assignments": "activity",
+            "/approvals": "approvals",
+            "/settings/harness-evolution": "governance",
+            "/settings": "settings",
+            "/login": "core",
+            "/auth": "core",
+            "/not-in-release": "core",
+            "/search": "search",
+            "/tasks": "tasks",
+            "/boards": "boards",
+            "/automations": "automations",
+            "/workflows": "automations",
+            "/scheduling": "automations",
+            "/marketplace": "marketplace",
+            "/dashboards": "command_centers",
+            "/communication": "command_centers",
+            "/sales": "business_dashboards",
+            "/marketing": "business_dashboards",
+            "/finance": "business_dashboards",
+            "/analytics": "business_dashboards",
+            "/calendar": "productivity",
+            "/health": "productivity",
+            "/voice": "productivity",
+            "/admin": "governance",
+            "/audit-trail": "governance",
+            "/dashboard/owner": "governance",
+            "/dashboard/forensics": "governance",
+            "/dashboard/risk": "governance",
+            "/system-status": "governance",
+            "/dev-studio": "governance",
+            "/intelligence": "governance",
+            "/integrations": "connectors",
+            "/google-drive": "connectors",
+            "/onedrive": "connectors",
+            "/team-chat": "team_chat"
+          }
+        },
+        "activity_enabled": true,
+        "tasks_enabled": false,
+        "boards_enabled": false
+      },
+      "at": "2026-11-07T16:56:33-0500"
+    },
+    {
+      "name": "goal_created_through_public_api",
+      "status": "PASS",
+      "checks": {
+        "http_2xx": true,
+        "goal_id_present": true,
+        "effective_workspace_matches_durable_goal": true,
+        "no_utility_target_written": true,
+        "receipt_present": true
+      },
+      "details": {
+        "goal": {
+          "id": "592f5957-be19-4467-a866-03e7d14d2850",
+          "title": "[FIXTURE] Utility ranking analytics \u2014 not model work",
+          "description": "Controlled ANALYTICS fixture for the ordinary GOAL-02 UI episode. The GoalRun rows are synthetic history with fixed metric counts, not completed agent work and not model outcomes.",
+          "status": "active",
+          "progress": 0.0,
+          "criteria": [],
+          "key_results": [],
+          "owner_id": "08573fb2-a5c6-4fc0-864b-59ebb9d3a06b",
+          "parent_goal_id": null,
+          "source": "api",
+          "utility_target": null,
+          "target_date": null,
+          "created_at": "2026-11-07T21:56:35",
+          "verification": {
+            "status": "verified",
+            "effect": "committed",
+            "audit_id": "goal:create:de853ad9549d4a7a84c3110691acc791"
+          },
+          "operation_id": "goal:create:de853ad9549d4a7a84c3110691acc791",
+          "audit_id": "goal:create:de853ad9549d4a7a84c3110691acc791"
+        },
+        "verification": {
+          "status": "verified",
+          "effect": "committed",
+          "audit_id": "goal:create:de853ad9549d4a7a84c3110691acc791"
+        }
+      },
+      "at": "2026-11-07T16:56:35-0500"
+    },
+    {
+      "name": "controlled_analytics_history_seeded",
+      "status": "PASS",
+      "checks": {
+        "four_rows": true,
+        "two_eligible": true,
+        "winner_expected": true,
+        "withheld_expected": true,
+        "no_target_written": true,
+        "rows_are_fixture_labelled": true
+      },
+      "details": {
+        "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+        "rows": [
+          {
+            "fixture_id": "eligible-low",
+            "status": "achieved",
+            "metrics": {
+              "human_interventions": 2,
+              "steps_executed": 5,
+              "replan_count": 1
+            },
+            "expected": "eligible",
+            "run_id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+            "role": "analytics_fixture",
+            "label": "controlled analytics fixture, not agent work"
+          },
+          {
+            "fixture_id": "eligible-high",
+            "status": "achieved",
+            "metrics": {
+              "human_interventions": 5,
+              "steps_executed": 8,
+              "replan_count": 2
+            },
+            "expected": "eligible",
+            "run_id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+            "role": "analytics_fixture",
+            "label": "controlled analytics fixture, not agent work"
+          },
+          {
+            "fixture_id": "failed-candidate",
+            "status": "failed",
+            "metrics": {
+              "human_interventions": 0,
+              "steps_executed": 4,
+              "replan_count": 1
+            },
+            "expected": "not_completed",
+            "run_id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+            "role": "analytics_fixture",
+            "label": "controlled analytics fixture, not agent work"
+          },
+          {
+            "fixture_id": "unknown-candidate",
+            "status": "achieved",
+            "metrics": {
+              "human_interventions": -1,
+              "steps_executed": 6,
+              "replan_count": 0
+            },
+            "expected": "metric_unknown",
+            "run_id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+            "role": "analytics_fixture",
+            "label": "controlled analytics fixture, not agent work"
+          }
+        ],
+        "no_target_or_winner_written": true,
+        "source": "GoalRunService.create_run/activate/transition + ORM fixture counters"
+      },
+      "at": "2026-11-07T16:56:36-0500"
+    },
+    {
+      "name": "supervisor_ordinary_ui_login",
+      "status": "PASS",
+      "checks": {
+        "attempted": true,
+        "landed_off_login": true,
+        "token_present_after_login": true
+      },
+      "details": {
+        "attempted": true,
+        "ok": true,
+        "landed_url": "http://localhost:18702/dashboard",
+        "token_present_after_login": true
+      },
+      "at": "2026-11-07T16:57:22-0500"
+    },
+    {
+      "name": "activity_goal_run_detail_opened",
+      "status": "PASS",
+      "checks": {
+        "detail_visible": true,
+        "utility_card_visible": true,
+        "no_target_state": true,
+        "editor_visible": true,
+        "fixture_goal_title_visible": true
+      },
+      "details": {
+        "run_id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+        "onboarding": {
+          "wizard_seen": true,
+          "dismissed": true
+        }
+      },
+      "at": "2026-11-07T16:58:16-0500"
+    },
+    {
+      "name": "supervisor_sets_existing_target_via_ui",
+      "status": "PASS",
+      "checks": {
+        "http_2xx": true,
+        "verified": true,
+        "operation_id": true,
+        "audit_id": true,
+        "one_put_request": true
+      },
+      "details": {
+        "status": 200,
+        "verification": {
+          "status": "verified",
+          "effect": "committed",
+          "audit_id": "goal:utility:set:b53adfed85684b029be9390351f5c1c6"
+        },
+        "verification_status": "verified",
+        "operation_id": "goal:utility:set:b53adfed85684b029be9390351f5c1c6",
+        "audit_id": "goal:utility:set:b53adfed85684b029be9390351f5c1c6",
+        "utility_target": {
+          "metric": "human_interventions",
+          "direction": "minimize",
+          "source": "goal_run",
+          "description": "fixture analytics: prefer fewer human interventions"
+        },
+        "ok": true
+      },
+      "at": "2026-11-07T16:58:20-0500"
+    },
+    {
+      "name": "ui_ranking_two_eligible_and_withheld",
+      "status": "PASS",
+      "checks": {
+        "target_visible": true,
+        "two_eligible_rows": true,
+        "winner_badge": true,
+        "failed_withheld": true,
+        "unknown_withheld": true,
+        "fixture_labelled": true
+      },
+      "details": {
+        "target_text": "Human interventions\nlower is better \u00b7 goal_run\n\u00b7 fixture analytics: prefer fewer human interventions",
+        "withheld": "Not ranked\n\n5042996c-ff8f-4320-b16e-1969196fbf53 \u00b7 metric unknown\na34aaf08-733b-4f7d-a254-9d10ede4629c \u00b7 not completed"
+      },
+      "at": "2026-11-07T16:58:21-0500"
+    },
+    {
+      "name": "public_api_and_durable_readback_after_set",
+      "status": "PASS",
+      "checks": {
+        "api_target_matches": true,
+        "eligible_count_two": true,
+        "winner_is_fixture_low": true,
+        "eligible_ids_match": true,
+        "durable_target_matches": true,
+        "status_unchanged": true,
+        "progress_unchanged": true
+      },
+      "details": {
+        "public": {
+          "status": 200,
+          "body": {
+            "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+            "target": {
+              "metric": "human_interventions",
+              "direction": "minimize",
+              "source": "goal_run",
+              "description": "fixture analytics: prefer fewer human interventions"
+            },
+            "ranking": [
+              {
+                "id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+                "utility": -2.0,
+                "rank": 1,
+                "eligible": true,
+                "reason": "ranked",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "achieved",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              },
+              {
+                "id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+                "utility": -5.0,
+                "rank": 2,
+                "eligible": true,
+                "reason": "ranked",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "achieved",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              },
+              {
+                "id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+                "utility": null,
+                "rank": null,
+                "eligible": false,
+                "reason": "metric_unknown",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "achieved",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              },
+              {
+                "id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+                "utility": null,
+                "rank": null,
+                "eligible": false,
+                "reason": "not_completed",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "failed",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              }
+            ],
+            "winner": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+            "eligible_count": 2
+          },
+          "target": {
+            "metric": "human_interventions",
+            "direction": "minimize",
+            "source": "goal_run",
+            "description": "fixture analytics: prefer fewer human interventions"
+          },
+          "ranking": [
+            {
+              "id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+              "utility": -2.0,
+              "rank": 1,
+              "eligible": true,
+              "reason": "ranked",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "achieved",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            },
+            {
+              "id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+              "utility": -5.0,
+              "rank": 2,
+              "eligible": true,
+              "reason": "ranked",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "achieved",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            },
+            {
+              "id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+              "utility": null,
+              "rank": null,
+              "eligible": false,
+              "reason": "metric_unknown",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "achieved",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            },
+            {
+              "id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+              "utility": null,
+              "rank": null,
+              "eligible": false,
+              "reason": "not_completed",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "failed",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            }
+          ],
+          "winner": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+          "eligible_count": 2
+        },
+        "durable": {
+          "found": true,
+          "workspace_id": "default",
+          "status": "active",
+          "progress": 0.0,
+          "utility_target": {
+            "metric": "human_interventions",
+            "direction": "minimize",
+            "source": "goal_run",
+            "description": "fixture analytics: prefer fewer human interventions"
+          }
+        }
+      },
+      "at": "2026-11-07T16:58:21-0500"
+    },
+    {
+      "name": "reload_and_fresh_read_persist_target",
+      "status": "PASS",
+      "checks": {
+        "ui_ranking_after_reload": true,
+        "fresh_api_target_matches": true,
+        "fresh_api_winner_matches": true
+      },
+      "details": {
+        "fresh": {
+          "status": 200,
+          "body": {
+            "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+            "target": {
+              "metric": "human_interventions",
+              "direction": "minimize",
+              "source": "goal_run",
+              "description": "fixture analytics: prefer fewer human interventions"
+            },
+            "ranking": [
+              {
+                "id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+                "utility": -2.0,
+                "rank": 1,
+                "eligible": true,
+                "reason": "ranked",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "achieved",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              },
+              {
+                "id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+                "utility": -5.0,
+                "rank": 2,
+                "eligible": true,
+                "reason": "ranked",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "achieved",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              },
+              {
+                "id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+                "utility": null,
+                "rank": null,
+                "eligible": false,
+                "reason": "metric_unknown",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "achieved",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              },
+              {
+                "id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+                "utility": null,
+                "rank": null,
+                "eligible": false,
+                "reason": "not_completed",
+                "evidence": {
+                  "source": "goal_runs",
+                  "run_id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+                  "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                  "status": "failed",
+                  "supervision_mode": "shadow",
+                  "updated_at": "2026-11-07T21:56:36"
+                }
+              }
+            ],
+            "winner": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+            "eligible_count": 2
+          },
+          "target": {
+            "metric": "human_interventions",
+            "direction": "minimize",
+            "source": "goal_run",
+            "description": "fixture analytics: prefer fewer human interventions"
+          },
+          "ranking": [
+            {
+              "id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+              "utility": -2.0,
+              "rank": 1,
+              "eligible": true,
+              "reason": "ranked",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "achieved",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            },
+            {
+              "id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+              "utility": -5.0,
+              "rank": 2,
+              "eligible": true,
+              "reason": "ranked",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "achieved",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            },
+            {
+              "id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+              "utility": null,
+              "rank": null,
+              "eligible": false,
+              "reason": "metric_unknown",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "achieved",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            },
+            {
+              "id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+              "utility": null,
+              "rank": null,
+              "eligible": false,
+              "reason": "not_completed",
+              "evidence": {
+                "source": "goal_runs",
+                "run_id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+                "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+                "status": "failed",
+                "supervision_mode": "shadow",
+                "updated_at": "2026-11-07T21:56:36"
+              }
+            }
+          ],
+          "winner": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+          "eligible_count": 2
+        }
+      },
+      "at": "2026-11-07T16:58:36-0500"
+    }
+  ],
+  "checks": {},
+  "not_claimed": [
+    "served model or provider quality",
+    "general model judgment or prompt quality",
+    "that the fixture rows are real agent work",
+    "TASK-WAIT-01, source upload/answer, downloads or a Generic model call",
+    "live provider/account/credential/send/spend/install/deploy",
+    "full application, PostgreSQL, multi-worker or soak acceptance"
+  ],
+  "driver_environment": {
+    "driver_scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-driver-xljuwcpf",
+    "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-driver-xljuwcpf/driver_schema.db",
+    "testing": "1",
+    "live_db_touched": false
+  },
+  "ready": {
+    "dependencies": {
+      "interpreter": "3.14.7",
+      "interpreter_path": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+      "modules": {
+        "pydantic": true,
+        "httpx": true,
+        "playwright": true,
+        "sqlalchemy": true,
+        "fastapi": true,
+        "uvicorn": true,
+        "instructor": true
+      },
+      "node": "/usr/local/bin/node",
+      "node_version": "v25.2.1",
+      "chrome_app": true,
+      "venv314_python": true,
+      "frontend_node_modules": true
+    },
+    "ports": {
+      "18701": true,
+      "18702": true
+    }
+  },
+  "profile_prelaunch": {
+    "profile": "core",
+    "activity_enabled": true,
+    "goal_runs_route": "activity",
+    "goal_runs_enabled": true,
+    "tasks_enabled": false,
+    "boards_enabled": false,
+    "core_profile": true,
+    "deferred_not_forced": true,
+    "ok": true
+  },
+  "secret_key": "synthetic per-run value (not recorded)",
+  "world_build": {
+    "world": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107",
+    "disk_preflight": {
+      "target": "world:goal_utility_ui_367daad_ready_20261107",
+      "ok": true,
+      "required_bytes": 1544019968,
+      "free_bytes": 4411449344,
+      "free_bytes_source": "statvfs",
+      "probe_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds",
+      "shortfall_bytes": 0,
+      "estimate": {
+        "target": "world:goal_utility_ui_367daad_ready_20261107",
+        "total_bytes": 579330048,
+        "components": [
+          {
+            "name": "fixture",
+            "bytes": 33554432,
+            "source": "fallback: schema-only API-seeded fixture (8.1 MB measured empty)",
+            "measured": false
+          },
+          {
+            "name": "code_export",
+            "bytes": 198524928,
+            "source": "measured:/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/browser_source_0bb931831_root_20261107/code",
+            "measured": true
+          },
+          {
+            "name": "run_data",
+            "bytes": 11706368,
+            "source": "measured:median of 5 sibling run data dirs (e.g. /private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/browser_source_0bb931831_root_20261107/runs/run-d1a4022b001e/data)",
+            "measured": true
+          },
+          {
+            "name": "build_cache",
+            "bytes": 335544320,
+            "source": "fallback:no measured frontend distDir on this box",
+            "measured": false
+          }
+        ]
+      },
+      "headroom": {
+        "total_bytes": 964689920,
+        "live_db": {
+          "name": "live_db",
+          "bytes": 440401920,
+          "source": "fallback: live db unreadable at /private/tmp/atom-goal-utility-surface-20261107/backend/data/atom.db",
+          "measured": false
+        },
+        "live_wal": {
+          "name": "live_wal",
+          "bytes": 0,
+          "source": "measured:absent (/private/tmp/atom-goal-utility-surface-20261107/backend/data/atom.db-wal)",
+          "measured": true
+        },
+        "snapshot_floor": {
+          "name": "snapshot_floor",
+          "bytes": 524288000,
+          "source": "core.db_safety.ATOM_DB_SNAPSHOT_MIN_FREE_MB",
+          "measured": true
+        }
+      }
+    },
+    "manifest_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/MANIFEST.json",
+    "fixture_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/fixture/atom.db",
+    "preflight": {
+      "source_revision": "367daad91c61d1933f8455380798fdf6528d595a",
+      "code_archive_sha256": null,
+      "code_snapshot_sha256": "623bed527c2e87e4d9d9f7cc4d4bedab2e0ec70f8d61c5fb5eea8334f83b7efb",
+      "db_sha256": "2df6864b93ade387074b95931f89504e3b99375285ae54e295618e36c258784e",
+      "credentials_scrubbed": true,
+      "venv_verified": true,
+      "fixtures_verified": true,
+      "harness_version": "enforced-isolation-v3.2"
+    },
+    "source_revision": null,
+    "code_snapshot_sha256": "623bed527c2e87e4d9d9f7cc4d4bedab2e0ec70f8d61c5fb5eea8334f83b7efb",
+    "code_archive_sha256": null,
+    "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+    "fixture_source": {
+      "mode": "api-seeded-fixture",
+      "explicit": false,
+      "note": "default: schema-provisioned API-seeded fixture; no dev rows copied"
+    },
+    "backend_export": {
+      "prefix": "backend/",
+      "file_count": 7760,
+      "sha256": "debdc90d0539abd8b93d71064fa19c5be699074ca8435a92fb295a584a900c2b"
+    },
+    "export": {
+      "prefix": "",
+      "file_count": 7760,
+      "sha256": "debdc90d0539abd8b93d71064fa19c5be699074ca8435a92fb295a584a900c2b"
+    },
+    "marker_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/GOAL_UTILITY_UI_EPISODE.json",
+    "marker": {
+      "schema": "atom-goal-utility-ui-episode-world-1",
+      "kind": "controlled_analytics_fixture",
+      "source_sha": "367daad91c61d1933f8455380798fdf6528d595a",
+      "world": "goal_utility_ui_367daad_ready_20261107",
+      "fixture_history": "CONTROLLED ANALYTICS FIXTURE: two trusted achieved GoalRun rows with fixed metric counts plus one failed and one unknown-metric candidate. This is synthetic history, not completed agent work or model output.",
+      "not_real_model_outcomes": true,
+      "created_at": "2026-11-07T16:55:32-0500"
+    }
+  },
+  "stack": {
+    "world": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107",
+    "run_dir": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9",
+    "db_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9/data/atom.db",
+    "backend_port": 18701,
+    "frontend_port": 18702,
+    "backend_descriptor": {
+      "run_id": "run-8a92f4c752a9",
+      "pid": 23457,
+      "port": 18701,
+      "export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+      "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9/data/atom.db",
+      "world": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107",
+      "log_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/server.log",
+      "expected_cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+      "health_identity": {
+        "pid": 23457,
+        "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+        "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+        "instance_id": "ec69e24f4385-dirty.d48cacd2123b.23457.1794088540"
+      },
+      "effective_env": {
+        "ATOM_DATA_DIR": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9/data",
+        "ATOM_SHEET_DATASETS": "1",
+        "ATOM_CHAT_STREAMING": "false",
+        "ENABLE_SCHEDULER": "false",
+        "ENABLE_INGESTION_SYNC": "false"
+      },
+      "descriptor_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/launch_descriptor.json"
+    },
+    "health": {
+      "status": "healthy",
+      "version": "8.0.0",
+      "deployed_sha": "unknown",
+      "timestamp": "2026-11-07T21:55:40.994942+00:00",
+      "identity": {
+        "pid": 23457,
+        "started_at": "2026-11-07T21:55:37.886492+00:00",
+        "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+        "git_commit": "ec69e24f4385",
+        "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+        "instance_id": "ec69e24f4385-dirty.d48cacd2123b.23457.1794088540",
+        "revision": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+        "dirty": true,
+        "dirty_digest": "d48cacd2123b",
+        "dirty_paths": [
+          "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/summary.json",
+          "frontend-nextjs/.preview-instance/299-08-execution-summary.md",
+          "frontend-nextjs/.preview-instance/299-11-PROGRESS.md",
+          "frontend-nextjs/.preview-instance/ACCESSIBILITY.md",
+          "frontend-nextjs/.preview-instance/DEPLOYMENT.md",
+          "frontend-nextjs/.preview-instance/Dockerfile",
+          "frontend-nextjs/.preview-instance/Dockerfile.production",
+          "frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md",
+          "frontend-nextjs/.preview-instance/LIGHTHOUSE.md",
+          "frontend-nextjs/.preview-instance/PERCY.md",
+          "frontend-nextjs/.preview-instance/README.md",
+          "frontend-nextjs/.preview-instance/README_TEAM_CHAT.md",
+          "frontend-nextjs/.preview-instance/a11y-test-results.json",
+          "frontend-nextjs/.preview-instance/advanced-management.js",
+          "frontend-nextjs/.preview-instance/analyze_coverage.js",
+          "frontend-nextjs/.preview-instance/components",
+          "frontend-nextjs/.preview-instance/components.json",
+          "frontend-nextjs/.preview-instance/config",
+          "frontend-nextjs/.preview-instance/contexts",
+          "frontend-nextjs/.preview-instance/coverage",
+          "frontend-nextjs/.preview-instance/coverage-reports",
+          "frontend-nextjs/.preview-instance/data",
+          "frontend-nextjs/.preview-instance/docs",
+          "frontend-nextjs/.preview-instance/e2e",
+          "frontend-nextjs/.preview-instance/element-not-found-patterns.md",
+          "frontend-nextjs/.preview-instance/enterprise-dashboard.js",
+          "frontend-nextjs/.preview-instance/eslint.config.mjs",
+          "frontend-nextjs/.preview-instance/final-implementation.js",
+          "frontend-nextjs/.preview-instance/find-uncovered-files.js",
+          "frontend-nextjs/.preview-instance/fix-eslint-errors.js",
+          "frontend-nextjs/.preview-instance/fix-parsing-errors.js",
+          "frontend-nextjs/.preview-instance/hooks",
+          "frontend-nextjs/.preview-instance/jest.config.js",
+          "frontend-nextjs/.preview-instance/jest.setup.js",
+          "frontend-nextjs/.preview-instance/k8s",
+          "frontend-nextjs/.preview-instance/layouts",
+          "frontend-nextjs/.preview-instance/lib",
+          "frontend-nextjs/.preview-instance/lighthouserc.json",
+          "frontend-nextjs/.preview-instance/middleware.ts",
+          "frontend-nextjs/.preview-instance/next-env.d.ts"
+        ],
+        "untracked_paths": [
+          "backend/replay_subject_admission.py",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_221948/deployment_smoke_20261017_221948.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_222902/deployment_smoke_20261017_222902.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/deployment_smoke_20261017_223251.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_after_click.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_ready_before_click.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_saved_edit.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_sourced_answer.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/deployment_smoke_20261017_223554.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_after_click.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_ready_before_click.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_saved_edit.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_sourced_answer.png",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j2_live_20261013_e8b01dcec.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j4_r16_20261013_164740_e5bc38.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j5_r16_20261013_165009_e69d41.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/summary.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/driver_j45_r17.py",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j4_r17_20261014_065311_3ccbf8.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j5_r17_20261014_065402_02a9bb.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/summary.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_config.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_encryption_key",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_keys.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_config.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_encryption_key",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_keys.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105549/j4_evidence.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105935/j5_evidence.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_110533/j5_evidence.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_20261014_204321.json",
+          "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_benchmark.py",
+          "backend/tests/test_direct_read_settlement_facts.py",
+          "backend/tests/test_probe_exec_row_tmp.py",
+          "backend/tests/test_t1_investigate_end_to_end.py",
+          "backend/tests/test_unmet_obligation_replay.py",
+          "docs/architecture/orchestration_migration/BRENNAN_FIRST_PRODUCT_COMPLETION_PLAN_2026_10_06.md",
+          "docs/architecture/orchestration_migration/DOMAIN_INDEPENDENT_JOB_COMPLETION_AGENT_GUIDE_2026_10_07.md",
+          "docs/architecture/orchestration_migration/INTENT_AND_FRESH_INSTALL_COMPLETION_GUIDE_2026_10_08.md",
+          "docs/architecture/orchestration_migration/RESEARCH_TO_DRAFT_COMPLETION_REPAIR_GUIDE_2026_10_08.md"
+        ],
+        "captured_at": "2026-11-07T21:55:40.860741+00:00",
+        "process_started_at": "2026-11-07T21:55:40.860739+00:00",
+        "port": null,
+        "repo_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107",
+        "backend_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+        "error": null,
+        "database": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/runs/run-8a92f4c752a9/data/atom.db",
+        "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root/data/byok_keys.json"
+      },
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational",
+      "services": {
+        "database": "operational",
+        "redis": "operational",
+        "vector_store": "operational"
+      },
+      "memory_mb": 701.38
+    },
+    "provider_shim": false
+  },
+  "backend_source_binding": {
+    "frozen_source_sha_present": true,
+    "frozen_source_matches_head": true,
+    "preflight_source_matches_frozen": true,
+    "git_repo_present": true,
+    "git_commit_resolved": true,
+    "tracked_backend_files_present": true,
+    "all_tracked_backend_files_exported": true,
+    "no_unexpected_backend_files": true,
+    "git_blob_read_ok": true,
+    "git_blob_bytes_match_export": true,
+    "code_manifest_matches_git_blobs": true,
+    "export_tree_matches_git_blobs": true,
+    "code_manifest_keys_match_export": true,
+    "export_tree_keys_match_export": true,
+    "all_git_modes_supported": true,
+    "manifest_export_hash_present": true,
+    "manifest_source_revision_not_conflicting": true,
+    "export_tree_matches_code_manifest": true,
+    "backend_export_hash_present": true,
+    "backend_export_hash_bound": true,
+    "health_cwd_exact": true,
+    "descriptor_export_exact": true,
+    "health_source_id_observed": true,
+    "checks": {
+      "frozen_source_sha_present": true,
+      "frozen_source_matches_head": true,
+      "preflight_source_matches_frozen": true,
+      "git_repo_present": true,
+      "git_commit_resolved": true,
+      "tracked_backend_files_present": true,
+      "all_tracked_backend_files_exported": true,
+      "no_unexpected_backend_files": true,
+      "git_blob_read_ok": true,
+      "git_blob_bytes_match_export": true,
+      "code_manifest_matches_git_blobs": true,
+      "export_tree_matches_git_blobs": true,
+      "code_manifest_keys_match_export": true,
+      "export_tree_keys_match_export": true,
+      "all_git_modes_supported": true,
+      "manifest_export_hash_present": true,
+      "manifest_source_revision_not_conflicting": true,
+      "export_tree_matches_code_manifest": true,
+      "backend_export_hash_present": true,
+      "backend_export_hash_bound": true,
+      "health_cwd_exact": true,
+      "descriptor_export_exact": true,
+      "health_source_id_observed": true
+    },
+    "ok": true,
+    "certified_by": "frozen_source+preflight_source+git_blob_bytes+exported_tree+backend_export+isolated_cwd+descriptor",
+    "frozen_source_sha": "367daad91c61d1933f8455380798fdf6528d595a",
+    "source_head": "367daad91c61d1933f8455380798fdf6528d595a",
+    "preflight_source_revision": "367daad91c61d1933f8455380798fdf6528d595a",
+    "git_repo": "/private/tmp/atom-goal-utility-surface-20261107",
+    "git_error": "",
+    "export_root": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/code",
+    "expected_commit_file_count": 7760,
+    "exported_backend_file_count": 7760,
+    "missing_exported_files": [],
+    "unexpected_exported_files": [],
+    "launcher_generated_exported_files": [],
+    "git_blob_files_checked": 7760,
+    "git_blob_mismatches": [],
+    "code_manifest_mismatches": [],
+    "export_tree_mismatches": [],
+    "unsupported_git_modes": [],
+    "git_blob_error": "",
+    "git_backend_export": {
+      "prefix": "backend/",
+      "file_count": 7760,
+      "sha256": "debdc90d0539abd8b93d71064fa19c5be699074ca8435a92fb295a584a900c2b"
+    },
+    "export_backend_export": {
+      "prefix": "backend/",
+      "file_count": 7760,
+      "sha256": "debdc90d0539abd8b93d71064fa19c5be699074ca8435a92fb295a584a900c2b"
+    },
+    "manifest_source_revision": null,
+    "manifest_source_revision_present": false,
+    "code_snapshot_sha256": "623bed527c2e87e4d9d9f7cc4d4bedab2e0ec70f8d61c5fb5eea8334f83b7efb",
+    "code_archive_sha256": null,
+    "export_tree": {
+      "prefix": "",
+      "file_count": 7760,
+      "sha256": "debdc90d0539abd8b93d71064fa19c5be699074ca8435a92fb295a584a900c2b"
+    },
+    "backend_export": {
+      "prefix": "backend/",
+      "file_count": 7760,
+      "sha256": "debdc90d0539abd8b93d71064fa19c5be699074ca8435a92fb295a584a900c2b"
+    },
+    "health_source_id": "ec69e24f4385-dirty.d48cacd2123b",
+    "health_source_id_is_unknown": false,
+    "health_cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root",
+    "descriptor_export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/backend_root"
+  },
+  "frontend": {
+    "pid": 23520,
+    "base": "http://localhost:18702",
+    "snapshot": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/frontend_snapshot",
+    "source_proof": {
+      "ok": true,
+      "files": {
+        "frontend-nextjs/lib/goal-run-api.ts": {
+          "path": "frontend-nextjs/lib/goal-run-api.ts",
+          "snapshot_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/frontend_snapshot/lib/goal-run-api.ts",
+          "git_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+          "snapshot_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+          "matches": true
+        },
+        "frontend-nextjs/pages/goal-runs/[id].tsx": {
+          "path": "frontend-nextjs/pages/goal-runs/[id].tsx",
+          "snapshot_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_367daad_ready_20261107/frontend_snapshot/pages/goal-runs/[id].tsx",
+          "git_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+          "snapshot_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+          "matches": true
+        }
+      }
+    }
+  },
+  "profile": {
+    "status": 200,
+    "body": {
+      "profile": "core",
+      "version": "2026-10-27",
+      "statement": "Company data + trained agent workspace",
+      "capabilities": {
+        "chat": {
+          "label": "Chat",
+          "enabled": true,
+          "job": "Ask questions and direct work."
+        },
+        "documents": {
+          "label": "Data",
+          "enabled": true,
+          "job": "Upload, find and inspect company records."
+        },
+        "canvas": {
+          "label": "Workspace",
+          "enabled": true,
+          "job": "Review and edit deliverables: documents, tables, email drafts and presentations."
+        },
+        "agents": {
+          "label": "Agents",
+          "enabled": true,
+          "job": "Create, teach and correct an agent."
+        },
+        "learning": {
+          "label": "Learning",
+          "enabled": true,
+          "job": "Review lessons learned from conversations before they become standing guidance."
+        },
+        "activity": {
+          "label": "Activity",
+          "enabled": true,
+          "job": "See results, failures and unfinished work."
+        },
+        "settings": {
+          "label": "Settings",
+          "enabled": true,
+          "job": "Sign-in, providers and data configuration."
+        },
+        "approvals": {
+          "label": "Approvals",
+          "enabled": true,
+          "nav": false,
+          "min_role": "team_lead",
+          "job": "Supervise work that is waiting for a human decision."
+        },
+        "search": {
+          "label": "Search",
+          "enabled": false,
+          "job": "Cross-surface search (documents search stays available)."
+        },
+        "tasks": {
+          "label": "Tasks",
+          "enabled": false,
+          "job": "Task tracking."
+        },
+        "boards": {
+          "label": "Kanban",
+          "enabled": false,
+          "job": "Kanban boards."
+        },
+        "automations": {
+          "label": "Automations",
+          "enabled": false,
+          "job": "Workflow builder, scheduling and unattended automation."
+        },
+        "marketplace": {
+          "label": "Marketplace",
+          "enabled": false,
+          "job": "Agent/template marketplace."
+        },
+        "command_centers": {
+          "label": "Command Centers",
+          "enabled": false,
+          "job": "Projects, sales, support and knowledge dashboards."
+        },
+        "business_dashboards": {
+          "label": "Business Dashboards",
+          "enabled": false,
+          "job": "Sales, marketing, finance and analytics dashboards."
+        },
+        "productivity": {
+          "label": "Productivity",
+          "enabled": false,
+          "job": "Calendar, business health and voice."
+        },
+        "governance": {
+          "label": "Governance",
+          "enabled": false,
+          "job": "Admin, audit, forensics and self-healing tools."
+        },
+        "connectors": {
+          "label": "Connector Management",
+          "enabled": false,
+          "job": "Broad third-party connector setup (providers stay in Settings)."
+        },
+        "team_chat": {
+          "label": "Team Chat",
+          "enabled": false,
+          "job": "Internal team messaging."
+        }
+      },
+      "enabled_capabilities": [
+        "chat",
+        "documents",
+        "canvas",
+        "agents",
+        "learning",
+        "activity",
+        "settings",
+        "approvals"
+      ],
+      "deferred_capabilities": [
+        "search",
+        "tasks",
+        "boards",
+        "automations",
+        "marketplace",
+        "command_centers",
+        "business_dashboards",
+        "productivity",
+        "governance",
+        "connectors",
+        "team_chat"
+      ],
+      "routes": {
+        "/dashboard": "chat",
+        "/chat": "chat",
+        "/documents": "documents",
+        "/canvas": "canvas",
+        "/agents": "agents",
+        "/learning": "learning",
+        "/goal-runs": "activity",
+        "/execution-history": "activity",
+        "/activity": "activity",
+        "/assignments": "activity",
+        "/approvals": "approvals",
+        "/settings/harness-evolution": "governance",
+        "/settings": "settings",
+        "/login": "core",
+        "/auth": "core",
+        "/not-in-release": "core",
+        "/search": "search",
+        "/tasks": "tasks",
+        "/boards": "boards",
+        "/automations": "automations",
+        "/workflows": "automations",
+        "/scheduling": "automations",
+        "/marketplace": "marketplace",
+        "/dashboards": "command_centers",
+        "/communication": "command_centers",
+        "/sales": "business_dashboards",
+        "/marketing": "business_dashboards",
+        "/finance": "business_dashboards",
+        "/analytics": "business_dashboards",
+        "/calendar": "productivity",
+        "/health": "productivity",
+        "/voice": "productivity",
+        "/admin": "governance",
+        "/audit-trail": "governance",
+        "/dashboard/owner": "governance",
+        "/dashboard/forensics": "governance",
+        "/dashboard/risk": "governance",
+        "/system-status": "governance",
+        "/dev-studio": "governance",
+        "/intelligence": "governance",
+        "/integrations": "connectors",
+        "/google-drive": "connectors",
+        "/onedrive": "connectors",
+        "/team-chat": "team_chat"
+      }
+    },
+    "activity_enabled": true,
+    "tasks_enabled": false,
+    "boards_enabled": false
+  },
+  "admin_password_source": {
+    "source": "driver-provisioned scratch ADMIN_PASSWORD via core.admin_bootstrap.ensure_admin_user",
+    "password_written_to_evidence": false
+  },
+  "supervisor_scope": {
+    "actor_id": "08573fb2-a5c6-4fc0-864b-59ebb9d3a06b",
+    "raw_workspace_id": null,
+    "raw_tenant_id": null,
+    "workspace_id": "default",
+    "tenant_id": "default",
+    "source": "exact public identity + read-only scratch SQL + existing personal_scope resolvers"
+  },
+  "goal": {
+    "status": 200,
+    "goal": {
+      "id": "592f5957-be19-4467-a866-03e7d14d2850",
+      "title": "[FIXTURE] Utility ranking analytics \u2014 not model work",
+      "description": "Controlled ANALYTICS fixture for the ordinary GOAL-02 UI episode. The GoalRun rows are synthetic history with fixed metric counts, not completed agent work and not model outcomes.",
+      "status": "active",
+      "progress": 0.0,
+      "criteria": [],
+      "key_results": [],
+      "owner_id": "08573fb2-a5c6-4fc0-864b-59ebb9d3a06b",
+      "parent_goal_id": null,
+      "source": "api",
+      "utility_target": null,
+      "target_date": null,
+      "created_at": "2026-11-07T21:56:35",
+      "verification": {
+        "status": "verified",
+        "effect": "committed",
+        "audit_id": "goal:create:de853ad9549d4a7a84c3110691acc791"
+      },
+      "operation_id": "goal:create:de853ad9549d4a7a84c3110691acc791",
+      "audit_id": "goal:create:de853ad9549d4a7a84c3110691acc791"
+    },
+    "verification": {
+      "status": "verified",
+      "effect": "committed",
+      "audit_id": "goal:create:de853ad9549d4a7a84c3110691acc791"
+    },
+    "operation_id": "goal:create:de853ad9549d4a7a84c3110691acc791",
+    "audit_id": "goal:create:de853ad9549d4a7a84c3110691acc791",
+    "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+    "workspace_id": "default",
+    "tenant_id": "default"
+  },
+  "member_fixture": {
+    "user_id": "goal-utility-member-fixture",
+    "email": "goal-utility-member@example.test",
+    "role": "member",
+    "workspace_id": null,
+    "tenant_id": null,
+    "fixture": "disclosed member fixture in the scratch admin workspace; normal form login; password not recorded"
+  },
+  "fixture_history": {
+    "goal_id": "592f5957-be19-4467-a866-03e7d14d2850",
+    "rows": [
+      {
+        "fixture_id": "eligible-low",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": 2,
+          "steps_executed": 5,
+          "replan_count": 1
+        },
+        "expected": "eligible",
+        "run_id": "2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2",
+        "role": "analytics_fixture",
+        "label": "controlled analytics fixture, not agent work"
+      },
+      {
+        "fixture_id": "eligible-high",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": 5,
+          "steps_executed": 8,
+          "replan_count": 2
+        },
+        "expected": "eligible",
+        "run_id": "5da0edfc-17d8-4499-9d0f-596ec192465f",
+        "role": "analytics_fixture",
+        "label": "controlled analytics fixture, not agent work"
+      },
+      {
+        "fixture_id": "failed-candidate",
+        "status": "failed",
+        "metrics": {
+          "human_interventions": 0,
+          "steps_executed": 4,
+          "replan_count": 1
+        },
+        "expected": "not_completed",
+        "run_id": "a34aaf08-733b-4f7d-a254-9d10ede4629c",
+        "role": "analytics_fixture",
+        "label": "controlled analytics fixture, not agent work"
+      },
+      {
+        "fixture_id": "unknown-candidate",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": -1,
+          "steps_executed": 6,
+          "replan_count": 0
+        },
+        "expected": "metric_unknown",
+        "run_id": "5042996c-ff8f-4320-b16e-1969196fbf53",
+        "role": "analytics_fixture",
+        "label": "controlled analytics fixture, not agent work"
+      }
+    ],
+    "no_target_or_winner_written": true,
+    "source": "GoalRunService.create_run/activate/transition + ORM fixture counters"
+  },
+  "goal_before_target": {
+    "found": true,
+    "workspace_id": "default",
+    "status": "active",
+    "progress": 0.0,
+    "utility_target": null
+  },
+  "supervisor_onboarding": {
+    "wizard_seen": true,
+    "dismissed": true
+  },
+  "set_target_receipt": {
+    "status": 200,
+    "verification": {
+      "status": "verified",
+      "effect": "committed",
+      "audit_id": "goal:utility:set:b53adfed85684b029be9390351f5c1c6"
+    },
+    "verification_status": "verified",
+    "operation_id": "goal:utility:set:b53adfed85684b029be9390351f5c1c6",
+    "audit_id": "goal:utility:set:b53adfed85684b029be9390351f5c1c6",
+    "utility_target": {
+      "metric": "human_interventions",
+      "direction": "minimize",
+      "source": "goal_run",
+      "description": "fixture analytics: prefer fewer human interventions"
+    },
+    "ok": true
+  },
+  "error": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"a[href=\\\"/goal-runs/2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2\\\"]\").first\n    - locator resolved to <a class=\"block\" href=\"/goal-runs/2f2799c0-3d06-4f87-afd0-e9e32b7f0ba2\">\u2026</a>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    53 \u00d7 waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n",
+  "finished_at": "2026-11-07T17:00:22-0500"
+}

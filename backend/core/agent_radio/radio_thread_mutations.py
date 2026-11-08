@@ -1,0 +1,1001 @@
+"""Registered ``radio.create_thread`` producer and authority material.
+
+The predecessor action called ``radio_service.create_thread`` and returned the
+raw success envelope.  It did not re-read the exact ``AgentThread`` row, did not
+check the creator/member ``AgentRegistry`` scope, and bound no operation
+identity, so the shared Oracle could only report the effect as unverified.
+
+This module keeps the same service/model persistence and adds only what the
+existing claim/Oracle layer needs:
+
+* a canonical authorized thread payload (server-owned creator, name, normalized
+  roster, scope, tenant/workspace scope);
+* pre-effect authority checks against real ``AgentRegistry`` rows using the
+  single-tenant null/``default`` compatibility already used by
+  ``AgentGovernanceService._workspace_scope_condition``;
+* an exact by-id fresh-session re-read after commit;
+* a durable operation-id binding in thread metadata so same-operation replay
+  can locate the original row without creating a second thread.
+
+The row id locates the thread; it does not supply authority.  The shared
+``postcondition_verifiers`` layer re-reads the row and the current authority
+from a fresh session.
+
+The by-id ``read_thread`` helper is imported from the accepted send-message
+work now on main (``core.agent_radio.radio_mutations``), not duplicated.  The
+durable-receipt projector/matcher follows that module's general shape; no
+send-message code or receipt state is duplicated.
+"""
+from __future__ import annotations
+
+import copy
+import uuid
+from typing import Any, Dict, List, Mapping, Optional, Sequence
+
+from core.agent_radio import radio_service
+from core.agent_radio.radio_mutations import read_thread
+from core.agent_radio.radio_service import RadioError
+
+#: Material the Oracle compares.  The thread id locates the row; it is not
+#: caller-authorized material.  ``workspace_id`` is authority context, not a
+#: column on AgentThread, so it is compared separately.
+THREAD_MATERIAL_FIELDS = (
+    "name",
+    "created_by_agent_id",
+    "member_agent_ids",
+    "scope_hint",
+    "tenant_id",
+)
+
+SCOPE_HINTS = ("fleet", "task", "manual")
+
+#: Statuses that are explicitly not usable for a new coordination thread.
+DISABLED_AGENT_STATUSES = frozenset({
+    "paused", "stopped", "deprecated", "deleted",
+})
+
+#: Mirrors the existing radio action tier floor.
+TIER_RANK = {"student": 0, "intern": 1, "supervised": 2, "autonomous": 3}
+
+#: Single-tenant / personal scope aliases.  The schema keeps workspace_id and
+#: tenant_id distinct, but both treat NULL and the literal "default" as the
+#: personal scope.
+_PERSONAL_SCOPE = ("", "default")
+
+
+def _text(value: Any) -> str:
+    return "" if value is None else str(value)
+
+
+def _norm_scope(value: Any) -> str:
+    return _text(value).strip()
+
+
+def _scope_compatible(requested: Any, actual: Any) -> bool:
+    """Single-tenant scope compatibility.
+
+    A request scoped to the personal ``default`` (or no workspace/tenant) may
+    see rows with NULL or ``default``.  A request scoped to a concrete id must
+    match that id exactly.  This is the same visibility rule already used by
+    ``AgentGovernanceService._workspace_scope_condition``; it is not a new
+    multi-tenant product gate.
+    """
+    requested_text = _norm_scope(requested)
+    actual_text = _norm_scope(actual)
+    if requested_text in _PERSONAL_SCOPE:
+        return actual_text in _PERSONAL_SCOPE
+    return actual_text == requested_text
+
+
+def _normalized_roster(creator_id: str, raw_members: Any) -> List[str]:
+    creator = _text(creator_id).strip()
+    members: List[str] = []
+    if isinstance(raw_members, (list, tuple, set)):
+        for item in raw_members:
+            text = _text(item).strip()
+            if text and text not in members:
+                members.append(text)
+    if creator:
+        if creator in members:
+            members.remove(creator)
+        members.insert(0, creator)
+    return members
+
+
+def thread_payload(
+    arguments: Mapping[str, Any] | None,
+    *,
+    agent_id: Any,
+    workspace_id: Any = "",
+    tenant_id: Any = "",
+) -> Dict[str, Any]:
+    """The exact authorized thread material and request digest input.
+
+    The creator is server-owned (dispatch context), never a business argument.
+    The roster is normalized exactly as ``radio_service.create_thread`` does:
+    creator first, de-duplicated, empty ids dropped.
+    """
+    args = arguments if isinstance(arguments, Mapping) else {}
+    creator = _text(agent_id).strip()
+    return {
+        "name": _text(args.get("name")).strip(),
+        "created_by_agent_id": creator,
+        "member_agent_ids": _normalized_roster(
+            creator, args.get("member_agent_ids")),
+        "scope_hint": (
+            _text(args.get("scope_hint")).strip().lower() or "manual"),
+        # The server-owned identity uses the personal "default" alias when
+        # the context carries no tenant/workspace.  Normalize the frozen
+        # material the same way; the AgentThread row may still store NULL,
+        # which the compatibility comparison treats as the same personal scope.
+        "tenant_id": _norm_scope(tenant_id) or "default",
+        "workspace_id": _norm_scope(workspace_id) or "default",
+    }
+
+
+def _payload_digest(payload: Mapping[str, Any]) -> str:
+    from core.task_lifecycle import _approval_payload_hash
+
+    return _approval_payload_hash(dict(payload))
+
+
+def _load_agent(db, agent_id: str):
+    from core.models import AgentRegistry
+
+    return db.query(AgentRegistry).filter(
+        AgentRegistry.id == str(agent_id)).first()
+
+
+def _agent_problems(
+    agent: Any,
+    *,
+    role: str,
+    workspace_id: Any,
+    tenant_id: Any,
+    require_intern: bool = False,
+    context_tier: str = "",
+    allow_unknown_tier: bool = False,
+) -> List[str]:
+    """Current authority/scope problems for one AgentRegistry row.
+
+    Single-tenant rules only: the row must exist, must not be explicitly
+    disabled, and its workspace/tenant must be compatible with the request.
+    No new role/SaaS gate is introduced.  The creator additionally keeps the
+    existing INTERN+ action floor; members only need to be active recipients.
+    """
+    if agent is None:
+        return [f"{role} agent is not registered"]
+
+    problems: List[str] = []
+    if getattr(agent, "enabled", True) is False:
+        problems.append(f"{role} agent is disabled")
+
+    status = _text(getattr(agent, "status", None)).strip().lower()
+    if status in DISABLED_AGENT_STATUSES:
+        problems.append(f"{role} agent is {status}")
+
+    if not _scope_compatible(workspace_id, getattr(agent, "workspace_id", None)):
+        problems.append(f"{role} agent belongs to another workspace")
+    if not _scope_compatible(tenant_id, getattr(agent, "tenant_id", None)):
+        problems.append(f"{role} agent belongs to another tenant")
+
+    if require_intern:
+        tier = status if status in TIER_RANK else _text(context_tier).strip().lower()
+        if tier in TIER_RANK:
+            if TIER_RANK[tier] < TIER_RANK["intern"]:
+                problems.append(f"{role} agent is below INTERN maturity")
+        elif not allow_unknown_tier:
+            problems.append(f"{role} agent has no usable maturity tier")
+    return problems
+
+
+def _raw_agent_snapshot(agent: Any) -> Dict[str, Any]:
+    """Raw AgentRegistry authority material used by the CAS predicate.
+
+    Deliberately not normalized: the conditional UPDATE must bind the exact
+    stored id/enabled/status/workspace/tenant values that were authorized.
+    """
+    return {
+        "id": _text(getattr(agent, "id", "")),
+        "enabled": getattr(agent, "enabled", None),
+        "status": getattr(agent, "status", None),
+        "workspace_id": getattr(agent, "workspace_id", None),
+        "tenant_id": getattr(agent, "tenant_id", None),
+    }
+
+
+def authority_snapshot(
+    db,
+    creator_id: str,
+    member_ids: Sequence[str],
+    *,
+    workspace_id: Any = "",
+    tenant_id: Any = "",
+    context_tier: str = "",
+    allow_unknown_tier: bool = False,
+) -> tuple[List[str], List[Dict[str, Any]], Any]:
+    """Return (problems, raw snapshots, creator row) for a roster.
+
+    The snapshot order is deterministic: creator first, then member ids sorted
+    lexicographically (creator removed).  The caller uses that same order for
+    the first-DML conditional claims.
+    """
+    creator = _load_agent(db, creator_id)
+    problems = _agent_problems(
+        creator,
+        role="creator",
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        require_intern=True,
+        context_tier=context_tier,
+        allow_unknown_tier=allow_unknown_tier,
+    )
+    creator_text = _text(creator_id).strip()
+    member_order = sorted({
+        _text(member_id).strip()
+        for member_id in member_ids
+        if _text(member_id).strip()
+        and _text(member_id).strip() != creator_text
+    })
+    snapshots: List[Dict[str, Any]] = []
+    if creator is not None:
+        snapshots.append(_raw_agent_snapshot(creator))
+    for member_id in member_order:
+        member = _load_agent(db, member_id)
+        problems.extend(_agent_problems(
+            member,
+            role=f"member '{member_id}'",
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            require_intern=False,
+            allow_unknown_tier=True,
+        ))
+        if member is not None:
+            snapshots.append(_raw_agent_snapshot(member))
+    return problems, snapshots, creator
+
+
+def authorize_thread_material(
+    db,
+    creator_id: str,
+    member_ids: Sequence[str],
+    *,
+    workspace_id: Any = "",
+    tenant_id: Any = "",
+    context_tier: str = "",
+    allow_unknown_tier: bool = False,
+) -> tuple[List[str], Any]:
+    """Compatibility wrapper used by the independent verifier."""
+    problems, _snapshots, creator = authority_snapshot(
+        db,
+        creator_id,
+        member_ids,
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        context_tier=context_tier,
+        allow_unknown_tier=allow_unknown_tier,
+    )
+    return problems, creator
+
+
+def claim_authority_rows(db, snapshots: Sequence[Dict[str, Any]]) -> List[str]:
+    """First-DML conditional authority claim in the thread write transaction.
+
+    Each statement is a no-op UPDATE of ``agent_registry`` constrained by the
+    exact raw id/enabled/status/workspace/tenant snapshot.  SQLite (and the
+    server DB) serialize this write with the peer's authority update: a peer
+    winner before this first DML makes the predicate match zero rows, so the
+    caller rolls back before any ``agent_threads`` insert.  A peer winner after
+    the claim cannot commit ahead of the thread transaction, so the authorized
+    snapshot remains the linearization point.
+
+    Returns the ids whose predicate matched zero (or more than one) rows.  The
+    caller must roll back and return ``proven_not_applied`` when non-empty.
+    """
+    from sqlalchemy import update
+
+    from core.models import AgentRegistry
+
+    conflicts: List[str] = []
+    for snapshot in snapshots:
+        conditions = [AgentRegistry.id == snapshot["id"]]
+        for field in ("enabled", "status", "workspace_id", "tenant_id"):
+            value = snapshot.get(field)
+            column = getattr(AgentRegistry, field)
+            conditions.append(
+                column.is_(None) if value is None else column == value)
+        result = db.execute(
+            update(AgentRegistry)
+            .where(*conditions)
+            # Same-value update: the row is still written/locked, so this is a
+            # real DML linearization point, not a read.
+            .values(enabled=AgentRegistry.enabled)
+            .execution_options(synchronize_session=False)
+        )
+        if int(result.rowcount or 0) != 1:
+            conflicts.append(str(snapshot["id"]))
+    if conflicts:
+        db.rollback()
+    return conflicts
+
+
+def find_threads_by_operation(
+    db, operation_id: str, creator_id: str,
+) -> List[Any]:
+    """All create-thread rows bound to one server-owned operation id.
+
+    Used by the verifier on a legacy/replay result that carries no thread id.
+    The scan is bounded to one creator and filtered in Python so it does not
+    depend on a vendor-specific JSON query.
+    """
+    operation = _text(operation_id).strip()
+    creator = _text(creator_id).strip()
+    if not operation or not creator:
+        return []
+    from core.models import AgentThread
+
+    rows = db.query(AgentThread).filter(
+        AgentThread.created_by_agent_id == creator).all()
+    matched = []
+    for row in rows:
+        meta = getattr(row, "metadata_json", None)
+        if isinstance(meta, Mapping) and _text(
+                meta.get("operation_id")).strip() == operation:
+            matched.append(row)
+    return matched
+
+
+def find_thread_by_operation(db, operation_id: str, creator_id: str):
+    """First row for an operation id (compatibility helper)."""
+    rows = find_threads_by_operation(db, operation_id, creator_id)
+    return rows[0] if rows else None
+
+
+def observed_thread_material(thread: Any) -> Dict[str, Any]:
+    """Material present in the authoritative AgentThread row."""
+    meta = getattr(thread, "metadata_json", None)
+    meta = meta if isinstance(meta, Mapping) else {}
+    roster = [
+        _text(item).strip()
+        for item in (getattr(thread, "member_agent_ids", None) or [])
+        if _text(item).strip()
+    ]
+    return {
+        "name": _text(getattr(thread, "name", "")).strip(),
+        "created_by_agent_id": _text(
+            getattr(thread, "created_by_agent_id", "")).strip(),
+        "member_agent_ids": roster,
+        "scope_hint": (
+            _text(meta.get("scope")).strip().lower() or "manual"),
+        "tenant_id": _text(getattr(thread, "tenant_id", "")).strip(),
+    }
+
+
+def thread_material_mismatches(
+    expected: Mapping[str, Any] | None,
+    observed: Mapping[str, Any] | None,
+) -> List[str]:
+    """Names of authorized thread fields the current row contradicts."""
+    want = expected if isinstance(expected, Mapping) else {}
+    got = observed if isinstance(observed, Mapping) else {}
+    mismatches: List[str] = []
+    for field in THREAD_MATERIAL_FIELDS:
+        if field not in want:
+            continue
+        expected_value = want.get(field)
+        observed_value = got.get(field)
+        if field == "member_agent_ids":
+            if sorted(set(expected_value or [])) != sorted(
+                    set(observed_value or [])):
+                mismatches.append(field)
+        elif field == "tenant_id":
+            if not _scope_compatible(expected_value, observed_value):
+                mismatches.append(field)
+        elif field == "scope_hint":
+            if _text(expected_value).strip().lower() != _text(
+                    observed_value).strip().lower():
+                mismatches.append(field)
+        else:
+            if _text(expected_value) != _text(observed_value):
+                mismatches.append(field)
+    return mismatches
+
+
+def durable_thread_receipt_projection(
+    result: Mapping[str, Any] | None,
+    expected: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """Provider-specific material for a durable create-thread claim receipt."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    material = expected.get("_oracle_expected_radio_thread")
+    return {
+        "authorized_material": (
+            copy.deepcopy(dict(material))
+            if isinstance(material, Mapping) else None),
+    }
+
+
+def durable_thread_material_conflicts(
+    expected: Mapping[str, Any] | None,
+    durable_result: Mapping[str, Any] | None,
+) -> List[str]:
+    """Conflicts between stored authorized thread material and this request."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    durable_result = (
+        durable_result if isinstance(durable_result, Mapping) else {})
+    expected_material = expected.get("_oracle_expected_radio_thread")
+    if not isinstance(expected_material, Mapping) or not expected_material:
+        return []
+    stored = durable_result.get("authorized_material")
+    if not isinstance(stored, Mapping) or not stored:
+        return ["authorized_material"]
+    conflicts = thread_material_mismatches(expected_material, stored)
+    if not _scope_compatible(
+            expected_material.get("workspace_id"),
+            stored.get("workspace_id")):
+        conflicts.append("workspace_id")
+    return sorted(set(conflicts))
+
+
+def _failed_before_effect(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    error: str,
+    message: str,
+    error_kind: str,
+    problems: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    return {
+        "success": False,
+        "status": "failed_before_effect",
+        "action_result": "proven_not_applied",
+        "effect_possible": False,
+        "provider": "agent_radio",
+        "operation": "create_thread",
+        "operation_id": operation_id,
+        "error": error,
+        "error_kind": error_kind,
+        "message": message,
+        "problems": list(problems or []),
+        "retryable": False,
+        "remote_id": "",
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "agent_radio",
+            "operation": "create_thread",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": "",
+        },
+    }
+
+
+def _uncertain(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_id: str,
+    error: str,
+    error_kind: str,
+    verification: Dict[str, Any],
+    read_receipt: Optional[Dict[str, Any]] = None,
+    evidence: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    return {
+        "success": False,
+        "status": "uncertain",
+        "action_result": "uncertain",
+        "business_success": False,
+        "effect_possible": True,
+        "provider": "agent_radio",
+        "operation": "create_thread",
+        "operation_id": operation_id,
+        "error": error,
+        "error_kind": error_kind,
+        "retryable": False,
+        "thread_id": thread_id,
+        "remote_id": thread_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "agent_radio",
+            "operation": "create_thread",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": thread_id,
+        },
+        "read_receipt": read_receipt,
+        "verification": verification,
+        "evidence": [evidence] if evidence else [],
+    }
+
+
+def _applied(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_id: str,
+    observed: Dict[str, Any],
+    read_receipt: Dict[str, Any],
+) -> Dict[str, Any]:
+    roster = list(observed.get("member_agent_ids") or [])
+    return {
+        "success": True,
+        "status": "success",
+        "action_result": "applied",
+        "provider": "agent_radio",
+        "operation": "create_thread",
+        "operation_id": operation_id,
+        "thread_id": thread_id,
+        "remote_id": thread_id,
+        "name": observed.get("name"),
+        "member_agent_ids": roster,
+        "message": (
+            f"Thread '{observed.get('name')}' created with "
+            f"{len(roster)} member(s)."),
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "agent_radio",
+            "operation": "create_thread",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": thread_id,
+            "tenant_id": str(observed.get("tenant_id") or ""),
+        },
+        "read_receipt": read_receipt,
+        "verification": {
+            "status": "verified",
+            "missing_fields": [],
+            "mismatches": [],
+        },
+    }
+
+
+def _replayed(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_id: str,
+    observed: Dict[str, Any],
+    read_receipt: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Return the original exact thread for a same-operation replay."""
+    payload = _applied(
+        operation_id=operation_id,
+        payload_sha256=payload_sha256,
+        thread_id=thread_id,
+        observed=observed,
+        read_receipt=read_receipt,
+    )
+    payload.update({
+        "replayed": True,
+        "already_applied": True,
+        "idempotent": True,
+        "message": (
+            f"Thread '{observed.get('name')}' already exists for this "
+            "operation; no second thread was created."),
+    })
+    return payload
+
+
+def _replay_conflict(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_id: str,
+    conflicts: Sequence[str],
+) -> Dict[str, Any]:
+    """Same operation, different material: keep the original, no new write."""
+    payload = _failed_before_effect(
+        operation_id=operation_id,
+        payload_sha256=payload_sha256,
+        error="operation_conflict",
+        message=(
+            "The same operation is bound to different thread material; "
+            "the original thread was preserved and no new thread was created: "
+            + ", ".join(conflicts)),
+        error_kind="operation_conflict",
+        problems=list(conflicts),
+    )
+    payload.update({
+        "replayed": True,
+        "idempotent": True,
+        "original_thread_id": thread_id,
+        "original_operation_id": operation_id,
+        "original_effect_state": "committed",
+        "conflicts": list(conflicts),
+    })
+    return payload
+
+
+def _ambiguous_operation(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_ids: Sequence[str],
+) -> Dict[str, Any]:
+    """Multiple historical rows for one exact key: fail closed, no new write."""
+    payload = _failed_before_effect(
+        operation_id=operation_id,
+        payload_sha256=payload_sha256,
+        error="ambiguous_operation",
+        message=(
+            "Multiple historical threads are bound to this exact operation; "
+            "refusing a new write so no ambiguous row is selected"),
+        error_kind="ambiguous_operation",
+        problems=[
+            "multiple historical threads for operation "
+            + str(operation_id)
+        ],
+    )
+    payload.update({
+        "original_operation_id": operation_id,
+        "original_thread_ids": list(thread_ids),
+        "original_thread_count": len(thread_ids),
+        "original_effect_state": "ambiguous_committed",
+        "replayed": True,
+        "idempotent": True,
+    })
+    return payload
+
+
+def _read_receipt(thread_id: str, observed: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "provider": "agent_radio",
+        "operation": "get_thread",
+        "resource_id": thread_id,
+        "requested_remote_id": thread_id,
+        "observed_remote_id": thread_id,
+        "coverage": "single",
+        "account_id": str(observed.get("tenant_id") or ""),
+        "tenant_id": str(observed.get("tenant_id") or ""),
+        "fields": observed,
+    }
+
+
+async def create_thread(
+    arguments: Mapping[str, Any] | None,
+    context: Mapping[str, Any] | None,
+    *,
+    operation_id: str = "",
+) -> Dict[str, Any]:
+    """Create one radio thread, then re-read the exact row/material.
+
+    Pre-effect refusals are explicit ``proven_not_applied`` results.  Once the
+    service has committed, a missing/mismatched/unavailable readback is
+    ``uncertain`` and keeps the known thread id; it is never fabricated into
+    success or retried automatically.
+    """
+    from core.database import get_db_session
+
+    ctx = context if isinstance(context, Mapping) else {}
+    creator_id = _text(ctx.get("agent_id")).strip()
+    workspace_id = _norm_scope(ctx.get("workspace_id")) or "default"
+    raw_tenant_id = _norm_scope(ctx.get("tenant_id"))
+    context_tier = _text(ctx.get("tier")).strip().lower()
+    payload = thread_payload(
+        arguments,
+        agent_id=creator_id,
+        workspace_id=workspace_id,
+        tenant_id=raw_tenant_id,
+    )
+    digest = _payload_digest(payload)
+    context_operation = _text(ctx.get("operation_id")).strip()
+    server_operation = _text(operation_id).strip()
+    operation = context_operation or server_operation
+    if operation:
+        operation_source = "context" if context_operation else "server_parameter"
+    else:
+        # Missing trusted operation identity: mint a server-owned exact id and
+        # echo/persist it.  Caller-provided business args never supply this.
+        operation = f"radio-create-thread-{uuid.uuid4().hex}"
+        operation_source = "server_generated"
+
+    if not creator_id:
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="Context agent_id is required to create a thread.",
+            message="Context agent_id is required to create a thread.",
+            error_kind="agent_id_required",
+        )
+    if not payload["name"]:
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="name is required",
+            message="name is required",
+            error_kind="invalid_request",
+        )
+    if len(payload["name"]) > 255:
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="name exceeds 255 characters",
+            message="name exceeds 255 characters",
+            error_kind="invalid_request",
+        )
+    if payload["scope_hint"] not in SCOPE_HINTS:
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="scope_hint must be one of fleet, task, manual",
+            message="scope_hint must be one of fleet, task, manual",
+            error_kind="invalid_request",
+        )
+    if len(payload["member_agent_ids"]) < 2:
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error=(
+                "member_agent_ids must list at least one other agent"),
+            message=(
+                "member_agent_ids must list at least one other agent"),
+            error_kind="invalid_request",
+        )
+
+    metadata: Dict[str, Any] = {
+        "scope": payload["scope_hint"],
+        "operation_id": operation,
+        "operation_source": operation_source,
+    }
+
+    # Read the raw authority snapshot in a short read session.  The write
+    # session below starts with conditional UPDATE DML, so a peer authority
+    # winner before our first write makes the CAS predicate match zero rows.
+    # This is the same-writer-transaction linearization; a preflight SELECT
+    # alone is not sufficient.
+    try:
+        with get_db_session() as read_db:
+            problems, snapshots, _creator = authority_snapshot(
+                read_db,
+                creator_id,
+                payload["member_agent_ids"],
+                workspace_id=payload["workspace_id"],
+                tenant_id=payload["tenant_id"],
+                context_tier=context_tier,
+            )
+    except Exception as exc:  # noqa: BLE001 - no write attempted yet
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="authority_unavailable",
+            message=(
+                "Creator/member authority could not be read; no thread was "
+                f"created ({type(exc).__name__})."),
+            error_kind="authority_unavailable",
+        )
+    if problems:
+        refused = _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="authority_refused",
+            message="; ".join(problems),
+            error_kind="authority_refused",
+            problems=problems,
+        )
+        # Truthful replay accounting: the original row may still exist even
+        # though current authority no longer permits a new attempt.
+        try:
+            with get_db_session() as lookup_db:
+                existing = find_threads_by_operation(
+                    lookup_db, operation, creator_id)
+            if existing:
+                ids = [str(getattr(row, "id", "")) for row in existing]
+                refused.update({
+                    "original_thread_id": ids[0] if len(ids) == 1 else None,
+                    "original_thread_ids": ids,
+                    "original_thread_count": len(ids),
+                    "original_operation_id": operation,
+                    "original_effect_state": (
+                        "committed_unverified" if len(ids) == 1
+                        else "ambiguous_committed"),
+                    "replayed": True,
+                    "idempotent": True,
+                })
+        except Exception:  # noqa: BLE001 - the refusal is already truthful
+            pass
+        return refused
+
+    try:
+        with get_db_session() as db:
+            try:
+                conflicts = claim_authority_rows(db, snapshots)
+            except Exception as exc:  # noqa: BLE001 - before any thread insert
+                db.rollback()
+                return _failed_before_effect(
+                    operation_id=operation, payload_sha256=digest,
+                    error="authority_unavailable",
+                    message=(
+                        "Creator/member authority claim could not be "
+                        f"linearized; no thread was created "
+                        f"({type(exc).__name__})."),
+                    error_kind="authority_unavailable",
+                )
+            if conflicts:
+                db.rollback()
+                existing = find_threads_by_operation(
+                    db, operation, creator_id)
+                refused = _failed_before_effect(
+                    operation_id=operation, payload_sha256=digest,
+                    error="authority_changed",
+                    message=(
+                        "Creator/member authority changed before the first "
+                        "thread write: " + ", ".join(conflicts)),
+                    error_kind="authority_changed",
+                    problems=[
+                        f"agent '{agent_id}' authority changed before effect"
+                        for agent_id in conflicts
+                    ],
+                )
+                if existing:
+                    ids = [str(getattr(row, "id", "")) for row in existing]
+                    refused.update({
+                        "original_thread_id": (
+                            ids[0] if len(ids) == 1 else None),
+                        "original_thread_ids": ids,
+                        "original_thread_count": len(ids),
+                        "original_operation_id": operation,
+                        "original_effect_state": (
+                            "committed_unverified" if len(ids) == 1
+                            else "ambiguous_committed"),
+                        "replayed": True,
+                        "idempotent": True,
+                    })
+                return refused
+
+            # Resolve the exact creator+operation key only AFTER the authority
+            # claim has serialized this writer, and BEFORE any INSERT.  One
+            # exact row is reconciled or refused; multiple historical rows
+            # fail closed with no new write and are never merged/deleted.
+            existing = find_threads_by_operation(db, operation, creator_id)
+            if len(existing) > 1:
+                ids = [str(getattr(row, "id", "")) for row in existing]
+                db.rollback()
+                return _ambiguous_operation(
+                    operation_id=operation,
+                    payload_sha256=digest,
+                    thread_ids=ids,
+                )
+            if existing:
+                row = existing[0]
+                observed = observed_thread_material(row)
+                mismatches = thread_material_mismatches(payload, observed)
+                if mismatches:
+                    db.rollback()
+                    return _replay_conflict(
+                        operation_id=operation,
+                        payload_sha256=digest,
+                        thread_id=str(getattr(row, "id", "")),
+                        conflicts=mismatches,
+                    )
+                read_receipt = _read_receipt(
+                    str(getattr(row, "id", "")), observed)
+                db.rollback()
+                replay = _replayed(
+                    operation_id=operation,
+                    payload_sha256=digest,
+                    thread_id=str(getattr(row, "id", "")),
+                    observed=observed,
+                    read_receipt=read_receipt,
+                )
+                replay["operation_source"] = operation_source
+                return replay
+
+            thread = radio_service.create_thread(
+                db,
+                name=payload["name"],
+                created_by_agent_id=creator_id,
+                member_agent_ids=list(payload["member_agent_ids"]),
+                tenant_id=raw_tenant_id or None,
+                metadata_json=metadata,
+            )
+            thread_id = _text(getattr(thread, "id", "")).strip()
+    except RadioError as exc:
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="radio_error",
+            message=str(exc),
+            error_kind="radio_error",
+        )
+    except Exception as exc:  # noqa: BLE001 - the row may have committed
+        return _uncertain(
+            operation_id=operation, payload_sha256=digest,
+            thread_id="",
+            error="internal_error",
+            error_kind="provider_error",
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["transport_confirmation"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "radio_create_thread_transport_error",
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+
+    if not thread_id:
+        return _uncertain(
+            operation_id=operation, payload_sha256=digest,
+            thread_id="",
+            error=(
+                "Radio accepted the thread but returned no id; the effect "
+                "cannot be identified"),
+            error_kind="unidentified_effect",
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["remote_id"],
+                "mismatches": [],
+            },
+            evidence={"kind": "radio_create_thread_missing_id"},
+        )
+
+    # Exact durable readback in a FRESH session (never the writer's identity
+    # map).  A failure here is not a pre-effect refusal: the row may exist.
+    try:
+        with get_db_session() as db:
+            observed_thread = read_thread(db, thread_id)
+    except Exception as exc:  # noqa: BLE001 - readback failure is not pre-effect
+        return _uncertain(
+            operation_id=operation, payload_sha256=digest,
+            thread_id=thread_id,
+            error="internal_error",
+            error_kind="readback_unavailable",
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "radio_create_thread_readback_unavailable",
+                "remote_id": thread_id,
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+    if observed_thread is None:
+        return _uncertain(
+            operation_id=operation, payload_sha256=digest,
+            thread_id=thread_id,
+            error="internal_error",
+            error_kind="readback_missing",
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "radio_create_thread_row_absent",
+                "remote_id": thread_id,
+            },
+        )
+
+    observed = observed_thread_material(observed_thread)
+    observed_id = _text(getattr(observed_thread, "id", "")).strip()
+    mismatches = thread_material_mismatches(payload, observed)
+    if observed_id != thread_id:
+        mismatches.append("remote_id")
+    read_receipt = _read_receipt(thread_id, observed)
+    if mismatches:
+        return _uncertain(
+            operation_id=operation, payload_sha256=digest,
+            thread_id=thread_id,
+            error="internal_error",
+            error_kind="readback_mismatch",
+            verification={
+                "status": "mismatch",
+                "missing_fields": [],
+                "mismatches": mismatches,
+            },
+            read_receipt=read_receipt,
+            evidence={
+                "kind": "radio_create_thread_readback_mismatch",
+                "remote_id": thread_id,
+                "mismatches": mismatches,
+            },
+        )
+
+    result = _applied(
+        operation_id=operation,
+        payload_sha256=digest,
+        thread_id=thread_id,
+        observed=observed,
+        read_receipt=read_receipt,
+    )
+    result["operation_source"] = operation_source
+    return result

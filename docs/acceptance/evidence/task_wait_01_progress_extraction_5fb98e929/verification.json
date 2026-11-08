@@ -1,0 +1,46 @@
+{
+  "kind": "task_wait_01_progress_extraction",
+  "executed_source": "5fb98e929a5d81c819c25ecaac4643bb2e2b81d9",
+  "ci_only_successor": "e20219b36b657793fc44971b5260ff173cd8f781",
+  "source_tree_clean_at_focused_runs": true,
+  "root_negative": {
+    "log": "root-progress-extraction-final-negative.log",
+    "failed": 3,
+    "exit": 1,
+    "source": "75a7cfc71 clean"
+  },
+  "earlier_negatives": {
+    "source_unavailable_failed": 2,
+    "upload_removed_failed": 1
+  },
+  "focused": {
+    "root_and_recovery": {
+      "passed": 11,
+      "exit": 0,
+      "log": "focused-root-and-recovery-11.log"
+    },
+    "neighborhood": {
+      "passed": 25,
+      "exit": 0,
+      "log": "focused-neighborhood-25.log"
+    },
+    "resource_authority": {
+      "passed": 34,
+      "exit": 0,
+      "log": "focused-resource-authority-34.log"
+    },
+    "total_passed": 70
+  },
+  "fixes": [
+    "source_gap_yields_once",
+    "binary_vs_ev4_manual_namespace",
+    "same_version_restoration",
+    "newer_version_recompute",
+    "raw_step_indentation"
+  ],
+  "no_broad_dispatch": true,
+  "no_live_actions": true,
+  "g1_g4_g3_retained": true,
+  "task_wait_01": "open",
+  "claim_denominator": 143
+}

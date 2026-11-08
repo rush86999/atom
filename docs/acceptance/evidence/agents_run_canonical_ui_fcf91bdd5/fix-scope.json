@@ -1,0 +1,22 @@
+{
+  "base_source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "fix_source": "fcf91bdd518a39a579ff64f041782572a0cea7ce",
+  "changed_files": [
+    "frontend-nextjs/pages/agents/index.tsx",
+    "frontend-nextjs/tests/pages/agents-information-job.test.tsx",
+    "scripts/acceptance/browser_agent_source_answer.py",
+    "scripts/tests/test_browser_agent_source_answer_preflight.py"
+  ],
+  "changed_file_count": 4,
+  "backend_diff_vs_base": [],
+  "goal_driver_diff_vs_base": [],
+  "reviewer_cas_authority_diff_vs_base": [],
+  "backend_route_role_authority_changed": false,
+  "goal_driver_changed": false,
+  "reviewer_cas_authority_changed": false,
+  "old_branch_preserved": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "root_world_preserved_read_only": true,
+  "root_capture_regenerated": false,
+  "browser_launched_in_preparation": false,
+  "note": "Scoped UI URL + harness/test change only; backend and Goal driver are untouched."
+}

@@ -1,0 +1,15 @@
+{
+  "source": "22f501599331dd6a6d00009097b338599513b586",
+  "head_after": "22f501599331dd6a6d00009097b338599513b586",
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-wait-source-final-review-r6nup72r",
+  "source_bytes_after": {
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "2a13399fbd44621660f171df3b3e1d3bb0f2ab95d21ed36577acb5292115bb9c",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "7ddb1a4cd5c06f4fcdf3bb6e806972bbccbd820081a9214fcc5cedeff85137f6",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py": "877046ea631bbbc32301c3dad776d228104714fc5d16bbd0cb0d4ff3fffea1d2",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_binding_interleavings.py": "d10271c9171421b43176c99fba0b3edb8c77067736e929028e8e20321646af98",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "95e9853c5daa9fe42ecc56b05b9ca13774cd18a769bfa8d2199c5b0596e7e432"
+  },
+  "source_bytes_unchanged": true,
+  "finished": 1794091440.190207
+}

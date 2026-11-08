@@ -1,0 +1,99 @@
+
+tests/test_lead_wait_source_progress_and_extraction.py::test_source_gap_returns_instead_of_syncing_applied_receipt_forever 
+-------------------------------- live log setup --------------------------------
+2026-11-07 13:19:15 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 13:19:15 [    INFO] EscalationManager initialized
+2026-11-07 13:19:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 13:19:15 [    INFO] EscalationManager initialized
+2026-11-07 13:19:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 13:19:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 13:19:15 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:19:16 [    INFO] runtime identity: source_id=75a7cfc71e4c revision=75a7cfc71e4c dirty=False (0 modified, 0 untracked)
+2026-11-07 13:19:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:19:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/d1fc9b12-8a17-4518-872a-1fa2aa951918/sources "HTTP/1.1 200 OK"
+2026-11-07 13:19:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/d1fc9b12-8a17-4518-872a-1fa2aa951918/sources "HTTP/1.1 409 Conflict"
+FAILED                                                                   [ 33%]
+tests/test_lead_wait_source_progress_and_extraction.py::test_valid_indexed_source_version_is_not_a_binary_file_digest[ev4] FAILED [ 66%]
+tests/test_lead_wait_source_progress_and_extraction.py::test_valid_indexed_source_version_is_not_a_binary_file_digest[manual_opaque] FAILED [100%]
+
+=================================== FAILURES ===================================
+______ test_source_gap_returns_instead_of_syncing_applied_receipt_forever ______
+tests/test_lead_wait_source_progress_and_extraction.py:27: in test_source_gap_returns_instead_of_syncing_applied_receipt_forever
+    assert repeats and max(repeats.values()) == 1, 'source gap was repeatedly overwritten by the applied operation instead of yielding a wait'
+E   AssertionError: source gap was repeatedly overwritten by the applied operation instead of yielding a wait
+E   assert ({('source-2', 'source_unavailable: the accepted controlled source file is missing'): 2} and 2 == 1)
+E    +  where 2 = max(dict_values([2]))
+E    +    where dict_values([2]) = <built-in method values of dict object at 0x12f856780>()
+E    +      where <built-in method values of dict object at 0x12f856780> = {('source-2', 'source_unavailable: the accepted controlled source file is missing'): 2}.values
+------------------------------ Captured log setup ------------------------------
+INFO     core.byok_endpoints:byok_endpoints.py:877 Updated costs for 16 providers from dynamic pricing
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=75a7cfc71e4c revision=75a7cfc71e4c dirty=False (0 modified, 0 untracked)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/d1fc9b12-8a17-4518-872a-1fa2aa951918/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/d1fc9b12-8a17-4518-872a-1fa2aa951918/sources "HTTP/1.1 409 Conflict"
+______ test_valid_indexed_source_version_is_not_a_binary_file_digest[ev4] ______
+tests/test_lead_wait_source_progress_and_extraction.py:50: in test_valid_indexed_source_version_is_not_a_binary_file_digest
+    assert problem is None, ('valid indexed revision was miscompared with raw binary bytes', problem)
+E   AssertionError: ('valid indexed revision was miscompared with raw binary bytes', ({'step_id': 'accepted-index', 'title': 'Read authorized indexed text', 'operation_type': 'retrieve', 'adapter': 'document.text', ...}, {'concept': 'source_access', 'reason': 'stale_source_version: the uploaded document bytes changed after acceptance', 'question': 'The accepted source version changed. Confirm and supply the current authorized version, then retry the dependent work.', 'checked_evidence': ['resource=lead-indexed-current', 'sheet=None', 'version=ev4:0b83fa78', 'stale_source_version'], ...}))
+E   assert ({'step_id': 'accepted-index', 'title': 'Read authorized indexed text', 'operation_type': 'retrieve', 'adapter': 'document.text', ...}, {'concept': 'source_access', 'reason': 'stale_source_version: the uploaded document bytes changed after acceptance', 'question': 'The accepted source version changed. Confirm and supply the current authorized version, then retry the dependent work.', 'checked_evidence': ['resource=lead-indexed-current', 'sheet=None', 'version=ev4:0b83fa78', 'stale_source_version'], ...}) is None
+_ test_valid_indexed_source_version_is_not_a_binary_file_digest[manual_opaque] _
+tests/test_lead_wait_source_progress_and_extraction.py:50: in test_valid_indexed_source_version_is_not_a_binary_file_digest
+    assert problem is None, ('valid indexed revision was miscompared with raw binary bytes', problem)
+E   AssertionError: ('valid indexed revision was miscompared with raw binary bytes', ({'step_id': 'accepted-index', 'title': 'Read authorized indexed text', 'operation_type': 'retrieve', 'adapter': 'document.text', ...}, {'concept': 'source_access', 'reason': 'stale_source_version: the uploaded document bytes changed after acceptance', 'question': 'The accepted source version changed. Confirm and supply the current authorized version, then retry the dependent work.', 'checked_evidence': ['resource=lead-indexed-current', 'sheet=None', 'version=manual-revis', 'stale_source_version'], ...}))
+E   assert ({'step_id': 'accepted-index', 'title': 'Read authorized indexed text', 'operation_type': 'retrieve', 'adapter': 'document.text', ...}, {'concept': 'source_access', 'reason': 'stale_source_version: the uploaded document bytes changed after acceptance', 'question': 'The accepted source version changed. Confirm and supply the current authorized version, then retry the dependent work.', 'checked_evidence': ['resource=lead-indexed-current', 'sheet=None', 'version=manual-revis', 'stale_source_version'], ...}) is None
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_lead_wait_source_progress_and_extraction.py::test_source_gap_returns_instead_of_syncing_applied_receipt_forever
+FAILED tests/test_lead_wait_source_progress_and_extraction.py::test_valid_indexed_source_version_is_not_a_binary_file_digest[ev4]
+FAILED tests/test_lead_wait_source_progress_and_extraction.py::test_valid_indexed_source_version_is_not_a_binary_file_digest[manual_opaque]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 3 failed, 13 warnings in 11.18s ========================

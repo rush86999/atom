@@ -36,6 +36,8 @@ PHASE_FILE = SCRATCH / "phase.json"
 BOARD_ID = os.environ["GENERIC_WAIT_BOARD_ID"]
 COLUMN_ID = os.environ["GENERIC_WAIT_COLUMN_ID"]
 ANSWER = os.environ["GENERIC_WAIT_ANSWER"]
+SOURCE_MODE = str(os.environ.get("GENERIC_WAIT_SOURCE_MODE") or "").strip()
+SOURCE_MARKER = str(os.environ.get("GENERIC_WAIT_SOURCE_MARKER") or "")
 
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("LANCEDB_URI", str(SCRATCH / "lance"))
@@ -46,10 +48,14 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 from api.agent_routes import router as agent_router  # noqa: E402
+from api.document_ingestion_routes import (  # noqa: E402
+    router as document_ingestion_router,
+)
 from core.auth import get_current_user  # noqa: E402
 from core.database import Base, get_db  # noqa: E402
 from core.models import (  # noqa: E402
     AgentRegistry,
+    IngestedDocument,
     Tenant,
     User,
     Workspace,
@@ -86,6 +92,58 @@ def _seed() -> None:
                             position=0),
             ])
         session.commit()
+        source_id = str(os.environ.get("GENERIC_WAIT_SOURCE_ID") or "")
+        if source_id and session.get(IngestedDocument, source_id) is None:
+            source_path = os.environ["GENERIC_WAIT_SOURCE_PATH"]
+            source_version = os.environ["GENERIC_WAIT_SOURCE_VERSION"]
+            session.add(IngestedDocument(
+                id=source_id,
+                workspace_id="ws1",
+                tenant_id="t1",
+                file_name=os.environ["GENERIC_WAIT_SOURCE_NAME"],
+                file_path=source_path,
+                file_type="json",
+                integration_id="upload",
+                external_id=source_id,
+                source_content_hash=source_version,
+                freshness_status="fresh",
+                content_preview=os.environ.get(
+                    "GENERIC_WAIT_SOURCE_MARKER", "")[:500],
+            ))
+            session.commit()
+            # Index the controlled fixture text into the real workspace
+            # LanceDB documents table. The answer route persists a path-free
+            # binding by design, so the existing reader consumes this index.
+            from core.lancedb_handler import get_lancedb_handler
+
+            handler = get_lancedb_handler("ws1")
+            if not handler.get_table("documents"):
+                handler.create_table("documents")
+            if not handler.get_document_by_id("documents", source_id):
+                text = Path(source_path).read_text()
+                try:
+                    payload = json.loads(text)
+                except ValueError:
+                    payload = None
+                if isinstance(payload, dict):
+                    text = json.dumps(payload, indent=2, sort_keys=True)
+                stored = handler.add_document(
+                    table_name="documents",
+                    text=text,
+                    source=os.environ["GENERIC_WAIT_SOURCE_NAME"],
+                    metadata={
+                        "source_content_hash": source_version,
+                        "pg_document_id": source_id,
+                        "workspace_id": "ws1",
+                        "tenant_id": "t1",
+                    },
+                    user_id="member-1",
+                    doc_id=source_id,
+                    workspace_id="ws1",
+                    extra_columns={"freshness_status": "fresh"},
+                )
+                if not stored:
+                    raise RuntimeError("source fixture index write failed")
     finally:
         session.close()
 
@@ -120,31 +178,60 @@ async def _controlled_structured(
     _write_phase(phase)
 
     if step == 0:
-        payload = {
-            "thought": "The closing task title is missing.",
-            "information_wait": {
-                "question": "What title should the closing task have?",
-                "missing_fact": "title",
-            },
-        }
+        if SOURCE_MODE:
+            payload = {
+                "thought": "The authorized source is missing.",
+                "information_wait": {
+                    "question": "Which authorized source should be used?",
+                    "missing_fact": "authorized source",
+                },
+            }
+        else:
+            payload = {
+                "thought": "The closing task title is missing.",
+                "information_wait": {
+                    "question": "What title should the closing task have?",
+                    "missing_fact": "title",
+                },
+            }
     elif step == 1:
         # The authorized answer must have reached the real prompt before the
         # resumed step is allowed to act on it.
         assert "AUTHORIZED INFORMATION ANSWER" in prompt, (
             "resumed prompt is missing the authorized answer section")
-        assert ANSWER in prompt, "resumed prompt is missing the answer text"
-        payload = {
-            "thought": "The authorized title is available; create the task.",
-            "action": {
-                "tool": "tasks.create",
-                "params": {
-                    "board_id": BOARD_ID,
-                    "column_id": COLUMN_ID,
-                    "title": ANSWER,
-                    "status": "backlog",
+        if SOURCE_MODE:
+            assert "AUTHORIZED SOURCE EVIDENCE" in prompt, (
+                "resumed prompt is missing the source evidence section")
+            assert SOURCE_MARKER in prompt, (
+                "resumed prompt is missing the accepted source content")
+            assert "untrusted evidence" in prompt, (
+                "source evidence is not labelled untrusted")
+            payload = {
+                "thought": "The authorized source is available; create the task.",
+                "action": {
+                    "tool": "tasks.create",
+                    "params": {
+                        "board_id": BOARD_ID,
+                        "column_id": COLUMN_ID,
+                        "title": SOURCE_MARKER,
+                        "status": "backlog",
+                    },
                 },
-            },
-        }
+            }
+        else:
+            assert ANSWER in prompt, "resumed prompt is missing the answer text"
+            payload = {
+                "thought": "The authorized title is available; create the task.",
+                "action": {
+                    "tool": "tasks.create",
+                    "params": {
+                        "board_id": BOARD_ID,
+                        "column_id": COLUMN_ID,
+                        "title": ANSWER,
+                        "status": "backlog",
+                    },
+                },
+            }
     else:
         payload = {
             "thought": "The registered action result was verified.",
@@ -219,6 +306,7 @@ if os.environ.get("GENERIC_WAIT_RECOVER_ACCEPTED") == "1":
 
 app = FastAPI()
 app.include_router(agent_router)
+app.include_router(document_ingestion_router)
 
 
 def _session_dep():

@@ -1,0 +1,90 @@
+{
+  "schema": "task_wait_source_ui_integration_verification_1",
+  "status": "prepared, not executed",
+  "branch": "codex/task-wait-source-ui-integration-20261107",
+  "prepared_source": "3786e7098fa04dc26d8ba78c3847b5327ec215bd",
+  "canonical_source_sha256": "6ea0a052d331f64e4131987e97d6517424cc9d1568addebf8abb410dc1a27a08",
+  "sources": {
+    "main": "8ded00232c30961a990e675e06ec672ef6a43910",
+    "reviewed_generic": "2ef5c120cb33c71a27016326929f2aa004a7d271",
+    "source_executor": "bd209add6716d056422752b411da7dc103790810",
+    "prepared_source_ui": "b493abb30143894a982d6285ad4f3a93ccca4cb0",
+    "goal_prep": "353c639d2b3a409964c7cd2168e92cbba75cda7b"
+  },
+  "preflight": {
+    "source_answer": {
+      "ok": true,
+      "source_files": "9/9",
+      "fixtures": "55/55",
+      "schema_envelopes": 3,
+      "source_marker": "UI-SOURCE-AUTH-7F3C",
+      "log": "preflight-source.log",
+      "report": "preflight-source.json"
+    },
+    "goal_utility": {
+      "ok": true,
+      "source_files": "13/13",
+      "fixtures": "55/55",
+      "launcher": "3/3",
+      "fixture_winner": "eligible-low",
+      "eligible_count": 2,
+      "log": "preflight-goal.log",
+      "report": "preflight-goal.json"
+    }
+  },
+  "preflight_negatives": [
+    {
+      "tag": "source-wrong-sha",
+      "exit": 2
+    },
+    {
+      "tag": "source-output-inside-worlds",
+      "exit": 2
+    },
+    {
+      "tag": "source-world-escape",
+      "exit": 2
+    },
+    {
+      "tag": "goal-wrong-sha",
+      "exit": 2
+    },
+    {
+      "tag": "goal-output-inside-worlds",
+      "exit": 2
+    }
+  ],
+  "preflight_negatives_created_no_world_or_output_dir": true,
+  "component_tests": {
+    "source_preflight_suite": {
+      "passed": 5,
+      "log": "source-preflight-tests.log"
+    },
+    "goal_utility_and_scope": {
+      "passed": 41,
+      "log": "goal-component-tests.log"
+    }
+  },
+  "bounds": {
+    "profile": "bounded",
+    "selected_tests_per_run_max": 41,
+    "free_space_at_run_GiB": 4.0,
+    "broad_selection_not_run": true
+  },
+  "no_live_actions": {
+    "world": false,
+    "browser": false,
+    "backend_launch": false,
+    "frontend_launch": false,
+    "model_provider": false,
+    "live_database": false,
+    "install_download": false,
+    "deploy": false
+  },
+  "not_claimed": [
+    "browser qualification",
+    "Goal completion",
+    "full TASK-WAIT-01 or whole-app acceptance",
+    "served-model quality or live provider behavior"
+  ]
+}

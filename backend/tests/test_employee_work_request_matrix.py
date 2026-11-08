@@ -19,7 +19,20 @@ from core.employee_work_requests import (
     QuoteCalculationRequest,
     TaxTerm,
 )
+from tests.source_authority_fixtures import (
+    bind_applied_read,
+    install_source_authority,
+)
 from tests.test_assignment_executor import _run, env  # noqa: F401
+
+
+@pytest.fixture()
+def source_authority(tmp_path, monkeypatch):
+    """A real controlled source plus the active reader the runtime checks."""
+    return install_source_authority(
+        monkeypatch, tmp_path,
+        user_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign")
 
 
 def _request(source_step_id="read", **overrides):
@@ -77,8 +90,10 @@ def _assignment(read):
         completion_criteria=[{"kind": "required_work_complete"}])
 
 
-def test_preview_is_labeled_but_execution_uses_full_durable_rows(env):
-    read = _read_step(25)
+def test_preview_is_labeled_but_execution_uses_full_durable_rows(
+        env, source_authority):
+    read = bind_applied_read(
+        _read_step(25), source_authority, "heldout-price-book.json")
     plan = _assignment(read)
     record = env["executor"].create_assignment(
         "conv-preview-full", plan["objective"], assignment=plan)

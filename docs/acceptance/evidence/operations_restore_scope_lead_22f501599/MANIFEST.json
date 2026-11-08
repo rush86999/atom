@@ -1,0 +1,22 @@
+{
+  "executed_source": "22f501599331dd6a6d00009097b338599513b586",
+  "source_files": {
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "2a13399fbd44621660f171df3b3e1d3bb0f2ab95d21ed36577acb5292115bb9c",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "7ddb1a4cd5c06f4fcdf3bb6e806972bbccbd820081a9214fcc5cedeff85137f6",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "95e9853c5daa9fe42ecc56b05b9ca13774cd18a769bfa8d2199c5b0596e7e432",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py": "877046ea631bbbc32301c3dad776d228104714fc5d16bbd0cb0d4ff3fffea1d2",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_binding_interleavings.py": "d10271c9171421b43176c99fba0b3edb8c77067736e929028e8e20321646af98",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py": "d1abd4f2b37ed0c20f0544bb0f5aff5bff918eeedfe55c18f98e161b8c1e34f6",
+    "backend/tests/test_db_safety.py": "a8fdd960a4f2682a37fd5e72bacc9ffea036677de79a9aa929e53971d3e050da",
+    "backend/tests/test_db_safety_atomicity.py": "d23f4ab39777b85335df9cfebd8084bd1e598eb1d98f3aa0447a3f9d8e90203f",
+    "backend/tests/core/test_db_snapshot_protection.py": "345c2035d92f8f661e8db3486021399c9f10d403498672f128f5bbba7b865e2c",
+    "docs/deployment/assignment_successor_2026-10-30_fda4f2dc9/DEPLOYMENT_RUNBOOK.md": "8c2922cc9efc991b8e8d7071b7c4469cc777985eed73dbc4728d38eed9e4eaad"
+  },
+  "artifacts": {
+    "root-restore-scope-final.log": "e232e8fb07dcf816ca4d6e8bea3af942a786adecbbf7d6c3d55ab6a74d52688f",
+    "README.md": "611dcbb491ce2d17210cfa6c4ed899ec8a13743218a272fcaeaa197c96033a1e",
+    "native-code-only-handoff.md": "26459d268c8d2beb9d446600e294a3976dd5217b71ca658e21ce621c3c3f3faa",
+    "root-restore-scope-final.spec.json": "978aef13e48dd88f57440424e4599c0866442b7ce31053a418562d76647eae50",
+    "root-restore-scope-final.exit.json": "7b4db2834f343016771406616e17e9771883ea3e6a4dbf725d1d4f224245d52e"
+  }
+}

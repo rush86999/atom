@@ -1,0 +1,419 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 40ff79890..c45a6f466 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -175,7 +175,7 @@ jobs:
+           SECRET_KEY: "ci-test-secret-key"
+           ENVIRONMENT: "development"
+         run: |
+-          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
++          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_task_wait_source_version_after_acceptance.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
+       - name: Run evidence manifest Git-ref controls
+         env:
+           TESTING: "1"
+@@ -217,6 +217,8 @@ jobs:
+             tests/test_generic_normal_retry_identity.py \
+             tests/test_oracle_mini_app_host_mutations.py \
+             tests/test_agent_generic_information_wait.py \
++            tests/test_generic_information_idle_contract.py \
++            tests/test_generic_information_two_job_isolation.py \
+             tests/test_information_wait_maturity_neutral.py \
+             ../scripts/tests/test_browser_agent_job_wait_identity.py \
+             tests/test_agent_generic_information_wait_process.py \
+diff --git a/backend/core/assignment_executor.py b/backend/core/assignment_executor.py
+index fb16fce04..8eb1cdb6d 100644
+--- a/backend/core/assignment_executor.py
++++ b/backend/core/assignment_executor.py
+@@ -2021,6 +2021,43 @@ class AssignmentExecutor:
+ 
+     # ----------------------------------------------------------- execution
+ 
++    def _source_version_drift(self, assignment: Dict[str, Any]) -> Optional[str]:
++        """Return an applied local source whose current bytes changed.
++
++        A source accepted/read earlier remains authoritative only for the
++        version that was read. If its local file changed before dependent
++        work consumes it, invalidate that source and its descendants so the
++        executor re-reads the current version instead of certifying a stale
++        value. Connected sources keep their existing resolution checks.
++        """
++        for step in assignment.get("steps") or []:
++            if str(step.get("status") or "") != "applied":
++                continue
++            if str(step.get("adapter") or "") not in (
++                    "workbook.read", "document.read", "document.text"):
++                continue
++            inputs = step.get("inputs") if isinstance(
++                step.get("inputs"), dict) else {}
++            binding = inputs.get("resource_binding") if isinstance(
++                inputs.get("resource_binding"), dict) else {}
++            path = str(inputs.get("path") or binding.get("path") or "")
++            result = step.get("result") if isinstance(
++                step.get("result"), dict) else {}
++            accepted = str(
++                result.get("sha256") or result.get("source_version")
++                or binding.get("source_version") or "")
++            if not path or not accepted or not os.path.isfile(path):
++                continue
++            if not re.fullmatch(r"[0-9a-fA-F]{64}", accepted):
++                continue
++            try:
++                current = _sha256_file(path)
++            except OSError:
++                continue
++            if current != accepted:
++                return str(step.get("step_id") or "")
++        return None
++
+     async def execute(
+         self,
+         run_id: str,
+@@ -2053,6 +2090,19 @@ class AssignmentExecutor:
+             expected_task_revision = None
+ 
+             assignment = self._sync_assignment(record, assignment)
++            drifted_source = self._source_version_drift(assignment)
++            if drifted_source:
++                # Re-read the current authorized version before dependent
++                # consumption. Existing invalidation preserves prior results
++                # for audit, refreshes the local binding version and reopens
++                # only this source and its descendants.
++                self.invalidate_step(
++                    run_id, drifted_source,
++                    reason=(
++                        "authorized source changed after acceptance; "
++                        "re-reading the current version before dependent "
++                        "consumption"))
++                continue
+             task_authorization = str(
+                 (record.get("task_revision") or {}).get("authorization")
+                 or "read_only")
+diff --git a/backend/tests/test_generic_information_idle_contract.py b/backend/tests/test_generic_information_idle_contract.py
+new file mode 100644
+index 000000000..3bda9ffbf
+--- /dev/null
++++ b/backend/tests/test_generic_information_idle_contract.py
+@@ -0,0 +1,76 @@
++"""G1: a prolonged Generic information wait is idle, not active execution.
++
++The Generic run/job contract has no wall budget or absolute deadline field;
++this test records that limitation instead of inventing a budget engine. It
++advances a controlled clock by two hours, performs authorized job reads, and
++asserts the durable wait/receipt is unchanged with no additional model call.
++The existing actual-process recovery tests cover restart after the same wait.
++"""
++from __future__ import annotations
++
++from datetime import timedelta
++
++from core.models import HITLAction
++from core.react_models import InformationWaitRequest, ReActStep
++
++from tests.test_agent_generic_information_wait import (
++    _install_model,
++    _seed_board,
++)
++from tests.test_agent_run_outcome_join_contract import (
++    _client,
++    _job_payload,
++    _run,
++    real_env,  # noqa: F401
++)
++
++
++def test_prolonged_generic_wait_retains_receipt_without_model_poll(
++        real_env, monkeypatch, freezer):
++    _seed_board(real_env)
++
++    def first(task_input, history, context):
++        return ReActStep(
++            thought="Need the exact title before creating the task.",
++            information_wait=InformationWaitRequest(
++                question="What title should the idle task have?",
++                missing_fact="task title",
++                subject="idle closing task",
++            ),
++        )
++
++    calls = _install_model(monkeypatch, [first])
++    response = _run(
++        real_env, operation_id="generic-idle-wait",
++        parameters={"sync": True, "task_input": "Create the idle task"})
++    assert response.status_code == 202, response.text
++    data = response.json()["data"]
++    job_id = data["job_id"]
++    execution_id = data["execution_id"]
++    receipt = data["wait_receipt"]
++    assert data["job_status"] == "waiting"
++    assert len(calls) == 1, "a durable wait must not poll the model"
++
++    # Move the controlled clock forward without answering anything.
++    freezer.tick(timedelta(hours=2))
++    read = _client(real_env).get(f"/api/agents/a1/jobs/{job_id}")
++    assert read.status_code == 200, read.text
++    payload = read.json()["data"]
++    assert payload["job_status"] == "waiting"
++    assert payload["execution_id"] == execution_id
++    wait = payload.get("wait") or payload.get("wait_receipt") or {}
++    assert wait.get("id") == receipt["hitl_action_id"]
++    assert wait.get("correlation_id") == receipt["correlation_id"]
++    assert len(calls) == 1, "a read must not poll the model"
++
++    freezer.tick(timedelta(hours=2))
++    job, durable = _job_payload(real_env, job_id)
++    assert job.status == "waiting"
++    durable_wait = durable.get("wait_receipt") or durable.get("wait") or {}
++    assert durable_wait.get("hitl_action_id") == receipt["hitl_action_id"]
++    assert durable_wait.get("correlation_id") == receipt["correlation_id"]
++    assert len(calls) == 1, "prolonged idle must not call the model"
++    with real_env.SessionLocal() as db:
++        wait = db.get(HITLAction, receipt["hitl_action_id"])
++        assert wait is not None and wait.status == "pending"
++        assert wait.user_feedback is None
+diff --git a/backend/tests/test_generic_information_two_job_isolation.py b/backend/tests/test_generic_information_two_job_isolation.py
+new file mode 100644
+index 000000000..a45ec99ad
+--- /dev/null
++++ b/backend/tests/test_generic_information_two_job_isolation.py
+@@ -0,0 +1,143 @@
++"""G4: two Generic jobs keep two waits/answers/effects isolated.
++
++Real public run/answer routes, real Generic consumer/lifecycle, real registered
++``tasks.create`` and default Oracle, scratch SQLite. Only the model transport is
++doubled. Answering A must not wake, call, or create the task for B; a stale A
++correlation delivered to B is refused; each job produces exactly one task.
++"""
++from __future__ import annotations
++
++from core.models import AgentExecution, AgentJob, HITLAction
++from core.models_board import BoardTask
++from core.react_models import InformationWaitRequest, ReActStep, ToolCall
++
++import core.generic_agent as real_generic
++
++from tests.test_agent_generic_information_wait import _seed_board, _wait_answer
++from tests.test_agent_run_outcome_join_contract import (
++    _job_payload,
++    _run,
++    real_env,  # noqa: F401
++)
++
++
++def _label(task_input: str) -> str:
++    return "A" if "task A" in task_input else "B"
++
++
++def test_two_generic_jobs_keep_waits_and_answers_isolated(
++        real_env, monkeypatch):
++    board_id, column_id = _seed_board(real_env)
++    calls = []
++    stages = {"A": 0, "B": 0}
++
++    async def _step(self, task_input, memory, history, context=None,
++                    utility_delta=None):
++        label = _label(task_input)
++        calls.append({"label": label, "task_input": task_input,
++                      "context": dict(context or {})})
++        answer = str((context or {}).get("information_answer") or "")
++        stage = stages[label]
++        stages[label] += 1
++        if stage == 0:
++            return ReActStep(
++                thought=f"Need the exact title for task {label}.",
++                information_wait=InformationWaitRequest(
++                    question=f"What title should task {label} have?",
++                    missing_fact="task title",
++                    subject=f"closing task {label}",
++                ),
++            )
++        if stage == 1:
++            assert answer, "the resumed call must carry the authorized answer"
++            return ReActStep(
++                thought=f"The authorized title for {label} is available.",
++                action=ToolCall(
++                    tool="tasks.create",
++                    params={
++                        "board_id": board_id,
++                        "column_id": column_id,
++                        "title": answer,
++                        "status": "backlog",
++                    },
++                ),
++            )
++        return ReActStep(
++            thought=f"Task {label} was verified.",
++            final_answer=f"Created task {label}.",
++        )
++
++    monkeypatch.setattr(real_generic.GenericAgent, "_react_step", _step)
++
++    run_a = _run(
++        real_env, operation_id="generic-two-job-a",
++        parameters={"sync": True, "task_input": "Create task A"})
++    run_b = _run(
++        real_env, operation_id="generic-two-job-b",
++        parameters={"sync": True, "task_input": "Create task B"})
++    assert run_a.status_code == 202, run_a.text
++    assert run_b.status_code == 202, run_b.text
++    data_a = run_a.json()["data"]
++    data_b = run_b.json()["data"]
++    job_a, exec_a = data_a["job_id"], data_a["execution_id"]
++    job_b, exec_b = data_b["job_id"], data_b["execution_id"]
++    receipt_a = data_a["wait_receipt"]
++    receipt_b = data_b["wait_receipt"]
++    assert job_a != job_b and exec_a != exec_b
++    assert receipt_a["correlation_id"] != receipt_b["correlation_id"]
++    assert [call["label"] for call in calls] == ["A", "B"], calls
++
++    answer_a = _wait_answer(
++        real_env, job_a, "Alpha", correlation_id=receipt_a["correlation_id"])
++    assert answer_a.status_code == 200, answer_a.text
++    assert answer_a.json()["data"]["job_status"] == "success"
++
++    # B is still waiting: same wait/correlation, no new model call, no task.
++    job_row_b, payload_b = _job_payload(real_env, job_b)
++    assert job_row_b.status == "waiting", job_row_b.status
++    assert payload_b["wait_receipt"]["correlation_id"] == (
++        receipt_b["correlation_id"])
++    assert sum(1 for call in calls if call["label"] == "B") == 1, calls
++    with real_env.SessionLocal() as db:
++        tasks = db.query(BoardTask).filter(
++            BoardTask.board_id == board_id).all()
++        assert [task.title for task in tasks] == ["Alpha"], tasks
++        pending_b = db.query(HITLAction).filter(
++            HITLAction.id == receipt_b["hitl_action_id"]).one()
++        assert pending_b.status == "pending"
++
++    # A stale A answer delivered to B is refused and changes nothing.
++    stale = _wait_answer(
++        real_env, job_b, "Alpha", correlation_id=receipt_a["correlation_id"])
++    assert stale.status_code == 409, stale.text
++    assert sum(1 for call in calls if call["label"] == "B") == 1, calls
++    job_row_b, payload_b = _job_payload(real_env, job_b)
++    assert job_row_b.status == "waiting"
++    assert payload_b["wait_receipt"]["correlation_id"] == (
++        receipt_b["correlation_id"])
++
++    answer_b = _wait_answer(
++        real_env, job_b, "Beta", correlation_id=receipt_b["correlation_id"])
++    assert answer_b.status_code == 200, answer_b.text
++    assert answer_b.json()["data"]["job_status"] == "success"
++
++    # One effect per job, each execution terminal, no duplicate/foreign wake.
++    with real_env.SessionLocal() as db:
++        tasks = db.query(BoardTask).filter(
++            BoardTask.board_id == board_id).all()
++        assert sorted(task.title for task in tasks) == ["Alpha", "Beta"], tasks
++        assert len(tasks) == 2, tasks
++        for job_id, execution_id, title in (
++                (job_a, exec_a, "Alpha"), (job_b, exec_b, "Beta")):
++            job = db.get(AgentJob, job_id)
++            execution = db.get(AgentExecution, execution_id)
++            assert job is not None and job.status == "success"
++            assert execution is not None and execution.status == "success"
++            assert [task.title for task in tasks if task.title == title] == [
++                title]
++        waits = db.query(HITLAction).filter(
++            HITLAction.action_type == "agent_information_request").all()
++        assert len(waits) == 2, waits
++        assert {row.status for row in waits} == {"approved"}
++        assert {row.id for row in waits} == {
++            receipt_a["hitl_action_id"], receipt_b["hitl_action_id"]}
+diff --git a/backend/tests/test_task_wait_source_version_after_acceptance.py b/backend/tests/test_task_wait_source_version_after_acceptance.py
+new file mode 100644
+index 000000000..fe58dada4
+--- /dev/null
++++ b/backend/tests/test_task_wait_source_version_after_acceptance.py
+@@ -0,0 +1,92 @@
++"""G2: a source changed after acceptance must not certify a stale value.
++
++The invoice source is accepted/read while the task waits for the receiving
++fact. The invoice file then changes on disk before the receiving answer lets
++dependent reconciliation run. The current authorized version must either be
++refused/re-resolved, or the result must use the new value; the old accepted
++value must not silently certify the dependent artifact.
++
++Public assignment routes, compiler/executor, lifecycle and scratch records are
++real. Discovery/adaptation choices and auth use the existing controlled
++fixtures. No provider, browser or live account action occurs.
++"""
++from __future__ import annotations
++
++import json
++
++from tests.test_assignment_routes import route_env  # noqa: F401
++from tests.test_task_wait_two_fact_events import (
++    PO,
++    _applied_artifacts,
++    _fixtures,
++    _install_transport,
++    _questions,
++    _reconciliations,
++    _start,
++)
++
++
++def _invoice(quantity: str, unit_price: str, freight: str) -> dict:
++    return {
++        "po_id": PO,
++        "invoice_id": "INV-TWO-1",
++        "quantity": quantity,
++        "unit_price": unit_price,
++        "freight": freight,
++        "currency": "USD",
++    }
++
++
++def test_source_change_after_acceptance_is_revalidated_before_consumption(
++        route_env, tmp_path, monkeypatch):
++    monkeypatch.setenv(
++        "ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "artifacts"))
++    po, invoice, receiving = _fixtures(tmp_path)
++    _install_transport(monkeypatch)
++    client = route_env["client"]
++    lifecycle = route_env["lifecycle"]
++
++    run_id = _start(client, po)
++    first = _questions(lifecycle, run_id)
++    assert len(first) == 1, first
++
++    accepted = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(invoice)},
++              "reason": "authorized invoice accepted before receiving"})
++    assert accepted.status_code == 200, accepted.text
++    assert accepted.json()["resolved_question_ids"] == [
++        first[0]["question_id"]], accepted.json()
++
++    # The accepted/read invoice changes before dependent consumption.
++    invoice.write_text(json.dumps(_invoice("4", "50.00", "10.00")))
++
++    second = _questions(lifecycle, run_id)
++    assert len(second) == 1, second
++    assert second[0]["inputs"]["missing"] == ["receiving"]
++
++    answered = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(receiving)},
++              "reason": "authorized receiving record"})
++    assert answered.status_code == 200, answered.text
++
++    final = lifecycle.get_assignment(run_id)
++    reconciliations = _reconciliations(final)
++    stale = [
++        step for step in reconciliations
++        if str((step.get("result") or {}).get("value") or "") == "130.00"]
++    assert not stale, (
++        "a changed source certified the old accepted value",
++        final["status"], reconciliations)
++    if final["status"] == "completed":
++        assert reconciliations, (
++            "completion must be backed by a reconciliation", final)
++        assert str(reconciliations[0]["result"]["value"]) == "210.00", (
++            "completion must use the current source value",
++            reconciliations[0]["result"])
++    else:
++        # Refusal/re-resolution is acceptable; no stale final artifact may be
++        # published while the source version is unresolved.
++        assert _applied_artifacts(final) == [], (
++            "a stale artifact was published", _applied_artifacts(final))

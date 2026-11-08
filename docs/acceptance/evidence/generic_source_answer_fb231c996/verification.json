@@ -1,0 +1,30 @@
+{
+  "kind": "generic_source_answer_contract",
+  "branch": "codex/generic-source-answer-20261107",
+  "base_source": "7d38d2ac946ca8b4470bde8edd72ed00ef49497d",
+  "executed_source": "fb231c9962ab4660912afa865b1440e9194d652c",
+  "source_tree_clean": true,
+  "backend_focused": {
+    "passed": 12,
+    "exit": 0,
+    "log": "backend-focused-12.log"
+  },
+  "ui_focused": {
+    "passed": 11,
+    "exit": 0,
+    "log": "ui-agent-job-wait-11.log"
+  },
+  "no_dependency_install": true,
+  "no_live_actions": true,
+  "stacked_on_source_branch": true,
+  "source_branch_edited": false,
+  "remaining_limits": [
+    "dataset valid twin",
+    "Generic-specific revoked/foreign/stale",
+    "before/after restart",
+    "output withholding",
+    "ordinary UI episode"
+  ],
+  "task_wait_01": "open",
+  "self_acceptance": false
+}

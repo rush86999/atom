@@ -1,0 +1,44 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/goal-runs/detail.test.tsx
+  GoalRunDetailPage role gating
+    ✓ member: read-only banner, no coaching actions, no mode switcher (107 ms)
+    ✓ supervisor: mode switcher, coaching actions and promotion evidence (67 ms)
+    ✓ unknown role stays fail-open (backend enforces) (19 ms)
+    ✓ member still sees a held decision's rationale (record, not action) (16 ms)
+  GoalRunDetailPage journey finish-line (2026-09-10)
+    ✓ leads with the goal's title instead of a bare UUID (16 ms)
+    ✓ active run names its current step in the guidance banner (13 ms)
+    ✓ achieved run: no Advance/Cancel/mode — Distill is the next act (15 ms)
+    ✓ failed/cancelled runs can still be distilled (learn from the path taken) (16 ms)
+  GoalRunDetailPage role-based access (any business)
+    ✓ the run's OWNER works and approves it, but gets no supervisor powers (20 ms)
+    ✓ a DIFFERENT member is read-only on someone else's run (18 ms)
+    ✓ a supervisor can act on ANY run they do not own (17 ms)
+  GoalRun detail — coaching
+    ✓ links to the run agent's chat (11 ms)
+    ✓ teaches THIS goal by default and confirms where it landed (23 ms)
+    ✓ teaches all of the agent's work when the scope is switched (19 ms)
+    ✓ surfaces a failed teach instead of claiming success (22 ms)
+    ✓ shows what the agent learned, badged by scope (16 ms)
+    ✓ refreshes to the newer decision after a stale approval conflict (30 ms)
+    ✓ sends the override's lesson scope with the resume call (23 ms)
+  GoalRunDetailPage assignment projection ownership
+    ✓ shows the assignment plan read-only and sends no native advance (21 ms)
+    ✓ a caller-shaped marker without the trusted creation log stays native (15 ms)
+  Goal utility target (GOAL-02)
+    ✓ member sees the target and truthful ranking but cannot mutate it (11 ms)
+    ✓ supervisor sets the existing target and sees the ranking after reload (27 ms)
+    ✓ clears the target and removes the ranking (19 ms)
+    ✓ shows an unknown/no-eligible state without inventing a winner (13 ms)
+    ✓ surfaces a load error and retries without claiming a target (24 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       25 passed, 25 total
+Snapshots:   0 total
+Time:        2.733 s
+Ran all test suites matching tests/pages/goal-runs/detail.test.tsx.
+WRAPPER_EXIT=0

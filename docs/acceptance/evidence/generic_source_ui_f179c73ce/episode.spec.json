@@ -1,0 +1,30 @@
+{
+  "source": "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+  "root": "/private/tmp/root-source-ui-episode-mv9_obn4",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal-utility-surface-20261107",
+    "--profile",
+    "heavy",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "scripts/acceptance/browser_agent_source_answer.py",
+    "--execute",
+    "--world",
+    "browser_source_f179c73ce_root_20261107",
+    "--backend-port",
+    "18601",
+    "--frontend-port",
+    "18602",
+    "--shim-port",
+    "18603",
+    "--out",
+    "/private/tmp/root-source-ui-episode-mv9_obn4/capture",
+    "--expect-source-sha",
+    "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+    "--provision-admin-password"
+  ],
+  "model_seam": "controlled loopback simulated decisions; no actual model/provider",
+  "world": "fresh, no reuse/deletion"
+}

@@ -1,0 +1,12 @@
+{
+  "kind": "root_gate_reference",
+  "source": "0509877ed20101b4e3e1e1123d1d54000e5fe7f2",
+  "actual_exit": 0,
+  "observed": "22 passed, 115 warnings in 93.19s",
+  "spec": "/private/tmp/root-generic-source-binding-recheck.spec.json",
+  "log": "/private/tmp/root-generic-source-binding-recheck.log",
+  "exit": "/private/tmp/root-generic-source-binding-recheck.exit.json",
+  "exit_sha256": "b8278b420896c1dd29625b7578de5aa51ba22c5104bd2ef8738c0dcdad2cc39e",
+  "spec_sha256": "d128f938ab817fa2e0e06c48f172b99c5febdade2b0087cf74b31a8753a7d2b0",
+  "note": "Root-owned gate completed before the post-gate probe was added; not rerun here."
+}

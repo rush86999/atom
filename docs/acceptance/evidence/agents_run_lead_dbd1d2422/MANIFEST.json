@@ -1,0 +1,27 @@
+{
+  "executed_source": "dbd1d24225fa858be51e7f024475a7586191a26f",
+  "source_files": {
+    "scripts/acceptance/browser_agent_source_answer.py": "300e7c9284167a55645f892e1e33e13ea18c02c5282fbafe21f165c0caca9bc9",
+    "scripts/acceptance/browser_agent_job_wait.py": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+    "scripts/acceptance/browser_goal_utility_ui.py": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9",
+    "scripts/tests/test_browser_agent_source_answer_preflight.py": "7936857f6dde196e11e66b7690a49f117b2b7b34ac4999d0e8a1338167951841",
+    "scripts/tests/test_lead_source_redirect_evidence.py": "d6d8ce466e2770f219344489feafacd0a1baaecb5a23f1c1d2a6a6ce00eec779",
+    "frontend-nextjs/pages/agents/index.tsx": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+    "frontend-nextjs/tests/pages/agents-information-job.test.tsx": "ca5992d20bfe75c2ab14e486532ec3d8b775d11adc5a31354105cd7df970c2c1",
+    "frontend-nextjs/tests/pages/agents-index.test.tsx": "982d9a0e54e9dcf21e3806e2c4336207f594b537ab1241641f17087718e240bf",
+    "backend/api/agent_routes.py": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+    "backend/core/information_wait.py": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17"
+  },
+  "artifacts": {
+    "root-source-redirect-evidence-negative.log": "07a05f466160995914afeaf5d9a703448794a2b58a1a3f8d7fc5f1e67cff1577",
+    "root-source-canonical-frontend-review.spec.json": "a53bc770e14f04a01cdc4587839f01781582f131c457ed64a5a9725ac63a7903",
+    "root-source-canonical-frontend-review.exit.json": "8a29fab42bd255f3c2087dbab2cb58fd47d58e1543091fef9ae855c6f580ee47",
+    "root-source-redirect-evidence-final.log": "b33b948f21d1880f2741eb70198b6d22c1dd60e447bb5e1b65b635ed7725efce",
+    "root-source-redirect-evidence-final.spec.json": "024de97378225bdc6b543c6c23b4a277f5d0b2be7299b4f0e2b35b33a4d367a4",
+    "root-source-redirect-evidence-final.exit.json": "a7b81e8dcf8ac6ff6047dd1c01f862ad00b56a26e00610075b4b82381129422f",
+    "README.md": "2a43ae46adcd5e4f45d29f064f9c3a700f81b29fd89fab2531fd4f252af9f586",
+    "root-source-canonical-frontend-review.log": "d61a75d6071bafdc74f3d27bb084ba135c82d94bc9506158a29010c1c3d6ed99",
+    "root-source-redirect-evidence-negative.exit.json": "9a408114a63a4a119e0b9ae2d5dcfb0f62eecaf8405fa42b3ba2af8b56cb0ccf",
+    "root-source-redirect-evidence-negative.spec.json": "8d294329bb8a703b0a43a536e79928075f63a20e3fbc41d8af02a0d5c5980c37"
+  }
+}

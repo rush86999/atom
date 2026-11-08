@@ -1,0 +1,436 @@
+{
+  "kind": "goal_utility_ui_preflight",
+  "status": "preparation-only",
+  "generated_at": "2026-11-07T16:24:03-0500",
+  "ok": true,
+  "checks": {
+    "scratch_environment": true,
+    "source_head_recorded": true,
+    "source_expected_sha_ok": true,
+    "tracked_tree_clean": true,
+    "per_file_git_source_proof": true,
+    "launcher_paths_present": true,
+    "fixture_set_55_verified": true,
+    "output_parent_writable": true,
+    "worlds_root_usable": true,
+    "dependencies_present": true,
+    "analytics_fixture_valid": true,
+    "core_activity_enabled": true,
+    "deferred_surfaces_not_forced": true,
+    "fresh_marked_world_name": true,
+    "backend_frontend_ports_free": true,
+    "storage_guard_configured": true
+  },
+  "labels": {
+    "fixture_history": "CONTROLLED ANALYTICS FIXTURE: two trusted achieved GoalRun rows with fixed metric counts plus one failed and one unknown-metric candidate. This is synthetic history, not completed agent work or model output.",
+    "production_boundary": "The existing public goal routes, GoalService/GoalRunService, goal_write_service CAS, durable GoalObjective/GoalRun rows, normal login form, Activity navigation and Goal Runs detail UI run in production code.",
+    "not_claimed": [
+      "served model or provider quality",
+      "general model judgment or prompt quality",
+      "that the fixture rows are real agent work",
+      "TASK-WAIT-01, source upload/answer, downloads or a Generic model call",
+      "live provider/account/credential/send/spend/install/deploy",
+      "full application, PostgreSQL, multi-worker or soak acceptance"
+    ]
+  },
+  "driver": {
+    "path": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/browser_goal_utility_ui.py",
+    "sha256": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9"
+  },
+  "source": {
+    "repo": "/private/tmp/atom-goal-utility-surface-20261107",
+    "head": "fcf91bdd518a39a579ff64f041782572a0cea7ce",
+    "expected_sha": "fcf91bdd518a39a579ff64f041782572a0cea7ce",
+    "matches_expected": true,
+    "tracked_dirty": [],
+    "tracked_dirty_count": 0,
+    "backend_dirty": [],
+    "backend_dirty_count": 0,
+    "driver_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+    "driver_path": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/browser_agent_job_wait.py",
+    "runtime_identity": {
+      "source_id": "fcf91bdd518a",
+      "revision": "fcf91bdd518a39a579ff64f041782572a0cea7ce",
+      "dirty": false,
+      "dirty_paths_count": 0,
+      "untracked_paths_count": 0,
+      "error": null
+    },
+    "tracked_tree_clean": true,
+    "backend_tree_clean": true,
+    "expected_sha_ok": true,
+    "per_file": {
+      "ok": true,
+      "files": {
+        "backend/api/goal_routes.py": {
+          "git_blob": "53fad2a43b3fcb48ea47376c3eb24b0b014b95b3",
+          "git_sha256": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+          "git_bytes": 12677,
+          "worktree_sha256": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+          "worktree_bytes": 12677,
+          "matches": true
+        },
+        "backend/core/goals/goal_service.py": {
+          "git_blob": "64581cc066dc9e98d391b1076d34d2cb91c892bd",
+          "git_sha256": "b75a5473dc242736558085b39746d4040e32374a6b192b99a830c53f7b2f5069",
+          "git_bytes": 15541,
+          "worktree_sha256": "b75a5473dc242736558085b39746d4040e32374a6b192b99a830c53f7b2f5069",
+          "worktree_bytes": 15541,
+          "matches": true
+        },
+        "backend/core/goals/goal_run_router.py": {
+          "git_blob": "c06b55e5324015be44277b63fcae72ce56875013",
+          "git_sha256": "b47009432e4f4b7c956b07e796bf48bb80288b16299b81c7bcb512af69267a63",
+          "git_bytes": 18783,
+          "worktree_sha256": "b47009432e4f4b7c956b07e796bf48bb80288b16299b81c7bcb512af69267a63",
+          "worktree_bytes": 18783,
+          "matches": true
+        },
+        "backend/core/goals/goal_run_service.py": {
+          "git_blob": "1cd21bdca20a3aea53a7a8b1e8e3a219f913f2f1",
+          "git_sha256": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+          "git_bytes": 60925,
+          "worktree_sha256": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+          "worktree_bytes": 60925,
+          "matches": true
+        },
+        "backend/core/goals/goal_write_service.py": {
+          "git_blob": "646d5c263544a108ac82df1efea1872006983d19",
+          "git_sha256": "d43f0cdc9fdc391ff9a0fb1464fceef5bf232c95a48fa9f5291d46e976d310c4",
+          "git_bytes": 43812,
+          "worktree_sha256": "d43f0cdc9fdc391ff9a0fb1464fceef5bf232c95a48fa9f5291d46e976d310c4",
+          "worktree_bytes": 43812,
+          "matches": true
+        },
+        "backend/core/goals/utility_target.py": {
+          "git_blob": "c6d45de025361072887c37751fbe1c9ead26e56e",
+          "git_sha256": "5b47b606fbf99faaba404e46ac6de0639500af9255bacfa3c32b1a2b79d90005",
+          "git_bytes": 8842,
+          "worktree_sha256": "5b47b606fbf99faaba404e46ac6de0639500af9255bacfa3c32b1a2b79d90005",
+          "worktree_bytes": 8842,
+          "matches": true
+        },
+        "backend/core/personal_scope.py": {
+          "git_blob": "ed530e39585f6ed0d2fcbcaeb79e4d51dc62f9a9",
+          "git_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+          "git_bytes": 2789,
+          "worktree_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+          "worktree_bytes": 2789,
+          "matches": true
+        },
+        "backend/core/product_profile.py": {
+          "git_blob": "27d93c97cf1913f8760dbd1f0556ff82985f7066",
+          "git_sha256": "97e55d80513c768663915997aca3014e10711086aeb72f8d993c6870184fd182",
+          "git_bytes": 10386,
+          "worktree_sha256": "97e55d80513c768663915997aca3014e10711086aeb72f8d993c6870184fd182",
+          "worktree_bytes": 10386,
+          "matches": true
+        },
+        "frontend-nextjs/lib/goal-run-api.ts": {
+          "git_blob": "035164cebb0c3ec1abd30cc7993a3b7363ebb32c",
+          "git_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+          "git_bytes": 20391,
+          "worktree_sha256": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+          "worktree_bytes": 20391,
+          "matches": true
+        },
+        "frontend-nextjs/pages/goal-runs/[id].tsx": {
+          "git_blob": "a34e0459f1ff062ba02a6bb803dac972c31bbfe4",
+          "git_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+          "git_bytes": 55074,
+          "worktree_sha256": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+          "worktree_bytes": 55074,
+          "matches": true
+        },
+        "scripts/acceptance/browser_goal_utility_ui.py": {
+          "git_blob": "311296f25b4846f3b95e9122655b45392c5a666a",
+          "git_sha256": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9",
+          "git_bytes": 66778,
+          "worktree_sha256": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9",
+          "worktree_bytes": 66778,
+          "matches": true
+        },
+        "scripts/acceptance/browser_agent_job_wait.py": {
+          "git_blob": "7fd4877bb3ec060c7538fbba56a0ec3d5e848ed3",
+          "git_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+          "git_bytes": 114529,
+          "worktree_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+          "worktree_bytes": 114529,
+          "matches": true
+        },
+        "backend/scripts/orchestration_acceptance/run_isolated.py": {
+          "git_blob": "02e0e52af69192b22658e5b97c76ec40fde00099",
+          "git_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+          "git_bytes": 299764,
+          "worktree_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+          "worktree_bytes": 299764,
+          "matches": true
+        }
+      }
+    },
+    "source_proof_ok": true
+  },
+  "launcher": {
+    "ok": true,
+    "files": {
+      "backend/scripts/orchestration_acceptance/run_isolated.py": true,
+      "backend/scripts/orchestration_acceptance/provider_shim.py": true,
+      "scripts/acceptance/browser_agent_job_wait.py": true
+    },
+    "acc_dir": "/private/tmp/atom-goal-utility-surface-20261107/docs/architecture/orchestration_migration/acceptance",
+    "acc_dir_writable": true,
+    "fixtures_checksums_present": true,
+    "worlds_root": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds",
+    "worlds_root_exists": true,
+    "worlds_root_is_symlink": true,
+    "worlds_root_resolves": true
+  },
+  "fixtures": {
+    "ok": true,
+    "path": "/private/tmp/atom-goal-utility-surface-20261107/docs/architecture/orchestration_migration/acceptance/fixtures/SHA256SUMS",
+    "sha256": "9c0f209f2081113e72ee9ab5460914880103f13551627e7a3744d10fb83a79d0",
+    "entry_count": 55,
+    "expected_entry_count": 55,
+    "checksum_exit": 0,
+    "stderr": ""
+  },
+  "output": {
+    "ok": true,
+    "target": "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/goal-out/preflight.json",
+    "parent": "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/goal-out",
+    "existing_ancestor": "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/goal-out",
+    "existing_ancestor_writable": true,
+    "inside_worlds_root": false
+  },
+  "storage_readiness": {
+    "ok": true,
+    "checks": [
+      "no maintenance lock",
+      "worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds"
+    ],
+    "problems": [],
+    "worlds_root": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds",
+    "worlds_root_exists": true,
+    "worlds_root_is_symlink": true,
+    "worlds_root_resolves": true,
+    "mkdir_in_preflight": false
+  },
+  "fixture": {
+    "target": {
+      "metric": "human_interventions",
+      "direction": "minimize",
+      "source": "goal_run",
+      "description": "fixture analytics: prefer fewer human interventions"
+    },
+    "rows": [
+      {
+        "fixture_id": "eligible-low",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": 2,
+          "steps_executed": 5,
+          "replan_count": 1
+        },
+        "expected": "eligible"
+      },
+      {
+        "fixture_id": "eligible-high",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": 5,
+          "steps_executed": 8,
+          "replan_count": 2
+        },
+        "expected": "eligible"
+      },
+      {
+        "fixture_id": "failed-candidate",
+        "status": "failed",
+        "metrics": {
+          "human_interventions": 0,
+          "steps_executed": 4,
+          "replan_count": 1
+        },
+        "expected": "not_completed"
+      },
+      {
+        "fixture_id": "unknown-candidate",
+        "status": "achieved",
+        "metrics": {
+          "human_interventions": -1,
+          "steps_executed": 6,
+          "replan_count": 0
+        },
+        "expected": "metric_unknown"
+      }
+    ],
+    "ranking": {
+      "target": {
+        "metric": "human_interventions",
+        "direction": "minimize",
+        "source": "goal_run",
+        "description": "fixture analytics: prefer fewer human interventions"
+      },
+      "ranking": [
+        {
+          "id": "eligible-low",
+          "utility": -2.0,
+          "rank": 1,
+          "eligible": true,
+          "reason": "ranked",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "eligible-low",
+            "goal_id": "fixture-goal",
+            "status": "achieved",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        },
+        {
+          "id": "eligible-high",
+          "utility": -5.0,
+          "rank": 2,
+          "eligible": true,
+          "reason": "ranked",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "eligible-high",
+            "goal_id": "fixture-goal",
+            "status": "achieved",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        },
+        {
+          "id": "failed-candidate",
+          "utility": null,
+          "rank": null,
+          "eligible": false,
+          "reason": "not_completed",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "failed-candidate",
+            "goal_id": "fixture-goal",
+            "status": "failed",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        },
+        {
+          "id": "unknown-candidate",
+          "utility": null,
+          "rank": null,
+          "eligible": false,
+          "reason": "metric_unknown",
+          "evidence": {
+            "source": "goal_runs",
+            "run_id": "unknown-candidate",
+            "goal_id": "fixture-goal",
+            "status": "achieved",
+            "supervision_mode": null,
+            "updated_at": null
+          }
+        }
+      ],
+      "winner": "eligible-low",
+      "eligible_count": 2
+    },
+    "eligible_count": 2,
+    "winner": "eligible-low",
+    "eligible_ids": [
+      "eligible-low",
+      "eligible-high"
+    ],
+    "withheld": [
+      {
+        "id": "failed-candidate",
+        "reason": "not_completed"
+      },
+      {
+        "id": "unknown-candidate",
+        "reason": "metric_unknown"
+      }
+    ],
+    "expected_reasons_ok": true,
+    "winner_expected": "eligible-low",
+    "ok": true
+  },
+  "profile": {
+    "profile": "core",
+    "activity_enabled": true,
+    "goal_runs_route": "activity",
+    "goal_runs_enabled": true,
+    "tasks_enabled": false,
+    "boards_enabled": false,
+    "core_profile": true,
+    "deferred_not_forced": true,
+    "ok": true
+  },
+  "environment": {
+    "testing": "1",
+    "database_url": "sqlite:////private/tmp/atom-run-fix-final-pre-3o5bt_4o/atom.db",
+    "database_path": "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/atom.db",
+    "database_is_live_dev_db": false,
+    "data_dir": "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/data",
+    "office_dir": "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/office",
+    "scratch_ok": true
+  },
+  "dependencies": {
+    "interpreter": "3.14.7",
+    "interpreter_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/venv314/bin/python",
+    "modules": {
+      "pydantic": true,
+      "httpx": true,
+      "playwright": true,
+      "sqlalchemy": true,
+      "fastapi": true,
+      "uvicorn": true,
+      "instructor": true
+    },
+    "node": "/Users/rushiparikh/.nvm/versions/node/v20.19.6/bin/node",
+    "node_version": "v20.19.6",
+    "chrome_app": true,
+    "venv314_python": true,
+    "frontend_node_modules": true
+  },
+  "ports": {
+    "18052": true,
+    "13252": true
+  },
+  "world": {
+    "name": "goal_utility_ui_final_1794086642",
+    "path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/goal_utility_ui_final_1794086642",
+    "exists": false,
+    "under_worlds_root": true,
+    "required_prefix": "goal_utility_ui_",
+    "required_fresh": true
+  },
+  "storage_guard": {
+    "guard_invoked": false,
+    "enabled": true,
+    "layout": "local",
+    "worlds_root": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds",
+    "world_exists": false,
+    "execute_will_call": "core.world_storage_guard.require_storage_ready",
+    "reason_not_invoked": "preparation only; --execute calls the guard before build_world and never sets ATOM_WORLD_STORAGE_BYPASS"
+  },
+  "warnings": [],
+  "not_exercised": [
+    "world build / storage guard acceptance",
+    "backend or frontend launch",
+    "Playwright browser or ordinary login",
+    "seeded GoalRun history or durable GoalObjective readback",
+    "supervisor set/clear mutation or member read-only UI",
+    "goal status/progress or operation receipt effects",
+    "model provider/inference/live account/send/spend/install/deploy"
+  ],
+  "remaining_inputs": [
+    "prepared frozen capture worktree with backend/venv314 and frontend-nextjs/node_modules",
+    "unique fresh --world starting goal_utility_ui_",
+    "free --backend-port and --frontend-port",
+    "admin password source: --admin-password-file (0600) or --provision-admin-password for the scratch world",
+    "explicit --execute --expect-source-sha; this preparation does not run it"
+  ],
+  "exact_preparation_command": "TESTING=1 DATABASE_URL=sqlite:///<fresh>/atom.db ATOM_DATA_DIR=<fresh>/data ATOM_OFFICE_DIR=<fresh>/office python3 scripts/acceptance/browser_goal_utility_ui.py --preflight --expect-source-sha <frozen-sha> --out <report-dir>"
+}

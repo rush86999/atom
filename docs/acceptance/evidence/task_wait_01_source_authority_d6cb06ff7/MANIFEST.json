@@ -1,0 +1,46 @@
+{
+  "kind": "task_wait_01_source_authority_manifest",
+  "executed_source": "d6cb06ff71f3ead5baa996d9b6a183871ba4a134",
+  "source_tree_clean_at_compile": true,
+  "root_negatives": {
+    "source_unavailable_failed": 2,
+    "upload_removed_failed": 1,
+    "both_actual_exit": 1
+  },
+  "post_fix_gate": {
+    "status": "permission_denied",
+    "exit": 126,
+    "dispatched": false
+  },
+  "post_fix_static_compile_exit": 0,
+  "post_fix_pytest_pass_claimed": false,
+  "runtime_files_changed": [
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_resources.py",
+    "backend/api/assignment_routes.py"
+  ],
+  "g1_g4_g3_retained": true,
+  "task_wait_01": "open",
+  "claim_denominator": 143,
+  "live_actions": false,
+  "source_files": {
+    "backend/core/assignment_executor.py": "fa53171f329dbc9aff7e160ea1e28170b95d4056266082b80c19770e29bec4ca",
+    "backend/core/assignment_resources.py": "4f67e795a96999e12323173d5f84f6033deba27cf3a9c35c827ca790c53ad034",
+    "backend/api/assignment_routes.py": "8435fc0c245ea0bd240ae17a6da5af52119e99732afd309ddfaaaf4e5dcc66e0",
+    "backend/tests/test_lead_wait_source_disappears.py": "b08d90fc3bdf65c4e43186cff5bb60b2647b45421768199645722c89f4c3449c",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "42c2535e3bb72b5a1de64f0c51b4fcfe6f3c4dd068ffe990670024febbf72e97",
+    "backend/tests/test_generic_information_two_job_isolation.py": "75aad3be62f7ae415644e7bfebb2f9e7a858d0638042d789ce4714eec54bf2ed",
+    "backend/tests/test_generic_information_idle_contract.py": "8ffcb931ed6da3e8454da71cef55f67ccd0a3e8b908474cbee1e5a562b510457",
+    ".github/workflows/ci.yml": "5147475cc0012ebe386a39ecf30986d9229e96dee311f1e1dc3d49f5426ee222"
+  },
+  "artifacts": {
+    "HANDOFF.md": "f8fc53582a64fda98dbf9aa35664185f1d5e1ff274dc727b67cad519204c5c24",
+    "README.md": "6aee502fcb325129ec45d0c4b1029961acc5aaf4d39f4c83f58e378c76ee6736",
+    "compile.log": "94cf1d08d852fbf21007b97fc894f2a5a0f2d0c7bd003a0b4a839d77f64b0750",
+    "gate-permission-denied.log": "5d0701cf5cfe6a7cecac89409042474e15818247fc6e2b0a8c4cdc8212c2d3e5",
+    "root-source-unavailable-negative.log": "689397775b76dcc8114596e8b073fb0810d91c576f9dbd2d9d8d6ad1d27b4e49",
+    "root-upload-removed-negative.log": "cdeecd5f5650ab62dab90136eeb60153a31fe4482b5bdc4e38bc1e9f7e59829d",
+    "source-change.patch": "e299b348bfb8dbdc96b13eb392cf294015fbb079a810f9177caf7728d21780f5",
+    "verification.json": "ef8ac02b0d971a771dc4670f79c8ba4389535407bf0bcc14c4a8ceb452d88f2c"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "schema": "atom-goal-utility-ui-prep-manifest-1",
+  "prep_head": "98bb2e181da25d48fdbebdcd1c0d3bfb6d419735",
+  "frozen_goal_pr_head": "dc92728d6e1302e8718c9435c08c119972e6fca8",
+  "source_blobs": {
+    "scripts/acceptance/browser_goal_utility_ui.py": "d34b43704dabacb46e83c5f54dbde7beca2e36b8",
+    "docs/acceptance/GOAL_UTILITY_UI_EPISODE_WORK_ORDER_20261107.md": "57631b3ab5b9ad386dfb974566b415f42338b6e7"
+  },
+  "artifacts": {
+    "README.md": {
+      "sha256": "09ecd43450f4a530bc403c64d6347e97e3c8247d699e166b5b428d1614cb6bf8",
+      "bytes": 3872
+    },
+    "preflight-negative.exit.txt": {
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3",
+      "bytes": 2
+    },
+    "preflight-negative.log": {
+      "sha256": "9fdb3c811062acc96957ca7f2a09045f14b8f6385708123bf0d0cc8e77702848",
+      "bytes": 143
+    },
+    "preflight.exit.txt": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "preflight.json": {
+      "sha256": "70e2bec0accf4403dc7eb7d95b3f659d502d256fe69a646c3630b4f37e30a536",
+      "bytes": 13483
+    },
+    "preflight.log": {
+      "sha256": "683a473336b965c60a6b8cef276fb17aeb298a9c32c977d37c23bf0976687463",
+      "bytes": 338
+    },
+    "pycompile.exit.txt": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "pycompile.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "source.json": {
+      "sha256": "180fdea1167d16fedbb861215b23f93dddb93e59e7a5e58ba97831413189141f",
+      "bytes": 957
+    },
+    "typescript.exit.txt": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "typescript.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "verification.json": {
+      "sha256": "df9158fa4d66b3799ed55fa23880d1bd5d39eca77ff00c2977b3484f82ff28df",
+      "bytes": 1816
+    }
+  }
+}

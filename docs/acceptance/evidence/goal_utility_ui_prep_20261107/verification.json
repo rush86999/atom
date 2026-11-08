@@ -1,0 +1,53 @@
+{
+  "schema": "atom-goal-utility-ui-prep-verification-1",
+  "status": "prepared, not executed",
+  "prep_head": "98bb2e181da25d48fdbebdcd1c0d3bfb6d419735",
+  "frozen_goal_pr_head": "dc92728d6e1302e8718c9435c08c119972e6fca8",
+  "runtime_tree_identical_to_frozen": true,
+  "checks": {
+    "scratch_environment": true,
+    "source_head_recorded": true,
+    "source_expected_sha_ok": true,
+    "tracked_tree_clean": true,
+    "per_file_git_source_proof": true,
+    "analytics_fixture_valid": true,
+    "core_activity_enabled": true,
+    "deferred_surfaces_not_forced": true,
+    "fresh_marked_world_name": true,
+    "backend_frontend_ports_free": true,
+    "storage_guard_configured": true
+  },
+  "preflight_ok": true,
+  "preflight_exit": 0,
+  "preflight_negative_exit": 2,
+  "py_compile_exit": 0,
+  "typescript_exit": 0,
+  "warnings": [
+    "backend/venv314/bin/python is absent in this prep worktree; --execute requires a prepared frozen capture worktree"
+  ],
+  "fixture": {
+    "winner": "eligible-low",
+    "eligible_count": 2,
+    "withheld": [
+      {
+        "id": "failed-candidate",
+        "reason": "not_completed"
+      },
+      {
+        "id": "unknown-candidate",
+        "reason": "metric_unknown"
+      }
+    ],
+    "label": "controlled analytics fixture; not completed agent work or model output"
+  },
+  "not_exercised": [
+    "world build / storage guard acceptance",
+    "backend or frontend launch",
+    "Playwright browser or ordinary login",
+    "seeded GoalRun history or durable GoalObjective readback",
+    "supervisor set/clear mutation or member read-only UI",
+    "goal status/progress or operation receipt effects",
+    "model provider/inference/live account/send/spend/install/deploy"
+  ],
+  "boundary": "no world/browser/server/model/provider was launched; --execute remains root-owned"
+}

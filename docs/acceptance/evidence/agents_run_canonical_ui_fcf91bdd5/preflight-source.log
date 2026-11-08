@@ -1,0 +1,10 @@
+rc=0
+elapsed=0.8s
+head=fcf91bdd518a39a579ff64f041782572a0cea7ce
+cmd=["/private/tmp/atom-goal-utility-surface-20261107/backend/venv314/bin/python", "scripts/acceptance/browser_agent_source_answer.py", "--preflight", "--out", "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/source-out", "--expect-source-sha", "fcf91bdd518a39a579ff64f041782572a0cea7ce", "--backend-port", "18051", "--frontend-port", "13251", "--shim-port", "18059"]
+
+[preflight] ok=True report=/private/tmp/atom-run-fix-final-pre-3o5bt_4o/source-out/preflight.json
+[preflight] schema=3 envelopes, tool=ReActStep, marker=UI-SOURCE-AUTH-7F3C
+[preflight] source_files=9/9 fixtures=55/55
+
+--- stderr ---

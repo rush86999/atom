@@ -1,0 +1,19 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "scripts/acceptance/browser_agent_source_answer.py": "300e7c9284167a55645f892e1e33e13ea18c02c5282fbafe21f165c0caca9bc9",
+    "scripts/tests/test_browser_agent_source_answer_preflight.py": "7936857f6dde196e11e66b7690a49f117b2b7b34ac4999d0e8a1338167951841",
+    "frontend-nextjs/pages/agents/index.tsx": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103"
+  },
+  "source_bytes_after": {
+    "scripts/acceptance/browser_agent_source_answer.py": "300e7c9284167a55645f892e1e33e13ea18c02c5282fbafe21f165c0caca9bc9",
+    "scripts/tests/test_browser_agent_source_answer_preflight.py": "7936857f6dde196e11e66b7690a49f117b2b7b34ac4999d0e8a1338167951841",
+    "frontend-nextjs/pages/agents/index.tsx": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103"
+  },
+  "source": "dbd1d24225fa858be51e7f024475a7586191a26f",
+  "head_after": "dbd1d24225fa858be51e7f024475a7586191a26f",
+  "runtime_or_test_diff": [],
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-wait-source-final-review-rdcjlvds",
+  "finished": 1794087428.745079
+}

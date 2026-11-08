@@ -1,0 +1,10 @@
+{
+  "executed_source": "4bae4c480",
+  "files": {
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "3308fc2cb88ec54203acd083368d183121cf1d3b41943c8051eccbc8a7fc6751",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "2a13399fbd44621660f171df3b3e1d3bb0f2ab95d21ed36577acb5292115bb9c",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "09f0b950e6ed0736bbd42822cd339e20986ae4c288c4619ae68e7a2080e64b59",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py": "bed8b67eeab15630f650c0867fca859a7266512431156a05719bef67a6e14c27",
+    "docs/deployment/assignment_successor_2026-10-30_fda4f2dc9/DEPLOYMENT_RUNBOOK.md": "2d5c7280b76c7cb92d93f1da779df9c7545b4d105a5a7e54564a3ebc73cf4c47"
+  }
+}

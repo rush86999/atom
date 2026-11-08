@@ -1,0 +1,8 @@
+{
+  "command": [
+    "python3",
+    "docs/acceptance/evidence/oracle_registry_refresh_7e91a3c91/generate_inventory.py"
+  ],
+  "cwd": "/private/tmp/atom-oracle-refresh-20261107",
+  "exit_code": 0
+}

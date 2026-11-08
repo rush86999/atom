@@ -1,0 +1,1236 @@
+{
+  "kind": "browser_agent_job_wait_scenario",
+  "status": "pass",
+  "started_at": "2026-11-07T11:03:04-0500",
+  "labels": {
+    "model_decisions": "SIMULATED MODEL DECISIONS: authored provider completions served by the existing loopback provider shim. Not served-model output.",
+    "transport": "CONTROLLED TRANSPORT: only the provider response is substituted; routing, execution, persistence, wait/resume, tasks.create and the default oracle run in production code.",
+    "not_claimed": [
+      "served model or provider quality",
+      "general model judgment or prompt quality",
+      "a second job or a synthetic completed DB row",
+      "any live provider, account, credential, send, spend or download"
+    ]
+  },
+  "steps": [
+    {
+      "name": "source_identity",
+      "status": "PASS",
+      "checks": {
+        "head_present": true,
+        "backend_tree_clean": true,
+        "expected_sha_matches": true
+      },
+      "details": {
+        "head": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+        "driver_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+        "runtime_identity": {
+          "source_id": "d3f58d81d8ec",
+          "revision": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+          "dirty": false,
+          "dirty_paths_count": 0,
+          "untracked_paths_count": 0,
+          "error": null
+        }
+      },
+      "at": "2026-11-07T11:03:05-0500"
+    },
+    {
+      "name": "world_built_once",
+      "status": "PASS",
+      "checks": {
+        "manifest_present": true,
+        "fixture_present": true,
+        "disk_preflight_ok": true,
+        "preflight_source_matches_frozen": true,
+        "export_tree_matches_manifest": true,
+        "backend_export_hash_present": true
+      },
+      "details": {
+        "disk_preflight": {
+          "target": "world:browser_wait_d3f58d81d_20261107_1615",
+          "ok": true,
+          "required_bytes": 1542946816,
+          "free_bytes": 4225720320,
+          "free_bytes_source": "statvfs",
+          "probe_path": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds",
+          "shortfall_bytes": 0,
+          "estimate": {
+            "target": "world:browser_wait_d3f58d81d_20261107_1615",
+            "total_bytes": 578256896,
+            "components": [
+              {
+                "name": "fixture",
+                "bytes": 33554432,
+                "source": "fallback: schema-only API-seeded fixture (8.1 MB measured empty)",
+                "measured": false
+              },
+              {
+                "name": "code_export",
+                "bytes": 197824512,
+                "source": "measured:/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_2fa68596f_20261107_1555/code",
+                "measured": true
+              },
+              {
+                "name": "run_data",
+                "bytes": 11333632,
+                "source": "measured:median of 5 sibling run data dirs (e.g. /private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_2fa68596f_20261107_1555/runs/run-2749ab1e4ac4/data)",
+                "measured": true
+              },
+              {
+                "name": "build_cache",
+                "bytes": 335544320,
+                "source": "fallback:no measured frontend distDir on this box",
+                "measured": false
+              }
+            ]
+          },
+          "headroom": {
+            "total_bytes": 964689920,
+            "live_db": {
+              "name": "live_db",
+              "bytes": 440401920,
+              "source": "fallback: live db unreadable at /private/tmp/atom-browser-capture-frozen-20261107/backend/data/atom.db",
+              "measured": false
+            },
+            "live_wal": {
+              "name": "live_wal",
+              "bytes": 0,
+              "source": "measured:absent (/private/tmp/atom-browser-capture-frozen-20261107/backend/data/atom.db-wal)",
+              "measured": true
+            },
+            "snapshot_floor": {
+              "name": "snapshot_floor",
+              "bytes": 524288000,
+              "source": "core.db_safety.ATOM_DB_SNAPSHOT_MIN_FREE_MB",
+              "measured": true
+            }
+          }
+        },
+        "preflight": {
+          "source_revision": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+          "code_archive_sha256": null,
+          "code_snapshot_sha256": "9bbca9dec766aecc64359cb08894e8ed3c5ddaf717a60e27ca59dd6ac052ba9a",
+          "db_sha256": "ca81f77caa5c0ad653893fe67b6e1a88c86f9508874cad1c97356c4d78d8f731",
+          "credentials_scrubbed": true,
+          "venv_verified": true,
+          "fixtures_verified": true,
+          "harness_version": "enforced-isolation-v3.2"
+        },
+        "export": {
+          "prefix": "",
+          "file_count": 7730,
+          "sha256": "54cb8996bac922773d58d7d943536983ba60e18b1c3898e47e8ec51d68633a8a"
+        },
+        "backend_export": {
+          "prefix": "backend/",
+          "file_count": 7730,
+          "sha256": "54cb8996bac922773d58d7d943536983ba60e18b1c3898e47e8ec51d68633a8a"
+        },
+        "manifest_source_revision": null
+      },
+      "at": "2026-11-07T11:03:13-0500"
+    },
+    {
+      "name": "initial_backend_source_bound",
+      "status": "PASS",
+      "checks": {
+        "frozen_source_sha_present": true,
+        "frozen_source_matches_head": true,
+        "preflight_source_matches_frozen": true,
+        "git_repo_present": true,
+        "git_commit_resolved": true,
+        "tracked_backend_files_present": true,
+        "all_tracked_backend_files_exported": true,
+        "no_unexpected_backend_files": true,
+        "git_blob_read_ok": true,
+        "git_blob_bytes_match_export": true,
+        "code_manifest_matches_git_blobs": true,
+        "export_tree_matches_git_blobs": true,
+        "code_manifest_keys_match_export": true,
+        "export_tree_keys_match_export": true,
+        "all_git_modes_supported": true,
+        "manifest_export_hash_present": true,
+        "manifest_source_revision_not_conflicting": true,
+        "export_tree_matches_code_manifest": true,
+        "backend_export_hash_present": true,
+        "backend_export_hash_bound": true,
+        "health_cwd_exact": true,
+        "descriptor_export_exact": true,
+        "health_source_id_observed": true
+      },
+      "details": {
+        "frozen_source_sha_present": true,
+        "frozen_source_matches_head": true,
+        "preflight_source_matches_frozen": true,
+        "git_repo_present": true,
+        "git_commit_resolved": true,
+        "tracked_backend_files_present": true,
+        "all_tracked_backend_files_exported": true,
+        "no_unexpected_backend_files": true,
+        "git_blob_read_ok": true,
+        "git_blob_bytes_match_export": true,
+        "code_manifest_matches_git_blobs": true,
+        "export_tree_matches_git_blobs": true,
+        "code_manifest_keys_match_export": true,
+        "export_tree_keys_match_export": true,
+        "all_git_modes_supported": true,
+        "manifest_export_hash_present": true,
+        "manifest_source_revision_not_conflicting": true,
+        "export_tree_matches_code_manifest": true,
+        "backend_export_hash_present": true,
+        "backend_export_hash_bound": true,
+        "health_cwd_exact": true,
+        "descriptor_export_exact": true,
+        "health_source_id_observed": true,
+        "checks": {
+          "frozen_source_sha_present": true,
+          "frozen_source_matches_head": true,
+          "preflight_source_matches_frozen": true,
+          "git_repo_present": true,
+          "git_commit_resolved": true,
+          "tracked_backend_files_present": true,
+          "all_tracked_backend_files_exported": true,
+          "no_unexpected_backend_files": true,
+          "git_blob_read_ok": true,
+          "git_blob_bytes_match_export": true,
+          "code_manifest_matches_git_blobs": true,
+          "export_tree_matches_git_blobs": true,
+          "code_manifest_keys_match_export": true,
+          "export_tree_keys_match_export": true,
+          "all_git_modes_supported": true,
+          "manifest_export_hash_present": true,
+          "manifest_source_revision_not_conflicting": true,
+          "export_tree_matches_code_manifest": true,
+          "backend_export_hash_present": true,
+          "backend_export_hash_bound": true,
+          "health_cwd_exact": true,
+          "descriptor_export_exact": true,
+          "health_source_id_observed": true
+        },
+        "ok": true,
+        "certified_by": "frozen_source+preflight_source+git_blob_bytes+exported_tree+backend_export+isolated_cwd+descriptor",
+        "frozen_source_sha": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+        "source_head": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+        "preflight_source_revision": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+        "git_repo": "/private/tmp/atom-browser-capture-frozen-20261107",
+        "git_error": "",
+        "export_root": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/code",
+        "expected_commit_file_count": 7730,
+        "exported_backend_file_count": 7730,
+        "missing_exported_files": [],
+        "unexpected_exported_files": [],
+        "launcher_generated_exported_files": [],
+        "git_blob_files_checked": 7730,
+        "git_blob_mismatches": [],
+        "code_manifest_mismatches": [],
+        "export_tree_mismatches": [],
+        "unsupported_git_modes": [],
+        "git_blob_error": "",
+        "git_backend_export": {
+          "prefix": "backend/",
+          "file_count": 7730,
+          "sha256": "54cb8996bac922773d58d7d943536983ba60e18b1c3898e47e8ec51d68633a8a"
+        },
+        "export_backend_export": {
+          "prefix": "backend/",
+          "file_count": 7730,
+          "sha256": "54cb8996bac922773d58d7d943536983ba60e18b1c3898e47e8ec51d68633a8a"
+        },
+        "manifest_source_revision": null,
+        "manifest_source_revision_present": false,
+        "code_snapshot_sha256": "9bbca9dec766aecc64359cb08894e8ed3c5ddaf717a60e27ca59dd6ac052ba9a",
+        "code_archive_sha256": null,
+        "export_tree": {
+          "prefix": "",
+          "file_count": 7730,
+          "sha256": "54cb8996bac922773d58d7d943536983ba60e18b1c3898e47e8ec51d68633a8a"
+        },
+        "backend_export": {
+          "prefix": "backend/",
+          "file_count": 7730,
+          "sha256": "54cb8996bac922773d58d7d943536983ba60e18b1c3898e47e8ec51d68633a8a"
+        },
+        "health_source_id": "ec69e24f4385-dirty.d48cacd2123b",
+        "health_source_id_is_unknown": false,
+        "health_cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+        "descriptor_export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root"
+      },
+      "at": "2026-11-07T11:03:23-0500"
+    },
+    {
+      "name": "backend_identity",
+      "status": "PASS",
+      "checks": {
+        "health_ok": true,
+        "cwd_is_world_backend_root": true,
+        "db_is_run_db": true,
+        "db_not_live": true
+      },
+      "details": {
+        "descriptor": {
+          "run_id": "run-4a3c538f1a28",
+          "pid": 32908,
+          "port": 8031,
+          "export_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/runs/run-4a3c538f1a28/data/atom.db",
+          "world": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615",
+          "log_path": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/server.log",
+          "expected_cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "health_identity": {
+            "pid": 32908,
+            "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+            "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+            "instance_id": "ec69e24f4385-dirty.d48cacd2123b.32908.1794067402"
+          },
+          "effective_env": {
+            "ATOM_DATA_DIR": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/runs/run-4a3c538f1a28/data",
+            "ATOM_SHEET_DATASETS": "1",
+            "ATOM_CHAT_STREAMING": "false",
+            "ENABLE_SCHEDULER": "false",
+            "ENABLE_INGESTION_SYNC": "false",
+            "ATOM_PROVIDER_MODEL_CATALOG_PATH": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/provider_catalog.json"
+          },
+          "descriptor_path": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/launch_descriptor.json"
+        },
+        "health_identity": {
+          "pid": 32908,
+          "started_at": "2026-11-07T16:03:18.593939+00:00",
+          "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "git_commit": "ec69e24f4385",
+          "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+          "instance_id": "ec69e24f4385-dirty.d48cacd2123b.32908.1794067402",
+          "revision": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+          "dirty": true,
+          "dirty_digest": "d48cacd2123b",
+          "dirty_paths": [
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/summary.json",
+            "frontend-nextjs/.preview-instance/299-08-execution-summary.md",
+            "frontend-nextjs/.preview-instance/299-11-PROGRESS.md",
+            "frontend-nextjs/.preview-instance/ACCESSIBILITY.md",
+            "frontend-nextjs/.preview-instance/DEPLOYMENT.md",
+            "frontend-nextjs/.preview-instance/Dockerfile",
+            "frontend-nextjs/.preview-instance/Dockerfile.production",
+            "frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md",
+            "frontend-nextjs/.preview-instance/LIGHTHOUSE.md",
+            "frontend-nextjs/.preview-instance/PERCY.md",
+            "frontend-nextjs/.preview-instance/README.md",
+            "frontend-nextjs/.preview-instance/README_TEAM_CHAT.md",
+            "frontend-nextjs/.preview-instance/a11y-test-results.json",
+            "frontend-nextjs/.preview-instance/advanced-management.js",
+            "frontend-nextjs/.preview-instance/analyze_coverage.js",
+            "frontend-nextjs/.preview-instance/components",
+            "frontend-nextjs/.preview-instance/components.json",
+            "frontend-nextjs/.preview-instance/config",
+            "frontend-nextjs/.preview-instance/contexts",
+            "frontend-nextjs/.preview-instance/coverage",
+            "frontend-nextjs/.preview-instance/coverage-reports",
+            "frontend-nextjs/.preview-instance/data",
+            "frontend-nextjs/.preview-instance/docs",
+            "frontend-nextjs/.preview-instance/e2e",
+            "frontend-nextjs/.preview-instance/element-not-found-patterns.md",
+            "frontend-nextjs/.preview-instance/enterprise-dashboard.js",
+            "frontend-nextjs/.preview-instance/eslint.config.mjs",
+            "frontend-nextjs/.preview-instance/final-implementation.js",
+            "frontend-nextjs/.preview-instance/find-uncovered-files.js",
+            "frontend-nextjs/.preview-instance/fix-eslint-errors.js",
+            "frontend-nextjs/.preview-instance/fix-parsing-errors.js",
+            "frontend-nextjs/.preview-instance/hooks",
+            "frontend-nextjs/.preview-instance/jest.config.js",
+            "frontend-nextjs/.preview-instance/jest.setup.js",
+            "frontend-nextjs/.preview-instance/k8s",
+            "frontend-nextjs/.preview-instance/layouts",
+            "frontend-nextjs/.preview-instance/lib",
+            "frontend-nextjs/.preview-instance/lighthouserc.json",
+            "frontend-nextjs/.preview-instance/middleware.ts",
+            "frontend-nextjs/.preview-instance/next-env.d.ts"
+          ],
+          "untracked_paths": [
+            "backend/replay_subject_admission.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_221948/deployment_smoke_20261017_221948.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_222902/deployment_smoke_20261017_222902.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/deployment_smoke_20261017_223251.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/deployment_smoke_20261017_223554.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j2_live_20261013_e8b01dcec.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j4_r16_20261013_164740_e5bc38.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j5_r16_20261013_165009_e69d41.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/driver_j45_r17.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j4_r17_20261014_065311_3ccbf8.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j5_r17_20261014_065402_02a9bb.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105549/j4_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105935/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_110533/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_20261014_204321.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_benchmark.py",
+            "backend/tests/test_direct_read_settlement_facts.py",
+            "backend/tests/test_probe_exec_row_tmp.py",
+            "backend/tests/test_t1_investigate_end_to_end.py",
+            "backend/tests/test_unmet_obligation_replay.py",
+            "docs/architecture/orchestration_migration/BRENNAN_FIRST_PRODUCT_COMPLETION_PLAN_2026_10_06.md",
+            "docs/architecture/orchestration_migration/DOMAIN_INDEPENDENT_JOB_COMPLETION_AGENT_GUIDE_2026_10_07.md",
+            "docs/architecture/orchestration_migration/INTENT_AND_FRESH_INSTALL_COMPLETION_GUIDE_2026_10_08.md",
+            "docs/architecture/orchestration_migration/RESEARCH_TO_DRAFT_COMPLETION_REPAIR_GUIDE_2026_10_08.md"
+          ],
+          "captured_at": "2026-11-07T16:03:21.899961+00:00",
+          "process_started_at": "2026-11-07T16:03:21.899961+00:00",
+          "port": null,
+          "repo_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615",
+          "backend_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "error": null,
+          "database": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/runs/run-4a3c538f1a28/data/atom.db",
+          "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root/data/byok_keys.json"
+        }
+      },
+      "at": "2026-11-07T11:03:23-0500"
+    },
+    {
+      "name": "fixture_through_public_routes",
+      "status": "PASS",
+      "checks": {
+        "agent_created": true,
+        "agent_promoted": true,
+        "board_created": true,
+        "column_present": true
+      },
+      "details": {
+        "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+        "agent_name": "Wait Acceptance Employee",
+        "agent_promote_status": 200,
+        "board_id": "f0514ad8-95a1-450b-bf14-70400244cdb9",
+        "board_name": "Browser wait acceptance",
+        "column_id": "919f09d2-5213-402b-a866-1653796259e0",
+        "column_name": "Backlog"
+      },
+      "at": "2026-11-07T11:03:25-0500"
+    },
+    {
+      "name": "provider_shim_started",
+      "status": "PASS",
+      "checks": {
+        "available": true,
+        "no_calls_before_run": true
+      },
+      "details": {
+        "calls": 0
+      },
+      "at": "2026-11-07T11:03:25-0500"
+    },
+    {
+      "name": "frontend_cwd_isolated",
+      "status": "PASS",
+      "checks": {
+        "cwd_observed": true,
+        "cwd_exact": true
+      },
+      "details": {
+        "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/frontend_snapshot",
+        "expected": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/frontend_snapshot"
+      },
+      "at": "2026-11-07T11:03:50-0500"
+    },
+    {
+      "name": "ordinary_ui_login",
+      "status": "PASS",
+      "checks": {
+        "attempted": true,
+        "landed_off_login": true,
+        "token_present_after_login": true
+      },
+      "details": {
+        "attempted": true,
+        "ok": true,
+        "landed_url": "http://localhost:3131/dashboard",
+        "token_present_after_login": true
+      },
+      "at": "2026-11-07T11:03:59-0500"
+    },
+    {
+      "name": "ordinary_onboarding_completed",
+      "status": "PASS",
+      "checks": {
+        "wizard_closed": true,
+        "authoritative_me_ok": true,
+        "completion_durable": true
+      },
+      "details": {
+        "completed": true,
+        "step": "completed"
+      },
+      "at": "2026-11-07T11:04:00-0500"
+    },
+    {
+      "name": "enabled_agent_card",
+      "status": "PASS",
+      "checks": {
+        "card_visible": true,
+        "not_paused_or_stopped": true
+      },
+      "details": {
+        "status_badge": "Idle"
+      },
+      "at": "2026-11-07T11:04:07-0500"
+    },
+    {
+      "name": "run_admitted",
+      "status": "PASS",
+      "checks": {
+        "http_2xx": true,
+        "job_id_present": true
+      },
+      "details": {
+        "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+        "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+        "execution_id": null,
+        "job_status": null,
+        "outcome": null,
+        "reason": null,
+        "next_action": null,
+        "requires_reconciliation": null,
+        "wait": null
+      },
+      "at": "2026-11-07T11:04:07-0500"
+    },
+    {
+      "name": "first_durable_question",
+      "status": "PASS",
+      "checks": {
+        "job_status_waiting": true,
+        "same_job_id": true,
+        "same_execution_id": true,
+        "wait_id_present": true,
+        "correlation_present": true,
+        "question_exact": true,
+        "ui_question_exact": true,
+        "ui_waiting_status": true,
+        "ui_blocking_fact": true,
+        "panel_says_information_not_approval": true,
+        "no_completion": true,
+        "no_result": true
+      },
+      "details": {
+        "job_read": {
+          "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+          "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+          "execution_id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+          "job_status": "waiting",
+          "outcome": "waiting",
+          "reason": "execution_waiting",
+          "next_action": "await_information",
+          "requires_reconciliation": false,
+          "wait": {
+            "id": "b8c84de9-1d0b-4f6e-80dc-61b6711a4021",
+            "kind": "information_request",
+            "status": "pending",
+            "question": "What title should the closing task have?",
+            "missing_fact": "task title",
+            "subject": {
+              "label": "closing task"
+            },
+            "correlation_id": "9070bc11-816e-455d-9281-4d9aeec9eea4",
+            "can_answer": true
+          }
+        },
+        "ui_blocking": "Waiting for: task title",
+        "panel_text": "Agent job\n\nSame task \u00b7 c5a6eee3\n\nWaiting for your answer\n\nThe agent needs one fact before the same job can continue.\n\nFor: closing task\n\nWaiting for: task title\n\nWhat title should the closing task have?\n\nSend answer\n\nThis is information for the same task, not approval of an action. Action approvals remain on the Approvals page.\n\nRefresh job state",
+        "shim_calls": 1
+      },
+      "at": "2026-11-07T11:04:10-0500"
+    },
+    {
+      "name": "job_read_is_pure",
+      "status": "PASS",
+      "checks": {
+        "same_wait_id": true,
+        "same_job_status": true,
+        "no_provider_call": true
+      },
+      "details": {
+        "calls": 1
+      },
+      "at": "2026-11-07T11:04:10-0500"
+    },
+    {
+      "name": "wait_authority_not_in_prompt",
+      "status": "PASS",
+      "checks": {
+        "capture_has_full_messages": true,
+        "correlation_absent": true,
+        "hitl_id_absent": true
+      },
+      "details": {
+        "capture_has_messages": true
+      },
+      "at": "2026-11-07T11:04:10-0500"
+    },
+    {
+      "name": "restart_ports_freed",
+      "status": "PASS",
+      "checks": {
+        "frontend_port_free": true,
+        "backend_port_free": true,
+        "shim_alive": true
+      },
+      "details": {
+        "shim_calls": 1
+      },
+      "at": "2026-11-07T11:04:11-0500"
+    },
+    {
+      "name": "frontend_restarted_isolated",
+      "status": "PASS",
+      "checks": {
+        "cwd_observed": true,
+        "cwd_exact": true
+      },
+      "details": {
+        "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/frontend_snapshot",
+        "expected": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/frontend_snapshot"
+      },
+      "at": "2026-11-07T11:05:08-0500"
+    },
+    {
+      "name": "backend_restarted_same_world",
+      "status": "PASS",
+      "checks": {
+        "new_pid": true,
+        "same_cwd": true,
+        "same_source_id": true,
+        "same_db_path": true,
+        "db_still_not_live": true
+      },
+      "details": {
+        "before": {
+          "pid": 32908,
+          "started_at": "2026-11-07T16:03:18.593939+00:00",
+          "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "git_commit": "ec69e24f4385",
+          "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+          "instance_id": "ec69e24f4385-dirty.d48cacd2123b.32908.1794067402",
+          "revision": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+          "dirty": true,
+          "dirty_digest": "d48cacd2123b",
+          "dirty_paths": [
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/summary.json",
+            "frontend-nextjs/.preview-instance/299-08-execution-summary.md",
+            "frontend-nextjs/.preview-instance/299-11-PROGRESS.md",
+            "frontend-nextjs/.preview-instance/ACCESSIBILITY.md",
+            "frontend-nextjs/.preview-instance/DEPLOYMENT.md",
+            "frontend-nextjs/.preview-instance/Dockerfile",
+            "frontend-nextjs/.preview-instance/Dockerfile.production",
+            "frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md",
+            "frontend-nextjs/.preview-instance/LIGHTHOUSE.md",
+            "frontend-nextjs/.preview-instance/PERCY.md",
+            "frontend-nextjs/.preview-instance/README.md",
+            "frontend-nextjs/.preview-instance/README_TEAM_CHAT.md",
+            "frontend-nextjs/.preview-instance/a11y-test-results.json",
+            "frontend-nextjs/.preview-instance/advanced-management.js",
+            "frontend-nextjs/.preview-instance/analyze_coverage.js",
+            "frontend-nextjs/.preview-instance/components",
+            "frontend-nextjs/.preview-instance/components.json",
+            "frontend-nextjs/.preview-instance/config",
+            "frontend-nextjs/.preview-instance/contexts",
+            "frontend-nextjs/.preview-instance/coverage",
+            "frontend-nextjs/.preview-instance/coverage-reports",
+            "frontend-nextjs/.preview-instance/data",
+            "frontend-nextjs/.preview-instance/docs",
+            "frontend-nextjs/.preview-instance/e2e",
+            "frontend-nextjs/.preview-instance/element-not-found-patterns.md",
+            "frontend-nextjs/.preview-instance/enterprise-dashboard.js",
+            "frontend-nextjs/.preview-instance/eslint.config.mjs",
+            "frontend-nextjs/.preview-instance/final-implementation.js",
+            "frontend-nextjs/.preview-instance/find-uncovered-files.js",
+            "frontend-nextjs/.preview-instance/fix-eslint-errors.js",
+            "frontend-nextjs/.preview-instance/fix-parsing-errors.js",
+            "frontend-nextjs/.preview-instance/hooks",
+            "frontend-nextjs/.preview-instance/jest.config.js",
+            "frontend-nextjs/.preview-instance/jest.setup.js",
+            "frontend-nextjs/.preview-instance/k8s",
+            "frontend-nextjs/.preview-instance/layouts",
+            "frontend-nextjs/.preview-instance/lib",
+            "frontend-nextjs/.preview-instance/lighthouserc.json",
+            "frontend-nextjs/.preview-instance/middleware.ts",
+            "frontend-nextjs/.preview-instance/next-env.d.ts"
+          ],
+          "untracked_paths": [
+            "backend/replay_subject_admission.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_221948/deployment_smoke_20261017_221948.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_222902/deployment_smoke_20261017_222902.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/deployment_smoke_20261017_223251.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/deployment_smoke_20261017_223554.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j2_live_20261013_e8b01dcec.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j4_r16_20261013_164740_e5bc38.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j5_r16_20261013_165009_e69d41.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/driver_j45_r17.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j4_r17_20261014_065311_3ccbf8.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j5_r17_20261014_065402_02a9bb.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105549/j4_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105935/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_110533/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_20261014_204321.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_benchmark.py",
+            "backend/tests/test_direct_read_settlement_facts.py",
+            "backend/tests/test_probe_exec_row_tmp.py",
+            "backend/tests/test_t1_investigate_end_to_end.py",
+            "backend/tests/test_unmet_obligation_replay.py",
+            "docs/architecture/orchestration_migration/BRENNAN_FIRST_PRODUCT_COMPLETION_PLAN_2026_10_06.md",
+            "docs/architecture/orchestration_migration/DOMAIN_INDEPENDENT_JOB_COMPLETION_AGENT_GUIDE_2026_10_07.md",
+            "docs/architecture/orchestration_migration/INTENT_AND_FRESH_INSTALL_COMPLETION_GUIDE_2026_10_08.md",
+            "docs/architecture/orchestration_migration/RESEARCH_TO_DRAFT_COMPLETION_REPAIR_GUIDE_2026_10_08.md"
+          ],
+          "captured_at": "2026-11-07T16:03:21.899961+00:00",
+          "process_started_at": "2026-11-07T16:03:21.899961+00:00",
+          "port": null,
+          "repo_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615",
+          "backend_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "error": null,
+          "database": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/runs/run-4a3c538f1a28/data/atom.db",
+          "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root/data/byok_keys.json"
+        },
+        "after": {
+          "pid": 33316,
+          "started_at": "2026-11-07T16:04:16.222247+00:00",
+          "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "git_commit": "ec69e24f4385",
+          "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+          "instance_id": "ec69e24f4385-dirty.d48cacd2123b.33316.1794067459",
+          "revision": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+          "dirty": true,
+          "dirty_digest": "d48cacd2123b",
+          "dirty_paths": [
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/summary.json",
+            "frontend-nextjs/.preview-instance/299-08-execution-summary.md",
+            "frontend-nextjs/.preview-instance/299-11-PROGRESS.md",
+            "frontend-nextjs/.preview-instance/ACCESSIBILITY.md",
+            "frontend-nextjs/.preview-instance/DEPLOYMENT.md",
+            "frontend-nextjs/.preview-instance/Dockerfile",
+            "frontend-nextjs/.preview-instance/Dockerfile.production",
+            "frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md",
+            "frontend-nextjs/.preview-instance/LIGHTHOUSE.md",
+            "frontend-nextjs/.preview-instance/PERCY.md",
+            "frontend-nextjs/.preview-instance/README.md",
+            "frontend-nextjs/.preview-instance/README_TEAM_CHAT.md",
+            "frontend-nextjs/.preview-instance/a11y-test-results.json",
+            "frontend-nextjs/.preview-instance/advanced-management.js",
+            "frontend-nextjs/.preview-instance/analyze_coverage.js",
+            "frontend-nextjs/.preview-instance/components",
+            "frontend-nextjs/.preview-instance/components.json",
+            "frontend-nextjs/.preview-instance/config",
+            "frontend-nextjs/.preview-instance/contexts",
+            "frontend-nextjs/.preview-instance/coverage",
+            "frontend-nextjs/.preview-instance/coverage-reports",
+            "frontend-nextjs/.preview-instance/data",
+            "frontend-nextjs/.preview-instance/docs",
+            "frontend-nextjs/.preview-instance/e2e",
+            "frontend-nextjs/.preview-instance/element-not-found-patterns.md",
+            "frontend-nextjs/.preview-instance/enterprise-dashboard.js",
+            "frontend-nextjs/.preview-instance/eslint.config.mjs",
+            "frontend-nextjs/.preview-instance/final-implementation.js",
+            "frontend-nextjs/.preview-instance/find-uncovered-files.js",
+            "frontend-nextjs/.preview-instance/fix-eslint-errors.js",
+            "frontend-nextjs/.preview-instance/fix-parsing-errors.js",
+            "frontend-nextjs/.preview-instance/hooks",
+            "frontend-nextjs/.preview-instance/jest.config.js",
+            "frontend-nextjs/.preview-instance/jest.setup.js",
+            "frontend-nextjs/.preview-instance/k8s",
+            "frontend-nextjs/.preview-instance/layouts",
+            "frontend-nextjs/.preview-instance/lib",
+            "frontend-nextjs/.preview-instance/lighthouserc.json",
+            "frontend-nextjs/.preview-instance/middleware.ts",
+            "frontend-nextjs/.preview-instance/next-env.d.ts"
+          ],
+          "untracked_paths": [
+            "backend/replay_subject_admission.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_221948/deployment_smoke_20261017_221948.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_222902/deployment_smoke_20261017_222902.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/deployment_smoke_20261017_223251.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/deployment_smoke_20261017_223554.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_after_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_ready_before_click.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_saved_edit.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_sourced_answer.png",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j2_live_20261013_e8b01dcec.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j4_r16_20261013_164740_e5bc38.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j5_r16_20261013_165009_e69d41.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/driver_j45_r17.py",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j4_r17_20261014_065311_3ccbf8.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j5_r17_20261014_065402_02a9bb.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/summary.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_config.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_encryption_key",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_keys.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105549/j4_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105935/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_110533/j5_evidence.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_20261014_204321.json",
+            "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_benchmark.py",
+            "backend/tests/test_direct_read_settlement_facts.py",
+            "backend/tests/test_probe_exec_row_tmp.py",
+            "backend/tests/test_t1_investigate_end_to_end.py",
+            "backend/tests/test_unmet_obligation_replay.py",
+            "docs/architecture/orchestration_migration/BRENNAN_FIRST_PRODUCT_COMPLETION_PLAN_2026_10_06.md",
+            "docs/architecture/orchestration_migration/DOMAIN_INDEPENDENT_JOB_COMPLETION_AGENT_GUIDE_2026_10_07.md",
+            "docs/architecture/orchestration_migration/INTENT_AND_FRESH_INSTALL_COMPLETION_GUIDE_2026_10_08.md",
+            "docs/architecture/orchestration_migration/RESEARCH_TO_DRAFT_COMPLETION_REPAIR_GUIDE_2026_10_08.md"
+          ],
+          "captured_at": "2026-11-07T16:04:19.280750+00:00",
+          "process_started_at": "2026-11-07T16:04:19.280750+00:00",
+          "port": null,
+          "repo_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615",
+          "backend_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root",
+          "error": null,
+          "database": "/private/tmp/atom-browser-capture-frozen-20261107/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/runs/run-4a3c538f1a28/data/atom.db",
+          "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/browser_wait_d3f58d81d_20261107_1615/backend_root/data/byok_keys.json"
+        }
+      },
+      "at": "2026-11-07T11:05:08-0500"
+    },
+    {
+      "name": "same_wait_after_restart",
+      "status": "PASS",
+      "checks": {
+        "same_job_id": true,
+        "same_execution_id": true,
+        "same_wait_id": true,
+        "same_correlation": true,
+        "same_question": true,
+        "ui_same_question": true,
+        "answer_input_empty": true,
+        "no_completion": true,
+        "no_new_provider_call": true
+      },
+      "details": {
+        "job_read": {
+          "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+          "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+          "execution_id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+          "job_status": "waiting",
+          "outcome": "waiting",
+          "reason": "execution_waiting",
+          "next_action": "await_information",
+          "requires_reconciliation": false,
+          "wait": {
+            "id": "b8c84de9-1d0b-4f6e-80dc-61b6711a4021",
+            "kind": "information_request",
+            "status": "pending",
+            "question": "What title should the closing task have?",
+            "missing_fact": "task title",
+            "subject": {
+              "label": "closing task"
+            },
+            "correlation_id": "9070bc11-816e-455d-9281-4d9aeec9eea4",
+            "can_answer": true
+          }
+        },
+        "shim_calls": 1
+      },
+      "at": "2026-11-07T11:05:08-0500"
+    },
+    {
+      "name": "first_answer_accepted",
+      "status": "PASS",
+      "checks": {
+        "http_202": true,
+        "resumed": true,
+        "same_job_id": true,
+        "same_execution_id": true,
+        "still_waiting": true,
+        "single_answer_post": true
+      },
+      "details": {
+        "response": {
+          "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+          "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+          "execution_id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+          "job_status": "waiting",
+          "outcome": "waiting",
+          "reason": "execution_waiting",
+          "next_action": "await_information",
+          "requires_reconciliation": false,
+          "wait": null
+        }
+      },
+      "at": "2026-11-07T11:05:11-0500"
+    },
+    {
+      "name": "second_durable_question",
+      "status": "PASS",
+      "checks": {
+        "job_status_waiting": true,
+        "same_execution_id": true,
+        "new_wait_id": true,
+        "new_correlation": true,
+        "question_exact": true,
+        "ui_question_exact": true,
+        "answer_input_cleared": true,
+        "no_completion": true,
+        "two_wait_rows": true,
+        "first_wait_approved_with_title": true,
+        "second_wait_pending": true
+      },
+      "details": {
+        "job_read": {
+          "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+          "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+          "execution_id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+          "job_status": "waiting",
+          "outcome": "waiting",
+          "reason": "execution_waiting",
+          "next_action": "await_information",
+          "requires_reconciliation": false,
+          "wait": {
+            "id": "ae00cd43-d552-4a6f-a4f6-85e1bcfa0ed6",
+            "kind": "information_request",
+            "status": "pending",
+            "question": "What priority should the closing task have?",
+            "missing_fact": "priority",
+            "subject": {
+              "label": "closing task"
+            },
+            "correlation_id": "d8055859-f64b-446b-9299-5b6a03007ffb",
+            "can_answer": true
+          }
+        },
+        "waits": [
+          {
+            "id": "b8c84de9-1d0b-4f6e-80dc-61b6711a4021",
+            "status": "approved",
+            "action_type": "agent_information_request",
+            "user_feedback": "Quarterly close checklist",
+            "correlation_id": "9070bc11-816e-455d-9281-4d9aeec9eea4"
+          },
+          {
+            "id": "ae00cd43-d552-4a6f-a4f6-85e1bcfa0ed6",
+            "status": "pending",
+            "action_type": "agent_information_request",
+            "user_feedback": null,
+            "correlation_id": "d8055859-f64b-446b-9299-5b6a03007ffb"
+          }
+        ],
+        "shim_calls": 2
+      },
+      "at": "2026-11-07T11:05:11-0500"
+    },
+    {
+      "name": "stale_answer_refused",
+      "status": "PASS",
+      "checks": {
+        "http_409": true,
+        "job_still_waiting": true,
+        "same_second_wait": true,
+        "no_provider_call": true,
+        "no_task_created": true,
+        "no_second_job": true
+      },
+      "details": {
+        "response_status": 409,
+        "response_detail": "The answer correlation does not match this wait",
+        "ui_409_note": "The panel owns the correlation and does not expose it for editing; the API-level 409 is the authoritative stale-answer control."
+      },
+      "at": "2026-11-07T11:05:11-0500"
+    },
+    {
+      "name": "same_second_question_after_reload",
+      "status": "PASS",
+      "checks": {
+        "same_job_id": true,
+        "same_execution_id": true,
+        "same_wait_id": true,
+        "same_correlation": true,
+        "same_question": true,
+        "ui_same_question": true,
+        "answer_input_empty": true,
+        "no_new_provider_call": true,
+        "no_new_job": true
+      },
+      "details": {
+        "job_read": {
+          "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+          "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+          "execution_id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+          "job_status": "waiting",
+          "outcome": "waiting",
+          "reason": "execution_waiting",
+          "next_action": "await_information",
+          "requires_reconciliation": false,
+          "wait": {
+            "id": "ae00cd43-d552-4a6f-a4f6-85e1bcfa0ed6",
+            "kind": "information_request",
+            "status": "pending",
+            "question": "What priority should the closing task have?",
+            "missing_fact": "priority",
+            "subject": {
+              "label": "closing task"
+            },
+            "correlation_id": "d8055859-f64b-446b-9299-5b6a03007ffb",
+            "can_answer": true
+          }
+        },
+        "shim_calls": 2
+      },
+      "at": "2026-11-07T11:05:11-0500"
+    },
+    {
+      "name": "final_answer_verified",
+      "status": "PASS",
+      "checks": {
+        "http_200": true,
+        "job_status_success": true,
+        "outcome_success": true,
+        "same_execution_id": true,
+        "result_output": true,
+        "tasks_create_step": true,
+        "oracle_verified": true,
+        "two_answer_posts": true
+      },
+      "details": {
+        "result_steps": [
+          {
+            "action_tool": null,
+            "oracle_verified": null,
+            "task_id": null
+          },
+          {
+            "action_tool": null,
+            "oracle_verified": null,
+            "task_id": null
+          },
+          {
+            "action_tool": "tasks.create",
+            "oracle_verified": true,
+            "task_id": "8c6e17c0-2dc7-44a6-8b2d-0130267ae207"
+          },
+          {
+            "action_tool": null,
+            "oracle_verified": null,
+            "task_id": null
+          }
+        ],
+        "response": {
+          "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+          "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+          "execution_id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+          "job_status": "success",
+          "outcome": "success",
+          "reason": "execution_succeeded",
+          "next_action": "none",
+          "requires_reconciliation": false,
+          "wait": null,
+          "result": {
+            "status": "success",
+            "output": "Created the closing task from both authorized facts."
+          }
+        }
+      },
+      "at": "2026-11-07T11:05:12-0500"
+    },
+    {
+      "name": "ui_shows_verified_result",
+      "status": "PASS",
+      "checks": {
+        "completed_panel": true,
+        "result_visible": true,
+        "no_failure_banner": true,
+        "no_open_question": true
+      },
+      "details": {
+        "completed_text": "Completed",
+        "result_text": "Created the closing task from both authorized facts."
+      },
+      "at": "2026-11-07T11:05:12-0500"
+    },
+    {
+      "name": "durable_readback_after_success",
+      "status": "PASS",
+      "checks": {
+        "job_status_success": true,
+        "same_execution_id": true,
+        "result_output": true
+      },
+      "details": {
+        "job_read": {
+          "agent_id": "84f0ff34-3ae9-44d8-b3c3-28ccd58d148b",
+          "job_id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+          "execution_id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+          "job_status": "success",
+          "outcome": "success",
+          "reason": "execution_succeeded",
+          "next_action": "none",
+          "requires_reconciliation": false,
+          "wait": null,
+          "result": {
+            "status": "success",
+            "output": "Created the closing task from both authorized facts."
+          }
+        }
+      },
+      "at": "2026-11-07T11:05:12-0500"
+    },
+    {
+      "name": "durable_effect_exactly_once",
+      "status": "PASS",
+      "checks": {
+        "one_job_row": true,
+        "job_status_success": true,
+        "one_execution_row": true,
+        "execution_terminal": true,
+        "two_information_waits": true,
+        "both_waits_approved": true,
+        "first_answer_persisted": true,
+        "second_answer_persisted": true,
+        "one_board_task": true,
+        "one_task_on_board": true,
+        "one_job_for_agent": true,
+        "one_execution_for_id": true
+      },
+      "details": {
+        "durable": {
+          "job": {
+            "id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+            "status": "success",
+            "result_summary_present": true
+          },
+          "execution": {
+            "id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+            "status": "success",
+            "result_steps": []
+          },
+          "waits": [
+            {
+              "id": "b8c84de9-1d0b-4f6e-80dc-61b6711a4021",
+              "status": "approved",
+              "action_type": "agent_information_request",
+              "user_feedback": "Quarterly close checklist",
+              "correlation_id": "9070bc11-816e-455d-9281-4d9aeec9eea4"
+            },
+            {
+              "id": "ae00cd43-d552-4a6f-a4f6-85e1bcfa0ed6",
+              "status": "approved",
+              "action_type": "agent_information_request",
+              "user_feedback": "high",
+              "correlation_id": "d8055859-f64b-446b-9299-5b6a03007ffb"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "8c6e17c0-2dc7-44a6-8b2d-0130267ae207",
+              "title": "Quarterly close checklist",
+              "priority": "high",
+              "status": "backlog",
+              "board_id": "f0514ad8-95a1-450b-bf14-70400244cdb9",
+              "column_id": "919f09d2-5213-402b-a866-1653796259e0"
+            }
+          ],
+          "counts": {
+            "jobs_for_agent": 1,
+            "executions_for_id": 1,
+            "tasks_on_scratch_board": 1
+          }
+        }
+      },
+      "at": "2026-11-07T11:05:12-0500"
+    },
+    {
+      "name": "duplicate_answer_idempotent",
+      "status": "PASS",
+      "checks": {
+        "status_409_or_already_resumed": true,
+        "http_200_alone_not_success": true,
+        "same_execution_id": true,
+        "same_task_count": true,
+        "no_new_provider_call": true,
+        "job_still_success": true
+      },
+      "details": {
+        "status": 409,
+        "detail": "The answer correlation does not match this wait"
+      },
+      "at": "2026-11-07T11:05:12-0500"
+    },
+    {
+      "name": "shim_one_call_per_reasoning_step",
+      "status": "PASS",
+      "checks": {
+        "react_calls_exactly_four": true,
+        "no_calls_from_reload_or_negatives": true
+      },
+      "details": {
+        "calls_after_reload_before_final": 2,
+        "calls_after_final": 4,
+        "calls_final": 4,
+        "react_calls_final": 4
+      },
+      "at": "2026-11-07T11:05:12-0500"
+    },
+    {
+      "name": "browser_origins_isolated",
+      "status": "PASS",
+      "checks": {
+        "no_forbidden_origin": true,
+        "no_non_loopback_origin": true,
+        "backend_origin_observed": true,
+        "frontend_origin_observed": true
+      },
+      "details": {
+        "foreign": [],
+        "forbidden_seen": [],
+        "non_loopback": [],
+        "request_count": 338
+      },
+      "at": "2026-11-07T11:05:12-0500"
+    }
+  ],
+  "checks": {},
+  "not_claimed": [
+    "served model or provider quality",
+    "general model judgment or prompt quality",
+    "a second job or a synthetic completed DB row",
+    "any live provider, account, credential, send, spend or download"
+  ],
+  "shim": {
+    "calls_after_reload_before_final": 2,
+    "calls_after_final": 4,
+    "calls_final": 4,
+    "react_calls_final": 4
+  },
+  "finished_at": "2026-11-07T11:05:12-0500"
+}
