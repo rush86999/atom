@@ -1284,6 +1284,14 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
     # symlink is re-pointed at it. Never delete WAL/SHM beside a live DB -
     # the fresh directory makes sidecar handling moot.
     import uuid as _uuid
+    # Schema synchronization imports frozen product modules, including
+    # core.database (bare load_dotenv), so isolate BEFORE seeding too.
+    dotenv_isolation = _install_dotenv_isolation(world)
+    if not dotenv_isolation.get("ok"):
+        raise RuntimeError(
+            "dotenv isolation guard failed; refusing to launch with possible "
+            f"live backend/.env contamination: {dotenv_isolation.get('problems')}")
+    launch_server.last_dotenv_isolation = dotenv_isolation
     if reuse_run_dir is not None:
         run_dir = Path(reuse_run_dir)  # RESTART: same DB dir, no re-seed
     else:
@@ -1301,12 +1309,6 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
     farm = world / "backend_root"
     profile = world / "local_only.sb"
     profile.write_text(_sandbox_profile(port, extra_ports=(shim_port,) if provider_shim else ()))
-    dotenv_isolation = _install_dotenv_isolation(world)
-    if not dotenv_isolation.get("ok"):
-        raise RuntimeError(
-            "dotenv isolation guard failed; refusing to launch with possible "
-            f"live backend/.env contamination: {dotenv_isolation.get('problems')}")
-    launch_server.last_dotenv_isolation = dotenv_isolation
     env = {k: os.environ[k] for k in SERVER_ENV_WHITELIST if k in os.environ}
     if "SECRET_KEY" not in env:
         # Ephemeral per-run signing key — not a credential: generated here,

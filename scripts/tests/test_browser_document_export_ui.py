@@ -779,7 +779,8 @@ def test_byok_generated_default_probe_accepts_generated_files(
     assert proof["operator_config_present"] is False
     assert proof["credential_free"] is True
     assert proof["checks"]["generated_or_absent"] is True
-    assert "byok_encryption_key" in proof["files"]
+    assert proof["files"]["encryption_key"]["present"] is True
+    assert Path(proof["files"]["encryption_key"]["path"]).name == "byok_encryption_key"
     assert "content" not in proof["files"]["encryption_key"]
 
 
@@ -972,3 +973,21 @@ def test_pricing_token_metric_still_requires_numeric_material(driver):
     proof = driver._byok_config_content_probe(config, contract)
     assert proof["ok"] is False
     assert proof["checks"]["provider_types_valid"] is False
+
+
+# Root order-only probes: no product import, DB seed or server starts.
+class SeedStoppedBeforeAnyProductImport(Exception):pass
+
+@pytest.mark.parametrize('pre_guard',[False,True],ids=['launcher-installs-before-seed','already-guarded-valid-twin'])
+def test_dotenv_isolation_precedes_frozen_product_seed(driver,tmp_path,monkeypatch,pre_guard):
+    world=tmp_path/'world';(world/'backend_root').mkdir(parents=True)
+    if pre_guard:assert driver.R._install_dotenv_isolation(world)['ok']
+    def seed(w,run):
+        for root in [world,world/'backend_root']:
+            for name in ['.env','.env.local']:
+                assert (root/name).is_file(),f'Product metadata import would precede isolation: {root/name}'
+                assert (root/name).read_text()==driver.R.DOTENV_WORLD_GUARD
+        raise SeedStoppedBeforeAnyProductImport()
+    monkeypatch.setattr(driver.R,'_seed_run_data',seed)
+    monkeypatch.setattr(driver.R.subprocess,'Popen',lambda *a,**k:pytest.fail('No server may start in this order-only probe'))
+    with pytest.raises(SeedStoppedBeforeAnyProductImport):driver.R.launch_server(8047,world,provider_shim=False)
