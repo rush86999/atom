@@ -2007,6 +2007,20 @@ def commit_graduation(db: Session, *, reviewed, actor, request, predicates,
             configuration=configuration).execution_options(synchronize_session=False), claim_params)
         if changed.rowcount != 1:
             db.rollback()
+            # A peer may have committed this exact operation after our first
+            # replay read. Reconcile its durable receipt, never re-dispatch.
+            # The rollback released the actor claim: confirm authority again.
+            from types import SimpleNamespace
+            current_actor = _resolve_actor(
+                db, SimpleNamespace(id=actor["id"]),
+                minimum_role=UserRole.TEAM_LEAD, authority_label="GRADUATION")
+            binding = ("id", "role", "status", "raw_tenant_id", "raw_workspace_id")
+            if not current_actor.get("ok") or any(
+                    current_actor.get(key) != actor.get(key) for key in binding):
+                return _conflict("Supervisor authority changed", code="AUTHORITY_CHANGED")
+            replay = replay_graduation(db, request=request, actor=current_actor)
+            if replay is not None:
+                return replay
             return _conflict("Reviewed agent changed", code="STALE_TARGET")
     except Exception as exc:
         db.rollback()
