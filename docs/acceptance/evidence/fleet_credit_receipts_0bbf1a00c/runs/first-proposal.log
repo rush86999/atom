@@ -1,0 +1,146 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-08 12:40:22 [    INFO] MCP Service initialized
+
+tests/test_contribution_credit_evidence_boundary.py::test_completed_status_and_weight_do_not_create_verified_evidence 
+-------------------------------- live log setup --------------------------------
+2026-11-08 12:40:23 [    INFO] EscalationManager initialized
+2026-11-08 12:40:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 12:40:23 [    INFO] EscalationManager initialized
+2026-11-08 12:40:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 12:40:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 12:40:23 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:23 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit e00662cf-bb73-4323-b599-d6696a4eb00f)
+PASSED                                                                   [  2%]
+tests/test_contribution_credit_evidence_boundary.py::test_same_chain_credit_replay_does_not_add_more_usage 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:23 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit 36a39fa2-05cf-4c9a-b62a-9b9bc3145d51)
+PASSED                                                                   [  5%]
+tests/test_contribution_credit_evidence_boundary.py::test_disabled_feature_still_has_no_effect PASSED [  8%]
+tests/test_contribution_credit_evidence_boundary.py::test_contribution_weights_are_not_the_verification_authority PASSED [ 10%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_all_success_sums_to_outcome_last_gets_most PASSED [ 13%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_failed_step_gets_zero_upstream_survives PASSED [ 16%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_late_failure_dampens_but_does_not_zero PASSED [ 18%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_unknown_status_counts_half PASSED [ 21%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_empty_and_single PASSED [ 24%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_duplicate_agents_aggregate PASSED [ 27%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_strong_weight_alone_is_not_verification PASSED [ 29%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_explicit_receipt_backed_entry_records_verified_success PASSED [ 32%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_moderate_credit_records_unverified_only PASSED [ 35%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_zero_weight_skipped_no_poison PASSED [ 37%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_flag_off_noop PASSED [ 40%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_happy_path_applies_credits 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:23 [    INFO] contribution_credit: 3 specialist outcome(s) credited for exec exec-9 (audit 3ab96b8a-9500-4843-b1b1-299e133568a0)
+PASSED                                                                   [ 43%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_missing_execution_is_noop_never_raises PASSED [ 45%]
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit PASSED [ 48%]
+tests/test_fleet_credit_receipt_integration.py::test_real_oracle_receipt_positive_and_replay_are_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:24 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 51%]
+tests/test_fleet_credit_receipt_integration.py::test_completed_status_and_forged_verified_flag_earn_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:25 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 54%]
+tests/test_fleet_credit_receipt_integration.py::test_foreign_child_binding_is_refused_not_downgraded 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:25 [ WARNING] contribution_credit: refusing contradictory child binding for link link-credit-0
+PASSED                                                                   [ 56%]
+tests/test_fleet_credit_receipt_integration.py::test_distinct_real_child_outcomes_each_learn_once 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:26 [    INFO] contribution_credit: 2 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 59%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_scope_ambiguous_audit_and_shadow_are_refused PASSED [ 62%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_credit_recovery_and_duplicate_contender 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:27 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 64%]
+tests/test_fleet_credit_receipt_integration.py::test_pre_revocation_work_cannot_become_new_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:28 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 67%]
+tests/test_capability_credit_cas_boundary.py::test_stale_success_cannot_erase_committed_regression FAILED [ 70%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[25] PASSED [ 72%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[50] PASSED [ 75%]
+tests/test_capability_revocation_epoch.py::test_old_credit_does_not_return_autonomy_after_reentry 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:31 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+PASSED                                                                   [ 78%]
+tests/test_capability_revocation_epoch.py::test_fresh_verified_work_preserves_existing_ladder 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:32 [    INFO] Capability 'new_capability' for agent agent-revocation-1 graduated to intern
+2026-11-08 12:40:32 [    INFO] Capability 'new_capability' for agent agent-revocation-1 graduated to supervised
+2026-11-08 12:40:32 [    INFO] Capability 'new_capability' for agent agent-revocation-1 graduated to autonomous
+PASSED                                                                   [ 81%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[True-unverified] PASSED [ 83%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-unverified] PASSED [ 86%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-verified] PASSED [ 89%]
+tests/test_capability_revocation_epoch.py::test_existing_revocation_baseline_survives_marker_clear_and_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:35 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-08 12:40:35 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to autonomous
+PASSED                                                                   [ 91%]
+tests/test_capability_revocation_epoch.py::test_second_regression_starts_another_fresh_epoch 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:40:36 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-08 12:40:36 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to autonomous
+2026-11-08 12:40:36 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to supervised
+2026-11-08 12:40:36 [    INFO] Capability 'canvas_edit' for agent agent-revocation-1 graduated to autonomous
+PASSED                                                                   [ 94%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[unknown_baseline] PASSED [ 97%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[stale_stats_baseline] PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________ test_stale_success_cannot_erase_committed_regression _____________
+tests/test_capability_credit_cas_boundary.py:31: in test_stale_success_cannot_erase_committed_regression
+    assert cfg['capability_stats']['canvas_edit'].get('failures_verified', 0) == 1
+E   AssertionError: assert 0 == 1
+E    +  where 0 = <built-in method get of dict object at 0x15b1a3740>('failures_verified', 0)
+E    +    where <built-in method get of dict object at 0x15b1a3740> = {'last_outcome_at': '2026-11-08T17:40:28.975668+00:00', 'success': 26, 'total': 26, 'verified_success': 26}.get
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 74 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_contribution_credit_evidence_boundary.py::test_completed_status_and_weight_do_not_create_verified_evidence
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingProposal(BaseModel):
+
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingOperation(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_capability_credit_cas_boundary.py::test_stale_success_cannot_erase_committed_regression
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 1 failed, 36 passed, 82 warnings in 35.22s ==================

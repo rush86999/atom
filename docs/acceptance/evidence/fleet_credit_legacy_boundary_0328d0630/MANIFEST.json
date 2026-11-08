@@ -1,0 +1,32 @@
+{
+  "executed_source": "0328d06300f54700411f0c768fadef2b62042d42",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:5f768a0206c325a2e464af70e6a78c9e5fb22e1d533d2d4433f1111002f3b9a5",
+    "backend/core/capability_graduation_service.py": "sha256:213efe3d29bba4657d17715a43448ea0bb5ff85cab4683e9af797a69e81b3a20",
+    "backend/core/contribution_credit.py": "sha256:3957e82b5fbc8a71feca798c7c56dc881f69b44c4896c4b4ab784dfe8f3607c4",
+    "backend/core/fleet_admiral.py": "sha256:b322a8f768029520671585912dbccc89811cea4994b967fde0bb112fe6d77040",
+    "backend/core/fleet_orchestration/fleet_routing_stats.py": "sha256:fa2461a623b69b8f62f91df2fa0f5b5ed209a76a59f62a1d510017bcd9457ba3",
+    "backend/core/generic_agent.py": "sha256:a0afcb61b4d7308c10c7c224a94b58e16a21e2197a7d33c47248534e422f2d57",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "sha256:bfb597e512b083feddcc6adf34ccd337850bcb8602e604ab9ec729d617b5d782",
+    "backend/tests/test_capability_credit_cas_boundary.py": "sha256:1fb821a1bfc059e993f89bf0f0681c610e6ff70782ed8990ce7ba6340dd8a77f",
+    "backend/tests/test_contribution_credit_evidence_boundary.py": "sha256:3214856ba64a788fbfc3768baa387f3b350636980361ce2892b9d7f18ed886b0",
+    "backend/tests/test_contribution_credit_legacy_boundary.py": "sha256:5f6dd0952487ce6e1ffe58b6d32ef48b7a4e261e5d37f44e31002a8d5a55f2c4",
+    "backend/tests/test_contribution_credit_p4.py": "sha256:90a3c3410d0eb636be3373bd18e2ee5cce5c9156318a6c14ba37cdf3bc3a1684",
+    "backend/tests/test_fleet_credit_actual_producer_boundary.py": "sha256:5005daa6b5e94fd3b5621c7c092dfecc0f6f667e566a5247e1a11510c0633724",
+    "backend/tests/test_fleet_credit_receipt_integration.py": "sha256:6783820ff3c7089f04c349391b2166a9c5ff45b91cbeaad9adca46e8dabc1482",
+    "backend/tests/test_fleet_credit_scope_boundary.py": "sha256:a506fce86f6544fa743c7615a318139444684b22de1db486adbc3302d2762158"
+  },
+  "artifacts": {
+    "verification.json": "sha256:15858f2bb1086ff931070b5e569f2d8d24df9563e153f4ed9d1694bb6a6daadd",
+    "runs/successor-311.spec.json": "sha256:2e3b77315bc1200cbf91505350e668795e863b142f6f31942545ef25bc5073ae",
+    "runs/successor-311.exit.json": "sha256:2f7906e400b1bbc1d6a76e049a7df4821d1b3139f695f77e7288994a992bd486",
+    "runs/original-negative.log": "sha256:1bee60163739b4e58d1be0fdf7ac19d332216d5c3daa8d76139f50e17a6c8f7d",
+    "runs/successor-314.log": "sha256:9ad629e56235f1ee0996307a84c47b69edf8b766de1e51e36a6cf9f4d2d2eb9a",
+    "runs/successor-311.log": "sha256:d47a544fe6e360f1b220bf570f357843034abb35282b4002d5d9b4fbffb38d48",
+    "runs/original-negative.exit.json": "sha256:5c2ee5a5c210a945f87c15bf933e66389273d935a5109dc828ac25627501717d",
+    "runs/original-negative.spec.json": "sha256:73f9ba61c3e97ab13b5ddc0bdd7d2a36e246408a46ea5217d5d3511b71367d9c",
+    "runs/successor-314.exit.json": "sha256:d257e08783f420990a50545ee2eb15d3bbec1b635e6b30cdcb7a5f1da9877450",
+    "runs/successor-314.spec.json": "sha256:601a4592387f023a26fe263cf19e03693a557ae2a39b4340f517be3ac5ce1811"
+  },
+  "attribution": "Predecessor packets preserved unchanged. Each run retains its original source and exit."
+}

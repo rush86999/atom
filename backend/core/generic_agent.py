@@ -93,6 +93,10 @@ class GenericAgent:
         self.name = agent_model.name
         self.config = agent_model.configuration or {}
         self.workspace_id = workspace_id
+        # Keep the registry's authenticated tenant on the runtime object so
+        # child AgentExecution/operation receipts are not written as "default"
+        # (and can be joined back to the fleet scope exactly).
+        self.tenant_id = getattr(agent_model, "tenant_id", None)
         self.vision_enabled = getattr(agent_model, "vision_enabled", False)
         self.last_screenshot: Optional[str] = None # Base64 data
 
@@ -1025,6 +1029,10 @@ class GenericAgent:
             "output": final_answer,
             "steps": steps,
             "status": status,
+            # Server-owned durable identity for this child run. Callers must
+            # persist this exact id on their link/outcome rather than infer it
+            # from the transient result text.
+            "execution_id": _run_uuid,
             "stuck_reason": stuck_reason,
             "complexity": complexity.value,
             "step_efficiency": step_efficiency,
@@ -3121,6 +3129,9 @@ What is your next step?"""
             if claim_operation_id:
                 handler_context["operation_id"] = claim_operation_id
             handler_context.setdefault("agent_id", getattr(self, "id", None))
+            # Server-owned subsecond ordering; SQLite CURRENT_TIMESTAMP alone
+            # cannot distinguish dispatches around a same-second correction.
+            dispatch_recorded_at = datetime.now(timezone.utc).isoformat()
             result = await self.mcp.call_tool(
                 tool_name, copy.deepcopy(authorized), context=handler_context)
             # 4. Default-on outcome verification (W2): for actions with a
@@ -3150,6 +3161,13 @@ What is your next step?"""
                     tool_name, checked, expected)
                 committed = False
                 if durable_result is not None:
+                    durable_result = dict(durable_result)
+                    # Never copy these from a tool/model, and never refresh them
+                    # on replay: old work must not become post-correction work.
+                    durable_result["verification_receipt_version"] = 1
+                    durable_result["dispatch_recorded_at"] = dispatch_recorded_at
+                    durable_result["verification_recorded_at"] = (
+                        datetime.now(timezone.utc).isoformat())
                     committed = self._mark_claim_status(
                         claim, claims.SUCCEEDED,
                         expected_status=claims.DISPATCHING,

@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_peer_regression_cannot_turn_old_receipt_into_new_epoch_work _______
+../../root_pre_revocation_receipt_atomic_probe_20261108.py:36: in test_peer_regression_cannot_turn_old_receipt_into_new_epoch_work
+    assert stats['verified_success']==50
+E   assert 51 == 50
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_pre_revocation_receipt_atomic_probe_20261108.py::test_peer_regression_cannot_turn_old_receipt_into_new_epoch_work
+1 failed, 2 warnings in 3.75s

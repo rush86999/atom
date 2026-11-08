@@ -363,7 +363,15 @@ def record_fleet_execution_outcome(
                 if updated.rowcount == 1:
                     result["applied"].append(audit_id or str(execution_id))
                 else:
+                    # More than one pending audit row for one execution is an
+                    # ambiguous outcome join. Do not let the later single-row
+                    # read pick an arbitrary winner.
+                    ambiguous_execution = int(updated.rowcount or 0) > 1
                     db.rollback()
+                    if ambiguous_execution:
+                        result["status"] = "conflict"
+                        result["conflicts"].append(str(execution_id))
+                        return result
                     with get_db_session() as fresh:
                         now_execution = (
                             fresh.query(AgentExecution)
@@ -420,7 +428,35 @@ def record_fleet_execution_outcome(
             try:
                 from core.contribution_credit import record_chain_credit
 
-                record_chain_credit(execution_id)
+                # Pass the EXACT audit row (when known) plus the authenticated
+                # scope that was just joined. The credit consumer treats these
+                # as assertions against the audit/execution rows, never as
+                # substitute authority.
+                credit_audit_id = audit_id
+                if not credit_audit_id:
+                    candidates = [
+                        str(candidate)
+                        for candidate in (
+                            list(result.get("applied") or [])
+                            + list(result.get("already_applied") or []))
+                        if str(candidate) != str(execution_id)
+                    ]
+                    # A nonunique execution join is ambiguous. Never pick an
+                    # arbitrary first audit row and thereby launder one of
+                    # several possible outcomes into credit.
+                    if len(set(candidates)) != 1:
+                        logger.debug(
+                            "contribution credit skipped: nonunique audit "
+                            "outcome for execution %s", execution_id)
+                        return result
+                    credit_audit_id = candidates[0]
+                record_chain_credit(
+                    execution_id,
+                    audit_id=credit_audit_id,
+                    tenant_id=auth_tenant,
+                    workspace_id=auth_workspace,
+                    agent_id=auth_agent,
+                )
             except Exception as cc_err:
                 logger.debug("contribution credit skipped: %s", cc_err)
         return result

@@ -358,6 +358,328 @@ Return JSON matching the TaskAnalysis schema."""
             return True
         return status in success_statuses
 
+    @staticmethod
+    def _specialist_child_binding(
+        *,
+        chain_id: str,
+        link_id: str,
+        link_order: int,
+        agent_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        task_digest: str,
+        root_agent_id: str,
+        actor_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """Stable server-owned child execution/operation binding.
+
+        The id is derived from chain/link/agent/tenant/workspace plus the
+        immutable task/roster digest, so a replay or cold resume of the SAME
+        work reuses it, while a genuinely new task/roster is a new binding.
+        Caller/model supplied execution ids never participate.
+        """
+        material = {
+            "version": 1,
+            "chain_id": str(chain_id or ""),
+            "link_id": str(link_id or ""),
+            "link_order": int(link_order),
+            "agent_id": str(agent_id or ""),
+            "tenant_id": str(tenant_id or ""),
+            "workspace_id": str(workspace_id or ""),
+            "task_digest": str(task_digest or ""),
+            "root_agent_id": str(root_agent_id or ""),
+            "actor_id": str(actor_id or ""),
+        }
+        digest = hashlib.sha256(json.dumps(
+            material, sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")).hexdigest()
+        return {
+            "version": 1,
+            "binding_sha256": digest,
+            "execution_id": f"fleet-child-{digest[:40]}",
+            "operation_id": f"fleet-child-op-{digest[:40]}",
+            "chain_id": material["chain_id"],
+            "link_id": material["link_id"],
+            "link_order": material["link_order"],
+            "agent_id": material["agent_id"],
+            "tenant_id": material["tenant_id"],
+            "workspace_id": material["workspace_id"],
+            "task_digest": material["task_digest"],
+            "root_agent_id": material["root_agent_id"],
+            "actor_id": material["actor_id"],
+        }
+
+    def _bind_specialist_link(
+        self,
+        *,
+        chain: DelegationChain,
+        chain_id: str,
+        item: Dict[str, Any],
+        link_order: int,
+        task_digest: str,
+        tenant_id: str,
+        workspace_id: str,
+        actor_id: Optional[str],
+    ) -> tuple[ChainLink, Dict[str, Any]]:
+        """Persist the exact child binding before the specialist is dispatched."""
+        agent_id = str(item.get("agent_id") or "")
+        domain = str(item.get("domain") or "general")
+        link_key = hashlib.sha256(json.dumps(
+            [str(chain_id), int(link_order), agent_id, str(task_digest)],
+            separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()[:40]
+        link_id = f"fleet-link-{link_key}"
+
+        link = (
+            self.db.query(ChainLink)
+            .filter(ChainLink.id == link_id)
+            .first()
+        )
+        if link is None:
+            # Recruited links normally exist already; locate the exact one
+            # before ever creating a fallback row (legacy/test chains may not
+            # have persisted links).
+            link = (
+                self.db.query(ChainLink)
+                .filter(
+                    ChainLink.chain_id == str(chain_id),
+                    ChainLink.child_agent_id == agent_id,
+                    ChainLink.link_order == int(link_order),
+                )
+                .first()
+            )
+        if link is None:
+            link = ChainLink(
+                id=link_id,
+                chain_id=str(chain_id),
+                parent_agent_id=str(chain.root_agent_id or "atom_main"),
+                child_agent_id=agent_id,
+                task_description=f"{domain} specialist work",
+                context_json={"domain": domain, "fleet_admiral": True},
+                status="pending",
+                link_order=int(link_order),
+            )
+            self.db.add(link)
+            self.db.flush()
+
+        binding = self._specialist_child_binding(
+            chain_id=chain_id,
+            link_id=str(link.id),
+            link_order=int(link_order),
+            agent_id=agent_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            task_digest=task_digest,
+            root_agent_id=str(chain.root_agent_id or ""),
+            actor_id=actor_id,
+        )
+        metadata = (
+            dict(link.metadata_json)
+            if isinstance(link.metadata_json, dict) else {})
+        existing = metadata.get("fleet_child_binding")
+        if isinstance(existing, dict):
+            same = all(
+                str(existing.get(key) or "") == str(binding.get(key) or "")
+                for key in (
+                    "binding_sha256", "execution_id", "operation_id",
+                    "chain_id", "link_id", "agent_id", "tenant_id",
+                    "workspace_id", "task_digest",
+                )
+            )
+            if same:
+                binding = existing
+        metadata["fleet_child_binding"] = binding
+        metadata["task_digest"] = str(task_digest)
+        link.metadata_json = metadata
+        context = (
+            dict(link.context_json)
+            if isinstance(link.context_json, dict) else {})
+        context["domain"] = domain
+        link.context_json = context
+        link.status = "in_progress"
+        link.completed_at = None
+        self.db.commit()
+        return link, binding
+
+    def _claim_db_factory(self):
+        """Bind claim reads/writes to the fleet's own database session."""
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _factory():
+            yield self.db
+
+        return _factory
+
+    @staticmethod
+    def _dict_value(value: Any) -> Dict[str, Any]:
+        """Decode a nullable JSON column/result without inventing authority."""
+        if isinstance(value, dict):
+            return dict(value)
+        if isinstance(value, str) and value.strip():
+            try:
+                parsed = json.loads(value)
+            except (TypeError, ValueError):
+                return {}
+            return dict(parsed) if isinstance(parsed, dict) else {}
+        return {}
+
+    @classmethod
+    def _recovered_child_output(
+        cls, claim: Optional[Dict[str, Any]], binding: Dict[str, Any],
+        task_digest: str,
+    ) -> Optional[str]:
+        """Return the full specialist output from a succeeded durable claim.
+
+        A cache/link loss must not strand already-completed work, and a
+        truncated ``AgentExecution.output_summary`` is not the specialist's
+        actual output. The fleet child dispatch claim is written server-side in
+        the SAME conditional UPDATE as ``succeeded`` and is bound to the exact
+        child execution/operation/task digest, so its full output is the
+        trustworthy recovery source. Anything mismatched yields ``None`` (and
+        the caller refuses; it never re-dispatches).
+        """
+        if not isinstance(claim, dict):
+            return None
+        if str(claim.get("status") or "") != "succeeded":
+            return None
+        if str(claim.get("operation_id") or "") != str(
+                binding.get("operation_id") or ""):
+            return None
+        result = cls._dict_value(claim.get("result_json"))
+        child = cls._dict_value(result.get("fleet_child_result"))
+        if not child:
+            return None
+        if str(child.get("execution_id") or "") != str(
+                binding.get("execution_id") or ""):
+            return None
+        if str(child.get("binding_sha256") or "") != str(
+                binding.get("binding_sha256") or ""):
+            return None
+        if str(child.get("task_digest") or "") != str(task_digest or ""):
+            return None
+        if child.get("success") is not True or str(
+                child.get("status") or "") != "completed":
+            return None
+        output = str(child.get("output") or "").strip()
+        return output or None
+
+    def _claim_child_dispatch(
+        self,
+        *,
+        binding: Dict[str, Any],
+        chain_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        agent_id: str,
+        actor_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """Claim the child dispatch in the existing operation table.
+
+        A resumed run that sees this row in dispatching/succeeded must not send
+        the specialist a second time. The row is a dispatch receipt only; the
+        credit consumer never treats it as verification proof.
+        """
+        from core import outbound_operation_claim as claims
+
+        if not workspace_id or not agent_id or not binding.get("operation_id"):
+            return {"won": False, "status": "unsupported"}
+        factory = self._claim_db_factory()
+        payload_hash = claims.operation_payload_sha256(
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            actor_id=actor_id,
+            agent_id=agent_id,
+            execution_id=str(chain_id),
+            action="fleet.child",
+            frozen_args={
+                "binding_sha256": binding.get("binding_sha256"),
+                "execution_id": binding.get("execution_id"),
+                "task_digest": binding.get("task_digest"),
+            },
+        )
+        claim = claims.claim_generic_operation(
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            operation_id=str(binding["operation_id"]),
+            action="fleet.child",
+            payload_hash=payload_hash,
+            execution_id=str(chain_id),
+            db_factory=factory,
+        )
+        if claim.get("won"):
+            advanced = claims.mark_status(
+                claim["record_id"], claims.DISPATCHING,
+                expected_status=claims.CLAIMED, db_factory=factory)
+            if not advanced:
+                return {
+                    "won": False,
+                    "status": "claim_state_unavailable",
+                    "record_id": claim.get("record_id"),
+                }
+        return claim
+
+    def _finish_child_claim(
+        self,
+        claim: Optional[Dict[str, Any]], *,
+        binding: Dict[str, Any], status: str, success: bool,
+        output_length: int, task_digest: str,
+        output: Optional[str] = None,
+    ) -> bool:
+        if not claim or not claim.get("won") or not claim.get("record_id"):
+            return False
+        from core import outbound_operation_claim as claims
+
+        return claims.mark_status(
+            claim["record_id"], claims.SUCCEEDED,
+            expected_status=claims.DISPATCHING,
+            result={
+                "fleet_child_result": {
+                    "execution_id": str(binding.get("execution_id") or ""),
+                    "binding_sha256": str(
+                        binding.get("binding_sha256") or ""),
+                    "task_digest": str(task_digest or ""),
+                    "status": str(status or ""),
+                    "success": bool(success),
+                    "output_length": int(output_length or 0),
+                    # Full server-produced specialist output, so a later resume
+                    # that lost the chain cache can recover the actual work
+                    # instead of re-dispatching or using the truncated
+                    # AgentExecution.output_summary.
+                    "output": str(output or ""),
+                }
+            },
+            db_factory=self._claim_db_factory(),
+        )
+
+    def _finish_specialist_link(
+        self,
+        link: ChainLink,
+        *,
+        binding: Dict[str, Any],
+        status: str,
+        success: bool,
+        output_length: int,
+        task_digest: str,
+        error: Optional[str] = None,
+    ) -> None:
+        """Store only non-sensitive result material on the exact chain link."""
+        link_context = (
+            link.context_json if isinstance(link.context_json, dict) else {})
+        link.result_json = {
+            "execution_id": str(binding.get("execution_id") or ""),
+            "operation_id": str(binding.get("operation_id") or ""),
+            "agent_id": str(link.child_agent_id or ""),
+            "domain": str(link_context.get("domain") or "general"),
+            "status": "completed" if success else "failed",
+            "task_digest": str(task_digest or ""),
+            "binding_sha256": str(binding.get("binding_sha256") or ""),
+        }
+        link.status = "completed" if success else "failed"
+        link.error_message = (str(error)[:500] if error else None)
+        link.completed_at = datetime.now(timezone.utc)
+        self.db.commit()
+
     async def execute_recruited_specialists(
         self,
         *,
@@ -582,6 +904,103 @@ Return JSON matching the TaskAnalysis schema."""
                 })
                 continue
 
+            child_tenant = str(chain.tenant_id or tenant_id or "")
+            child_workspace = str(
+                agent.workspace_id or chain_workspace or workspace_id or "")
+            try:
+                link, binding = self._bind_specialist_link(
+                    chain=chain,
+                    chain_id=str(chain_id),
+                    item=item,
+                    link_order=len(results),
+                    task_digest=digest,
+                    tenant_id=child_tenant,
+                    workspace_id=child_workspace,
+                    actor_id=(user_id or None),
+                )
+                claim = self._claim_child_dispatch(
+                    binding=binding,
+                    chain_id=str(chain_id),
+                    tenant_id=child_tenant,
+                    workspace_id=child_workspace,
+                    agent_id=agent_id,
+                    actor_id=(user_id or None),
+                )
+            except Exception as exc:  # noqa: BLE001 — no binding, no dispatch
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "failed",
+                    "output": "",
+                    "error": f"child_binding_unavailable:{type(exc).__name__}",
+                })
+                continue
+            if not claim.get("won"):
+                claim_status = str(claim.get("status") or "unavailable")
+                existing_result = (
+                    link.result_json
+                    if link is not None and isinstance(link.result_json, dict)
+                    else {})
+                already_completed = (
+                    link is not None
+                    and str(link.status or "") == "completed"
+                    and str(existing_result.get("execution_id") or "")
+                    == str(binding.get("execution_id") or ""))
+                if already_completed:
+                    recovered = self._recovered_child_output(
+                        claim, binding, digest)
+                    if recovered is None:
+                        recovered = str(existing_result.get("output") or "")
+                else:
+                    recovered = self._recovered_child_output(
+                        claim, binding, digest)
+                if recovered:
+                    # The durable claim proves this exact child already ran.
+                    # Recover its actual output without a second dispatch and
+                    # re-materialize the link/cache material.
+                    self._finish_specialist_link(
+                        link, binding=binding, status="completed",
+                        success=True, output_length=len(recovered),
+                        task_digest=digest)
+                    item_result = {
+                        "agent_id": agent_id,
+                        "agent_name": agent_name,
+                        "domain": domain,
+                        "status": "success",
+                        "output": recovered,
+                        "error": None,
+                        "execution_id": binding["execution_id"],
+                        "recovered": True,
+                    }
+                    results.append(item_result)
+                    successful.append(item_result)
+                    continue
+                if link is not None and not already_completed:
+                    link.result_json = {
+                        "execution_id": str(binding.get("execution_id") or ""),
+                        "operation_id": str(binding.get("operation_id") or ""),
+                        "agent_id": agent_id,
+                        "domain": domain,
+                        "status": "duplicate_suppressed",
+                        "task_digest": digest,
+                    }
+                    link.status = "failed"
+                    link.error_message = (
+                        f"dispatch_already_{claim_status}"[:500])
+                    link.completed_at = datetime.now(timezone.utc)
+                    self.db.commit()
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "failed",
+                    "output": "",
+                    "error": f"dispatch_already_{claim_status}"[:200],
+                    "execution_id": binding.get("execution_id"),
+                })
+                continue
+
             prompt = (
                 f"You are the {domain} specialist in a recruited fleet.\n"
                 f"Original task: {task}\n"
@@ -591,20 +1010,35 @@ Return JSON matching the TaskAnalysis schema."""
             try:
                 runner = GenericAgent(
                     agent_model=agent,
-                    workspace_id=agent.workspace_id or workspace_id or "default",
+                    workspace_id=child_workspace or "default",
                 )
+                # Bind the fleet's server-owned tenant explicitly; a Personal
+                # agent row with no tenant must not fall back to "default" in
+                # the child execution receipt.
+                runner.tenant_id = child_tenant or getattr(
+                    runner, "tenant_id", None)
                 raw = await runner.execute(
                     task_input=prompt,
                     context={
                         "chain_id": str(chain_id),
                         "user_id": user_id,
-                        "tenant_id": tenant_id,
-                        "workspace_id": agent.workspace_id or workspace_id,
+                        "tenant_id": child_tenant,
+                        "workspace_id": child_workspace,
                         "agent_id": agent_id,
+                        # Server-owned stable child identity persisted above.
+                        "execution_id": binding["execution_id"],
+                        "run_id": binding["execution_id"],
                         "orchestrated_by": "fleet_admiral",
                     },
                 )
             except Exception as exc:  # noqa: BLE001 — preserve failure class
+                self._finish_child_claim(
+                    claim, binding=binding, status="failed", success=False,
+                    output_length=0, task_digest=digest, output="")
+                self._finish_specialist_link(
+                    link, binding=binding, status="failed", success=False,
+                    output_length=0, task_digest=digest,
+                    error=type(exc).__name__)
                 results.append({
                     "agent_id": agent_id,
                     "agent_name": agent_name,
@@ -612,6 +1046,7 @@ Return JSON matching the TaskAnalysis schema."""
                     "status": "failed",
                     "output": "",
                     "error": type(exc).__name__,
+                    "execution_id": binding["execution_id"],
                 })
                 continue
 
@@ -622,7 +1057,25 @@ Return JSON matching the TaskAnalysis schema."""
                 or raw.get("response")
                 or ""
             ).strip()
-            if success and output:
+            effective_success = bool(success and output)
+            self._finish_child_claim(
+                claim, binding=binding,
+                status="completed" if effective_success else "failed",
+                success=effective_success,
+                output_length=len(output), task_digest=digest,
+                output=(output if effective_success else ""))
+            self._finish_specialist_link(
+                link, binding=binding,
+                status="completed" if effective_success else "failed",
+                success=effective_success,
+                output_length=len(output), task_digest=digest,
+                error=(
+                    None if effective_success else str(
+                        raw.get("error")
+                        or raw.get("failure_reason")
+                        or "specialist returned no usable output"
+                    )[:200]))
+            if effective_success:
                 item_result = {
                     "agent_id": agent_id,
                     "agent_name": agent_name,
@@ -630,6 +1083,7 @@ Return JSON matching the TaskAnalysis schema."""
                     "status": "success",
                     "output": output,
                     "error": None,
+                    "execution_id": binding["execution_id"],
                 }
                 successful.append(item_result)
             else:
@@ -644,6 +1098,7 @@ Return JSON matching the TaskAnalysis schema."""
                         or raw.get("failure_reason")
                         or "specialist returned no usable output"
                     )[:200],
+                    "execution_id": binding["execution_id"],
                 }
             results.append(item_result)
 

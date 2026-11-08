@@ -14,9 +14,12 @@ Model:
 
 Mapping to graduation (one-shot supplement; per-tool records stay
 authoritative and failures are never double-counted):
-  w ≥ 0.5        → record_usage(success=True,  verified="verified")
-  0 < w < 0.5    → record_usage(success=True,  verified="unverified")
-  w == 0         → skipped
+  verified operation receipt → record_usage(success=True, verified="verified")
+  completed work without proof → record_usage(success=True, verified="unverified")
+  w == 0                              → skipped
+
+A contribution weight is a ranking/analytics signal only. It never turns an
+unverified outcome into verified success.
 
 Flag: ATOM_CONTRIBUTION_CREDIT_ENABLED (default OFF).
 """
@@ -134,7 +137,7 @@ class TestApplyCredit:
         yield session
         session.close()
 
-    def test_strong_credit_records_verified_success(self, grad_db):
+    def test_strong_weight_alone_is_not_verification(self, grad_db):
         from core.contribution_credit import apply_credit
         from core.models import AgentRegistry
 
@@ -145,7 +148,27 @@ class TestApplyCredit:
         assert applied == 1
         row = grad_db.query(AgentRegistry).filter_by(id="ag-a").first()
         stats = row.configuration["capability_stats"]["finance"]
-        assert stats["verified_success"] == 1
+        assert stats["success"] == 1
+        assert stats["verified_success"] == 0
+
+    def test_claimed_receipt_id_cannot_substitute_for_readback(self, grad_db):
+        from core.contribution_credit import apply_credit
+        from core.models import AgentRegistry
+
+        applied = apply_credit(
+            grad_db,
+            [{
+                "agent_id": "ag-a",
+                "weight": 0.8,
+                "capability": "finance.invoice.post",
+                "verified": True,
+                "source_record_id": "operation-receipt-1",
+            }],
+        )
+        assert applied == 1
+        row = grad_db.query(AgentRegistry).filter_by(id="ag-a").first()
+        stats = row.configuration["capability_stats"]["finance.invoice.post"]
+        assert stats["verified_success"] == 0
 
     def test_moderate_credit_records_unverified_only(self, grad_db):
         from core.contribution_credit import apply_credit
@@ -181,10 +204,12 @@ class TestApplyCredit:
 @pytest.fixture
 def chain_db():
     from core.models import (
+        AgentExecution,
         AgentRegistry,
         ChainLink,
         DelegationChain,
         FleetRoutingAudit,
+        TaskOperationRecord,
     )
 
     engine = sa.create_engine(
@@ -192,7 +217,8 @@ def chain_db():
         connect_args={"check_same_thread": False},
         poolclass=sa.pool.StaticPool,
     )
-    for m in (AgentRegistry, DelegationChain, ChainLink, FleetRoutingAudit):
+    for m in (AgentRegistry, DelegationChain, ChainLink, FleetRoutingAudit,
+              AgentExecution, TaskOperationRecord):
         m.__table__.create(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -202,6 +228,7 @@ def chain_db():
 
 def _seed_fleet(db, *, link_statuses):
     from core.models import (
+        AgentExecution,
         AgentRegistry,
         ChainLink,
         DelegationChain,
@@ -216,11 +243,22 @@ def _seed_fleet(db, *, link_statuses):
             root_agent_id="atom_main",
         )
     )
+    db.add(
+        AgentExecution(
+            id="exec-9",
+            agent_id="atom_main",
+            tenant_id="t1",
+            workspace_id="w1",
+            status="completed",
+        )
+    )
     for i, aid in enumerate(["ag-x", "ag-y", "ag-z"]):
         db.add(
             AgentRegistry(
                 id=aid,
                 name=aid,
+                tenant_id="t1",
+                workspace_id="w1",
                 category="Ops",
                 role="agent",
                 type="personal",
@@ -244,12 +282,19 @@ def _seed_fleet(db, *, link_statuses):
         FleetRoutingAudit(
             workload_key="wk",
             execution_id="exec-9",
+            tenant_id="t1",
+            workspace_id="w1",
+            agent_id="atom_main",
             chain_id="chain-1",
             specialists_count=len(link_statuses),
             roster_json=[
                 {"agent_id": a}
                 for a in ["ag-x", "ag-y", "ag-z"]
             ],
+            recruitment_succeeded=True,
+            enforced=True,
+            decision_source="fleet_eligible",
+            success=True,
         )
     )
     db.commit()

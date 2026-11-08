@@ -1,0 +1,241 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-08 12:50:26 [    INFO] MCP Service initialized
+
+tests/test_contribution_credit_evidence_boundary.py::test_completed_status_and_weight_do_not_create_verified_evidence 
+-------------------------------- live log setup --------------------------------
+2026-11-08 12:50:26 [    INFO] EscalationManager initialized
+2026-11-08 12:50:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 12:50:26 [    INFO] EscalationManager initialized
+2026-11-08 12:50:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 12:50:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 12:50:26 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:26 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit a19f2269-184f-424c-85f3-4c5ef1a88790)
+PASSED                                                                   [  2%]
+tests/test_contribution_credit_evidence_boundary.py::test_same_chain_credit_replay_does_not_add_more_usage 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:26 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit e5fff07d-a7e5-4449-ad33-54fc8bf12f5c)
+PASSED                                                                   [  4%]
+tests/test_contribution_credit_evidence_boundary.py::test_disabled_feature_still_has_no_effect PASSED [  6%]
+tests/test_contribution_credit_evidence_boundary.py::test_contribution_weights_are_not_the_verification_authority PASSED [  9%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_all_success_sums_to_outcome_last_gets_most PASSED [ 11%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_failed_step_gets_zero_upstream_survives PASSED [ 13%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_late_failure_dampens_but_does_not_zero PASSED [ 16%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_unknown_status_counts_half PASSED [ 18%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_empty_and_single PASSED [ 20%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_duplicate_agents_aggregate PASSED [ 23%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_strong_weight_alone_is_not_verification PASSED [ 25%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_explicit_receipt_backed_entry_records_verified_success PASSED [ 27%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_moderate_credit_records_unverified_only PASSED [ 30%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_zero_weight_skipped_no_poison PASSED [ 32%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_flag_off_noop PASSED [ 34%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_happy_path_applies_credits 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:27 [    INFO] contribution_credit: 3 specialist outcome(s) credited for exec exec-9 (audit fd5bd9dd-8a4e-4abd-9fbb-102d57113641)
+PASSED                                                                   [ 37%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_missing_execution_is_noop_never_raises PASSED [ 39%]
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit PASSED [ 41%]
+tests/test_fleet_credit_receipt_integration.py::test_real_oracle_receipt_positive_and_replay_are_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:27 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 44%]
+tests/test_fleet_credit_receipt_integration.py::test_completed_status_and_forged_verified_flag_earn_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:28 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 46%]
+tests/test_fleet_credit_receipt_integration.py::test_foreign_child_binding_is_refused_not_downgraded 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:29 [ WARNING] contribution_credit: refusing contradictory child binding for link link-credit-0
+PASSED                                                                   [ 48%]
+tests/test_fleet_credit_receipt_integration.py::test_distinct_real_child_outcomes_each_learn_once 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:29 [    INFO] contribution_credit: 2 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 51%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_scope_ambiguous_audit_and_shadow_are_refused PASSED [ 53%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_credit_recovery_and_duplicate_contender 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:31 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 55%]
+tests/test_fleet_credit_receipt_integration.py::test_finalizer_does_not_credit_a_nonunique_execution_join PASSED [ 58%]
+tests/test_fleet_credit_receipt_integration.py::test_pre_revocation_work_cannot_become_new_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:32 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 60%]
+tests/test_fleet_credit_receipt_integration.py::test_forced_sqlite_stale_writer_cannot_erase_peer_revocation FAILED [ 62%]
+tests/test_fleet_credit_receipt_integration.py::test_dirty_new_and_deleted_caller_state_is_never_committed 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:39 [ WARNING] contribution_credit: entry skipped for ag-fleet/finance.ledger.post.0864ba3187714a41af3387aabd28bfea (OperationalError)
+FAILED                                                                   [ 65%]
+tests/test_fleet_credit_receipt_integration.py::test_already_flushed_caller_edit_blocks_independent_write_and_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:40 [ WARNING] contribution_credit: entry skipped for ag-fleet/finance.payment.post.0e9c3d798ce24e4f8e8825ee02d867a7 (OperationalError)
+PASSED                                                                   [ 67%]
+tests/test_fleet_credit_receipt_integration.py::test_lost_cache_recovers_full_child_output_without_redispatch PASSED [ 69%]
+tests/test_capability_credit_cas_boundary.py::test_stale_success_cannot_erase_committed_regression PASSED [ 72%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[25] PASSED [ 74%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[50] PASSED [ 76%]
+tests/test_capability_revocation_epoch.py::test_old_credit_does_not_return_autonomy_after_reentry PASSED [ 79%]
+tests/test_capability_revocation_epoch.py::test_fresh_verified_work_preserves_existing_ladder PASSED [ 81%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[True-unverified] PASSED [ 83%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-unverified] PASSED [ 86%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-verified] PASSED [ 88%]
+tests/test_capability_revocation_epoch.py::test_existing_revocation_baseline_survives_marker_clear_and_restart PASSED [ 90%]
+tests/test_capability_revocation_epoch.py::test_second_regression_starts_another_fresh_epoch PASSED [ 93%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[unknown_baseline] PASSED [ 95%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[stale_stats_baseline] PASSED [ 97%]
+tests/test_fleet_credit_actual_producer_boundary.py::test_real_fleet_dispatch_produces_receipt_and_unique_credit 
+-------------------------------- live log call ---------------------------------
+2026-11-08 12:50:50 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-08 12:50:50 [    INFO] Created episode d0d48cf7-3700-45b7-ab33-70fa80ba5b8e for agent ag-fleet (outcome=completed, constitutional_score=1.00)
+2026-11-08 12:50:50 [    INFO] Recorded outcome for ag-fleet: success
+2026-11-08 12:50:50 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_forced_sqlite_stale_writer_cannot_erase_peer_revocation _________
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py:922: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: database is locked
+
+The above exception was the direct cause of the following exception:
+tests/test_fleet_credit_receipt_integration.py:555: in test_forced_sqlite_stale_writer_cannot_erase_peer_revocation
+    assert service.record_usage(
+core/capability_graduation_service.py:321: in record_usage
+    return self._mutate_configuration(
+core/capability_graduation_service.py:115: in _mutate_configuration
+    found, observed = self._observed_configuration(agent_id)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/capability_graduation_service.py:89: in _observed_configuration
+    row = self.db.execute(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:2308: in execute
+    return self._execute_internal(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:2190: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/context.py:293: in orm_execute_statement
+    result = conn.execute(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1416: in execute
+    return meth(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py:516: in _execute_on_connection
+    return connection._execute_clauseelement(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1639: in _execute_clauseelement
+    ret = self._execute_context(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:2346: in _handle_dbapi_exception
+    raise exc_info[1].with_traceback(exc_info[2])
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1974: in _exec_single_context
+    self.dispatch.after_cursor_execute(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/event/attr.py:487: in __call__
+    fn(*args, **kw)
+tests/test_fleet_credit_receipt_integration.py:551: in _peer_commits_revocation
+    peer.commit()
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1969: in commit
+    trans.commit(_to_root=True)
+<string>:2: in commit
+    ???
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1256: in commit
+    self._prepare_impl()
+<string>:2: in _prepare_impl
+    ???
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:1231: in _prepare_impl
+    self.session.flush()
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:4312: in flush
+    self._flush(objects)
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:4447: in _flush
+    with util.safe_reraise():
+/usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py:4408: in _flush
+    flush_context.execute()
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py:466: in execute
+    rec.execute(self)
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py:85: in save_obj
+    _emit_update_statements(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py:909: in _emit_update_statements
+    c = connection.execute(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1416: in execute
+    return meth(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py:516: in _execute_on_connection
+    return connection._execute_clauseelement(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1639: in _execute_clauseelement
+    ret = self._execute_context(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:2343: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py:922: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) database is locked
+E   [SQL: UPDATE agent_registry SET updated_at=CURRENT_TIMESTAMP, configuration=? WHERE agent_registry.id = ?]
+E   [parameters: ('{"capability_stats": {"finance.invoice.post": {"success": 5, "total": 5, "verified_success": 5}}, "capability_maturities": {"finance.invoice.post": " ... (79 characters truncated) ... 17:50:32.435824+00:00", "reason": "verified_regression", "baseline_verified_success": 5, "verified_success": 5, "epoch": 1, "reentry_successes": 0}}}', 'ag-race')]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__________ test_dirty_new_and_deleted_caller_state_is_never_committed __________
+tests/test_fleet_credit_receipt_integration.py:607: in test_dirty_new_and_deleted_caller_state_is_never_committed
+    assert _credit(caller) is True
+E   assert False is True
+E    +  where False = _credit(<sqlalchemy.orm.session.Session object at 0x1596ec150>)
+------------------------------ Captured log call -------------------------------
+WARNING  core.contribution_credit:contribution_credit.py:732 contribution_credit: entry skipped for ag-fleet/finance.ledger.post.0864ba3187714a41af3387aabd28bfea (OperationalError)
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 86 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_contribution_credit_evidence_boundary.py::test_completed_status_and_weight_do_not_create_verified_evidence
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingProposal(BaseModel):
+
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingOperation(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_fleet_credit_receipt_integration.py::test_forced_sqlite_stale_writer_cannot_erase_peer_revocation
+FAILED tests/test_fleet_credit_receipt_integration.py::test_dirty_new_and_deleted_caller_state_is_never_committed
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 2 failed, 41 passed, 94 warnings in 42.09s ==================

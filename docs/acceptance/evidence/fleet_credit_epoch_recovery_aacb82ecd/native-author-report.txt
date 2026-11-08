@@ -1,0 +1,58 @@
+I'll start by reading the work order and locating the relevant files.
+
+Now I understand both contracts. Let me implement the correction baseline in the graduation service.
+
+Now I'll add the two new test files.
+
+I reached the maximum allowed steps before I could do a final verification pass. Per the constraints, I am not making further tool calls.
+
+## Work completed
+
+### A. Human correction epoch (`backend/core/capability_graduation_service.py`)
+- `reset_maturity(...)` now:
+  - drops the capability tier to `student`,
+  - binds `epoch_baseline_verified_success` at the exact reset using the existing configuration CAS,
+  - records `epoch_baseline_origin = "human_correction"`,
+  - leaves lifetime `success` / `total` / `verified_success` untouched,
+  - does **not** create failure/`failed_verification` counts or an `autonomy_revocations` regression marker.
+- `reset_maturity` now returns a truthful `bool` (False for unknown hires or failed CAS).
+- `backend/core/autonomy_policy.py` propagates that result from `reset_autonomy_cycle`, so unknown identity/reset failure now reports `False`.
+- Existing revocation reentry logic (`20` new successes) was not changed. Post-reset graduation uses the existing normal `5 / 20 / 50` ladder against the new baseline.
+
+### B. Atomic receipt eligibility epoch (`backend/core/contribution_credit.py` + graduation service)
+- Added `observed_configuration(...)` to read the exact physical JSON blob (preserving SQL `NULL` vs JSON `null`).
+- Added `expected_configuration=...` to `record_usage` / `_mutate_configuration`:
+  - when supplied, the counter UPDATE is attempted once against that exact raw snapshot,
+  - a changed blob matches zero rows and refuses the write instead of rebasing onto a peer's newer state.
+- `_pre_revocation` now returns `(pre_revocation, found, raw_configuration)`.
+- `_consume_entries` binds that snapshot into the counter CAS. If the snapshot changed (e.g. peer commits a verified regression between precheck and receipt insert), the savepoint rolls back the receipt and no stale counter credit is published.
+- Recovery rereads eligibility, marks old pre-revocation work unverified, and publishes a receipt with `verified: False`.
+- Legacy/normal `record_usage` callers still use the bounded CAS retry/rebase path.
+
+### Tests added
+- `backend/tests/test_capability_correction_epoch.py`:
+  - lifetime credit cannot be reused,
+  - restart persistence,
+  - 1–4 stay student / 5th intern / 20 supervised / 50 autonomous,
+  - repeated corrections rebind the baseline,
+  - other capabilities remain intact,
+  - zero-start compatibility,
+  - truthful unknown hire/topic reset result.
+- `backend/tests/test_fleet_credit_epoch_atomic.py`:
+  - peer regression interleaving refuses the stale receipt,
+  - recovery downgrades old work and replay does not double count,
+  - legitimate fresh verified work still credits exactly once.
+
+## Remaining/unfinished
+- I could not perform a final syntax review or run anything. Per the work order, no tests, imports, servers, or network commands were run, and no other workspace was accessed.
+- I had not yet produced a formal diff/status summary or checked the final byte-level state of all edited files after the last edits.
+
+## Recommendations
+1. Root should run the two ROOT negative probes plus the existing read-only regression tests.
+2. Pay particular attention to:
+   - the reset return-contract change for external callers that may have treated `True` as “topic valid” rather than “reset persisted”,
+   - the conservative whole-configuration CAS: unrelated concurrent configuration changes will refuse credit until a recovery retry,
+   - SQLite savepoint behavior in the interleaving test, since it was reasoned through but not executed.
+3. If root wants narrower CAS scope later, it should be done without introducing parallel counters or weakening the exact-snapshot guarantee.
+
+No claim is made that any test passes.

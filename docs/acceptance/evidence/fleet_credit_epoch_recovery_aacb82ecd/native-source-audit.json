@@ -1,0 +1,33 @@
+{
+  "changed": [
+    {
+      "path": "backend/core/capability_graduation_service.py",
+      "sha256": "9f90d326472f546801ca84a514e9ede848ecddaa43c8b80d8b33a8b321d7c15e"
+    },
+    {
+      "path": "backend/core/contribution_credit.py",
+      "sha256": "85d19c0b18820a9a1104ef9236e4fdabf9368648205891dfff8d85616f4498f7"
+    },
+    {
+      "path": "backend/core/autonomy_policy.py",
+      "sha256": "31935db3afcb1dea9d8dfa49bac9bdf5c86e1970e9760837787ccb1c109fd487"
+    },
+    {
+      "path": "backend/tests/test_fleet_credit_epoch_atomic.py",
+      "sha256": "a3b49c3b24e2484541c99c96689719b60c57e5f2e8548541919b9d78e06e4ba7"
+    },
+    {
+      "path": "backend/tests/test_capability_correction_epoch.py",
+      "sha256": "13058bfabac8b2b7e6bbc25e7feb4c83c9c200d2edd7d53a2663bdf8dbe7be5e"
+    }
+  ],
+  "unchanged": [
+    "backend/tests/test_capability_revocation_epoch.py",
+    "backend/tests/test_autonomy_revocation.py",
+    "backend/tests/test_autonomy_policy_gate.py",
+    "backend/tests/test_fleet_credit_receipt_integration.py"
+  ],
+  "source": "4065930f22252d132e59082fa336538c97993073",
+  "syntax_and_scope_only": true,
+  "runtime_qualified": false
+}

@@ -1,0 +1,18 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_legacy_helper_cannot_promote_a_claimed_receipt ______________
+../../root_credit_legacy_flag_probe_20261108.py:14: in test_legacy_helper_cannot_promote_a_claimed_receipt
+    assert stats.get('verified_success',0)==0
+E   AssertionError: assert 1 == 0
+E    +  where 1 = <built-in method get of dict object at 0x1345958c0>('verified_success', 0)
+E    +    where <built-in method get of dict object at 0x1345958c0> = {'last_outcome_at': '2026-11-08T18:17:20.741780+00:00', 'success': 1, 'total': 1, 'verified_success': 1}.get
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_credit_legacy_flag_probe_20261108.py::test_legacy_helper_cannot_promote_a_claimed_receipt
+1 failed, 2 warnings in 2.44s
