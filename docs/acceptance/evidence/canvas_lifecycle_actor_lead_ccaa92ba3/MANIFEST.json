@@ -1,0 +1,43 @@
+{
+  "executed_source": "19bd74ade5bfb495f294b886743217d4d9a84b41",
+  "runtime_source": "ccaa92ba3c94fb32bbfd6cff50cc97d03ee36078",
+  "negative_source": "a981d0bbcf34f722fe1f25b6af40097f9ad5266a",
+  "source_files": {
+    "backend/api/canvas_routes.py": "563d5dabaea1df918de3594c63d3ecc0b8e5c15214965408da50fc4ba01c4970",
+    "backend/core/canvas_write_service.py": "569cae8a3edd69c6e54f797a6cefef19b66df4f8acd10f2309a16b9c83623fc1",
+    "backend/tools/canvas_crud_tool.py": "feae1ff118c2ed6cfaf14b27ab3695c65d03b9dfbeac82bab34a2fb86e7ff328",
+    "backend/integrations/mcp_service.py": "95fad06dc882e3603e9c3bf2b59bdd60264fb10a4783504c43ae08ef0fc6ee60",
+    "backend/core/oracle/postcondition_verifiers.py": "63678b93d34780c341282de8e05c1b30d1a9fdda6d257557925b20657eebc7fe",
+    "backend/core/oracle/request_expectations.py": "19b7f7bae14ac46609e39201dc796810d03316641af41533ea95821d2557b5e7",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/tests/test_canvas_lifecycle_verified.py": "5dcc497495aa5b6b0b7f64b29a361e801617643de33bcda296885ec2c32eab4e",
+    "backend/tests/test_lead_canvas_lifecycle_authority.py": "58d4a2424e7167a17b10279a3eeb58601c9faa25b16110da20d88e4aa3bea99e",
+    ".github/workflows/ci.yml": "83c3966a86692736b92e9b2ece5360c2d92c9dfbc40f93268f1b1d13a6627e40"
+  },
+  "artifacts": {
+    "README.md": "e3650d0c691e9ecc106eeaeeb3a77e55d4623da3c42820c05b7ba2d5bb41a594",
+    "baseline-affected-tests.log": "58564a5b50d842cc958f31c1bc477a11c244cdb5bf47cab578bd3137c1d19bd5",
+    "baseline-affected.exit.json": "b787294654bd443c66558ee3463ac97fe0575daf4da599a2ea7bb4f41cffce7a",
+    "baseline-affected.spec.json": "9e1f3e42ca4bba0e97f813bae002616cdfd553f942528309e31c1ad7c2c864df",
+    "independent-scope-fixtures.py": "332b911fa3a421b56a5e0714e74d925355987fbd4610035df4353159d229678e",
+    "negative-actor-probe.py": "94c7df387276978f820011a190da36eca09af22e5abe3f10e1405578bc964832",
+    "negative-actor-tests.log": "dd0a37cb6f92dbde6b5f976fa468868454f66bdabfd99c81ed9fe44025ba30bc",
+    "negative-actor.exit.json": "6aab304df11f42f912bd001524b7deb141da0478221d11717f66328046816999",
+    "negative-actor.spec.json": "fec231d9e174063fe3f215f47968523fcf6ccebac9b1ca53c53256e13a6acf78",
+    "permanent-tests.log": "ef7a72dce19b15548c9fb6cdcd60fc619d3a9c29b3080867ee91c8b01b1c3874",
+    "permanent.exit.json": "4bea71cb01fa63be3aba141deb5f6c22d9f91a253e7a0db62cde355e20ff233a",
+    "permanent.spec.json": "979d1653d954b3420bd351c8e866fb1eb47212aef6d8e71d3283ed50493f841f",
+    "root-affected-tests.log": "6418c5b304fe60cb9a38b51f3f14f99b8a547fdf5fc822509092c2d6492eb436",
+    "root-affected.exit.json": "5167ccb1dece68d690671d8907e327a49c7693bc229dbc1ba5ee0cb6ac12a781",
+    "root-affected.spec.json": "660695a937bf68bcde9855ff1b738365b9bf69c5df5e3ea4f1132ae32a90c255",
+    "root-focused-tests.log": "3533dc95458bfd0c4dc042a4db46d8267204f2aa406c9426b1ad246bf2165e8a",
+    "root-focused.exit.json": "52eac13573a2f7f5a7b0f35de76144a801f3d38b682d8c187cf482f389f59ffb",
+    "root-focused.spec.json": "6a6721413b3c013c68da82c54114cf37aa12f668540d3078e944e4d57c6d3486",
+    "root-guard-probe.py": "6bd9796d2fcf9c96941af8d6e0348dd06322256cd9a8a0eedc00888c7a21b052",
+    "root-guard-tests.log": "6ad0a0010c6c989c0a66336d2f5c265088cf7c456998d85cfa7408cb1e9ca296",
+    "root-guard.exit.json": "35239ea30daa401b19b20f4c04b9eb0300e3f037fcd4d85cf06d162bbefdb347",
+    "root-guard.spec.json": "a56e58336758e4f4be631111d97e41f37d2ec918a19d084c3ffabf64c0d6fca7",
+    "runtime-reuse-proof.json": "cd41d96b3bc3f3a412fd84c445d830dceedd4d0e2f669b4957c8117d44ee68e9"
+  },
+  "scope": "controlled SQLite mountedHTTP/MCP lifecycle; not full app/PostgreSQL/soak"
+}
