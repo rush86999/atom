@@ -1,0 +1,13 @@
+{
+  "executed_checkout": "adbf2c386dae661e7725b61564f25632c8e23218",
+  "main": "054fa1f087b8425f0fe898d617e8259e08d98581",
+  "exact_relevant_files": {
+    "backend/core/bpe/automation.py": "69f4cad457df1dac25c39110b1073d67fbbc0ea6a148fbbda088c0cdd8a355fe",
+    "backend/core/bpe/evolution.py": "ed33ffe8753bb0cb1c366a19a726a76d6090a90a139004ae48aec330c8724aad",
+    "backend/core/observability/tracing.py": "92827cf6479017bbcbce66e53b33a87cbbc040b1a1c5c33db6d4a8fdd6c641f1",
+    "backend/api/bpe_routes.py": "13e41e6e71bf26f92af59a689bd6ccf2ecb1b6567d2c23b6b3376acaca20f060",
+    "backend/tests/core/test_bpe_evolution.py": "2bbbeac25020e0ba2d9c376405e651fa590e7ddf9a30dbee542de2e16ace4e0d",
+    "backend/tests/api/test_bpe_routes.py": "990811dfc2cb0ab3a9c8e134d099417c729067d6bfa4c6460b414c20f66b490e"
+  },
+  "scope": "BPE telemetry/order neighborhood only; not globally identical app tree"
+}

@@ -1,0 +1,38 @@
+{
+  "executed_source": "3ac05d109942bcc276c74c0cb5c844395e2a17d1",
+  "source_files": {
+    "backend/api/rpc_routes.py": "f66596c732f6063eebed73224e95f34e2d6e19445df5040f18457f6ba15dd16d",
+    "backend/core/bpe/actions.py": "7580a4b387c32672f3724e6e9bcfb7546e8084c09b4d96ee624ce95cf436380c",
+    "backend/core/bpe/persistence.py": "53cbd3940fe924d4d96532c830c06aa1794d1a28c4e04bf35adefe8452071c1e",
+    "backend/core/bpe/workspace.py": "b1e9a5ed06416fa38da8ce623289ae2a18c13928534eddb695277d23730c5319",
+    "backend/core/generic_agent.py": "559108ef1e219ea36284f4c0e0112cc76d399807dcfc8de55466a435b76a28ba",
+    "backend/core/atom_meta_agent.py": "ae5d1281f525fd6fe8e42fde3f2a043b8a47ef4071aaf7de2acee38cb371a86d",
+    "backend/core/settings_catalog.py": "ac0b6aeee04353f2b4f0448eb62580ac05ea4662cdeb403daa660f7bf41ef08a",
+    "backend/tests/test_bpe_current_principal_scope.py": "c0495ee0836a6456ecfd1d6d1e655dd530dc3f64bcdd384f58c31c59b286ee62",
+    "backend/tests/test_lead_bpe_rpc_scope.py": "0ae58c8519d29d1d3a1526bce0bfdc749e935fad312bef567c9156b0b8e05e02",
+    "backend/tests/core/test_bpe_persistence_write_truth.py": "1f8938085822deef565b65e37efa65788e96a6e07c9a66d4f1bb009bb7cb7dd0",
+    "backend/tests/core/test_bpe_persistence_path_anchoring.py": "80079cfc382e9c96a986bb99433de7175dcbd7a276b7119847fde3d14f8c0ff4",
+    "backend/tests/core/test_bpe_evolution.py": "2bbbeac25020e0ba2d9c376405e651fa590e7ddf9a30dbee542de2e16ace4e0d",
+    "backend/tests/test_generic_information_multiday_contract.py": "76078d873a207c48255e8cf8ff341a7fac129e3f52ce0edc62305fd3ffed1cbf",
+    ".github/workflows/ci.yml": "3aa75a2baad26facfae97dd607ca2cf8839465cd48f7065268a29baf0b51886f",
+    "backend/tests/api/test_bpe_routes.py": "e94d903f4a2aa481fdf8b3c564645e9b44f4bdd90527b371e9340f0da69e1dcb",
+    "backend/tests/core/test_bpe_workspace.py": "c90e72d0c19d8a74c263157f3a91993e672ee37b4613982244e14326aa8a6a9e",
+    "backend/tests/core/test_bpe_trust_bridge.py": "631ee86122708354c5d88f77daff2f03958d42ab7ca181220663d72a13949d2c",
+    "backend/tests/core/test_bpe_consult_policy.py": "b273251c819c501b96942194cda0b2c245190d1a2a18600238602cf4a8271141",
+    "backend/api/bpe_routes.py": "13e41e6e71bf26f92af59a689bd6ccf2ecb1b6567d2c23b6b3376acaca20f060",
+    "backend/core/observability/tracing.py": "92827cf6479017bbcbce66e53b33a87cbbc040b1a1c5c33db6d4a8fdd6c641f1"
+  },
+  "artifacts": {
+    "original-candidate-order-failure.log": "525d3afb3a376692518f19b776dc6a600dba8ef27a37e6cdac26c2e822bdefad",
+    "final-neighborhood.log": "4c7db8b642852af77cf0a2abb4bf3b244bfca5e5f4a7309c23637d4dbb9e8c93",
+    "main-equivalent-order-negative.log": "0827a9dc097bc5dbb55d0c159f28b5db0dfac5966549e1daf2680a13426e5e59",
+    "final-spec.json": "c5f6e9ad33e083f4fe409266a686a8da24ea7dab7df3685bdd11e5d495c1bc4b",
+    "final-exit.json": "9fbfc6f085e9f04c65599010f3f7fbf8523561769fb28c4270965c138acc0e7d",
+    "original-candidate-spec.json": "617ca810bb37e1c077e61e79c98ef495ebded04899ef35cea5db7fecce9e88c9",
+    "original-candidate-exit.json": "5320d2d73f9a4c5532185ab09b3a96838c5a4780be46fd79e82f665e98c67912",
+    "README.md": "0bc22b047271fdd3492e8084dbc69b9eb47d92c1a3ae417ffdfcad2e3d95009c",
+    "main-equivalent-exit.json": "e67ded4f875d64d0dfccde84ee9447aa59270cd8ca0c40f33787259b9e422239",
+    "main-equivalent-spec.json": "3cb7a615f19fb1d224c30d5cf3c18109f59546f32ba5be7d7b472c2bda9dca0b",
+    "main-equivalent-source-proof.json": "49fd80951a72ce6da805a996bf418a076d334d0971c7674196067720a033dc16"
+  }
+}
