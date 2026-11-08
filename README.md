@@ -139,6 +139,7 @@ not change the frozen 111/123 score or qualify universal employee judgment.
 
 | Capability | Verified boundary |
 |---|---|
+| **Stored-text document exports** | An ordinary TXT upload, open and reload journey verified downloads as Text, Markdown and JSON with current source-version binding. This exports stored text, not the original binary file; other formats and grounding remain separately qualified. |
 | **Information-triggered continuation** | An ordinary source-answer UI episode preserved the same task, wait and source version through a real restart; an authorized answer triggered continuation to one verified task effect and final UI. Model responses were controlled, not a model-quality benchmark. |
 | **Goal controls** | Ordinary UI goal set, ranking, reload and clear, with a member read-only/refusal twin. Analytics history used synthetic fixtures. |
 | **Backup and restore** | A normal application child-process restart verified restored records and exact document bytes in an isolated local world; this is not whole-app disaster-recovery or crash-durability qualification. |

@@ -9,7 +9,11 @@ submitted evidence at `origin/main` `248a2329623b433e68104c4d89d2965683d81013`
 acceptance, changes no claim denominator, and does not re-score the historical
 **111/123 (90.2%)** result.
 
-## Current queue overlay — 2026-11-07, main `2d251acdf`
+## Current queue pointer — 2026-11-08
+
+Use the [current delivery checkpoint](../engineering/APP_COMPLETION_STATE_2026_11_07.md#current-delivery-checkpoint--2026-11-08-main-c97dada13) for current assignments. The queue overlay below is a retained historical cut, not a new assignment or acceptance. The 143-claim inventory and historical scores remain unchanged.
+
+## Historical queue overlay — 2026-11-07, main `2d251acdf`
 
 The November6 evidence cut below is historical, not a fresh queue. Use the [current leading checkpoint](../engineering/APP_COMPLETION_STATE_2026_11_07.md#current-leading-checkpoint--main-2d251acdf) before assigning work. PR738 Personal answer, PR739 product, PR743 neutral wait maturity and PR746 blog/Article are merged. Blog PR741 is closed as redundant after exact retained-evidence verification. PR744 browser evidence and PR745 positive-maturity repair remain submitted at heads `1f6018fd7` and `0664c9456`; re-read actual hosted checks before any merge.
 

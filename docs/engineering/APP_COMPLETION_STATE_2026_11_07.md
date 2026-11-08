@@ -1,5 +1,26 @@
 # App completion state — 2026-11-07
 
+## Current delivery checkpoint — 2026-11-08, main `c97dada13`
+
+This leading operational checkpoint supersedes the assignment queues below. Those sections retain their historical sources and results; they are not fresh work orders. Full-app completion remains unproven, with all 143 claim identities and historical scores unchanged.
+
+- **Merged export:** PR #756 head `adbf2c386` merged as `343594621`. The actual merge tree matched the independently reviewed prospective tree. Ordinary TXT upload/open/reload and stored-text downloads were verified at frozen source `491ac1612`: 19 stages / 294 named assertions, plus 52 overlapping helper controls. Text, Markdown and JSON exports preserve stored content and source version. This does not establish original-binary recovery, other upload formats, search, grounding, process-restart export, PostgreSQL or multi-worker behavior.
+- **Merged Canvas:** PR #763 head `cbee82287` merged as `c97dada13`. Its actual merge tree matched the inspected prospective tree; all prior export sources were preserved. Current-authority delete/undelete is verified at the controlled mounted HTTP/registered MCP SQLite boundary: 54 permanent controls, with original negatives retained. Injected authentication/broadcast seams do not establish a normal-login browser episode or whole-app ORACLE coverage.
+- **Post-merge CI:** main run `42443115635` was directly read during this checkpoint. The backend job is still running after its primary selection passed; the other observed CI jobs have completed successfully. Docker run `42443115690` is successful. Do not inherit PR green or claim a complete main pass before the actual terminal result and numeric logs are inspected.
+- **BPE foundation remains withheld:** PR #764 remote `543138cb5` has an actual hosted result of 3 failed / 799 passed / 1 skipped. The log shows lazy task-schema construction under `freezegun.api.FakeDatetime`, not a false business-completion pass. A test-only real-schema preload and cold-import controls are integrated locally at `b86a7dbe6`; they retain all 54 primary CI modules, including main's Canvas controls. The independent bounded persistence selection passed 27 controls. The full integrated primary selection has not run; disk headroom and a new exact-head hosted pass remain gates.
+- **Persisted identity is not yet accepted:** the namespace repair prevents lossy filename/key aliases, but root independently found that a record missing all identity fields still loads as default/agent/empty. The existing DeepSeek CLI worker owns the finite explicit-field/type repair. Preserve current-principal, write-truth, path anchoring and legacy bytes. Do not promote the earlier passing collision controls to complete identity qualification.
+- **Note receipts and general coordination remain open:** the note/commit outcome successor `9e381af08` is an author delivery awaiting independent verification. Neither source review nor a controlled internal step establishes a complete normally admitted employee episode. Days-long third-party request/wait/event/repeated-partial-reply coordination, usable outputs, cancellation/deadline behavior and exact relevance remain requirement-level goals across domains.
+- **Marketing:** this branch's README leads with open-source AI workflow automation, concrete demonstrated uses, a local quick start and evidence links. It separates supported results from development goals, including days-long coordination. Search-friendly wording is not a search-ranking or traffic guarantee.
+
+### Delivery ownership and faster follow-through
+
+Root owns independent verification, final claim scope and integration. Native OpenCode Go DeepSeek Flash workers author bounded code/tests in isolated worktrees; their output is never self-accepted. The configured GLM review lane remains available subject to its actual authorization/credit state, with no silent model substitution. Future native profiles cap code work at 80 model steps and read-only review at 40; supervisor continuation limits are separate and do not bound steps inside a call. Do not mutate an active worker's configuration or restart it because output is quiet.
+
+Push coherent, independently verified checkpoints while model-free scripts observe hosted CI; continue independent work rather than waiting on routine checks. Every new head needs its own check readback. Stable source-bound browser evidence is reusable when relevant product files are unchanged; a new commit alone does not justify another campaign. Never waive a failing test, scanner result or authority boundary to accelerate delivery.
+
+The three-hour disk monitor remains active. Archive only completed inactive owned scratch runs after checking the portable volume UUID, canonical symlink, no open handles and every retained file byte. Preserve negative logs/specifications/results. Respect the 4-GiB heavy-test and 2-GiB bounded-test floors rather than partitioning a broad gate to evade them.
+
+
 ## Owner-authorized merge checkpoint — 2026-11-08 UTC
 
 This is the current operational queue. The earlier evidence cuts and numerical claim inventory remain historical, not reassigned runs.
