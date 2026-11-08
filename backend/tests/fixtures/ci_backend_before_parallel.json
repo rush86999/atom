@@ -1,0 +1,206 @@
+{
+  "job_properties": {
+    "runs-on": "ubuntu-latest",
+    "defaults": {
+      "run": {
+        "working-directory": "backend"
+      }
+    }
+  },
+  "setup_steps": [
+    {
+      "uses": "actions/checkout@v4"
+    },
+    {
+      "uses": "actions/setup-python@v5",
+      "with": {
+        "python-version": "3.11",
+        "cache": "pip",
+        "cache-dependency-path": "backend/requirements.txt"
+      }
+    },
+    {
+      "name": "Install dependencies",
+      "run": "python -m pip install --upgrade pip\npip install -r requirements.txt\n"
+    }
+  ],
+  "test_steps": [
+    {
+      "name": "Run backend tests",
+      "env": {
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development",
+        "PYTEST_CURRENT_TEST": "1"
+      },
+      "run": "# --timeout seatbelt: a hung test fails at 5 min (thread stacks dumped\n# for triage) instead of burning the 6h job limit \u2014 the 2026-09-05\n# run hung 6h on one test (exhausted MagicMock side_effect raised\n# StopIteration inside to_thread; fixed in byok_handler + w27 test).\npython -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py tests/test_provider_wiring.py tests/api/test_a2a_routes.py tests/api/test_sso_oidc_routes.py tests/api/test_scim_routes.py tests/core/test_observability_tracing.py tests/core/test_oracle_and_two_tier_confidence.py tests/test_memory_p2.py tests/test_memory_consolidator_llm.py tests/test_memory_eval_gate.py tests/test_memory_backfill_unified.py tests/test_opencode_go_provider.py tests/test_covpush_w27_opencode_retry.py tests/test_covpush_w57_byok_handler_a.py tests/test_covpush_w57_byok_handler_d.py tests/unit/core/test_stage_router_wiring.py tests/unit/core/test_traffic_split.py tests/test_deepseek_harness_gaps.py tests/test_stream_retry_state_contract.py tests/test_community_skill_write_contract.py tests/test_quickstart_python_guard.py tests/test_workflow_hitl_resume_once.py tests/test_workflow_hitl_persisted_resume.py tests/test_workflow_scheduler_recovery.py tests/test_workflow_approval_scope.py tests/test_workflow_public_approval_flow.py tests/test_workflow_scheduled_process_restart.py tests/test_recording_review_scope.py tests/test_tool_error_memento_lifecycle.py tests/test_tool_error_evolution.py tests/test_employee_business_feedback.py tests/test_employee_feedback_interleaving.py tests/test_feedback_cas_dialect_contract.py tests/test_bpe_current_principal_scope.py tests/test_lead_bpe_rpc_scope.py tests/core/test_bpe_persistence_write_truth.py tests/core/test_bpe_persistence_path_anchoring.py tests/core/test_bpe_evolution.py tests/test_generic_information_multiday_contract.py tests/test_canvas_lifecycle_verified.py tests/test_lead_canvas_lifecycle_authority.py tests/core/test_bpe_persistence_namespace_identity.py tests/test_bpe_note_commit_outcome.py -q --tb=line --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run admitted governance tier and BPE actor controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci_governance_tier.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_bpe_governance_tier_issuance.py tests/test_root_bpe_public_actor_probe.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run board owner and atomic-authority controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/unit/test_board_owner_boundary.py tests/unit/test_board_authority_transaction.py tests/unit/test_board_first_dml_scope_contract.py tests/unit/test_board_public_owner_contract.py tests/unit/test_board_service.py tests/unit/test_board_comment_service.py tests/unit/test_board_decomposer.py tests/unit/test_board_dispatcher.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run utility-target regression controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_lead_goal_reads_workspace_scope.py tests/test_goal_utility_target.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run stored-document export authority controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci_document_export.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_document_export.py tests/test_lead_document_export_authority.py tests/test_lead_document_export_nullable_scope.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run goal-write authority regression controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_goal_write_authority_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run automatic source-answer continuation controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_task_wait_source_version_after_acceptance.py tests/test_lead_wait_source_disappears.py tests/test_lead_wait_source_progress_and_extraction.py tests/test_lead_wait_missing_authoritative_revision.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py tests/test_assignment_external_reply_identity.py tests/test_assignment_gap_reply_identity.py tests/test_external_fact_recovery_identity.py tests/test_goal_wake_failure_boundary.py tests/test_gap_settlement_operation_guard.py tests/test_goal_run_events.py tests/test_root_clarification_continuation.py tests/test_root_gap_operation_settlement_guard.py tests/test_root_assignment_reply_material_probe.py tests/test_employee_two_domain_campaign.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run evidence manifest Git-ref controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_evidence_git_ref_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run real MCP governance-budget controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_generic_real_mcp_budget_contract.py tests/test_budget_caller_transaction_contract.py tests/test_budget_control.py tests/test_governance_budget_decision_matrix.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run shared ORACLE registry verification controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_oracle_registry_verification_gap.py \\\n  tests/test_oracle_effect_families.py \\\n  tests/test_oracle_connected_mutations.py \\\n  tests/test_assignment_executor.py \\\n  tests/test_generic_oracle_mutation_contract.py \\\n  tests/test_lead_shopify_authorized_material.py \\\n  tests/test_oracle_shopify_product_authorized_material.py \\\n  tests/test_oracle_shopify_product_create.py \\\n  tests/test_oracle_shopify_product_replay.py \\\n  tests/test_oracle_shopify_blog_create.py \\\n  tests/test_oracle_shopify_article_create.py \\\n  tests/test_oracle_radio_send.py \\\n  tests/test_lead_radio_readback_identity.py \\\n  tests/test_oracle_shopify_fulfillment_create.py \\\n  tests/test_lead_shopify_fulfillment_rest_shape.py \\\n  tests/test_shopify_fulfillment_actions.py \\\n  tests/test_asset_content_receipt.py \\\n  tests/test_lead_asset_usable_image.py \\\n  tests/test_lead_shopify_image_content_receipt.py \\\n  tests/test_lead_shopify_article_rest_shape.py \\\n  tests/test_lead_shopify_error_privacy.py \\\n  tests/test_generic_request_expectations.py \\\n  tests/test_oracle_radio_create_thread.py \\\n  tests/test_lead_radio_thread_authority_linearization.py \\\n  tests/test_lead_radio_mcp_replay.py \\\n  tests/test_oracle_radio_thread_replay.py \\\n  tests/unit/agents/test_radio_actions.py \\\n  tests/unit/agents/test_agent_radio_tool.py \\\n  tests/test_generic_reconcile_commit_contract.py \\\n  tests/test_generic_normal_retry_identity.py \\\n  tests/test_oracle_mini_app_host_mutations.py \\\n  tests/test_agent_generic_information_wait.py \\\n  tests/test_generic_source_answer_contract.py \\\n  tests/test_lead_generic_source_answer_material.py \\\n  tests/test_lead_generic_source_snapshot_cas.py \\\n  tests/test_generic_information_idle_contract.py \\\n  tests/test_generic_information_two_job_isolation.py \\\n  tests/test_information_wait_maturity_neutral.py \\\n  tests/test_positive_maturity_no_demotion.py \\\n  ../scripts/tests/test_browser_agent_job_wait_identity.py \\\n  tests/test_agent_generic_information_wait_process.py \\\n  tests/test_generic_information_wait_recovery.py \\\n  tests/test_generic_information_wait_recovery_authority.py \\\n  tests/test_lead_recovery_personal_authority.py \\\n  tests/test_generic_information_recovery_batch_contract.py \\\n  tests/test_boot_recovery_not_gated_by_scheduler.py \\\n  tests/test_generic_information_resume_namespace_contract.py \\\n  tests/test_generic_information_exact_event_contract.py \\\n  tests/test_agent_run_outcome_join_contract.py \\\n  tests/test_agent_run_admission_contract.py \\\n  tests/test_agent_read_scope_contract.py \\\n  tests/test_agent_job_readback.py \\\n  tests/test_lead_job_readback_material_scope.py \\\n  tests/test_lead_personal_information_answer.py \\\n  tests/test_agent_job_wait_reference_contract.py \\\n  tests/test_agent_job_wait_execution_contract.py \\\n  tests/test_agent_job_wait_scope_contract.py \\\n  tests/test_agent_job_wait_namespace_contract.py \\\n  tests/test_agent_job_claim_interleaving.py \\\n  tests/test_agent_job_delivery_identity.py \\\n  tests/test_agent_job_outcome_projection.py \\\n  tests/integration/journeys/test_oracle_registry_mutation_journey.py \\\n  tests/integration/journeys/test_mini_app_host_receipts_journey.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run local backup/restore contract",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest \\\n  ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py \\\n  ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py \\\n  ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py \\\n  ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_binding_interleavings.py \\\n  ../scripts/tests/test_restore_child_smoke_contract.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run natural reviewed-improvement lifecycle controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_mem07_consolidated_chain.py tests/test_lead_mem07_natural_event.py tests/test_lead_mem07_real_prompt_chain.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run memory eval gate",
+      "env": {
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development",
+        "EMBEDDING_PROVIDER": "fastembed",
+        "FASTEMBED_MODEL": "BAAI/bge-small-en-v1.5"
+      },
+      "run": "python -m core.memory_eval\n"
+    },
+    {
+      "name": "Run served workflow-route regression control",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_orch01_served_route_http.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run registered alignment-loop regression controls",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///test_ci.db",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development"
+      },
+      "run": "python -m pytest tests/test_org_politics_registered_loop_join.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run mini-app runtime-boundary journey (MINI-03 fail-closed joins)",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///:memory:",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development",
+        "ATOM_DATA_DIR": "${{ runner.temp }}/mini03-data",
+        "LANCEDB_URI": "${{ runner.temp }}/mini03-lance",
+        "MINIAPP_ROOTFS_DIR": "${{ runner.temp }}/mini03-rootfs"
+      },
+      "run": "python -m pytest \\\n  tests/integration/journeys/test_mini_app_runtime_boundary_journey.py \\\n  tests/integration/journeys/test_mini_app_harness_journey.py \\\n  -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
+      "name": "Run real-process mini-app record restart control",
+      "env": {
+        "TESTING": "1",
+        "DATABASE_URL": "sqlite:///:memory:",
+        "SECRET_KEY": "ci-test-secret-key",
+        "ENVIRONMENT": "development",
+        "ATOM_DATA_DIR": "${{ runner.temp }}/mini04-parent-data",
+        "LANCEDB_URI": "${{ runner.temp }}/mini04-parent-lance",
+        "MINIAPP_ROOTFS_DIR": "${{ runner.temp }}/mini04-parent-rootfs"
+      },
+      "run": "mini04_run_root=$(mktemp -d \"${RUNNER_TEMP}/mini04-run-XXXXXX\")\npython -m pytest tests/test_mini_app_records_process_restart.py \\\n  -q --tb=short --timeout=360 --timeout-method=thread \\\n  --basetemp=\"${mini04_run_root}/pytest\"\n"
+    }
+  ]
+}
