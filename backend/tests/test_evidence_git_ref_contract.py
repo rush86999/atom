@@ -94,3 +94,38 @@ def test_named_ref_is_frozen_before_concurrent_head_change(packet, monkeypatch):
     assert result["passed"] is True, result
     assert result["evidence_ref_commit"] == expected_head, result
     assert result["source_ok"] == 1 and result["artifact_ok"] == 1, result
+
+
+@pytest.mark.parametrize("source_prefix,artifact_prefix", [
+    ("sha256:", "sha256:"), ("sha256:", ""), ("", "sha256:"),
+])
+def test_algorithm_qualified_digests_verify_the_same_complete_git_bytes(
+        packet, source_prefix, artifact_prefix):
+    repo, directory, manifest = packet
+    manifest["source_files"]["runtime.py"] = source_prefix + manifest["source_files"]["runtime.py"]
+    manifest["artifacts"]["result.txt"] = artifact_prefix + manifest["artifacts"]["result.txt"]
+    (directory / "MANIFEST.json").write_text(json.dumps(manifest))
+    git(repo, "add", "evidence/MANIFEST.json")
+    git(repo, "commit", "-qm", "explicit digest algorithms")
+    result = checker.verify(repo, directory, "HEAD", True)
+    assert result["passed"] is True, result
+    assert result["source_ok"] == result["artifact_ok"] == 1
+
+
+@pytest.mark.parametrize("section,key", [
+    ("source_files", "runtime.py"), ("artifacts", "result.txt"),
+])
+@pytest.mark.parametrize("invalid", [
+    "sha512:" + "a" * 64, "sha256:" + "a" * 63,
+    "sha256:" + "g" * 64, "SHA256:" + "a" * 64,
+    "sha256:" + "0" * 64, {"sha256": "a" * 64},
+])
+def test_explicit_digest_never_accepts_bad_algorithm_encoding_or_material(
+        packet, section, key, invalid):
+    repo, directory, manifest = packet
+    manifest[section][key] = invalid
+    (directory / "MANIFEST.json").write_text(json.dumps(manifest))
+    git(repo, "add", "evidence/MANIFEST.json")
+    git(repo, "commit", "-qm", "invalid explicit digest")
+    result = checker.verify(repo, directory, "HEAD", True)
+    assert result["passed"] is False and result["failures"], result
