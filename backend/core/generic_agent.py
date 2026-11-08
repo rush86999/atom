@@ -174,7 +174,30 @@ class GenericAgent:
         # training episode's canvas context).
         _audit_tokens = None
         try:
-            from core.chat_session_context import set_chat_context
+            from core.chat_session_context import (
+                current_chat_session_id,
+                set_chat_context,
+            )
+
+            # BPE principal scope (2026-11-08): bind the namespace from
+            # SERVER authority only. Several callers pass request/body params
+            # as ``context`` (api/agent_routes.py), so a caller-supplied
+            # workspace/agent/session id must never choose the buffer.
+            # ``self.workspace_id``/``self.id`` come from the agent registry
+            # row; the run key is the chat turn bound by the server, else a
+            # fresh per-run id.
+            try:
+                from core.bpe.actions import bind_trusted_scope
+                import uuid as _uuid
+
+                bind_trusted_scope(
+                    context,
+                    workspace_id=getattr(self, "workspace_id", None) or "default",
+                    agent_id=str(self.id),
+                    scope_key=current_chat_session_id() or str(_uuid.uuid4()),
+                )
+            except Exception as _bpe_bind_err:  # noqa: BLE001
+                logger.debug(f"bpe scope bind skipped: {_bpe_bind_err}")
 
             _audit_tokens = set_chat_context(
                 (context or {}).get("session_id"), self.id
@@ -359,8 +382,9 @@ class GenericAgent:
             from core.bpe.workspace import get_workspace as _get_ws
 
             if _bpe_on():
-                _scope_key = str(context.get("session_id") or context.get("execution_id") or "")
-                _get_ws(self.workspace_id, str(self.id), _scope_key).reset_episode_counters()
+                from core.bpe.actions import bpe_scope_from_context
+
+                _get_ws(*bpe_scope_from_context(context)).reset_episode_counters()
         except Exception as _bpe_err:
             logger.debug(f"bpe episode reset skipped: {_bpe_err}")
 
@@ -932,8 +956,9 @@ class GenericAgent:
             from core.bpe.workspace import get_workspace as _get_ws
 
             if _bpe_on():
-                _scope_key = str((context or {}).get("session_id") or (context or {}).get("execution_id") or "")
-                _ws = _get_ws(self.workspace_id, str(self.id), _scope_key)
+                from core.bpe.actions import bpe_scope_from_context
+
+                _ws = _get_ws(*bpe_scope_from_context(context))
                 _success = status in _SUCCESS_STATUSES
                 _bpe_consolidated = (
                     consolidate_workspace_notes(_ws) if _success
@@ -1448,9 +1473,9 @@ class GenericAgent:
             from core.bpe.workspace import get_workspace
 
             if bpe_enabled():
-                _ctx = context or {}
-                _scope_key = str(_ctx.get("session_id") or _ctx.get("execution_id") or "")
-                _ws = get_workspace(self.workspace_id, str(self.id), _scope_key)
+                from core.bpe.actions import bpe_scope_from_context
+
+                _ws = get_workspace(*bpe_scope_from_context(context or {}))
                 _policy = get_consult_policy()
                 try:
                     _complexity = self.llm._get_handler().analyze_query_complexity(task_input).value
