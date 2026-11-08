@@ -231,8 +231,9 @@ def test_missing_declared_question_binding_refuses_without_resolution(
 
 
 @pytest.mark.parametrize("binding", ["step_id", "source_operation"])
+@pytest.mark.parametrize("answer_route", ["gap", "response"])
 def test_contradictory_binding_cannot_fall_back_to_another_gap_step(
-        route_env, tmp_path, binding):
+        route_env, tmp_path, binding, answer_route):
     import copy
     from core.task_lifecycle import add_unresolved_questions
 
@@ -257,10 +258,16 @@ def test_contradictory_binding_cannot_fall_back_to_another_gap_step(
 
     route_env["lifecycle"].mutate_assignment(run_id, attach_other_step)
     before = route_env["lifecycle"].get_task(run_id)
-    response = route_env["client"].post(
-        f"/api/assignments/{run_id}/responses/contradictory-binding",
-        json={"reply_id": "wrong-binding", "response": "confirmed"})
-    assert response.status_code == 404, response.text
+    if answer_route == "gap":
+        path = f"/api/assignments/{run_id}/gaps/{added[0]['question_id']}/resolve"
+        body = {"resolution": "confirmed"}
+        expected_status = 409
+    else:
+        path = f"/api/assignments/{run_id}/responses/contradictory-binding"
+        body = {"reply_id": "wrong-binding", "response": "confirmed"}
+        expected_status = 404
+    response = route_env["client"].post(path, json=body)
+    assert response.status_code == expected_status, response.text
     assert route_env["lifecycle"].get_task(run_id) == before
 
 
@@ -300,3 +307,40 @@ def test_explicit_plan_answer_does_not_opt_in_to_model_work(
     assert calls == [], response.json()
     assert not any(v.get("adapter") == "quote.calculate"
                    for v in route_env["lifecycle"].get_assignment(run_id)["steps"])
+
+
+def test_question_only_candidate_rejection_keeps_receipt_without_step_wait(
+        route_env, tmp_path):
+    import json
+    from api.assignment_routes import _record_information_wait
+
+    run_id = _create_ready_job(route_env, tmp_path, use_model=False)
+    question = _run(_record_information_wait(route_env["executor"], run_id, [{
+        "kind": "missing_evidence", "concept": "Price", "question": "Which price column?",
+        "next_action": "Choose a column", "inputs": {"mapping": {
+            "concept": "Price", "missing_column": "Price", "sheet": "Records",
+            "candidates": [{"column": "Amount"}]}},
+        "waiting": {"state": "waiting_for_person", "party": "owner",
+                    "correlation_id": "question-only-candidates"},
+    }]))[0]
+    assignment_id = route_env["lifecycle"].get_assignment(run_id)["assignment_id"]
+    rejected = json.dumps({"rejected": True, "request_id": question["question_id"],
+                           "assignment_id": assignment_id})
+    path = f"/api/assignments/{run_id}/responses/question-only-candidates"
+    response = route_env["client"].post(path, json={
+        "reply_id": "candidate-rejection", "response": rejected})
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "rejected_candidates", response.json()
+    plan = route_env["lifecycle"].get_assignment(run_id)
+    assert len(plan["reply_receipts"]) == 1
+    assert not plan.get("waiting")
+    assert route_env["executor"].status(run_id)["open_gaps"]
+    accepted = json.dumps({"column": "Amount", "request_id": question["question_id"],
+                           "assignment_id": assignment_id})
+    response = route_env["client"].post(path, json={
+        "reply_id": "candidate-accepted", "response": accepted})
+    assert response.status_code == 200, response.text
+    plan = route_env["lifecycle"].get_assignment(run_id)
+    assert len(plan["reply_receipts"]) == 2
+    assert not plan.get("waiting")
+    assert not route_env["executor"].status(run_id)["open_gaps"]
