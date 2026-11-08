@@ -1,0 +1,27 @@
+{
+  "executed_source": "bb0902130443c0e202dfb37cde9c8e0d8384f471",
+  "source_files": {
+    "scripts/benchmark_governance.py": "sha256:d639fb0013e96cb35b403fd2afe5740134816765b4310d8afc826ff3d8720293",
+    "backend/tests/test_governance_cache_benchmark_cli.py": "sha256:82ffdc7ae5d8086ce9edb18200a5da1d6599525c12541422807443ae7a326f64",
+    "backend/core/governance_cache.py": "sha256:fcc2ae94eb31974e49e16b59718a1390797443d14e1620af80740501354e810a",
+    "backend/core/asyncio_compat.py": "sha256:86e26e92cdb3f70addd5e8f71489efbe43f627112aae8c67050898fbe00eb59a",
+    ".github/workflows/ci.yml": "sha256:c63895657b5e5bc0e1a4ad77eb6b7288b4f194bfca5036baff74272ed425cdd1",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "sha256:979dda840ada17dc624d54ea03622b85cec8c3711c4299aa9bebadb9b57ac7b9"
+  },
+  "artifacts": {
+    "README.md": "sha256:10662a5f33792d7087997cfcaa433bcf70af0a1bceac39f9bc47a6472df9598e",
+    "bytecode-probe.py": "sha256:d3d43cf1485da686558287f16a8bb396491914e3d5b82b2ad68a93df8098c3c8",
+    "negative.json": "sha256:db8e041740a4ee63aed70e5f004111c7e0f02b60f473fae823465a99b261a90c",
+    "negative.log": "sha256:d10db00bd4aeb69aff935ae53d8585a12bad05401dbfd333747797e719e2c4f1",
+    "original-script-3eb.py": "sha256:caab0effbbbd673052484789b1c2275afaaf1d7a523f8688cbd3ef6f7dac762b",
+    "positive.json": "sha256:3b261ab1deb9f9ad415050641242e4f73d1f4a9b86ac80ee3463c477611621ee",
+    "positive.log": "sha256:a084087a29e7c9660bf5eef74f683f50404fd5fcc8fe8a2c8ed675035de3d37a",
+    "py311-measurement.json": "sha256:a1f8074dad3b9679e91237a3a15e945aeb858fbb09c62d0d10a9c9fe51a5d292",
+    "py311-tests.exit.json": "sha256:b010402811a7065dfa4f9e2ee6906e997c9a1fdd30f36f35a5f1ab47981cb7b2",
+    "py311-tests.log": "sha256:dfe1c3db6dce09432525c1c0df401c693ab15af8253df9725a6d10f128d80920",
+    "py314-measurement.json": "sha256:0ec27721c63c0bf9229d34051ed604718967eca186d766caf97a684586cbb993",
+    "py314-tests.exit.json": "sha256:ec1e299722abf96ea4084ad13107f511016a82a31a98362bf56a1a7bcc09d3bd",
+    "py314-tests.log": "sha256:1506e7abcf27186eb23724fbd4748fd7328664ec8ee9bfaa7d71432ea11567da",
+    "verification.json": "sha256:9a16c0c82750fa23775ebd606467e5ed20ff1e687370272a842ebfb39becc69b"
+  }
+}
