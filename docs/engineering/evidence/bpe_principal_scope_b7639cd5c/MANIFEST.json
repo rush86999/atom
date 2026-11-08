@@ -1,0 +1,26 @@
+{
+  "executed_source": "b7639cd5c90cadd29542db51c4216ff9558c791e",
+  "source_files": {
+    "backend/api/rpc_routes.py": "f66596c732f6063eebed73224e95f34e2d6e19445df5040f18457f6ba15dd16d",
+    "backend/core/bpe/actions.py": "7580a4b387c32672f3724e6e9bcfb7546e8084c09b4d96ee624ce95cf436380c",
+    "backend/core/bpe/workspace.py": "b1e9a5ed06416fa38da8ce623289ae2a18c13928534eddb695277d23730c5319",
+    "backend/core/generic_agent.py": "559108ef1e219ea36284f4c0e0112cc76d399807dcfc8de55466a435b76a28ba",
+    "backend/core/atom_meta_agent.py": "ae5d1281f525fd6fe8e42fde3f2a043b8a47ef4071aaf7de2acee38cb371a86d",
+    "backend/tests/test_bpe_current_principal_scope.py": "c0495ee0836a6456ecfd1d6d1e655dd530dc3f64bcdd384f58c31c59b286ee62",
+    "backend/tests/test_lead_bpe_rpc_scope.py": "0ae58c8519d29d1d3a1526bce0bfdc749e935fad312bef567c9156b0b8e05e02",
+    "backend/tests/conftest.py": "5f8c8b1016b8bb08d18c297deb8d2c452b7b897d4e023a4f3198281dbbdc8dc2"
+  },
+  "artifacts": {
+    "premerge-exit.json": "94966babe60ac851333eea9dec758a24ff636acf9c2faaca076c3988bd358635",
+    "integrated-spec.json": "a5924bdbac1829fa828a8969bbe31875571ce3d1eb148419f2a74d4f8c4f2186",
+    "integrated-exit.json": "0b9bf8fd23c28b6ae884c1c01b3e5141ec6f5d427cf71584fd928f38305d5cb3",
+    "integrated-focused.log": "b539aaef9cc6e3a8184514a47cadf7a85eeeca672c07e8a084f5d3d3ac5416bd",
+    "original-workspace-negative.log": "3142331c01ac74e345ec6bc990b50791f000502e5541eff2c4ddc47423526f58",
+    "README.md": "2db67d06bb3b9114bca64539afba9c583c72af1e2433e43f425ebe1cded80801",
+    "original-workspace-spec.json": "a21668098b5ae7acca0dd550fea01a556ee7b0885ed720c188c1ee2b5aba0312",
+    "original-workspace-exit.json": "e011b3ee6b2d9bb2325f8d92f5cc86cc27031abca262a1e6ae3adbb511703c18",
+    "independent-workspace-probe.py": "c1191453998602966fd58363db14f2e09abecc0a0c38c85d2aba401284c3a70c",
+    "premerge-focused.log": "91eb3b4966c60d54876fb4203cbe97ce286fc1f0147c81ca3a20971aab37aa2a"
+  },
+  "scope": "focused principal binding only; broader scope explicitly open"
+}
