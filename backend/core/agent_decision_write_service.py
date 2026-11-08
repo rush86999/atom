@@ -35,6 +35,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.auth import SECRET_KEY
+from core.governance_tier import canonical_governance_tier
 from core.models import (
     AgentJob,
     AgentJobStatus,
@@ -1353,6 +1354,14 @@ def admit_agent_run(
     if prior_status == "running":
         return _conflict(
             "Agent is already running", code="ALREADY_RUNNING")
+    # Capture the SERVER-owned maturity BEFORE the admission flips the row to
+    # ``running``. Runtime/execution labels are NOT governance tiers. Known
+    # canonical maturity is carried into the durable job/receipt; a legacy or
+    # unknown label is admitted under an explicit restricted (student) ceiling
+    # rather than being rejected outright or promoted from runtime state.
+    governance_tier = canonical_governance_tier(prior_status)
+    governance_tier_source = (
+        "admission" if governance_tier is not None else "legacy_unverified")
     active = _active_job(db, agent_id)
     if active is not None:
         return _conflict(
@@ -1406,6 +1415,13 @@ def admit_agent_run(
         result_summary=json.dumps({
             "operation_id": operation_id,
             "parameters_digest": parameters_digest,
+            # Server-owned maturity captured before the status CAS above.
+            # Dispatch re-reads this durable material; it is never inferred
+            # from the transient ``running`` row. ``None`` means only the
+            # restricted legacy ceiling was available, not a wider tier.
+            "governance_tier": governance_tier,
+            "governance_tier_source": governance_tier_source,
+            "prior_status": prior_status,
         }, sort_keys=True),
     )
     db.add(job)
@@ -1423,6 +1439,12 @@ def admit_agent_run(
             "job_id": job_id,
             "parameters_digest": parameters_digest,
             "job_status": AgentJobStatus.RUNNING.value,
+            # Same server-owned maturity as the durable job material. The
+            # dispatch path requires the two to agree; ``None`` carries the
+            # explicit legacy/restricted ceiling, never an inferred tier.
+            "governance_tier": governance_tier,
+            "governance_tier_source": governance_tier_source,
+            "prior_status": prior_status,
         })
     audit_row = _audit_row(expected=expected, actor=authority)
     return _commit_and_verify(

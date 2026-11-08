@@ -1,0 +1,28 @@
+{
+  "source": "9549bbce3aac349565015c3226c955fe02493c85",
+  "root": "/private/tmp/root-feedback-sqlite-0g_8i7q7",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-bpe-oracle-note-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_root_bpe_public_actor_probe.py",
+    "tests/test_bpe_governance_tier_issuance.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "no:randomly",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-0g_8i7q7/pytest"
+  ]
+}
