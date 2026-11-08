@@ -1,0 +1,16 @@
+{
+  "executed_source": "38111baf83c30d46fa9c8a3d0ed82cc3965f33a4",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:4ab976c4b626b7f85599d40813d2f152d1499962ab33f9dc7320ad1790cfe981",
+    "backend/tests/test_quickstart_matrix_contract.py": "sha256:9f1e0957f1072c7af76b863bf5213da8686139c44c76677a8305e50385048d3b",
+    "backend/tests/fixtures/quickstart_before_supported_matrix.json": "sha256:b0909a3b3c7aeef2a4ae1e3af1374aeaa811bb8d99ab949fe155503d20e19720",
+    "scripts/quickstart.sh": "sha256:740381e79b0bf9fa2387c74082ac081c72197e0a678e1e95045125567a9e7781"
+  },
+  "artifacts": {
+    "README.md": "sha256:f406985f2e284c042868c4613d4c2ba85e7c18cf71e646a39e84a6d5ea5bc427",
+    "py311-contracts.log": "sha256:ebb1620c4a607f673820deab0f529afa9b7245361d5127b5f2a66d355fe313c7",
+    "py314-contracts.log": "sha256:21b568cc04b88496ebffda0874d82645b55c8e63837c6bdd65a4e93873ee00e2",
+    "tested-candidate-hashes.json": "sha256:7fa2ea6ec2109cf229d9015e9716c9044400c3a9d74ab190cb3ddc66ec183c90",
+    "verification.json": "sha256:176ca74fc8697c2d030fb74f261647911ccae57c64a22318bd725c3a967f53e2"
+  }
+}

@@ -1,0 +1,257 @@
+﻿2026-11-08T20:10:28.0845237Z Current runner version: '2.338.2'
+2026-11-08T20:10:28.0865395Z ##[group]Runner Image Provisioner
+2026-11-08T20:10:28.0866061Z Hosted Compute Agent
+2026-11-08T20:10:28.0866481Z Version: 20261028.624
+2026-11-08T20:10:28.0866883Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-08T20:10:28.0867402Z Build Date: 2026-10-28T21:51:42Z
+2026-11-08T20:10:28.0867884Z Worker ID: {5a35d94e-a4c5-4ff8-b931-b053b68f454a}
+2026-11-08T20:10:28.0868373Z Region: centralus
+2026-11-08T20:10:28.0868758Z Cloud: Azure
+2026-11-08T20:10:28.0869139Z ##[endgroup]
+2026-11-08T20:10:28.0870023Z ##[group]Operating System
+2026-11-08T20:10:28.0870586Z Ubuntu
+2026-11-08T20:10:28.0870968Z 24.04.5
+2026-11-08T20:10:28.0871341Z LTS
+2026-11-08T20:10:28.0871686Z ##[endgroup]
+2026-11-08T20:10:28.0872084Z ##[group]Runner Image
+2026-11-08T20:10:28.0872499Z Image: ubuntu-24.04
+2026-11-08T20:10:28.0872865Z Version: 20261101.360.1
+2026-11-08T20:10:28.0873739Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-08T20:10:28.0874740Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-08T20:10:28.0875389Z ##[endgroup]
+2026-11-08T20:10:28.0876221Z ##[group]GITHUB_TOKEN Permissions
+2026-11-08T20:10:28.0877528Z Contents: read
+2026-11-08T20:10:28.0877986Z Metadata: read
+2026-11-08T20:10:28.0878410Z Packages: read
+2026-11-08T20:10:28.0878779Z ##[endgroup]
+2026-11-08T20:10:28.0880606Z Secret source: Actions
+2026-11-08T20:10:28.0881233Z Cache mode: write
+2026-11-08T20:10:28.0881773Z Prepare workflow directory
+2026-11-08T20:10:28.1117596Z Prepare all required actions
+2026-11-08T20:10:28.1150962Z Getting action download info
+2026-11-08T20:10:28.3405170Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-08T20:10:28.4337357Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-11-08T20:10:28.5230562Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-11-08T20:10:28.7195951Z Complete job name: quickstart-install (3.13)
+2026-11-08T20:10:28.7796654Z ##[group]Run actions/checkout@v4
+2026-11-08T20:10:28.7797114Z with:
+2026-11-08T20:10:28.7797366Z   repository: rush86999/atom
+2026-11-08T20:10:28.7799616Z   token: ***
+2026-11-08T20:10:28.7799862Z   ssh-strict: true
+2026-11-08T20:10:28.7800109Z   ssh-user: git
+2026-11-08T20:10:28.7800482Z   persist-credentials: true
+2026-11-08T20:10:28.7800758Z   clean: true
+2026-11-08T20:10:28.7801014Z   sparse-checkout-cone-mode: true
+2026-11-08T20:10:28.7801312Z   fetch-depth: 1
+2026-11-08T20:10:28.7801558Z   fetch-tags: false
+2026-11-08T20:10:28.7801815Z   show-progress: true
+2026-11-08T20:10:28.7802068Z   lfs: false
+2026-11-08T20:10:28.7802303Z   submodules: false
+2026-11-08T20:10:28.7802559Z   set-safe-directory: true
+2026-11-08T20:10:28.7802852Z   allow-unsafe-pr-checkout: false
+2026-11-08T20:10:28.7803234Z ##[endgroup]
+2026-11-08T20:10:28.9718696Z Syncing repository: rush86999/atom
+2026-11-08T20:10:28.9720605Z ##[group]Getting Git version info
+2026-11-08T20:10:28.9721249Z Working directory is '/home/runner/work/atom/atom'
+2026-11-08T20:10:28.9722084Z [command]/usr/bin/git version
+2026-11-08T20:10:28.9797503Z git version 2.56.0
+2026-11-08T20:10:28.9811078Z ##[endgroup]
+2026-11-08T20:10:28.9822493Z Temporarily overriding HOME='/home/runner/work/_temp/0bb0d81a-cfa5-4a2a-8b07-6ee2098939c6' before making global git config changes
+2026-11-08T20:10:28.9823834Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-08T20:10:28.9826617Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/atom/atom
+2026-11-08T20:10:28.9880911Z Deleting the contents of '/home/runner/work/atom/atom'
+2026-11-08T20:10:28.9885594Z ##[group]Initializing the repository
+2026-11-08T20:10:28.9889390Z [command]/usr/bin/git init /home/runner/work/atom/atom
+2026-11-08T20:10:28.9975096Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-08T20:10:28.9976600Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-08T20:10:28.9977579Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-08T20:10:28.9978433Z hint: call:
+2026-11-08T20:10:28.9978890Z hint:
+2026-11-08T20:10:28.9979365Z hint: 	git config --global init.defaultBranch <name>
+2026-11-08T20:10:28.9979850Z hint:
+2026-11-08T20:10:28.9980213Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-08T20:10:28.9981176Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-08T20:10:28.9981845Z hint:
+2026-11-08T20:10:28.9982208Z hint: 	git branch -m <name>
+2026-11-08T20:10:28.9982637Z hint:
+2026-11-08T20:10:28.9983192Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-08T20:10:28.9984083Z Initialized empty Git repository in /home/runner/work/atom/atom/.git/
+2026-11-08T20:10:28.9995183Z [command]/usr/bin/git remote add origin https://github.com/rush86999/atom
+2026-11-08T20:10:29.0042891Z ##[endgroup]
+2026-11-08T20:10:29.0043616Z ##[group]Disabling automatic garbage collection
+2026-11-08T20:10:29.0046255Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-08T20:10:29.0085224Z ##[endgroup]
+2026-11-08T20:10:29.0085882Z ##[group]Setting up auth
+2026-11-08T20:10:29.0093203Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-08T20:10:29.0138361Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-08T20:10:29.0475187Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-08T20:10:29.0515994Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-08T20:10:29.0738285Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-08T20:10:29.0784464Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-08T20:10:29.1007380Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-08T20:10:29.1058353Z ##[endgroup]
+2026-11-08T20:10:29.1058927Z ##[group]Fetching the repository
+2026-11-08T20:10:29.1068279Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d1f2bbd00e38d4fac4622912f0aeea12f20a212c:refs/remotes/pull/790/merge
+2026-11-08T20:10:36.1936414Z From https://github.com/rush86999/atom
+2026-11-08T20:10:36.1937659Z  * [new ref]           d1f2bbd00e38d4fac4622912f0aeea12f20a212c -> pull/790/merge
+2026-11-08T20:10:36.1940022Z ##[endgroup]
+2026-11-08T20:10:36.1941030Z ##[group]Determining the checkout info
+2026-11-08T20:10:36.1942615Z ##[endgroup]
+2026-11-08T20:10:36.1947767Z [command]/usr/bin/git sparse-checkout disable
+2026-11-08T20:10:36.2003925Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-08T20:10:36.2041065Z ##[group]Checking out the ref
+2026-11-08T20:10:36.2043710Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/790/merge
+2026-11-08T20:10:37.2316055Z Updating files:  61% (10542/17201)
+2026-11-08T20:10:37.2445213Z Updating files:  62% (10665/17201)
+2026-11-08T20:10:37.2553400Z Updating files:  63% (10837/17201)
+2026-11-08T20:10:37.2669252Z Updating files:  64% (11009/17201)
+2026-11-08T20:10:37.2822303Z Updating files:  65% (11181/17201)
+2026-11-08T20:10:37.2979255Z Updating files:  66% (11353/17201)
+2026-11-08T20:10:37.3060595Z Updating files:  67% (11525/17201)
+2026-11-08T20:10:37.3192194Z Updating files:  68% (11697/17201)
+2026-11-08T20:10:37.3272313Z Updating files:  69% (11869/17201)
+2026-11-08T20:10:37.3401752Z Updating files:  70% (12041/17201)
+2026-11-08T20:10:37.3463881Z Updating files:  71% (12213/17201)
+2026-11-08T20:10:37.3545666Z Updating files:  72% (12385/17201)
+2026-11-08T20:10:37.3635668Z Updating files:  73% (12557/17201)
+2026-11-08T20:10:37.3743627Z Updating files:  74% (12729/17201)
+2026-11-08T20:10:37.3921227Z Updating files:  75% (12901/17201)
+2026-11-08T20:10:37.4119383Z Updating files:  76% (13073/17201)
+2026-11-08T20:10:37.4233035Z Updating files:  77% (13245/17201)
+2026-11-08T20:10:37.4965345Z Updating files:  78% (13417/17201)
+2026-11-08T20:10:37.5318314Z Updating files:  79% (13589/17201)
+2026-11-08T20:10:37.5773583Z Updating files:  80% (13761/17201)
+2026-11-08T20:10:37.5886371Z Updating files:  81% (13933/17201)
+2026-11-08T20:10:37.6004174Z Updating files:  82% (14105/17201)
+2026-11-08T20:10:37.6077550Z Updating files:  83% (14277/17201)
+2026-11-08T20:10:37.6170939Z Updating files:  84% (14449/17201)
+2026-11-08T20:10:37.6338523Z Updating files:  85% (14621/17201)
+2026-11-08T20:10:37.6476722Z Updating files:  86% (14793/17201)
+2026-11-08T20:10:37.6579786Z Updating files:  87% (14965/17201)
+2026-11-08T20:10:37.6678467Z Updating files:  88% (15137/17201)
+2026-11-08T20:10:37.6809904Z Updating files:  89% (15309/17201)
+2026-11-08T20:10:37.6891218Z Updating files:  90% (15481/17201)
+2026-11-08T20:10:37.6968328Z Updating files:  91% (15653/17201)
+2026-11-08T20:10:37.7045324Z Updating files:  92% (15825/17201)
+2026-11-08T20:10:37.7145166Z Updating files:  93% (15997/17201)
+2026-11-08T20:10:37.7421983Z Updating files:  94% (16169/17201)
+2026-11-08T20:10:37.7507148Z Updating files:  95% (16341/17201)
+2026-11-08T20:10:37.7589972Z Updating files:  96% (16513/17201)
+2026-11-08T20:10:37.7799396Z Updating files:  97% (16685/17201)
+2026-11-08T20:10:37.7918967Z Updating files:  98% (16857/17201)
+2026-11-08T20:10:37.8020183Z Updating files:  99% (17029/17201)
+2026-11-08T20:10:37.8020653Z Updating files: 100% (17201/17201)
+2026-11-08T20:10:37.8021004Z Updating files: 100% (17201/17201), done.
+2026-11-08T20:10:37.8138388Z Note: switching to 'refs/remotes/pull/790/merge'.
+2026-11-08T20:10:37.8138636Z 
+2026-11-08T20:10:37.8139067Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-08T20:10:37.8139394Z changes and commit them, and you can discard any commits you make in this
+2026-11-08T20:10:37.8139708Z state without impacting any branches by switching back to a branch.
+2026-11-08T20:10:37.8139883Z 
+2026-11-08T20:10:37.8140028Z If you want to create a new branch to retain commits you create, you may
+2026-11-08T20:10:37.8140520Z do so (now or later) by using -c with the switch command. Example:
+2026-11-08T20:10:37.8140692Z 
+2026-11-08T20:10:37.8140805Z   git switch -c <new-branch-name>
+2026-11-08T20:10:37.8141010Z 
+2026-11-08T20:10:37.8141097Z Or undo this operation with:
+2026-11-08T20:10:37.8141213Z 
+2026-11-08T20:10:37.8141287Z   git switch -
+2026-11-08T20:10:37.8141374Z 
+2026-11-08T20:10:37.8141532Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-08T20:10:37.8141725Z 
+2026-11-08T20:10:37.8141988Z HEAD is now at d1f2bbd0 Merge 76cc55c2ac5d7e9a1548d245f62bcfcad8a66a29 into 45f73d2a9b39149a6ce1b46d0d93bb18910d446a
+2026-11-08T20:10:37.8238591Z ##[endgroup]
+2026-11-08T20:10:37.8297404Z [command]/usr/bin/git log -1 --format=%H
+2026-11-08T20:10:37.8330984Z d1f2bbd00e38d4fac4622912f0aeea12f20a212c
+2026-11-08T20:10:37.8564103Z ##[group]Run actions/setup-python@v5
+2026-11-08T20:10:37.8564328Z with:
+2026-11-08T20:10:37.8564484Z   python-version: 3.13
+2026-11-08T20:10:37.8564660Z   check-latest: false
+2026-11-08T20:10:37.8566220Z   token: ***
+2026-11-08T20:10:37.8566378Z   update-environment: true
+2026-11-08T20:10:37.8566555Z   allow-prereleases: false
+2026-11-08T20:10:37.8566719Z   freethreaded: false
+2026-11-08T20:10:37.8566878Z ##[endgroup]
+2026-11-08T20:10:37.9614882Z ##[group]Installed versions
+2026-11-08T20:10:37.9693949Z (node:2128) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-08T20:10:37.9694491Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-08T20:10:37.9695257Z Successfully set up CPython (3.13.18)
+2026-11-08T20:10:37.9695787Z ##[endgroup]
+2026-11-08T20:10:37.9885085Z ##[group]Run actions/setup-node@v4
+2026-11-08T20:10:37.9885334Z with:
+2026-11-08T20:10:37.9885492Z   node-version: 20
+2026-11-08T20:10:37.9885655Z   always-auth: false
+2026-11-08T20:10:37.9885831Z   check-latest: false
+2026-11-08T20:10:37.9887695Z   token: ***
+2026-11-08T20:10:37.9887988Z env:
+2026-11-08T20:10:37.9888321Z   pythonLocation: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:37.9888960Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.13.18/x64/lib/pkgconfig
+2026-11-08T20:10:37.9889561Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:37.9890086Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:37.9890755Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:37.9891275Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.13.18/x64/lib
+2026-11-08T20:10:37.9891782Z ##[endgroup]
+2026-11-08T20:10:38.0985189Z Attempting to download 20...
+2026-11-08T20:10:38.1094461Z (node:2136) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-08T20:10:38.1095324Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-08T20:10:38.8496054Z Acquiring 20.20.2 - x64 from https://github.com/actions/node-versions/releases/download/20.20.2-23521894959/node-20.20.2-linux-x64.tar.gz
+2026-11-08T20:10:39.2806621Z Extracting ...
+2026-11-08T20:10:39.2923397Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/19528fc3-5cab-4f99-bf82-cf3a411ad73a -f /home/runner/work/_temp/7c6d2353-9c8e-4e53-bd2b-6b90ce16472b
+2026-11-08T20:10:40.0755172Z Adding to the cache ...
+2026-11-08T20:10:41.7165623Z ##[group]Environment details
+2026-11-08T20:10:41.9104415Z node: v20.20.2
+2026-11-08T20:10:41.9104731Z npm: 10.8.2
+2026-11-08T20:10:41.9104963Z yarn: 1.22.22
+2026-11-08T20:10:41.9105446Z ##[endgroup]
+2026-11-08T20:10:41.9311694Z ##[group]Run test ! -e backend/venv
+2026-11-08T20:10:41.9311957Z [36;1mtest ! -e backend/venv[0m
+2026-11-08T20:10:41.9312139Z [36;1mtest ! -e frontend-nextjs/node_modules[0m
+2026-11-08T20:10:41.9337046Z shell: /usr/bin/bash -e {0}
+2026-11-08T20:10:41.9337218Z env:
+2026-11-08T20:10:41.9337401Z   pythonLocation: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9337661Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.13.18/x64/lib/pkgconfig
+2026-11-08T20:10:41.9337908Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9338134Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9338359Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9338586Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.13.18/x64/lib
+2026-11-08T20:10:41.9338785Z ##[endgroup]
+2026-11-08T20:10:41.9430175Z ##[group]Run make setup
+2026-11-08T20:10:41.9430610Z [36;1mmake setup[0m
+2026-11-08T20:10:41.9448431Z shell: /usr/bin/bash -e {0}
+2026-11-08T20:10:41.9448575Z env:
+2026-11-08T20:10:41.9448734Z   pythonLocation: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9448983Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.13.18/x64/lib/pkgconfig
+2026-11-08T20:10:41.9449231Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9449457Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9449710Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.18/x64
+2026-11-08T20:10:41.9449969Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.13.18/x64/lib
+2026-11-08T20:10:41.9450160Z ##[endgroup]
+2026-11-08T20:10:42.0331971Z 🚀 Atom Quick Start
+2026-11-08T20:10:42.0332269Z ====================
+2026-11-08T20:10:42.0587304Z ✅ Node v20.20.2
+2026-11-08T20:10:42.0968142Z ✅ Python 3.13 (python3)
+2026-11-08T20:10:42.0968520Z 
+2026-11-08T20:10:42.0968879Z 📦 Setting up backend...
+2026-11-08T20:13:05.6711087Z ERROR: Cannot install -r backend/requirements.txt (line 26), -r backend/requirements.txt (line 40) and numpy<2.0.0 and >=1.24.0 because these package versions have conflicting dependencies.
+2026-11-08T20:13:05.6716596Z 
+2026-11-08T20:13:05.6716822Z [notice] A new release of pip is available: 26.2.2 -> 26.3
+2026-11-08T20:13:05.6717094Z [notice] To update, run: pip install --upgrade pip
+2026-11-08T20:13:05.6719507Z ERROR: ResolutionImpossible: for help visit https://pip.pypa.io/en/latest/topics/dependency-resolution/#dealing-with-dependency-conflicts
+2026-11-08T20:13:07.9860930Z make: *** [Makefile:24: setup] Error 1
+2026-11-08T20:13:07.9876083Z ##[error]Process completed with exit code 2.
+2026-11-08T20:13:07.9985296Z Post job cleanup.
+2026-11-08T20:13:08.0625529Z [command]/usr/bin/git version
+2026-11-08T20:13:08.0662942Z git version 2.56.0
+2026-11-08T20:13:08.0689486Z Temporarily overriding HOME='/home/runner/work/_temp/e73dd3da-93c3-44d7-8c27-fdfa1379ab44' before making global git config changes
+2026-11-08T20:13:08.0690504Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-08T20:13:08.0693806Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/atom/atom
+2026-11-08T20:13:08.0735014Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-08T20:13:08.0781612Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-08T20:13:08.1073244Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-08T20:13:08.1107283Z http.https://github.com/.extraheader
+2026-11-08T20:13:08.1118190Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-08T20:13:08.1166113Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-08T20:13:08.1418145Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-08T20:13:08.1460973Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-08T20:13:08.1844364Z Cleaning up orphan processes
+2026-11-08T20:13:08.2093325Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

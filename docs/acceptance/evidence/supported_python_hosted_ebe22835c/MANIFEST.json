@@ -1,0 +1,19 @@
+{
+  "executed_source": "ebe22835cd3c858488f30dbcab73ce266519c3e9",
+  "source_files": {
+    "backend/requirements.txt": "sha256:f898a07127dad556f0ef59b21dc4e92c5cefa612957c15022e951793e30217f9",
+    "scripts/quickstart.sh": "sha256:740381e79b0bf9fa2387c74082ac081c72197e0a678e1e95045125567a9e7781",
+    "scripts/ci/verify_quickstart_storage.py": "sha256:58a6b58db56c5cd8ac67e20cd527b40af7e395148bdd61880ed61a336bb29f67",
+    "backend/tests/test_quickstart_matrix_contract.py": "sha256:0397014e499a6d7a21c21720c4b2c19230e4388633fdccdb7d6ad38217977b53",
+    ".github/workflows/ci.yml": "sha256:724959f1625d43501356fd1188c6ebb2ffa0f45356dd9ae6cfd76423c102aec9"
+  },
+  "artifacts": {
+    "3.11.log": "sha256:e76166815911e90544410006085684f924f1f4f2bc757d9122cd41ced6955617",
+    "3.12.log": "sha256:3a237f84a59810d4f9c0a862444bf3d804c366e186dd483f5e3183e60635c1e1",
+    "3.13.log": "sha256:085f29e2690572cd60510fc80ad1fe83ef0d056d406f1f5e6724df4885c880c4",
+    "README.md": "sha256:49028d1272dc37d2663fba8f37871da94da113ee1a5147f3521ea749d347df0e",
+    "integrated-contracts-py311.log": "sha256:ba5491c8a3e0e5a98df53fdad9637007c7a756e7473adbb89af72be9e964ad1b",
+    "integration-attribution.json": "sha256:90baf47a6a1cea2859c350b293cef568f93eea8fef0e99c3b29ddca27a59e69b",
+    "proof.json": "sha256:9461d7418efc3d75e8c0f30e0232eb5d5db73fbe5c320e65d2c794b090874931"
+  }
+}

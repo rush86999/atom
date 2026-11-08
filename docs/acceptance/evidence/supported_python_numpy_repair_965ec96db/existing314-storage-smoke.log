@@ -1,0 +1,2 @@
+{"application_database_accessed": false, "embedding_model_constructed": false, "rows_written_and_read": 1, "scope": "installed storage binary smoke; synthetic temporary vector store", "versions": {"fastembed": "0.8.0", "lancedb": "0.38.0", "numpy": "2.5.3", "pyarrow": "25.0.1"}}
+2026-11-08 15:18:25.768 python[49538:71596346] 2026-11-08 15:18:25.768404 [W:onnxruntime:Default, telemetry.cc:800 operator()] Failed to persist telemetry device ID; using an in-memory identifier

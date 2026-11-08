@@ -1,0 +1,10 @@
+{
+  "head": "76cc55c2ac5d7e9a1548d245f62bcfcad8a66a29",
+  "run": 42518748736,
+  "job": 128847388872,
+  "conclusion": "failure",
+  "requirements_sha256": "sha256:6b37394779c3898d55ff4126ff2aa389451c72f5aa4c427a07da19431e5698f6",
+  "observed": "Resolver refuses numpy<2 with lancedb and fastembed under Python3.13",
+  "log": "python313-original-install-failure.log",
+  "not_a_pass": true
+}
