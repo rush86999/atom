@@ -82,6 +82,9 @@ def test_question_only_answer_continues_same_job(
         assert observations
         import json
         assert "Use the accepted price rows" in json.dumps(context)
+        from core.employee_adaptation import _compact_single_request_prompt
+        compact = _compact_single_request_prompt(context, observations)
+        assert "Use the accepted price rows" in compact
         selected.append(run_id)
         return {
             "source": "model", "technical_fallback": False, "errors": [],

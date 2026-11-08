@@ -1067,7 +1067,7 @@ def context_from_record(
         if str(step.get("status") or "") != "waiting" or not item:
             continue
         waiting.append({"step_id": step.get("step_id"), **dict(item)})
-    return build_employee_context(
+    context = build_employee_context(
         objective=assignment.get("objective") or "",
         employee_id=assignment.get("employee_id") or "",
         agent_id=(assignment.get("provenance") or {}).get("agent_id"),
@@ -1100,6 +1100,23 @@ def context_from_record(
         completed_operations=completed,
         business_requirements=requirement_views,
     )
+
+    # Answers remain task evidence, not teaching, authority or completed work.
+    # Keep the bounded, server-settled value visible after the OPEN question
+    # leaves the obligation view. Otherwise a same-job continuation loses the
+    # very information that caused it to resume.
+    resolved = [
+        {key: str(question.get(key) or "")[:limit]
+         for key, limit in (
+             ("question_id", 120), ("concept", 120), ("item", 200),
+             ("question", 400), ("resolution", 400),
+             ("resolution_value", 400), ("resolved_at", 80))}
+        for question in (record.get("task_revision") or {}).get("unresolved") or []
+        if isinstance(question, Mapping) and question.get("status") == "resolved"
+    ][-MAX_CONTEXT_OBLIGATIONS:]
+    if resolved:
+        context["resolved_obligations"] = resolved
+    return context
 
 
 def _context_source(context: Mapping[str, Any], source_id: str) -> Optional[Dict]:
