@@ -991,3 +991,17 @@ def test_dotenv_isolation_precedes_frozen_product_seed(driver,tmp_path,monkeypat
     monkeypatch.setattr(driver.R,'_seed_run_data',seed)
     monkeypatch.setattr(driver.R.subprocess,'Popen',lambda *a,**k:pytest.fail('No server may start in this order-only probe'))
     with pytest.raises(SeedStoppedBeforeAnyProductImport):driver.R.launch_server(8047,world,provider_shim=False)
+
+
+def test_documents_navigation_accepts_intentionally_hidden_upload_input(driver):
+    from unittest.mock import Mock
+    page = Mock()
+    link = Mock()
+    page.locator.return_value = link
+    driver._open_documents(page)
+    page.wait_for_url.assert_called_once()
+    assert any(call.kwargs.get("state") == "attached"
+               for call in link.wait_for.call_args_list)
+    page.wait_for_selector.assert_not_called()
+    page.get_by_role.assert_called_once_with(
+        "heading", name="Knowledge Base", exact=True)

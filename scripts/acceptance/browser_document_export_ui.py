@@ -2058,7 +2058,9 @@ def _open_documents(page: Any) -> None:
     link.click()
     page.wait_for_url(
         lambda url: D3._path_of(url) == "/documents", timeout=120000)
-    D3._wait_selector(page, "#file-upload", 120000)
+    # Native upload inputs are intentionally hidden; the visible label opens them.
+    # Playwright set_input_files requires an attached input, not visible CSS.
+    page.locator("#file-upload").wait_for(state="attached", timeout=120000)
     page.get_by_role("heading", name="Knowledge Base",
                      exact=True).wait_for(state="visible", timeout=120000)
 
