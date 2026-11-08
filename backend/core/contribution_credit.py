@@ -333,11 +333,25 @@ def _verified_operation(
     if receipt_tenant and receipt_tenant != outcome["tenant_id"]:
         return None
 
+    source_time = getattr(row, "created_at", None)
+    clock_fields = ("verification_receipt_version", "dispatch_recorded_at",
+                    "verification_recorded_at")
+    if any(name in receipt for name in clock_fields):
+        version = receipt.get("verification_receipt_version")
+        if type(version) is not int or version != 1:
+            return None
+        dispatch_time = _parse_time(receipt.get("dispatch_recorded_at"))
+        verification_time = _parse_time(receipt.get("verification_recorded_at"))
+        if (dispatch_time is None or verification_time is None
+                or verification_time < dispatch_time):
+            return None
+        source_time = dispatch_time
+
     return {
         "capability": action,
         "action": action,
         "source_record_id": _text(row.id),
-        "source_created_at": getattr(row, "created_at", None),
+        "source_created_at": source_time,
     }
 
 

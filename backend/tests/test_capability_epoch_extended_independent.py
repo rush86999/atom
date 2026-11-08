@@ -103,3 +103,38 @@ def test_epoch_clock_normalizes_sqlite_naive_datetime():
 def test_incomplete_epoch_clock_is_unknown(value):
     from core.contribution_credit import _parse_time
     assert _parse_time(value) is None
+
+
+@pytest.mark.parametrize("mutation",["bool_version","unknown_version","missing_version","missing_dispatch","missing_verification","reversed"])
+def test_versioned_verification_clock_cannot_fall_back_to_legacy(fleet_world,monkeypatch,mutation):
+    from core.models import TaskOperationRecord
+    monkeypatch.setenv("ATOM_CONTRIBUTION_CREDIT_ENABLED","true")
+    action="canvas.clock_schema."+uuid.uuid4().hex;child="clock-child"
+    _produce_verified_operation(fleet_world,child_execution_id=child,action_name=action,operation_id="clock-effect")
+    _seed_fleet(fleet_world,child_executions=[(child,action)])
+    with fleet_world.Session() as db:
+        row=db.query(TaskOperationRecord).filter_by(run_id=child,operation_type="generic:agent:"+action).one()
+        receipt=dict(row.result_json)
+        assert receipt["verification_receipt_version"]==1
+        if mutation=="bool_version":receipt["verification_receipt_version"]=True
+        elif mutation=="unknown_version":receipt["verification_receipt_version"]=2
+        elif mutation=="missing_version":receipt.pop("verification_receipt_version")
+        elif mutation=="missing_dispatch":receipt.pop("dispatch_recorded_at")
+        elif mutation=="missing_verification":receipt.pop("verification_recorded_at")
+        else:receipt["dispatch_recorded_at"],receipt["verification_recorded_at"]=receipt["verification_recorded_at"],receipt["dispatch_recorded_at"]
+        row.result_json=receipt;db.commit()
+        _credit(db)
+        assert _stats(db,action).get("verified_success",0)==0
+
+
+def test_real_receipt_clock_is_ordered_by_server(fleet_world):
+    from datetime import datetime,timezone
+    from core.models import TaskOperationRecord
+    from core.contribution_credit import _parse_time
+    action="canvas.clock_positive."+uuid.uuid4().hex;before=datetime.now(timezone.utc)
+    _produce_verified_operation(fleet_world,child_execution_id="clock-real",action_name=action,operation_id="clock-real-effect")
+    after=datetime.now(timezone.utc)
+    with fleet_world.Session() as db:
+        receipt=db.query(TaskOperationRecord).filter_by(run_id="clock-real",operation_type="generic:agent:"+action).one().result_json
+        assert type(receipt["verification_receipt_version"]) is int
+        assert before<=_parse_time(receipt["dispatch_recorded_at"])<=_parse_time(receipt["verification_recorded_at"])<=after
