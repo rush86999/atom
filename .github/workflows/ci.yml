@@ -318,6 +318,10 @@ jobs:
             -q --tb=short --timeout=360 --timeout-method=thread \
             --basetemp="${mini04_run_root}/pytest"
 
+      - name: Run capability reentry epoch and runtime revocation controls
+        run: |
+          python -m pytest tests/test_autonomy_revocation.py tests/test_capability_revocation_epoch.py -q --tb=short --timeout=300 --timeout-method=thread
+
   backend-oracle:
     runs-on: ubuntu-latest
     defaults:
