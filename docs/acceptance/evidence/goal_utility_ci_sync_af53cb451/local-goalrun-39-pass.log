@@ -1,0 +1,23 @@
+PASS tests/pages/goal-runs/detail.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/goal-runs/index.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 2 passed, 2 total
+Tests:       39 passed, 39 total
+Snapshots:   0 total
+Time:        3.161 s
+Ran all test suites matching tests/pages/goal-runs/detail.test.tsx|tests/pages/goal-runs/index.test.tsx.
+WRAPPER_EXIT=0

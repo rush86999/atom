@@ -1,0 +1,15 @@
+{
+  "executed_source": "475b664271473cf62fc9545e1384fba65d37c90b",
+  "source_files": {
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "05012e1430cbdb36fbff51bade103cb8dd9d2b48c54eb461b9e9aefe5266bb69",
+    "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "fde03afcca8aeb661f4374ca614d088676dd76b15ee06cb4c87678acde5d6d27",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+    "frontend-nextjs/pages/goal-runs/index.tsx": "0e569cea3fc02b62e760e7d2590c463ef33e38d85ba5a03034954439a883cec6"
+  },
+  "artifacts": {
+    "root-goal-ui-ci-sync-review.log": "417d912ea15dfdee65ea3eaf4fa81a5455f89ab3d1624e8c5b17bf023dee3ecd",
+    "README.md": "55b9bbda3e091510b46ea02193dd93f9104aacfdce5923e7488f5f6efdd10857",
+    "root-goal-ui-ci-sync-review.spec.json": "96908365af98df361f8c4c7acb3bae85ce3f03a3b27fa04d3704d6c5611ae831",
+    "root-goal-ui-ci-sync-review.exit.json": "f620509657a1bbd649a0d5eb22a7c49d68afa51c3fdd0b9a1ce083988666b668"
+  }
+}
