@@ -107,26 +107,35 @@ class CapabilityGraduationService:
             stats["failures_verified"] = stats.get("failures_verified", 0) + 1
         stats["last_outcome_at"] = datetime.now(timezone.utc).isoformat()
 
+        verified_count = int(stats.get("verified_success") or 0)
+        # Keep a per-capability epoch baseline so old lifetime credit cannot
+        # graduate the capability after the active revocation marker clears.
+        revocations = config.get("autonomy_revocations") or {}
+        active = revocations.get(capability_name) or {}
+        if ("epoch_baseline_verified_success" not in stats
+                and active.get("baseline_verified_success") is not None):
+            stats["epoch_baseline_verified_success"] = int(
+                active.get("baseline_verified_success") or 0)
+
         # VERIFIED REGRESSION revokes earned autonomy. A capability that had
         # verified successes and then fails external verification is not
         # "slow to gain, fast to lose" only on a score: the runtime gate must
         # stop trusting it. Persisted in the agent configuration so the
         # revocation survives a restart.
         if (verified == "failed_verification"
-                and int(stats.get("verified_success") or 0) > 0):
+                and verified_count > 0):
             revocations = config.setdefault("autonomy_revocations", {})
             previous = revocations.get(capability_name) or {}
             # Baseline the lifetime counter AT revocation: re-entry needs new
-            # verified successes after this point. Using the lifetime total
-            # would let 25 historical successes clear a fresh revocation on
-            # the very next success.
+            # verified successes after this point. A repeated regression starts
+            # a fresh epoch and baseline.
+            stats["epoch_baseline_verified_success"] = verified_count
             revocations[capability_name] = {
                 "at": datetime.now(timezone.utc).isoformat(),
                 "reason": "verified_regression",
                 "failures_verified": int(stats.get("failures_verified") or 0),
-                "verified_success": int(stats.get("verified_success") or 0),
-                "baseline_verified_success": int(
-                    stats.get("verified_success") or 0),
+                "verified_success": verified_count,
+                "baseline_verified_success": verified_count,
                 "epoch": int(previous.get("epoch") or 0) + 1,
                 "reentry_successes": 0,
             }
@@ -142,32 +151,40 @@ class CapabilityGraduationService:
         # {success: true} without evidence lands as unverified and cannot
         # promote the capability.
         verified_successes = int(stats.get("verified_success") or 0)
+        baseline = int(stats.get("epoch_baseline_verified_success") or 0)
+        new_successes = max(0, verified_successes - baseline)
         revocations = config.get("autonomy_revocations") or {}
         entry = revocations.get(capability_name)
         if entry:
-            baseline = int(entry.get("baseline_verified_success") or 0)
-            new_successes = max(0, verified_successes - baseline)
             entry["reentry_successes"] = new_successes
             revocations[capability_name] = entry
             config["autonomy_revocations"] = revocations
+            reentered = False
             # Re-entry needs NEW verified successes after the revocation, not
             # the lifetime total.
-            if (verified == "verified"
+            if (success and verified == "verified"
                     and new_successes >= self.REVOCATION_REENTRY_SUCCESSES):
                 revocations.pop(capability_name, None)
                 config["autonomy_revocations"] = revocations
                 config.setdefault("capability_maturities", {})[
                     capability_name] = CapabilityMaturityLevel.INTERN
+                reentered = True
+            if not reentered:
+                config.setdefault("capability_maturities", {})[
+                    capability_name] = CapabilityMaturityLevel.STUDENT
             agent.configuration = dict(config)
             self.flag_modified(agent, "configuration")
-        current = self.get_maturity(agent_id, capability_name)
-        if verified_successes >= 5 and current == CapabilityMaturityLevel.STUDENT:
-            self._update_maturity(agent, capability_name, CapabilityMaturityLevel.INTERN)
-        elif verified_successes >= 20 and current == CapabilityMaturityLevel.INTERN:
-            self._update_maturity(agent, capability_name, CapabilityMaturityLevel.SUPERVISED)
-        elif verified_successes >= 50 and current == CapabilityMaturityLevel.SUPERVISED:
-            # Autonomous requires high confidence
-            self._update_maturity(agent, capability_name, CapabilityMaturityLevel.AUTONOMOUS)
+        # While an active revocation marker remains, hold STUDENT. Only a
+        # verified success may climb; post-regression successes alone count.
+        if success and verified == "verified" and not entry:
+            current = self.get_maturity(agent_id, capability_name)
+            if new_successes >= 5 and current == CapabilityMaturityLevel.STUDENT:
+                self._update_maturity(agent, capability_name, CapabilityMaturityLevel.INTERN)
+            elif new_successes >= 20 and current == CapabilityMaturityLevel.INTERN:
+                self._update_maturity(agent, capability_name, CapabilityMaturityLevel.SUPERVISED)
+            elif new_successes >= 50 and current == CapabilityMaturityLevel.SUPERVISED:
+                # Autonomous requires high confidence
+                self._update_maturity(agent, capability_name, CapabilityMaturityLevel.AUTONOMOUS)
 
         self.db.commit()
 
