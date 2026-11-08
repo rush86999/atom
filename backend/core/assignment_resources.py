@@ -16,6 +16,8 @@ unrestricted public proposal.
 """
 from __future__ import annotations
 
+from core.local_paths import resolve_local_path
+
 import hashlib
 import os
 import re
@@ -638,10 +640,10 @@ def allocate_output_path(
     assignment_id: str,
 ) -> str:
     """Allocate an owned output path; the client never names a path."""
-    root = Path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
+    root = resolve_local_path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
                 or os.getenv("ATOM_OFFICE_DIR")
                 or (Path(__file__).resolve().parents[1]
-                    / "data" / "office" / "assignments")).resolve()
+                    / "data" / "office" / "assignments"))
     workspace = re.sub(r"[^A-Za-z0-9_.-]+", "_",
                        str(getattr(user, "workspace_id", "") or "default"))[:60]
     user_id = re.sub(r"[^A-Za-z0-9_.-]+", "_",

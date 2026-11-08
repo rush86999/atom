@@ -1,6 +1,8 @@
 """
 Document Routes - API endpoints for document ingestion and search
 """
+
+from core.local_paths import resolve_local_path
 import asyncio
 from datetime import datetime, timezone
 import hashlib
@@ -744,8 +746,8 @@ async def upload_document(
                     f"sheet datasets: upload scheduling failed for {filename}: {ds_err}")
 
         # 4. Store document.
-        upload_root = Path(
-            os.getenv("ATOM_OFFICE_DIR") or "data/office").expanduser()
+        upload_root = resolve_local_path(
+            os.getenv("ATOM_OFFICE_DIR") or "data/office")
         upload_root = upload_root / "uploads"
         upload_root.mkdir(parents=True, exist_ok=True)
         materialized_path = upload_root / f"{doc_id}.{file_ext or 'bin'}"

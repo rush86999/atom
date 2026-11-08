@@ -20,6 +20,8 @@ not CanvasContext.
 """
 from __future__ import annotations
 
+from core.local_paths import resolve_local_path
+
 import ast
 import csv
 import copy
@@ -5115,7 +5117,7 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
                 [row[index] if index < len(row) else None for index in indexes]
                 for row in rows
             ]
-    office_dir = Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve()
+    office_dir = resolve_local_path(os.getenv("ATOM_OFFICE_DIR") or os.path.join("data", "office"))
     office_dir.mkdir(parents=True, exist_ok=True)
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in canvas.name)[:50] or "canvas"
     target = _validate_office_path(str(office_dir / f"{safe}-{canvas.id[:8]}.xlsx"))
