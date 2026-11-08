@@ -96,14 +96,10 @@ async def _resume_woken_run(svc, run_id: str, event: Dict[str, Any]) -> Dict[str
                     reply_id=(
                         str(reply_id) if reply_id is not None else None),
                 )
-                if (result.get("status") in (
-                        "reply_conflict", "reply_scope_conflict",
-                        "reply_identity_conflict", "terminal", "unmatched",
-                        "conflict", "partial", "unavailable", "incomplete",
-                        "rejected_candidates", "already_applied")
+                if (result.get("status") not in ("resolved", "resumed")
                         or result.get("replayed")):
-                    # A refused, non-resolving or exact-replay reply must not
-                    # execute or advance the same job again.
+                    # Only an explicitly accepted settlement may advance work.
+                    # Unknown/new statuses fail closed, as do exact replays.
                     return result
             return await executor.resume(run_id)
     except Exception as exc:  # noqa: BLE001 — ingestion isolates each run

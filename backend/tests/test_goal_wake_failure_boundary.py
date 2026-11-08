@@ -56,8 +56,14 @@ def test_assignment_wake_failure_never_advances_general_router(monkeypatch, capl
     assert "RuntimeError" in caplog.text
 
 
-@pytest.mark.parametrize("reply_status", ["blocked", "", "future_refusal"])
-def test_unaccepted_reply_status_cannot_resume_assignment(monkeypatch, reply_status):
+@pytest.mark.parametrize("reply_status,replayed,should_resume", [
+    ("blocked", False, False), ("", False, False),
+    ("future_refusal", False, False), ("resolved", False, True),
+    ("resumed", False, True), ("resolved", True, False),
+    ("resumed", True, False),
+])
+def test_only_new_accepted_reply_can_resume_assignment(
+        monkeypatch, reply_status, replayed, should_resume):
     calls = []
 
     class Lifecycle:
@@ -72,7 +78,7 @@ def test_unaccepted_reply_status_cannot_resume_assignment(monkeypatch, reply_sta
             pass
 
         def record_external_response(self, *args, **kwargs):
-            return {"status": reply_status}
+            return {"status": reply_status, "replayed": replayed}
 
         async def resume(self, run_id):
             calls.append("assignment")
@@ -90,5 +96,6 @@ def test_unaccepted_reply_status_cannot_resume_assignment(monkeypatch, reply_sta
     monkeypatch.setitem(sys.modules, "core.assignment_executor", executor_module)
     result = asyncio.run(_resume_woken_run(
         Service(), "run-exact", {"correlation_id": "reply-exact"}))
-    assert calls == []
-    assert result == {"status": reply_status}
+    assert calls == (["assignment"] if should_resume else [])
+    assert result == ({"status": "executed"} if should_resume else
+                      {"status": reply_status, "replayed": replayed})
