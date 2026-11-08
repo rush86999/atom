@@ -712,7 +712,8 @@ async def upload_document(
         except Exception as identity_err:  # noqa: BLE001 — vector-only uploads
             logger.warning(
                 "Document identity scope lookup unavailable; using scoped id "
-                f"without legacy adoption: {identity_err}")
+                "without legacy adoption; error_class=%s",
+                type(identity_err).__name__)
 
         # 3. Materialize the SQL-queryable sheet datasets — fire-and-forget,
         # exactly like the storage-read path (2026-10-01 three-domain live

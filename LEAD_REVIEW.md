@@ -277,3 +277,12 @@ actions were executed here. Root independently runs and accepts.
   policy, legacy placeholder cleanup, UI and arbitrary-format qualification
   remain out of scope. No actor/target CAS or broader readback integrity is
   claimed.
+
+
+Root first namespace verification atb7bd0540a:22/22 focused controls pass,
+including unchanged real-factory two-workspace and malformed/empty probes.
+The new identity-lookup exception path now logs only a safe stage/class,
+rather than a raw database/exception string. One guard asserts private
+exception material is absent from logs/response while fresh scoped identity
+remains deterministic. Root probes are included in the existing CI step.
+Broader persistence/authority/concurrency/legacy-policy limits remain open.
