@@ -13,3 +13,16 @@ def test_same_reply_identity_cannot_change_into_a_resolving_answer(route_env, tm
     assert changed.status_code == 409 or capture["reply_status"] in ("conflict", "refused", "reply_conflict"), capture
     assert capture["wait_status"] == "waiting", capture
     assert capture["artifact_files"] == 0, capture
+
+
+def test_changed_unkeyed_reply_after_completion_is_not_acknowledged_as_replay(route_env, tmp_path, monkeypatch):
+    run_id, correlation, _ = _open_wait(route_env, tmp_path, monkeypatch)
+    first = _reply(route_env, run_id, correlation, reply_id=None, value='2', response='received 2 units')
+    assert first.status_code == 200, first.text
+    assert route_env['lifecycle'].get_assignment(run_id)['status'] == 'completed'
+    changed = _reply(route_env, run_id, correlation, reply_id=None, value='5', response='received 5 units')
+    body = changed.json()
+    capture = {'http': changed.status_code, 'reply_status': body.get('status'), 'assignment_status': route_env['lifecycle'].get_assignment(run_id)['status']}
+    assert body.get('status') != 'already_applied', capture
+    assert changed.status_code == 409 or body.get('status') in ('terminal', 'reply_conflict', 'refused'), capture
+    assert capture['assignment_status'] == 'completed', capture
