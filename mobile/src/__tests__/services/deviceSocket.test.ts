@@ -423,6 +423,25 @@ describe('deviceSocketService', () => {
       });
     });
 
+    test('camera_snap preserves explicitly requested zero quality', async () => {
+      mockCamera().takePictureAsync.mockResolvedValue({ uri: 'file:///actual-capture.jpg', base64: 'YQ==', width: 1, height: 1 });
+      await deviceSocketService.connect();
+      fire('connect');
+      await fireMessage(command('camera_snap', { quality: 0 }));
+      expect(mockCamera().takePictureAsync).toHaveBeenCalledWith({ quality: 0, base64: true, exif: true });
+    });
+
+    test('camera_snap without an explicit save reports the actual capture URI', async () => {
+      mockCamera().takePictureAsync.mockResolvedValue({ uri: 'file:///actual-capture.jpg', base64: 'YQ==', width: 1, height: 1 });
+      await deviceSocketService.connect();
+      fire('connect');
+      await fireMessage(command('camera_snap'));
+      const result = mockSocket.emit.mock.calls.at(-1)?.[1];
+      expect(result.success).toBe(true);
+      expect(result.file_path).toBe('file:///actual-capture.jpg');
+      expect(mockFileSystem().copyAsync).not.toHaveBeenCalled();
+    });
+
     test('should reject camera_snap when permission is denied', async () => {
       mockCamera().requestCameraPermissionsAsync.mockResolvedValue({
         status: 'denied',
