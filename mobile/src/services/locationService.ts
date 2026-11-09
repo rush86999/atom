@@ -95,6 +95,7 @@ class LocationService {
   private isTracking: boolean = false;
   private isBackgroundTracking: boolean = false;
   private watchId: Location.LocationSubscription | null = null;
+  private staleWatches = new Set<Location.LocationSubscription>();
   private trackingGeneration: number = 0;
   private activeTrackingGeneration: number | null = null;
   private pendingStart: {
@@ -271,6 +272,12 @@ class LocationService {
       return { success: false, generation: this.trackingGeneration };
     }
 
+    // A cancelled watch that could not be removed is not a successful start.
+    // Keep its handle available to stopTracking rather than opening another one.
+    if (this.staleWatches.size > 0) {
+      return { success: false, generation: this.trackingGeneration };
+    }
+
     if (this.isTracking) {
       console.log('LocationService: Already tracking');
       return {
@@ -322,6 +329,8 @@ class LocationService {
           try {
             subscription.remove();
           } catch (error) {
+            this.staleWatches.add(subscription);
+            this.isTracking = true;
             console.error(
               'LocationService: Failed to remove stale tracking subscription:',
               error
@@ -401,6 +410,18 @@ class LocationService {
    * Stop location tracking
    */
   async stopTracking(): Promise<void> {
+    // These handles belong to invalidated starts. Removing them must never
+    // overwrite the active handle owned by a newer generation.
+    for (const subscription of this.staleWatches) {
+      try {
+        subscription.remove();
+        this.staleWatches.delete(subscription);
+      } catch (error) {
+        this.isTracking = true;
+        console.error('LocationService: Failed to remove cancelled watch:', error);
+        return;
+      }
+    }
     if (this.watchId !== null) {
       try {
         this.watchId.remove();
@@ -825,6 +846,7 @@ class LocationService {
     this.isTracking = false;
     this.isBackgroundTracking = false;
     this.watchId = null;
+    this.staleWatches.clear();
     this.trackingGeneration += 1;
     this.activeTrackingGeneration = null;
     this.pendingStart = null;

@@ -2148,4 +2148,47 @@ describe('LocationService', () => {
     });
   });
 
+  describe('generation and background permission ordering', () => {
+    test('old watch cleanup preserves a newer pending start reservation', async () => {
+      let resolveOld: ((value: Location.LocationSubscription) => void) | undefined;
+      let resolveNew: ((value: Location.LocationSubscription) => void) | undefined;
+      const oldWatch = new Promise<Location.LocationSubscription>((resolve) => { resolveOld = resolve; });
+      const newWatch = new Promise<Location.LocationSubscription>((resolve) => { resolveNew = resolve; });
+      jest.mocked(Location.watchPositionAsync).mockReturnValueOnce(oldWatch).mockReturnValueOnce(newWatch);
+      const removeOld = jest.fn();
+      const removeNew = jest.fn();
+      await locationService.requestPermissions();
+      const oldStart = locationService.startTracking();
+      await locationService.stopTracking();
+      const newStart = locationService.startTracking();
+      resolveOld!({ remove: removeOld });
+      expect(await oldStart).toBe(false);
+      const sharedNewStart = locationService.startTracking();
+      resolveNew!({ remove: removeNew });
+      expect(await newStart).toBe(true);
+      expect(await sharedNewStart).toBe(true);
+      expect(Location.watchPositionAsync).toHaveBeenCalledTimes(2);
+      expect(removeOld).toHaveBeenCalledTimes(1);
+      expect(removeNew).not.toHaveBeenCalled();
+      await locationService.stopTracking();
+      expect(removeNew).toHaveBeenCalledTimes(1);
+    });
+
+    test('stop during an Android background permission request prevents a late start', async () => {
+      Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true, writable: true });
+      let resolvePermission: ((value: Location.LocationPermissionResponse) => void) | undefined;
+      jest.mocked(Location.requestBackgroundPermissionsAsync).mockReturnValueOnce(
+        new Promise<Location.LocationPermissionResponse>((resolve) => { resolvePermission = resolve; })
+      );
+      await locationService.requestPermissions();
+      const starting = locationService.startBackgroundTracking();
+      await locationService.stopTracking();
+      resolvePermission!({ status: Location.PermissionStatus.GRANTED, granted: true, canAskAgain: true, expires: 'never' });
+      expect(await starting).toBe(false);
+      expect(Location.watchPositionAsync).not.toHaveBeenCalled();
+      expect(locationService.isActive()).toBe(false);
+      expect(locationService.isBackgroundTrackingActive()).toBe(false);
+    });
+  });
+
 });
