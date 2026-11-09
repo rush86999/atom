@@ -1,5 +1,5 @@
 /** Serialized backing bytes, not UI objects that share mutable references. */
-import NetInfo, { NetInfoStateType } from '@react-native-community/netinfo';
+import NetInfo, { NetInfoStateType, type NetInfoState } from '@react-native-community/netinfo';
 import { offlineSyncService, OfflineAction } from '../../services/offlineSyncService';
 import { storageService } from '../../services/storageService';
 import { apiService } from '../../services/api';
@@ -266,6 +266,41 @@ describe('OfflineSync durable pending intent contract', () => {
     expect(result.success).toBe(false);
     expect(result.failed).toBe(1);
     expect(readQueue()[0].syncAttempts).toBe(1);
+  });
+
+  test('destroy releases the actual NetInfo unsubscribe function', async () => {
+    const unsubscribe = jest.fn();
+    jest.mocked(NetInfo.addEventListener).mockReturnValueOnce(unsubscribe);
+    await start();
+    offlineSyncService.destroy();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  test('destroy clears both periodic sync and hourly cleanup timers', async () => {
+    await start();
+    offlineSyncService.destroy();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('destroy during initial network fetch prevents late background installation', async () => {
+    let resolveNetwork: ((state: NetInfoState) => void) | undefined;
+    jest.mocked(NetInfo.fetch).mockReturnValueOnce(new Promise<NetInfoState>((resolve) => { resolveNetwork = resolve; }));
+    const starting = offlineSyncService.initialize();
+    offlineSyncService.destroy();
+    resolveNetwork!({ type: NetInfoStateType.unknown, isConnected: false, isInternetReachable: null, details: null });
+    await starting;
+    expect(NetInfo.addEventListener).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('a retained callback from a destroyed network listener cannot dispatch sync', async () => {
+    await start(false);
+    const update = jest.mocked(NetInfo.addEventListener).mock.calls.at(-1)?.[0];
+    if (!update) throw new Error('Missing captured network listener');
+    offlineSyncService.destroy();
+    const dispatch = jest.spyOn(offlineSyncService, 'triggerSync').mockResolvedValue({ success: false, synced: 0, failed: 0, conflicts: 0, duration: 0, entities: { agents: 0, workflows: 0, canvases: 0, episodes: 0 }, bytesTransferred: 0 });
+    update({ type: NetInfoStateType.unknown, isConnected: true, isInternetReachable: null, details: null });
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
 });
