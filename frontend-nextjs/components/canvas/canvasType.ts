@@ -78,7 +78,7 @@ export function normalizeCanvasComponent(component?: string | null): string {
     const raw = (component || "").trim().toLowerCase();
     if (!raw) return "markdown";
     if (raw === "sheets" || raw === "spreadsheet") return "sheet";
-    if (raw === "docs" || raw === "doc") return "document";
+    if (raw === "docs" || raw === "doc" || raw === "rich_editor") return "document";
     if (raw === "coding") return "code";
     if (raw === "generic") return "markdown";
     return raw;
@@ -203,12 +203,19 @@ export async function persistCanvasTypeSwitch(
     canvasId: string,
     conversion: CanvasTypeConversion,
     title?: string,
-): Promise<void> {
-    const { saveCanvasAudit, CanvasAuditSaveError } = await import("@/lib/canvasAuditSave");
+    options: {expectedPriorAuditId?: string} = {},
+): Promise<import("@/lib/canvasAuditSave").CanvasAuditReceipt | null> {
+    const { saveCanvasAudit, saveCanvasAuditReceipt, CanvasAuditSaveError } = await import("@/lib/canvasAuditSave");
+    if (options.expectedPriorAuditId !== undefined) {
+        const receipt = await saveCanvasAuditReceipt(canvasId, conversion.component, title, conversion.payload, {...options,retype:true});
+        if (!receipt) throw new CanvasAuditSaveError({status:404});
+        return receipt;
+    }
     if (!await saveCanvasAudit(canvasId, conversion.component, title, conversion.payload, { retype: true })) {
         // Type changes have no legacy-artifact fallback.
         throw new CanvasAuditSaveError({ status: 404 });
     }
+    return null;
 }
 
 /** Known editable text payloads, shared by standalone and chat canvas hosts.

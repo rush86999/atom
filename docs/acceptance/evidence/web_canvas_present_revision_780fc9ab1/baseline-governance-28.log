@@ -1,0 +1,160 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 10:22:57 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_student_blocked 
+-------------------------------- live log setup --------------------------------
+2026-11-09 10:22:58 [    INFO] EscalationManager initialized
+2026-11-09 10:22:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:22:58 [    INFO] EscalationManager initialized
+2026-11-09 10:22:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:22:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 10:22:58 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] MCP Service initialized
+2026-11-09 10:22:58 [ WARNING] Governance blocked chart presentation: Agent maturity level insufficient
+PASSED                                                                   [  3%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_intern_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for chart presentation
+2026-11-09 10:22:58 [    INFO] Presented line_chart to user user-1 (agent: InternAgent)
+PASSED                                                                   [  7%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_supervised_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for chart presentation
+2026-11-09 10:22:58 [    INFO] Presented bar_chart to user user-1 (agent: SupervisedAgent)
+PASSED                                                                   [ 10%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for chart presentation
+2026-11-09 10:22:58 [    INFO] Presented pie_chart to user user-1 (agent: AutonomousAgent)
+PASSED                                                                   [ 14%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_creates_agent_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for chart presentation
+2026-11-09 10:22:58 [    INFO] Presented line_chart to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 17%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_execution_failed_on_block 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [ WARNING] Governance blocked chart presentation: Insufficient maturity
+PASSED                                                                   [ 21%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_outcome_recorded_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for chart presentation
+2026-11-09 10:22:58 [    INFO] Presented line_chart to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 25%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_outcome_recorded_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for chart presentation
+2026-11-09 10:22:58 [   ERROR] Failed to present chart: WebSocket broadcast failed
+PASSED                                                                   [ 28%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_student_blocked FAILED [ 32%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_intern_allowed FAILED [ 35%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_supervised_allowed FAILED [ 39%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_autonomous_allowed FAILED [ 42%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_creates_agent_execution FAILED [ 46%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_execution_failed_on_block PASSED [ 50%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_outcome_recorded_success FAILED [ 53%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_canvas_audit_created FAILED [ 57%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_student_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [ WARNING] Governance blocked markdown: Agent maturity level insufficient
+PASSED                                                                   [ 60%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_intern_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Presented markdown content to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 64%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_supervised_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Presented markdown content to user user-1 (agent: SupervisedAgent)
+PASSED                                                                   [ 67%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Presented markdown content to user user-1 (agent: AutonomousAgent)
+PASSED                                                                   [ 71%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_creates_agent_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Presented markdown content to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 75%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_canvas_audit_created 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Presented markdown content to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 78%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_student_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [ WARNING] Governance blocked canvas update: Agent maturity level insufficient
+PASSED                                                                   [ 82%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_intern_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for canvas update
+2026-11-09 10:22:58 [    INFO] Updated canvas canvas-123 for user user-1 (agent: InternAgent)
+PASSED                                                                   [ 85%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_supervised_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for canvas update
+2026-11-09 10:22:58 [    INFO] Updated canvas canvas-456 for user user-1 (agent: SupervisedAgent)
+PASSED                                                                   [ 89%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for canvas update
+2026-11-09 10:22:58 [    INFO] Updated canvas canvas-789 for user user-1 (agent: AutonomousAgent)
+PASSED                                                                   [ 92%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_creates_agent_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for canvas update
+2026-11-09 10:22:58 [    INFO] Updated canvas canvas-123 for user user-1 (agent: InternAgent)
+PASSED                                                                   [ 96%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_audit_entry_created 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:22:58 [    INFO] Agent execution None for canvas update
+2026-11-09 10:22:58 [    INFO] Updated canvas canvas-123 for user user-1 (agent: InternAgent)
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/private/tmp/atom-canvas-present-baseline-20261109/backend/tests/unit/test_canvas_tool_governance.py:470: AssertionError: assert 'not permitted' in 'Acting user is not active'
+/private/tmp/atom-canvas-present-baseline-20261109/backend/tests/unit/test_canvas_tool_governance.py:505: assert False is True
+/private/tmp/atom-canvas-present-baseline-20261109/backend/tests/unit/test_canvas_tool_governance.py:540: assert False is True
+/private/tmp/atom-canvas-present-baseline-20261109/backend/tests/unit/test_canvas_tool_governance.py:574: assert False is True
+/private/tmp/atom-canvas-present-baseline-20261109/backend/tests/unit/test_canvas_tool_governance.py:608: assert False is True
+/private/tmp/atom-canvas-present-baseline-20261109/backend/tests/unit/test_canvas_tool_governance.py:680: assert False is True
+/private/tmp/atom-canvas-present-baseline-20261109/backend/tests/unit/test_canvas_tool_governance.py:725: assert False is True
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_student_blocked
+  /private/tmp/atom-canvas-present-baseline-20261109/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- generated xml file: /private/tmp/root-present-gov-baseline-20261109.xml ----
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_student_blocked
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_intern_allowed
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_supervised_allowed
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_autonomous_allowed
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_creates_agent_execution
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_outcome_recorded_success
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_canvas_audit_created
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 7 failed, 21 passed, 6 warnings in 16.21s ===================

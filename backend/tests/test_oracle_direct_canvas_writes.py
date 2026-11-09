@@ -1420,3 +1420,56 @@ def test_direct_put_null_to_default_scope_move_refuses_before_commit(
     assert row.workspace_id == "default"
     assert row.content == mirror_before
     assert count == before
+
+
+def test_read_revision_is_latest_event_not_older_content_identity(client, db_session, users):
+    from datetime import timedelta
+    user = _make_user(db_session)
+    users["current"] = user
+    canvas = _make_canvas(db_session, user.id, canvas_type="document", content="Original body")
+    content_row = _latest_audit(db_session, canvas.id)
+    _make_audit(db_session, canvas.id, "email_send_attempt", details={"status":"refused"}, user_id=user.id,
+                canvas_type="document", created_at=content_row.created_at + timedelta(seconds=1))
+    latest = _latest_audit(db_session, canvas.id)
+    response = client.get(f"/api/canvas/{canvas.id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["content"] == "Original body"
+    assert body["audit_id"] == content_row.id
+    assert body["revision_audit_id"] == latest.id
+    assert latest.id != content_row.id
+
+
+def test_loaded_prior_revision_refuses_after_peer_commits(client, db_session, users):
+    user = _make_user(db_session)
+    users["current"] = user
+    canvas = _make_canvas(db_session, user.id, canvas_type="document", content="Original body")
+    loaded = client.get(f"/api/canvas/{canvas.id}").json()["revision_audit_id"]
+    peer = client.put(f"/api/canvas/{canvas.id}", params={"canvas_type":"document","expected_prior_audit_id":loaded}, json="Peer winner")
+    assert peer.status_code == 200, peer.text
+    assert peer.json()["verification"]["status"] == "verified"
+    count = _audit_count(db_session, canvas.id)
+    stale = client.put(f"/api/canvas/{canvas.id}", params={"canvas_type":"markdown","retype":True,"expected_prior_audit_id":loaded}, json="Stale overwrite")
+    assert stale.status_code == 409, stale.text
+    assert _audit_count(db_session, canvas.id) == count
+    fresh = client.get(f"/api/canvas/{canvas.id}").json()
+    assert fresh["content"] == "Peer winner"
+    assert fresh["revision_audit_id"] == peer.json()["audit_id"]
+
+
+def test_verified_update_broadcast_carries_its_exact_revision(client, db_session, users, monkeypatch):
+    from unittest.mock import AsyncMock
+    from core.websockets import manager
+    user = _make_user(db_session)
+    users["current"] = user
+    canvas = _make_canvas(db_session, user.id, canvas_type="document", content="Before")
+    broadcast = AsyncMock()
+    monkeypatch.setattr(manager, "broadcast", broadcast)
+    response = client.put(f"/api/canvas/{canvas.id}", params={"canvas_type":"document"}, json="After")
+    assert response.status_code == 200, response.text
+    assert response.json()["verification"]["status"] == "verified"
+    broadcast.assert_awaited_once()
+    args = broadcast.await_args.args
+    assert args[0] == f"user:{user.id}"
+    assert args[1]["data"]["revision_audit_id"] == response.json()["audit_id"]
+    assert args[1]["data"]["data"] == "After"

@@ -1,0 +1,67 @@
+
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[markdown] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 10:47:07 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 10:47:08 [    INFO] EscalationManager initialized
+2026-11-09 10:47:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:47:08 [    INFO] EscalationManager initialized
+2026-11-09 10:47:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:47:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 10:47:08 [    INFO] AgentTaskRegistry initialized
+2026-11-09 10:47:08 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:47:08 [    INFO] Presented markdown content to user u-236e5940
+2026-11-09 10:47:08 [    INFO] HTTP Request: PUT http://testserver/api/canvas/06665476-8435-4b53-ad05-a3ce13f83e04?canvas_type=markdown&expected_prior_audit_id=9f6a77fc-8e14-4778-9dad-f4d74344b452 "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:47:08 [    INFO] Presented bar_chart to user u-84292a4c
+2026-11-09 10:47:08 [    INFO] HTTP Request: PUT http://testserver/api/canvas/fd78eda4-a381-455d-8e24-335c0f294846?canvas_type=bar_chart&expected_prior_audit_id=66d13868-b16c-4bab-bb8b-a0fbd3556d4d "HTTP/1.1 404 Not Found"
+FAILED                                                                   [ 66%]
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:47:08 [    INFO] Presented docs canvas (rich_editor) to user u-90c35214
+2026-11-09 10:47:08 [    INFO] HTTP Request: PUT http://testserver/api/canvas/aeadecb4-2e09-400f-b693-3bccbc25b8b9?canvas_type=docs&expected_prior_audit_id=b3e8e04f-f22e-4561-825b-b3a84c3196bb "HTTP/1.1 404 Not Found"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:171: AssertionError: {"detail":"Canvas 06665476-8435-4b53-ad05-a3ce13f83e04 not found"}
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:171: AssertionError: {"detail":"Canvas fd78eda4-a381-455d-8e24-335c0f294846 not found"}
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:171: AssertionError: {"detail":"Canvas aeadecb4-2e09-400f-b693-3bccbc25b8b9 not found"}
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[markdown]
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[chart]
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[specialized]
+  /private/tmp/atom-web-canvas-document-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[markdown]
+FAILED tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[chart]
+FAILED tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[specialized]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 3 failed, 18 deselected, 8 warnings in 15.94s =================

@@ -1125,6 +1125,9 @@ async def read_canvas(
                 "title": details.get("title"),
                 "action_type": audit.action_type,
                 "audit_id": content_audit.id if content_audit else None,
+                # Content provenance can predate an event row. Conditional
+                # writes must bind the actual latest revision, not that body.
+                "revision_audit_id": str(audit.id),
                 "operation_id": (details or {}).get("operation_id"),
                 "review_status": (details or {}).get("review_status", "unknown"),
                 "created_at": (
@@ -1723,7 +1726,7 @@ async def update_canvas_content(
             db.refresh(new_audit)
 
         # Broadcast the update via WebSocket.
-        await _broadcast_canvas_update(user_id, canvas_id, canvas_type, content, title or details.get("title"))
+        await _broadcast_canvas_update(user_id, canvas_id, canvas_type, content, title or details.get("title"), revision_audit_id=str(new_audit.id))
 
         logger.info(f"Updated canvas {canvas_id} ({canvas_type})")
         return {
@@ -1747,6 +1750,7 @@ async def _broadcast_canvas_update(
     canvas_type: str,
     content: Any,
     title: Optional[str],
+    revision_audit_id: Optional[str] = None,
 ) -> None:
     """WS broadcast shared by every write path (update, restore). Mirrors the
     present-flow contract: the email composer reads To/Cc/Subject from
@@ -1760,6 +1764,7 @@ async def _broadcast_canvas_update(
             "component": canvas_type,
             "data": content,
             "title": title,
+            **({"revision_audit_id": revision_audit_id} if revision_audit_id else {}),
         }
         if canvas_type == "email" and isinstance(content, dict):
             broadcast_data["metadata"] = {
@@ -2062,7 +2067,7 @@ async def restore_canvas_version(
 
         await _broadcast_canvas_update(
             user_id, canvas_id, canvas_type, content,
-            new_details.get("title"),
+            new_details.get("title"), revision_audit_id=str(new_audit.id),
         )
         logger.info(
             f"Restored canvas {canvas_id} to version {audit_id} "
@@ -2915,7 +2920,7 @@ async def restore_deleted_canvas(
                 break
         await _broadcast_canvas_update(
             user_id, canvas_id, canvas_type,
-            broadcast_content, details.get("title"),
+            broadcast_content, details.get("title"), revision_audit_id=appended_audit_id,
         )
 
         logger.info(f"Restored deleted canvas {canvas_id}")

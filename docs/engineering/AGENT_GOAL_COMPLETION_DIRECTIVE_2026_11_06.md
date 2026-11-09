@@ -1,5 +1,43 @@
 # Agent 1 and Agent 2 guidance for completing Atom goals
 
+## Web delivery priority and checkpoint — 2026-11-09
+
+The owner's priority is **main web readiness first; mobile last**. Continue
+complete web journeys, durable work across missing information and restarts,
+verified outputs, autonomy/governance, model routing and accurate references.
+Finite repaired routes or green CI never establish whole-app completion.
+
+- PR #798 is merged on main at `4a4a83089`: native document bodies save through
+  their original audited record; uncertain saves block repeats and dependent
+  chat. Its source-bound browser restart proof remains at `e4544dfa2`.
+- PR #799 is merged on main at `d542b3862` after all 13 exact-head checks and
+  37 Git evidence checks passed. Its integrated tree equals the reviewed
+  `671fabf0b`; duplicate squash hunks were resolved by whole-tree identity,
+  without re-running the stable browser episode.
+- PR #800 is the next main-target candidate. Freeze the joined loaded-revision
+  and initial-presentation repairs before dispatching its main-targeted CI.
+  Initial editable presentations must commit before publishing a revision;
+  optional governance flags do not disable durability. Unknown confirmation
+  retains the original receipt and must not be credited as model success/failure.
+  A real presentation-to-HTTP-edit twin exposed a missing Canvas row after the
+  audit-only checks passed. The successor creates Canvas and audit atomically,
+  reuses authoritative actor/workspace claims, and must pass that joined public
+  boundary. Review its actual head/evidence, not the older audit-only checkpoint.
+- CI support owns exact-head observation while engineering continues. Observation
+  expiry is not job failure: inspect the same live run and renew observation,
+  never restart merely because a timer expired. Merge only independently
+  verified exact heads with all required checks green, then check post-merge main.
+- Legacy unversioned/update adapters and their authority/material contracts still
+  need review. This batch does not qualify every canvas mutation, PostgreSQL/soak,
+  general model judgement or all app goals. Preserve older evidence at its actual
+  source, and update this guide after the next coherent delivery.
+
+Use the existing configured economy CLI in a public isolated copy with explicit
+file permissions; root remains the final engineering/product verifier. A transient
+provider 503 is not proof of exhausted credits. Bound retries, use the authorized
+fallback when needed, and keep model calls out of CI polling. Push coherent
+checkpoints between phases; waiting for CI is not a reason to stop independent work.
+
 ## Documentation and diagram completion gate — DOCS-REF-01
 
 Owner requirement added 2026-11-08: **all documentation and diagrams must be

@@ -751,6 +751,7 @@ export default function CanvasDetailPage() {
                     content: data.data || data.content,
                     title: data.title || prev?.title,
                     canvas_type: data.component || data.canvas_type || prev?.canvas_type,
+                    revision_audit_id: data.revision_audit_id,
                 }));
             }
             if (data.action === "close" && data.canvas_id === canvasId) {
@@ -1241,6 +1242,7 @@ export default function CanvasDetailPage() {
             data: canvasData.content,
             title: canvasData.title,
             version: canvasData.version,
+            revision_audit_id: canvasData.revision_audit_id,
             ...(emailMetadata ? { metadata: emailMetadata } : {}),
         },
     } : lastMessage;

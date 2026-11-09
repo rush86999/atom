@@ -1,0 +1,13 @@
+{
+  "executed_source": "89e40d3212e87f48179e9fd64c23ad711dc99593",
+  "passed": 205,
+  "failed": 0,
+  "shared_host_fixture_matches": "c32da81853ccfb403db2a563e6295cb6a936d34a",
+  "production_and_workflow_unchanged": true,
+  "prior_hosted_negative": {
+    "passed": 114,
+    "failed": 28,
+    "job": 129309170428
+  },
+  "full_app_complete": false
+}

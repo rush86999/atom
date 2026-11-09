@@ -1,0 +1,145 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 10:33:37 [    INFO] MCP Service initialized
+
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[markdown] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 10:33:37 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 10:33:37 [    INFO] EscalationManager initialized
+2026-11-09 10:33:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:33:37 [    INFO] EscalationManager initialized
+2026-11-09 10:33:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:33:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 10:33:37 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:37 [    INFO] Presented markdown content to user u-5e4547bd
+PASSED                                                                   [  2%]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:37 [    INFO] Presented bar_chart to user u-f27f4c99
+PASSED                                                                   [  5%]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:37 [    INFO] Presented docs canvas (rich_editor) to user u-c0a4c1de
+PASSED                                                                   [  7%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 10%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 13%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 15%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 18%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 21%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 23%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 26%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 28%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 31%]
+tests/test_canvas_present_revision_contract.py::test_broadcast_failure_never_loses_a_committed_receipt[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Committed presentation follow-through unavailable
+PASSED                                                                   [ 34%]
+tests/test_canvas_present_revision_contract.py::test_broadcast_failure_never_loses_a_committed_receipt[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Committed presentation follow-through unavailable
+PASSED                                                                   [ 36%]
+tests/test_canvas_present_revision_contract.py::test_broadcast_failure_never_loses_a_committed_receipt[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [ WARNING] Committed presentation follow-through unavailable
+PASSED                                                                   [ 39%]
+tests/test_canvas_present_revision_contract.py::test_definite_no_effect_finishes_attempt_without_crediting_model_failure[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [    INFO] Resolved agent via explicit agent_id: Agent
+2026-11-09 10:33:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 10:33:38 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 42%]
+tests/test_canvas_present_revision_contract.py::test_definite_no_effect_finishes_attempt_without_crediting_model_failure[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [    INFO] Resolved agent via explicit agent_id: Agent
+2026-11-09 10:33:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 10:33:38 [    INFO] Agent execution f43d82c2-451b-49e6-a333-b9e0c02188a6 for chart presentation
+2026-11-09 10:33:38 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 44%]
+tests/test_canvas_present_revision_contract.py::test_definite_no_effect_finishes_attempt_without_crediting_model_failure[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:33:38 [    INFO] Resolved agent via explicit agent_id: Agent
+2026-11-09 10:33:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 10:33:38 [    INFO] Agent execution f63a4134-44cf-4e41-99f4-c5cd50aa7175 for docs canvas
+2026-11-09 10:33:38 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 47%]
+tests/test_canvas_present_actions.py::TestRegistryWiring::test_present_chart_action_registered PASSED [ 50%]
+tests/test_canvas_present_actions.py::TestRegistryWiring::test_present_markdown_action_registered PASSED [ 52%]
+tests/test_canvas_present_actions.py::TestRegistryWiring::test_actions_reach_the_agent_loop_allowlist PASSED [ 55%]
+tests/test_canvas_present_actions.py::TestPresentChartHandler::test_handler_threads_user_session_agent_into_tool PASSED [ 57%]
+tests/test_canvas_present_actions.py::TestPresentChartHandler::test_handler_normalizes_nested_chart_shape PASSED [ 60%]
+tests/test_canvas_present_actions.py::TestPresentChartHandler::test_handler_requires_authenticated_user PASSED [ 63%]
+tests/test_canvas_present_actions.py::TestPresentChartHandler::test_handler_requires_chart_args PASSED [ 65%]
+tests/test_canvas_present_actions.py::TestPresentMarkdownHandler::test_handler_threads_context PASSED [ 68%]
+tests/test_canvas_present_actions.py::TestPresentMarkdownHandler::test_handler_requires_content PASSED [ 71%]
+tests/test_oracle_canvas_postcondition.py::test_exact_material_and_operation_verifies PASSED [ 73%]
+tests/test_oracle_canvas_postcondition.py::test_missing_audit_row_is_a_refutation_not_a_pass PASSED [ 76%]
+tests/test_oracle_canvas_postcondition.py::test_component_mismatch_is_a_refutation PASSED [ 78%]
+tests/test_oracle_canvas_postcondition.py::test_missing_identity_is_unavailable_not_applied PASSED [ 81%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_content_with_same_title_is_refuted PASSED [ 84%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_chart_values_with_same_count_are_refuted PASSED [ 86%]
+tests/test_oracle_canvas_postcondition.py::test_old_audit_with_identical_content_cannot_certify_new_operation PASSED [ 89%]
+tests/test_oracle_canvas_postcondition.py::test_missing_material_cannot_verify PASSED [ 92%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_workspace_is_refuted PASSED [ 94%]
+tests/test_oracle_canvas_postcondition.py::test_exact_audit_id_wins_over_a_newer_latest_row PASSED [ 97%]
+tests/test_oracle_canvas_postcondition.py::test_chart_positive_binds_all_values PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_canvas_present_revision_contract.py: 18 warnings
+  /private/tmp/atom-web-canvas-document-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/root-canvas-present-settlement-20261109.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 38 passed, 23 warnings in 19.92s =======================

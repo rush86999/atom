@@ -9,7 +9,7 @@ jest.mock('next/router',()=>({useRouter:()=>({push:jest.fn()})}));
 jest.mock('@monaco-editor/react',()=>({__esModule:true,default:({value,onChange}:any)=><textarea aria-label="Document editor" value={value} onChange={e=>onChange?.(e.target.value)}/> }));
 
 describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as const)('%s native text persistence',(_surface,Surface)=>{
- function openDocument(data:any, component="document"){return render(<Surface lastMessage={{type:'canvas:update',data:{action:'present',id:'ordinary-document',component,title:'Ordinary document',data,version:1}}}/>)}
+ function openDocument(data:any, component="document", auditId?:string){return render(<Surface lastMessage={{type:'canvas:update',data:{action:'present',id:'ordinary-document',component,title:'Ordinary document',data,version:1,revision_audit_id:auditId}}}/>)}
  let puts:any[];let artifacts:any[];
  beforeEach(()=>{puts=[];artifacts=[];delete (window as any).atom;server.use(
   rest.put('*/api/canvas/:id',async(req,res,ctx)=>{puts.push({id:req.params.id,body:req.body});return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified',effect:'committed'}}));}),
@@ -109,6 +109,44 @@ describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as cons
   expect(writes[1].body).toBe('Latest edit before conversion');
   expect(new URL(writes[1].url).searchParams.get('retype')).toBe('true');
  });
+ it('never downgrades a guarded canvas when a new content frame omits its revision',async()=>{
+  let attempts=0;server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{attempts++;return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'unexpected',verification:{status:'verified'}}));}));
+  const view=openDocument({content:'Initial'},'document','known-revision');
+  view.rerender(<Surface lastMessage={{type:'canvas:update',data:{action:'present',id:'ordinary-document',component:'document',data:{content:'New unbound content'},version:2}}}/>);
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Cannot save unbound replacement'}});fireEvent.click(screen.getByText('Save Changes'));
+  await screen.findByText('Save not confirmed. Check version history before retrying.');expect(attempts).toBe(0);
+ });
+ it('refuses an edit planned on an older revision without overwriting the peer',async()=>{
+  let current='Peer content';let writes=0;
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{writes++;if(req.url.searchParams.has('expected_prior_audit_id') && req.url.searchParams.get('expected_prior_audit_id')!=='peer-current')return res(ctx.status(409),ctx.json({detail:'stale revision'}));current='Wrong overwrite';return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'bad',verification:{status:'verified'}}));}));
+  openDocument({content:'Older content'},'document','loaded-old');
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Local stale edit'}});
+  fireEvent.click(screen.getByText('Save Changes'));
+  await screen.findByText('Save not confirmed. Check version history before retrying.');
+  expect(current).toBe('Peer content');expect(writes).toBe(1);expect(artifacts).toHaveLength(0);
+ });
+ it('uses the confirmed type receipt as the prior for the next edit',async()=>{
+  const priors:(string|null)[]=[];
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{priors.push(req.url.searchParams.get('expected_prior_audit_id'));return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'accepted-'+priors.length,verification:{status:'verified'}}));}));
+  openDocument({content:'Initial'},'document','loaded-exact');
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await screen.findByRole('button',{name:'markdown',exact:true});
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'After type change'}});fireEvent.click(screen.getByText('Save Changes'));
+  await waitFor(()=>expect(priors).toHaveLength(2));expect(priors).toEqual(['loaded-exact','accepted-1']);
+ });
+ it('binds consecutive native edits to the exact loaded and confirmed audit identities',async()=>{
+  const priors:(string|null)[]=[];
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{priors.push(req.url.searchParams.get('expected_prior_audit_id'));return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'accepted-'+priors.length,verification:{status:'verified'}}));}));
+  openDocument({content:'Initial'},'document','loaded-exact');
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'First edit'}});
+  fireEvent.click(screen.getByText('Save Changes'));
+  await waitFor(()=>expect(priors).toHaveLength(1));
+  await screen.findByText('Saved',{exact:true});
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Second edit'}});
+  fireEvent.click(screen.getByText('Save Changes'));
+  await waitFor(()=>expect(priors).toHaveLength(2));
+  expect(priors).toEqual(['loaded-exact','accepted-1']);
+ });
  it('keeps an ordinary clean type change available without a duplicate save',async()=>{
   const requests:string[]=[];
   server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{requests.push(req.url.toString());return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified',effect:'committed'}}));}));
@@ -132,7 +170,7 @@ describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as cons
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   expect(attempts).toBe(1);
  });
- it.each(['docs','doc','generic','coding'])('uses the established %s registry alias for empty native text',async(component)=>{
+ it.each(['docs','doc','generic','coding','rich_editor'])('uses the established %s registry alias for empty native text',async(component)=>{
   openDocument({content:''},component);
   expect(screen.getByRole('textbox',{name:'Document editor'})).toHaveValue('');
   fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Alias body'}});

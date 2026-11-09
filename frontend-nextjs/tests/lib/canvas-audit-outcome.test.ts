@@ -1,4 +1,4 @@
-import {saveCanvasAudit} from '@/lib/canvasAuditSave';
+import {saveCanvasAudit,saveCanvasAuditReceipt} from '@/lib/canvasAuditSave';
 import {apiClient} from '@/lib/api';
 jest.mock('@/lib/api',()=>({apiClient:{put:jest.fn()}}));
 const put=apiClient.put as jest.Mock;
@@ -50,4 +50,21 @@ it.each(['Body', [['Part','Quantity'],['A',2]], {body:'Draft',to:'buyer@example.
 it('does not mark ordinary edits as manual type changes',async()=>{
  put.mockResolvedValue({data:verified});await saveCanvasAudit('exact-canvas','document','Title','Body');
  expect(new URL(put.mock.calls[0][0],'http://localhost').searchParams.has('retype')).toBe(false);
+});
+
+it('returns the exact receipt and URL-encodes the supplied prior revision without normalizing it',async()=>{
+ put.mockResolvedValue({data:verified});
+ expect(await saveCanvasAuditReceipt('exact-canvas','document','Title','Body',{expectedPriorAuditId:' prior/opaque?0 '})).toEqual({auditId:'audit-exact',operationId:'op-exact'});
+ expect(put).toHaveBeenCalledTimes(1);
+ expect(new URL(put.mock.calls[0][0],'http://localhost').searchParams.get('expected_prior_audit_id')).toBe(' prior/opaque?0 ');
+ expect(put.mock.calls[0][2].retry).toBe(false);
+});
+it.each([undefined,'',71,{}])('refuses a receipt with missing or malformed audit identity %#',async(audit_id)=>{
+ put.mockResolvedValue({data:{...verified,audit_id}});
+ await expect(saveCanvasAuditReceipt('exact-canvas','document','Title','Body')).rejects.toMatchObject({retryable:false});
+ expect(put).toHaveBeenCalledTimes(1);
+});
+it.each(['',17,null])('refuses invalid explicit prior identity before dispatch %#',async(expectedPriorAuditId)=>{
+ await expect(saveCanvasAuditReceipt('exact-canvas','document','Title','Body',{expectedPriorAuditId:expectedPriorAuditId as any})).rejects.toMatchObject({retryable:false});
+ expect(put).not.toHaveBeenCalled();
 });

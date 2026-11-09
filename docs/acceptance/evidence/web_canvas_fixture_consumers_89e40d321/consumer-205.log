@@ -1,0 +1,290 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 12:42:23 [    INFO] MCP Service initialized
+
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[allowed] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 12:42:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 12:42:23 [    INFO] EscalationManager initialized
+2026-11-09 12:42:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 12:42:23 [    INFO] EscalationManager initialized
+2026-11-09 12:42:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 12:42:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 12:42:23 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:24 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [  0%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[capability_denied] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:25 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+PASSED                                                                   [  0%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[hard_stop] PASSED [  1%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[reviewable_hard_stop] PASSED [  1%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[explicit] PASSED [  2%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] PASSED [  2%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] PASSED [  3%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[personal_null] PASSED [  3%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] PASSED [  4%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] PASSED [  4%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[legacy_unbound] PASSED [  5%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[unconfigured] PASSED [  5%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-async] PASSED [  6%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync] PASSED [  6%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync_in_async] PASSED [  7%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-async] PASSED [  7%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync] PASSED [  8%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync_in_async] PASSED [  8%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-async] PASSED [  9%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync] PASSED [  9%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync_in_async] PASSED [ 10%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-async] PASSED [ 10%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync] PASSED [ 11%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync_in_async] PASSED [ 11%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-False] PASSED [ 12%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-True] PASSED [ 12%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:41 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-09 12:42:41 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 13%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:42 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-09 12:42:42 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 13%]
+tests/test_budget_caller_transaction_contract.py::test_explicit_rollup_writer_still_persists_cache PASSED [ 14%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop PASSED [ 14%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [ 15%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:43 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
+PASSED                                                                   [ 15%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [ 16%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [ 16%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:43 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 17%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [ 17%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok PASSED [ 18%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [ 18%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:43 [ WARNING] Budget pre-check failed (fail-open): DB down
+PASSED                                                                   [ 19%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [ 19%]
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:43 [    INFO] Agent TestAgent (agent-1) starting task: do something
+2026-11-09 12:42:43 [    INFO] EscalationManager initialized
+2026-11-09 12:42:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 12:42:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 12:42:43 [    INFO] LanceDBHandler initialized. ID: 5749950096. LANCEDB_AVAILABLE: True
+2026-11-09 12:42:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-09 12:42:43 [    INFO] Connecting to LanceDB at /private/tmp/atom-pr800-ci-preservation-20261109/backend/data/atom_memory with storage_options=None
+2026-11-09 12:42:43 [    INFO] LanceDB connected successfully
+2026-11-09 12:42:43 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
+2026-11-09 12:42:43 [ WARNING] Failed to generate self-critique: object Mock can't be used in 'await' expression
+PASSED                                                                   [ 20%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget PASSED [ 20%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget PASSED [ 20%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [ 21%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [ 21%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_has_safe_default_when_reason_missing PASSED [ 22%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-async] PASSED [ 22%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-sync] PASSED [ 23%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-sync_in_async] PASSED [ 23%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-async] PASSED [ 24%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-sync] PASSED [ 24%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-sync_in_async] PASSED [ 25%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-async] PASSED [ 25%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-sync] PASSED [ 26%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-sync_in_async] PASSED [ 26%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-async] PASSED [ 27%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-sync] PASSED [ 27%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-sync_in_async] PASSED [ 28%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-async] PASSED [ 28%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-sync] PASSED [ 29%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-sync_in_async] PASSED [ 29%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-async] PASSED [ 30%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-sync] PASSED [ 30%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-sync_in_async] PASSED [ 31%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-async] PASSED [ 31%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-sync] PASSED [ 32%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-sync_in_async] PASSED [ 32%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-async] PASSED [ 33%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-sync] PASSED [ 33%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-sync_in_async] PASSED [ 34%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-async] PASSED [ 34%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-sync] PASSED [ 35%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-sync_in_async] PASSED [ 35%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-async] PASSED [ 36%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-sync] PASSED [ 36%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-sync_in_async] PASSED [ 37%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-async] PASSED [ 37%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-sync] PASSED [ 38%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-sync_in_async] PASSED [ 38%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-async] PASSED [ 39%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-sync] PASSED [ 39%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-sync_in_async] PASSED [ 40%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-async] PASSED [ 40%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-sync] PASSED [ 40%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-sync_in_async] PASSED [ 41%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-async] PASSED [ 41%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-sync] PASSED [ 42%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-sync_in_async] PASSED [ 42%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-async] PASSED [ 43%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-sync] PASSED [ 43%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-sync_in_async] PASSED [ 44%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-async] PASSED [ 44%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-sync] PASSED [ 45%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-sync_in_async] PASSED [ 45%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-async] PASSED [ 46%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync] PASSED [ 46%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync_in_async] PASSED [ 47%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-async] PASSED [ 47%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync] PASSED [ 48%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync_in_async] PASSED [ 48%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-async] PASSED [ 49%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-sync] PASSED [ 49%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-sync_in_async] PASSED [ 50%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-async] PASSED [ 50%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-sync] PASSED [ 51%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-sync_in_async] PASSED [ 51%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-async] PASSED [ 52%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync] PASSED [ 52%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync_in_async] PASSED [ 53%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-async] PASSED [ 53%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync] PASSED [ 54%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync_in_async] PASSED [ 54%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-async] PASSED [ 55%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-sync] PASSED [ 55%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-sync_in_async] PASSED [ 56%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-async] PASSED [ 56%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-sync] PASSED [ 57%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-sync_in_async] PASSED [ 57%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-async] PASSED [ 58%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-sync] PASSED [ 58%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-sync_in_async] PASSED [ 59%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-async] PASSED [ 59%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-sync] PASSED [ 60%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-sync_in_async] PASSED [ 60%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-async] PASSED [ 60%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-sync] PASSED [ 61%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-sync_in_async] PASSED [ 61%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-async] PASSED [ 62%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-sync] PASSED [ 62%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-sync_in_async] PASSED [ 63%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-async] PASSED [ 63%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-sync] PASSED [ 64%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-sync_in_async] PASSED [ 64%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-async] PASSED [ 65%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-sync] PASSED [ 65%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-sync_in_async] PASSED [ 66%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-async] PASSED [ 66%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-sync] PASSED [ 67%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-sync_in_async] PASSED [ 67%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-async] PASSED [ 68%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-sync] PASSED [ 68%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-sync_in_async] PASSED [ 69%]
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields PASSED [ 69%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect PASSED [ 70%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:46 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [ 70%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [ 71%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [ 71%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [ 72%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [ 72%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [ 73%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [ 73%]
+tests/test_generic_request_expectations.py::test_missing_authoritative_workspace_cannot_verify_a_presentation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:52 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 74%]
+tests/test_oracle_mini_app_host_mutations.py::test_supported_host_flow_is_independently_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 12:42:53 [    INFO] runtime identity: source_id=89e40d3212e8 revision=89e40d3212e8 dirty=False (0 modified, 0 untracked)
+PASSED                                                                   [ 74%]
+tests/test_oracle_mini_app_host_mutations.py::test_same_operation_is_not_dispatched_twice PASSED [ 75%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_receipt_twins PASSED [ 75%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_stale_or_dirty_state_is_refuted PASSED [ 76%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_receipt_twins PASSED [ 76%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_stale_source_is_refuted PASSED [ 77%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_receipt_twins PASSED [ 77%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_stale_version_is_refuted PASSED [ 78%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_receipt_twins PASSED [ 78%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_stale_instance_is_refuted PASSED [ 79%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_allows_different_instance_owner PASSED [ 79%]
+tests/test_oracle_mini_app_host_mutations.py::test_revert_receipt_twins PASSED [ 80%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_receipt_twins PASSED [ 80%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_missing_receipt_and_wrong_target PASSED [ 80%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_update_binds_prior_material PASSED [ 81%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_publish_is_proven_not_applied_and_writes_no_receipt PASSED [ 81%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[False] PASSED [ 82%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[True] PASSED [ 82%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[None] PASSED [ 83%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[retained-rootfs.img] PASSED [ 83%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_record_write_raises_conflict_and_preserves_peer PASSED [ 84%]
+tests/test_oracle_mini_app_host_mutations.py::test_fresh_engine_readback_certifies_after_producer_session_closes PASSED [ 84%]
+tests/test_oracle_mini_app_host_mutations.py::test_registered_host_mutations_have_verifiers PASSED [ 85%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[refused] PASSED [ 85%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_changed] PASSED [ 86%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_payload] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/root-pr800-fixture-consumers-frozen-20261109.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 205 passed, 5 warnings in 66.45s (0:01:06) ==================
