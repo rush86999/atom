@@ -18,7 +18,7 @@ import { PieChartCanvas } from "@/components/canvas/PieChart";
 import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
 import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
-import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
+import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, isTextBodyComponent, extractTextBody, isTextBodyEnvelope, type SwitchableCanvasType } from "@/components/canvas/canvasType";
 import { CanvasVersionHistory } from "@/components/canvas/CanvasVersionHistory";
 import { EmailAttachmentStrip, type EmailAttachmentRecord } from "@/components/canvas/EmailAttachmentStrip";
 
@@ -101,6 +101,10 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
         if (state.component === "sheet") {
             return { content: sheetData, echo: JSON.stringify(sheetData) };
         }
+        if (isTextBodyComponent(state.component) && isTextBodyEnvelope(state.data)) {
+            const edited = localContentRef.current;
+            return {content: {...state.data, content: edited}, echo: edited};
+        }
         if (typeof state.data === "string") {
             return { content: localContentRef.current, echo: localContentRef.current };
         }
@@ -124,14 +128,21 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
         if (state.id) {
             const audit = auditTrailContent();
             if (audit !== null) {
-                const ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                let ok: boolean;
+                try {
+                    ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                } finally {
+                    setIsSaving(false);
+                }
                 if (ok) {
                     setHasUnsavedChanges(false);
                     lastSavedSigRef.current = `${state.component}|${audit.echo}`;
+                    setIsSaving(false);
                     return true;
                 }
-                if (state.component === "email") {
-                    console.error("Error saving email canvas to the audit trail");
+                if (state.component === "email"
+                    || (isTextBodyComponent(state.component) && isTextBodyEnvelope(state.data))) {
+                    console.error("Error saving canvas to the audit trail");
                     setIsSaving(false);
                     return false;
                 }
@@ -187,6 +198,7 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
     // closure — the callbacks are stable across renders.
     const {
         status: autosaveStatus,
+        blocked: autosaveBlocked,
         schedule: scheduleAutosave,
         flush: flushAutosave,
         reset: resetAutosave,
@@ -232,7 +244,8 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
                 // (e.g. an empty status panel). Reading `data.content` crashed the
                 // effect, which also made CanvasContent's "No data to display"
                 // guard unreachable. Use optional chaining instead.
-                const content = typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2));
+                const textBody = isTextBodyComponent(component) ? extractTextBody(data) : null;
+                const content = textBody !== null ? textBody : (typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2)));
 
                 // Autosave echo-guard: PUT /api/canvas/{id} (the audit save
                 // path) broadcasts the just-saved content back over WS.
@@ -533,7 +546,7 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
                     {(hasUnsavedChanges || state.component === 'sheet') && (
                         <button
                             onClick={() => { void flushAutosave({ force: true }); }}
-                            disabled={isSaving || autosaveStatus === "saving"}
+                            disabled={isSaving || autosaveStatus === "saving" || autosaveBlocked}
                             className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium transition-colors disabled:opacity-50"
                         >
                             {isSaving || autosaveStatus === "saving" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
@@ -595,6 +608,10 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
                         <span data-testid="canvas-autosave-status" className="text-[10px] text-zinc-500 flex items-center gap-1 font-medium">
                             <Loader2 className="h-3 w-3 animate-spin" /> Saving…
                         </span>
+                     ) : autosaveBlocked ? (
+                        <span data-testid="canvas-autosave-status" className="text-[10px] text-amber-600 dark:text-amber-400">
+                            Save not confirmed. Check version history before retrying.
+                        </span>
                     ) : autosaveStatus === "error" ? (
                         <span
                             data-testid="canvas-autosave-status"
@@ -609,7 +626,7 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
                         </span>
                     ) : (
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                            <Check className="h-3 w-3" /> Synced to cloud
+                            <Check className="h-3 w-3" /> Saved
                         </span>
                     )
                 )}
@@ -694,7 +711,8 @@ function CanvasContent({
 }) {
     if (!data && component !== "sheet" && component !== "form") return <div className="text-zinc-500 p-4">No data to display</div>;
 
-    const content = typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2));
+    const textBody = isTextBodyComponent(component) ? extractTextBody(data) : null;
+    const content = textBody !== null ? textBody : (typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2)));
 
     switch (component) {
         // Real-file co-editing canvases (.xlsx/.docx/.pptx): edits commit to

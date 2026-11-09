@@ -9,10 +9,98 @@
  * ({to, cc, subject, body}), list-of-rows for sheets, plain string for
  * markdown/code/document bodies. The backend stores it verbatim.
  *
- * Returns false on any failure (including 404 — state.id naming a legacy
- * artifact, not a canvas) so the caller can fall back rather than drop
- * the edit.
+ * A truthy return means the server explicitly confirmed THIS canvas: a
+ * success flag, an exact canvas_id match, and a verified audit receipt.
+ * A genuine 404 returns false for legacy-artifact compatibility. Every
+ * other unconfirmed/malformed outcome throws a non-retryable typed error
+ * so callers cannot mistake it for a save and fall through to the legacy
+ * artifacts store.
  */
+
+export interface CanvasAuditSaveErrorDetails {
+    status?: number;
+    operationId?: string;
+    auditId?: string;
+}
+
+/**
+ * Safe, non-retryable failure for an audit save whose success the server
+ * did not prove. It intentionally carries no raw response body, server
+ * message, SQL, or transport exception.
+ */
+export class CanvasAuditSaveError extends Error {
+    readonly retryable = false;
+    readonly code = "CANVAS_AUDIT_UNCONFIRMED";
+    declare readonly status?: number;
+    declare readonly operationId?: string;
+    declare readonly auditId?: string;
+    declare readonly operation_id?: string;
+    declare readonly audit_id?: string;
+
+    constructor(details: CanvasAuditSaveErrorDetails = {}) {
+        super("Canvas save could not be confirmed. Your edits were not verified.");
+        this.name = "CanvasAuditSaveError";
+        Object.setPrototypeOf(this, CanvasAuditSaveError.prototype);
+
+        if (details.status !== undefined) this.status = details.status;
+        if (details.operationId !== undefined) {
+            this.operationId = details.operationId;
+            this.operation_id = details.operationId;
+        }
+        if (details.auditId !== undefined) {
+            this.auditId = details.auditId;
+            this.audit_id = details.auditId;
+        }
+    }
+}
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | undefined {
+    return value !== null && typeof value === "object" && !Array.isArray(value)
+        ? (value as JsonRecord)
+        : undefined;
+}
+
+function opaqueIdentity(value: unknown): string | undefined {
+    return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function isLegacyNotFound(status: number | undefined, data: unknown): boolean {
+    if (status !== 404) return false;
+    const body = asRecord(data);
+    const verification = asRecord(body?.verification);
+    return body?.replay !== "do_not_repeat"
+        && verification?.effect !== "unknown"
+        && verification?.effect !== "committed";
+}
+
+function isVerifiedResponse(data: unknown, canvasId: string): boolean {
+    const body = asRecord(data);
+    if (!body) return false;
+    if (body.success !== true) return false;
+    if (body.canvas_id !== canvasId) return false;
+
+    const verification = asRecord(body.verification);
+    return verification?.status === "verified";
+}
+
+function errorStatus(error: unknown): number | undefined {
+    const candidate = (error as { response?: { status?: unknown }; status?: unknown })
+        ?.response?.status ?? (error as { status?: unknown })?.status;
+    return typeof candidate === "number" ? candidate : undefined;
+}
+
+function unconfirmedError(data: unknown, status?: number): CanvasAuditSaveError {
+    const body = asRecord(data);
+    // Existing server receipt fields are opaque identities, never guessed
+    // from aliases or converted from numbers.
+    const operationId = opaqueIdentity(body?.operation_id);
+    const auditId = opaqueIdentity(body?.audit_id);
+
+    return new CanvasAuditSaveError({ status, operationId, auditId });
+}
+
 export async function saveCanvasAudit(
     canvasId: string,
     canvasType: string,
@@ -24,15 +112,41 @@ export async function saveCanvasAudit(
         // JSON-encode EXPLICITLY: axios passes bare strings/arrays through
         // unserialized, and the backend's `content: Any = Body(...)` only
         // accepts a JSON document.
-        await apiClient.put(
-            `/api/canvas/${canvasId}` +
+        const response = await apiClient.put(
+            `/api/canvas/${encodeURIComponent(canvasId)}` +
             `?canvas_type=${encodeURIComponent(canvasType)}` +
             `&title=${encodeURIComponent(title || "")}`,
             JSON.stringify(content),
-            { headers: { "Content-Type": "application/json" } }
+            {
+                headers: { "Content-Type": "application/json" },
+                // Canvas mutations must never be replayed by the shared
+                // axios retry interceptor: a retried 503 can duplicate an
+                // audit row after an ambiguous transport failure.
+                retry: false,
+            }
         );
-        return true;
-    } catch {
-        return false;
+
+        // Legacy artifact ids are not canvas ids; keep the historical
+        // false result so the caller can use its legacy fallback.
+        if (isLegacyNotFound(response?.status, response?.data)) return false;
+
+        const status = typeof response?.status === "number" ? response.status : undefined;
+        if (status !== undefined && (status < 200 || status >= 300)) {
+            throw unconfirmedError(response?.data, status);
+        }
+
+        if (isVerifiedResponse(response?.data, canvasId)) return true;
+
+        throw unconfirmedError(response?.data, status);
+    } catch (error) {
+        if (error instanceof CanvasAuditSaveError) throw error;
+
+        const status = errorStatus(error);
+        if (isLegacyNotFound(status, (error as {response?: {data?: unknown}})?.response?.data)) return false;
+
+        throw unconfirmedError(
+            (error as { response?: { data?: unknown } })?.response?.data,
+            status
+        );
     }
 }

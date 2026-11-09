@@ -72,12 +72,15 @@ jest.mock("@/hooks/useCanvasStateRegistration", () => ({
   useCanvasStateRegistration: jest.fn(),
 }));
 
+const mockPanelFlush = jest.fn();
 jest.mock("@/components/canvas/CanvasPanel", () => ({
-  CanvasPanel: ({ lastMessage }: any) => (
-    <div data-testid="canvas-panel" data-last-type={(lastMessage?.data as any)?.component}>
-      Panel
-    </div>
-  ),
+  CanvasPanel: ({ lastMessage, registerFlushBeforeSend }: any) => {
+    const ReactRuntime = jest.requireActual("react") as typeof import("react");
+    ReactRuntime.useEffect(() => {
+      registerFlushBeforeSend?.(() => mockPanelFlush());
+    }, [registerFlushBeforeSend]);
+    return <div data-testid="canvas-panel" data-last-type={(lastMessage?.data as any)?.component}>Panel</div>;
+  },
 }));
 
 jest.mock("@/components/canvas/MiniAppHarness", () => ({
@@ -152,6 +155,7 @@ const CANVAS = {
 describe("CanvasDetailPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPanelFlush.mockResolvedValue(undefined);
     wsState = { lastMessage: null, isConnected: true };
     mockRouterState = {
       push: mockRouterPush,
@@ -376,7 +380,7 @@ describe("CanvasDetailPage", () => {
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       message: "Add a row",
       context: expect.objectContaining({ canvas_id: "cv1" }),
-    }), expect.objectContaining({ retry: false, timeout: 120000 }));
+    }), expect.objectContaining({ retry: false, timeout: 300000 }));
   });
 
   test("chat: sends on Enter key", async () => {
@@ -511,7 +515,7 @@ describe("CanvasDetailPage", () => {
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       agent_id: "hire-cv1",
       context: expect.objectContaining({ agent_id: "hire-cv1" }),
-    }), expect.objectContaining({ retry: false, timeout: 120000 }));
+    }), expect.objectContaining({ retry: false, timeout: 300000 }));
   });
 
   test("chat: server-bound session hydrates panel history after refresh", async () => {
@@ -546,7 +550,7 @@ describe("CanvasDetailPage", () => {
     await waitFor(() => expect(mockPost).toHaveBeenCalled());
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       session_id: "sess-h1",
-    }), expect.objectContaining({ retry: false, timeout: 120000 }));
+    }), expect.objectContaining({ retry: false, timeout: 300000 }));
   });
 
   test("chat: failed hydration drops the stale session and starts fresh", async () => {
@@ -574,7 +578,7 @@ describe("CanvasDetailPage", () => {
     // Stale id must not be reused — the turn starts a new session.
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       session_id: "new",
-    }), expect.objectContaining({ retry: false, timeout: 120000 }));
+    }), expect.objectContaining({ retry: false, timeout: 300000 }));
   });
 
   test("chat: transient hydration failure keeps the session and offers a retry", async () => {
@@ -614,7 +618,7 @@ describe("CanvasDetailPage", () => {
     await waitFor(() => expect(mockPost).toHaveBeenCalled());
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       session_id: "sess-flaky",
-    }), expect.objectContaining({ retry: false, timeout: 120000 }));
+    }), expect.objectContaining({ retry: false, timeout: 300000 }));
   });
 
   test("chat: no_llm_provider error renders system message", async () => {
@@ -1432,4 +1436,18 @@ describe("canvas chat reasoning steps (training parity)", () => {
     await waitFor(() => expect(screen.getByTestId("teaching-suggestion")).toBeInTheDocument());
     expect(screen.queryByTestId("teaching-saved")).not.toBeInTheDocument();
   });
+  test("chat: refuses dependent dispatch when the document flush is not confirmed", async () => {
+    mockPanelFlush.mockRejectedValue(new Error("Unconfirmed save"));
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: {value: "Use my latest reviewed quantity"} });
+    fireEvent.click(screen.getByRole("button", {name: /send/i}));
+    await waitFor(() => expect(mockPanelFlush).toHaveBeenCalledTimes(1));
+    expect(mockPost.mock.calls.filter((c:any[])=>c[0]==='/api/chat/message')).toHaveLength(0);
+    expect(input).toHaveValue("Use my latest reviewed quantity");
+    expect(screen.getByText(/document save is not confirmed/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", {name: /send/i})).not.toBeDisabled();
+  });
+
 });

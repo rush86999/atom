@@ -681,6 +681,10 @@ jobs:
         # Documents must not advertise deferred search; the card follows the
         # existing product-profile capability and keeps a supported next action.
         run: npx jest tests/pages/documents.test.tsx tests/pages/document-detail.test.tsx --runInBand --no-coverage
+      - name: Native canvas save and uncertain-outcome controls
+        # Both canvas hosts must save native bodies into the audit trail;
+        # an uncertain save blocks retries and dependent agent dispatch.
+        run: npx jest tests/pages/canvas-detail.test.tsx tests/lib/canvas-audit-outcome.test.ts hooks/__tests__/useCanvasAutosaveUncertain.test.ts components/canvas/__tests__/CanvasDocumentPersistence.test.tsx components/canvas/__tests__/CanvasPanel.test.tsx components/chat/__tests__/CanvasHost.test.tsx hooks/__tests__/useCanvasAutosave.test.ts hooks/__tests__/useCanvasStateRegistration.test.ts lib/__tests__/canvasFrame.test.ts lib/__tests__/canvasSync.test.ts components/canvas/__tests__/CanvasVersionHistory.test.tsx components/canvas/__tests__/canvasType.test.ts components/chat/__tests__/CanvasTypePicker.test.tsx components/chat/__tests__/ArtifactSidebar.test.tsx --runInBand --no-coverage --watchman=false
       - name: Install menu bar frontend dependencies
         working-directory: menubar
         run: npm ci --ignore-scripts --no-audit --no-fund

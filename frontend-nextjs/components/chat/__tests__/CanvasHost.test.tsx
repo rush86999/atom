@@ -85,6 +85,12 @@ const getMockFetch = () => (global as any).mockFetch as jest.Mock;
 
 describe('CanvasHost', () => {
   beforeEach(() => {
+    mockApiPut.mockImplementation(async (url: string) => ({data: {
+      success: true,
+      canvas_id: decodeURIComponent(url.split('/api/canvas/')[1].split('?')[0]),
+      verification: {status: 'verified', effect: 'committed'},
+    }}));
+
     // jest config has clearMocks, resetMocks, restoreMocks so we need to re-setup fetch spy
     jest.spyOn(global, 'fetch').mockResolvedValue(
       (global as any).createMockResponse() as any
@@ -623,7 +629,7 @@ describe('CanvasHost (extended coverage)', () => {
     );
 
     expect(screen.getByText('v3')).toBeInTheDocument();
-    expect(screen.getByText('Synced to cloud')).toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeInTheDocument();
     // documents expose the Preview Mode toggle too
     expect(screen.getByText('Preview Mode')).toBeInTheDocument();
   });

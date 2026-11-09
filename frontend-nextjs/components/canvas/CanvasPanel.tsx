@@ -19,7 +19,7 @@ import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
 import { PdfFileCanvas } from "@/components/canvas/PdfFileCanvas";
 import { EmailRecipientField } from "@/components/canvas/EmailRecipientField";
 import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
-import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
+import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, isTextBodyComponent, extractTextBody, isTextBodyEnvelope, type SwitchableCanvasType } from "@/components/canvas/canvasType";
 import SignatureEditor from "@/components/canvas/SignatureEditor";
 import RichTextEditor from "@/components/canvas/RichTextEditor";
 import { EmailAttachmentStrip, type EmailAttachmentRecord } from "@/components/canvas/EmailAttachmentStrip";
@@ -204,8 +204,25 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
         if (state.component === "sheet") {
             return { content: sheetData, echo: JSON.stringify(sheetData) };
         }
-        // String-body canvases: only when the payload the panel rendered was
-        // itself a plain string.
+        // Text-body canvases (document/markdown/code): the panel's one known
+        // contract. A map envelope keeps its other fields and only replaces
+        // the edited `content`, exactly as it arrived. This is deliberately
+        // scoped — chart/form/office payload maps are backend-owned and stay
+        // on the legacy path.
+        if (isTextBodyComponent(state.component) && extractTextBody(state.data) !== null) {
+            const edited = localContentRef.current;
+            if (typeof state.data === "string") {
+                return { content: edited, echo: edited };
+            }
+            if (isTextBodyEnvelope(state.data)) {
+                return {
+                    content: { ...(state.data as Record<string, any>), content: edited },
+                    echo: edited,
+                };
+            }
+        }
+        // Legacy string-body canvases (and any non-text type whose payload
+        // was itself a plain string) keep their existing audit behavior.
         if (typeof state.data === "string") {
             return { content: localContentRef.current, echo: localContentRef.current };
         }
@@ -230,14 +247,25 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
         if (state.id) {
             const audit = auditTrailContent();
             if (audit !== null) {
-                const ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                let ok: boolean;
+                try {
+                    ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                } finally {
+                    setIsSaving(false);
+                }
                 if (ok) {
                     setHasUnsavedChanges(false);
                     lastSavedSigRef.current = `${state.component}|${audit.echo}`;
+                    setIsSaving(false);
                     return true;
                 }
-                if (state.component === "email") {
-                    console.error("Error saving email canvas to the audit trail");
+                // Email owns its native dict; a document/markdown/code map
+                // envelope owns its `content`. Falling through to the legacy
+                // artifacts store would persist the edit somewhere
+                // /canvas/{id} never reads, so fail and keep the draft.
+                if (state.component === "email"
+                    || (isTextBodyComponent(state.component) && isTextBodyEnvelope(state.data))) {
+                    console.error("Error saving canvas to the audit trail");
                     setIsSaving(false);
                     return false;
                 }
@@ -292,6 +320,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     // closure — the callbacks are stable across renders.
     const {
         status: autosaveStatus,
+        blocked: autosaveBlocked,
         schedule: scheduleAutosave,
         flush: flushAutosave,
         reset: resetAutosave,
@@ -305,7 +334,9 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     // pasted seconds before "i added my signature, adjust" never reached the
     // agent). flush() self-gates: a no-op when nothing is pending.
     const flushBeforeSendRef = useRef<() => Promise<void>>(async () => {
-        await flushAutosave();
+        if (!await flushAutosave()) {
+            throw new Error("The canvas save is not confirmed. Review the document before continuing.");
+        }
     });
     useEffect(() => {
         registerFlushBeforeSend?.(() => flushBeforeSendRef.current());
@@ -338,14 +369,20 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                 // is the attachment list payload, NOT canvas content.
                 setEmailAttachments(Array.isArray(data?.attachments) ? data.attachments : []);
             } else {
-                const content = typeof data === 'string'
-                    ? data
-                    // Email canvases carry the composer body under data.body;
-                    // stringifying the {to, subject, body} object made Send
-                    // dispatch JSON instead of the drafted text.
-                    : (component === 'email' && typeof data?.body === 'string'
-                        ? data.body
-                        : ((data?.content as string) || JSON.stringify(data ?? {}, null, 2)));
+                // Text-body canvases use the same extraction as the renderer
+                // below. The empty string is a valid body, so it must not fall
+                // through the old truthy check into JSON.stringify.
+                const textBody = isTextBodyComponent(component) ? extractTextBody(data) : null;
+                const content = textBody !== null
+                    ? textBody
+                    : typeof data === 'string'
+                        ? data
+                        // Email canvases carry the composer body under data.body;
+                        // stringifying the {to, subject, body} object made Send
+                        // dispatch JSON instead of the drafted text.
+                        : (component === 'email' && typeof data?.body === 'string'
+                            ? data.body
+                            : ((data?.content as string) || JSON.stringify(data ?? {}, null, 2)));
 
                 const payloadKey = `${canvas_id || id || ""}|${component || ""}|${version ?? ""}|${content}`;
                 if (payloadKey === lastPayloadKeyRef.current) return;
@@ -774,7 +811,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                     {(hasUnsavedChanges || state.component === 'sheet') && (
                         <button
                             onClick={() => { void flushAutosave({ force: true }); }}
-                            disabled={isSaving || autosaveStatus === "saving"}
+                            disabled={isSaving || autosaveStatus === "saving" || autosaveBlocked}
                             className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium transition-colors disabled:opacity-50"
                         >
                             {isSaving || autosaveStatus === "saving" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
@@ -841,6 +878,10 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                         <span data-testid="canvas-autosave-status" className="text-[10px] text-zinc-500 flex items-center gap-1 font-medium">
                             <Loader2 className="h-3 w-3 animate-spin" /> Saving…
                         </span>
+                     ) : autosaveBlocked ? (
+                        <span data-testid="canvas-autosave-status" className="text-[10px] text-amber-600 dark:text-amber-400">
+                            Save not confirmed. Check version history before retrying.
+                        </span>
                     ) : autosaveStatus === "error" ? (
                         <span
                             data-testid="canvas-autosave-status"
@@ -855,7 +896,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                         </span>
                     ) : (
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                            <Check className="h-3 w-3" /> Synced to cloud
+                            <Check className="h-3 w-3" /> Saved
                         </span>
                     )
                 )}
@@ -927,7 +968,13 @@ function CanvasContent({
 }) {
     if (data == null && component !== "sheet" && component !== "form") return <div className="text-zinc-500 p-4">No data to display</div>;
 
-    const content = typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2));
+    // The renderer must use the same body extraction as the incoming
+    // frame/ref path: empty string is a valid body, not a signal to dump the
+    // envelope as JSON into the editor.
+    const textBody = isTextBodyComponent(component) ? extractTextBody(data) : null;
+    const content = textBody !== null
+        ? textBody
+        : (typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2)));
 
     switch (component) {
         // Real-file co-editing canvases (.xlsx/.docx/.pptx): edits commit to
