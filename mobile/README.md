@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `0d9449d76`; later changes
+reference describes the checked-in companion at source `30106a1d1`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -22,7 +22,7 @@ npm run typecheck
 
 Skipping install scripts was intentional for these controlled checks. It does
 not prepare native modules or demonstrate an iOS/Android build. The strict
-project-wide type check still fails with 211 diagnostics at this source (402 at
+project-wide type check still fails with 198 diagnostics at this source (402 at
 `2abf3c689`; 354 at `2a5345b5b`). Keep its complete source/test scope;
 do not hide errors with exclusions, ambient module shims or weaker settings.
 
@@ -55,12 +55,14 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Location ownership | Installed subscription removal, shared pending starts, stop-generation fencing, stale callback refusal and retryable failed removal; 96 service controls plus 67 screen/agent controls at `2a5345b5b`. | Actual OS permissions/background location, physical GPS stopping, device and complete mobile journeys. |
 | Voice input | Mounted component supplies the installed Expo AV high-quality preset; 72 component controls at `9bb7c99a3`. | No production import caller found for this component; real microphone, native permissions, recording files and integrated chat wiring remain unqualified. |
 
-The latest combined controlled selection at `0d9449d76` has 1,659 passes,
+The latest combined controlled selection at `30106a1d1` has 1,676 passes,
 zero failures and two intentional platform-registration sentinels skipped across
-43 files. The generic verification driver therefore remains false under its
-zero-skips rule; this is not 1,661 executed passes or a qualified mobile build.
+44 files. The generic verification driver therefore remains false under its
+zero-skips rule; this is not 1,678 executed passes or a qualified mobile build.
 
 Source-bound packets:
+
+- [Native biometric error and sync lifecycle controls](../docs/acceptance/evidence/mobile_biometric_sync_lifecycle_30106a1d1/README.md)
 
 - [Reviewed fixture and final photo material controls](../docs/acceptance/evidence/mobile_reviewed_fixture_batch_0d9449d76/README.md)
 - [Partial remote-camera result repair and remaining work](../docs/acceptance/evidence/mobile_remote_camera_material_3f2713057/README.md)

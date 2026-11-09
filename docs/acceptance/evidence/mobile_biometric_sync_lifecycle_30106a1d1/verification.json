@@ -1,0 +1,35 @@
+{
+  "biometric_negative": {
+    "passed": 1,
+    "failed": 9
+  },
+  "biometric_reviewed": {
+    "passed": 80,
+    "failed": 0
+  },
+  "lifecycle_negative": {
+    "passed": 21,
+    "failed": 4
+  },
+  "lifecycle_reviewed": {
+    "passed": 28,
+    "failed": 0
+  },
+  "combined": {
+    "files": 44,
+    "passed": 1676,
+    "failed": 0,
+    "pending": [
+      "testUtils skipOnPlatform / onlyOnPlatform Skipped on ios",
+      "testUtils skipOnPlatform / onlyOnPlatform Only on android"
+    ],
+    "raw_driver_verification_pass": false,
+    "raw_jest_exit": 0
+  },
+  "strict_compiler": {
+    "before": 211,
+    "after": 198,
+    "exit": 2,
+    "build_qualified": false
+  }
+}

@@ -1,0 +1,9 @@
+# Native biometric error contract and sync background ownership
+
+Final source30106a1d1; sync lifecycle repair e149a3491. Engineering assistance used the configured isolated Flash CLI; no application model/provider inference, real biometric/OS permission, device or deployment action occurred. Installed and locked expo-local-authentication13.8.0 match. Preserved primary declaration and iOS/Android source show string errors and native lockout, not locked_out. These native files were inspected, not executed.
+
+Independent SDK negative72c95884b:1pass/9fail, including native lockout and a separate legacy internal alias. Reviewed actual service+existing mocks:80/80. The service classifies failed strings, records truthful attempts and preserves existing lockout/success policy and thrown Error handling.12 fabricated object mocks became real SDK strings. One custom mock-only message assertion and one native lockout parameterized name were corrected explicitly, not removed. No boxed string, suppression, SDK shim or new feedback/credential engine.
+
+Sync negative d91cbc953:21pass/4fail. The existing service now owns the NetInfo unsubscribe and both interval handles; generation checks prevent late initialization/stale callbacks installing or dispatching new background work after destruction. Replacement and failed-unsubscribe retry twins yield28/28. This does not physically cancel already-running transport/cleanup writes or qualify current-account queue authority. Production bootstrap and unknown-effect reconciliation remain open.
+
+Combined44-file regression:1,676pass, zero failures, same two intentional registration skips. Raw driver verification_pass remains false under its no-pending rule; actual Jest exit0. Full strict compiler still fails198diagnostics(previous211). All source captures match declared subsequent Git freezes; original dirty/base metadata retained, no clean served identity.

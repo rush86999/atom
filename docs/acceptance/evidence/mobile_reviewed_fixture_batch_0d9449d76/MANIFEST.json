@@ -33,7 +33,7 @@
     "native-client-exit.json": "14965c1e746ece7ce51e860fe512c07dd9cefee1d9edb8525687172d45f60764",
     "native-effective-policy.json": "97154731f1c1bdef8751b6367953b6c0e68d51bade315a137638bdbf0d948557",
     "mobile-six-fixture-reviewed-typecheck.spec.json": "d8f16eaace8d8b3f3385b21d690f15406e4b837ccf388fcfa1fdef413e5c461e",
-    "README.md": "26164e84f779fbb62e489b32d9a24357ffc23172ae09c04bdeaa0a4908179238",
+    "README.md": "3df5025d8913bfb66ba91097c54405936d53cb169dd09cc682360d54c6b1b871",
     "camera-final-material-consumer-regression-results.json": "c0444243847ab2e51808726f611b356e5b18aaca5a489715f7def7ae031811c7",
     "mobile-six-fixture-reviewed-typecheck.exit.json": "8c262bc4dce67e8ea605020b44466a73691727d6cb5a499d3741b551ddd33797",
     "camera-final-material-strict-typecheck.exit.json": "a4711f33808179ea6ce04e5d95a625e22f186234eed732953554d054a4d6e4b3",
@@ -53,5 +53,12 @@
     "mobile-reviewed-fixtures-broad-regression.log": "217feeb92ec14cf7dbe01a6a1d2ac374fec9a241eaf0f399c0fd835d24f3e16f",
     "mobile-six-fixture-reviewed-candidate.log": "c6d10ac4952bc14d753433fe5771c6acb7d0ba5477b813428b2394bcf3a61a20",
     "mobile-six-fixture-reviewed-typecheck.log": "ad9c88a7cfde796c7855eed59a064a2c1b0622f516790651669c19b81475c724"
+  },
+  "provenance": {
+    "documentation_correction": {
+      "artifact": "README.md",
+      "superseded_sha256": "26164e84f779fbb62e489b32d9a24357ffc23172ae09c04bdeaa0a4908179238",
+      "reason": "Distinguish authorized engineering CLI inference from application/provider qualification; original source and test captures unchanged"
+    }
   }
 }

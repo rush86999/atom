@@ -1,0 +1,20 @@
+{
+  "package": "expo-local-authentication",
+  "installed_version": "13.8.0",
+  "lockfile_version": "13.8.0",
+  "native_code_not_executed": true,
+  "files": {
+    "build/LocalAuthentication.types.d.ts": {
+      "artifact": "sdk-LocalAuthentication.types.d.ts",
+      "sha256": "94c39735cf441fbf94b8d215c58ba6e05da696e9c74ba91dc59a3f32319d106f"
+    },
+    "ios/LocalAuthenticationModule.swift": {
+      "artifact": "sdk-LocalAuthenticationModule.swift",
+      "sha256": "3ddb2ae5ec7870f226dd799ce0328d3f69d6c0c6a4f22c5307c2cf95855a5bfd"
+    },
+    "android/src/main/java/expo/modules/localauthentication/LocalAuthenticationModule.kt": {
+      "artifact": "sdk-LocalAuthenticationModule.kt",
+      "sha256": "40b8c4d3bff9068e28da1d73a81f45aa32c25f4af8cfb5700a6e0662c80e5356"
+    }
+  }
+}

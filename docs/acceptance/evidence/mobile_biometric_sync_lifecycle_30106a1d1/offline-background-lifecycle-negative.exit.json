@@ -1,0 +1,18 @@
+{
+  "actual_exit": 1,
+  "started": 1794202318.34216,
+  "finished": 1794202320.2473779,
+  "selected_kind": "queuedurability",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/offlineSyncService.durability.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 25,
+    "numPassedTests": 21,
+    "numFailedTests": 4,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

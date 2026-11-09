@@ -1,0 +1,44 @@
+{
+  "biometric-native-sdk-string-errors-negative": {
+    "git_source": "72c95884b",
+    "captured_base": "39f3ac50a6078be64db63d9a3061b1558d1c149f",
+    "original_clean_flag": false,
+    "checks": 254,
+    "mismatches": []
+  },
+  "offline-background-lifecycle-negative": {
+    "git_source": "d91cbc953",
+    "captured_base": "72c95884bb71f47989a3e21b526e3d877923d6d0",
+    "original_clean_flag": false,
+    "checks": 254,
+    "mismatches": []
+  },
+  "offline-background-lifecycle-interleavings": {
+    "git_source": "e149a3491",
+    "captured_base": "d91cbc953b8d1660e6711215d1a274d535ec457d",
+    "original_clean_flag": false,
+    "checks": 254,
+    "mismatches": []
+  },
+  "biometric-native-sdk-reviewed-result": {
+    "git_source": "30106a1d1",
+    "captured_base": "e149a3491e4869529102c6bb2bc6dc24e991907a",
+    "original_clean_flag": false,
+    "checks": 254,
+    "mismatches": []
+  },
+  "biometric-and-lifecycle-broad-regression": {
+    "git_source": "30106a1d1",
+    "captured_base": "e149a3491e4869529102c6bb2bc6dc24e991907a",
+    "original_clean_flag": false,
+    "checks": 254,
+    "mismatches": []
+  },
+  "biometric-and-lifecycle-strict-typecheck": {
+    "git_source": "30106a1d1",
+    "captured_base": "e149a3491e4869529102c6bb2bc6dc24e991907a",
+    "original_clean_flag": false,
+    "checks": 254,
+    "mismatches": []
+  }
+}

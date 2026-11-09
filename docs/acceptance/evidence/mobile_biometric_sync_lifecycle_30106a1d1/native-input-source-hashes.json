@@ -1,0 +1,7 @@
+{
+  "source": "72c95884bb71f47989a3e21b526e3d877923d6d0",
+  "owned_files": {
+    "mobile/src/services/biometricService.ts": "5aeb1d1bf26453cbf57b95a8b026b17c3251f11f39e155ad9b1a1fae348e81f2",
+    "mobile/src/__tests__/services/biometricService.test.ts": "db06ca3f2002dd966d69ca42932fe2a1cd411deae94d6bf1abe2ce86f8cbfc24"
+  }
+}
