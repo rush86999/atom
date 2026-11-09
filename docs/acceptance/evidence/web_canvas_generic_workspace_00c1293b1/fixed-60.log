@@ -1,0 +1,114 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 11:57:22 [    INFO] MCP Service initialized
+
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields 
+-------------------------------- live log setup --------------------------------
+2026-11-09 11:57:22 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 11:57:22 [    INFO] EscalationManager initialized
+2026-11-09 11:57:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 11:57:22 [    INFO] EscalationManager initialized
+2026-11-09 11:57:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 11:57:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 11:57:22 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:57:23 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [  3%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:57:24 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [  5%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [  6%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [  8%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [ 10%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [ 11%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [ 13%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [ 15%]
+tests/test_generic_request_expectations.py::test_missing_authoritative_workspace_cannot_verify_a_presentation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:57:28 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 16%]
+tests/test_oracle_mini_app_host_mutations.py::test_supported_host_flow_is_independently_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:57:29 [    INFO] runtime identity: source_id=00c1293b110e revision=00c1293b110e dirty=False (0 modified, 0 untracked)
+PASSED                                                                   [ 18%]
+tests/test_oracle_mini_app_host_mutations.py::test_same_operation_is_not_dispatched_twice PASSED [ 20%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_receipt_twins PASSED [ 21%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_stale_or_dirty_state_is_refuted PASSED [ 23%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_receipt_twins PASSED [ 25%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_stale_source_is_refuted PASSED [ 26%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_receipt_twins PASSED [ 28%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_stale_version_is_refuted PASSED [ 30%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_receipt_twins PASSED [ 31%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_stale_instance_is_refuted PASSED [ 33%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_allows_different_instance_owner PASSED [ 35%]
+tests/test_oracle_mini_app_host_mutations.py::test_revert_receipt_twins PASSED [ 36%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_receipt_twins PASSED [ 38%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_missing_receipt_and_wrong_target PASSED [ 40%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_update_binds_prior_material PASSED [ 41%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_publish_is_proven_not_applied_and_writes_no_receipt PASSED [ 43%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[False] PASSED [ 45%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[True] PASSED [ 46%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[None] PASSED [ 48%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[retained-rootfs.img] PASSED [ 50%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_record_write_raises_conflict_and_preserves_peer PASSED [ 51%]
+tests/test_oracle_mini_app_host_mutations.py::test_fresh_engine_readback_certifies_after_producer_session_closes PASSED [ 53%]
+tests/test_oracle_mini_app_host_mutations.py::test_registered_host_mutations_have_verifiers PASSED [ 55%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 56%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 58%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 60%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 61%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 63%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 65%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 66%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 68%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 70%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 71%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 73%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 75%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 76%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 78%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 80%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- generated xml file: /private/tmp/root-pr800-generic-frozen-20261109.xml ----
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 60 passed, 5 warnings in 39.55s ========================

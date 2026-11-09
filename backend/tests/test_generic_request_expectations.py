@@ -199,7 +199,7 @@ def test_plain_args_non_miniapp_presentation_is_verified(host, monkeypatch):
     assert result.get("oracle_verified") is True, result
     assert result.get("audit_id"), result
 
-    from core.models import CanvasAudit
+    from core.models import Canvas, CanvasAudit
     from core.presentation_material import material_sha256, presentation_material
 
     with host.Session() as db:
@@ -209,6 +209,11 @@ def test_plain_args_non_miniapp_presentation_is_verified(host, monkeypatch):
         assert str(details["operation_id"]).startswith("auto-")
         assert details["material_sha256"] == material_sha256(
             presentation_material("canvas.present_markdown", arguments))
+        canvas = db.get(Canvas, result["canvas_id"])
+        assert canvas is not None
+        assert (canvas.tenant_id, canvas.workspace_id, canvas.created_by) == (
+            TENANT, WORKSPACE, USER)
+        assert canvas.content == arguments["content"]
 
 
 # ---------------------------------------------------------------------------
@@ -506,3 +511,25 @@ def test_distinct_sequential_authorized_mutations_still_run(host, monkeypatch):
 def _register_action(name, leaf):
     action_registry.register(
         name, leaf, effects=[{"effect": "create", "scope": "local"}])
+
+
+def test_missing_authoritative_workspace_cannot_verify_a_presentation(host, monkeypatch):
+    """A context string cannot replace the durable workspace row."""
+    from core.models import Canvas, CanvasAudit, Workspace
+    from core.feature_flags import FeatureFlags
+    _enable_oracle(monkeypatch)
+    monkeypatch.setattr('core.generic_agent.get_db_session', host.session)
+    frames=AsyncMock()
+    monkeypatch.setattr('tools.canvas_tool.ws_manager.broadcast', frames)
+    monkeypatch.setattr(FeatureFlags, 'should_enforce_governance', classmethod(lambda cls, feature: False))
+    with host.Session() as db:
+        db.query(Workspace).filter(Workspace.id==WORKSPACE).delete(synchronize_session=False)
+        db.commit()
+    result=_run_generic(_real_registry_agent(), 'canvas.present_markdown',
+                        {'title':'Unbound', 'content':'Do not publish'}, _plain_context('missing-workspace'))
+    assert result.get('success') is False,result
+    assert result.get('oracle_verified') is False,result
+    with host.Session() as db:
+        assert db.query(Canvas).count()==0
+        assert db.query(CanvasAudit).count()==0
+    frames.assert_not_awaited()
