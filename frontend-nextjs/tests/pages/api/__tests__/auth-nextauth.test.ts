@@ -215,13 +215,11 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
     });
 
     it("passes the token through unchanged when no user is present", async () => {
+      // JWT persistence is not authorization: the session callback performs
+      // the current-principal check, including legacy-cookie refusal.
       const token = await authOptions.callbacks!.jwt!({
-        token: { id: "existing" },
-        user: undefined,
-        account: undefined,
-        profile: undefined,
-        isNewUser: false,
-        trigger: "update",
+        token: { id: "existing" }, user: undefined, account: undefined,
+        profile: undefined, isNewUser: false, trigger: "update",
       } as any);
       expect(token).toEqual({ id: "existing" });
       expect(mockQuery).not.toHaveBeenCalled();
@@ -230,6 +228,10 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
 
   describe("session callback", () => {
     it("populates session user from token claims", async () => {
+      (global as any).fetch = jest.fn().mockResolvedValue(jsonResponse(true, {
+        id: "tok-id", email: "tok@x.com", first_name: "Current", last_name: "User",
+        role: "member", status: "active", workspace_id: "current-workspace", tenant_id: "current-tenant",
+      }));
       const session = await authOptions.callbacks!.session!({
         session: { user: { id: "", email: "" } },
         token: { id: "tok-id", email: "tok@x.com", backendToken: "bt" } as any,

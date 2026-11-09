@@ -2,6 +2,8 @@ import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { createBackendSignOutEvent } from "@/lib/backend-session-logout";
 import { createBackendCredentialsAuthorize } from "@/lib/backend-credentials";
+import { projectCurrentBackendSession } from "@/lib/backend-current-session";
+import { resolveWebAuthSecret, resolveWebAuthBackend } from "@/lib/web-auth-config";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 
@@ -25,11 +27,11 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
         totp_code: { label: "2FA Code", type: "text" }
       },
-      authorize: createBackendCredentialsAuthorize(() => process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"),
+      authorize: createBackendCredentialsAuthorize(resolveWebAuthBackend),
     }),
   ],
   events: {
-    signOut: createBackendSignOutEvent(() => process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"),
+    signOut: createBackendSignOutEvent(resolveWebAuthBackend),
   },
   callbacks: {
     async signIn({ user, account, profile }) {
@@ -129,8 +131,10 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        if (typeof user.name === 'string') token.name = user.name;
         // @ts-ignore
         token.backendToken = user.token || user.backendToken;
+        if (typeof token.backendToken !== 'string' || !token.backendToken) throw new Error('BACKEND_SESSION_UNAVAILABLE');
 
         // The backend login handler owns durable last_login. Avoid a second
         // credential/identity store and its incompatible last_login_at schema.
@@ -142,17 +146,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.email = token.email as string;
-        // @ts-ignore - backendToken added for internal use
-        session.backendToken = token.backendToken as string;
-        // @ts-ignore - backend-authoritative additive identity metadata
-        session.user.workspace_id = token.workspace_id;
-        // @ts-ignore
-        session.user.role = token.role;
-      }
-      return session;
+      return projectCurrentBackendSession(session, token, resolveWebAuthBackend);
     },
   },
   pages: {
@@ -218,7 +212,7 @@ export const authOptions: NextAuthOptions = {
       },
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "development-fallback-secret-123",
+  secret: resolveWebAuthSecret(),
   debug: true,
 };
 

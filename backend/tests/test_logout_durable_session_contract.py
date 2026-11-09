@@ -184,6 +184,11 @@ def test_personal_scope_aliases_preserve_raw_identity_in_the_receipt(recovery_cl
     user=known_recovery_user(recovery_client)
     user.tenant_id=raw_scope;recovery_client.recovery_db.commit()
     token=recovery_client.post('/api/auth/login',json={'username':user.email,'password':'InitialPassword1!'}).json()['access_token']
+    principal=recovery_client.get('/api/auth/me',headers={'Authorization':'Bearer '+token},params={'tenant_id':'foreign-tenant','workspace_id':'foreign-workspace'})
+    assert principal.status_code==200
+    assert principal.json()['id']==user.id
+    assert principal.json()['tenant_id']==raw_scope
+    assert principal.json()['workspace_id']==user.workspace_id
     response=recovery_client.post('/api/auth/logout',headers={'Authorization':'Bearer '+token})
     assert response.status_code==200
     assert response.json()['verification']['status']=='verified'

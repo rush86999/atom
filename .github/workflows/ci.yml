@@ -701,6 +701,8 @@ jobs:
         run: 'npx jest tests/auth/signin-logout-return-contract.test.tsx tests/components/sidebar-logout-contract.test.tsx components/layout/__tests__/Sidebar.gating.test.tsx tests/lib/backend-credentials.test.ts tests/lib/backend-signin-identity.test.ts tests/lib/backend-session-logout.test.ts tests/pages/api/__tests__/auth-forgot-password.test.ts tests/pages/api/__tests__/auth-reset-password.test.ts tests/auth/test-forgot-password.test.tsx tests/auth/test-reset-password.test.tsx tests/lib/api-error-message.test.ts tests/pages/__tests__/settings-account.test.tsx --runInBand --no-coverage --watchman=false
 
           '
+      - name: Current backend principal session contract
+        run: node --test tests/contracts/nextauth-current-principal.cjs
       - name: Auth redirect regression tests
         # The middleware must hand the login pages a relative path+query;
         # absolute callbackUrls silently fall back to /dashboard. Keep the

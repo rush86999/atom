@@ -11,8 +11,10 @@ def recovery_client(db_session, monkeypatch):
     # adding the mobile router. Mobile alone was an incomplete reproduction.
     from core.lazy_integration_registry import load_integration
     app=FastAPI()
-    app.include_router(load_integration('auth', registry='api_routers'))
-    app.include_router(router)
+    mounted_auth_routers=[load_integration('auth', registry='api_routers'),router]
+    for mounted_router in mounted_auth_routers:
+        app.include_router(mounted_router)
+    app.state.mounted_auth_routers=mounted_auth_routers
     from core.database import get_db
     import core.auth_endpoints as recovery
     from core.security.auth_rate_limit import AuthRateLimiter
@@ -45,7 +47,10 @@ def test_normal_recovery_mount_reuses_one_existing_handler_per_path(recovery_cli
               '/api/auth/verify-token':verify_token,
               '/api/auth/reset-password':reset_password}
     for path,handler in expected.items():
-        matches=[route for route in recovery_client.app.routes if route.path==path and 'POST' in route.methods]
+        # Inspect the exact registered input routers: newer FastAPI wraps them lazily.
+        matches=[route for mounted in recovery_client.app.state.mounted_auth_routers
+                 for route in mounted.routes if getattr(route,'path',None)==path and 'POST' in route.methods]
+        assert 'post' in recovery_client.app.openapi()['paths'][path]
         assert len(matches)==1
         assert matches[0].endpoint is handler
 

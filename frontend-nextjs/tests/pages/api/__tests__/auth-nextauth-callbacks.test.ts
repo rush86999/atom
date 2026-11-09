@@ -220,6 +220,7 @@ describe("pages/api/auth/[...nextauth] jwt/session (extra branches)", () => {
       session: { user: {} },
       token: undefined,
     } as any);
-    expect(session).toEqual({ user: {} });
+    // An empty projection is not an authenticated session.
+    expect(session).toBeNull();
   });
 });

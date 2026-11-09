@@ -10,10 +10,12 @@ declare module "next-auth" {
             /** The user's postal address. */
             id: string
             /** Backend UserRole string (super_admin..guest) — set by the
-             * jwt/session callbacks in lib/auth.ts. Only populated on the
-             * NextAuth sign-in path; the API-first flow stores only the
+             * canonical session callback, revalidated on every session read.
+             * The API-first flow stores only the
              * backend token (role comes from lib/user-role.ts instead). */
             role?: string
+            workspace_id?: string | null
+            tenant_id?: string | null
             permissions?: string[]
         } & DefaultSession["user"]
         backendToken?: string
@@ -23,6 +25,10 @@ declare module "next-auth" {
         id: string
         token?: string
         backendToken?: string
+        role?: string
+        workspace_id?: string | null
+        tenant_id?: string | null
+        access_token?: string
     }
 }
 
@@ -33,6 +39,8 @@ declare module "next-auth/jwt" {
         idToken?: string
         id?: string
         role?: string
+        workspace_id?: string | null
+        tenant_id?: string | null
         permissions?: string[]
         backendToken?: string
     }
