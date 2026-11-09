@@ -8,10 +8,12 @@ Verification approach:
     to an asymmetric JOSE algorithm announced by the provider (``RS256`` /
     ``ES256`` / ``PS256``...), the signature is checked against the
     provider's JWKS, and issuer, audience and nonce are validated. Identity
-    claims come from the verified ID token (userinfo, when configured, is a
-    supplementary server-to-server read; it can never override ``sub`` or
-    the verified claims). This is what makes an invalid issuer, a forged
-    signature or a replayed/mismatched nonce fail closed instead of
+    claims come from the verified ID token. If that token omits the email,
+    a UserInfo response may supply it only when its ``sub`` exactly equals
+    the verified subject and that same response carries a boolean
+    ``email_verified=true``; it can never override signed claims or
+    contribute a foreign profile. This is what makes an invalid issuer, a
+    forged signature or a replayed/mismatched nonce fail closed instead of
     becoming a session.
 
 Token delivery to the frontend:
@@ -289,9 +291,88 @@ def _verify_id_token(id_token: str, cfg: Dict[str, Any],
     if not expected_nonce or not token_nonce or not hmac.compare_digest(
             token_nonce, expected_nonce):
         raise ValueError("ID token nonce does not match the login state")
-    if not str(claims.get("sub") or "").strip():
-        raise ValueError("ID token has no subject")
+    subject = claims.get("sub") if isinstance(claims, dict) else None
+    if not isinstance(subject, str) or not subject.strip():
+        raise ValueError("ID token has no string subject")
     return claims
+
+
+def _trusted_text(value: Any) -> Optional[str]:
+    """Return a non-empty string claim value without coercing other types."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _resolve_verified_identity(
+    claims: Dict[str, Any], userinfo: Dict[str, Any]
+) -> Optional[Dict[str, str]]:
+    """Resolve identity only from verified, subject-bound OIDC claims.
+
+    Signed ID-token claims are the primary source. A signed email is usable
+    only when the issuer marks it with a real boolean ``email_verified=true``.
+    If the signed token omits email, a UserInfo profile may supply it only when
+    that profile's ``sub`` exactly equals the verified ID-token subject and the
+    same profile carries a boolean ``email_verified=true``. A signed explicit
+    non-true marker is never replaced by a positive profile marker.
+
+    Names follow the same subject binding: signed claims win; a profile may
+    fill gaps only when its subject is exactly the signed subject. A foreign
+    or subject-less profile contributes no identity or profile fields.
+    """
+    if not isinstance(claims, dict):
+        return None
+    subject = claims.get("sub")
+    if not isinstance(subject, str) or not subject.strip():
+        return None
+    subject = subject.strip()
+
+    trusted_profile: Dict[str, Any] = {}
+    if isinstance(userinfo, dict):
+        profile_subject = userinfo.get("sub")
+        if isinstance(profile_subject, str) and profile_subject == subject:
+            trusted_profile = userinfo
+
+    if "email" in claims:
+        signed_email = _trusted_text(claims.get("email"))
+        if signed_email is None or claims.get("email_verified") is not True:
+            return None
+        email = signed_email
+    else:
+        # A signed non-true marker is an explicit statement that the issuer did
+        # not verify this identity's email. The supplementary profile cannot
+        # lend it a positive marker.
+        if ("email_verified" in claims
+                and claims.get("email_verified") is not True):
+            return None
+        profile_email = _trusted_text(trusted_profile.get("email"))
+        if (profile_email is None
+                or trusted_profile.get("email_verified") is not True):
+            return None
+        email = profile_email
+
+    def profile_text(key: str) -> Optional[str]:
+        return _trusted_text(trusted_profile.get(key))
+
+    first_name = (
+        _trusted_text(claims.get("given_name"))
+        or profile_text("given_name")
+        or _trusted_text(claims.get("name"))
+        or profile_text("name")
+        or "SSO"
+    )
+    last_name = (
+        _trusted_text(claims.get("family_name"))
+        or profile_text("family_name")
+        or "User"
+    )
+    return {
+        "sub": subject,
+        "email": email.lower(),
+        "first_name": first_name,
+        "last_name": last_name,
+    }
 
 
 # ============================================================================
@@ -609,11 +690,15 @@ async def oidc_callback(
     except ValueError:
         userinfo = {}
 
-    email = str(
-        claims.get("email") or userinfo.get("email") or ""
-    ).strip().lower()
-    if not email:
-        raise HTTPException(status_code=401, detail="SSO identity does not include an email address")
+    identity = _resolve_verified_identity(claims, userinfo)
+    if identity is None:
+        logger.warning(
+            "OIDC callback rejected: no verified, subject-bound email identity")
+        raise HTTPException(
+            status_code=401,
+            detail="SSO identity does not include a verified email address",
+        )
+    email = identity["email"]
 
     allowed = cfg.get("allowed_domains") or []
     if allowed:
@@ -686,14 +771,8 @@ async def oidc_callback(
         user = User(
             email=email,
             hashed_password=None,  # SSO-provisioned users have no local password
-            first_name=str(
-                claims.get("given_name") or userinfo.get("given_name")
-                or claims.get("name") or userinfo.get("name") or "SSO"
-            )[:255],
-            last_name=str(
-                claims.get("family_name") or userinfo.get("family_name")
-                or "User"
-            )[:255],
+            first_name=identity["first_name"][:255],
+            last_name=identity["last_name"][:255],
             role=cfg.get("default_role") or UserRole.MEMBER.value,
             status=UserStatus.ACTIVE.value,
             is_active=True,

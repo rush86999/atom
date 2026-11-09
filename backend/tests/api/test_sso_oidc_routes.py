@@ -16,6 +16,7 @@ import httpx
 import pytest
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
+from jose import jwt as jose_jwt
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool, StaticPool
@@ -27,7 +28,7 @@ from core.auth import SECRET_KEY, get_current_user
 from core.database import Base, get_db
 from core.models import User
 from core.personal_scope import PERSONAL_TENANT_ID
-from scripts.controlled_oidc_provider import OIDCProvider
+from scripts.controlled_oidc_provider import OIDCProvider, _pem
 
 CLIENT_ID = "atom-acceptance-client"
 CLIENT_SECRET = "atom-acceptance-secret"
@@ -165,6 +166,76 @@ def _new_provider(mode="valid", **kwargs):
     )
     defaults.update(kwargs)
     return OIDCProvider(mode=mode, **defaults).start()
+
+
+def _rewrite_id_token(monkeypatch, provider, mutate_claims):
+    """Re-sign the controlled provider's real ID token with changed claims."""
+    real_token = provider.token
+
+    def token(form):
+        status, body = real_token(form)
+        if status == 200:
+            claims = jose_jwt.get_unverified_claims(body["id_token"])
+            mutate_claims(claims)
+            body["id_token"] = jose_jwt.encode(
+                claims,
+                _pem(provider.signing_key),
+                algorithm="RS256",
+                headers={"kid": provider.jwk["kid"], "typ": "JWT"},
+            )
+        return status, body
+
+    monkeypatch.setattr(provider, "token", token)
+
+
+def _rewrite_userinfo(monkeypatch, provider, mutate_profile):
+    real_userinfo = provider.userinfo
+
+    def userinfo(authorization):
+        status, body = real_userinfo(authorization)
+        if status == 200:
+            mutate_profile(body)
+        return status, body
+
+    monkeypatch.setattr(provider, "userinfo", userinfo)
+
+
+def _drop_signed_email(claims):
+    claims.pop("email", None)
+    claims.pop("email_verified", None)
+
+
+def _drop_signed_profile(claims):
+    for key in (
+            "email", "email_verified", "given_name", "family_name", "name"):
+        claims.pop(key, None)
+
+
+class _Missing:
+    """Sentinel for a claim key that must be absent, not present as None."""
+
+
+def _set_signed_email_verified(claims, marker):
+    if marker is _Missing:
+        claims.pop("email_verified", None)
+    else:
+        claims["email_verified"] = marker
+
+
+def _set_userinfo_email_verified(profile, marker):
+    if marker is _Missing:
+        profile.pop("email_verified", None)
+    else:
+        profile["email_verified"] = marker
+
+
+_MARKERS = [
+    ("false", False),
+    ("missing", _Missing),
+    ("null", None),
+    ("string-true", "true"),
+    ("numeric-one", 1),
+]
 
 
 def _existing_user(db, **overrides):
@@ -738,3 +809,240 @@ def test_callback_uncertain_commit_does_not_return_session(
         assert row.last_login is None
     finally:
         fresh.close()
+
+
+# ============================================================================
+# Verified identity claims
+# ============================================================================
+
+@pytest.mark.parametrize(
+    "marker", [case[1] for case in _MARKERS],
+    ids=[case[0] for case in _MARKERS])
+def test_signed_email_verification_marker_cannot_admit_existing(
+        client, provider, db, monkeypatch, marker):
+    _save_config(client, provider)
+    existing = _existing_user(db)
+    _rewrite_id_token(
+        monkeypatch, provider,
+        lambda claims: _set_signed_email_verified(claims, marker))
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    db.expire_all()
+    row = (
+        db.query(User)
+        .filter(User.id == existing.id)
+        .populate_existing()
+        .one()
+    )
+    assert row.email == "SSO.User@Example.com"
+    assert row.status == "active"
+    assert row.is_active is True
+    assert row.role == "viewer"
+    assert row.hashed_password == "existing-hash"
+    assert row.last_login is None
+    assert db.query(User).filter(User.id == existing.id).count() == 1
+
+
+@pytest.mark.parametrize(
+    "marker", [case[1] for case in _MARKERS],
+    ids=[case[0] for case in _MARKERS])
+def test_signed_email_verification_marker_cannot_provision_jit(
+        client, provider, db, monkeypatch, marker):
+    _save_config(client, provider)
+    _rewrite_id_token(
+        monkeypatch, provider,
+        lambda claims: _set_signed_email_verified(claims, marker))
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+
+
+@pytest.mark.parametrize(
+    "signed_email_present", [True, False],
+    ids=["signed-email-present", "signed-email-omitted"])
+def test_signed_unverified_email_does_not_borrow_userinfo_marker(
+        client, provider, db, monkeypatch, signed_email_present):
+    _save_config(client, provider)
+
+    def mutate_claims(claims):
+        if not signed_email_present:
+            claims.pop("email", None)
+        claims["email_verified"] = False
+
+    _rewrite_id_token(monkeypatch, provider, mutate_claims)
+    # The controlled profile still reports the same email/sub as verified.
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+
+
+@pytest.mark.parametrize("sub_mode", ["foreign", "missing"])
+@pytest.mark.parametrize("precreate", [False, True], ids=["jit", "existing"])
+def test_userinfo_subject_cannot_supply_email_identity(
+        client, provider, db, monkeypatch, sub_mode, precreate):
+    _save_config(client, provider)
+    existing = _existing_user(db) if precreate else None
+    _rewrite_id_token(monkeypatch, provider, _drop_signed_email)
+
+    def mutate_profile(profile):
+        if sub_mode == "foreign":
+            profile["sub"] = "foreign-subject"
+        else:
+            profile.pop("sub", None)
+
+    _rewrite_userinfo(monkeypatch, provider, mutate_profile)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    if existing is not None:
+        db.expire_all()
+        row = (
+            db.query(User)
+            .filter(User.id == existing.id)
+            .populate_existing()
+            .one()
+        )
+        assert row.email == "SSO.User@Example.com"
+        assert row.role == "viewer"
+        assert row.hashed_password == "existing-hash"
+        assert row.last_login is None
+        assert db.query(User).filter(User.id == existing.id).count() == 1
+    else:
+        assert db.query(User).filter(
+            User.email == "sso.user@example.com").count() == 0
+
+
+def test_profile_only_verified_email_admits_jit(
+        client, provider, db, monkeypatch):
+    _save_config(client, provider)
+    _rewrite_id_token(monkeypatch, provider, _drop_signed_profile)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 200
+    user = (
+        db.query(User)
+        .filter(User.email == "sso.user@example.com")
+        .populate_existing()
+        .one()
+    )
+    assert user.first_name == "Sso"
+    assert user.last_name == "User"
+    assert user.role == "member"
+    assert user.status == "active"
+    assert user.is_active is True
+    assert user.hashed_password is None
+    assert user.last_login is not None
+
+
+def test_profile_only_verified_email_admits_existing(
+        client, provider, db, monkeypatch):
+    _save_config(client, provider)
+    existing = _existing_user(db)
+    _rewrite_id_token(monkeypatch, provider, _drop_signed_email)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 200
+    db.expire_all()
+    row = (
+        db.query(User)
+        .filter(User.id == existing.id)
+        .populate_existing()
+        .one()
+    )
+    assert row.email == "SSO.User@Example.com"
+    assert row.role == "viewer"
+    assert row.hashed_password == "existing-hash"
+    assert row.last_login is not None
+
+
+@pytest.mark.parametrize(
+    "marker", [case[1] for case in _MARKERS],
+    ids=[case[0] for case in _MARKERS])
+def test_profile_only_email_requires_boolean_true_marker(
+        client, provider, db, monkeypatch, marker):
+    _save_config(client, provider)
+    _rewrite_id_token(monkeypatch, provider, _drop_signed_email)
+    _rewrite_userinfo(
+        monkeypatch, provider,
+        lambda profile: _set_userinfo_email_verified(profile, marker))
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+
+
+def test_foreign_userinfo_profile_is_not_copied_when_signed_email_suffices(
+        client, provider, db, monkeypatch):
+    _save_config(client, provider)
+
+    def drop_signed_names(claims):
+        for key in ("given_name", "family_name", "name"):
+            claims.pop(key, None)
+
+    _rewrite_id_token(monkeypatch, provider, drop_signed_names)
+
+    def foreign_profile(profile):
+        profile["sub"] = "foreign-subject"
+        profile["email"] = "foreign@example.com"
+        profile["given_name"] = "Foreign"
+        profile["family_name"] = "Profile"
+        profile["name"] = "Foreign Profile"
+
+    _rewrite_userinfo(monkeypatch, provider, foreign_profile)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 200
+    user = (
+        db.query(User)
+        .filter(User.email == "sso.user@example.com")
+        .populate_existing()
+        .one()
+    )
+    assert user.first_name == "SSO"
+    assert user.last_name == "User"
+    assert db.query(User).filter(
+        User.email == "foreign@example.com").count() == 0
+
+
+@pytest.mark.parametrize("mutation", ["numeric-email", "numeric-subject"])
+def test_signed_identity_claims_require_string_types(
+        client, provider, db, monkeypatch, mutation):
+    _save_config(client, provider)
+
+    def mutate_claims(claims):
+        if mutation == "numeric-email":
+            claims["email"] = 12345
+            claims["email_verified"] = True
+        else:
+            claims["sub"] = 12345
+
+    _rewrite_id_token(monkeypatch, provider, mutate_claims)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
