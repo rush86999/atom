@@ -9,7 +9,7 @@ jest.mock('next/router',()=>({useRouter:()=>({push:jest.fn()})}));
 jest.mock('@monaco-editor/react',()=>({__esModule:true,default:({value,onChange}:any)=><textarea aria-label="Document editor" value={value} onChange={e=>onChange?.(e.target.value)}/> }));
 
 describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as const)('%s native text persistence',(_surface,Surface)=>{
- function openDocument(data:any, component="document"){return render(<Surface lastMessage={{type:'canvas:update',data:{action:'present',id:'ordinary-document',component,title:'Ordinary document',data,version:1}}}/>)}
+ function openDocument(data:any, component="document", auditId?:string){return render(<Surface lastMessage={{type:'canvas:update',data:{action:'present',id:'ordinary-document',component,title:'Ordinary document',data,version:1,revision_audit_id:auditId}}}/>)}
  let puts:any[];let artifacts:any[];
  beforeEach(()=>{puts=[];artifacts=[];delete (window as any).atom;server.use(
   rest.put('*/api/canvas/:id',async(req,res,ctx)=>{puts.push({id:req.params.id,body:req.body});return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified',effect:'committed'}}));}),
@@ -108,6 +108,19 @@ describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as cons
   expect(new URL(writes[0].url).searchParams.has('retype')).toBe(false);
   expect(writes[1].body).toBe('Latest edit before conversion');
   expect(new URL(writes[1].url).searchParams.get('retype')).toBe('true');
+ });
+ it('binds consecutive native edits to the exact loaded and confirmed audit identities',async()=>{
+  const priors:(string|null)[]=[];
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{priors.push(req.url.searchParams.get('expected_prior_audit_id'));return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'accepted-'+priors.length,verification:{status:'verified'}}));}));
+  openDocument({content:'Initial'},'document','loaded-exact');
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'First edit'}});
+  fireEvent.click(screen.getByText('Save Changes'));
+  await waitFor(()=>expect(priors).toHaveLength(1));
+  await screen.findByText('Saved',{exact:true});
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Second edit'}});
+  fireEvent.click(screen.getByText('Save Changes'));
+  await waitFor(()=>expect(priors).toHaveLength(2));
+  expect(priors).toEqual(['loaded-exact','accepted-1']);
  });
  it('keeps an ordinary clean type change available without a duplicate save',async()=>{
   const requests:string[]=[];
