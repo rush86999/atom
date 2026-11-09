@@ -1,0 +1,17 @@
+{
+  "executed_source": "b515d0e49bb28eb01fd137623101e2a6ad1cb3a3",
+  "source_files": {
+    "mobile/src/services/workflowSyncService.ts": "05ba03b3cc2a5468b754296a789f20183c335154826b505b1be5178be22d280d",
+    "mobile/src/services/canvasSyncService.ts": "82303a5cc60e693ece78d346032b6ae0ab3fdb9dfc3f8bd0d74fdea0cc354511",
+    "mobile/src/services/storageService.ts": "b091fd53c2010addaf3d45abf7cd6a113c1a99b3a53f0fe6426037fbe811bc62",
+    "mobile/src/__tests__/services/pendingWrites.uncertainty.test.ts": "f937e59030d1b9883e2c8a59197d83cbd188198ecc76be0cbc5ac6fbc6b6315c"
+  },
+  "artifacts": {
+    "pending-writes-explicit-status-negative.spec.json": "ea31dce3cd799d5c7be7b059d6b02d85deabcd40ed87f8d37616d95590487d2b",
+    "pending-writes-explicit-status-negative.exit.json": "3e83b1097d219b98a57a13ee2d79b1421757e7407dd31a60e3e2701eb63c7ca1",
+    "pending-writes-explicit-status-negative-results.json": "a6ab90b4f7e3f42de82a35b55b149549a4116f732f34ae3e218e0defa60d7603",
+    "NEXT_WORK_ORDER.txt": "558d18f325228189b90a51099ff76edc4844cc5552eb80e7672e55cd9a002556",
+    "README.md": "cb0899c94dbaf14772a534318fe3c8b05ff31eb5f571a1aea5c29b93cc471e6a",
+    "pending-writes-explicit-status-negative.log": "18334a997c97924bfc13f044f7d2d633c5967c4e0917c8788e8b4b998ae2a552"
+  }
+}
