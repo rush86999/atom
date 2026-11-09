@@ -233,12 +233,8 @@ export function CanvasViewerScreen() {
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsOnline(state.isConnected ?? true);
     });
-    // addEventListener returns a subscription object ({ remove }), not a
-    // function — wrap it so React gets a proper cleanup and the listener is
-    // actually removed on unmount.
-    return () => {
-      unsubscribe?.remove?.();
-    };
+    // NetInfo returns the unsubscribe function itself.
+    return unsubscribe;
   }, []);
 
   // Load canvas on mount
