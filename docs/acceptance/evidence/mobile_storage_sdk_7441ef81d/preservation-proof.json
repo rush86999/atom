@@ -1,0 +1,17 @@
+{
+  "store_configuration_unchanged": true,
+  "case_preservation": {
+    "mobile/src/__tests__/services/storageService.test.ts": {
+      "existing_named_cases_retained": 123,
+      "old_expect_calls": 170,
+      "new_expect_calls": 170
+    },
+    "mobile/src/storage/__tests__/AsyncStorage.test.ts": {
+      "existing_named_cases_retained": 16,
+      "old_expect_calls": 22,
+      "new_expect_calls": 22
+    }
+  },
+  "official_migration_reference": "https://github.com/margelo/react-native-mmkv/blob/main/docs/V4_UPGRADE_GUIDE.md",
+  "native_encrypted_data_migration_qualified": false
+}

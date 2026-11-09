@@ -1,0 +1,9 @@
+# Mobile storage installed-SDK contract
+
+Frozen7441ef81d uses installed MMKV4 createMMKV, remove, clearAll and size rather than legacy constructor/method aliases. Missing native getters become null at the existing wrapper boundary; zero and false remain observed values. Existing store id and encrypted options are unchanged. Quota state is published only after its initialization write succeeds. The global mock no longer advertises the nonexistent constructor or legacy methods.
+
+Correct CommonJS verifier: seven cases fail on predecessor runtime14d551332 at the nonexistent constructor. Final15-file controlled consumer selection passes724/724 with none skipped, including all139 original storage-case names and expectations plus nine SDK controls. The initial seven-case verifier is reconstructed from the later file only after exact captured-hash agreement. All positive captured source hashes match the subsequent frozen commit; dirty capture is not a clean-source rerun. Three earlier dynamic-import attempts hit Jest VM limitations before product execution and are explicitly excluded in probe-adjudication.json.
+
+Actual full compiler remains failing445diagnostics outside the storage service/verifiers. Controlled native-shaped doubles do not establish MMKV/Nitro/ReactNative host compatibility, encrypted native-file migration, secure key lifecycle, disk persistence, actual process restart or device operations. The pre-existing fixed key has not been rotated or removed. Queue writes and detached UI editing remain separate unresolved failures, not successes inferred from existing stateful mocks.
+
+Primary migration reference: https://github.com/margelo/react-native-mmkv/blob/main/docs/V4_UPGRADE_GUIDE.md and the installed4.1.2 declarations. No new dependency, provider, account, OS permission operation or deployment.

@@ -1,0 +1,31 @@
+{
+  "frozen_source": "7441ef81d6c7695b0ba84ff7f3ef948998b539ff",
+  "capture_base": "14d5513325450bad60496bd27bea810805a92e84",
+  "capture_source_is_clean": false,
+  "all_captured_source_hashes_match_frozen_commit": 245,
+  "negative": {
+    "selected_files": 1,
+    "failed": 7,
+    "cause": "installed SDK has no MMKV runtime constructor",
+    "verifier": "initial-cjs-verifier-reconstructed.ts",
+    "reconstructed_bytes_match_capture": true
+  },
+  "positive": {
+    "selected_files": 15,
+    "total": 724,
+    "passed": 724,
+    "skipped": 0
+  },
+  "full_typecheck": {
+    "actual_exit": 2,
+    "diagnostics": 445,
+    "storage_service_and_verifier_diagnostics": 0
+  },
+  "store_configuration_preserved": true,
+  "limits": [
+    "Controlled SDK-shaped native doubles, no actual MMKV native bridge",
+    "Encrypted native data migration and secure key lifecycle remain open",
+    "Offline queue writes and UI edits are not qualified by these passing existing mocks",
+    "No complete mobile build/native device qualification"
+  ]
+}

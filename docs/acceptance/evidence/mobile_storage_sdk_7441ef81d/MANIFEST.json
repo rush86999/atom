@@ -1,0 +1,29 @@
+{
+  "executed_source": "7441ef81d6c7695b0ba84ff7f3ef948998b539ff",
+  "source_files": {
+    "mobile/src/services/storageService.ts": "68956f56e56389ea12835ad72a6ec8d42780cc5d94348fa92e5da45b8b4547e2",
+    "mobile/src/__tests__/services/storageService.mmkv-contract.test.ts": "99a6aa8d2ee5afaa06e8c5115e2b13b0f068551ba28fced048a30b1c5e72f5c6",
+    "mobile/src/__tests__/services/storageService.test.ts": "d190c3faec58bcf7443025c9a4e879bfae1350fefac1c3749f597d23b15c9f29",
+    "mobile/src/storage/__tests__/AsyncStorage.test.ts": "0b9157092045f51b5451285d74ceaf1e6e9e87d199af81b376a46c61417c8aaa",
+    "mobile/jest.setup.js": "fc9121138f7e1528e1e4f117b4d8eab62f348d1b3de985ec7e4a773e2c5b7099",
+    "mobile/jest.config.js": "3283ce8cefd68604a3f6aac4006e5ed40a0ab218b0763161b269a1cf1aed8577",
+    "mobile/tsconfig.json": "d92c2d5c519a5fc6fc2980d9ec9c05dcda8842698229462daca0689ef12147cc",
+    "mobile/package-lock.json": "af8a4d8cb7778038edb6c8b23ab1b434057f10a24ac13d4a2cc8ce8b970a6c21"
+  },
+  "artifacts": {
+    "README.md": "e68df0f404feabe97aeb7b13513ee0536e5e660df653d082ddb1a8a32e310e86",
+    "initial-cjs-verifier-reconstructed.ts": "a019a4ea70db9780643e86dfd2515fcba632e8a5d0dc0df9f51178d9645d745f",
+    "preservation-proof.json": "a798c9150fe525f10800f2ca534f8db52bfd3a9f47ce76ac46988eaa28e794f0",
+    "probe-adjudication.json": "592688b096a0ccdc099dc6796f2cad8cf78dc36121a421fed1dda6308ffbd070",
+    "storage-cjs-original-runtime-negative.exit.json": "a2f60c3d6552e4c3eb48ec8c58558d98be7acff0bb813179090a8d6e3d860e95",
+    "storage-cjs-original-runtime-negative.log": "e4a8cb3b5a55757284fdc4703d1e5ad2d36d05eba576414b4229f5864cd7950c",
+    "storage-cjs-original-runtime-negative.spec.json": "8c2c3cbe23fc0c6825aa4b9c73b42ad80956f9820e64d0ff14df8558e4961d89",
+    "storage-sdk-full-typecheck.exit.json": "8cbc9dc07cefc5f36ed296d7acb1df288a6743ff9f524d7766ba3830ddf33e6e",
+    "storage-sdk-full-typecheck.log": "882a85f245cdabe03019a872119ccfca7e710dbd6a0a666a06220246e3a99aad",
+    "storage-sdk-full-typecheck.spec.json": "b7b1edcfcf4770d5870e26d8596febbdb7a81a177ddbf5637bcda3842c3e9d9a",
+    "storage-whole-consumer-positive.exit.json": "f4a9c390f5ab905f69ac881041aec7755b800a52439c8be601b3141aa1b3082f",
+    "storage-whole-consumer-positive.log": "407f11378d79a645ec4a9a55722e8bcd8de4fd0e0a3e2cd2207eeec9557b63d0",
+    "storage-whole-consumer-positive.spec.json": "7e55e69105f93798f2a85f947b13e319bb0f58e11164c55df9235dcb19743f91",
+    "verification.json": "8d71696331276c15391b9b6141f94c1fd62ce8edae8c9388e02176e78a57cee2"
+  }
+}

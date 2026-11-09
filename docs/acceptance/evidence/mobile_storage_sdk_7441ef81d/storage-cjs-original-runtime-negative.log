@@ -1,0 +1,705 @@
+
+> atom-mobile@1.0.0 test
+> jest src/__tests__/services/storageService.mmkv-contract.test.ts --runInBand --watch=false --watchman=false --json --outputFile=/private/tmp/root-mobile-build-20261109/storage-cjs-original-runtime-negative-results.json
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+  console.warn
+    ProgressBarAndroid has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/progress-bar-android' instead of 'react-native'. See https://github.com/react-native-progress-view/progress-bar-android
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as ProgressBarAndroid] (node_modules/react-native/index.js:143:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    Clipboard has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-clipboard/clipboard' instead of 'react-native'. See https://github.com/react-native-clipboard/clipboard
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as Clipboard] (node_modules/react-native/index.js:226:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `addListener` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:63:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `removeListeners` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:68:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    PushNotificationIOS has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. See https://github.com/react-native-push-notification-ios/push-notification-ios
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as PushNotificationIOS] (node_modules/react-native/index.js:287:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL src/__tests__/services/storageService.mmkv-contract.test.ts
+  StorageService installed MMKV contract
+    ✕ imports through the actual factory export and preserves the existing store id (175 ms)
+    ✕ missing native values are null at the existing wrapper boundary (1 ms)
+    ✕ zero and false remain observed values (2 ms)
+    ✕ deletes through remove instead of an invented legacy method (1 ms)
+    ✕ statistics read the native size property (2 ms)
+    ✕ clears through the native clearAll method (2 ms)
+    ✕ existing bytes survive a fresh wrapper module load (1 ms)
+
+  ● StorageService installed MMKV contract › imports through the actual factory export and preserves the existing store id
+
+    TypeError: _reactNativeMmkv.MMKV is not a constructor
+
+      56 |
+      57 | // Initialize MMKV
+    > 58 | const mmkv = new MMKV({
+         |              ^
+      59 |   id: 'atom-storage',
+      60 |   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
+      61 | });
+
+      at Object.<anonymous> (src/services/storageService.ts:58:14)
+      at Object.requireActual (src/__tests__/services/storageService.mmkv-contract.test.ts:29:37)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● StorageService installed MMKV contract › missing native values are null at the existing wrapper boundary
+
+    TypeError: _reactNativeMmkv.MMKV is not a constructor
+
+      56 |
+      57 | // Initialize MMKV
+    > 58 | const mmkv = new MMKV({
+         |              ^
+      59 |   id: 'atom-storage',
+      60 |   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
+      61 | });
+
+      at Object.<anonymous> (src/services/storageService.ts:58:14)
+      at Object.requireActual (src/__tests__/services/storageService.mmkv-contract.test.ts:36:37)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● StorageService installed MMKV contract › zero and false remain observed values
+
+    TypeError: _reactNativeMmkv.MMKV is not a constructor
+
+      56 |
+      57 | // Initialize MMKV
+    > 58 | const mmkv = new MMKV({
+         |              ^
+      59 |   id: 'atom-storage',
+      60 |   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
+      61 | });
+
+      at Object.<anonymous> (src/services/storageService.ts:58:14)
+      at Object.requireActual (src/__tests__/services/storageService.mmkv-contract.test.ts:43:37)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● StorageService installed MMKV contract › deletes through remove instead of an invented legacy method
+
+    TypeError: _reactNativeMmkv.MMKV is not a constructor
+
+      56 |
+      57 | // Initialize MMKV
+    > 58 | const mmkv = new MMKV({
+         |              ^
+      59 |   id: 'atom-storage',
+      60 |   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
+      61 | });
+
+      at Object.<anonymous> (src/services/storageService.ts:58:14)
+      at Object.requireActual (src/__tests__/services/storageService.mmkv-contract.test.ts:51:37)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● StorageService installed MMKV contract › statistics read the native size property
+
+    TypeError: _reactNativeMmkv.MMKV is not a constructor
+
+      56 |
+      57 | // Initialize MMKV
+    > 58 | const mmkv = new MMKV({
+         |              ^
+      59 |   id: 'atom-storage',
+      60 |   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
+      61 | });
+
+      at Object.<anonymous> (src/services/storageService.ts:58:14)
+      at Object.requireActual (src/__tests__/services/storageService.mmkv-contract.test.ts:61:37)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● StorageService installed MMKV contract › clears through the native clearAll method
+
+    TypeError: _reactNativeMmkv.MMKV is not a constructor
+
+      56 |
+      57 | // Initialize MMKV
+    > 58 | const mmkv = new MMKV({
+         |              ^
+      59 |   id: 'atom-storage',
+      60 |   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
+      61 | });
+
+      at Object.<anonymous> (src/services/storageService.ts:58:14)
+      at Object.requireActual (src/__tests__/services/storageService.mmkv-contract.test.ts:66:37)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● StorageService installed MMKV contract › existing bytes survive a fresh wrapper module load
+
+    TypeError: _reactNativeMmkv.MMKV is not a constructor
+
+      56 |
+      57 | // Initialize MMKV
+    > 58 | const mmkv = new MMKV({
+         |              ^
+      59 |   id: 'atom-storage',
+      60 |   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
+      61 | });
+
+      at Object.<anonymous> (src/services/storageService.ts:58:14)
+      at Object.requireActual (src/__tests__/services/storageService.mmkv-contract.test.ts:77:24)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+Test Suites: 1 failed, 1 total
+Tests:       7 failed, 7 total
+Snapshots:   0 total
+Time:        0.559 s, estimated 1 s
+Ran all test suites matching /src\/__tests__\/services\/storageService.mmkv-contract.test.ts/i.
+Test results written to: ../../root-mobile-build-20261109/storage-cjs-original-runtime-negative-results.json

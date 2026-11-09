@@ -1,0 +1,12 @@
+{
+  "excluded_attempts": [
+    "storage-factory-sdk-negative",
+    "storage-factory-actual-sdk-negative",
+    "storage-factory-actual-sdk-positive"
+  ],
+  "reason": "Jest dynamic-import VM configuration failed before product import; not product defect/pass evidence",
+  "actual_negative": "storage-cjs-original-runtime-negative",
+  "actual_negative_class": "7 cases fail on nonexistent installed MMKV constructor",
+  "restored_product_working_bytes": true,
+  "controlled_positive": "storage-cjs-sdk-positive"
+}
