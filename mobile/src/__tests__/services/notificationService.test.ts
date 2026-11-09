@@ -7,26 +7,64 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
-import { notificationService } from '../../services/notificationService';
+import { notificationService, NotificationPermissionStatus } from '../../services/notificationService';
+import { PermissionStatus } from 'expo-modules-core';
 
 // Mock fetch
 global.fetch = jest.fn();
 
+function permissionResponse(status: PermissionStatus, granted: boolean, iosStatus: Notifications.IosAuthorizationStatus): Notifications.NotificationPermissionsStatus {
+  return {
+    status, granted, canAskAgain: true, expires: 'never',
+    ios: {
+      status: iosStatus,
+      allowsDisplayInNotificationCenter: null, allowsDisplayOnLockScreen: null,
+      allowsDisplayInCarPlay: null, allowsAlert: null, allowsBadge: null, allowsSound: null,
+      alertStyle: 0,
+    },
+  };
+}
+
 describe('NotificationService', () => {
+  test('permission contract: a cached token cannot outlive revoked permission', async () => {
+    expect(await notificationService.registerForPushNotifications()).not.toBeNull();
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissionResponse(PermissionStatus.DENIED, false, 1));
+    expect(await notificationService.registerForPushNotifications()).toBeNull();
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test.each<{ status: PermissionStatus; granted: boolean; ios: Notifications.IosAuthorizationStatus; expected: NotificationPermissionStatus }>([
+    { status: PermissionStatus.UNDETERMINED, granted: false, ios: 0, expected: 'undetermined' },
+    { status: PermissionStatus.DENIED, granted: false, ios: 1, expected: 'denied' },
+    { status: PermissionStatus.DENIED, granted: false, ios: 3, expected: 'denied' },
+    { status: PermissionStatus.DENIED, granted: true, ios: 2, expected: 'denied' },
+  ])('permission contract: $status / granted=$granted / ios=$ios becomes $expected', async ({ status, granted, ios, expected }) => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissionResponse(status, granted, ios));
+    expect(await notificationService.getPermissionStatus()).toBe(expected);
+  });
+
+  test('permission contract: a contradictory grant dispatches no token or backend registration', async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissionResponse(PermissionStatus.DENIED, true, 2));
+    expect(await notificationService.registerForPushNotifications('controlled-user', 'controlled-device')).toBeNull();
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     notificationService._resetState();
     (global.fetch as jest.Mock).mockReset();
     // Restore the default granted permission — an earlier test permanently
     // rejects getPermissionsAsync, which breaks every later initialize().
-    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+    (Notifications.getPermissionsAsync as jest.Mock).mockReset().mockResolvedValue({
       status: 'granted',
       canAskAgain: true,
       granted: true,
       expires: 'never',
     });
     // Same for the push token fetch — error-handling tests permanently reject it.
-    (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReset().mockResolvedValue({
       type: 'expo',
       data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
     });

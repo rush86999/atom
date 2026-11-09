@@ -338,7 +338,6 @@ jest.mock('expo-notifications', () => {
 
   return {
     ...mockNotifications,
-    Notifications: mockNotifications,
     Notification: class MockNotification {},
     default: mockNotifications,
   };

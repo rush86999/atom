@@ -13,13 +13,24 @@
  * - Badge count management
  */
 
-import { Notifications, Notification } from 'expo-notifications';
+import * as Notifications from 'expo-notifications';
+import type { Notification } from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
 // Types
 export type NotificationPermissionStatus = 'undetermined' | 'granted' | 'denied';
+
+function permissionStatusFrom(
+  settings: Pick<Notifications.NotificationPermissionsStatus, 'status' | 'granted'>
+): NotificationPermissionStatus {
+  // Numeric iOS substatus is not the cross-platform permission protocol.
+  // Contradictory or incomplete grant material cannot authorize registration.
+  if (settings.status === 'granted' && settings.granted === true) return 'granted';
+  if (settings.status === 'undetermined' && settings.granted === false) return 'undetermined';
+  return 'denied';
+}
 
 export interface PushToken {
   token: string;
@@ -87,7 +98,7 @@ class NotificationService {
 
       // Check initial permission status
       const settings = await Notifications.getPermissionsAsync();
-      this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
+      this.permissionStatus = permissionStatusFrom(settings);
 
       // Add notification received listener
       Notifications.addNotificationReceivedListener((notification) => {
@@ -130,7 +141,7 @@ class NotificationService {
         android: {},
       });
 
-      this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
+      this.permissionStatus = permissionStatusFrom(settings);
 
       if (this.permissionStatus === 'granted') {
         // Register for push notifications after permission granted
@@ -152,7 +163,7 @@ class NotificationService {
   async getPermissionStatus(): Promise<NotificationPermissionStatus> {
     try {
       const settings = await Notifications.getPermissionsAsync();
-      this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
+      this.permissionStatus = permissionStatusFrom(settings);
       return this.permissionStatus;
     } catch (error) {
       console.error('NotificationService: Failed to get permission status:', error);
@@ -171,17 +182,17 @@ class NotificationService {
         return null;
       }
 
-      // Check if we already have a token
+      // Check permissions first
+      const settings = await Notifications.getPermissionsAsync();
+      if (permissionStatusFrom(settings) !== 'granted') {
+        console.warn('NotificationService: Notification permissions not granted');
+        return null;
+      }
+
+      // Cached acquisition is not a current permission grant. Check the OS first.
       if (this.pushToken) {
         console.log('NotificationService: Push token already registered');
         return this.pushToken;
-      }
-
-      // Check permissions first
-      const settings = await Notifications.getPermissionsAsync();
-      if (!settings.granted) {
-        console.warn('NotificationService: Notification permissions not granted');
-        return null;
       }
 
       // Get push token
