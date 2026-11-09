@@ -4,7 +4,7 @@ describe('canvas queued submission receipt boundary', () => {
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
   test.each(['verified', 'missing', 'unverified', 'wrong-canvas', 'wrong-operation'] as const)('%s receipt', async mode => {
     let durable = {canvases: {}, htmlCache: {}, cssCache: {}, favorites: [], lastSyncAt: null, pendingFormSubmissions: [{canvasId: 'canvas-001', operationId: 'logical-001', formData: {quantity: 0}, submittedAt: '2026-11-09T10:00:00Z', status: 'pending', deliveryStatus: 'pending', userId: 'owner-001', workspaceId: 'workspace-001', deviceId: 'device-001'}]};
-    const receipt = {success: true, canvas_id: mode === 'wrong-canvas' ? 'foreign' : 'canvas-001', operation_id: mode === 'wrong-operation' ? 'foreign' : 'logical-001', audit_id: 'audit-001', verification: {status: mode === 'unverified' ? 'unavailable' : 'verified', effect: 'committed'}, data: {canvas_id: 'canvas-001', submitted: true}};
+    const receipt = {success: true, action_type: 'submit', canvas_id: mode === 'wrong-canvas' ? 'foreign' : 'canvas-001', operation_id: mode === 'wrong-operation' ? 'foreign' : 'logical-001', audit_id: 'audit-001', verification: {status: mode === 'unverified' ? 'unavailable' : 'verified', effect: 'committed'}, data: {canvas_id: 'canvas-001', submitted: true}};
     const post = jest.fn(async () => ({success: true, data: mode === 'missing' ? {accepted: true} : receipt}));
     jest.doMock('../../services/api', () => ({apiService: {post, get: jest.fn()}}));
     jest.doMock('../../services/storageService', () => ({storageService: {getObject: async () => durable, setObject: async (_key: string, value: typeof durable) => {durable = JSON.parse(JSON.stringify(value)); return true;}}}));

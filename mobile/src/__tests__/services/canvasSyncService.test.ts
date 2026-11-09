@@ -880,15 +880,15 @@ describe('canvasSyncService', () => {
         'device_1'
       );
 
-      // Back online — flush
+      // Back online — only the exact verified server receipt retires intent.
       offlineSyncService.getSyncState.mockResolvedValue({ syncInProgress: false });
-      apiService.post.mockResolvedValue({ success: true });
+      apiService.post.mockImplementation(async (_url: string, request: {canvas_id: string; operation_id: string}) => ({success: true, data: {success: true, action_type: 'submit', canvas_id: request.canvas_id, operation_id: request.operation_id, audit_id: 'controlled-audit', verification: {status: 'verified', effect: 'committed'}, data: {canvas_id: request.canvas_id, submitted: true}}}));
 
       await canvasSyncService.syncFormSubmissions('user_1', 'device_1');
 
       expect(apiService.post).toHaveBeenCalledWith(
-        '/api/canvas/canvas_1/submit',
-        expect.objectContaining({ form_data: { field1: 'value1' } }),
+        '/api/canvas/submit',
+        expect.objectContaining({ canvas_id: 'canvas_1', operation_id: expect.any(String), form_data: { field1: 'value1' } }),
         { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } }
       );
 

@@ -169,6 +169,9 @@ describe('Pending writes require a durable pre-dispatch boundary', () => {
     else cache.pendingFormSubmissions.push({ ...cache.pendingFormSubmissions[0], formData: { amount: 1 } });
     durable.set(family.key, JSON.stringify(cache));
     const client = await family.load();
+    if (family.name === 'canvas') {
+      mockPost.mockImplementation(async (_url: string, request: {canvas_id: string; operation_id: string}) => ({success: true, data: {success: true, action_type: 'submit', canvas_id: request.canvas_id, operation_id: request.operation_id, audit_id: 'controlled-audit', verification: {status: 'verified', effect: 'committed'}, data: {canvas_id: request.canvas_id, submitted: true}}}));
+    }
     await client.flush();
     expect(mockPost).toHaveBeenCalledTimes(2);
     expect(JSON.parse(durable.get(family.key) ?? 'null')).toMatchObject({ [queueKey]: [] });

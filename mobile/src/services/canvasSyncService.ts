@@ -45,6 +45,7 @@ export interface Canvas {
 }
 
 export interface CanvasFormData {
+  operationId?: string;
   canvasId: string;
   formData: any;
   submittedAt: Date;
@@ -157,6 +158,20 @@ function decodeCanvas(value: unknown): Canvas | null {
   }
 
   return canvas;
+}
+
+/** Validate the raw HTTP body inside ApiService's transport envelope. */
+function verifiedSubmissionReceipt(value: unknown, submission: CanvasFormData): boolean {
+  if (!isRecord(value) || value.success !== true ||
+      value.canvas_id !== submission.canvasId ||
+      value.operation_id !== submission.operationId ||
+      value.action_type !== 'submit' ||
+      typeof value.audit_id !== 'string' || value.audit_id.length === 0 ||
+      !isRecord(value.verification) || value.verification.status !== 'verified' ||
+      !isRecord(value.data) || value.data.canvas_id !== submission.canvasId ||
+      value.data.submitted !== true) return false;
+  return value.verification.effect === 'committed' ||
+    (value.verification.effect === 'none' && value.already_applied === true);
 }
 
 function getSubmissionOwner(submission: CanvasFormData): PendingWriteOwner | null {
@@ -650,6 +665,9 @@ class CanvasSyncService {
         if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
           return false;
         }
+        // Legacy rows known never dispatched may receive an identity here;
+        // it is persisted with the marker before any request can leave.
+        submission.operationId ||= `canvas_${Date.now()}_${Math.random().toString(36).slice(2)}`;
         submission.deliveryStatus = 'dispatching';
         try {
           await this.saveCache();
@@ -682,14 +700,15 @@ class CanvasSyncService {
       let accepted = false;
       try {
         const response = await apiService.post(
-          `/api/canvas/${submission.canvasId}/submit`,
+          '/api/canvas/submit',
           {
+            canvas_id: submission.canvasId,
+            operation_id: submission.operationId,
             form_data: submission.formData,
-            submitted_at: submission.submittedAt,
           },
           { expectedAccessTokenSnapshot: session }
         );
-        accepted = response.success;
+        accepted = response.success && verifiedSubmissionReceipt(response.data, submission);
       } catch (error) {
         console.error(`CanvasSync: Failed to sync form submission for canvas ${submission.canvasId}:`, error);
       }
