@@ -1,0 +1,45 @@
+{
+  "source": "8e1e9e82393a8f203a18baefe3e837d3bda980d2",
+  "transport": "actual optimized production Next server over verified local HTTPS; no browser claim",
+  "registered": true,
+  "two_independent_web_credentials": true,
+  "separate_backend_generations": true,
+  "web_signing_key_separate": true,
+  "logout_receipt_verified": true,
+  "revoked_backend_status": 401,
+  "revoked_cookie_empty": true,
+  "peer_current": true,
+  "restart_pending": false,
+  "production_compiled_runtime": true,
+  "strict_cookie_prefix_policy": true,
+  "tls_verify": "explicit owned certificate, not disabled",
+  "build_signing_key_supplied": false,
+  "no_provider_calls_requested": true,
+  "actual_frontend_process_changed": true,
+  "after_restart": {
+    "revoked": {
+      "http_status": 200,
+      "empty": true,
+      "same_identity": false
+    },
+    "peer": {
+      "http_status": 200,
+      "empty": false,
+      "same_identity": true
+    }
+  },
+  "original_encrypted_cookie_headers_replayed_over_verified_https": true,
+  "backend_generation_statuses": {
+    "revoked": 401,
+    "peer": 200
+  },
+  "same_database_build_runtime_key": true,
+  "exact_original_audit_rows": 1,
+  "logout_audits_for_account": 1,
+  "browser_capture": false,
+  "no_tls_verification_disabled": true,
+  "no_system_trust_change": true,
+  "independent_sdk_controls_passed": 45,
+  "frontend_tests_passed": 190,
+  "typescript_exit": 0
+}

@@ -1,0 +1,9 @@
+{
+  "source": "8e1e9e82393a8f203a18baefe3e837d3bda980d2",
+  "actual_exit": 0,
+  "resource_pressure_abort": false,
+  "minimum_free_bytes": 4767576064,
+  "runtime_signing_key_supplied": false,
+  "external_model_provider_calls_requested": 0,
+  "actual_production_build": true
+}

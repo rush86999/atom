@@ -1,5 +1,13 @@
 # App completion state — 2026-11-07
 
+## Production HTTPS follow-through — 2026-11-09
+
+PR803 merged as c8f8183e8 after all13required checks and strict11packet/167source/56artifact review; actual squash tree/parent match the pre-merge proof. Review was COMMENT plus the explicitly authorized review-only admin path, never separate-account approval; settings/deployment unchanged. Post-merge main CI is observed separately.
+
+Source8e1e9e823 repairs the pre-existing production __Host Domain/debug defect. Root45SDK/190frontend/TSC and actual optimized-build/verified-local-HTTPS login, exact-generation logout, frontend process restart, original-cookie replay and singular-audit proof are packaged in web_production_https_8e1e9e823. Generated dirtiness and no-browser/no-live-OAuth limits remain explicit. Predecessorcec production negative stays preserved. This does not close full app scope, production type enforcement, ordinary browser password reset or SSO.
+
+PR804/805 still need exact-head CI/current-main integration/review. Historical143claims/18goalrows remain unchanged. Main web first; mobile last.
+
 ## Current operational checkpoint — 2026-11-09, web-first
 
 This checkpoint supersedes the older live-queue paragraphs, not their historical evidence. Last resolved main is `89527616e`; PR #802 remains a draft and is not accepted or merged. Its `3756bc47c` hosted backend-core failure was traced to a lazy-FastAPI route-inspection test, not waived. Successor `5248cebe0` retains exact handler/uniqueness checks and adds mounted-path readback.

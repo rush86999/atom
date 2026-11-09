@@ -1,0 +1,14 @@
+{
+  "build_id": "DGc9s02xsaSaf1Z-RuZaA",
+  "initial_frontend_pid": 11658,
+  "restarted_frontend_pid": 12003,
+  "backend_pid": 11608,
+  "tls_proxy_pid": 11663,
+  "all_owned_services_confirmed_terminal": true,
+  "owned_generated_output_removed_bytes": 184835619,
+  "runtime_key_occurrences_in_generated_build": 0,
+  "system_trust_changed": false,
+  "tls_verification_disabled": false,
+  "private_records_retained": true,
+  "next_env_restored": true
+}
