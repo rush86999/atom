@@ -35,6 +35,14 @@ import {
   verifyDeviceState,
 } from '../storageTestHelpers';
 
+async function readRequiredAccessToken(): Promise<string> {
+  const token = await SecureStore.getItemAsync('atom_access_token');
+  if (typeof token !== 'string') {
+    throw new Error('Expected the auth fixture to persist an access token');
+  }
+  return token;
+}
+
 describe('storageTestHelpers', () => {
   beforeAll(() => {
     // Trigger the jest.setup react-native-mmkv mock factory, which installs
@@ -226,9 +234,9 @@ describe('storageTestHelpers', () => {
         await setupPartialAuthState(scenario);
 
         if (scenario === 'expired') {
-          expect(parseTokenExpiry(await SecureStore.getItemAsync('atom_access_token')!)).toBeLessThan(Date.now());
+          expect(parseTokenExpiry(await readRequiredAccessToken())).toBeLessThan(Date.now());
         } else if (scenario === 'expiring-soon') {
-          expect(parseTokenExpiry(await SecureStore.getItemAsync('atom_access_token')!)).toBeGreaterThan(Date.now());
+          expect(parseTokenExpiry(await readRequiredAccessToken())).toBeGreaterThan(Date.now());
         } else if (scenario === 'missing-refresh') {
           expect(await SecureStore.getItemAsync('atom_access_token')).toBeTruthy();
           expect(await SecureStore.getItemAsync('atom_refresh_token')).toBeNull();
@@ -261,7 +269,7 @@ describe('storageTestHelpers', () => {
 
     it('setupExpiredSession stores expired tokens with user data', async () => {
       await setupExpiredSession();
-      expect(parseTokenExpiry(await SecureStore.getItemAsync('atom_access_token')!)).toBeLessThan(Date.now());
+      expect(parseTokenExpiry(await readRequiredAccessToken())).toBeLessThan(Date.now());
       expect(await AsyncStorage.getItem('atom_user_data')).toContain('user_123');
     });
 
