@@ -1,0 +1,26 @@
+{
+  "proposal_source": "7815e597e",
+  "reviewed_applied_indices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    9,
+    10,
+    12,
+    14,
+    15,
+    16
+  ],
+  "replaced_gallery_patch": 13,
+  "gallery_feature_removed": false,
+  "video_contract_deferred": [
+    7,
+    8
+  ],
+  "barcode_patch_root_revised": 11,
+  "native_gallery_write": false
+}

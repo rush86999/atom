@@ -1,0 +1,26 @@
+{
+  "executed_source": "8ef724ee030d45cc04611f49373c72f57b10b704",
+  "source_files": {
+    "mobile/package.json": "38c833b49a999edf9a9c4f898a93cd66062a8cfc7464ba727609801d6f36cdc6",
+    "mobile/package-lock.json": "af8a4d8cb7778038edb6c8b23ab1b434057f10a24ac13d4a2cc8ce8b970a6c21",
+    "mobile/src/services/cameraService.ts": "156af42cdf25d513f100e030ed8af5ac37b6ec1f0de3b83aede8720272cb0f8a",
+    "mobile/src/screens/device/CameraScreen.tsx": "5db50669a8843571cc1a17400ce429d7fff2fbf7176f3f8146fa622e994260cc",
+    "mobile/src/__tests__/services/cameraService.test.ts": "d2d556fbb8c80726ab412e6a13461ee855150a266096948c8d261a8b8195919e",
+    "mobile/src/__tests__/services/cameraService.sdk.test.ts": "27f9809d3ce861d00eec55cc84abe8694a633906363524f4b0a1b889bded7549",
+    "mobile/src/__tests__/screens/device/CameraScreen.test.tsx": "ce1098dd1f61a7d7e49f07eb56ff526586459acd65ad217708c5d19502dfe58e",
+    "mobile/jest.setup.js": "b79175cfb5649b26f1bfc05c6cef46ca5eab3af762ec373d23ce2996ad30cea9",
+    "mobile/jest.config.js": "3283ce8cefd68604a3f6aac4006e5ed40a0ab218b0763161b269a1cf1aed8577"
+  },
+  "artifacts": {
+    "README.md": "15a66ccd3f2acdd6ce10f8257a1fe8778dff217b4a513b4713dc44a36c0441c8",
+    "camera-installed-sdk-negative.exit.json": "ec825a19aa5bd67a89e51626d2d7b4b8f1ba307236ae24648887745f15aabc65",
+    "camera-installed-sdk-negative.log": "b3bd39620df78e4abb620901fa8f54b87e472626587f19bd1b2c4604d1eb2c8c",
+    "camera-installed-sdk-negative.spec.json": "420b84233314f274810daaaf11c8ba5a8f973a18fdb781d50ecbec13ac44e9b2",
+    "camera-sdk-enum-reviewed-positive.exit.json": "64e2064ec5905a7ed85c809aa1416504ce4fdcc017f7b4e87399d4fcd250f87f",
+    "camera-sdk-enum-reviewed-positive.log": "2d86d55a7256ee7d1b008cccd2b89ed40bfbb7036c1ea4d2b9acf6093ee1c6cc",
+    "camera-sdk-enum-reviewed-positive.spec.json": "ffffc113cf2d09d91339b4e6568744a3ecb8f4adc57735f89e8c70e5f9f834fe",
+    "initial-sdk-verifier-reconstructed.ts": "81d01b0a301ee3bcf0f7de3c0f1995c0a5ae76cbc63ec1322bfb5e71c71e0393",
+    "root-proposal-review.json": "91661726113bd09944bcf1846a83225e42a51aa8ece4832033fcdb96e612dd45",
+    "verification.json": "549020a7345c28ef9ed4d6fca5604189ed8233067b44f9ed415a77747135028c"
+  }
+}

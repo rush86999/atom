@@ -1,0 +1,18 @@
+{
+  "actual_exit": 1,
+  "started": 1794187931.499348,
+  "finished": 1794187933.882247,
+  "selected_kind": "camerasdk",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/cameraService.sdk.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 7,
+    "numPassedTests": 0,
+    "numFailedTests": 7,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

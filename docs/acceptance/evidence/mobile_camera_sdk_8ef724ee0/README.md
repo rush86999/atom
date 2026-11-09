@@ -1,0 +1,7 @@
+# Mobile installed camera/gallery SDK contracts
+
+Frozen8ef724ee0 preserves the existing camera/gallery feature surface and adapts it to installed Expo50. Permission calls use Camera, live view/hooks import expo-camera/next, real single barcode callbacks work while pre-existing batch-service callers retain their result, gallery selection uses actual options and file sizes remain numeric. Both iOS and Android gallery saves require permission and an awaited media-library write; the old Android automatic-success path is removed. The model proposal to disable gallery saving was rejected.
+
+Seven SDK-shaped verifier cases fail against predecessor runtime3751e96ee. After repair,108/108 cases across three existing/new camera service/screen files pass without skips. The initial negative verifier used string statuses; the final verifier uses SDK enum values. Its original bytes are explicitly reconstructed and match the captured source hash. The final positive source was dirty at capture; all captured source-file hashes independently match frozen8ef724ee0. These records are not presented as clean-source reruns.
+
+Native gallery writes, devices, OS permission prompts, camera preview and simulator/app behavior were not exercised. Video stop/completion is still incorrect and has a separate negative control under development. Automatic document edge detection is still a placeholder. Full mobile typecheck/build remains open. No live provider/model app call, account, credential, media/device operation or deployment occurred.

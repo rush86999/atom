@@ -1,0 +1,34 @@
+{
+  "frozen_source": "8ef724ee030d45cc04611f49373c72f57b10b704",
+  "positive_capture": {
+    "base_source": "3751e96ee4f08907274ec4abcbf277c5a6b84d68",
+    "source_is_clean": false,
+    "captured_source_files_matching_frozen_commit": 243
+  },
+  "negative": {
+    "runtime": "3751e96ee",
+    "sdk_cases": 7,
+    "failed": 7,
+    "test_source": "initial-sdk-verifier-reconstructed.ts",
+    "initial_verifier_reconstruction": "two literal statuses later replaced by SDK enum values; reconstructed bytes exactly match captured negative source hash"
+  },
+  "positive": {
+    "selected_files": 3,
+    "cases": 108,
+    "passed": 108,
+    "pending": 0
+  },
+  "proposal_review": "13 structural SDK changes applied; barcode rewritten to preserve existing service batch input; gallery-disable proposal rejected and real SDK implemented; video7/8 deferred",
+  "dependency": {
+    "expo": "50",
+    "expo-media-library": "15.9.2",
+    "selected_from": "installed expo/bundledNativeModules.json"
+  },
+  "limits": [
+    "controlled SDK-shaped doubles only, no actual device or native media library write",
+    "video stop/recording completion remains a separate demonstrated failure",
+    "document automatic edge detection remains a placeholder",
+    "full mobile typecheck remains failing:459 diagnostics in intermediate camera-sdk-full-typecheck before two new enum type corrections; not final count or build acceptance",
+    "existing compressed image metadata and UI video controls require further qualification"
+  ]
+}
