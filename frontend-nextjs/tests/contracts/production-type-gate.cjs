@@ -161,6 +161,7 @@ function assertNoEnvironmentFailure(output, label) {
     [/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT/i, 'network failure'],
     [/npm (?:ERR!|error)/i, 'package-manager failure'],
     [/Please install/i, 'missing dependency prompt'],
+    [/EACCES|EPERM|ENOSPC|Failed to copy traced files/i, 'filesystem/resource failure'],
     [/TurbopackInternalError/i, 'bundler environment failure'],
     [/Symlink .* is invalid/i, 'filesystem symlink failure'],
   ];
