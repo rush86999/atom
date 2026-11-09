@@ -1,0 +1,545 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+FAIL components/canvas/__tests__/CanvasDocumentPersistence.test.tsx
+  ○ skipped blocks dependent co-editor work when the native document save is not confirmed
+  standalone page native text persistence
+    ✕ retains the original type when the type-write response is not verified (1054 ms)
+    ○ skipped shows an empty document body rather than its JSON storage envelope
+    ○ skipped shows an empty markdown body rather than its JSON storage envelope
+    ○ skipped shows an empty code body rather than its JSON storage envelope
+    ○ skipped saves the exact document body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact markdown body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact code body into the original canvas audit and preserves envelope metadata
+    ○ skipped does not certify a refused native document save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native markdown save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native code save via an unrelated legacy artifact
+    ○ skipped preserves legacy plain-string document audit content
+    ○ skipped preserves legacy plain-string markdown audit content
+    ○ skipped preserves legacy plain-string code audit content
+    ○ skipped keeps an ordinary clean type change available without a duplicate save
+    ○ skipped cannot clear an uncertain save through an already-open type menu
+    ○ skipped uses the established docs registry alias for empty native text
+    ○ skipped uses the established doc registry alias for empty native text
+    ○ skipped uses the established generic registry alias for empty native text
+    ○ skipped uses the established coding registry alias for empty native text
+  chat host native text persistence
+    ✕ retains the original type when the type-write response is not verified (1025 ms)
+    ○ skipped shows an empty document body rather than its JSON storage envelope
+    ○ skipped shows an empty markdown body rather than its JSON storage envelope
+    ○ skipped shows an empty code body rather than its JSON storage envelope
+    ○ skipped saves the exact document body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact markdown body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact code body into the original canvas audit and preserves envelope metadata
+    ○ skipped does not certify a refused native document save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native markdown save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native code save via an unrelated legacy artifact
+    ○ skipped preserves legacy plain-string document audit content
+    ○ skipped preserves legacy plain-string markdown audit content
+    ○ skipped preserves legacy plain-string code audit content
+    ○ skipped keeps an ordinary clean type change available without a duplicate save
+    ○ skipped cannot clear an uncertain save through an already-open type menu
+    ○ skipped uses the established docs registry alias for empty native text
+    ○ skipped uses the established doc registry alias for empty native text
+    ○ skipped uses the established generic registry alias for empty native text
+    ○ skipped uses the established coding registry alias for empty native text
+
+  ● standalone page native text persistence › retains the original type when the type-write response is not verified
+
+    Unable to find an element with the text: Type change not confirmed. Check version history before continuing.. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden"[39m
+          [33mdata-testid[39m=[32m"canvas-container"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0 relative z-30"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-2"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-layers h-4 w-4 text-indigo-500"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex flex-col"[39m
+              [36m>[39m
+                [36m<h3[39m
+                  [33mclass[39m=[32m"font-semibold text-sm truncate max-w-[200px] text-zinc-900 dark:text-zinc-100"[39m
+                [36m>[39m
+                  [0mOrdinary document[0m
+                [36m</h3>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex items-center gap-2"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"text-[10px] text-zinc-500 font-mono"[39m
+                  [36m>[39m
+                    [0mv[0m
+                    [0m1[0m
+                  [36m</span>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"relative"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33mclass[39m=[32m"text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded hover:border-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors cursor-pointer"[39m
+                      [33mdata-testid[39m=[32m"canvas-type-markdown"[39m
+                      [33mtitle[39m=[32m"Change canvas type"[39m
+                    [36m>[39m
+                      [36m<span>[39m
+                        [0mmarkdown[0m
+                      [36m</span>[39m
+                      [36m<span[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                      [36m>[39m
+                        [0m▾[0m
+                      [36m</span>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-2"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Close canvas"[39m
+                [33mclass[39m=[32m"h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"[39m
+                [33mdata-testid[39m=[32m"close-canvas-button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-x h-4 w-4 text-zinc-500"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M18 6 6 18"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m6 6 12 12"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex-1 overflow-hidden relative"[39m
+          [36m>[39m
+            [36m<textarea[39m
+              [33maria-label[39m=[32m"Document editor"[39m
+            [36m>[39m
+              [0mRetained text[0m
+            [36m</textarea>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"p-2 border-t flex justify-between items-center px-4 bg-zinc-50 dark:bg-slate-900/30"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex gap-4"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"text-[10px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1 transition-colors"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-history h-3 w-3"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 3v5h5"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 7v5l4 2"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0m History[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"text-[10px] flex items-center gap-1 transition-colors text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-globe h-3 w-3"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<circle[39m
+                    [33mcx[39m=[32m"12"[39m
+                    [33mcy[39m=[32m"12"[39m
+                    [33mr[39m=[32m"10"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M2 12h20"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0m [0m
+                [0mPreview Mode[0m
+              [36m</button>[39m
+            [36m</div>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-check h-3 w-3"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M20 6 9 17l-5-5"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m Saved[0m
+            [36m</span>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      52 |   fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+      53 |   fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+    > 54 |   await screen.findByText('Type change not confirmed. Check version history before continuing.');
+         |                ^
+      55 |   expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+      56 |   expect(screen.queryByRole('button',{name:'markdown',exact:true})).not.toBeInTheDocument();
+      57 |  });
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:54:16
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:8:71
+      at __awaiter (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:4:12)
+      at Object.<anonymous> (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:49:78)
+
+  ● chat host native text persistence › retains the original type when the type-write response is not verified
+
+    Unable to find an element with the text: Type change not confirmed. Check version history before continuing.. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden"[39m
+          [33mdata-testid[39m=[32m"canvas-container"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0 relative z-30"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-2"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-layers h-4 w-4 text-indigo-500"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex flex-col"[39m
+              [36m>[39m
+                [36m<h3[39m
+                  [33mclass[39m=[32m"font-semibold text-sm truncate max-w-[200px] text-zinc-900 dark:text-zinc-100"[39m
+                [36m>[39m
+                  [0mOrdinary document[0m
+                [36m</h3>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex items-center gap-2"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"text-[10px] text-zinc-500 font-mono"[39m
+                  [36m>[39m
+                    [0mv[0m
+                    [0m1[0m
+                  [36m</span>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"relative"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33mclass[39m=[32m"text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded hover:border-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors cursor-pointer"[39m
+                      [33mdata-testid[39m=[32m"canvas-type-markdown"[39m
+                      [33mtitle[39m=[32m"Change canvas type"[39m
+                    [36m>[39m
+                      [36m<span>[39m
+                        [0mmarkdown[0m
+                      [36m</span>[39m
+                      [36m<span[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                      [36m>[39m
+                        [0m▾[0m
+                      [36m</span>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-2"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"[39m
+                [33mdata-testid[39m=[32m"canvas-expand"[39m
+                [33mtitle[39m=[32m"Expand into full page"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-maximize2 lucide-maximize-2 h-4 w-4 text-zinc-500"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M15 3h6v6"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m21 3-7 7"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m3 21 7-7"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M9 21H3v-6"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"[39m
+                [33mdata-testid[39m=[32m"close-canvas-button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-x h-4 w-4 text-zinc-500"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M18 6 6 18"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m6 6 12 12"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex-1 overflow-hidden relative"[39m
+          [36m>[39m
+            [36m<textarea[39m
+              [33maria-label[39m=[32m"Document editor"[39m
+            [36m>[39m
+              [0mRetained text[0m
+            [36m</textarea>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"p-2 border-t flex justify-between items-center px-4 bg-zinc-50 dark:bg-slate-900/30"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex gap-4"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"text-[10px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"[39m
+                [33mtitle[39m=[32m"Version history"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-history h-3 w-3"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 3v5h5"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 7v5l4 2"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0m History[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"text-[10px] flex items-center gap-1 transition-colors text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-globe h-3 w-3"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<circle[39m
+                    [33mcx[39m=[32m"12"[39m
+                    [33mcy[39m=[32m"12"[39m
+                    [33mr[39m=[32m"10"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M2 12h20"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0m [0m
+                [0mPreview Mode[0m
+              [36m</button>[39m
+            [36m</div>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-check h-3 w-3"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M20 6 9 17l-5-5"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m Saved[0m
+            [36m</span>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      52 |   fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+      53 |   fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+    > 54 |   await screen.findByText('Type change not confirmed. Check version history before continuing.');
+         |                ^
+      55 |   expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+      56 |   expect(screen.queryByRole('button',{name:'markdown',exact:true})).not.toBeInTheDocument();
+      57 |  });
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:54:16
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:8:71
+      at __awaiter (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:4:12)
+      at Object.<anonymous> (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:49:78)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 37 skipped, 39 total
+Snapshots:   0 total
+Time:        3.156 s
+Ran all test suites matching components/canvas/__tests__/CanvasDocumentPersistence.test.tsx with tests matching "type-write response".
