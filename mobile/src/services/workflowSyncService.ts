@@ -119,6 +119,7 @@ function decodeWorkflow(value: unknown): Workflow | null {
   }
 
   const workflow: Workflow = {
+    ...value,
     id,
     name,
     description,

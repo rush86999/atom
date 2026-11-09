@@ -81,12 +81,19 @@ describe('Sync list response evidence', () => {
   });
 
   test.each(cases)('$resource rejects ambiguous or impossible timestamp material', async ({ resource, sync }) => {
-    for (const updatedAt of ['01/02/2026', '2026-02-30T00:00:00Z']) {
+    for (const updatedAt of ['01/02/2026', '2026-02-30T00:00:00Z', '2026-11-09T11:00:00']) {
       jest.mocked(storageService.setObject).mockClear();
       jest.mocked(apiService.get).mockResolvedValue({ success: true, data: { [resource]: [{ ...completeRecord(), updatedAt }] } });
       expect((await sync()).success).toBe(false);
       expect(storageService.setObject).not.toHaveBeenCalled();
     }
+  });
+
+  test.each(cases)('$resource preserves false and zero qualifiers and an explicit offset instant', async ({ resource, sync }) => {
+    const row = { ...completeRecord(), updatedAt: '2026-11-09T13:00:00+02:00', source_qualifiers: { flag: false, quantity: 0 } };
+    jest.mocked(apiService.get).mockResolvedValue({ success: true, data: { success: true, data: [row] } });
+    expect((await sync()).success).toBe(true);
+    expect(storageService.setObject).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ [resource]: expect.objectContaining({ 'record-1': expect.objectContaining({ updatedAt: new Date('2026-11-09T11:00:00.000Z'), source_qualifiers: { flag: false, quantity: 0 } }) }) }));
   });
 
   test.each(cases)('$resource genuine wrapped empty list is supported', async ({ sync }) => {

@@ -7,7 +7,8 @@
  * mutate a cache or advance a sync checkpoint.
  */
 
-import { ApiResponse } from '../types/common';
+import type { ApiResponse } from '../types/common';
+import { isValid, parseISO } from 'date-fns';
 
 type ListFailure = { ok: false; error: string };
 type ListSuccess<T> = { ok: true; items: T[] };
@@ -29,9 +30,11 @@ export function decodeDate(value: unknown): Date | null {
     return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
   }
 
-  if (typeof value === 'string') {
-    const decoded = new Date(value);
-    return Number.isNaN(decoded.getTime()) ? null : decoded;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) {
+    // Require an explicit instant; do not guess a local timezone or let Date
+    // silently roll an impossible calendar date into a different month.
+    const decoded = parseISO(value);
+    return isValid(decoded) ? decoded : null;
   }
 
   return null;
@@ -65,6 +68,10 @@ function extractList(
     return bodySuccess;
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, resourceKey) && Object.prototype.hasOwnProperty.call(body, 'data')) {
+    return fail(`Response body ambiguously provides both ${resourceKey} and data`);
+  }
+
   if (Object.prototype.hasOwnProperty.call(body, resourceKey)) {
     const list = body[resourceKey];
     if (!Array.isArray(list)) {
@@ -94,7 +101,7 @@ function extractList(
  * and the standard success/data envelope (`{ success: true, data: [...] }`,
  * including a resource object nested under `data`).
  */
-export function decodeListResponse<T>(
+export function decodeListResponse<T extends { id: string }>(
   response: ApiResponse<unknown>,
   resourceKey: string,
   decodeRow: (value: unknown) => T | null
@@ -119,11 +126,16 @@ export function decodeListResponse<T>(
   }
 
   const items: T[] = [];
+  const identities = new Set<string>();
   for (let index = 0; index < extracted.value.length; index += 1) {
     const decoded = decodeRow(extracted.value[index]);
     if (decoded === null) {
       return fail(`Malformed ${resourceKey} record at index ${index}`);
     }
+    if (identities.has(decoded.id)) {
+      return fail(`Duplicate ${resourceKey} identity at index ${index}`);
+    }
+    identities.add(decoded.id);
     items.push(decoded);
   }
 

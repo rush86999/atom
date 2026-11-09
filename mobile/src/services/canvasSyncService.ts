@@ -120,6 +120,7 @@ function decodeCanvas(value: unknown): Canvas | null {
   }
 
   const canvas: Canvas = {
+    ...value,
     id,
     title,
     type,

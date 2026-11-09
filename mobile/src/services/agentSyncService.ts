@@ -126,6 +126,7 @@ function decodeAgent(value: unknown): Agent | null {
   }
 
   const agent: Agent = {
+    ...value,
     id,
     name,
     description,
