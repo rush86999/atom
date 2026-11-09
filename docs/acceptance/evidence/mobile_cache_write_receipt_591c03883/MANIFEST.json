@@ -1,0 +1,40 @@
+{
+  "executed_source": "591c0388309cdaaed3f8e3bf9c9223a1086ec45a",
+  "source_files": {
+    "mobile/src/services/agentSyncService.ts": "dd35e729a9456722c4e99483e8967f7480a034c18c70384825aed50560580252",
+    "mobile/src/services/workflowSyncService.ts": "05ba03b3cc2a5468b754296a789f20183c335154826b505b1be5178be22d280d",
+    "mobile/src/services/canvasSyncService.ts": "82303a5cc60e693ece78d346032b6ae0ab3fdb9dfc3f8bd0d74fdea0cc354511",
+    "mobile/src/__tests__/services/agentSyncService.test.ts": "d7cd51e8a1168ddb191cf9ea829c279cf8074aab2c58d84f32de2b991a95e0e2",
+    "mobile/src/__tests__/services/workflowSyncService.test.ts": "e72b11180fdd923014b69e4f296312804829979a537b35da1d858aacf3bd2c58",
+    "mobile/src/__tests__/services/canvasSyncService.test.ts": "493e08edbb829c50bffeed974e81733df732d4425e70ce1cc39d91ef24faf750",
+    "mobile/src/__tests__/services/syncList.response-contract.test.ts": "0d198e6e76b0b5e9c6634011407877b18d82e0807f8397cf98cf2a545794cd6e",
+    "mobile/src/services/storageService.ts": "b091fd53c2010addaf3d45abf7cd6a113c1a99b3a53f0fe6426037fbe811bc62"
+  },
+  "artifacts": {
+    "native-review.err": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "cache-storage-broad-regression-results.json": "342dc2a845572d0651382fd894b598da0bd008752e620722fbc8b91c86adef11",
+    "cache-storage-broad-regression.spec.json": "0523ec0508979d91c69d54d47d9a607b38e1841bb2c045e5d4bb6d1d026dddfa",
+    "native-review.exit.json": "90f8841b27b5aa6a224fecd34befd9298d05e312d158e180e67ba0924903fa53",
+    "cache-storage-broad-regression.exit.json": "dea9364b9298fb42a6d7215bfcdd943aefe71e8b8af3800674742e147af1c052",
+    "cache-storage-receipt-negative.spec.json": "766da72de20e7e133b5b41c80febc733cd49d9108db07e63c935ef3c9681b271",
+    "cache-storage-receipt-negative.exit.json": "a7621b1c682f7f34c91f96200c9abe93f79ce45883f953b3c59bf482b6f37f95",
+    "cache-storage-broad-regression.log": "d3eca8fa3328ce066855beffc358cf6bc8fb6ebca773cd5d14efb6c45aed3e77",
+    "cache-storage-full-typecheck.spec.json": "4488f496fc6e9948261db94b79da1ed5b00df636b9d41b252b224fc85401ead1",
+    "cache-storage-full-typecheck.exit.json": "bdc4fc8567a5fd5a2d791f36d7881cad6816fdbc6a1e723338dc148216abc91d",
+    "cache-storage-receipt-negative-results.json": "c7a7789df47360ac56d3df5a9ee5e9806723b29d6f4ded7d3b91f9d2743ca29a",
+    "native-policy.json": "c3a99482fffbfb3c6b2e836cec51e3d56d96380024fbfd7c1cedd10db979e120",
+    "README.md": "665bc39845125bbf9233c8465959565896a19fd7f7b0af10b11c7bcd5caa083d",
+    "native-review.jsonl": "02557c409264acb443b5febdff0f712256c4c06c633fc35e3cbf255c5dc7251c",
+    "cache-storage-full-typecheck.log": "bb5f4f8c4e31f06adc7577729b7194f5c98db76515f3db084dc269c1a302f142",
+    "cache-storage-receipt-negative.log": "b28952b91016a77c979cfd9c6ec3e21d17e29c04f19cf75240e299658f5b6779",
+    "cache-storage-receipt-result-results.json": "ef67d5c4c357715d7b1e47efc9a37cdaff1dad961eae2d36e1831d0daa832621",
+    "cache-storage-real-contract-result.log": "f48209247f3418270b0900adf49950b7732da83259eb0416ebb0d53854e3d1f8",
+    "cache-storage-real-contract-result.exit.json": "6f95a6922a833846efe03decb015097a9e479ba6382530a1335c5131236ac5f9",
+    "cache-storage-real-contract-result.spec.json": "4bb3d23f0b21968e83557c8d9af80dff1ba445cafb588b3d3fa598cd1608e2bc",
+    "capture-bindings.json": "5c914c45e90e362dac4d779162cab01c821a6ec65428fc04efe24731f2e2a37e",
+    "cache-storage-real-contract-result-results.json": "9d957ab45516dd64cd0d5838dbfcdecc43cd9ccf8481e480bd2a1c32e9c709f9",
+    "cache-storage-receipt-result.log": "87d0edb79e2b55b84b1a79ce6b0809601e81a538109111b789837c7a1a5bff8a",
+    "cache-storage-receipt-result.exit.json": "ece39aa39e34dfdf5c180f665da437f2803352de36f72c5e9963298534e9fd09",
+    "cache-storage-receipt-result.spec.json": "215e3038c01665121c7b55de652b36939584255c6809cf2c777fb3c0f71332bd"
+  }
+}

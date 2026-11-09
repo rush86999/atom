@@ -1,0 +1,11 @@
+{
+  "captures": {
+    "cache-storage-receipt-negative": "b62d2a633",
+    "cache-storage-real-contract-result": "591c03883",
+    "cache-storage-full-typecheck": "591c03883",
+    "cache-storage-broad-regression": "591c03883"
+  },
+  "source_file_checks": 1024,
+  "mismatches": 0,
+  "intermediate_capture": "cache-storage-receipt-result includes pre-correction undefined-return test fixtures; preserved as intermediate, not attributed to final test bytes"
+}
