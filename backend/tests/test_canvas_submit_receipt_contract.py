@@ -196,3 +196,182 @@ def test_submit_missing_frozen_binding_never_certifies(app_client, monkeypatch, 
     assert response.json()['success'] is False
     assert response.json()['status'] == 'committed_unverified'
     assert response.json()['verification']['status'] != 'verified'
+
+
+@pytest.mark.parametrize('move', ['actor-workspace', 'actor-disable', 'canvas-workspace'])
+def test_submit_guard_preserves_peer_authority_or_scope_winner(app_client, monkeypatch, move):
+    from core.models import Canvas, User
+    import tools.canvas_crud_tool as crud
+    from tests.test_canvas_lifecycle_verified import _workspace
+    canvas_id = _seed(app_client)
+    with app_client.Session() as db:
+        _workspace(db, 'peer-workspace', 'submit-tenant')
+    real_claim = crud._claim_canvas_actor
+    moved = False
+
+    def change_before_claim(db, actor):
+        nonlocal moved
+        if not moved:
+            moved = True
+            with app_client.Session() as peer:
+                if move == 'actor-workspace':
+                    peer.query(User).filter(User.id == 'submit-actor').update({'workspace_id': 'peer-workspace'}, synchronize_session=False)
+                elif move == 'actor-disable':
+                    peer.query(User).filter(User.id == 'submit-actor').update({'is_active': False}, synchronize_session=False)
+                else:
+                    peer.query(Canvas).filter(Canvas.id == canvas_id).update({'workspace_id': 'peer-workspace'}, synchronize_session=False)
+                peer.commit()
+        return real_claim(db, actor)
+
+    monkeypatch.setattr(crud, '_claim_canvas_actor', change_before_claim)
+    response = app_client.client.post('/api/canvas/submit', json={'canvas_id': canvas_id, 'form_data': {'value': 0}, 'operation_id': 'peer-operation'})
+    assert response.status_code == 409, response.text
+    assert response.json()['verification']['effect'] == 'none'
+    with app_client.Session() as db:
+        assert db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').count() == 0
+        if move == 'actor-disable':
+            assert db.get(User, 'submit-actor').is_active is False
+        elif move == 'actor-workspace':
+            assert db.get(User, 'submit-actor').workspace_id == 'peer-workspace'
+        else:
+            assert db.get(Canvas, canvas_id).workspace_id == 'peer-workspace'
+
+
+def test_submit_competing_actor_cannot_append_second_logical_operation(app_client, monkeypatch):
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    import core.canvas_write_service as service
+    import tools.canvas_crud_tool as crud
+    canvas_id = _seed(app_client)
+    with app_client.Session() as db:
+        _user(db, user_id='submit-peer', tenant_id='submit-tenant', workspace_id='submit-workspace')
+    real_claim = crud._claim_canvas_actor
+    peer_results = []
+
+    def peer_wins_before_claim(db, actor):
+        if actor['id'] == 'submit-actor' and not peer_results:
+            def run_peer():
+                return asyncio.run(service.submit_canvas_verified(user_id='submit-peer', canvas_id=canvas_id, form_data={'value': 0}, operation_id='raced-operation'))
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                peer_results.append(pool.submit(run_peer).result(timeout=10))
+        return real_claim(db, actor)
+
+    monkeypatch.setattr(crud, '_claim_canvas_actor', peer_wins_before_claim)
+    response = app_client.client.post('/api/canvas/submit', json={'canvas_id': canvas_id, 'form_data': {'value': 0}, 'operation_id': 'raced-operation'})
+    assert peer_results[0]['success'] is True, peer_results
+    assert response.status_code == 409, response.text
+    with app_client.Session() as db:
+        rows = db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').all()
+        assert len(rows) == 1
+        assert rows[0].user_id == 'submit-peer'
+
+
+@pytest.mark.parametrize('failure', ['disabled', 'unavailable'])
+def test_submit_readback_failure_keeps_committed_identity(app_client, monkeypatch, failure):
+    import core.canvas_write_service as service
+    canvas_id = _seed(app_client)
+    if failure == 'disabled':
+        monkeypatch.setattr(service, 'oracle_verifier_enabled', lambda: False)
+    else:
+        async def unavailable(*args, **kwargs):
+            return None
+        monkeypatch.setattr(service, 'validate', unavailable)
+    response = app_client.client.post('/api/canvas/submit', json={'canvas_id': canvas_id, 'form_data': {'value': 0}, 'operation_id': 'readback-operation'})
+    assert response.status_code == 503, response.text
+    body = response.json()
+    assert body['success'] is False
+    assert body['status'] == 'committed_unverified'
+    assert body['operation_id'] == 'readback-operation'
+    assert body['audit_id']
+    assert body['verification']['effect'] == 'committed'
+    assert body['verification']['replay'] == 'do_not_repeat'
+    with app_client.Session() as db:
+        assert db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').count() == 1
+
+
+def test_submit_lost_commit_confirmation_replays_original_receipt(app_client, monkeypatch):
+    import core.database as database
+    canvas_id = _seed(app_client)
+    ordinary_session = database.get_db_session
+
+    @contextlib.contextmanager
+    def confirmation_lost_session():
+        with app_client.Session() as db:
+            real_commit = db.commit
+            def lose_after_commit():
+                real_commit()
+                raise RuntimeError('Controlled confirmation lost after commit')
+            monkeypatch.setattr(db, 'commit', lose_after_commit)
+            yield db
+
+    monkeypatch.setattr(database, 'get_db_session', confirmation_lost_session)
+    payload = {'canvas_id': canvas_id, 'form_data': {'value': 0}, 'operation_id': 'uncertain-operation'}
+    first = app_client.client.post('/api/canvas/submit', json=payload)
+    assert first.status_code == 503, first.text
+    assert first.json()['status'] == 'effect_unknown'
+    assert first.json()['verification']['replay'] == 'do_not_repeat'
+    monkeypatch.setattr(database, 'get_db_session', ordinary_session)
+    second = app_client.client.post('/api/canvas/submit', json=payload)
+    assert second.status_code == 200, second.text
+    assert second.json()['already_applied'] is True
+    assert second.json()['audit_id'] == first.json()['audit_id']
+    with app_client.Session() as db:
+        assert db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').count() == 1
+
+
+def _submit_agent(app_client):
+    from core.models import AgentRegistry
+    with app_client.Session() as db:
+        agent = AgentRegistry(id='submit-agent', name='Submit Agent', category='test', module_path='test.module', class_name='Agent', status='autonomous', enabled=True, workspace_id='submit-workspace', tenant_id='submit-tenant')
+        db.add(agent)
+        db.commit()
+    return 'submit-agent'
+
+
+def test_submit_valid_scoped_autonomous_agent_is_supported(app_client):
+    canvas_id = _seed(app_client)
+    agent_id = _submit_agent(app_client)
+    response = app_client.client.post('/api/canvas/submit', json={'canvas_id': canvas_id, 'form_data': {'value': 0}, 'agent_id': agent_id})
+    assert response.status_code == 200, response.text
+    assert response.json()['verification']['status'] == 'verified'
+
+
+def test_submit_policy_review_required_is_not_waived(app_client, monkeypatch):
+    from core.agent_governance_service import AgentGovernanceService
+    canvas_id = _seed(app_client)
+    agent_id = _submit_agent(app_client)
+    monkeypatch.setattr(AgentGovernanceService, 'can_perform_action', lambda *args, **kwargs: {'allowed': True, 'requires_human_approval': True, 'reason': 'Existing policy requires review'})
+    response = app_client.client.post('/api/canvas/submit', json={'canvas_id': canvas_id, 'form_data': {'value': 0}, 'agent_id': agent_id})
+    assert response.status_code == 403, response.text
+    with app_client.Session() as db:
+        assert db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').count() == 0
+
+
+def test_submit_agent_move_before_actor_claim_refuses(app_client, monkeypatch):
+    from core.agent_governance_service import AgentGovernanceService
+    from core.models import AgentRegistry
+    from tests.test_canvas_lifecycle_verified import _workspace
+    import tools.canvas_crud_tool as crud
+    canvas_id = _seed(app_client)
+    agent_id = _submit_agent(app_client)
+    with app_client.Session() as db:
+        _workspace(db, 'peer-workspace', 'submit-tenant')
+    monkeypatch.setattr(AgentGovernanceService, 'can_perform_action', lambda *args, **kwargs: {'allowed': True, 'requires_human_approval': False})
+    real_claim = crud._claim_canvas_actor
+    moved = False
+
+    def move_before_claim(db, actor):
+        nonlocal moved
+        if not moved:
+            moved = True
+            with app_client.Session() as peer:
+                peer.query(AgentRegistry).filter(AgentRegistry.id == agent_id).update({'workspace_id': 'peer-workspace'}, synchronize_session=False)
+                peer.commit()
+        return real_claim(db, actor)
+
+    monkeypatch.setattr(crud, '_claim_canvas_actor', move_before_claim)
+    response = app_client.client.post('/api/canvas/submit', json={'canvas_id': canvas_id, 'form_data': {'value': 0}, 'agent_id': agent_id})
+    assert response.status_code in (403, 409), response.text
+    with app_client.Session() as db:
+        assert db.get(AgentRegistry, agent_id).workspace_id == 'peer-workspace'
+        assert db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').count() == 0
