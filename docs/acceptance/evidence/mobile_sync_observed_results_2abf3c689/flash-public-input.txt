@@ -1,0 +1,661 @@
+PUBLIC SOURCE ONLY. No tools/edits. Propose the smallest coherent repair to this existing sync producer/UI. Four failure-first tests show idle/failed/cancelled states labeled Sync Complete and fabricated fixed10/20/15/5 entity counts. Preserve useful UI using actual observed cycle data; do not merely hide the feature. Existing OfflineSyncService returns a SyncResult but SyncProgressModal only receives SyncState and fabricates summaries. Need exact current-cycle binding, no stale prior result certifying new retained work, no receipt from mere percent. Local sync bookkeeping is not proof of external business completion. Reuse existing queue/service/state storage; no parallel operation/review engine or newstore. Propose concrete fields/producer/consumer flows and decisive failure/valid twins. Network canaccept andloseconfirmation; do not automatically resend unknown effects. Cancel request is not physicalworkerstop. Native restart/Appbootstrap/remoteeffects remain unqualified. Keep concise; identify hazards in suggested plan.
+
+PUBLIC SERVICE EXCERPTS
+// Types
+export type OfflineActionType =
+  | 'agent_message'
+  | 'workflow_trigger'
+  | 'form_submit'
+  | 'feedback'
+  | 'canvas_update'
+  | 'device_command'
+  | 'agent_sync'
+  | 'workflow_sync'
+  | 'canvas_sync'
+  | 'episode_sync';
+
+export type OfflineActionStatus = 'pending' | 'syncing' | 'completed' | 'failed';
+
+export type ConflictResolution =
+  | 'last_write_wins'
+  | 'manual'
+  | 'server_wins'
+  | 'client_wins'
+  | 'merge';
+
+export type SyncPriority = 'critical' | 'high' | 'normal' | 'low';
+export type EntityType = 'agents' | 'workflows' | 'canvases' | 'episodes';
+
+export interface OfflineAction {
+  id: string;
+  type: OfflineActionType;
+  payload: any;
+  priority: number; // 0-10, higher = more important
+  priorityLevel: SyncPriority;
+  status: OfflineActionStatus;
+  createdAt: Date;
+  syncAttempts: number;
+  lastSyncError?: string;
+  conflictResolution?: ConflictResolution;
+  userId: string;
+  deviceId: string;
+  entityType?: EntityType;
+  entityId?: string;
+  deltaHash?: string; // For delta sync
+  sizeBytes?: number; // Track storage size
+}
+
+export interface SyncResult {
+  success: boolean;
+  skipped?: number;
+  cancelled?: boolean;
+  synced: number;
+  failed: number;
+  conflicts: number;
+  duration: number;
+  entities: {
+    agents: number;
+    workflows: number;
+    canvases: number;
+    episodes: number;
+  };
+  bytesTransferred: number;
+}
+
+export interface SyncState {
+  lastSyncAt: Date | null;
+  lastSuccessfulSyncAt: Date | null;
+  pendingCount: number;
+  syncInProgress: boolean;
+  consecutiveFailures: number;
+  currentOperation: string;
+  syncProgress: number; // 0-100
+  cancelled: boolean;
+}
+
+export interface SyncQualityMetrics {
+  totalSyncs: number;
+  successfulSyncs: number;
+  failedSyncs: number;
+  conflictRate: number;
+  avgSyncDuration: number;
+  avgBytesTransferred: number;
+  lastQualityCheck: Date;
+}
+
+export interface StorageQuota {
+  usedBytes: number;
+  maxBytes: number;
+  warningThreshold: number; // 0.8 = 80%
+  enforcementThreshold: number; // 0.95 = 95%
+  breakdown: {
+    agents: number;
+    workflows: number;
+    canvases: number;
+    episodes: number;
+        success: false,
+        synced: 0,
+        failed: 0,
+        conflicts: 0,
+        duration: 0,
+        entities: { agents: 0, workflows: 0, canvases: 0, episodes: 0 },
+        bytesTransferred: 0,
+      };
+    }
+
+    if (!this.isOnline) {
+      console.log('OfflineSync: Device is offline, skipping sync');
+      return {
+        success: false,
+        synced: 0,
+        failed: 0,
+        conflicts: 0,
+        duration: 0,
+        entities: { agents: 0, workflows: 0, canvases: 0, episodes: 0 },
+        bytesTransferred: 0,
+      };
+    }
+
+    this.syncInProgress = true;
+    this.cancelRequested = false;
+    this.notifyListeners();
+
+    const startTime = Date.now();
+    let synced = 0;
+    let failed = 0;
+    let conflicts = 0;
+    let skipped = 0;
+    let bytesTransferred = 0;
+    const entities = { agents: 0, workflows: 0, canvases: 0, episodes: 0 };
+
+    try {
+      // Get pending actions
+      const queue = await this.getQueue();
+      const pendingActions = queue.filter((a) => a.status === 'pending');
+
+      if (pendingActions.length === 0) {
+        console.log('OfflineSync: No pending actions to sync');
+        return {
+          success: true,
+          synced: 0,
+          failed: 0,
+          conflicts: 0,
+          duration: Date.now() - startTime,
+          entities,
+          bytesTransferred,
+        };
+      }
+
+      console.log(`OfflineSync: Syncing ${pendingActions.length} actions`);
+
+      // Process in batches
+      for (let i = 0; i < pendingActions.length; i += SYNC_BATCH_SIZE) {
+        // Check for cancellation
+        if (this.cancelRequested) {
+          console.log('OfflineSync: Sync cancelled by user');
+          break;
+        }
+
+        const batch = pendingActions.slice(i, i + SYNC_BATCH_SIZE);
+        const progress = Math.floor((i / pendingActions.length) * 100);
+
+        await this.updateSyncState({
+          syncProgress: progress,
+          currentOperation: `Syncing batch ${Math.floor(i / SYNC_BATCH_SIZE) + 1}`,
+        });
+        this.notifyProgressListeners(progress, `Syncing batch ${Math.floor(i / SYNC_BATCH_SIZE) + 1}`);
+
+        for (const action of batch) {
+          // Check for cancellation
+          if (this.cancelRequested) {
+            break;
+          }
+
+          try {
+            const result = await this.syncAction(action);
+            if (result.skipped) { skipped++; continue; }
+
+            if (result.success) {
+              synced++;
+              bytesTransferred += action.sizeBytes || 0;
+
+              // Track entity types
+              if (action.entityType && entities[action.entityType] !== undefined) {
+                entities[action.entityType]++;
+              }
+
+              await this.updateActionStatus(action.id, 'completed');
+            } else if (result.conflict) {
+              conflicts++;
+              await this.updateActionStatus(action.id, 'pending');
+              this.notifyConflictListeners(action);
+            } else {
+              failed++;
+              await this.incrementSyncAttempts(action.id);
+              // Retry below the limit; retain exhausted intent as failed for
+              // an explicit owner retry/removal instead of silently dropping it.
+              if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
+                await this.updateActionStatus(action.id, 'failed');
+              } else {
+                await this.updateActionStatus(action.id, 'pending');
+              }
+            }
+          } catch (error) {
+            console.error(`OfflineSync: Failed to sync action ${action.id}:`, error);
+            failed++;
+            await this.incrementSyncAttempts(action.id);
+            if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
+              await this.updateActionStatus(action.id, 'failed');
+            } else {
+              await this.updateActionStatus(action.id, 'pending');
+            }
+          }
+        }
+      }
+
+      // Remove completed actions
+      await this.removeCompletedActions();
+
+      // Update sync state
+      const newQueue = await this.getQueue();
+      const now = new Date();
+      const successfulCount = synced > 0 ? synced : 0;
+      const cancelled = this.cancelRequested;
+      const satisfactory = !cancelled && failed === 0 && conflicts === 0 && skipped === 0 && synced === pendingActions.length;
+
+      await this.updateSyncState({
+        lastSyncAt: now,
+        lastSuccessfulSyncAt: successfulCount > 0 ? now : null,
+        pendingCount: newQueue.filter((a) => a.status === 'pending').length,
+        consecutiveFailures: failed === 0 ? 0 : (await this.getSyncState()).consecutiveFailures + 1,
+        syncProgress: satisfactory ? 100 : Math.floor(((synced + failed + conflicts + skipped) / pendingActions.length) * 100),
+        currentOperation: satisfactory ? 'Sync complete' : cancelled ? 'Sync cancelled' : 'Sync incomplete',
+      });
+
+      const duration = Date.now() - startTime;
+
+      // Update quality metrics
+      await this.updateQualityMetrics({
+        totalSyncs: this.qualityMetrics.totalSyncs + 1,
+        successfulSyncs: this.qualityMetrics.successfulSyncs + (satisfactory ? 1 : 0),
+        failedSyncs: this.qualityMetrics.failedSyncs + (satisfactory ? 0 : 1),
+        conflictRate: conflicts / (synced + conflicts || 1),
+        avgSyncDuration: (this.qualityMetrics.avgSyncDuration * this.qualityMetrics.totalSyncs + duration) / (this.qualityMetrics.totalSyncs + 1),
+        avgBytesTransferred: (this.qualityMetrics.avgBytesTransferred * this.qualityMetrics.totalSyncs + bytesTransferred) / (this.qualityMetrics.totalSyncs + 1),
+        lastQualityCheck: now,
+      });
+
+      console.log(`OfflineSync: Sync complete - ${synced} synced, ${failed} failed, ${conflicts} conflicts, ${duration}ms, ${bytesTransferred} bytes`);
+
+      return {
+        success: satisfactory,
+        synced,
+        failed,
+        conflicts,
+        skipped,
+        cancelled,
+        duration,
+        entities,
+        bytesTransferred,
+      };
+    } catch (error) {
+      console.error('OfflineSync: Sync failed:', error);
+      await this.updateQualityMetrics({
+        totalSyncs: this.qualityMetrics.totalSyncs + 1,
+        failedSyncs: this.qualityMetrics.failedSyncs + 1,
+        lastQualityCheck: new Date(),
+      });
+      return {
+        success: false,
+        synced,
+        failed,
+        conflicts,
+        duration: Date.now() - startTime,
+        entities,
+        bytesTransferred,
+      };
+    } finally {
+      this.syncInProgress = false;
+      this.cancelRequested = false;
+      this.notifyListeners();
+    }
+  }
+
+  /**
+   * Cancel ongoing sync
+   */
+  async cancelSync(): Promise<void> {
+    if (this.syncInProgress) {
+      console.log('OfflineSync: Cancelling sync...');
+      this.cancelRequested = true;
+    }
+  }
+
+  /**
+   * Get sync state
+   */
+  async getSyncState(): Promise<SyncState> {
+    const state = await mmkvStorage.getObject<SyncState>('sync_state');
+    const queue = await this.getQueue();
+    if (queue.some(action => !['pending', 'syncing', 'completed', 'failed'].includes(action.status))) {
+      throw new Error('Offline queue status is unreadable; original data has been retained.');
+    }
+    // Cached progress is advisory; durable unresolved work owns this count.
+    const pendingCount = queue.filter(action => action.status !== 'completed').length;
+    return {
+      ...(state ?? {
+        lastSyncAt: null,
+        lastSuccessfulSyncAt: null,
+        syncInProgress: false,
+        consecutiveFailures: 0,
+        currentOperation: '',
+        syncProgress: 0,
+        cancelled: false,
+      }),
+      pendingCount,
+    };
+  }
+
+  /**
+   * Subscribe to sync state changes
+   */
+  subscribe(callback: (state: SyncState) => void): () => void {
+    this.listeners.add(callback);
+    return () => {
+      this.listeners.delete(callback);
+PUBLIC MODAL EXCERPTS
+import { Ionicons as Icon } from '@expo/vector-icons';
+import { offlineSyncService, SyncState } from '../../services/offlineSyncService';
+
+interface SyncProgressModalProps {
+  visible: boolean;
+  onClose?: () => void;
+  onComplete?: (result: any) => void;
+}
+
+interface EntityProgress {
+  type: string;
+  total: number;
+  synced: number;
+  failed: number;
+}
+
+interface SyncLogEntry {
+  timestamp: Date;
+  message: string;
+  level: 'info' | 'warn' | 'error';
+}
+
+export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
+  visible,
+  onClose,
+  onComplete,
+}) => {
+  const { colors } = useTheme();
+  const [syncState, setSyncState] = useState<SyncState>({
+    lastSyncAt: null,
+    lastSuccessfulSyncAt: null,
+    pendingCount: 0,
+    syncInProgress: false,
+    consecutiveFailures: 0,
+    currentOperation: '',
+    syncProgress: 0,
+    cancelled: false,
+  });
+  const [entityProgress, setEntityProgress] = useState<EntityProgress[]>([]);
+  const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
+  const [verboseMode, setVerboseMode] = useState(false);
+  const [syncResult, setSyncResult] = useState<any>(null);
+  const [isComplete, setIsComplete] = useState(false);
+  const [startTime] = useState(Date.now());
+  const [bytesTransferred, setBytesTransferred] = useState(0);
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0);
+
+  // Mirrors entityProgress so the subscribe callback (which closes over the
+  // initial state) can read the latest snapshot when the sync completes.
+  const entityProgressRef = useRef<EntityProgress[]>([]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    // Reset state when modal opens
+    setIsComplete(false);
+    setSyncResult(null);
+    setSyncLogs([]);
+    setEntityProgress([]);
+
+    // Subscribe to sync state changes
+    const unsubscribe = offlineSyncService.subscribe((state) => {
+      setSyncState(state);
+
+      if (state.syncProgress === 100 || !state.syncInProgress) {
+        setIsComplete(true);
+
+        if (state.consecutiveFailures > 0) {
+          addSyncLog('Sync finished with errors', 'error');
+        }
+
+        // Derive the completion summary from the last entity-progress
+        // snapshot. This is a mock layer today (real app would source the
+        // result from the sync service), but it keeps the summary + onComplete
+        // contract functional instead of permanently dead.
+        const synced = entityProgressRef.current.reduce((sum, e) => sum + e.synced, 0);
+        const failed = entityProgressRef.current.reduce((sum, e) => sum + e.failed, 0);
+        const result = {
+          synced,
+          failed,
+          conflicts: 0,
+          bytesTransferred: synced * 1024,
+        };
+        setSyncResult(result);
+        setBytesTransferred(result.bytesTransferred);
+      }
+
+      // Update entity progress (mock for now)
+      if (state.syncInProgress) {
+        updateEntityProgress(state);
+        addSyncLog(state.currentOperation, 'info');
+      }
+
+      // Calculate estimated time remaining
+      const elapsed = Date.now() - startTime;
+      const progress = state.syncProgress;
+      if (progress > 0 && progress < 100) {
+        const totalEstimated = (elapsed / progress) * 100;
+        setEstimatedTimeRemaining(totalEstimated - elapsed);
+      }
+    });
+
+    // Subscribe to progress updates
+    const unsubscribeProgress = offlineSyncService.subscribeToProgress(
+      (progress, operation) => {
+        addSyncLog(`[${progress}%] ${operation}`, 'info');
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      unsubscribeProgress();
+    };
+  }, [visible, startTime]);
+
+  const updateEntityProgress = (state: SyncState) => {
+    // Mock entity progress - scaled from the overall sync progress so the
+    // per-entity rows stay consistent with the progress bar. In the real
+    // app this would come from the sync service.
+    const ratio = Math.min(state.syncProgress, 100) / 100;
+    const entities: EntityProgress[] = [
+      {
+        type: 'Agents',
+        total: 10,
+        synced: Math.floor(10 * ratio),
+        failed: 0,
+      },
+      {
+        type: 'Workflows',
+        total: 20,
+        synced: Math.floor(20 * ratio),
+        failed: 0,
+      },
+      {
+        type: 'Canvases',
+        total: 15,
+        synced: Math.floor(15 * ratio),
+        failed: 0,
+      },
+      {
+        type: 'Episodes',
+        total: 5,
+        synced: Math.floor(5 * ratio),
+        failed: 0,
+      },
+    ];
+    entityProgressRef.current = entities;
+    setEntityProgress(entities);
+  };
+
+  const addSyncLog = (message: string, level: 'info' | 'warn' | 'error') => {
+    setSyncLogs(prev => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message,
+        level,
+      },
+    ]);
+  };
+
+  const handleCancelSync = async () => {
+    await offlineSyncService.cancelSync();
+    addSyncLog('Sync cancelled by user', 'warn');
+    setIsComplete(true);
+  };
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    }
+    if (onComplete && syncResult) {
+      onComplete(syncResult);
+    }
+  };
+
+  const handleBackgroundSync = () => {
+    addSyncLog('Continuing sync in background', 'info');
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleClose}
+    >
+      <View
+        testID="sync-modal"
+        accessibilityLabel="Sync progress modal"
+        style={styles.modalOverlay}
+      >
+        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {isComplete ? 'Sync Complete' : 'Syncing Data'}
+            </Text>
+            {!isComplete && (
+              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+                <Icon name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Overall Progress */}
+          <View style={styles.section}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Overall Progress
+              </Text>
+              <Text style={[styles.progressText, { color: colors.text }]}>
+                {syncState.syncProgress}%
+              </Text>
+            </View>
+            <View
+              testID="progress-bar"
+              accessibilityValue={{ text: String(syncState.syncProgress) }}
+              style={styles.progressBarContainer}
+            >
+              <View
+                testID="progress-bar-fill"
+                style={[
+                  styles.progressBar,
+                  {
+                    width: `${syncState.syncProgress}%`,
+                    backgroundColor: isComplete ? '#34C759' : '#007AFF',
+                  },
+                ]}
+              />
+            </View>
+            {!isComplete && (
+              <Text
+                accessibilityLiveRegion="assertive"
+                style={[styles.subText, { color: colors.text }]}
+              >
+                {syncState.currentOperation || 'Preparing...'}
+              </Text>
+            )}
+          </View>
+
+          {/* Entity Progress */}
+          {!isComplete && entityProgress.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Entity Progress
+              </Text>
+              {entityProgress.map((entity, index) => (
+                <View key={index} style={styles.entityRow}>
+                  <Text style={[styles.entityLabel, { color: colors.text }]}>
+                    {entity.type}
+                  </Text>
+                  <View style={styles.entityProgressContainer}>
+                    <Text style={[styles.entityProgress, { color: colors.text }]}>
+                      {entity.synced}/{entity.total}
+                    </Text>
+                    {entity.failed > 0 && (
+                      <Text style={[styles.entityFailed, { color: '#FF3B30' }]}>
+                        ({entity.failed} failed)
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Stats */}
+          <View style={styles.section}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Icon name="time" size={20} color="#007AFF" />
+                <Text style={[styles.statLabel, { color: colors.text }]}>
+                  Time: {formatTime(Date.now() - startTime)}
+                </Text>
+              </View>
+              {!isComplete && estimatedTimeRemaining > 0 && (
+                <View style={styles.statItem}>
+                  <Icon name="hourglass" size={20} color="#007AFF" />
+                  <Text style={[styles.statLabel, { color: colors.text }]}>
+                    ETA: {formatTime(estimatedTimeRemaining)}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {bytesTransferred > 0 && (
+              <View style={styles.statItem}>
+                <Icon name="cloud-download" size={20} color="#007AFF" />
+                <Text style={[styles.statLabel, { color: colors.text }]}>
+                  Transferred: {formatBytes(bytesTransferred)}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Sync Summary (on completion) */}
+          {isComplete && syncResult && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Sync Summary
+              </Text>
+              <View style={styles.summaryRow}>
+                <Icon name="checkmark-circle" size={20} color="#34C759" />
+                <Text style={[styles.summaryText, { color: colors.text }]}>
+                  {syncResult.synced} items synced
+                </Text>
+              </View>
+              {syncResult.failed > 0 && (
+                <View style={styles.summaryRow}>
+                  <Icon name="close-circle" size={20} color="#FF3B30" />
+                  <Text style={[styles.summaryText, { color: colors.text }]}>
+                    {syncResult.failed} items failed
+                  </Text>
+                </View>
+              )}
+              {syncResult.conflicts > 0 && (
+                <View style={styles.summaryRow}>
+                  <Icon name="warning" size={20} color="#FF9500" />
+                  <Text style={[styles.summaryText, { color: colors.text }]}>
+                    {syncResult.conflicts} conflicts
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Verbose Log */}
+          {verboseMode && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>

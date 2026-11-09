@@ -1,0 +1,38 @@
+[
+  {
+    "path": "mobile/src/services/offlineSyncService.ts",
+    "source": "417a7338d",
+    "whole_file_sha256": "8b75aaddeafda24bb68eef766b29cf8f45d1acd4497f4629730e85a8ca4d46f1",
+    "line_windows": [
+      [
+        21,
+        112
+      ],
+      [
+        266,
+        460
+      ],
+      [
+        851,
+        885
+      ]
+    ],
+    "excerpt_sha256": "1be05ee49cfabdce65734b2843e536487ba22ac2b5be6ea6426907c80957051d"
+  },
+  {
+    "path": "mobile/src/components/offline/SyncProgressModal.tsx",
+    "source": "417a7338d",
+    "whole_file_sha256": "9454a96cf8ee80112dfba340243bf6062295be34d4f6b1df2f18a4c5b80a75e5",
+    "line_windows": [
+      [
+        31,
+        215
+      ],
+      [
+        251,
+        400
+      ]
+    ],
+    "excerpt_sha256": "0d116a78b03613562bcbfe9e613cc7c0bc6d1be0ecabb55758efd6a8dad53dcf"
+  }
+]

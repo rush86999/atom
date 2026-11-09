@@ -1,0 +1,38 @@
+[
+  {
+    "capture": "sync-state-authoritative-queue-negative",
+    "source": "3c09674b0ec0ca8f5d6ebeaa220af2bc07e91220",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "sync-modal-result-truth-negative",
+    "source": "48f6fe72910b0ad81cca21413c69ba62c1f94dde",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "sync-cycle-result-producer-negative",
+    "source": "01febf6623bf7b2c829366c92adaa29d4440d60e",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "sync-cycle-single-action-counter-negative",
+    "source": "745385449346e4ebc3b7c6f3e5990194bf083711",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "mobile-cycle-modal-source-freeze",
+    "source": "2abf3c689e8e36716b72eea7843a0c245e5aec5a",
+    "source_count": 250,
+    "mismatches": []
+  },
+  {
+    "capture": "mobile-observed-modal-source-freeze-typecheck",
+    "source": "2abf3c689e8e36716b72eea7843a0c245e5aec5a",
+    "source_count": 250,
+    "mismatches": []
+  }
+]

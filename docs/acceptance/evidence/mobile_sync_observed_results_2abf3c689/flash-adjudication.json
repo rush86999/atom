@@ -1,0 +1,21 @@
+{
+  "review_session": 65232,
+  "actual_exit": 0,
+  "accepted": [
+    "reuse existing sync_state and SyncResult",
+    "bind local pass identity and selected action IDs",
+    "clear prior result at passstart",
+    "observed counters rather than overallpercent",
+    "cancelrequest is not terminalsuccess",
+    "late/oldresult cannotcertifynewpendingwork",
+    "initialread plus subscription forfastpasses"
+  ],
+  "not_adopted": [
+    "new eight-phase review/operation engine",
+    "guessed confirmationLost transportboolean beforeAPIprotocolqualification",
+    "workerStopConfirmed without actualtransportreceipt",
+    "automaticrestartaborted/retry policy without native/inflight reconciliation proof"
+  ],
+  "scope": "Local pass bookkeeping only; not remote business completion or native restart",
+  "producer_proof": "01febf662 negative20cases17pass3fail; newcounternegative74538544921cases20pass1fail; final21/21,combined952/956 withonly4 frozenmodalfailures"
+}

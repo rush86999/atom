@@ -1,0 +1,56 @@
+{
+  "byte_matched_runtime_source": "2abf3c689e8e36716b72eea7843a0c245e5aec5a",
+  "scope": "controlled serialized backing bytes and real queue/service/modal, with doubled native storage and API transport; not native or remote business acceptance",
+  "selected_cases": 965,
+  "passed": 965,
+  "pending": 0,
+  "actual_files": 25,
+  "full_typecheck_exit": 2,
+  "full_typecheck_diagnostics": 402,
+  "negative_captures": [
+    {
+      "capture": "sync-state-authoritative-queue-negative",
+      "source": "3c09674b0ec0ca8f5d6ebeaa220af2bc07e91220",
+      "counts": {
+        "numTotalTests": 17,
+        "numPassedTests": 14,
+        "numFailedTests": 3,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "capture": "sync-modal-result-truth-negative",
+      "source": "48f6fe72910b0ad81cca21413c69ba62c1f94dde",
+      "counts": {
+        "numTotalTests": 115,
+        "numPassedTests": 111,
+        "numFailedTests": 4,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "capture": "sync-cycle-result-producer-negative",
+      "source": "01febf6623bf7b2c829366c92adaa29d4440d60e",
+      "counts": {
+        "numTotalTests": 20,
+        "numPassedTests": 17,
+        "numFailedTests": 3,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "capture": "sync-cycle-single-action-counter-negative",
+      "source": "745385449346e4ebc3b7c6f3e5990194bf083711",
+      "counts": {
+        "numTotalTests": 21,
+        "numPassedTests": 20,
+        "numFailedTests": 1,
+        "numPendingTests": 0
+      }
+    }
+  ],
+  "native_restart_qualified": false,
+  "remote_business_effect_qualified": false,
+  "application_bootstrap_qualified": false,
+  "cycle_identity_scope": "existing service lifetime, not globally unique provider operations"
+}

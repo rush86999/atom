@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `ae102ca2d`; later changes
+reference describes the checked-in companion at source `2abf3c689`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -22,7 +22,7 @@ npm run typecheck
 
 Skipping install scripts was intentional for these controlled checks. It does
 not prepare native modules or demonstrate an iOS/Android build. The strict
-project-wide type check currently fails with 408 diagnostics at this source. Keep its complete source/test scope;
+project-wide type check currently fails with 402 diagnostics at this source. Keep its complete source/test scope;
 do not hide errors with exclusions, ambient module shims or weaker settings.
 
 One reproducible controlled camera selection is:
@@ -50,9 +50,11 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Forms and chat | Focused controls for numeric/length validation, installed picker APIs and swipe actions are being retained during repair. | Complete compiler/build, integrated mobile journeys, native access and end-to-end task completion. |
 | Storage and offline work | Installed MMKV4 wrapper; serialized existing queue writes, retained failed/unsent work, persisted UI retry/priority/delete and truthful incomplete outcomes; 743 selected controls at `11be7eb1c`. Fourteen-day retention is simulated time. | Native MMKV/encrypted migration, current-session binding, safe automatic startup, interrupted/uncertain effects and real elapsed soak. Controlled storage/UI tests do not establish those behaviors. |
 | Session recovery | Request-owned generation, conditional login/refresh commits, server expiry, single-flight refresh, startup and mounted revocation controls; 808 combined controls at `ae102ca2d`. | Native restart/migration, full application bootstrap, live account/backend/device ownership and unknown-effect reconciliation. |
+| Sync reporting | Queue-derived unresolved counts, observed pass IDs/results and entity counters, current-result validation and once-only completion callbacks; 965 combined controls at `2abf3c689`, including the real service/modal join with controlled transport and storage. | Native persistence/restart, current-account queue authority, full app bootstrap, actual API/business-result and unknown-effect recovery qualification. |
 
 Source-bound packets:
 
+- [Observed sync results](../docs/acceptance/evidence/mobile_sync_observed_results_2abf3c689/README.md)
 - [Session recovery controls](../docs/acceptance/evidence/mobile_session_recovery_ae102ca2d/README.md)
 - [Camera/gallery SDK controls](../docs/acceptance/evidence/mobile_camera_sdk_8ef724ee0/README.md)
 - [Offline queue preservation controls](../docs/acceptance/evidence/mobile_offline_queue_11be7eb1c/README.md)

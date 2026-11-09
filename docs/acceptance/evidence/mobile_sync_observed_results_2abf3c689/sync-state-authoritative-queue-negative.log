@@ -1,0 +1,2711 @@
+
+> atom-mobile@1.0.0 test
+> jest src/__tests__/services/offlineSyncService.durability.test.ts --runInBand --watch=false --watchman=false --json --outputFile=/private/tmp/root-mobile-build-20261109/sync-state-authoritative-queue-negative-results.json
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+  console.warn
+    ProgressBarAndroid has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/progress-bar-android' instead of 'react-native'. See https://github.com/react-native-progress-view/progress-bar-android
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as ProgressBarAndroid] (node_modules/react-native/index.js:143:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    Clipboard has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-clipboard/clipboard' instead of 'react-native'. See https://github.com/react-native-clipboard/clipboard
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as Clipboard] (node_modules/react-native/index.js:226:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `addListener` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:63:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `removeListeners` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:68:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    PushNotificationIOS has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. See https://github.com/react-native-push-notification-ios/push-notification-ios
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as PushNotificationIOS] (node_modules/react-native/index.js:287:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Queued action action_1794195344480_3llllllll (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Queued action action_1794195344480_777777777 (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.error
+    OfflineSync: Failed to queue action: Error: Offline queue write was not confirmed.
+        at OfflineSyncService.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/services/offlineSyncService.ts:981:13)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      252 |       });
+      253 |     } catch (error) {
+    > 254 |       console.error('OfflineSync: Failed to queue action:', error);
+          |               ^
+      255 |       throw error;
+      256 |     }
+      257 |   }
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:254:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.error
+    OfflineSync: Queue parsing failed; original bytes retained.
+
+      971 |       }));
+      972 |     } catch (error) {
+    > 973 |       console.error('OfflineSync: Queue parsing failed; original bytes retained.');
+          |               ^
+      974 |       // Keep the original bytes for recovery. A parse error is not an empty queue.
+      975 |       throw new Error('Offline queue data is unreadable; original data has been retained.');
+      976 |     }
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:973:15)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    OfflineSync: Failed to queue action: Error: Offline queue data is unreadable; original data has been retained.
+        at OfflineSyncService.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/services/offlineSyncService.ts:975:13)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      252 |       });
+      253 |     } catch (error) {
+    > 254 |       console.error('OfflineSync: Failed to queue action:', error);
+          |               ^
+      255 |       throw error;
+      256 |     }
+      257 |   }
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:254:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    OfflineSync: Queued action action_1794195344498_61jhjefuy (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Queued action action_1794195344499_49xjvo34u (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.log
+    OfflineSync: Syncing agent message action_1794195344499_49xjvo34u
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:556:13)
+
+  console.error
+    OfflineSync: Failed to sync agent message action_1794195344499_49xjvo34u: controlled backend refusal
+
+      570 |         return { success: true, conflict: false };
+      571 |       } else {
+    > 572 |         console.error(`OfflineSync: Failed to sync agent message ${action.id}:`, response.error);
+          |                 ^
+      573 |         return { success: false };
+      574 |       }
+      575 |     } catch (error) {
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:572:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 1 failed, 0 conflicts, 0ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.log
+    OfflineSync: Syncing agent message action_1794195344499_49xjvo34u
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:556:13)
+
+  console.error
+    OfflineSync: Failed to sync agent message action_1794195344499_49xjvo34u: controlled backend refusal
+
+      570 |         return { success: true, conflict: false };
+      571 |       } else {
+    > 572 |         console.error(`OfflineSync: Failed to sync agent message ${action.id}:`, response.error);
+          |                 ^
+      573 |         return { success: false };
+      574 |       }
+      575 |     } catch (error) {
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:572:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 1 failed, 0 conflicts, 2000ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.log
+    OfflineSync: Syncing agent message action_1794195344499_49xjvo34u
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:556:13)
+
+  console.error
+    OfflineSync: Failed to sync agent message action_1794195344499_49xjvo34u: controlled backend refusal
+
+      570 |         return { success: true, conflict: false };
+      571 |       } else {
+    > 572 |         console.error(`OfflineSync: Failed to sync agent message ${action.id}:`, response.error);
+          |                 ^
+      573 |         return { success: false };
+      574 |       }
+      575 |     } catch (error) {
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:572:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 1 failed, 0 conflicts, 4000ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.log
+    OfflineSync: Syncing agent message action_1794195344499_49xjvo34u
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:556:13)
+
+  console.error
+    OfflineSync: Failed to sync agent message action_1794195344499_49xjvo34u: controlled backend refusal
+
+      570 |         return { success: true, conflict: false };
+      571 |       } else {
+    > 572 |         console.error(`OfflineSync: Failed to sync agent message ${action.id}:`, response.error);
+          |                 ^
+      573 |         return { success: false };
+      574 |       }
+      575 |     } catch (error) {
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:572:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 1 failed, 0 conflicts, 8000ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.log
+    OfflineSync: Syncing agent message action_1794195344499_49xjvo34u
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:556:13)
+
+  console.error
+    OfflineSync: Failed to sync agent message action_1794195344499_49xjvo34u: controlled backend refusal
+
+      570 |         return { success: true, conflict: false };
+      571 |       } else {
+    > 572 |         console.error(`OfflineSync: Failed to sync agent message ${action.id}:`, response.error);
+          |                 ^
+      573 |         return { success: false };
+      574 |       }
+      575 |     } catch (error) {
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:572:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 1 failed, 0 conflicts, 16000ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.log
+    OfflineSync: Queued action action_1794195344505_xcluxjiu8 (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Cleaning up old entries
+
+      at log (src/services/offlineSyncService.ts:1156:15)
+
+  console.log
+    OfflineSync: Queued action action_1794195344608_y7mxbgtsg (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    StorageService: Cleared all cached data
+
+      at StorageService.log (src/services/storageService.ts:396:15)
+
+  console.log
+    OfflineSync: Queued action action_1794195344610_5onv04r4b (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 0 failed, 0 conflicts, 2000ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.log
+    OfflineSync: Queued action action_1794195344611_dv4d4hp4o (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.log
+    OfflineSync: Syncing agent message action_1794195344611_dv4d4hp4o
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:556:13)
+
+  console.error
+    OfflineSync: Failed to sync agent message action_1794195344611_dv4d4hp4o: controlled refusal after admission
+
+      570 |         return { success: true, conflict: false };
+      571 |       } else {
+    > 572 |         console.error(`OfflineSync: Failed to sync agent message ${action.id}:`, response.error);
+          |                 ^
+      573 |         return { success: false };
+      574 |       }
+      575 |     } catch (error) {
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:572:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 1 failed, 0 conflicts, 0ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.log
+    OfflineSync: Queued action action_1794195344612_8sc7ajb38 (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Syncing 1 actions
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:319:15)
+
+  console.error
+    OfflineSync: Failed to sync action action_1794195344612_8sc7ajb38: Error: Offline queue write was not confirmed.
+        at OfflineSyncService.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/services/offlineSyncService.ts:981:13)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      545 |       }
+      546 |     } catch (error) {
+    > 547 |       console.error(`OfflineSync: Failed to sync action ${action.id}:`, error);
+          |               ^
+      548 |       return { success: false, skipped: !admitted };
+      549 |     }
+      550 |   }
+
+      at OfflineSyncService.error (src/services/offlineSyncService.ts:547:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    OfflineSync: Sync complete - 0 synced, 0 failed, 0 conflicts, 0ms, 0 bytes
+
+      at OfflineSyncService.log (src/services/offlineSyncService.ts:418:15)
+
+  console.warn
+    OfflineSync: Queue committed; metadata projection unavailable.
+
+      1141 |       if (!stateSaved || !quotaSaved) console.warn('OfflineSync: Queue committed; metadata projection write not confirmed.');
+      1142 |     } catch {
+    > 1143 |       console.warn('OfflineSync: Queue committed; metadata projection unavailable.');
+           |               ^
+      1144 |     }
+      1145 |   }
+      1146 |
+
+      at OfflineSyncService.warn (src/services/offlineSyncService.ts:1143:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    OfflineSync: Queued action action_1794195344614_5br36n7oz (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Queued action action_1794195344615_yqoxra795 (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Queued action action_1794195344615_1hgbwj8wd (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.warn
+    OfflineSync: Queue committed; metadata projection write not confirmed.
+
+      1139 |       // Keep queue-derived metadata separate from StorageService's whole-store quota.
+      1140 |       const quotaSaved = await mmkvStorage.setObject('offline_storage_quota', this.deriveQueueQuota(queue));
+    > 1141 |       if (!stateSaved || !quotaSaved) console.warn('OfflineSync: Queue committed; metadata projection write not confirmed.');
+           |                                               ^
+      1142 |     } catch {
+      1143 |       console.warn('OfflineSync: Queue committed; metadata projection unavailable.');
+      1144 |     }
+
+      at OfflineSyncService.warn (src/services/offlineSyncService.ts:1141:47)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    OfflineSync: Queued action action_1794195344616_0xmk0stss (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Queued action action_1794195344616_3ntzoa6km (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+  console.log
+    OfflineSync: Queued action action_1794195344619_eazwehu3a (type: agent_message, priority: low)
+
+      at log (src/services/offlineSyncService.ts:244:17)
+
+FAIL src/__tests__/services/offlineSyncService.durability.test.ts
+  OfflineSync durable pending intent contract
+    ✓ concurrent additions retain both exact action identities in fresh bytes (5 ms)
+    ✓ a refused storage write cannot return a queued action identity (11 ms)
+    ✓ corrupt retained queue bytes refuse without erasing recovery material (1 ms)
+    ✓ hourly maintenance cannot silently drop unsent low-priority work (2 ms)
+    ✓ exhausted retries remain durable failed work for an explicit owner action (6 ms)
+    ✓ fourteen simulated offline days retain the same unsent intent (102 ms)
+    ✓ clearing disposable cache preserves unsent queue data (1 ms)
+    ✓ explicit removal during backoff prevents a stale transport dispatch (1 ms)
+    ✓ in-flight work cannot be deleted, retried or represented as stopped (1 ms)
+    ✓ a refused claim dispatches no transport and earns no successful sync (1 ms)
+    ✓ metadata failure cannot turn a confirmed queue write into a failed enqueue (1 ms)
+    ✓ removal reconciles quota from the remaining queue instead of leaking usage
+    ✓ explicit clear does not leave a full quota for an empty queue (1 ms)
+    ✓ quota can be rebuilt after projection writes failed and the service reinitializes
+    ✕ sync state cannot hide retained pending work behind a stale zero projection (1 ms)
+    ✕ sync state refuses unreadable queue authority rather than reporting all synced (1 ms)
+    ✕ sync state keeps exhausted failed work visible in the unresolved count
+
+  ● OfflineSync durable pending intent contract › sync state cannot hide retained pending work behind a stale zero projection
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+      182 |     const state = await offlineSyncService.getSyncState();
+      183 |     await storageService.setObject('sync_state', { ...state, pendingCount: 0 });
+    > 184 |     expect((await offlineSyncService.getSyncState()).pendingCount).toBe(1);
+          |                                                                    ^
+      185 |   });
+      186 |
+      187 |   test('sync state refuses unreadable queue authority rather than reporting all synced', async () => {
+
+      at Object.toBe (src/__tests__/services/offlineSyncService.durability.test.ts:184:68)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● OfflineSync durable pending intent contract › sync state refuses unreadable queue authority rather than reporting all synced
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"cancelled": false, "consecutiveFailures": 0, "currentOperation": "", "lastSuccessfulSyncAt": null, "lastSyncAt": null, "pendingCount": 0, "syncInProgress": false, "syncProgress": 0}
+
+      188 |     await start();
+      189 |     await storageService.setString('offline_queue', '{controlled-unreadable');
+    > 190 |     await expect(offlineSyncService.getSyncState()).rejects.toThrow();
+          |           ^
+      191 |   });
+      192 |
+      193 |   test('sync state keeps exhausted failed work visible in the unresolved count', async () => {
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at Object.expect (src/__tests__/services/offlineSyncService.durability.test.ts:190:11)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● OfflineSync durable pending intent contract › sync state keeps exhausted failed work visible in the unresolved count
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+      198 |     const state = await offlineSyncService.getSyncState();
+      199 |     await storageService.setObject('sync_state', { ...state, pendingCount: 0 });
+    > 200 |     expect((await offlineSyncService.getSyncState()).pendingCount).toBe(1);
+          |                                                                    ^
+      201 |   });
+      202 |
+      203 | });
+
+      at Object.toBe (src/__tests__/services/offlineSyncService.durability.test.ts:200:68)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 14 passed, 17 total
+Snapshots:   0 total
+Time:        0.65 s, estimated 1 s
+Ran all test suites matching /src\/__tests__\/services\/offlineSyncService.durability.test.ts/i.
+Test results written to: ../../root-mobile-build-20261109/sync-state-authoritative-queue-negative-results.json
