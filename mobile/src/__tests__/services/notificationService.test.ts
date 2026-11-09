@@ -26,6 +26,33 @@ function permissionResponse(status: PermissionStatus, granted: boolean, iosStatu
 }
 
 describe('NotificationService', () => {
+  test.each([
+    { label: 'user changes', firstUser: 'user-A', firstDevice: 'device-A', nextUser: 'user-B', nextDevice: 'device-A' },
+    { label: 'device changes', firstUser: 'user-A', firstDevice: 'device-A', nextUser: 'user-A', nextDevice: 'device-B' },
+    { label: 'unscoped becomes scoped', firstUser: undefined, firstDevice: undefined, nextUser: 'user-A', nextDevice: 'device-A' },
+    { label: 'scoped becomes unscoped', firstUser: 'user-A', firstDevice: 'device-A', nextUser: undefined, nextDevice: undefined },
+    { label: 'opaque case differs', firstUser: 'user-A', firstDevice: 'device-A', nextUser: 'User-A', nextDevice: 'device-A' },
+    { label: 'missing differs from empty', firstUser: undefined, firstDevice: undefined, nextUser: '', nextDevice: undefined },
+  ])('cache subject contract: $label requires a new acquisition', async ({ firstUser, firstDevice, nextUser, nextDevice }) => {
+    jest.mocked(Notifications.getExpoPushTokenAsync)
+      .mockResolvedValueOnce({ type: 'expo', data: 'controlled-acquisition-A' })
+      .mockResolvedValueOnce({ type: 'expo', data: 'controlled-acquisition-B' });
+    const first = await notificationService.registerForPushNotifications(firstUser, firstDevice);
+    const next = await notificationService.registerForPushNotifications(nextUser, nextDevice);
+    expect(first?.token).toBe('controlled-acquisition-A');
+    expect(next?.token).toBe('controlled-acquisition-B');
+    expect(next?.userId).toBe(nextUser);
+    expect(next?.deviceId).toBe(nextDevice);
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(2);
+  });
+
+  test('cache subject contract: exact scoped identity reuses its acquisition', async () => {
+    const first = await notificationService.registerForPushNotifications('user-A', 'device-A');
+    const next = await notificationService.registerForPushNotifications('user-A', 'device-A');
+    expect(next).toBe(first);
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
+  });
+
   test('permission contract: a cached token cannot outlive revoked permission', async () => {
     expect(await notificationService.registerForPushNotifications()).not.toBeNull();
     jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissionResponse(PermissionStatus.DENIED, false, 1));

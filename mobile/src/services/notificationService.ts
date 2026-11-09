@@ -190,7 +190,13 @@ class NotificationService {
       }
 
       // Cached acquisition is not a current permission grant. Check the OS first.
-      if (this.pushToken) {
+      // Reuse only a token acquired for this exact optional scope: undefined is a
+      // distinct scope from any provided identifier (no defaulting/normalization).
+      if (
+        this.pushToken &&
+        this.pushToken.userId === userId &&
+        this.pushToken.deviceId === deviceId
+      ) {
         console.log('NotificationService: Push token already registered');
         return this.pushToken;
       }
