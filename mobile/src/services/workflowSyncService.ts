@@ -70,6 +70,7 @@ export interface WorkflowTrigger {
   priority: number;
   createdAt: Date;
   retryCount: number;
+  deliveryStatus?: 'pending' | 'dispatching' | 'effect_unknown';
 }
 
 export interface WorkflowSyncResult {
@@ -151,6 +152,7 @@ class WorkflowSyncService {
   private initialized: boolean = false;
   private monitoringTimer: NodeJS.Timeout | null = null;
   private metrics: WorkflowMetrics;
+  private flushInFlight: Promise<void> | null = null;
 
   /**
    * Initialize the workflow sync service
@@ -316,6 +318,7 @@ class WorkflowSyncService {
           priority,
           createdAt: new Date(),
           retryCount: 0,
+          deliveryStatus: 'pending',
         };
 
         this.cache.pendingTriggers.push(trigger);
@@ -389,37 +392,86 @@ class WorkflowSyncService {
    * Sync workflow executions
    */
   async syncExecutions(userId: string, deviceId: string): Promise<void> {
-    console.log('WorkflowSync: Syncing executions');
-
-    // Sync pending triggers
-    for (const trigger of this.cache.pendingTriggers) {
-      try {
-        const response = await apiService.post(`/api/workflows/${trigger.workflowId}/trigger`, trigger.input);
-
-        if (response.success) {
-          console.log(`WorkflowSync: Synced trigger ${trigger.id}`);
-          // Remove from pending
-          this.cache.pendingTriggers = this.cache.pendingTriggers.filter(t => t.id !== trigger.id);
-        } else {
-          trigger.retryCount++;
-          if (trigger.retryCount >= 5) {
-            console.error(`WorkflowSync: Trigger ${trigger.id} failed after 5 retries`);
-            this.cache.pendingTriggers = this.cache.pendingTriggers.filter(t => t.id !== trigger.id);
-          }
-        }
-      } catch (error) {
-        console.error(`WorkflowSync: Failed to sync trigger ${trigger.id}:`, error);
-        trigger.retryCount++;
-        // Mirrors the success:false path above — a throwing trigger must also
-        // be dropped after 5 retries instead of being retried forever.
-        if (trigger.retryCount >= 5) {
-          console.error(`WorkflowSync: Trigger ${trigger.id} failed after 5 retries`);
-          this.cache.pendingTriggers = this.cache.pendingTriggers.filter(t => t.id !== trigger.id);
-        }
-      }
+    if (this.flushInFlight) {
+      return this.flushInFlight;
     }
 
-    await this.saveCache();
+    const flush = this.flushPendingTriggers(userId, deviceId);
+    this.flushInFlight = flush;
+
+    try {
+      await flush;
+    } finally {
+      if (this.flushInFlight === flush) {
+        this.flushInFlight = null;
+      }
+    }
+  }
+
+  private async flushPendingTriggers(userId: string, deviceId: string): Promise<void> {
+    console.log('WorkflowSync: Syncing executions');
+
+    // Only explicit pending rows may dispatch. Legacy rows without a delivery
+    // status, interrupted dispatches, and uncertain writes are left untouched.
+    const triggers = [...this.cache.pendingTriggers];
+
+    for (const trigger of triggers) {
+      if (trigger.deliveryStatus !== 'pending') {
+        continue;
+      }
+
+      // Persist the dispatch boundary before any transport attempt.
+      trigger.deliveryStatus = 'dispatching';
+      try {
+        await this.saveCache();
+      } catch (error) {
+        // No POST occurred, so this in-memory row is still known undispatched.
+        trigger.deliveryStatus = 'pending';
+        throw error;
+      }
+
+      let accepted = false;
+      try {
+        const response = await apiService.post(
+          `/api/workflows/${trigger.workflowId}/trigger`,
+          trigger.input
+        );
+        accepted = response.success;
+      } catch (error) {
+        console.error(`WorkflowSync: Failed to sync trigger ${trigger.id}:`, error);
+      }
+
+      if (!accepted) {
+        // The POST may have reached the server. Keep the exact queued input and
+        // identifiers, but never automatically repeat an uncertain dispatch.
+        trigger.deliveryStatus = 'effect_unknown';
+        await this.saveCache();
+        continue;
+      }
+
+      // Transport acceptance is not business completion. Remove only the exact
+      // object that was dispatched; concurrent additions are preserved.
+      const index = this.cache.pendingTriggers.indexOf(trigger);
+      if (index < 0) {
+        continue;
+      }
+      this.cache.pendingTriggers.splice(index, 1);
+
+      try {
+        await this.saveCache();
+      } catch (error) {
+        // The durable row still says dispatching. Keep the uncertainty visible
+        // in memory so this process cannot dispatch it again either.
+        trigger.deliveryStatus = 'effect_unknown';
+        if (this.cache.pendingTriggers.indexOf(trigger) === -1) {
+          const restoreIndex = Math.min(index, this.cache.pendingTriggers.length);
+          this.cache.pendingTriggers.splice(restoreIndex, 0, trigger);
+        }
+        throw error;
+      }
+
+      console.log(`WorkflowSync: Synced trigger ${trigger.id}`);
+    }
   }
 
   /**

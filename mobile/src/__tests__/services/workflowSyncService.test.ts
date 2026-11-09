@@ -272,45 +272,21 @@ describe('workflowSyncService', () => {
     });
 
     it('should clear synced triggers', async () => {
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
-        syncInProgress: false,
-        lastSyncAt: null,
-        pendingActions: 0,
-        syncProgress: 0,
-      });
-
-      mockApiService.post.mockResolvedValue({
-        success: true,
-        data: { executionId: 'exec-123' },
-      });
-
-      // Setup cache with pending trigger
-      mockStorageService.getObject.mockImplementation(async (key) => {
-        if (key === 'workflow_cache') {
-          return {
-            workflows: {},
-            executions: {},
-            lastSyncAt: null,
-            pendingTriggers: [
-              {
-                id: 'trigger-1',
-                workflowId: 'wf-1',
-                input: {},
-                priority: 5,
-                createdAt: new Date(),
-                retryCount: 0,
-              },
-            ],
-          };
-        }
-        return null;
-      });
-
+      // Queue through the public producer; changing a storage mock after
+      // singleton initialization never loaded the old test's pending row.
+      mockOfflineSyncService.getSyncState.mockResolvedValue({ syncInProgress: true });
+      expect(await workflowSyncService.triggerWorkflow('wf-1', {}, 'user-123', 'device-123')).not.toBeNull();
+      mockOfflineSyncService.getSyncState.mockResolvedValue({ syncInProgress: false });
+      mockApiService.post.mockResolvedValue({ success: true, data: { executionId: 'exec-123' } });
+      mockStorageService.setObject.mockClear();
       await workflowSyncService.syncExecutions('user-123', 'device-123');
-
-      // Verify storage was updated (triggers should be cleared after sync)
-      expect(mockStorageService.setObject).toHaveBeenCalled();
+      expect(mockApiService.post).toHaveBeenCalledTimes(1);
+      expect(mockStorageService.setObject).toHaveBeenCalledWith('workflow_cache', expect.objectContaining({ pendingTriggers: [] }));
+      mockApiService.post.mockClear();
+      await workflowSyncService.syncExecutions('user-123', 'device-123');
+      expect(mockApiService.post).not.toHaveBeenCalled();
     });
+
   });
 
   // State tests (4 tests)
@@ -653,6 +629,7 @@ describe('workflowSyncService', () => {
       priority: 5,
       createdAt: new Date(),
       retryCount,
+      deliveryStatus: 'pending',
     });
 
     it('should remove triggers that sync successfully', async () => {
@@ -671,7 +648,7 @@ describe('workflowSyncService', () => {
       );
     });
 
-    it('should drop a trigger whose syncs keep throwing after 5 retries', async () => {
+    it('retains a lost-confirmation trigger without five automatic retries', async () => {
       (workflowSyncService as any).cache.pendingTriggers = [seedTrigger('t1')];
       mockApiService.post.mockRejectedValue(new Error('network down'));
 
@@ -679,11 +656,12 @@ describe('workflowSyncService', () => {
         await workflowSyncService.syncExecutions('u', 'd');
       }
 
-      expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(0);
-      expect(mockApiService.post).toHaveBeenCalledTimes(5);
+      expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(1);
+      expect((workflowSyncService as any).cache.pendingTriggers[0].deliveryStatus).toBe('effect_unknown');
+      expect(mockApiService.post).toHaveBeenCalledTimes(1);
     });
 
-    it('should keep a trigger that failed fewer than 5 times', async () => {
+    it('preserves exact input after uncertain dispatch without repeated attempts', async () => {
       (workflowSyncService as any).cache.pendingTriggers = [seedTrigger('t1')];
       mockApiService.post.mockRejectedValue(new Error('network down'));
 
@@ -693,10 +671,13 @@ describe('workflowSyncService', () => {
 
       const triggers = (workflowSyncService as any).cache.pendingTriggers;
       expect(triggers).toHaveLength(1);
-      expect(triggers[0].retryCount).toBe(3);
+      expect(triggers[0].retryCount).toBe(0);
+      expect(triggers[0].deliveryStatus).toBe('effect_unknown');
+      expect(triggers[0].input).toEqual({ x: 1 });
+      expect(mockApiService.post).toHaveBeenCalledTimes(1);
     });
 
-    it('should remove triggers that report failure after 5 retries', async () => {
+    it('retains a false-result trigger instead of deleting work at five retries', async () => {
       (workflowSyncService as any).cache.pendingTriggers = [seedTrigger('t1')];
       mockApiService.post.mockResolvedValue({ success: false, error: 'invalid' });
 
@@ -704,7 +685,9 @@ describe('workflowSyncService', () => {
         await workflowSyncService.syncExecutions('u', 'd');
       }
 
-      expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(0);
+      expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(1);
+      expect((workflowSyncService as any).cache.pendingTriggers[0].deliveryStatus).toBe('effect_unknown');
+      expect(mockApiService.post).toHaveBeenCalledTimes(1);
     });
 
     it('should replay an execution only when it exists', async () => {

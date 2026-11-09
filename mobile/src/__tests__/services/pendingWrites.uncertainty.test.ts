@@ -40,6 +40,30 @@ describe('Pending writes require a durable pre-dispatch boundary', () => {
   });
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
 
+  test.each(families)('$name known pre-dispatch failure may safely retry once storage recovers', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    const client = await family.load();
+    mockSetObject.mockResolvedValueOnce(false);
+    await expect(client.flush()).rejects.toThrow();
+    expect(mockPost).not.toHaveBeenCalled();
+    await client.flush();
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    client.destroy();
+  });
+
+  test.each(families)('$name distinct queued rows remain distinct even with matching target and time', async family => {
+    const cache = family.cache();
+    const queueKey = 'pendingTriggers' in cache ? 'pendingTriggers' : 'pendingFormSubmissions';
+    if ('pendingTriggers' in cache) cache.pendingTriggers.push({ ...cache.pendingTriggers[0], id: 'trigger-002' });
+    else cache.pendingFormSubmissions.push({ ...cache.pendingFormSubmissions[0], formData: { amount: 1 } });
+    durable.set(family.key, JSON.stringify(cache));
+    const client = await family.load();
+    await client.flush();
+    expect(mockPost).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(durable.get(family.key) ?? 'null')).toMatchObject({ [queueKey]: [] });
+    client.destroy();
+  });
+
   test.each(families)('$name legacy delivery without an observation is not assumed safe to retry', async family => {
     durable.set(family.key, JSON.stringify(family.cache(null)));
     const client = await family.load();

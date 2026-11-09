@@ -43,6 +43,7 @@ export interface CanvasFormData {
   formData: any;
   submittedAt: Date;
   status: 'pending' | 'submitted' | 'failed';
+  deliveryStatus?: 'pending' | 'dispatching' | 'effect_unknown';
   error?: string;
 }
 
@@ -160,6 +161,7 @@ class CanvasSyncService {
   private cache: CanvasCache;
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
+  private flushInFlight: Promise<void> | null = null;
 
   /**
    * Initialize the canvas sync service
@@ -416,6 +418,7 @@ class CanvasSyncService {
         formData,
         submittedAt: new Date(),
         status: 'pending',
+        deliveryStatus: 'pending',
       };
 
       // Check if offline
@@ -462,38 +465,90 @@ class CanvasSyncService {
    * Sync pending form submissions
    */
   async syncFormSubmissions(userId: string, deviceId: string): Promise<void> {
+    if (this.flushInFlight) {
+      return this.flushInFlight;
+    }
+
+    const flush = this.flushPendingFormSubmissions(userId, deviceId);
+    this.flushInFlight = flush;
+
+    try {
+      await flush;
+    } finally {
+      if (this.flushInFlight === flush) {
+        this.flushInFlight = null;
+      }
+    }
+  }
+
+  private async flushPendingFormSubmissions(userId: string, deviceId: string): Promise<void> {
     if (this.cache.pendingFormSubmissions.length === 0) {
       return;
     }
 
     console.log(`CanvasSync: Syncing ${this.cache.pendingFormSubmissions.length} form submissions`);
 
-    for (const submission of this.cache.pendingFormSubmissions) {
+    // Only explicit pending rows may dispatch. Legacy rows without a delivery
+    // status, interrupted dispatches, and uncertain writes are left untouched.
+    const submissions = [...this.cache.pendingFormSubmissions];
+
+    for (const submission of submissions) {
+      if (submission.deliveryStatus !== 'pending') {
+        continue;
+      }
+
+      // Persist the dispatch boundary before any transport attempt.
+      submission.deliveryStatus = 'dispatching';
+      try {
+        await this.saveCache();
+      } catch (error) {
+        // No POST occurred, so this in-memory row is still known undispatched.
+        submission.deliveryStatus = 'pending';
+        throw error;
+      }
+
+      let accepted = false;
       try {
         const response = await apiService.post(`/api/canvas/${submission.canvasId}/submit`, {
           form_data: submission.formData,
           submitted_at: submission.submittedAt,
         });
-
-        if (response.success) {
-          console.log(`CanvasSync: Synced form submission for canvas ${submission.canvasId}`);
-          submission.status = 'submitted';
-          // Remove from pending
-          this.cache.pendingFormSubmissions = this.cache.pendingFormSubmissions.filter(
-            s => s.canvasId !== submission.canvasId || s.submittedAt !== submission.submittedAt
-          );
-        } else {
-          submission.status = 'failed';
-          submission.error = response.error || 'Unknown error';
-        }
+        accepted = response.success;
       } catch (error) {
         console.error(`CanvasSync: Failed to sync form submission for canvas ${submission.canvasId}:`, error);
-        submission.status = 'failed';
-        submission.error = error instanceof Error ? error.message : 'Unknown error';
       }
-    }
 
-    await this.saveCache();
+      if (!accepted) {
+        // The POST may have reached the server. Keep the exact queued input and
+        // identifiers, but never automatically repeat an uncertain dispatch.
+        submission.deliveryStatus = 'effect_unknown';
+        await this.saveCache();
+        continue;
+      }
+
+      // Transport acceptance is not business completion. Remove only the exact
+      // object that was dispatched; concurrent additions are preserved.
+      const index = this.cache.pendingFormSubmissions.indexOf(submission);
+      if (index < 0) {
+        continue;
+      }
+      this.cache.pendingFormSubmissions.splice(index, 1);
+
+      try {
+        await this.saveCache();
+      } catch (error) {
+        // The durable row still says dispatching. Keep the uncertainty visible
+        // in memory so this process cannot dispatch it again either.
+        submission.deliveryStatus = 'effect_unknown';
+        if (this.cache.pendingFormSubmissions.indexOf(submission) === -1) {
+          const restoreIndex = Math.min(index, this.cache.pendingFormSubmissions.length);
+          this.cache.pendingFormSubmissions.splice(restoreIndex, 0, submission);
+        }
+        throw error;
+      }
+
+      console.log(`CanvasSync: Synced form submission for canvas ${submission.canvasId}`);
+    }
   }
 
   /**

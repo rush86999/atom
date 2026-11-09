@@ -887,7 +887,7 @@ describe('canvasSyncService', () => {
       expect(apiService.post).not.toHaveBeenCalled();
     });
 
-    test('should keep failed submissions pending for retry', async () => {
+    test('keeps uncertain submissions without automatically repeating the POST', async () => {
       const { apiService } = require('../../services/api');
       const { offlineSyncService } = require('../../services/offlineSyncService');
 
@@ -905,10 +905,10 @@ describe('canvasSyncService', () => {
 
       await canvasSyncService.syncFormSubmissions('user_1', 'device_1');
 
-      // Submission remains pending → retried on next flush
+      // Uncertainty remains retained; another flush must not repeat the POST.
       apiService.post.mockClear();
       await canvasSyncService.syncFormSubmissions('user_1', 'device_1');
-      expect(apiService.post).toHaveBeenCalled();
+      expect(apiService.post).not.toHaveBeenCalled();
     });
   });
 
