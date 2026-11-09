@@ -21,7 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
-import { decodeDate, decodeDetailResponse, decodeListResponse, isRecord, isStringArray } from './syncResponse';
+import { createCacheTransactionQueue, decodeDate, decodeDetailResponse, decodeListResponse, isRecord, isStringArray } from './syncResponse';
 
 // Types
 export interface Agent {
@@ -169,6 +169,8 @@ class AgentSyncService {
   };
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
+  private readonly cacheTransaction = createCacheTransactionQueue();
+  private cacheGeneration = 0;
 
   /**
    * Initialize the agent sync service
@@ -218,33 +220,44 @@ class AgentSyncService {
       }
 
       const agents = decoded.items;
+      const generation = this.cacheGeneration;
 
-      // Process each agent
-      for (const agent of agents) {
-        try {
-          const cached = this.cache.agents[agent.id];
-
-          // Check for conflict
-          if (cached && new Date(agent.updatedAt) < new Date(cached.updatedAt)) {
-            conflicts++;
-            await this.queueConflictResolution(agent, cached);
-            continue;
-          }
-
-          // Update cache
-          this.cache.agents[agent.id] = agent;
-          synced++;
-        } catch (error) {
-          console.error(`AgentSync: Failed to sync agent ${agent.id}:`, error);
-          failed++;
+      await this.cacheTransaction(async () => {
+        if (generation !== this.cacheGeneration) {
+          return;
         }
-      }
 
-      // Update cache metadata
-      this.cache.lastSyncAt = new Date();
+        const nextCache: AgentCache = {
+          ...this.cache,
+          agents: { ...this.cache.agents },
+        };
 
-      // Save cache
-      await this.saveCache();
+        // Process each agent against the cache as it exists inside this
+        // transaction, then persist before publishing the candidate in memory.
+        for (const agent of agents) {
+          try {
+            const cached = nextCache.agents[agent.id];
+
+            // Check for conflict
+            if (cached && new Date(agent.updatedAt) < new Date(cached.updatedAt)) {
+              conflicts++;
+              await this.queueConflictResolution(agent, cached);
+              continue;
+            }
+
+            nextCache.agents[agent.id] = agent;
+            synced++;
+          } catch (error) {
+            console.error(`AgentSync: Failed to sync agent ${agent.id}:`, error);
+            failed++;
+          }
+        }
+
+        nextCache.lastSyncAt = new Date();
+
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
+      });
 
       const duration = Date.now() - startTime;
       console.log(`AgentSync: Sync complete - ${synced} synced, ${failed} failed, ${conflicts} conflicts, ${duration}ms`);
@@ -283,17 +296,30 @@ class AgentSyncService {
     }
 
     // Fetch from server
+    const generation = this.cacheGeneration;
     try {
       const response = await apiService.get<unknown>(`/api/agents/${agentId}`);
       const decoded = decodeDetailResponse(response, 'agent', agentId, decodeAgent);
       if (decoded.ok) {
-        const nextCache: AgentCache = {
-          ...this.cache,
-          agents: { ...this.cache.agents, [agentId]: decoded.item },
-        };
-        await this.saveCache(nextCache);
-        this.cache = nextCache;
-        return decoded.item;
+        const item = decoded.item;
+        return await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return item;
+          }
+
+          const existing = this.cache.agents[item.id];
+          const published = existing && item.isFavorite === undefined && existing.isFavorite !== undefined
+            ? { ...item, isFavorite: existing.isFavorite }
+            : item;
+          const nextCache: AgentCache = {
+            ...this.cache,
+            agents: { ...this.cache.agents, [item.id]: published },
+          };
+
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+          return item;
+        });
       }
     } catch (error) {
       console.error(`AgentSync: Failed to fetch agent ${agentId}:`, error);
@@ -320,6 +346,8 @@ class AgentSyncService {
     deviceId: string
   ): Promise<boolean> {
     try {
+      const generation = this.cacheGeneration;
+
       // Check if offline
       const isOffline = !(await this.isOnline());
 
@@ -340,14 +368,28 @@ class AgentSyncService {
         );
 
         // Update local cache optimistically
-        if (this.cache.agents[agentId]) {
-          this.cache.agents[agentId] = {
-            ...this.cache.agents[agentId],
-            ...updates,
-            updatedAt: new Date(),
+        await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return;
+          }
+          const cached = this.cache.agents[agentId];
+          if (!cached) {
+            return;
+          }
+          const nextCache: AgentCache = {
+            ...this.cache,
+            agents: {
+              ...this.cache.agents,
+              [agentId]: {
+                ...cached,
+                ...updates,
+                updatedAt: new Date(),
+              },
+            },
           };
-          await this.saveCache();
-        }
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+        });
 
         return true;
       }
@@ -357,14 +399,28 @@ class AgentSyncService {
 
       if (response.success) {
         // Update cache
-        if (this.cache.agents[agentId]) {
-          this.cache.agents[agentId] = {
-            ...this.cache.agents[agentId],
-            ...updates,
-            updatedAt: new Date(),
+        await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return;
+          }
+          const cached = this.cache.agents[agentId];
+          if (!cached) {
+            return;
+          }
+          const nextCache: AgentCache = {
+            ...this.cache,
+            agents: {
+              ...this.cache.agents,
+              [agentId]: {
+                ...cached,
+                ...updates,
+                updatedAt: new Date(),
+              },
+            },
           };
-          await this.saveCache();
-        }
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+        });
         return true;
       }
 
@@ -404,11 +460,21 @@ class AgentSyncService {
    * Cache agent prompt locally
    */
   async cachePrompt(agentId: string, prompt: string): Promise<void> {
-    const agent = this.cache.agents[agentId];
-    if (agent) {
-      agent.systemPrompt = prompt;
-      await this.saveCache();
-    }
+    await this.cacheTransaction(async () => {
+      const agent = this.cache.agents[agentId];
+      if (!agent) {
+        return;
+      }
+      const nextCache: AgentCache = {
+        ...this.cache,
+        agents: {
+          ...this.cache.agents,
+          [agentId]: { ...agent, systemPrompt: prompt },
+        },
+      };
+      await this.saveCache(nextCache);
+      this.cache = nextCache;
+    });
   }
 
   /**
@@ -423,14 +489,21 @@ class AgentSyncService {
    * Record agent execution
    */
   async recordExecution(execution: AgentExecution): Promise<void> {
-    this.cache.pendingExecutions.push(execution);
+    await this.cacheTransaction(async () => {
+      const pendingExecutions = [...this.cache.pendingExecutions, execution];
 
-    // Limit history size
-    if (this.cache.pendingExecutions.length > MAX_EXECUTION_HISTORY) {
-      this.cache.pendingExecutions = this.cache.pendingExecutions.slice(-MAX_EXECUTION_HISTORY);
-    }
+      // Limit history size
+      const limitedExecutions = pendingExecutions.length > MAX_EXECUTION_HISTORY
+        ? pendingExecutions.slice(-MAX_EXECUTION_HISTORY)
+        : pendingExecutions;
 
-    await this.saveCache();
+      const nextCache: AgentCache = {
+        ...this.cache,
+        pendingExecutions: limitedExecutions,
+      };
+      await this.saveCache(nextCache);
+      this.cache = nextCache;
+    });
   }
 
   /**
@@ -480,13 +553,17 @@ class AgentSyncService {
    * Clear cache
    */
   async clearCache(): Promise<void> {
-    this.cache = {
-      agents: {},
-      lastSyncAt: null,
-      pendingExecutions: [],
-      favorites: new Set(),
-    };
-    await this.saveCache();
+    this.cacheGeneration += 1;
+    await this.cacheTransaction(async () => {
+      const nextCache: AgentCache = {
+        agents: {},
+        lastSyncAt: null,
+        pendingExecutions: [],
+        favorites: new Set(),
+      };
+      await this.saveCache(nextCache);
+      this.cache = nextCache;
+    });
     console.log('AgentSync: Cache cleared');
   }
 

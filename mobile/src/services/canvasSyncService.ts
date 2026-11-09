@@ -21,7 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
-import { decodeDate, decodeDetailResponse, decodeListResponse, isRecord } from './syncResponse';
+import { createCacheTransactionQueue, decodeDate, decodeDetailResponse, decodeListResponse, isRecord } from './syncResponse';
 import {
   authorizePendingWriteOwner,
   readPendingWriteOwner,
@@ -193,6 +193,8 @@ class CanvasSyncService {
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
   private flushInFlight: Promise<void> | null = null;
+  private readonly cacheTransaction = createCacheTransactionQueue();
+  private cacheGeneration = 0;
 
   /**
    * Initialize the canvas sync service
@@ -242,42 +244,55 @@ class CanvasSyncService {
       }
 
       const canvases = decoded.items;
+      const generation = this.cacheGeneration;
 
-      // Process each canvas
-      for (const canvas of canvases) {
-        try {
-          const cached = this.cache.canvases[canvas.id];
-
-          // Check for conflict
-          if (cached && new Date(canvas.updatedAt) < new Date(cached.updatedAt)) {
-            conflicts++;
-            await this.queueConflictResolution(canvas, cached);
-            continue;
-          }
-
-          // Update cache
-          this.cache.canvases[canvas.id] = canvas;
-
-          // Cache HTML/CSS if available
-          if (canvas.html) {
-            this.cache.htmlCache[canvas.id] = canvas.html;
-          }
-          if (canvas.css) {
-            this.cache.cssCache[canvas.id] = canvas.css;
-          }
-
-          synced++;
-        } catch (error) {
-          console.error(`CanvasSync: Failed to sync canvas ${canvas.id}:`, error);
-          failed++;
+      await this.cacheTransaction(async () => {
+        if (generation !== this.cacheGeneration) {
+          return;
         }
-      }
 
-      // Update cache metadata
-      this.cache.lastSyncAt = new Date();
+        const nextCache: CanvasCache = {
+          ...this.cache,
+          canvases: { ...this.cache.canvases },
+          htmlCache: { ...this.cache.htmlCache },
+          cssCache: { ...this.cache.cssCache },
+        };
 
-      // Save cache
-      await this.saveCache();
+        // Process each canvas against the cache as it exists inside this
+        // transaction, then persist before publishing the candidate in memory.
+        for (const canvas of canvases) {
+          try {
+            const cached = nextCache.canvases[canvas.id];
+
+            // Check for conflict
+            if (cached && new Date(canvas.updatedAt) < new Date(cached.updatedAt)) {
+              conflicts++;
+              await this.queueConflictResolution(canvas, cached);
+              continue;
+            }
+
+            nextCache.canvases[canvas.id] = canvas;
+
+            // Cache HTML/CSS if available
+            if (canvas.html) {
+              nextCache.htmlCache[canvas.id] = canvas.html;
+            }
+            if (canvas.css) {
+              nextCache.cssCache[canvas.id] = canvas.css;
+            }
+
+            synced++;
+          } catch (error) {
+            console.error(`CanvasSync: Failed to sync canvas ${canvas.id}:`, error);
+            failed++;
+          }
+        }
+
+        nextCache.lastSyncAt = new Date();
+
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
+      });
 
       const duration = Date.now() - startTime;
       console.log(`CanvasSync: Sync complete - ${synced} synced, ${failed} failed, ${conflicts} conflicts, ${duration}ms`);
@@ -316,29 +331,40 @@ class CanvasSyncService {
     }
 
     // Fetch from server
+    const generation = this.cacheGeneration;
     try {
       const response = await apiService.get<unknown>(`/api/canvas/${canvasId}`);
       const decoded = decodeDetailResponse(response, 'canvas', canvasId, decodeCanvas);
       if (decoded.ok) {
-        const canvas = decoded.item;
-        const nextCache: CanvasCache = {
-          ...this.cache,
-          canvases: { ...this.cache.canvases, [canvasId]: canvas },
-          htmlCache: { ...this.cache.htmlCache },
-          cssCache: { ...this.cache.cssCache },
-        };
+        const item = decoded.item;
+        return await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return item;
+          }
 
-        // Cache HTML/CSS
-        if (canvas.html) {
-          nextCache.htmlCache[canvasId] = canvas.html;
-        }
-        if (canvas.css) {
-          nextCache.cssCache[canvasId] = canvas.css;
-        }
+          const existing = this.cache.canvases[item.id];
+          const published = existing && item.isFavorite === undefined && existing.isFavorite !== undefined
+            ? { ...item, isFavorite: existing.isFavorite }
+            : item;
+          const nextCache: CanvasCache = {
+            ...this.cache,
+            canvases: { ...this.cache.canvases, [item.id]: published },
+            htmlCache: { ...this.cache.htmlCache },
+            cssCache: { ...this.cache.cssCache },
+          };
 
-        await this.saveCache(nextCache);
-        this.cache = nextCache;
-        return canvas;
+          // Cache HTML/CSS
+          if (published.html) {
+            nextCache.htmlCache[item.id] = published.html;
+          }
+          if (published.css) {
+            nextCache.cssCache[item.id] = published.css;
+          }
+
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+          return item;
+        });
       }
     } catch (error) {
       console.error(`CanvasSync: Failed to fetch canvas ${canvasId}:`, error);
@@ -386,6 +412,8 @@ class CanvasSyncService {
     deviceId: string
   ): Promise<boolean> {
     try {
+      const generation = this.cacheGeneration;
+
       // Check if offline
       const isOffline = !(await this.isOnline());
 
@@ -406,14 +434,28 @@ class CanvasSyncService {
         );
 
         // Update local cache optimistically
-        if (this.cache.canvases[canvasId]) {
-          this.cache.canvases[canvasId] = {
-            ...this.cache.canvases[canvasId],
-            ...updates,
-            updatedAt: new Date(),
+        await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return;
+          }
+          const cached = this.cache.canvases[canvasId];
+          if (!cached) {
+            return;
+          }
+          const nextCache: CanvasCache = {
+            ...this.cache,
+            canvases: {
+              ...this.cache.canvases,
+              [canvasId]: {
+                ...cached,
+                ...updates,
+                updatedAt: new Date(),
+              },
+            },
           };
-          await this.saveCache();
-        }
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+        });
 
         return true;
       }
@@ -423,14 +465,28 @@ class CanvasSyncService {
 
       if (response.success) {
         // Update cache
-        if (this.cache.canvases[canvasId]) {
-          this.cache.canvases[canvasId] = {
-            ...this.cache.canvases[canvasId],
-            ...updates,
-            updatedAt: new Date(),
+        await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return;
+          }
+          const cached = this.cache.canvases[canvasId];
+          if (!cached) {
+            return;
+          }
+          const nextCache: CanvasCache = {
+            ...this.cache,
+            canvases: {
+              ...this.cache.canvases,
+              [canvasId]: {
+                ...cached,
+                ...updates,
+                updatedAt: new Date(),
+              },
+            },
           };
-          await this.saveCache();
-        }
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+        });
         return true;
       }
 
@@ -451,6 +507,8 @@ class CanvasSyncService {
     deviceId: string
   ): Promise<boolean> {
     try {
+      const generation = this.cacheGeneration;
+
       // Capture the canonical owner before creating any queued work. This is a
       // local hint; it becomes authority only after the caller is re-authorized.
       const local = await readPendingWriteOwner(userId, deviceId);
@@ -480,17 +538,32 @@ class CanvasSyncService {
         }
 
         // Queue for offline submission
-        this.cache.pendingFormSubmissions.push(submission);
+        const queued = await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return false;
+          }
 
-        // Limit pending submissions
-        if (this.cache.pendingFormSubmissions.length > MAX_PENDING_SUBMISSIONS) {
-          // Remove oldest submissions
-          this.cache.pendingFormSubmissions = this.cache.pendingFormSubmissions
-            .sort((a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime())
-            .slice(-MAX_PENDING_SUBMISSIONS);
+          const pendingFormSubmissions = [...this.cache.pendingFormSubmissions, submission];
+
+          // Limit pending submissions
+          const limitedSubmissions = pendingFormSubmissions.length > MAX_PENDING_SUBMISSIONS
+            ? pendingFormSubmissions
+              .sort((a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime())
+              .slice(-MAX_PENDING_SUBMISSIONS)
+            : pendingFormSubmissions;
+
+          const nextCache: CanvasCache = {
+            ...this.cache,
+            pendingFormSubmissions: limitedSubmissions,
+          };
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+          return true;
+        });
+
+        if (!queued) {
+          return false;
         }
-
-        await this.saveCache();
         console.log(`CanvasSync: Queued form submission for canvas ${canvasId}`);
         return true;
       }
@@ -574,22 +647,36 @@ class CanvasSyncService {
       }
 
       // Persist the dispatch boundary before any transport attempt.
-      submission.deliveryStatus = 'dispatching';
-      try {
-        await this.saveCache();
-      } catch (error) {
-        // No POST occurred, so this in-memory row is still known undispatched.
-        submission.deliveryStatus = 'pending';
-        throw error;
+      const marked = await this.cacheTransaction(async () => {
+        if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
+          return false;
+        }
+        submission.deliveryStatus = 'dispatching';
+        try {
+          await this.saveCache();
+        } catch (error) {
+          // No POST occurred, so this in-memory row is still known undispatched.
+          submission.deliveryStatus = 'pending';
+          throw error;
+        }
+        return true;
+      });
+      if (!marked) {
+        continue;
       }
 
       // A replacement during the marker write means no transport is allowed.
       // No POST occurred, so restoring the known-safe pending state is safe.
       if (!isAccessTokenSnapshotCurrent(session)) {
-        submission.deliveryStatus = 'pending';
         // A failed restoration remains a failed checkpoint, even though the
         // durable dispatch marker safely prevents automatic replay.
-        await this.saveCache();
+        await this.cacheTransaction(async () => {
+          if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
+            return;
+          }
+          submission.deliveryStatus = 'pending';
+          await this.saveCache();
+        });
         continue;
       }
 
@@ -611,31 +698,40 @@ class CanvasSyncService {
       if (!accepted) {
         // The POST may have reached the server. Keep the exact queued input and
         // identifiers, but never automatically repeat an uncertain dispatch.
-        submission.deliveryStatus = 'effect_unknown';
-        await this.saveCache();
+        await this.cacheTransaction(async () => {
+          if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
+            return;
+          }
+          submission.deliveryStatus = 'effect_unknown';
+          await this.saveCache();
+        });
         continue;
       }
 
       // Transport acceptance is not business completion. Remove only the exact
       // object that was dispatched; concurrent additions are preserved.
-      const index = this.cache.pendingFormSubmissions.indexOf(submission);
-      if (index < 0) {
-        continue;
-      }
-      this.cache.pendingFormSubmissions.splice(index, 1);
-
-      try {
-        await this.saveCache();
-      } catch (error) {
-        // The durable row still says dispatching. Keep the uncertainty visible
-        // in memory so this process cannot dispatch it again either.
-        submission.deliveryStatus = 'effect_unknown';
-        if (this.cache.pendingFormSubmissions.indexOf(submission) === -1) {
-          const restoreIndex = Math.min(index, this.cache.pendingFormSubmissions.length);
-          this.cache.pendingFormSubmissions.splice(restoreIndex, 0, submission);
+      await this.cacheTransaction(async () => {
+        if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
+          return;
         }
-        throw error;
-      }
+
+        const nextCache: CanvasCache = {
+          ...this.cache,
+          pendingFormSubmissions: this.cache.pendingFormSubmissions.filter(
+            (row) => row !== submission
+          ),
+        };
+
+        try {
+          await this.saveCache(nextCache);
+        } catch (error) {
+          // The durable row still says dispatching. Keep the uncertainty visible
+          // in memory so this process cannot dispatch it again either.
+          submission.deliveryStatus = 'effect_unknown';
+          throw error;
+        }
+        this.cache = nextCache;
+      });
 
       console.log(`CanvasSync: Synced form submission for canvas ${submission.canvasId}`);
     }

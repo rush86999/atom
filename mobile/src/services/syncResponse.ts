@@ -24,6 +24,24 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Serialize cache transactions so each read-modify-write critical section sees
+ * the cache committed by the preceding transaction. A failed transaction is
+ * reported to its caller but never blocks the next transaction.
+ */
+export function createCacheTransactionQueue(): <T>(task: () => Promise<T>) => Promise<T> {
+  let tail: Promise<void> = Promise.resolve();
+
+  return function run<T>(task: () => Promise<T>): Promise<T> {
+    const result = tail.then(task);
+    tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  };
+}
+
 export function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
