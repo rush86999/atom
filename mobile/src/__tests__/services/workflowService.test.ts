@@ -77,12 +77,12 @@ describe('workflowService', () => {
         status: 'active',
         category: 'sales',
         search: 'pipeline',
-        sort_by: 'updated_at',
+        sort_by: 'created_at',
         sort_order: 'desc',
       });
 
       expect(mockApiService.get).toHaveBeenCalledWith(
-        '/api/mobile/workflows?status=active&category=sales&search=pipeline&sort_by=updated_at&sort_order=desc'
+        '/api/mobile/workflows?status=active&category=sales&search=pipeline&sort_by=created_at&sort_order=desc'
       );
     });
 
@@ -137,7 +137,7 @@ describe('workflowService', () => {
       const response = { execution_id: 'exec-1', status: 'pending' };
       mockApiService.post.mockResolvedValue(okResponse(response));
 
-      const request = { workflow_id: 'wf-1', input: { deal: 'Acme' }, priority: 7 };
+      const request = { workflow_id: 'wf-1', parameters: { deal: 'Acme' }, synchronous: true };
       const result = await triggerWorkflow(request);
 
       expect(mockApiService.post).toHaveBeenCalledWith(
@@ -151,7 +151,7 @@ describe('workflowService', () => {
       mockApiService.post.mockResolvedValue(errorResponse('Workflow is inactive'));
 
       await expect(
-        triggerWorkflow({ workflow_id: 'wf-1', input: {} })
+        triggerWorkflow({ workflow_id: 'wf-1', parameters: {} })
       ).rejects.toThrow('Workflow is inactive');
     });
   });
