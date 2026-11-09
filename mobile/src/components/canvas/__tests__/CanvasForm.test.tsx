@@ -80,6 +80,44 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 describe('CanvasForm Component', () => {
+  it.each<{ kind: 'number' | 'text'; value: string; min: number; max: number }>([
+    { kind: 'number', value: '25', min: 18, max: 100 },
+    { kind: 'text', value: '1234', min: 4, max: 6 },
+  ])('validates $kind values by their field semantics', async ({ kind, value, min, max }) => {
+    const onSubmit = jest.fn();
+    const data: FormData = {
+      title: 'Typed validation',
+      fields: [{ name: 'entry', label: 'Entry', type: kind, required: true, validation: { min, max } }],
+    };
+    const view = render(<CanvasForm data={data} initialValues={{ entry: value }} onSubmit={onSubmit} enableAutoSave={false} />);
+    fireEvent.press(view.getByText('Submit'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ entry: value }));
+  });
+
+  it.each([{ value: 'not-a-number' }, { value: Infinity }, { value: false }])(
+    'refuses a nonnumeric or nonfinite number field ($value)', async ({ value }) => {
+      const onSubmit = jest.fn();
+      const data: FormData = {
+        title: 'Invalid number',
+        fields: [{ name: 'entry', label: 'Entry', type: 'number', required: true }],
+      };
+      const view = render(<CanvasForm data={data} initialValues={{ entry: value }} onSubmit={onSubmit} enableAutoSave={false} />);
+      fireEvent.press(view.getByText('Submit'));
+      await waitFor(() => expect(onSubmit).not.toHaveBeenCalled());
+    }
+  );
+
+  it('still refuses a numeric value below the explicit minimum', async () => {
+    const onSubmit = jest.fn();
+    const data: FormData = {
+      title: 'Numeric refusal',
+      fields: [{ name: 'entry', label: 'Entry', type: 'number', required: true, validation: { min: 18 } }],
+    };
+    const view = render(<CanvasForm data={data} initialValues={{ entry: '17' }} onSubmit={onSubmit} enableAutoSave={false} />);
+    fireEvent.press(view.getByText('Submit'));
+    await waitFor(() => expect(onSubmit).not.toHaveBeenCalled());
+  });
+
   const mockFormData: FormData = {
     id: 'form-1',
     title: 'Test Form',

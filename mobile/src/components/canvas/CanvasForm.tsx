@@ -109,18 +109,24 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
       return `${field.label} is required`;
     }
 
+    // Input text remains unchanged in the submitted values. Interpret it only
+    // for number-field validation; numeric-looking text still uses text lengths.
+    const hasValue = value !== undefined && value !== null && value !== '';
+    const numericValue = typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+    if (field.type === 'number' && hasValue && !Number.isFinite(numericValue)) {
+      return `${field.label} must be a finite number`;
+    }
+
     if (field.validation) {
       const { min, max, pattern } = field.validation;
 
-      // TextInputs produce strings — coerce numeric fields before range checks
-      const numericValue = typeof value === 'string' && value !== '' ? Number(value) : value;
-      const isNumeric = typeof numericValue === 'number' && !Number.isNaN(numericValue);
-
-      if (min !== undefined && isNumeric && numericValue < min) {
+      if (field.type === 'number' && hasValue && min !== undefined && numericValue < min) {
         return `${field.label} must be at least ${min}`;
       }
 
-      if (max !== undefined && isNumeric && numericValue > max) {
+      if (field.type === 'number' && hasValue && max !== undefined && numericValue > max) {
         return `${field.label} must be at most ${max}`;
       }
 
@@ -131,11 +137,11 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
         }
       }
 
-      if (typeof value === 'string' && min !== undefined && value.length < min) {
+      if (field.type !== 'number' && typeof value === 'string' && min !== undefined && value.length < min) {
         return `${field.label} must be at least ${min} characters`;
       }
 
-      if (typeof value === 'string' && max !== undefined && value.length > max) {
+      if (field.type !== 'number' && typeof value === 'string' && max !== undefined && value.length > max) {
         return `${field.label} must be at most ${max} characters`;
       }
     }
