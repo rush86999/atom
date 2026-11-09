@@ -1,0 +1,643 @@
+{
+  "passed": 106,
+  "failed": 0,
+  "format": "derived assertion-name/status report; raw Jest JSON retained privately",
+  "tests": [
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Component Import/Export should import and render SignIn component",
+      "status": "passed",
+      "duration_ms": 29
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Component Import/Export should export SignIn as default",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Props Interface should render without props",
+      "status": "passed",
+      "duration_ms": 3
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Props Interface should accept className prop if added",
+      "status": "passed",
+      "duration_ms": 2
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Form Elements should render email input field",
+      "status": "passed",
+      "duration_ms": 4
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Form Elements should render password input field",
+      "status": "passed",
+      "duration_ms": 4
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Form Elements should render submit button",
+      "status": "passed",
+      "duration_ms": 8
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Form Elements should render forgot password link",
+      "status": "passed",
+      "duration_ms": 5
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Form Elements should render sign up link",
+      "status": "passed",
+      "duration_ms": 3
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Form Elements should render Google sign in button",
+      "status": "passed",
+      "duration_ms": 5
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Form Elements should render GitHub sign in button",
+      "status": "passed",
+      "duration_ms": 4
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component State Management should update email state on input change",
+      "status": "passed",
+      "duration_ms": 50
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component State Management should update password state on input change",
+      "status": "passed",
+      "duration_ms": 31
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component State Management should show loading state during submission",
+      "status": "passed",
+      "duration_ms": 70
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component State Management should return to the captured relative deep link after sign in",
+      "status": "passed",
+      "duration_ms": 70
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component State Management should show error message on authentication failure",
+      "status": "passed",
+      "duration_ms": 77
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Two-Factor Authentication should show TOTP input when 2FA is required",
+      "status": "passed",
+      "duration_ms": 75
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Two-Factor Authentication should update TOTP code state on input change",
+      "status": "passed",
+      "duration_ms": 90
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Two-Factor Authentication should show error for invalid 2FA code",
+      "status": "passed",
+      "duration_ms": 99
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Two-Factor Authentication should return to login form when back button clicked",
+      "status": "passed",
+      "duration_ms": 81
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Navigation and Routing should redirect to home if session exists",
+      "status": "passed",
+      "duration_ms": 55
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Navigation and Routing should redirect to home on successful sign in",
+      "status": "passed",
+      "duration_ms": 77
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Navigation and Routing should call signIn with Google provider",
+      "status": "passed",
+      "duration_ms": 7
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Navigation and Routing should call signIn with GitHub provider",
+      "status": "passed",
+      "duration_ms": 6
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Navigation and Routing should pass the captured deep link to the Google provider",
+      "status": "passed",
+      "duration_ms": 5
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Navigation and Routing should not pass an external target to a social provider",
+      "status": "passed",
+      "duration_ms": 5
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Navigation and Routing should return an existing session to the captured deep link",
+      "status": "passed",
+      "duration_ms": 54
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Accessibility should have proper labels for form inputs",
+      "status": "passed",
+      "duration_ms": 2
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Accessibility should have proper ARIA attributes",
+      "status": "passed",
+      "duration_ms": 3
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Accessibility should show error with proper ARIA role",
+      "status": "passed",
+      "duration_ms": 79
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Edge Cases should handle empty form submission",
+      "status": "passed",
+      "duration_ms": 4
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Edge Cases should handle network errors gracefully",
+      "status": "passed",
+      "duration_ms": 70
+    },
+    {
+      "file": "tests/auth/test-signin.test.tsx",
+      "name": "SignIn Component Edge Cases should clear error state on new submission",
+      "status": "passed",
+      "duration_ms": 74
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "does not dispatch missing credentials undefined",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "does not dispatch missing credentials {}",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "does not dispatch missing credentials {\"email\":\"fixture@example.invalid\"}",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "does not dispatch missing credentials {\"password\":\"synthetic-private-marker\"}",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "keeps the backend challenge without issuing /me",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "keeps the backend challenge without issuing /me",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "does not trust a challenge-shaped error response as a successful login",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "forwards an existing 2FA field once and obtains identity only from that issued bearer",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "bounds an unresponsive dispatch, aborts once and never retries credentials",
+      "status": "passed",
+      "duration_ms": 4
+    },
+    {
+      "file": "tests/lib/backend-credentials.test.ts",
+      "name": "does not adopt a login body arriving after the single deadline",
+      "status": "passed",
+      "duration_ms": 3
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage renders login form with ATOM Platform header and default mode",
+      "status": "passed",
+      "duration_ms": 9
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage successful login persists token and redirects to /dashboard by default",
+      "status": "passed",
+      "duration_ms": 28
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage redirects to callbackUrl when present",
+      "status": "passed",
+      "duration_ms": 7
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage preserves a relative callbackUrl path and query",
+      "status": "passed",
+      "duration_ms": 7
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage returns to the captured Settings deep link after login",
+      "status": "passed",
+      "duration_ms": 6
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage blocks open redirect for external callbackUrl",
+      "status": "passed",
+      "duration_ms": 6
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage blocks protocol-relative callbackUrl",
+      "status": "passed",
+      "duration_ms": 6
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage shows error message when login fails with backend detail",
+      "status": "passed",
+      "duration_ms": 7
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage shows generic error when login throws (network failure)",
+      "status": "passed",
+      "duration_ms": 6
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage disables submit button and shows Processing... while loading",
+      "status": "passed",
+      "duration_ms": 4
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage password visibility toggle switches input type",
+      "status": "passed",
+      "duration_ms": 14
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage toggles to register mode revealing first/last name inputs",
+      "status": "passed",
+      "duration_ms": 3
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage successful register persists token and redirects",
+      "status": "passed",
+      "duration_ms": 8
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage shows backend detail when registration fails",
+      "status": "passed",
+      "duration_ms": 9
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage shows fallback message when registration error has no detail",
+      "status": "passed",
+      "duration_ms": 8
+    },
+    {
+      "file": "tests/pages/__tests__/login.test.tsx",
+      "name": "LoginPage toggling mode clears a previously shown error",
+      "status": "passed",
+      "duration_ms": 6
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions config shape defines Google, GitHub, and Credentials providers",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions config shape configures JWT sessions with a 1-day max age",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions config shape configures pages and non-secure cookies outside production",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions credentials authorize returns a user with backend token on successful login",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions credentials authorize builds a name from first/last name claims when name is missing",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions credentials authorize returns null when the backend responds with non-JSON",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions credentials authorize returns null when login fails",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions credentials authorize returns null when the backend request throws",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions signIn callback creates a new user on first OAuth sign-in and stores the account",
+      "status": "passed",
+      "duration_ms": 3
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions signIn callback updates an existing user and their OAuth account",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions signIn callback denies sign-in when the database write fails",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions signIn callback allows non-OAuth (credentials) sign-ins without touching the DB",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions jwt callback copies user fields into the token and records last login",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions jwt callback passes the token through unchanged when no user is present",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth.test.ts",
+      "name": "pages/api/auth/[...nextauth] authOptions session callback populates session user from token claims",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] authorize (extra branches) falls back to data.id and email-prefix name",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] authorize (extra branches) falls back to 'user-from-backend' id and 'Atom User' name",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] authorize (extra branches) handles missing credentials",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] authorize (extra branches) strips a trailing slash from the backend URL",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] signIn (extra branches) handles a github provider sign-in",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] signIn (extra branches) stores null when OAuth tokens are missing",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] signIn (extra branches) uses a string encryption key when OAUTH_TOKEN_ENCRYPTION_KEY is set",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] signIn (extra branches) falls back to null when token encryption fails",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] jwt/session (extra branches) uses user.backendToken when user.token is absent",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] jwt/session (extra branches) tolerates last-login database failures",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts",
+      "name": "pages/api/auth/[...nextauth] jwt/session (extra branches) returns the session unchanged when there is no token",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out sends exactly the server-owned backend token to its configured issuer",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out wires an existing auth configuration through the shared consumer",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out wires an existing auth configuration through the shared consumer",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not invent a backend identity from {}",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not invent a backend identity from {\"token\":null}",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not invent a backend identity from {\"token\":{}}",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not invent a backend identity from {\"session\":{}}",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not credit parsing or unverified completion as server sign-out",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not credit parsing or unverified completion as server sign-out",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not credit parsing or unverified completion as server sign-out",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out keeps local sign-out possible on a backend refusal without retry",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out does not expose exception text containing credential material",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-session-logout.test.ts",
+      "name": "backend termination on ordinary NextAuth sign-out bounds the event await and leaves no timer or automatic retry",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "uses authenticated canonical identity rather than the submitted email or a fabricated id",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "does not mint a browser identity when canonical authorization is missing or refused",
+      "status": "passed",
+      "duration_ms": 1
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "does not mint a browser identity when canonical authorization is missing or refused",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "does not mint a browser identity when canonical authorization is missing or refused",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "does not write a parallel JavaScript database during a credentials JWT callback",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "shared credentials consumer uses the same canonical authority does not promote an admin-shaped submitted email from an unrelated admin row",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "shared credentials consumer uses the same canonical authority does not consult a parallel database or fabricate a successful identity when /me refuses",
+      "status": "passed",
+      "duration_ms": 0
+    },
+    {
+      "file": "tests/lib/backend-signin-identity.test.ts",
+      "name": "shared credentials consumer uses the same canonical authority does not retry a failed login under a submitted tenant hint",
+      "status": "passed",
+      "duration_ms": 1
+    }
+  ]
+}

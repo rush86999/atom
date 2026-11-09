@@ -1,3 +1,8 @@
+// Explicit isolated backend authority; browser relative-URL fixtures stay unchanged.
+const originalBackend = process.env.NEXT_PUBLIC_API_URL;
+beforeEach(() => { process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8000'; });
+afterEach(() => { if (originalBackend === undefined) delete process.env.NEXT_PUBLIC_API_URL; else process.env.NEXT_PUBLIC_API_URL = originalBackend; });
+
 const mockQuery = jest.fn();
 jest.mock("@/lib/db", () => ({ query: mockQuery }));
 
@@ -38,12 +43,8 @@ describe("pages/api/auth/[...nextauth] authorize (extra branches)", () => {
       { email: "some.user@example.com", password: "x" },
       {} as any,
     );
-    expect(result).toEqual({
-      id: "plain-id",
-      email: "some.user@example.com",
-      name: "some.user",
-      token: "at",
-    });
+    // Historical fallback case retained: a login envelope is not identity.
+    expect(result).toBeNull();
   });
 
   it("falls back to 'user-from-backend' id and 'Atom User' name", async () => {
@@ -54,12 +55,8 @@ describe("pages/api/auth/[...nextauth] authorize (extra branches)", () => {
       { email: "", password: "x" },
       {} as any,
     );
-    expect(result).toEqual({
-      id: "user-from-backend",
-      email: "",
-      name: "Atom User",
-      token: "at",
-    });
+    // Never fabricate an authenticated identity for an empty subject.
+    expect(result).toBeNull();
   });
 
   it("handles missing credentials", async () => {
@@ -67,13 +64,9 @@ describe("pages/api/auth/[...nextauth] authorize (extra branches)", () => {
       jsonResponse(true, { access_token: "at", user: { id: "u", name: "N" } }),
     );
     const result = await credentialsProvider.options.authorize(undefined, {} as any);
-    expect(result).toEqual({ id: "u", email: undefined, name: "N", token: "at" });
-    expect((global as any).fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/auth\/login$/),
-      expect.objectContaining({
-        body: JSON.stringify({ username: "", password: "" }),
-      }),
-    );
+    expect(result).toBeNull();
+    // Missing submitted credentials do not dispatch an authentication attempt.
+    expect((global as any).fetch).not.toHaveBeenCalled();
   });
 
   it("strips a trailing slash from the backend URL", async () => {
@@ -224,7 +217,7 @@ describe("pages/api/auth/[...nextauth] jwt/session (extra branches)", () => {
       isNewUser: false,
     } as any);
     expect(token.id).toBe("u-2");
-    expect(console.error).toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it("returns the session unchanged when there is no token", async () => {
@@ -232,6 +225,7 @@ describe("pages/api/auth/[...nextauth] jwt/session (extra branches)", () => {
       session: { user: {} },
       token: undefined,
     } as any);
-    expect(session).toEqual({ user: {} });
+    // An empty projection is not an authenticated session.
+    expect(session).toBeNull();
   });
 });

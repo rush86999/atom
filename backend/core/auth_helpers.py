@@ -289,12 +289,12 @@ def revoke_token(
         return True
 
     except Exception as e:
-        logger.error(f"Failed to revoke token: {e}")
+        logger.error("Token revocation failed error_class=%s", type(e).__name__)
         db.rollback()
         raise HTTPException(
             status_code=500,
             detail="Failed to revoke token"
-        )
+        ) from e
 
 
 def revoke_all_user_tokens(

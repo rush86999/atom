@@ -4,7 +4,7 @@ Closes the verifier surface: init validation (default-secret rejection, no
 secret, debug overrides, whitelist parsing), IP-whitelist CIDR/single-IP
 matching, debug-mode bypass paths (whitelisted, no whitelist, production
 blocked), audience/issuer/expiry/missing-subject rejections, revocation
-checking (jti/db missing, revoked, DB error fail-open), token creation with
+checking (jti/db missing, revoked, DB error fail-closed), token creation with
 audience/issuer/extra claims, the FastAPI dependency wrapper (XFF handling)
 and verify_token_string. Real PyJWT round-trips; DB-backed revocation uses
 in-memory SQLite.
@@ -260,12 +260,13 @@ class TestDebugModeBypass:
 
 
 class TestIsTokenRevoked:
+    # Legacy names are retained; missing/unknown evidence now fails closed.
     def test_no_db_returns_false(self, verifier):
         payload = {"sub": "u", "jti": "j"}
-        assert verifier._is_token_revoked(payload, db=None) is False
+        assert verifier._is_token_revoked(payload, db=None) is True
 
     def test_no_jti_returns_false(self, db, verifier):
-        assert verifier._is_token_revoked({"sub": "u"}, db=db) is False
+        assert verifier._is_token_revoked({"sub": "u"}, db=db) is True
 
     def test_not_revoked_false(self, db, verifier):
         assert verifier._is_token_revoked({"sub": "u", "jti": "nope"}, db=db) is False
@@ -277,14 +278,15 @@ class TestIsTokenRevoked:
         assert verifier._is_token_revoked({"sub": "u", "jti": "j1"}, db=db) is True
 
     def test_db_error_fails_open(self, db, verifier):
+        # Historical case identity retained; unavailable revocation now refuses.
         db.query = MagicMock(side_effect=RuntimeError("db down"))
-        assert verifier._is_token_revoked({"sub": "u", "jti": "j1"}, db=db) is False
+        assert verifier._is_token_revoked({"sub": "u", "jti": "j1"}, db=db) is True
 
     def test_revoked_token_model_unavailable_false(self, verifier):
         # RevokedToken import-failure fallback branch (module-level None)
         with patch.object(jv, "RevokedToken", None):
             with patch("core.jwt_verifier.RevokedToken", None):
-                assert verifier._is_token_revoked({"sub": "u", "jti": "j1"}, db=MagicMock()) is False
+                assert verifier._is_token_revoked({"sub": "u", "jti": "j1"}, db=MagicMock()) is True
 
     def test_module_import_fallback(self):
         # Re-import the module with core.models import failing → RevokedToken None
@@ -303,7 +305,7 @@ class TestIsTokenRevoked:
         assert mod.RevokedToken is None
         with patch("core.jwt_verifier.RevokedToken", mod.RevokedToken):
             v = mod.JWTVerifier(secret_key=SECRET, debug_mode=True)
-            assert v._is_token_revoked({"sub": "u", "jti": "j1"}, db=MagicMock()) is False
+            assert v._is_token_revoked({"sub": "u", "jti": "j1"}, db=MagicMock()) is True
         # restore the module for the remaining tests
         importlib.reload(jv)
 

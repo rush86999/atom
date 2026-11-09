@@ -1,3 +1,8 @@
+// Explicit isolated backend authority; browser relative-URL fixtures stay unchanged.
+const originalBackend = process.env.NEXT_PUBLIC_API_URL;
+beforeEach(() => { process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8000'; });
+afterEach(() => { if (originalBackend === undefined) delete process.env.NEXT_PUBLIC_API_URL; else process.env.NEXT_PUBLIC_API_URL = originalBackend; });
+
 const mockQuery = jest.fn();
 jest.mock("@/lib/db", () => ({ query: mockQuery }));
 
@@ -64,12 +69,8 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
     it("returns a user with backend token on successful login", async () => {
       (global as any).fetch = jest
         .fn()
-        .mockResolvedValue(
-          jsonResponse(true, {
-            access_token: "at-123",
-            user: { id: "u-1", name: "Alice Smith" },
-          }),
-        );
+        .mockResolvedValueOnce(jsonResponse(true, { access_token: "at-123" }))
+        .mockResolvedValueOnce(jsonResponse(true, { id: "u-1", email: "alice@example.com", first_name: "Alice", last_name: "Smith", status: "active" }));
       const result = await credentialsProvider.options.authorize(
         { email: "alice@example.com", password: "secret" },
         {} as any,
@@ -79,6 +80,7 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
         email: "alice@example.com",
         name: "Alice Smith",
         token: "at-123",
+        access_token: "at-123",
       });
       expect((global as any).fetch).toHaveBeenCalledWith(
         expect.stringMatching(/\/api\/auth\/login$/),
@@ -89,12 +91,8 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
     it("builds a name from first/last name claims when name is missing", async () => {
       (global as any).fetch = jest
         .fn()
-        .mockResolvedValue(
-          jsonResponse(true, {
-            access_token: "at",
-            user: { id: "u-2", first_name: "Bob", last_name: "Jones" },
-          }),
-        );
+        .mockResolvedValueOnce(jsonResponse(true, { access_token: "at" }))
+        .mockResolvedValueOnce(jsonResponse(true, { id: "u-2", email: "bob@example.com", first_name: "Bob", last_name: "Jones", status: "active" }));
       const result = await credentialsProvider.options.authorize(
         { email: "bob@example.com", password: "x" },
         {} as any,
@@ -217,20 +215,16 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
       expect(token.id).toBe("u-9");
       expect(token.email).toBe("e@x.com");
       expect(token.backendToken).toBe("backend-tok");
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE users SET last_login_at"),
-        ["u-9"],
-      );
+      // Durable login metadata belongs to the existing backend issuer.
+      expect(mockQuery).not.toHaveBeenCalled();
     });
 
     it("passes the token through unchanged when no user is present", async () => {
+      // JWT persistence is not authorization: the session callback performs
+      // the current-principal check, including legacy-cookie refusal.
       const token = await authOptions.callbacks!.jwt!({
-        token: { id: "existing" },
-        user: undefined,
-        account: undefined,
-        profile: undefined,
-        isNewUser: false,
-        trigger: "update",
+        token: { id: "existing" }, user: undefined, account: undefined,
+        profile: undefined, isNewUser: false, trigger: "update",
       } as any);
       expect(token).toEqual({ id: "existing" });
       expect(mockQuery).not.toHaveBeenCalled();
@@ -239,6 +233,10 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
 
   describe("session callback", () => {
     it("populates session user from token claims", async () => {
+      (global as any).fetch = jest.fn().mockResolvedValue(jsonResponse(true, {
+        id: "tok-id", email: "tok@x.com", first_name: "Current", last_name: "User",
+        role: "member", status: "active", workspace_id: "current-workspace", tenant_id: "current-tenant",
+      }));
       const session = await authOptions.callbacks!.session!({
         session: { user: { id: "", email: "" } },
         token: { id: "tok-id", email: "tok@x.com", backendToken: "bt" } as any,

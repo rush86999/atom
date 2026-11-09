@@ -1,5 +1,9 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { createBackendSignOutEvent } from "@/lib/backend-session-logout";
+import { createBackendCredentialsAuthorize } from "@/lib/backend-credentials";
+import { projectCurrentBackendSession } from "@/lib/backend-current-session";
+import { resolveWebAuthSecret, resolveWebAuthBackend } from "@/lib/web-auth-config";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 
@@ -20,50 +24,15 @@ export const authOptions: NextAuthOptions = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        totp_code: { label: "2FA Code", type: "text" }
       },
-      async authorize(credentials) {
-        try {
-          const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-          const res = await fetch(`${backendUrl}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify({
-              username: credentials?.email || '',
-              password: credentials?.password || ''
-            })
-          });
-
-          const contentType = res.headers.get("content-type");
-          if (!contentType || !contentType.includes("application/json")) {
-            const text = await res.text();
-            console.error("[NextAuth Authorize] Non-JSON response:", res.status, text.slice(0, 200));
-            return null;
-          }
-
-          const data = await res.json();
-
-          if (res.ok && data.access_token) {
-            return {
-              id: data.user?.id || data.id || "user-from-backend",
-              email: credentials?.email,
-              name: data.user?.name || `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || credentials?.email?.split('@')[0] || "Atom User",
-              token: data.access_token,
-            };
-          }
-
-          console.error("[NextAuth Authorize] Login failed:", res.status, data);
-          return null;
-        } catch (error) {
-          console.error("[NextAuth Authorize] Error during authentication:", error);
-          return null;
-        }
-      },
+      authorize: createBackendCredentialsAuthorize(resolveWebAuthBackend),
     }),
   ],
+  events: {
+    signOut: createBackendSignOutEvent(resolveWebAuthBackend),
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       // Handle OAuth provider sign-ins (Google, GitHub)
@@ -162,31 +131,22 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        if (typeof user.name === 'string') token.name = user.name;
         // @ts-ignore
         token.backendToken = user.token || user.backendToken;
+        if (typeof token.backendToken !== 'string' || !token.backendToken) throw new Error('BACKEND_SESSION_UNAVAILABLE');
 
-        // Record session in database
-        try {
-          const { query } = await import('../../../lib/db');
-          // Use a hash of the token or a unique ID as session identifier
-          // Since we don't have the actual session token here (it's generated later),
-          // we'll use a combination of user ID and a timestamp/random string stored in the token
-          // For now, we'll just update the last login time
-          await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
-        } catch (e) {
-          console.error('Failed to update last login:', e);
-        }
+        // The backend login handler owns durable last_login. Avoid a second
+        // credential/identity store and its incompatible last_login_at schema.
+        // @ts-ignore - scoped backend identity is additive session metadata
+        token.workspace_id = user.workspace_id;
+        // @ts-ignore
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.email = token.email as string;
-        // @ts-ignore - backendToken added for internal use
-        session.backendToken = token.backendToken as string;
-      }
-      return session;
+      return projectCurrentBackendSession(session, token, resolveWebAuthBackend);
     },
   },
   pages: {
@@ -252,7 +212,8 @@ export const authOptions: NextAuthOptions = {
       },
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "development-fallback-secret-123",
+  // Resolve at request time: a build must not bake a runtime signing key.
+  get secret() { return resolveWebAuthSecret(); },
   debug: true,
 };
 

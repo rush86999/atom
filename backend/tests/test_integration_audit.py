@@ -208,17 +208,20 @@ class TestLogIntegrationComplete:
         assert duration > 0
         assert duration >= 10  # At least 10ms
 
-    def test_log_integration_complete_with_error(self):
-        """Test log_integration_complete with error"""
+    def test_log_integration_complete_with_error(self, monkeypatch):
+        """Measure the error path with a deterministic 25ms clock advance."""
+        from types import SimpleNamespace
+        clock = SimpleNamespace(now=1000.0)
+        clock.time = lambda: clock.now
+        # Patch this module's clock binding only; do not alter logging's clock
+        # or weaken the positive-duration assertion when real calls are too fast.
+        monkeypatch.setattr("core.audit_logger.time", clock)
         context = log_integration_attempt("jira", "create_issue", {})
         error = Exception("Creation failed")
-
-        duration = log_integration_complete(
-            context=context,
-            error=error
-        )
-
+        clock.now = 1000.025
+        duration = log_integration_complete(context=context, error=error)
         assert duration > 0
+        assert duration == pytest.approx(25.0)
 
     def test_log_integration_complete_returns_duration_ms(self):
         """Test log_integration_complete returns duration in milliseconds"""

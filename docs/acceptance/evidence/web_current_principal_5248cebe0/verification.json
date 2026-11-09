@@ -1,0 +1,18 @@
+{
+  "executed_source": "5248cebe0bc154cee8402690d33321e751e52e83",
+  "native_sdk": {
+    "passed": 33,
+    "failed": 0
+  },
+  "frontend": {
+    "passed": 180,
+    "failed": 0
+  },
+  "backend": {
+    "passed": 40,
+    "failed": 0
+  },
+  "typescript_exit": 0,
+  "live_provider_calls": 0,
+  "browser_replay": false
+}

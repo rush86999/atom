@@ -592,6 +592,7 @@ async def oidc_callback(
     access_jwt = create_access_token(
         data={"sub": user.id},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        user=user,
     )
 
     import json as _json

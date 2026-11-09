@@ -1,9 +1,23 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { query } from '../../../lib/db';
-import { USE_BACKEND_API } from '../../../lib/api';
-import bcrypt from 'bcryptjs';
 
-const API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL ||
+    process.env.API_BASE_URL ||
+    process.env.PYTHON_BACKEND_URL ||
+    'http://127.0.0.1:8000';
+
+// Same policy the backend enforces (core/auth_endpoints.py UserCreate).
+function validatePassword(password: string): string | null {
+    if (!password || password.length < 8) {
+        return 'Password must be at least 8 characters long';
+    }
+    if (password.length > 128) {
+        return 'Password must be at most 128 characters';
+    }
+    if (new TextEncoder().encode(password).length > 72) {
+        return 'Password must be at most 72 bytes when UTF-8 encoded';
+    }
+    return null;
+}
 
 export default async function handler(
     req: NextApiRequest,
@@ -13,92 +27,43 @@ export default async function handler(
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    const { token, password } = req.body || {};
+
+    if (typeof token !== 'string' || !token.trim() || typeof password !== 'string' || !password) {
+        return res.status(400).json({ error: 'Token and password are required' });
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+    }
+
     try {
-        const { token, password } = req.body;
-
-        if (!token || !password) {
-            return res.status(400).json({ error: 'Token and password are required' });
-        }
-
-        // Import password validator
-        const { validatePassword } = await import('../../../lib/password-validator');
-        const passwordStrength = validatePassword(password);
-
-        if (!passwordStrength.isValid) {
-            return res.status(400).json({
-                error: 'Password does not meet security requirements',
-                details: passwordStrength.feedback
-            });
-        }
-
-        // Use backend API if feature flag is enabled
-        if (USE_BACKEND_API) {
-            try {
-                const resetResponse = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, password })
-                });
-
-                if (resetResponse.ok) {
-                    const data = await resetResponse.json();
-                    return res.status(200).json(data);
-                } else if (resetResponse.status === 400) {
-                    const error = await resetResponse.json();
-                    return res.status(400).json(error);
-                }
-            } catch (error: any) {
-                // Log error but fall back to direct DB query
-                console.error('Backend API error, falling back to direct DB:', error.message);
-            }
-        }
-
-        // Direct DB query (original implementation)
-        // Validate token — look up by SHA-256 hash (BUG FIX: was comparing the
-        // raw token against token_hash; must match how forgot-password stores it)
-        const crypto = await import('crypto');
-        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-        const tokenResult = await query(
-            'SELECT user_id, expires_at, is_used FROM password_reset_tokens WHERE token_hash = $1',
-            [tokenHash]
-        );
-
-        if (tokenResult.rows.length === 0) {
-            return res.status(400).json({ error: 'Invalid or expired reset token' });
-        }
-
-        const resetToken = tokenResult.rows[0];
-
-        // Check if token is expired
-        if (new Date() > new Date(resetToken.expires_at)) {
-            return res.status(400).json({ error: 'Reset token has expired' });
-        }
-
-        // Check if token was already used
-        if (resetToken.is_used) {
-            return res.status(400).json({ error: 'Reset token has already been used' });
-        }
-
-        // Hash new password
-        const passwordHash = await bcrypt.hash(password, 10);
-
-        // Update user password
-        await query(
-            'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-            [passwordHash, resetToken.user_id]
-        );
-
-        // Mark token as used
-        await query(
-            'UPDATE password_reset_tokens SET is_used = TRUE WHERE token_hash = $1',
-            [tokenHash]
-        );
-
-        return res.status(200).json({
-            message: 'Password has been reset successfully. You can now log in with your new password.'
+        const resetResponse = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, password }),
         });
-    } catch (error) {
-        console.error('Reset password error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+
+        let data: any;
+        try {
+            data = await resetResponse.json();
+        } catch {
+            return res.status(502).json({ error: 'Password reset service returned an invalid response' });
+        }
+
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            return res.status(502).json({ error: 'Password reset service returned an invalid response' });
+        }
+
+        const retryAfter = resetResponse.headers.get('Retry-After');
+        if (retryAfter) {
+            res.setHeader('Retry-After', retryAfter);
+        }
+
+        return res.status(resetResponse.status).json(data);
+    } catch (error: any) {
+        console.error('Reset password proxy failed', { stage: 'backend-request' });
+        return res.status(502).json({ error: 'Password reset service is unreachable' });
     }
 }

@@ -1,3 +1,6 @@
+// Isolated fixture configuration; no production fallback or real credential.
+process.env.NEXTAUTH_SECRET = require('crypto').randomBytes(32).toString('base64url');
+
 /**
  * Polyfills for Node.js test environment
  *

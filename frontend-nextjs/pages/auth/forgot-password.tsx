@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import { extractApiErrorMessage } from "@/lib/api-error";
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState("");
@@ -26,11 +27,11 @@ export default function ForgotPassword() {
 
             const data = await response.json();
 
-            if (response.ok) {
-                setMessage("If an account exists, a reset link has been sent to your email.");
+            if (response.ok && data.success === true) {
+                setMessage("If an account exists, its recovery request has been accepted. Check your email for the next step.");
                 setEmail("");
             } else {
-                setError(data.detail || "Failed to send reset email");
+                setError(extractApiErrorMessage(data, "Recovery request could not be confirmed. Please try again later.", response.status));
             }
         } catch (err) {
             setError("An error occurred. Please try again.");

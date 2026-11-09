@@ -1,0 +1,23 @@
+{
+  "executed_source": "22a6c77725575f7a17faebdfcd49c56a5a89eb6a",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:a746ed57e91e7a1e72ff98ccfec84d00b2ee9f727503bf0ae33a906b638822eb",
+    "backend/core/auth_endpoints.py": "sha256:47d6c4b033367171c4dabae5d9946cac92d959d8df292a572c57ad12f63a70c7",
+    "docs/engineering/AGENT_GOAL_COMPLETION_DIRECTIVE_2026_11_06.md": "sha256:0f5e8255d65e26163112a74d7a0950636f0580efcc1a3ecc8635173cee62404d",
+    "frontend-nextjs/lib/auth.ts": "sha256:e43bcdc68f13914ebfb25f3ac78c26920c33e0fbb44529dde9b44446fe738553",
+    "frontend-nextjs/lib/backend-credentials.ts": "sha256:baedbe1f6672dd033fa3e2a4652ac41723247a04dee1970735eca4042caa7c45",
+    "frontend-nextjs/lib/backend-session-logout.ts": "sha256:08babdf9a1cec788c7cffb3f4659a1b06ccbe57afb73fc8cb16d6247ba464781",
+    "frontend-nextjs/pages/api/agent/nlu.ts": "sha256:233a2f401ccbb6251f6fefa5934eff64b5bbffeabc734f314b84927b9c5da464",
+    "frontend-nextjs/pages/api/auth/[...nextauth].ts": "sha256:53c4252fc904e3199a8764b8f0b4defe23b564ae7d7c48d7f83e0f3cf88b2fd9",
+    "frontend-nextjs/tests/lib/backend-credentials.test.ts": "sha256:d9b59cd1d8c4107cec93b16a6ee7cf0fe287e78ab04cbd8ce81cd105ce9c2d62",
+    "frontend-nextjs/tests/lib/backend-signin-identity.test.ts": "sha256:1005bfe96e56e809ab78bfe9369a7d5e5585322bf5cd5e519da53b44c4b1a54a",
+    "frontend-nextjs/tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts": "sha256:a8d9f0d07da52bc56f5dd249f5d3ef3fafd8efe91aab540d80be1fa9eef52230",
+    "frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts": "sha256:c29c6c56d27bf197a72d140a1c622ec07dc47099912e3153fe830a0257cea8ef",
+    "frontend-nextjs/types/next-auth.d.ts": "sha256:3e3b61f4b86938ede73702f1b6910ee3e2306813751c9f8d35554530472cb867"
+  },
+  "artifacts": {
+    "README.md": "sha256:563cde834b62a3ffc4f5621f61333f82af15cf5b091129e2df996fe54cc2ee25",
+    "frontend-106.json": "sha256:735b0a72e874a403e6bbd0a3de4a91b1b94b943dfbc8f1968c0e0ee6ad16b9ce",
+    "verification.json": "sha256:180229e734479bf60c04d2272f544426c20c977a1de21b4716a56e776c1b5c97"
+  }
+}

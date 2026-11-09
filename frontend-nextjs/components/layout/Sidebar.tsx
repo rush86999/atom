@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
@@ -37,6 +37,7 @@ import {
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { getAuthToken } from "../../lib/identity";
+import { notifyBackendSignOut } from "../../lib/backend-session-logout";
 import { useActionProposals } from "../../hooks/useActionProposals";
 import {
     useUserRole,
@@ -164,6 +165,15 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const { isCapabilityEnabled } = useProductProfile();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
+    const logoutPending = useRef(false);
+    const mounted = useRef(true);
+    const currentBackendSession = useRef(session?.backendToken);
+    currentBackendSession.current = session?.backendToken;
+    useEffect(() => {
+        mounted.current = true;
+        return () => { mounted.current = false; };
+    }, []);
     // Real identity fallback: the API-first login (persistBackendToken) stores
     // the backend email in localStorage; NextAuth's session stays empty when
     // sign-in bypassed the NextAuth route, which used to leave the static
@@ -182,32 +192,43 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const displayEmail = session?.user?.email || profile.email || "Premium Agent Ops";
 
     const handleSignOut = async () => {
-        if (typeof window !== "undefined") {
-            const token = getAuthToken();
-            const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-            if (token && apiBase) {
-                try {
-                    await fetch(`${apiBase}/api/auth/logout`, {
-                        method: "POST",
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                } catch {
-                    // Local sign-out still proceeds; the UI must not trap a user.
+        if (logoutPending.current) return;
+        logoutPending.current = true;
+        setIsSigningOut(true);
+        const initialToken = getAuthToken();
+        const initialBackendSession = currentBackendSession.current;
+        try {
+            if (typeof window !== "undefined") {
+                const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+                if (initialToken && apiBase) {
+                    await notifyBackendSignOut(() => apiBase, initialToken);
                 }
+                // An old notification owns only its original browser session.
+                // Navigation or a fresh sign-in must not be cleared by it.
+                if (!mounted.current || getAuthToken() !== initialToken ||
+                    currentBackendSession.current !== initialBackendSession) return;
+                localStorage.setItem("atom_explicit_logout", "1");
+                localStorage.removeItem("auth_token");
+                localStorage.removeItem("token");
+                localStorage.removeItem("access_token");
+                localStorage.removeItem("user_email");
+                document.cookie = "auth_token=; path=/; max-age=0";
+                document.cookie = "next-auth.session-token=; path=/; max-age=0";
             }
-            localStorage.setItem("atom_explicit_logout", "1");
-            localStorage.removeItem("auth_token");
-            localStorage.removeItem("token");
-            // Also clear the API-first credentials. persistBackendToken (lib/backendAuth.ts)
-            // stores access_token + user_email alongside auth_token; leaving them behind
-            // after logout keeps stale credentials in storage (e2e logout assertions and
-            // any later "user email" reads pick them up).
-            localStorage.removeItem("access_token");
-            localStorage.removeItem("user_email");
-            document.cookie = "auth_token=; path=/; max-age=0";
-            document.cookie = "next-auth.session-token=; path=/; max-age=0";
+            // Own the navigation locally. A delayed SDK response must neither
+            // trap local sign-out nor redirect a later signed-in generation.
+            try {
+                void Promise.resolve(signOut({ callbackUrl: "/auth/signin", redirect: false })).catch(() => {
+                    console.warn("Server sign-out could not be confirmed.", { code: "browser_session_clear_unavailable" });
+                });
+            } catch {
+                console.warn("Server sign-out could not be confirmed.", { code: "browser_session_clear_unavailable" });
+            }
+            await router.replace("/auth/signin");
+        } finally {
+            logoutPending.current = false;
+            if (mounted.current) setIsSigningOut(false);
         }
-        signOut({ callbackUrl: "/auth/signin" });
     };
 
     // Handle responsive behavior
@@ -446,7 +467,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                             size="icon"
                             data-testid="dashboard-logout-button"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Sign out"
+                            title={isSigningOut ? "Signing out…" : "Sign out"}
+                            disabled={isSigningOut}
                             onClick={handleSignOut}
                         >
                             <LogOut className="h-4 w-4" />

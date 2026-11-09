@@ -1,0 +1,23 @@
+{
+  "source": "9027c2c0612ff54e5b0cfecb3ddd09137a7a06b7",
+  "observed_sequence": [
+    "normal login200",
+    "old bearer /me200",
+    "recovery request200",
+    "password reset200 with verified receipt",
+    "same old bearer /me200 (expected401)"
+  ],
+  "passed": 0,
+  "failed": 1,
+  "scope": "native scratch auth TestClient and registry; SMTP captured only",
+  "raw_log_private_reason": "pytest assertion introspection contains synthetic bearer; do not upload raw log",
+  "probe_file_sha256": "sha256:3b2217001fbed2eac8c669d77f0a9dd982430c8179c4b0e2cd00d3e137e203b0",
+  "code_changed": false,
+  "next_contract": "durable credential/session revocation; HTTP/WS/refresh consumers and fresh-process boundaries; preserve existing general auth mechanisms",
+  "docker_retry": {
+    "run": 42672770639,
+    "attempt1": "GitHub summary Internal server error before jobs",
+    "one_retry_requested": true,
+    "not_a_product_test_failure": true
+  }
+}

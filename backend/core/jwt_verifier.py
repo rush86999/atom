@@ -307,53 +307,15 @@ class JWTVerifier:
             raise HTTPException(status_code=401, detail="Could not validate credentials")
 
     def _is_token_revoked(self, payload: Dict[str, Any], db: Optional[Session] = None) -> bool:
+        """Use the shared durable revocation predicate; unknown refuses.
+
+        This method is called only when revocation checking was requested.
+        Cryptographic-only callers leave check_revocation=False explicitly.
         """
-        Check if token has been revoked.
-
-        Queries the database for revoked tokens using the JWT ID (jti).
-        Requires a database session to check revocation status.
-
-        Args:
-            payload: Decoded JWT payload (must contain 'jti' claim)
-            db: Database session for checking revocation status
-
-        Returns:
-            True if token is revoked, False otherwise
-
-        Note:
-            If db is None or 'jti' is not in payload, returns False (allows token).
-            This is a security-first graceful degradation - prefer providing db.
-        """
-        # Cannot check revocation without RevokedToken model, database session, or JTI
-        if RevokedToken is None or not db or 'jti' not in payload:
-            if RevokedToken is None:
-                logger.warning("JWT_VERIFICATION: RevokedToken model not available - cannot check revocation")
-            elif 'jti' not in payload:
-                logger.warning("JWT_VERIFICATION: Token missing 'jti' claim - cannot check revocation")
-            return False
-
-        try:
-            revoked_token = db.query(RevokedToken).filter_by(jti=payload['jti']).first()
-            is_revoked = revoked_token is not None
-
-            if is_revoked:
-                # NOTE: model column is `reason` (not `revocation_reason`); the
-                # old attribute name raised AttributeError here which was
-                # swallowed by the fail-open except → revoked tokens were
-                # ACCEPTED (wave 75 security bug).
-                logger.warning(
-                    f"JWT_VERIFICATION: Token revoked (jti={payload['jti']}, "
-                    f"reason={revoked_token.reason}, "
-                    f"revoked_at={revoked_token.revoked_at})"
-                )
-
-            return is_revoked
-
-        except Exception as e:
-            # Security-first: Log error but allow token if revocation check fails
-            # This prevents authentication system from going down due to revocation issues
-            logger.error(f"JWT_VERIFICATION: Error checking token revocation: {e}")
-            return False
+        if db is None or RevokedToken is None:
+            return True
+        from core.auth import is_token_revoked
+        return is_token_revoked(payload.get("jti"), db=db)
 
     def create_token(
         self,

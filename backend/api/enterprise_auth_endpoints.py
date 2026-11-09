@@ -204,9 +204,10 @@ async def login_user(
         # Update last login
         from core.models import User
         user = db.query(User).filter(User.id == user_creds['user_id']).first()
-        if user:
-            user.last_login = datetime.now(timezone.utc)
-            db.commit()
+        if not user:
+            raise router.unauthorized_error(message="User not found")
+        user.last_login = datetime.now(timezone.utc)
+        db.commit()
 
         # Create tokens
         access_token = auth_service.create_access_token(
@@ -216,10 +217,11 @@ async def login_user(
                 "email": user_creds['email'],
                 "roles": user_creds['roles'],
                 "security_level": user_creds['security_level']
-            }
+            },
+            user=user,
         )
 
-        refresh_token = auth_service.create_refresh_token(user_creds['user_id'])
+        refresh_token = auth_service.create_refresh_token(user_creds['user_id'], user=user)
 
         # Calculate expiry in seconds
         expires_in = int(auth_service.access_token_expiry.total_seconds())
@@ -273,7 +275,7 @@ async def refresh_token(
         auth_service = EnterpriseAuthService()
 
         # Verify refresh token
-        claims = auth_service.verify_token(refresh_token)
+        claims = auth_service.verify_token(refresh_token, db=db, allow_refresh=True)
         if not claims or claims.get('type') != 'refresh':
             raise router.unauthorized_error(
                 message="Invalid or expired refresh token"
@@ -321,14 +323,15 @@ async def refresh_token(
                 "email": user_creds['email'],
                 "roles": user_creds['roles'],
                 "security_level": user_creds['security_level']
-            }
+            },
+            user=user,
         )
 
         # SECURITY: rotate refresh token on every use.
         # Without rotation, a stolen refresh token is valid for its entire
         # 7-day lifetime. With rotation, a stolen token stops working as
         # soon as the legitimate user refreshes.
-        new_refresh_token = auth_service.create_refresh_token(user_id)
+        new_refresh_token = auth_service.create_refresh_token(user_id, user=user)
 
         # Calculate expiry
         expires_in = int(auth_service.access_token_expiry.total_seconds())
@@ -372,7 +375,7 @@ async def get_current_user(
         auth_service = EnterpriseAuthService()
 
         # Verify token and get claims
-        claims = auth_service.verify_token(current_user)
+        claims = auth_service.verify_token(current_user, db=db)
         if not claims:
             raise router.unauthorized_error(
                 message="Invalid token"
@@ -430,7 +433,7 @@ async def change_password(
         auth_service = EnterpriseAuthService()
 
         # Verify current user
-        claims = auth_service.verify_token(current_user)
+        claims = auth_service.verify_token(current_user, db=db)
         if not claims:
             raise router.unauthorized_error(
                 message="Invalid token"
@@ -481,12 +484,12 @@ async def change_password(
 
 
 # Dependency for protected routes
-async def get_current_user_dependency(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+async def get_current_user_dependency(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get current user from JWT token for dependency injection"""
     from core.enterprise_auth_service import EnterpriseAuthService
 
     auth_service = EnterpriseAuthService()
-    claims = auth_service.verify_token(token)
+    claims = auth_service.verify_token(token, db=db)
 
     if not claims:
         raise router.unauthorized_error(

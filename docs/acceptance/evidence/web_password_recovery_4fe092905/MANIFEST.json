@@ -1,0 +1,35 @@
+{
+  "executed_source": "4fe092905885460cede6b675c0e3abb08542f7f3",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:47d6c1839589ecc30c43eab38c6e427daf5d6d8fb4277c062512813abb506201",
+    "backend/api/auth_routes.py": "sha256:13212c3220454f556bd6083dc3c56a7228ed3ecf9be5a705bda5d6f67c734787",
+    "backend/core/auth_endpoints.py": "sha256:39cc003e77fec0b72f617fbf73dc6b02ab9e496a27ce5633be6ca71cda39e063",
+    "backend/core/email_utils.py": "sha256:90e5fea72397373b59e13d1a14ff85a884210c54f069d4801d301d19a0fc351a",
+    "backend/core/lazy_integration_registry.py": "sha256:98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698",
+    "backend/tests/fixtures/ci_backend_additions.json": "sha256:5bcdb2e01e1d1aba8103e77fd756adae6a9c2b8b8f155daaaa57fd044a6e540b",
+    "backend/tests/test_ci_backend_lane_contract.py": "sha256:3612a87519b7b57784e14a42fb18c6cf05c4481b634233d2293486baca518d8a",
+    "backend/tests/test_covpush_w75_auth_endpoints.py": "sha256:5acbb8addad5175940c103b85d47b081e3f9db27506e28e2fe1405ca93843125",
+    "backend/tests/test_round56_password_recovery_rate_limit.py": "sha256:3f884ba6744c9c7be15cdc92822c2e2d4fe28022f5bf672b7d258397fba33863",
+    "backend/tests/test_web_password_recovery_contract.py": "sha256:b66cfeee03490b9fe91a39ccccfd8989def8886042122027619c1887f7ac0fae",
+    "docs/engineering/AGENT_GOAL_COMPLETION_DIRECTIVE_2026_11_06.md": "sha256:74d858f09db00175cc7c626d47129607cc3f859033dd899456d9bc79369f0873",
+    "frontend-nextjs/lib/api-error.ts": "sha256:8f83d8b68da4b8b4ad5a3da9f362f865fe4f8def41a4cc00551023c087965a02",
+    "frontend-nextjs/next.config.js": "sha256:e3064054bd6d6b339c439df126f92d346b4f9c25976bb31324581e9b6d36271f",
+    "frontend-nextjs/pages/api/auth/forgot-password.ts": "sha256:4e82271086fd5c4d9e28a4e339498f5a66f2d8aaba0ea9bee94ac2d947c0ee7b",
+    "frontend-nextjs/pages/api/auth/reset-password.ts": "sha256:fca7a8a9a14891def14b317dbd3ba895dad1af71a19f57e2a76fa430191da4f6",
+    "frontend-nextjs/pages/auth/forgot-password.tsx": "sha256:0d25988863a624508252e5c57eb1cd66a2b5083ae87fe8f05d01503d56eb74f7",
+    "frontend-nextjs/pages/auth/reset-password.tsx": "sha256:ae770cb1dd5d0272c0c5e9b26ced27b155674fbd1ee524ff8df305d308bfde43",
+    "frontend-nextjs/tests/auth/test-forgot-password.test.tsx": "sha256:8da4026685bb4a2a55de39402022c886e8e462f12b46119f6255ba7868176b24",
+    "frontend-nextjs/tests/auth/test-reset-password.test.tsx": "sha256:35701100a09d7c41740c294a29f60d6a070dfe58eccb4cc4e5e6009aa0c5afee",
+    "frontend-nextjs/tests/lib/api-error-message.test.ts": "sha256:5939c4a121a982e81f5224edb6846e92c42049f6fc14f56ca922ee1e91e923e9",
+    "frontend-nextjs/tests/pages/api/__tests__/auth-forgot-password.test.ts": "sha256:97d87c201bb20937aad620eb16e54fd9fcc19e829b22750f3a8846ccbc2d1b07",
+    "frontend-nextjs/tests/pages/api/__tests__/auth-reset-password.test.ts": "sha256:fd8e936538cd31bf2a58479242461d4f1c0001198af0ddc4f8c6ed9dbc1a4154"
+  },
+  "artifacts": {
+    "README.md": "sha256:308f87effb897d79a600dc544f0f35c5deee1612808739d3a529be7dd0403662",
+    "backend-102.log": "sha256:57dc8735a6f55711ddb54086bfcbc7837f26a12028b3f00c26835d096b408503",
+    "frontend-87.log": "sha256:989da7d5fe535ac399db9b27b32abbf0df52f1c727c76077c5a0032192543011",
+    "navigation-negative.log": "sha256:8c95f62b0045470ce84c69b58d401801551ecd67e25eda65d3f23b459ab54398",
+    "typescript.log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.json": "sha256:f83f5eef74fe18d3b22e1f848cdbe98c6d88c6f5e8bff00cdfef66d786cb5fed"
+  }
+}

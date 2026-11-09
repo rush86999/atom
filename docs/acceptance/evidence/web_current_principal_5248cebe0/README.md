@@ -1,0 +1,11 @@
+# Current backend principal for web sessions
+
+Executed source: `5248cebe0`. Both normal and shared NextAuth configurations now authorize every session read against the canonical backend `/api/auth/me`. Cached role/permissions cannot certify a revoked, wrong-subject or inactive credential. Current raw personal scope aliases remain exact. Outage/malformed authority grants no session but preserves the recoverable cookie; known refusal clears it. One five-second deadline covers headers and body; no provider calls or retry.
+
+Evidence: 33 installed-NextAuth controls (including a real owned HTTP body stall); 180 frontend regression controls; 40 canonical recovery/logout controls; TypeScript exit 0. All command exits checked. The backend test formerly failed hosted CI because newer FastAPI wraps included routers; it now inspects the exact input routers, retains unique handler identity assertions and verifies mounted OpenAPI paths. No assertion/test removed.
+
+Configured Go Flash reviewed the predecessor helper read-only. Its cached-claim finding is repaired with an allowlist. NULL/empty personal scopes are intentional backend-owned compatibility, not caller defaults. Browser backend-token exposure is existing transport architecture, not newly introduced. Current session verification and future cookie renewal remain separate SDK operations. No live OAuth or full browser password-reset claim follows.
+
+Next finite checks remain: remove public development configuration defaults through existing setup paths; qualify the real public HTTP cookie/logout/restart bridge. Current native consumer uses doubled canonical backend transport except its actual loopback timeout control. Existing ordinary UI login/logout evidence remains at its original source; this packet does not relabel it. Full app completion remains open; main web first, mobile last.
+
+Evidence privacy correction: the original published backend test log contained a synthetic three-part test token. The original branch/incident is retained; this successor redacts three-segment diagnostic material without regenerating the tests. Redaction is not a live credential rotation or a scanner waiver.

@@ -1,0 +1,37 @@
+{
+  "executed_source": "b21402964e11403bfe3a8dde7beea150af192e15",
+  "product_source": "4fe092905885460cede6b675c0e3abb08542f7f3",
+  "backend": "real main_api_app with normal registry routes",
+  "frontend": "normal next dev with configured backend proxies",
+  "transport_seam": "Only core.auth_endpoints.send_smtp_email replaced with a local capture; no real SMTP",
+  "browser_observations": [
+    {
+      "path": "/auth/forgot-password",
+      "account": "known synthetic member",
+      "result": "accepted request message"
+    },
+    {
+      "path": "/auth/forgot-password",
+      "account": "unknown synthetic address",
+      "result": "same accepted request message"
+    },
+    {
+      "path": "/auth/reset-password?token=invalid-fixture-link",
+      "result": "Invalid Reset Link"
+    }
+  ],
+  "captured_messages": 1,
+  "correct_configured_reset_page": true,
+  "counts": {
+    "test_user_rows": 1,
+    "reset_token_rows": 1,
+    "used_tokens": 0
+  },
+  "no_browser_password_change": true,
+  "limitations": [
+    "credential-changing browser submission not performed; user handoff required by browser control policy",
+    "not a full recovery UI acceptance",
+    "existing bearer-session invalidation remains open"
+  ],
+  "provenance": "Browser observations transcribed from CUA state; counts read from retained SQLite read-only connection. Raw mail and credentials remain private."
+}

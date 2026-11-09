@@ -68,6 +68,10 @@ class TestMobileLoginStatus:
 
 class TestMobileRefreshStatus:
     def _client(self, db):
+        # populate_existing refreshes authoritative state in production; keep
+        # this unit double on its explicit User fixture rather than a child Mock.
+        filtered = db.query.return_value.filter.return_value
+        filtered.populate_existing.return_value = filtered
         from api.auth_routes import router
 
         app = FastAPI()

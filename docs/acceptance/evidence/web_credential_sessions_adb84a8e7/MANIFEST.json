@@ -1,0 +1,31 @@
+{
+  "executed_source": "adb84a8e73dcd19f2c6b00312df8154c447f84af",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:643cdb7a9a36c58bff3be7074d9b7a3e1354dcf66d5d59eda3d61d2281564634",
+    "backend/api/auth_routes.py": "sha256:3db39d2fb6d0f82159b937650bd970c2ab00b1b6c0bd496e2637dc8bb3fe4117",
+    "backend/api/device_websocket.py": "sha256:b9808044d1c4a7355b37711df52d4a1d9a0efc3ec04598cdceddc98c5a8421ca",
+    "backend/api/enterprise_auth_endpoints.py": "sha256:daedafd9d32ad7195acff65bcfccbb2fbac0cc72723878c4f3d67e9bc2bc06c7",
+    "backend/api/sso_oidc_routes.py": "sha256:73fdf52de9c50af3ef3f553b179b4e269cb6b0cd94d7a0bfc44e74fbd0b83cbc",
+    "backend/core/auth.py": "sha256:f1248925ae5817234538fdefe9bda2bcbf457ef9578bff021bd177b4168bae8e",
+    "backend/core/auth_endpoints.py": "sha256:191f7021a4217b9a559c8c32d02f02f1658a08800f872a783e5f5a0cd8bf13f6",
+    "backend/core/auth_helpers.py": "sha256:4df18d53ca8e7a77a415a8e9f365e1870c556b5d4cfe3ee5f51302deaeba1565",
+    "backend/core/enterprise_auth_service.py": "sha256:1962aece82fb3f483f4eaac61a5b74b1d02f4eaac12376f67bf6df3a8b3035ff",
+    "backend/core/jwt_verifier.py": "sha256:1c6a7f9a2d2ca2407cb19c04e53761fe75711e70a6f1f6e08e4f98d31a3a527b",
+    "backend/core/models.py": "sha256:9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/security_dependencies.py": "sha256:7745491b857924948c3bca08e939702e0a60cca7d19b866f5b836f2e706d3c84",
+    "backend/tests/fixtures/ci_backend_additions.json": "sha256:bd8aaae922363cb1c8553c7c01ea8583e4b5197729225ef0c89093d87de2fb1b",
+    "backend/tests/test_credential_bound_session_contract.py": "sha256:a11185a313c78b4e3b6920f4a8e83bf0060b1a73d0cce27c8c3181fa370a7294",
+    "backend/tests/test_round60_mobile_auth_user_status.py": "sha256:e756724cdabc3d317a4668ca4b42254d668dac6332f03891638e32fe003e85ec",
+    "docs/engineering/AGENT_GOAL_COMPLETION_DIRECTIVE_2026_11_06.md": "sha256:5ae99ed16f8208b60077b57e2fb399e82ea1bc0b3333c6a6856e1561caa50cda",
+    "frontend-nextjs/pages/settings/account.tsx": "sha256:ad9bb594720846f9fe633b6d5673b6c69d1f7b9c55a565422c233b2cc876e67f",
+    "frontend-nextjs/tests/pages/__tests__/settings-account.test.tsx": "sha256:963b6f124fc64ae1898701e1ca63144506b38a77d4cce39a1de9bdc39c6690dd"
+  },
+  "artifacts": {
+    "README.md": "sha256:00e8df16796888e5d13f7a56c16e561c57d95f5c6a71482057b2d30815e2981e",
+    "backend-255.xml": "sha256:459e08f3c3011f0e1e77c8f9e8a1a390b2f079e4cd2981a4af51bff754b0e755",
+    "frontend-104.log": "sha256:c34be8b3df5cafeeff1c9761fad57e8cfc1acbe67914faecbb8288c31f2fd2d2",
+    "negative-summary.json": "sha256:b76fa6483e7260c5f3a874084290b08963193f27c13dda126e515eed3a7622b7",
+    "typescript.log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.json": "sha256:e6d576822cf95936b29b3c92c002f4ed13c3e62142cd1d8252380cc9d24b5bab"
+  }
+}

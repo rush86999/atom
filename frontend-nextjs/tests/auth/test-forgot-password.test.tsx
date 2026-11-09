@@ -152,7 +152,8 @@ describe('ForgotPassword Component', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/if an account exists, a reset link has been sent to your email/i)).toBeInTheDocument();
+        expect(screen.getByText(/if an account exists, its recovery request has been accepted/i)).toBeInTheDocument();
+        expect(screen.queryByText(/reset link has been sent/i)).not.toBeInTheDocument();
       });
     });
 
@@ -186,7 +187,7 @@ describe('ForgotPassword Component', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to send reset email/i)).toBeInTheDocument();
+        expect(screen.getByText(/recovery request could not be confirmed/i)).toBeInTheDocument();
       });
     });
   });
