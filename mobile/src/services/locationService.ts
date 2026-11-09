@@ -95,6 +95,12 @@ class LocationService {
   private isTracking: boolean = false;
   private isBackgroundTracking: boolean = false;
   private watchId: Location.LocationSubscription | null = null;
+  private trackingGeneration: number = 0;
+  private activeTrackingGeneration: number | null = null;
+  private pendingStart: {
+    generation: number;
+    completion: Promise<boolean>;
+  } | null = null;
   private currentAccuracy: LocationAccuracy = 'high';
   private locationHistory: LocationHistoryEntry[] = [];
   private geofences: GeofenceRegion[] = [];
@@ -255,35 +261,101 @@ class LocationService {
    * Start location tracking (foreground)
    */
   async startTracking(): Promise<boolean> {
+    const result = await this.beginTracking();
+    return result.success;
+  }
+
+  private async beginTracking(): Promise<{ success: boolean; generation: number }> {
+    if (this.permissionStatus !== 'granted') {
+      console.warn('LocationService: Location permission not granted');
+      return { success: false, generation: this.trackingGeneration };
+    }
+
+    if (this.isTracking) {
+      console.log('LocationService: Already tracking');
+      return {
+        success: true,
+        generation: this.activeTrackingGeneration ?? this.trackingGeneration,
+      };
+    }
+
+    if (this.pendingStart !== null) {
+      const pending = this.pendingStart;
+      const success = await pending.completion;
+      if (success && this.trackingGeneration !== pending.generation) {
+        return { success: false, generation: pending.generation };
+      }
+      return { success, generation: pending.generation };
+    }
+
+    const generation = ++this.trackingGeneration;
+    let watch: Promise<Location.LocationSubscription>;
+
     try {
-      if (this.permissionStatus !== 'granted') {
-        console.warn('LocationService: Location permission not granted');
-        return false;
-      }
-
-      if (this.isTracking) {
-        console.log('LocationService: Already tracking');
-        return true;
-      }
-
-      this.watchId = await Location.watchPositionAsync(
-        {
-          accuracy: ACCURACY_MAP[this.currentAccuracy],
-          distanceInterval: DISTANCE_UPDATE_FILTER,
-          timeInterval: UPDATE_INTERVAL,
-        },
-        (location) => {
-          this.handleLocationUpdate(location);
-        }
+      watch = Promise.resolve(
+        Location.watchPositionAsync(
+          {
+            accuracy: ACCURACY_MAP[this.currentAccuracy],
+            distanceInterval: DISTANCE_UPDATE_FILTER,
+            timeInterval: UPDATE_INTERVAL,
+          },
+          (location) => {
+            this.handleLocationUpdate(location, generation);
+          }
+        )
       );
-
-      this.isTracking = true;
-      console.log('LocationService: Started tracking');
-      return true;
     } catch (error) {
       console.error('LocationService: Failed to start tracking:', error);
-      return false;
+      return { success: false, generation };
     }
+
+    const completion = watch.then(
+      (subscription) => {
+        if (
+          this.pendingStart !== null &&
+          this.pendingStart.generation === generation
+        ) {
+          this.pendingStart = null;
+        }
+
+        if (this.trackingGeneration !== generation) {
+          try {
+            subscription.remove();
+          } catch (error) {
+            console.error(
+              'LocationService: Failed to remove stale tracking subscription:',
+              error
+            );
+          }
+          return false;
+        }
+
+        this.watchId = subscription;
+        this.activeTrackingGeneration = generation;
+        this.isTracking = true;
+        console.log('LocationService: Started tracking');
+        return true;
+      },
+      (error) => {
+        if (
+          this.pendingStart !== null &&
+          this.pendingStart.generation === generation
+        ) {
+          this.pendingStart = null;
+        }
+        console.error('LocationService: Failed to start tracking:', error);
+        return false;
+      }
+    );
+
+    this.pendingStart = { generation, completion };
+
+    const success = await completion;
+    if (success && this.trackingGeneration !== generation) {
+      return { success: false, generation };
+    }
+
+    return { success, generation };
   }
 
   /**
@@ -307,13 +379,18 @@ class LocationService {
       }
 
       // Start foreground tracking (background is automatic on iOS with Always permission)
-      const success = await this.startTracking();
-      if (success) {
+      const attempt = await this.beginTracking();
+      if (
+        attempt.success &&
+        this.isTracking &&
+        this.activeTrackingGeneration === attempt.generation
+      ) {
         this.isBackgroundTracking = true;
         console.log('LocationService: Started background tracking');
+        return true;
       }
 
-      return success;
+      return false;
     } catch (error) {
       console.error('LocationService: Failed to start background tracking:', error);
       return false;
@@ -337,6 +414,12 @@ class LocationService {
       }
     }
 
+    // Invalidate any in-flight start and its callbacks. A late subscription
+    // will remove itself instead of becoming the active watch.
+    this.trackingGeneration += 1;
+    this.pendingStart = null;
+    this.activeTrackingGeneration = null;
+
     if (this.updateTimer) {
       clearTimeout(this.updateTimer);
       this.updateTimer = null;
@@ -350,7 +433,14 @@ class LocationService {
   /**
    * Handle location update with throttling
    */
-  private handleLocationUpdate(location: Location.LocationObject): void {
+  private handleLocationUpdate(
+    location: Location.LocationObject,
+    generation: number = this.trackingGeneration
+  ): void {
+    if (this.trackingGeneration !== generation) {
+      return;
+    }
+
     const now = Date.now();
     const timeSinceLastUpdate = now - this.lastLocationUpdate;
 
@@ -359,20 +449,30 @@ class LocationService {
       // Schedule update if not already scheduled
       if (!this.updateTimer) {
         this.updateTimer = setTimeout(() => {
-          this.processLocationUpdate(location);
+          if (this.trackingGeneration !== generation) {
+            return;
+          }
           this.updateTimer = null;
+          this.processLocationUpdate(location, generation);
         }, THROTTLE_MS - timeSinceLastUpdate);
       }
       return;
     }
 
-    this.processLocationUpdate(location);
+    this.processLocationUpdate(location, generation);
   }
 
   /**
    * Process location update
    */
-  private async processLocationUpdate(location: Location.LocationObject): Promise<void> {
+  private async processLocationUpdate(
+    location: Location.LocationObject,
+    generation: number = this.trackingGeneration
+  ): Promise<void> {
+    if (this.trackingGeneration !== generation) {
+      return;
+    }
+
     const locationInfo: LocationInfo = {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
@@ -384,10 +484,21 @@ class LocationService {
       timestamp: location.timestamp,
     };
 
+    if (this.trackingGeneration !== generation) {
+      return;
+    }
+
     this.currentLocation = locationInfo;
     this.lastLocationUpdate = Date.now();
 
+    if (this.trackingGeneration !== generation) {
+      return;
+    }
     await this.addToHistory(locationInfo);
+
+    if (this.trackingGeneration !== generation) {
+      return;
+    }
     await this.checkGeofences(locationInfo);
 
     console.log('LocationService: Location updated', locationInfo);
@@ -714,6 +825,9 @@ class LocationService {
     this.isTracking = false;
     this.isBackgroundTracking = false;
     this.watchId = null;
+    this.trackingGeneration += 1;
+    this.activeTrackingGeneration = null;
+    this.pendingStart = null;
     this.currentAccuracy = 'high';
     this.locationHistory = [];
     this.geofences = [];
