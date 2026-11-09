@@ -1,0 +1,16 @@
+{
+  "captures": {
+    "pending-writes-concurrency-and-legacy-negative": "afacca0e5",
+    "pending-writes-public-producer-aligned": "fbf56edd0",
+    "pending-writes-final-compiler": "fbf56edd0",
+    "pending-writes-final-broad": "fbf56edd0"
+  },
+  "source_file_checks": 1028,
+  "mismatches": 0,
+  "native_runtime_bytes_exact": [
+    "mobile/src/services/workflowSyncService.ts",
+    "mobile/src/services/canvasSyncService.ts"
+  ],
+  "native_source": "b515d0e49",
+  "root_changes": "four independent positive twins; six obsolete/vacuous existing test cases aligned, no runtime changes beyond CLI proposal"
+}

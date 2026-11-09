@@ -1,0 +1,18 @@
+{
+  "actual_exit": 1,
+  "started": 1794205378.655318,
+  "finished": 1794205380.711276,
+  "selected_kind": "pendinguncertainty",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/pendingWrites.uncertainty.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 10,
+    "numPassedTests": 0,
+    "numFailedTests": 10,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

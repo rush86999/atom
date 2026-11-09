@@ -1,0 +1,33 @@
+{
+  "executed_source": "fbf56edd0acbff6119ae2b9f088313e59e5e20e8",
+  "source_files": {
+    "mobile/src/services/workflowSyncService.ts": "b88588de79a7ee54e8b7dbee0a784237af45fb3ec0bfea86043a6f11394121d1",
+    "mobile/src/services/canvasSyncService.ts": "fcf34525f88817692966854e08009f0ddc2ccf56ef06992de2875ea552d82fab",
+    "mobile/src/services/storageService.ts": "b091fd53c2010addaf3d45abf7cd6a113c1a99b3a53f0fe6426037fbe811bc62",
+    "mobile/src/services/api.ts": "88e516391316c88ea5f69a7a6572e70f18405f9b2cda7e586bd8f983860dbf64",
+    "mobile/src/__tests__/services/pendingWrites.uncertainty.test.ts": "6a0f45989132aedcf61c0943659f47302f4e1fc5330e9270a084957289ab727e",
+    "mobile/src/__tests__/services/workflowSyncService.test.ts": "d708d0d8b17637a29b3bd86815aabd38b3f94aec24f77c3c0cfa9b5c2efe727c",
+    "mobile/src/__tests__/services/canvasSyncService.test.ts": "6d4827299ecb4586a93b711fd9fabe3d76bb4c3cf757cb04e77169fb5c945834"
+  },
+  "artifacts": {
+    "native-proposal.err": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "native-work-order.txt": "558d18f325228189b90a51099ff76edc4844cc5552eb80e7672e55cd9a002556",
+    "native-proposal.exit.json": "65cb6cf764be7aa8122e411aa67c4ca4e4a23b4e7f899d07543d72bd5f09efe5",
+    "pending-writes-concurrency-and-legacy-negative.spec.json": "d6c7b26ffc80a5154e4b03e30330e237ace9375d69821519f5adc57a03e31d80",
+    "pending-writes-concurrency-and-legacy-negative.exit.json": "00d020bf1ebccf82a2f5ad45c3cfc27e7a808d2e71f8bf42afcb3468a9f0a819",
+    "pending-writes-public-producer-aligned.exit.json": "3f588d2581d6b6713e281ba50842283dd59e653c500467b84ab7eb393af0423b",
+    "pending-writes-public-producer-aligned.spec.json": "3f141dd1d3e77d8affbf23ccc2a59c68ad5482ab4d431512260f5eaa9e3c6add",
+    "native-effective-policy.json": "be8b9d3276f65a3c727239b6d41653b60a47ce48056ae2df1e140c9a8a99ed7d",
+    "README.md": "cc7ddd30fc98dd5da8544a0331cae339c3d7ebe4619db11a931c9e8f2176b870",
+    "pending-writes-final-compiler.log": "4c744214cc3fc5c94420392156ee7d355aaf6913d9adb4f6f17ed0ad59a3922e",
+    "pending-writes-concurrency-and-legacy-negative.log": "8af5dc0925cc25a546e0909453c7a8b99096b3e10bafdc05304bf7f1a956370e",
+    "pending-writes-final-broad.spec.json": "765d700ba9099d26a97cca90e405c7c35819c3231e5cf0c1f02a3b3751854e17",
+    "pending-writes-final-broad.exit.json": "b650eea901492040267b753f01ba498b8485788755df43dea1ccb3116d8b9d58",
+    "pending-writes-final-broad.log": "5e81b52e342a39802c46078a9d57fc6d84b1fc278d33201ad54784f7b769c700",
+    "pending-writes-final-compiler.exit.json": "f0e22d9691be5a4d07175223317ce22a81584c8975859a5980132b8cdb6aba3e",
+    "pending-writes-final-compiler.spec.json": "9835b06286ee22b1587993fcfc659bb3e4f4a3c5db7b7ae5123b8b7aa995eb8a",
+    "capture-bindings.json": "a820d7185e5b9a467bd5b7daa3115fa39b84081d3abd8e9254f4d8799d3c8a7a",
+    "native-proposal.jsonl": "707cce4f2855b6ed6baccc8f808aa53569e1d7ee8d137bf1abd80173be2a592d",
+    "pending-writes-public-producer-aligned.log": "079099aeffc30fda25e66a810244d33b3c21f4f4695b793f28eba91e389d896a"
+  }
+}
