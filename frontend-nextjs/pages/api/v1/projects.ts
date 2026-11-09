@@ -1,46 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
-import path from 'path';
+import { forwardBackendApi } from '../../../lib/backend-api-proxy';
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'projects.json');
-
-function ensureDataDir() {
-    const dir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
-function loadProjects(): any[] {
-    ensureDataDir();
-    if (!fs.existsSync(DATA_FILE)) return [];
-    try {
-        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-    } catch {
-        return [];
-    }
-}
-
-function saveProjects(projects: any[]) {
-    ensureDataDir();
-    fs.writeFileSync(DATA_FILE, JSON.stringify(projects, null, 2));
-}
-
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-    const projects = loadProjects();
-
-    if (req.method === 'GET') {
-        return res.status(200).json({ projects });
-    }
-
-    if (req.method === 'POST') {
-        const newProject = {
-            id: `project_${Date.now()}`,
-            ...req.body,
-            tasks: [],
-        };
-        projects.push(newProject);
-        saveProjects(projects);
-        return res.status(201).json({ project: newProject });
-    }
-
-    return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  return forwardBackendApi(req, res, '/api/v1/projects', ['GET', 'POST']);
 }

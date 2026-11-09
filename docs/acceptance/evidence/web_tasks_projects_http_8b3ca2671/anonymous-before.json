@@ -1,0 +1,44 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/tasks/private-task",
+    "status": 500,
+    "body": "Internal Server Error"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/private-task",
+    "status": 500,
+    "body": "Internal Server Error"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/projects/private-project",
+    "status": 500,
+    "body": "Internal Server Error"
+  }
+]

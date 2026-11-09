@@ -1,0 +1,18 @@
+{
+  "executed_source": "8b3ca2671",
+  "checks": 16,
+  "passed": 16,
+  "anonymous_after": 7,
+  "create_edit_readback": 5,
+  "restart_readback": 4,
+  "backend_processes": [
+    19364,
+    19472
+  ],
+  "scope": "actual Next HTTP + real auth/task/project routers and SQLite; controlled scratch account, no auth override",
+  "full_main_api_app_boot": false,
+  "browser_journey": false,
+  "mutation_cas_or_receipt_qualified": false,
+  "private_secret_scan": "generated password/session/signing secret absent from artifacts",
+  "layered_imports": "Service/sales/accounting model bytes independently match executed Git source"
+}

@@ -1,0 +1,182 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 07:53:01 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+backend/tests/test_web_projects_durable_boundary.py::test_project_create_edit_reload_uses_existing_durable_project 
+-------------------------------- live log setup --------------------------------
+2026-11-09 07:53:01 [    INFO] EscalationManager initialized
+2026-11-09 07:53:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 07:53:01 [    INFO] EscalationManager initialized
+2026-11-09 07:53:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 07:53:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 07:53:01 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:01 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:53:01 [    INFO] HTTP Request: PUT http://testserver/api/v1/projects/65476922-5e26-48aa-b48b-fa4dad3d88e1 "HTTP/1.1 200 OK"
+2026-11-09 07:53:01 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+backend/tests/test_web_projects_durable_boundary.py::test_task_rejects_foreign_or_unknown_project_reference 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:02 [ WARNING] API Error: PROJECT_NOT_FOUND - Project not found in the current workspace
+2026-11-09 07:53:02 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 404 Not Found"
+2026-11-09 07:53:02 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+backend/tests/test_web_projects_durable_boundary.py::test_foreign_workspace_project_is_neither_listed_nor_editable 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:02 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:53:02 [ WARNING] API Error: NOT_FOUND - Project not found: foreign-project
+2026-11-09 07:53:02 [    INFO] HTTP Request: PUT http://testserver/api/v1/projects/foreign-project "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  6%]
+backend/tests/test_web_projects_durable_boundary.py::test_anonymous_backend_task_and_project_access_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:02 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 401 Unauthorized"
+2026-11-09 07:53:02 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  8%]
+backend/tests/test_web_projects_durable_boundary.py::test_project_identity_and_workspace_come_from_server_not_body 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:02 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+backend/tests/test_web_projects_durable_boundary.py::test_project_edit_preserves_existing_financial_status_and_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:03 [    INFO] HTTP Request: PUT http://testserver/api/v1/projects/preserved-project "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+backend/tests/test_web_projects_durable_boundary.py::test_task_links_real_project_and_can_explicitly_unlink 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:03 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:53:03 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:53:03 [    INFO] HTTP Request: PUT http://testserver/api/v1/tasks/f0e25e14-4265-43a8-ae24-40838f9daca3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload0] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:03 [ WARNING] API Error: VALIDATION_ERROR - name must be a non-empty string
+2026-11-09 07:53:03 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:53:03 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload1] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:03 [ WARNING] API Error: VALIDATION_ERROR - name must be a non-empty string
+2026-11-09 07:53:03 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:53:03 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload2] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:03 [ WARNING] API Error: VALIDATION_ERROR - color must be a bounded hex color such as #3182CE
+2026-11-09 07:53:03 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:53:03 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload3] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:04 [ WARNING] API Error: VALIDATION_ERROR - description must be a string or null
+2026-11-09 07:53:04 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:53:04 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+backend/tests/test_web_projects_durable_boundary.py::test_database_failure_is_not_an_empty_success_or_raw_error 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:04 [ WARNING] Task list query failed
+2026-11-09 07:53:04 [ WARNING] API Error: DATABASE_ERROR - Unable to load tasks
+2026-11-09 07:53:04 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 500 Internal Server Error"
+2026-11-09 07:53:04 [ WARNING] Project list query failed
+2026-11-09 07:53:04 [ WARNING] API Error: DATABASE_ERROR - Unable to load projects
+2026-11-09 07:53:04 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 24%]
+backend/tests/test_web_projects_durable_boundary.py::test_real_tenant_cannot_borrow_another_tenants_default_workspace[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:04 [ WARNING] API Error: NOT_FOUND - Workspace not found: default
+2026-11-09 07:53:04 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 26%]
+backend/tests/test_web_projects_durable_boundary.py::test_real_tenant_cannot_borrow_another_tenants_default_workspace[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:04 [ WARNING] API Error: NOT_FOUND - Workspace not found: default
+2026-11-09 07:53:04 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 28%]
+backend/tests/test_web_projects_durable_boundary.py::test_missing_workspace_cannot_create_inside_foreign_default_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:04 [ WARNING] API Error: NOT_FOUND - Workspace not found: default
+2026-11-09 07:53:04 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+backend/tests/test_web_projects_durable_boundary.py::test_legacy_personal_null_scopes_still_resolve_to_matching_default[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:05 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:53:05 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+backend/tests/test_web_projects_durable_boundary.py::test_legacy_personal_null_scopes_still_resolve_to_matching_default[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:05 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:53:05 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+backend/tests/test_web_projects_durable_boundary.py::test_inconsistent_workspace_scope_cannot_mutate_or_link_foreign_project[project_update] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:05 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:53:05 [ WARNING] API Error: NOT_FOUND - Workspace not found: default
+2026-11-09 07:53:05 [    INFO] HTTP Request: PUT http://testserver/api/v1/projects/foreign-default-project "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 36%]
+backend/tests/test_web_projects_durable_boundary.py::test_inconsistent_workspace_scope_cannot_mutate_or_link_foreign_project[task_create] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:05 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:53:05 [ WARNING] API Error: NOT_FOUND - Workspace not found: default
+2026-11-09 07:53:05 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 38%]
+backend/tests/test_web_projects_durable_boundary.py::test_inconsistent_workspace_scope_cannot_mutate_or_link_foreign_project[task_update] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:06 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:53:06 [ WARNING] API Error: NOT_FOUND - Workspace not found: default
+2026-11-09 07:53:06 [    INFO] HTTP Request: PUT http://testserver/api/v1/tasks/2c0689ae-27a0-470e-808d-bfbb4f9bad0b "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 40%]
+backend/tests/test_nav_stub_task_crud.py::test_task_crud_round_trip 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:06 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:53:06 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:53:06 [    INFO] HTTP Request: PUT http://testserver/api/v1/tasks/654e0b55-99cf-4e01-a6a1-46bad7443b21 "HTTP/1.1 200 OK"
+2026-11-09 07:53:06 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:53:06 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tasks/654e0b55-99cf-4e01-a6a1-46bad7443b21 "HTTP/1.1 200 OK"
+2026-11-09 07:53:06 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+backend/tests/test_nav_stub_task_crud.py::test_task_create_requires_title 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:06 [ WARNING] API Error: VALIDATION_ERROR - title is required
+2026-11-09 07:53:06 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 44%]
+backend/tests/test_nav_stub_task_crud.py::test_cannot_touch_another_users_task 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:53:06 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+backend/tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 48%]
+backend/tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 50%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 52%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 54%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 56%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 58%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 60%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 62%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 64%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 66%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 68%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 70%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 72%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 74%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 76%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 78%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 80%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 82%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 84%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 86%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 88%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 90%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 92%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 94%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 96%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 98%]
+backend/tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 50 passed, 2 warnings in 7.23s ========================

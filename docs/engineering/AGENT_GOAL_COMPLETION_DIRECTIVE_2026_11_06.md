@@ -509,3 +509,43 @@ Joint host/job foundation is merged as8cbc99cc9 with reviewed-tree equality. Age
 Keep the root README aligned with independently verified, source-bound capabilities and link the current completion map. Separate historical acceptance, newer bounded proofs and product goals; do not convert a passing controlled episode into a universal claim. TASK-WAIT-01 now explicitly covers authorized third-party fact requests, multiple dependencies/partial replies, repeated durable waits, same-task automatic event continuation, selective recomputation and usable verified output across domains. The vendor/landed-cost/margin/lead-time quote is an illustrative acceptance scenario, not a domain-specific architecture. Agent1 owns readiness, calculations/output and user-facing state; Agent2 owns request/reply identity, authority, durable event consumption and replay/reconciliation; Agent3 verifies negative twins and restart/interleavings; Agent4 verifies ordinary-user request/wait/answer/output behavior. Reuse existing general mechanisms and accepted evidence, keep live outreach/order/send/spend authority separate, and continue coherent pushes while bounded CI observation runs. Full acceptance remains open.
 
 Multi-day owner clarification: TASK-WAIT-01 explicitly covers days-long waits across downtime, independent of browser/session/worker lifetime. Prove controlled-clock multi-day boundaries and actual restart/event replay separately from real elapsed multi-day observation. Waiting consumes no active execution budget or model polling; absolute deadlines, expiring authority/facts and cancellation remain enforceable. Use the existing durable inbox/continuation mechanisms, not a resident sleeping agent.
+
+## Owner priority amendment — 2026-11-09: web first, mobile last
+
+The owner explicitly prioritizes the main web application for most app goals.
+Finish the enabled web journeys and their backend contracts before resuming
+mobile qualification. Preserve the mobile branch and evidence; its compiler,
+cache-owner, native-device and backend integration gaps remain open. Do not
+spend an available implementation slot on mobile while ready web work exists.
+This changes delivery order, not the full app objective or historical scores.
+
+The current bounded web family is ordinary Tasks/Projects. Checkpoint
+`f2fb51acc` replaces shared frontend JSON persistence with authenticated backend
+transport and existing UserTask/Project models. Fifteen real SQLite/router
+controls pass; seven anonymous requests through the actual Next server refuse.
+The collection successor loads paginated tasks and presents a retryable error
+instead of a false empty success; 51 affected component/auth checks pass.
+These are bounded records, not whole-app or whole-ORACLE acceptance.
+
+Before delivery, complete the old file-store test migration, inspect shared
+UI mutation callbacks (local success must not precede backend confirmation),
+and verify the ordinary create/edit/delete/reload path through the running web
+app, including a real backend restart. Preserve the original negatives. Do not
+claim mutation CAS, durable operation reconciliation, broad concurrency or
+served-model quality from these CRUD checks. Continue the existing long-task,
+missing-input/trigger, source/artifact, governance/autonomy and documentation
+requirements after reconciling their current accepted evidence; do not reopen
+closed lanes or shrink completion to Tasks/Projects. Organization-specific
+semantic learning remains a requested, unqualified successor, not marketing
+proof or authority to self-label model outputs as correct.
+
+### Web-first queue correction after the ordinary browser check
+
+The Tasks browser pass at `c042b2b87` reached the safe core fallback, not an
+editable Tasks page. The narrow auth/task/project backend fixture did not mount
+the profile endpoint (404), so this proves fallback safety only. It does not
+qualify Tasks CRUD in the browser or a loaded full-app profile. Do not force a
+release gate on to turn this into a pass. The Tasks/Projects repair may be
+reviewed at its API/shared-component scope; the broader Tasks goal remains open.
+Next user-journey work prioritizes supported core surfaces on the real full-app
+backend/profile boundary. Reuse accepted journeys before starting another run.

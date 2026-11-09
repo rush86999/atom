@@ -171,7 +171,7 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/ingest-gdrive-document",
       },
       {
-        source: "/api/v1/:path*",
+        source: "/api/v1/:path((?!tasks(?:/|$)|projects(?:/|$)).*)",
         destination: "http://127.0.0.1:8000/api/v1/:path*",
       },
       // NOTE: Do NOT add a broad /api/auth/:path* → backend proxy here.
@@ -283,7 +283,7 @@ const nextConfig = {
       },
       // Add general API rewrite for other endpoints
       {
-        source: "/api/v1/:path*",
+        source: "/api/v1/:path((?!tasks(?:/|$)|projects(?:/|$)).*)",
         destination: "http://127.0.0.1:8000/api/v1/:path*",
       },
       // Specific Auth Rewrites (Delegate only these to Python Backend)
@@ -398,6 +398,9 @@ const nextConfig = {
       }
       */
     ];
+    // Tasks/Projects have authenticated Next adapters, including dynamic IDs.
+    // afterFiles rewrites run before dynamic routes: exclude these families
+    // above so every method reaches the same non-retrying adapter.
     const mapped = rawRewrites.map(rewrite => ({
       ...rewrite,
       destination: rewrite.destination.replace("http://127.0.0.1:8000", backendUrl)
