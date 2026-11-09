@@ -1,0 +1,51 @@
+{
+  "sync-list-invalid-records-negative": {
+    "git_source": "42fc2bdd8",
+    "captured_base": "832d62c73ade781f93bbcbe127d0c29c133a364c",
+    "original_clean_flag": false,
+    "checks": 255,
+    "mismatches": []
+  },
+  "sync-list-native-candidate": {
+    "git_source": "9d005f72e",
+    "captured_base": "9590b69291c5c45f2ba58ee55b38a8d883efb1a7",
+    "original_clean_flag": false,
+    "checks": 256,
+    "mismatches": []
+  },
+  "sync-services-native-candidate": {
+    "git_source": "9d005f72e",
+    "captured_base": "9590b69291c5c45f2ba58ee55b38a8d883efb1a7",
+    "original_clean_flag": false,
+    "checks": 256,
+    "mismatches": []
+  },
+  "sync-list-qualifier-ambiguity-negative": {
+    "git_source": "29d328300",
+    "captured_base": "9d005f72e2efe1fff4dbb35da3140b62662c16f4",
+    "original_clean_flag": false,
+    "checks": 256,
+    "mismatches": []
+  },
+  "sync-list-qualified-offset-and-retention-result": {
+    "git_source": "1ad7158dc",
+    "captured_base": "29d3283005d261b691dca9f0c1887cd2c9493394",
+    "original_clean_flag": false,
+    "checks": 256,
+    "mismatches": []
+  },
+  "sync-list-qualified-full-typecheck": {
+    "git_source": "1ad7158dc",
+    "captured_base": "29d3283005d261b691dca9f0c1887cd2c9493394",
+    "original_clean_flag": false,
+    "checks": 256,
+    "mismatches": []
+  },
+  "sync-list-qualified-broad-regression": {
+    "git_source": "1ad7158dc",
+    "captured_base": "1ad7158dced3c73c44e819fe5007866dfec4c99e",
+    "original_clean_flag": true,
+    "checks": 256,
+    "mismatches": []
+  }
+}

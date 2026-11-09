@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `30106a1d1`; later changes
+reference describes the checked-in companion at source `1ad7158dc`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -22,7 +22,7 @@ npm run typecheck
 
 Skipping install scripts was intentional for these controlled checks. It does
 not prepare native modules or demonstrate an iOS/Android build. The strict
-project-wide type check still fails with 198 diagnostics at this source (402 at
+project-wide type check still fails with 181 diagnostics at this source (402 at
 `2abf3c689`; 354 at `2a5345b5b`). Keep its complete source/test scope;
 do not hide errors with exclusions, ambient module shims or weaker settings.
 
@@ -52,15 +52,18 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Storage and offline work | Installed MMKV4 wrapper; serialized existing queue writes, retained failed/unsent work, persisted UI retry/priority/delete and truthful incomplete outcomes; 743 selected controls at `11be7eb1c`. Fourteen-day retention is simulated time. | Native MMKV/encrypted migration, current-session binding, safe automatic startup, interrupted/uncertain effects and real elapsed soak. Controlled storage/UI tests do not establish those behaviors. |
 | Session recovery | Request-owned generation, conditional login/refresh commits, server expiry, single-flight refresh, startup and mounted revocation controls; 808 combined controls at `ae102ca2d`. | Native restart/migration, full application bootstrap, live account/backend/device ownership and unknown-effect reconciliation. |
 | Sync reporting | Queue-derived unresolved counts, observed pass IDs/results and entity counters, current-result validation and once-only completion callbacks; 965 combined controls at `2abf3c689`, including the real service/modal join with controlled transport and storage. | Native persistence/restart, current-account queue authority, full app bootstrap, actual API/business-result and unknown-effect recovery qualification. |
+| Cache response integrity | Complete-list decoding before mutations, observed qualifier preservation, duplicate/branch refusal and explicit timestamp validation; 131 controlled service cases at `1ad7158dc`. | Live backend summary/detail DTO agreement, initialization, durable cache write/readback and current-account scope. No agent authority is inferred from cached metadata. |
 | Location ownership | Installed subscription removal, shared pending starts, stop-generation fencing, stale callback refusal and retryable failed removal; 96 service controls plus 67 screen/agent controls at `2a5345b5b`. | Actual OS permissions/background location, physical GPS stopping, device and complete mobile journeys. |
 | Voice input | Mounted component supplies the installed Expo AV high-quality preset; 72 component controls at `9bb7c99a3`. | No production import caller found for this component; real microphone, native permissions, recording files and integrated chat wiring remain unqualified. |
 
-The latest combined controlled selection at `30106a1d1` has 1,676 passes,
+The latest combined controlled selection at `1ad7158dc` has 1,767 passes,
 zero failures and two intentional platform-registration sentinels skipped across
-44 files. The generic verification driver therefore remains false under its
-zero-skips rule; this is not 1,678 executed passes or a qualified mobile build.
+47 files. The generic verification driver therefore remains false under its
+zero-skips rule; this is not 1,769 executed passes or a qualified mobile build.
 
 Source-bound packets:
+
+- [Cache response integrity and remaining DTO boundary](../docs/acceptance/evidence/mobile_sync_response_integrity_1ad7158dc/README.md)
 
 - [Native biometric error and sync lifecycle controls](../docs/acceptance/evidence/mobile_biometric_sync_lifecycle_30106a1d1/README.md)
 

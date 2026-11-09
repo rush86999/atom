@@ -1,0 +1,82 @@
+{
+  "id": "finite-sync",
+  "mode": "primary",
+  "steps": 40,
+  "permissions": [
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "*.env",
+      "effect": "ask"
+    },
+    {
+      "action": "read",
+      "resource": "*.env.*",
+      "effect": "ask"
+    },
+    {
+      "action": "read",
+      "resource": "*.env.example",
+      "effect": "allow"
+    },
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "mobile/*",
+      "effect": "allow"
+    },
+    {
+      "action": "glob",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "grep",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "edit",
+      "resource": "mobile/src/services/agentSyncService.ts",
+      "effect": "allow"
+    },
+    {
+      "action": "edit",
+      "resource": "mobile/src/services/workflowSyncService.ts",
+      "effect": "allow"
+    },
+    {
+      "action": "edit",
+      "resource": "mobile/src/services/canvasSyncService.ts",
+      "effect": "allow"
+    },
+    {
+      "action": "edit",
+      "resource": "mobile/src/services/syncResponse.ts",
+      "effect": "allow"
+    },
+    {
+      "action": "browser",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "skill",
+      "resource": "browser",
+      "effect": "deny"
+    }
+  ]
+}

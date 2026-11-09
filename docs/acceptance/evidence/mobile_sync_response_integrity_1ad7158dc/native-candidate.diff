@@ -1,0 +1,473 @@
+--- mobile/src/services/agentSyncService.ts
++++ mobile/src/services/agentSyncService.ts
+@@ -21,6 +21,7 @@
+ import { apiService } from './api';
+ import { storageService, StorageKey } from './storageService';
+ import { offlineSyncService } from './offlineSyncService';
++import { decodeDate, decodeListResponse, isRecord, isStringArray } from './syncResponse';
+ 
+ // Types
+ export interface Agent {
+@@ -70,6 +71,81 @@
+   errorRate: number;
+ }
+ 
++function isMaturityLevel(value: unknown): value is Agent['maturityLevel'] {
++  return (
++    value === 'STUDENT' ||
++    value === 'INTERN' ||
++    value === 'SUPERVISED' ||
++    value === 'AUTONOMOUS'
++  );
++}
++
++/**
++ * Decode the complete Agent DTO used by this cache.
++ *
++ * The live GET /api/agents summary row (id, name, description, status,
++ * last_run, category) does not contain the mandatory maturity, capabilities,
++ * system prompt, or timestamps. It is deliberately rejected here rather than
++ * being mapped by guessing; the remaining gap belongs to the producer/DTO.
++ */
++function decodeAgent(value: unknown): Agent | null {
++  if (!isRecord(value)) {
++    return null;
++  }
++
++  const { id, name, description, maturityLevel, capabilities, systemPrompt, userId, isFavorite } =
++    value;
++
++  if (typeof id !== 'string' || id.length === 0) {
++    return null;
++  }
++  if (typeof name !== 'string' || typeof description !== 'string') {
++    return null;
++  }
++  if (!isMaturityLevel(maturityLevel)) {
++    return null;
++  }
++  if (!isStringArray(capabilities)) {
++    return null;
++  }
++  if (typeof systemPrompt !== 'string') {
++    return null;
++  }
++
++  const createdAt = decodeDate(value.createdAt);
++  const updatedAt = decodeDate(value.updatedAt);
++  if (createdAt === null || updatedAt === null) {
++    return null;
++  }
++
++  if (userId !== undefined && typeof userId !== 'string') {
++    return null;
++  }
++  if (isFavorite !== undefined && typeof isFavorite !== 'boolean') {
++    return null;
++  }
++
++  const agent: Agent = {
++    id,
++    name,
++    description,
++    maturityLevel,
++    capabilities,
++    systemPrompt,
++    createdAt,
++    updatedAt,
++  };
++
++  if (userId !== undefined) {
++    agent.userId = userId;
++  }
++  if (isFavorite !== undefined) {
++    agent.isFavorite = isFavorite;
++  }
++
++  return agent;
++}
++
+ // Configuration
+ const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+ const MAX_CACHE_SIZE = 100; // Max agents to cache
+@@ -115,11 +191,12 @@
+     try {
+       console.log('AgentSync: Syncing agents');
+ 
+-      // Fetch agents from server
+-      const response = await apiService.get('/api/agents');
+-
+-      if (!response.success || !response.data) {
+-        console.error('AgentSync: Failed to fetch agents:', response.error);
++      // Fetch and fully decode agents before mutating the cache.
++      const response = await apiService.get<unknown>('/api/agents');
++      const decoded = decodeListResponse(response, 'agents', decodeAgent);
++
++      if (!decoded.ok) {
++        console.error('AgentSync: Failed to fetch agents:', decoded.error);
+         return {
+           success: false,
+           synced: 0,
+@@ -129,7 +206,7 @@
+         };
+       }
+ 
+-      const agents: Agent[] = response.data.agents || [];
++      const agents = decoded.items;
+ 
+       // Process each agent
+       for (const agent of agents) {
+--- mobile/src/services/workflowSyncService.ts
++++ mobile/src/services/workflowSyncService.ts
+@@ -21,6 +21,7 @@
+ import { apiService } from './api';
+ import { storageService, StorageKey } from './storageService';
+ import { offlineSyncService } from './offlineSyncService';
++import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
+ 
+ // Types
+ export interface Workflow {
+@@ -87,6 +88,54 @@
+   lastExecutionAt: Date | null;
+ }
+ 
++function decodeWorkflow(value: unknown): Workflow | null {
++  if (!isRecord(value)) {
++    return null;
++  }
++
++  const { id, name, description, definition, schema, isActive, userId } = value;
++
++  if (typeof id !== 'string' || id.length === 0) {
++    return null;
++  }
++  if (typeof name !== 'string' || typeof description !== 'string') {
++    return null;
++  }
++  if (definition === undefined || schema === undefined) {
++    return null;
++  }
++  if (typeof isActive !== 'boolean') {
++    return null;
++  }
++
++  const createdAt = decodeDate(value.createdAt);
++  const updatedAt = decodeDate(value.updatedAt);
++  if (createdAt === null || updatedAt === null) {
++    return null;
++  }
++
++  if (userId !== undefined && typeof userId !== 'string') {
++    return null;
++  }
++
++  const workflow: Workflow = {
++    id,
++    name,
++    description,
++    definition,
++    schema,
++    isActive,
++    createdAt,
++    updatedAt,
++  };
++
++  if (userId !== undefined) {
++    workflow.userId = userId;
++  }
++
++  return workflow;
++}
++
+ // Configuration
+ const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+ const MAX_CACHE_SIZE = 50; // Max workflows to cache
+@@ -137,11 +186,12 @@
+     try {
+       console.log('WorkflowSync: Syncing workflows');
+ 
+-      // Fetch workflows from server
+-      const response = await apiService.get('/api/workflows');
+-
+-      if (!response.success || !response.data) {
+-        console.error('WorkflowSync: Failed to fetch workflows:', response.error);
++      // Fetch and fully decode workflows before mutating the cache.
++      const response = await apiService.get<unknown>('/api/workflows');
++      const decoded = decodeListResponse(response, 'workflows', decodeWorkflow);
++
++      if (!decoded.ok) {
++        console.error('WorkflowSync: Failed to fetch workflows:', decoded.error);
+         return {
+           success: false,
+           synced: 0,
+@@ -151,7 +201,7 @@
+         };
+       }
+ 
+-      const workflows: Workflow[] = response.data.workflows || [];
++      const workflows = decoded.items;
+ 
+       // Process each workflow
+       for (const workflow of workflows) {
+--- mobile/src/services/canvasSyncService.ts
++++ mobile/src/services/canvasSyncService.ts
+@@ -21,6 +21,7 @@
+ import { apiService } from './api';
+ import { storageService, StorageKey } from './storageService';
+ import { offlineSyncService } from './offlineSyncService';
++import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
+ 
+ // Types
+ export interface Canvas {
+@@ -62,6 +63,90 @@
+   duration: number;
+ }
+ 
++function isCanvasType(value: unknown): value is Canvas['type'] {
++  return (
++    value === 'chart' ||
++    value === 'sheet' ||
++    value === 'form' ||
++    value === 'generic' ||
++    value === 'docs' ||
++    value === 'email' ||
++    value === 'orchestration' ||
++    value === 'terminal' ||
++    value === 'coding'
++  );
++}
++
++function decodeCanvas(value: unknown): Canvas | null {
++  if (!isRecord(value)) {
++    return null;
++  }
++
++  const { id, title, type, data, html, css, userId, agentId, isFavorite } = value;
++
++  if (typeof id !== 'string' || id.length === 0) {
++    return null;
++  }
++  if (typeof title !== 'string') {
++    return null;
++  }
++  if (!isCanvasType(type)) {
++    return null;
++  }
++  if (data === undefined) {
++    return null;
++  }
++
++  const createdAt = decodeDate(value.createdAt);
++  const updatedAt = decodeDate(value.updatedAt);
++  if (createdAt === null || updatedAt === null) {
++    return null;
++  }
++
++  if (html !== undefined && typeof html !== 'string') {
++    return null;
++  }
++  if (css !== undefined && typeof css !== 'string') {
++    return null;
++  }
++  if (userId !== undefined && typeof userId !== 'string') {
++    return null;
++  }
++  if (agentId !== undefined && typeof agentId !== 'string') {
++    return null;
++  }
++  if (isFavorite !== undefined && typeof isFavorite !== 'boolean') {
++    return null;
++  }
++
++  const canvas: Canvas = {
++    id,
++    title,
++    type,
++    data,
++    createdAt,
++    updatedAt,
++  };
++
++  if (html !== undefined) {
++    canvas.html = html;
++  }
++  if (css !== undefined) {
++    canvas.css = css;
++  }
++  if (userId !== undefined) {
++    canvas.userId = userId;
++  }
++  if (agentId !== undefined) {
++    canvas.agentId = agentId;
++  }
++  if (isFavorite !== undefined) {
++    canvas.isFavorite = isFavorite;
++  }
++
++  return canvas;
++}
++
+ // Configuration
+ const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours (shorter for dynamic canvas data)
+ const MAX_CACHE_SIZE = 30; // Max canvases to cache
+@@ -107,11 +192,12 @@
+     try {
+       console.log('CanvasSync: Syncing canvases');
+ 
+-      // Fetch canvases from server
+-      const response = await apiService.get('/api/canvas');
+-
+-      if (!response.success || !response.data) {
+-        console.error('CanvasSync: Failed to fetch canvases:', response.error);
++      // Fetch and fully decode canvases before mutating the cache.
++      const response = await apiService.get<unknown>('/api/canvas');
++      const decoded = decodeListResponse(response, 'canvases', decodeCanvas);
++
++      if (!decoded.ok) {
++        console.error('CanvasSync: Failed to fetch canvases:', decoded.error);
+         return {
+           success: false,
+           synced: 0,
+@@ -121,7 +207,7 @@
+         };
+       }
+ 
+-      const canvases: Canvas[] = response.data.canvases || [];
++      const canvases = decoded.items;
+ 
+       // Process each canvas
+       for (const canvas of canvases) {
+--- mobile/src/services/syncResponse.ts
++++ mobile/src/services/syncResponse.ts
+@@ -0,0 +1,131 @@
++/**
++ * Shared list-response decoding for sync services.
++ *
++ * The API transport reports HTTP success independently of the domain body.
++ * A successful transport is therefore not evidence that a list was received:
++ * the body must contain a real list and every row must decode before callers
++ * mutate a cache or advance a sync checkpoint.
++ */
++
++import { ApiResponse } from '../types/common';
++
++type ListFailure = { ok: false; error: string };
++type ListSuccess<T> = { ok: true; items: T[] };
++type ExtractedList = { ok: true; value: unknown[] } | ListFailure;
++type SuccessCheck = { ok: true } | ListFailure;
++
++export type ListDecodeResult<T> = ListSuccess<T> | ListFailure;
++
++export function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === 'object' && value !== null && !Array.isArray(value);
++}
++
++export function isStringArray(value: unknown): value is string[] {
++  return Array.isArray(value) && value.every((item) => typeof item === 'string');
++}
++
++export function decodeDate(value: unknown): Date | null {
++  if (value instanceof Date) {
++    return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
++  }
++
++  if (typeof value === 'string') {
++    const decoded = new Date(value);
++    return Number.isNaN(decoded.getTime()) ? null : decoded;
++  }
++
++  return null;
++}
++
++function fail(error: string): ListFailure {
++  return { ok: false, error };
++}
++
++function checkSuccessFlag(value: Record<string, unknown>, context: string): SuccessCheck {
++  if (value.success === false) {
++    return fail(`${context} reported success:false`);
++  }
++  if (value.success !== undefined && typeof value.success !== 'boolean') {
++    return fail(`${context} has a non-boolean success flag`);
++  }
++  return { ok: true };
++}
++
++function extractList(
++  body: Record<string, unknown>,
++  resourceKey: string,
++  depth: number
++): ExtractedList {
++  if (depth > 3) {
++    return fail(`Response body nests too deeply before providing the ${resourceKey} list`);
++  }
++
++  const bodySuccess = checkSuccessFlag(body, 'Response body');
++  if (!bodySuccess.ok) {
++    return bodySuccess;
++  }
++
++  if (Object.prototype.hasOwnProperty.call(body, resourceKey)) {
++    const list = body[resourceKey];
++    if (!Array.isArray(list)) {
++      return fail(`Response body ${resourceKey} is not an array`);
++    }
++    return { ok: true, value: list };
++  }
++
++  if (Object.prototype.hasOwnProperty.call(body, 'data')) {
++    const data = body.data;
++    if (Array.isArray(data)) {
++      return { ok: true, value: data };
++    }
++    if (!isRecord(data)) {
++      return fail(`Response body data is not a ${resourceKey} list`);
++    }
++    return extractList(data, resourceKey, depth + 1);
++  }
++
++  return fail(`Response body is missing the ${resourceKey} list`);
++}
++
++/**
++ * Decode a complete list response before any cache mutation.
++ *
++ * Supports both the legacy resource-object envelope (`{ agents: [...] }`)
++ * and the standard success/data envelope (`{ success: true, data: [...] }`,
++ * including a resource object nested under `data`).
++ */
++export function decodeListResponse<T>(
++  response: ApiResponse<unknown>,
++  resourceKey: string,
++  decodeRow: (value: unknown) => T | null
++): ListDecodeResult<T> {
++  if (!response.success) {
++    return fail(response.error || 'Transport request failed');
++  }
++
++  const body = response.data;
++  let extracted: ExtractedList;
++
++  if (Array.isArray(body)) {
++    extracted = { ok: true, value: body };
++  } else if (!isRecord(body)) {
++    return fail(`Response body is missing the ${resourceKey} list`);
++  } else {
++    extracted = extractList(body, resourceKey, 0);
++  }
++
++  if (!extracted.ok) {
++    return extracted;
++  }
++
++  const items: T[] = [];
++  for (let index = 0; index < extracted.value.length; index += 1) {
++    const decoded = decodeRow(extracted.value[index]);
++    if (decoded === null) {
++      return fail(`Malformed ${resourceKey} record at index ${index}`);
++    }
++    items.push(decoded);
++  }
++
++  return { ok: true, items };
++}

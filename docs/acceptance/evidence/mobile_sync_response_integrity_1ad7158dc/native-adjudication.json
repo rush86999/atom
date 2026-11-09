@@ -1,0 +1,15 @@
+{
+  "configured_route": "opencode-go/deepseek-v4.1-flash",
+  "primary_candidate": "9d005f72e",
+  "initial_independent": "15/15",
+  "initial_existing_consumers": "113/113",
+  "additional_root_negative": "29d328300:18pass12fail",
+  "accepted": "shared unknown-to-typed list decoding before all cache writes, full required DTO checks, no guessed Agent maturity",
+  "root_corrections": [
+    "preserve observed source qualifiers",
+    "reject contradictory response branches and duplicate identities",
+    "explicit valid ISO instants with existing date-fns; no local-zone guessing/calendar rollover"
+  ],
+  "tests_not_run_by_worker": true,
+  "live_backend_dto_qualified": false
+}

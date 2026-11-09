@@ -1,0 +1,18 @@
+{
+  "actual_exit": 0,
+  "started": 1794203688.351558,
+  "finished": 1794203690.797942,
+  "selected_kind": "synclistcontract",
+  "verification_pass": true,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/syncList.response-contract.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 15,
+    "numPassedTests": 15,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

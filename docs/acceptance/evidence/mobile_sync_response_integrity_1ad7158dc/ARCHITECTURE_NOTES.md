@@ -1,0 +1,5 @@
+# Established practice and remaining contracts
+
+Use runtime checks to narrow unknown payloads before use, following the [TypeScript narrowing handbook](https://www.typescriptlang.org/docs/handbook/2/narrowing.html). Validate structure and semantic constraints before side effects, following [OWASP input validation guidance](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html). Existing date-fns parses explicit ISO timestamps; no new dependency, global transport change, assertions, suppression or compiler exclusion.
+
+The shared helper only handles list envelopes; each existing service owns its DTO checks. Preserve observed extra metadata as data, never as principal authority. Whole collections validate before cache changes. Required scope/capability fields cannot be inferred from server status/category summaries. Do not claim backend integration until an actual authorized response provides the required contract or the consuming summary/detail models are explicitly reconciled.

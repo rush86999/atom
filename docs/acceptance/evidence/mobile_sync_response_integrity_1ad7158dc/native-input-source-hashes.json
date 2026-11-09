@@ -1,0 +1,9 @@
+{
+  "source": "42fc2bdd808771db025be0cf60806fc08e8abb0c",
+  "owned_files": {
+    "mobile/src/services/agentSyncService.ts": "253b92a685f9e30d2615f9175457330d4050618f98c4051a678af49677487c94",
+    "mobile/src/services/workflowSyncService.ts": "e92d316e12bd6f8f447ab0a8c7bb14b9cdf6201047b6ac5507f8e0b1b5de9b88",
+    "mobile/src/services/canvasSyncService.ts": "e58ee1bf3bc208fa1e95cc161b30a99b90d1cf57dcdf15d49eb2d93157538e3d",
+    "mobile/src/services/syncResponse.ts": null
+  }
+}
