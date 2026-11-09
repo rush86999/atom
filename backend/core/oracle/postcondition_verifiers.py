@@ -2145,6 +2145,273 @@ def _canvas_lifecycle_postcondition(kind: str):
     return _verify
 
 
+def _canvas_submit_postcondition():
+    """Independent readback for one append-only form-submission EVENT.
+
+    The audit row is located by its EXACT id (never "latest"), and the Canvas,
+    current User and canonical request material are re-derived in a fresh
+    session. ``Canvas.content`` is not an input: a submission records an event,
+    it does not claim authorship or mirror content.
+    """
+    action = "canvas.submit"
+
+    def _details(row: Any) -> Dict[str, Any]:
+        value = getattr(row, "details_json", None) or {}
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (TypeError, ValueError):
+                value = {}
+        return value if isinstance(value, dict) else {}
+
+    def _scope_value_same(actual: Any, expected: Any) -> bool:
+        if actual == expected:
+            return True
+        # Preserve the existing legacy null/empty equivalence for verification
+        # only; "default" remains distinct.
+        return actual in (None, "") and expected in (None, "")
+
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        canvas_id = str(
+            ctx.get("_oracle_expected_canvas_id")
+            or ctx.get("canvas_id") or "").strip()
+        audit_id = str(ctx.get("audit_id") or "").strip()
+        expected_operation = str(
+            ctx.get("_oracle_expected_operation_id") or "").strip()
+        expected_digest = str(
+            ctx.get("_oracle_expected_material_sha256") or "").strip()
+        expected_actor = str(
+            ctx.get("_oracle_expected_actor_id") or "").strip()
+        expected_agent = str(
+            ctx.get("_oracle_expected_agent_id") or "").strip()
+        expected_execution = str(
+            ctx.get("_oracle_expected_agent_execution_id") or "").strip()
+        write_outcome = str(ctx.get("write_outcome") or "")
+
+        if not canvas_id:
+            return OracleResult(action, False, "missing canvas_id")
+        if not audit_id:
+            return OracleResult(
+                action, False, "no appended audit_id in the result")
+        if not expected_operation:
+            return OracleResult(
+                action, False, "no frozen operation identity")
+        if not expected_digest:
+            return OracleResult(
+                action, False, "no frozen submission material digest")
+        if not expected_actor:
+            return OracleResult(
+                action, False, "no frozen actor identity")
+        if write_outcome and write_outcome != "committed":
+            return OracleResult(
+                action, False,
+                f"write_outcome == {write_outcome!r}, not committed")
+
+        _missing = object()
+
+        def _expected(key: str, fallback_key: str):
+            if key in ctx:
+                return ctx.get(key)
+            if fallback_key in ctx:
+                return ctx.get(fallback_key)
+            return _missing
+
+        expected_actor_tenant = _expected(
+            "_oracle_expected_actor_tenant_id",
+            "_oracle_expected_tenant_id")
+        expected_actor_workspace = _expected(
+            "_oracle_expected_actor_workspace_id",
+            "_oracle_expected_workspace_id")
+        expected_canvas_tenant = _expected(
+            "_oracle_expected_canvas_tenant_id",
+            "_oracle_expected_tenant_id")
+        expected_canvas_workspace = _expected(
+            "_oracle_expected_canvas_workspace_id",
+            "_oracle_expected_workspace_id")
+
+        def _read(session):
+            from core.models import Canvas, CanvasAudit, User
+
+            audit = (
+                session.query(CanvasAudit)
+                .filter(
+                    CanvasAudit.id == audit_id,
+                    CanvasAudit.canvas_id == canvas_id,
+                )
+                .first()
+            )
+            canvas = (
+                session.query(Canvas)
+                .filter(Canvas.id == canvas_id)
+                .first()
+            )
+            actor = (
+                session.query(User)
+                .filter(User.id == expected_actor)
+                .first()
+            )
+            return audit, canvas, actor
+
+        try:
+            audit, canvas, actor_row = _fresh_read_with_db(ctx, _read)
+            if audit is None:
+                return OracleResult(
+                    action, False,
+                    f"canvas_audit {audit_id[:12]} not found for canvas "
+                    f"{canvas_id}")
+            if canvas is None:
+                return OracleResult(
+                    action, False,
+                    f"Canvas {canvas_id} absent in DB")
+            if actor_row is None:
+                return OracleResult(
+                    action, False,
+                    f"acting user {expected_actor[:12]} absent in DB")
+
+            reasons = []
+            if str(audit.action_type or "") != "submit":
+                reasons.append(f"action_type={audit.action_type!r}")
+            if str(audit.user_id or "") != expected_actor:
+                reasons.append(
+                    f"audit actor={audit.user_id!r}, expected "
+                    f"{expected_actor!r}")
+            if str(canvas.status or "").lower() != "active":
+                reasons.append(f"canvas status={canvas.status!r}")
+            if (expected_canvas_tenant is not _missing
+                    and not _scope_value_same(
+                        audit.tenant_id, expected_canvas_tenant)):
+                reasons.append(
+                    f"audit tenant={audit.tenant_id!r}, expected "
+                    f"{expected_canvas_tenant!r}")
+            if (expected_canvas_tenant is not _missing
+                    and not _scope_value_same(
+                        canvas.tenant_id, expected_canvas_tenant)):
+                reasons.append(
+                    f"canvas tenant={canvas.tenant_id!r}, expected "
+                    f"{expected_canvas_tenant!r}")
+            if (expected_canvas_workspace is not _missing
+                    and not _scope_value_same(
+                        canvas.workspace_id, expected_canvas_workspace)):
+                reasons.append(
+                    f"canvas workspace={canvas.workspace_id!r}, expected "
+                    f"{expected_canvas_workspace!r}")
+
+            actor_status = str(getattr(
+                getattr(actor_row, "status", ""), "value",
+                getattr(actor_row, "status", "")) or "")
+            if actor_status != "active" or not bool(
+                    getattr(actor_row, "is_active", False)):
+                reasons.append("acting user is not active")
+            if (expected_actor_tenant is not _missing
+                    and not _scope_value_same(
+                        actor_row.tenant_id, expected_actor_tenant)):
+                reasons.append(
+                    f"actor tenant={actor_row.tenant_id!r}, expected "
+                    f"{expected_actor_tenant!r}")
+            if (expected_actor_workspace is not _missing
+                    and not _scope_value_same(
+                        actor_row.workspace_id, expected_actor_workspace)):
+                reasons.append(
+                    f"actor workspace={actor_row.workspace_id!r}, expected "
+                    f"{expected_actor_workspace!r}")
+
+            details = _details(audit)
+            if str(details.get("operation_id") or "") != expected_operation:
+                reasons.append(
+                    "audit operation_id does not match this operation")
+            if str(details.get("actor_id") or "") != expected_actor:
+                reasons.append(
+                    "audit details actor does not match the request")
+            if (expected_actor_tenant is not _missing
+                    and not _scope_value_same(
+                        details.get("actor_tenant_id"),
+                        expected_actor_tenant)):
+                reasons.append(
+                    "audit details actor tenant does not match the request")
+            if (expected_actor_workspace is not _missing
+                    and not _scope_value_same(
+                        details.get("actor_workspace_id"),
+                        expected_actor_workspace)):
+                reasons.append(
+                    "audit details actor workspace does not match the request")
+            if (expected_canvas_tenant is not _missing
+                    and not _scope_value_same(
+                        details.get("tenant_id"),
+                        expected_canvas_tenant)):
+                reasons.append(
+                    "audit details tenant does not match the request")
+            if (expected_canvas_workspace is not _missing
+                    and not _scope_value_same(
+                        details.get("workspace_id"),
+                        expected_canvas_workspace)):
+                reasons.append(
+                    "audit details workspace does not match the request")
+            if "form_data" not in details:
+                reasons.append("audit carries no form_data")
+            if str(details.get("agent_id") or "") != expected_agent:
+                reasons.append(
+                    "audit agent binding does not match the request")
+            if str(details.get("agent_execution_id") or "") != (
+                    expected_execution):
+                reasons.append(
+                    "audit agent execution does not match the request")
+            if expected_agent and str(audit.agent_id or "") != expected_agent:
+                reasons.append(
+                    "audit agent column does not match the request")
+            if not expected_agent and str(audit.agent_id or ""):
+                reasons.append(
+                    "audit carries an unexpected agent binding")
+
+            observed_digest = str(details.get("material_sha256") or "")
+            if observed_digest != expected_digest:
+                reasons.append(
+                    "audit material digest does not match the request")
+            else:
+                from tools.canvas_crud_tool import (
+                    canonical_submit_material,
+                )
+
+                material = canonical_submit_material(
+                    canvas_id,
+                    details.get("form_data"),
+                    actor_id=expected_actor,
+                    tenant_id=(
+                        None if expected_actor_tenant is _missing
+                        else expected_actor_tenant),
+                    workspace_id=(
+                        None if expected_actor_workspace is _missing
+                        else expected_actor_workspace),
+                    agent_id=details.get("agent_id"),
+                    agent_execution_id=details.get("agent_execution_id"),
+                )
+                if _content_digest(material) != expected_digest:
+                    reasons.append(
+                        "persisted submission material does not match the "
+                        "authorized request")
+                stored_material = details.get("material")
+                if isinstance(stored_material, dict):
+                    if _content_digest(stored_material) != expected_digest:
+                        reasons.append(
+                            "stored submission material digest is "
+                            "self-inconsistent")
+
+            if reasons:
+                return OracleResult(
+                    action, False,
+                    "; ".join(reasons))
+            return OracleResult(
+                action, True,
+                f"canvas_audit {audit_id[:12]} action_type=submit "
+                f"operation={expected_operation[:12]} "
+                f"material={expected_digest[:12]} canvas_id={canvas_id}")
+        except Exception as exc:  # noqa: BLE001 - unreadable is not verified
+            return OracleResult(
+                action, False,
+                f"canvas submit read-back failed: {type(exc).__name__}")
+
+    return _verify
+
+
 def _goal_postcondition(mode: str):
     async def _verify(ctx: Dict[str, Any]) -> OracleResult:
         action = str(ctx.get("_oracle_action") or "goals")
@@ -2310,6 +2577,7 @@ register_postcondition("canvas.delete")(
     _canvas_lifecycle_postcondition("delete"))
 register_postcondition("canvas.undelete")(
     _canvas_lifecycle_postcondition("undelete"))
+register_postcondition("canvas.submit")(_canvas_submit_postcondition())
 register_postcondition("goals.create")(_goal_postcondition("create"))
 register_postcondition("goals.evaluate")(_goal_postcondition("evaluate"))
 register_postcondition("goal_runs.start")(_goal_postcondition("run"))

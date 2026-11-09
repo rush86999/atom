@@ -24,13 +24,16 @@ from core.oracle.postcondition_verifiers import canvas_content_digest
 from tools import canvas_crud_tool as _canvas_crud
 from tools.canvas_crud_tool import (
     WRITE_UNKNOWN,
+    _scope_allows,
     active_canvas_actor,
+    canonical_submit_material,
     canonical_update_content,
     canvas_lifecycle_owner_error,
     canvas_lifecycle_snapshot,
     canvas_write_scope_error,
     find_operation_audit,
     find_operation_audits,
+    resolve_submit_agent,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,6 +62,11 @@ async def delete_canvas(*args, **kwargs):
 async def restore_deleted_canvas(*args, **kwargs):
     """Patchable seam for the undelete writer (same rationale)."""
     return await _canvas_crud.restore_deleted_canvas(*args, **kwargs)
+
+
+async def submit_canvas_event(*args, **kwargs):
+    """Patchable seam for the append-only submission writer."""
+    return await _canvas_crud.submit_canvas_event(*args, **kwargs)
 
 
 def _new_operation_id(kind: str) -> str:
@@ -436,6 +444,401 @@ async def restore_canvas_verified(
         tenant_id=tenant_id,
         workspace_id=workspace_id,
         actor_id=user_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Verified canvas submission (append-only EVENT, never authorship)
+# ---------------------------------------------------------------------------
+def _submit_refusal(
+    canvas_id: str,
+    error: str,
+    http_status: int,
+    *,
+    operation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    return {
+        "success": False,
+        "status": "refused",
+        "canvas_id": canvas_id,
+        "audit_id": None,
+        "operation_id": operation_id,
+        "action_type": "submit",
+        "error": error,
+        "http_status": int(http_status),
+        "verification": {"status": "not_attempted", "effect": "none"},
+    }
+
+
+def _submit_governance_error(db, agent_id: str) -> Optional[Dict[str, Any]]:
+    """Run the EXISTING governance check, requiring an explicit allowed True."""
+    try:
+        from core.agent_governance_service import AgentGovernanceService
+
+        check = AgentGovernanceService(db).can_perform_action(
+            agent_id=agent_id,
+            action_type="canvas_submit",
+        )
+    except Exception as exc:  # noqa: BLE001 - unreadable is not permission
+        logger.warning(
+            "canvas submit governance check failed: %s", type(exc).__name__)
+        return {
+            "http_status": 503,
+            "error": "Agent governance could not be verified",
+        }
+    if not isinstance(check, dict) or check.get("allowed") is not True:
+        reason = (
+            check.get("reason") if isinstance(check, dict) else None)
+        return {
+            "http_status": 403,
+            "error": str(reason or "Agent governance denied"),
+        }
+    return None
+
+
+def _submit_preflight(
+    canvas_id: str,
+    user_id: str,
+    form_data: Any,
+    operation_id: str,
+    agent_id: Optional[str],
+    agent_execution_id: Optional[str],
+    governance_checked: bool,
+) -> Dict[str, Any]:
+    """Freeze actor, Canvas target, optional agent and request material.
+
+    This is read-only. The writer repeats every authorization/CAS check inside
+    its append transaction and independently re-reads the committed receipt.
+    """
+    try:
+        from core.database import get_db_session
+        from core.models import Canvas
+
+        with get_db_session() as db:
+            actor = active_canvas_actor(db, user_id)
+            if not actor.get("ok"):
+                return {
+                    "http_status": int(actor.get("http_status") or 403),
+                    "error": (
+                        actor.get("error") or "Acting user is not active"),
+                }
+
+            canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            if canvas is None:
+                return {
+                    "http_status": 404,
+                    "error": f"Canvas {canvas_id} not found",
+                }
+            if str(canvas.status or "").lower() != "active":
+                return {
+                    "http_status": 409,
+                    "error": "Canvas is not active",
+                }
+            # Same-scope shared forms are legal regardless of creator. An
+            # edit-only authorship/ownership check is deliberately not used.
+            if not _scope_allows(canvas.tenant_id, actor.get("tenant_id")):
+                return {
+                    "http_status": 403,
+                    "error": "Canvas belongs to a different tenant",
+                }
+            if not _scope_allows(
+                    canvas.workspace_id, actor.get("workspace_id")):
+                return {
+                    "http_status": 403,
+                    "error": "Canvas belongs to a different workspace",
+                }
+
+            agent_resolution = resolve_submit_agent(
+                db, actor, agent_id, agent_execution_id,
+                canvas_id=canvas_id)
+            if not agent_resolution.get("ok"):
+                return {
+                    "http_status": int(
+                        agent_resolution.get("http_status") or 403),
+                    "error": (
+                        agent_resolution.get("error")
+                        or "Agent binding could not be verified"),
+                }
+            resolved_agent_id = agent_resolution.get("agent_id")
+            resolved_execution_id = agent_resolution.get(
+                "agent_execution_id")
+            if resolved_agent_id and not governance_checked:
+                governance_error = _submit_governance_error(
+                    db, resolved_agent_id)
+                if governance_error:
+                    return governance_error
+
+            material = canonical_submit_material(
+                canvas_id, form_data,
+                actor_id=str(user_id),
+                tenant_id=actor.get("tenant_id"),
+                workspace_id=actor.get("workspace_id"),
+                agent_id=resolved_agent_id,
+                agent_execution_id=resolved_execution_id,
+            )
+            material_sha256 = canvas_content_digest(material)
+
+            # A logical operation id is an idempotency key. Ambiguous rows are
+            # never certified by "first row"; a different material/actor is a
+            # conflict before dispatch.
+            existing_rows = find_operation_audits(
+                db, canvas_id, operation_id)
+            if len(existing_rows) > 1:
+                return {
+                    "http_status": 409,
+                    "error": (
+                        "operation identity is ambiguous; multiple audit "
+                        "rows share it"),
+                }
+            if existing_rows:
+                existing = existing_rows[0]
+                details = existing.details_json or {}
+                if isinstance(details, str):
+                    try:
+                        import json as _json
+
+                        details = _json.loads(details)
+                    except (TypeError, ValueError):
+                        details = {}
+                if not isinstance(details, dict):
+                    details = {}
+                if (str(existing.action_type or "") != "submit"
+                        or str(existing.user_id or "") != str(user_id)
+                        or str(details.get("material_sha256") or "")
+                        != material_sha256):
+                    return {
+                        "http_status": 409,
+                        "error": (
+                            "operation_id already used with different "
+                            "material or actor"),
+                    }
+
+            return {
+                "ok": True,
+                "actor_tenant_id": actor.get("tenant_id"),
+                "actor_workspace_id": actor.get("workspace_id"),
+                "actor_status": actor.get("status"),
+                "actor_is_active": bool(actor.get("is_active")),
+                "canvas_tenant_id": canvas.tenant_id,
+                "canvas_workspace_id": canvas.workspace_id,
+                "canvas_status": canvas.status,
+                "canvas_type": canvas.canvas_type,
+                "agent_id": resolved_agent_id,
+                "agent_execution_id": resolved_execution_id,
+                "material_sha256": material_sha256,
+            }
+    except Exception as exc:  # noqa: BLE001 - unreadable scope is not permission
+        logger.warning(
+            "canvas submit scope preflight failed: %s", type(exc).__name__)
+        return {
+            "http_status": 503,
+            "error": "Canvas submission scope could not be verified",
+        }
+
+
+async def _submit_envelope(
+    *,
+    result: Dict[str, Any],
+    canvas_id: str,
+    operation_id: str,
+    snapshot: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build a truthful submission receipt around the writer's result."""
+    already_applied = bool(result.get("already_applied"))
+    no_change = bool(already_applied or result.get("no_change"))
+    identity = {
+        "canvas_id": canvas_id,
+        "audit_id": result.get("audit_id"),
+        "operation_id": result.get("operation_id") or operation_id,
+        "action_type": "submit",
+        "agent_id": (
+            result.get("agent_id")
+            if result.get("agent_id") is not None
+            else snapshot.get("agent_id")),
+        "agent_execution_id": (
+            result.get("agent_execution_id")
+            if result.get("agent_execution_id") is not None
+            else snapshot.get("agent_execution_id")),
+        "material_sha256": (
+            result.get("material_sha256")
+            or snapshot.get("material_sha256")),
+        "submitted_at": result.get("submitted_at"),
+    }
+    base = {**result, **identity}
+    write_outcome = str(result.get("write_outcome") or "")
+
+    if not result.get("success"):
+        if write_outcome == WRITE_UNKNOWN:
+            # The append may be durable. Never claim zero effect or success.
+            return {
+                **base,
+                "success": False,
+                "status": "effect_unknown",
+                "http_status": 503,
+                "verification": {
+                    "status": "unavailable",
+                    "effect": "unknown",
+                    "replay": "do_not_repeat",
+                },
+            }
+        return {
+            **base,
+            "success": False,
+            "status": "refused",
+            "http_status": int(
+                result.get("http_status")
+                or (409 if result.get("conflict") else 503)),
+            "verification": {
+                "status": "not_attempted", "effect": "none"},
+        }
+
+    if not oracle_verifier_enabled():
+        # Disabled verification can preserve a committed effect but can never
+        # make it "verified".
+        return {
+            **base,
+            "success": False,
+            "status": "committed_unverified",
+            "http_status": 503,
+            "verification": {
+                "status": "disabled",
+                "effect": "none" if no_change else "committed",
+                "no_change": no_change,
+                "replay": "do_not_repeat",
+            },
+        }
+
+    req_agent_id = snapshot.get("agent_id") or ""
+    req_execution_id = snapshot.get("agent_execution_id") or ""
+    ctx: Dict[str, Any] = {
+        "canvas_id": canvas_id,
+        "audit_id": result.get("audit_id"),
+        "write_outcome": result.get("write_outcome"),
+        "already_applied": already_applied,
+        "no_change": no_change,
+        "_oracle_action": "canvas.submit",
+        "_oracle_expected_canvas_id": canvas_id,
+        "_oracle_expected_operation_id": (
+            result.get("operation_id") or operation_id),
+        "_oracle_expected_material_sha256": snapshot.get("material_sha256"),
+        "_oracle_expected_actor_id": snapshot.get("actor_id") or "",
+        "_oracle_expected_actor_tenant_id": snapshot.get("actor_tenant_id"),
+        "_oracle_expected_actor_workspace_id": snapshot.get(
+            "actor_workspace_id"),
+        "_oracle_expected_canvas_tenant_id": snapshot.get(
+            "canvas_tenant_id"),
+        "_oracle_expected_canvas_workspace_id": snapshot.get(
+            "canvas_workspace_id"),
+        "_oracle_expected_tenant_id": snapshot.get("canvas_tenant_id"),
+        "_oracle_expected_workspace_id": snapshot.get("canvas_workspace_id"),
+        "_oracle_expected_agent_id": req_agent_id,
+        "_oracle_expected_agent_execution_id": req_execution_id,
+        "_oracle_require_scope_match": True,
+    }
+    try:
+        oracle = await validate("canvas.submit", ctx)
+        verified = bool(oracle is not None and oracle.verified)
+        evidence = str(getattr(oracle, "evidence", "") or "")
+        unavailable = oracle is None
+    except Exception as exc:  # noqa: BLE001 - a committed write stays honest
+        logger.warning(
+            "canvas submit oracle unavailable: %s", type(exc).__name__)
+        verified = False
+        evidence = f"oracle unavailable: {type(exc).__name__}"
+        unavailable = True
+
+    if verified:
+        return {
+            **base,
+            "success": True,
+            "status": "no_change" if no_change else "verified",
+            "http_status": 200,
+            "verification": {
+                "status": "verified",
+                "effect": "none" if no_change else "committed",
+                "no_change": no_change,
+                "evidence": evidence,
+            },
+        }
+    return {
+        **base,
+        "success": False,
+        "status": "committed_unverified",
+        "http_status": 503,
+        "verification": {
+            "status": "unavailable" if unavailable else "refuted",
+            "effect": "none" if no_change else "committed",
+            "no_change": no_change,
+            "replay": "do_not_repeat",
+            "evidence": evidence,
+        },
+    }
+
+
+async def submit_canvas_verified(
+    user_id: str,
+    canvas_id: str,
+    form_data: Any,
+    operation_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    governance_checked: bool = False,
+) -> Dict[str, Any]:
+    """Authorize, append one submission event, then verify its exact receipt.
+
+    ``tenant_id``/``workspace_id`` are retained for caller compatibility only;
+    the CURRENT active User row and the authoritative Canvas scope are the
+    authority. The request material is frozen before dispatch, the writer
+    re-checks/claims it in the same transaction as the append, and the oracle
+    re-derives the exact audit + Canvas + actor/scope + operation/material in
+    an independent fresh session.
+    """
+    supplied_operation_id = (operation_id or "").strip()
+    resolved_operation_id = (
+        supplied_operation_id or _new_operation_id("submit"))
+
+    snapshot = _submit_preflight(
+        canvas_id,
+        user_id,
+        form_data,
+        resolved_operation_id,
+        agent_id,
+        agent_execution_id,
+        governance_checked,
+    ) or {}
+    if not snapshot.get("ok"):
+        return _submit_refusal(
+            canvas_id,
+            str(snapshot.get("error") or "Canvas submission refused"),
+            int(snapshot.get("http_status") or 403),
+            operation_id=supplied_operation_id or None,
+        )
+    snapshot["actor_id"] = str(user_id)
+
+    result = await submit_canvas_event(
+        user_id=user_id,
+        canvas_id=canvas_id,
+        form_data=form_data,
+        operation_id=resolved_operation_id,
+        agent_id=snapshot.get("agent_id"),
+        agent_execution_id=snapshot.get("agent_execution_id"),
+        expected_actor_tenant_id=snapshot.get("actor_tenant_id"),
+        expected_actor_workspace_id=snapshot.get("actor_workspace_id"),
+        expected_actor_status=snapshot.get("actor_status"),
+        expected_actor_is_active=snapshot.get("actor_is_active"),
+        expected_canvas_tenant_id=snapshot.get("canvas_tenant_id"),
+        expected_canvas_workspace_id=snapshot.get("canvas_workspace_id"),
+        expected_canvas_status="active",
+        expected_material_sha256=snapshot.get("material_sha256"),
+        scope_required=True,
+    )
+    return await _submit_envelope(
+        result=result,
+        canvas_id=canvas_id,
+        operation_id=resolved_operation_id,
+        snapshot=snapshot,
     )
 
 

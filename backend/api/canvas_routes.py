@@ -69,6 +69,13 @@ class CanvasSubmitRequest(BaseModel):
     form_data: Dict[str, Any] = Field(..., description="Form field data to submit")
     agent_id: Optional[str] = Field(None, description="Optional agent ID for governance checks")
     agent_execution_id: Optional[str] = Field(None, description="Optional agent execution ID")
+    operation_id: Optional[str] = Field(
+        None,
+        description=(
+            "Optional stable identity for this logical submission. A retry "
+            "with the same id/material replays the original receipt."
+        ),
+    )
 
 
 # ============================================================================

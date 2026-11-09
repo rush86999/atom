@@ -38,6 +38,14 @@ WRITE_NOT_ATTEMPTED = "not_attempted"
 WRITE_COMMITTED = "committed"
 WRITE_UNKNOWN = "unknown"
 
+#: Form submission is an append-only EVENT on a canvas. It is deliberately
+#: not an edit: it never changes ``Canvas.content`` and never establishes
+#: gallery/authorship ownership. The same scope may submit a shared form
+#: regardless of who created it.
+SUBMIT_ACTION = "submit"
+
+_UNSET = object()
+
 
 def _verify_canvas_owner(db, canvas_id: str, user_id: str) -> bool:
     """Return True if ``canvas_id`` exists and belongs to ``user_id``.
@@ -431,7 +439,8 @@ def active_canvas_actor(db, user_id: Optional[str]) -> Dict[str, Any]:
     try:
         user = db.query(User).filter(User.id == actor_id).first()
     except Exception as exc:  # noqa: BLE001 - unreadable is not permission
-        logger.warning("canvas actor authority read failed: %s", exc)
+        logger.warning(
+            "canvas actor authority read failed: %s", type(exc).__name__)
         return {
             "ok": False,
             "http_status": 503,
@@ -496,11 +505,348 @@ def _claim_canvas_actor(db, actor: Dict[str, Any]) -> bool:
         try:
             result = db.execute(statement)
         except Exception as exc:  # noqa: BLE001 - unreadable claim is refusal
-            logger.warning("canvas actor authority claim failed: %s", exc)
+            logger.warning(
+                "canvas actor authority claim failed: %s", type(exc).__name__)
             return False
         if result.rowcount != 1:
             return False
     return True
+
+
+def _optional_identifier(value: Any) -> Optional[str]:
+    """Normalize one optional server identifier without inventing a value."""
+    text = str(value).strip() if value is not None else ""
+    return text or None
+
+
+def canonical_submit_material(
+    canvas_id: str,
+    form_data: Any,
+    *,
+    actor_id: str,
+    tenant_id: Any,
+    workspace_id: Any,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """ONE canonical submission material shared by writer and verifier.
+
+    Falsy-but-valid form values (``False`` / ``0`` / empty containers) and the
+    raw actor tenant/workspace values are preserved exactly. Optional agent
+    bindings are present as explicit ``None`` when absent, so a new request can
+    never be confused with a replay of one that carried an agent.
+    """
+    return {
+        "canvas_id": str(canvas_id),
+        "form_data": form_data,
+        "agent_id": _optional_identifier(agent_id),
+        "agent_execution_id": _optional_identifier(agent_execution_id),
+        "actor_id": str(actor_id),
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
+    }
+
+
+def submit_material_digest(
+    canvas_id: str,
+    form_data: Any,
+    *,
+    actor_id: str,
+    tenant_id: Any,
+    workspace_id: Any,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+) -> str:
+    """Digest the exact canonical submission material."""
+    from core.oracle.postcondition_verifiers import canvas_content_digest
+
+    return canvas_content_digest(canonical_submit_material(
+        canvas_id, form_data,
+        actor_id=actor_id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        agent_id=agent_id,
+        agent_execution_id=agent_execution_id,
+    ))
+
+
+def deterministic_submit_audit_id(
+    actor_id: str, canvas_id: str, operation_id: str,
+) -> str:
+    """Namespaced deterministic primary key for one logical submission.
+
+    The audit table's primary key arbitrates a duplicate append race before a
+    second row can exist. The id is scoped to the actor + canvas + operation,
+    so two different users reusing a client-chosen operation id cannot collide.
+    A JSON scan is never used to certify the first row of an ambiguous set.
+    """
+    import uuid
+
+    name = (
+        f"atom:canvas:{SUBMIT_ACTION}:"
+        f"{str(actor_id)}:{str(canvas_id)}:{str(operation_id)}")
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, name))
+
+
+def _same_scope_value(actual: Any, expected: Any) -> bool:
+    """Exact raw scope comparison (NULL, empty and 'default' stay distinct)."""
+    return actual == expected
+
+
+def _compatible_tenant(actual: Any, expected: Any) -> bool:
+    """Tenant compatibility for optional agent rows.
+
+    A real tenant mismatch is always refused. A legacy NULL/empty agent tenant
+    is treated as unscoped, matching the existing Personal scope policy.
+    """
+    observed = str(actual or "").strip()
+    wanted = str(expected or "").strip()
+    if not observed or not wanted:
+        return True
+    return observed == wanted
+
+
+def resolve_submit_agent(
+    db: Any,
+    actor: Dict[str, Any],
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+    canvas_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Resolve optional submission agent binds against the CURRENT actor.
+
+    A supplied execution id must name the exact execution, agent and actor
+    scope. A mismatch is a refusal, never a silently ignored binding. The
+    caller runs the existing governance check separately when an agent is
+    resolved.
+    """
+    from core.models import AgentExecution, AgentRegistry
+
+    resolved_agent_id = _optional_identifier(agent_id)
+    resolved_execution_id = _optional_identifier(agent_execution_id)
+    execution = None
+    if resolved_execution_id:
+        try:
+            execution = (
+                db.query(AgentExecution)
+                .filter(AgentExecution.id == resolved_execution_id)
+                .first()
+            )
+        except Exception as exc:  # noqa: BLE001 - unreadable is refusal
+            logger.warning(
+                "canvas submit execution read failed: %s",
+                type(exc).__name__)
+            return {
+                "ok": False,
+                "http_status": 503,
+                "error": "Agent execution could not be verified",
+            }
+        if execution is None:
+            return {
+                "ok": False,
+                "http_status": 403,
+                "error": "Agent execution not found",
+            }
+        if not _same_scope_value(
+                getattr(execution, "workspace_id", None),
+                actor.get("workspace_id")):
+            return {
+                "ok": False,
+                "http_status": 403,
+                "error": "Agent execution belongs to a different workspace",
+            }
+        if not _compatible_tenant(
+                getattr(execution, "tenant_id", None),
+                actor.get("tenant_id")):
+            return {
+                "ok": False,
+                "http_status": 403,
+                "error": "Agent execution belongs to a different tenant",
+            }
+        execution_agent_id = _optional_identifier(
+            getattr(execution, "agent_id", None))
+        if not execution_agent_id:
+            return {
+                "ok": False,
+                "http_status": 403,
+                "error": "Agent execution has no compatible agent",
+            }
+        if (resolved_agent_id
+                and resolved_agent_id != execution_agent_id):
+            return {
+                "ok": False,
+                "http_status": 403,
+                "error": "Agent execution does not match the supplied agent",
+            }
+        metadata = getattr(execution, "metadata_json", None)
+        if isinstance(metadata, dict):
+            bound_canvas = _optional_identifier(metadata.get("canvas_id"))
+            if bound_canvas and canvas_id and bound_canvas != str(canvas_id):
+                return {
+                    "ok": False,
+                    "http_status": 403,
+                    "error": "Agent execution is bound to a different canvas",
+                }
+        resolved_agent_id = resolved_agent_id or execution_agent_id
+
+    if not resolved_agent_id:
+        return {
+            "ok": True,
+            "agent_id": None,
+            "agent_execution_id": resolved_execution_id,
+            "agent": None,
+            "execution": execution,
+        }
+
+    try:
+        agent = (
+            db.query(AgentRegistry)
+            .filter(AgentRegistry.id == resolved_agent_id)
+            .first()
+        )
+    except Exception as exc:  # noqa: BLE001 - unreadable is refusal
+        logger.warning(
+            "canvas submit agent read failed: %s", type(exc).__name__)
+        return {
+            "ok": False,
+            "http_status": 503,
+            "error": "Agent could not be verified",
+        }
+    if agent is None:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Agent not found",
+        }
+    if not _same_scope_value(
+            getattr(agent, "workspace_id", None),
+            actor.get("workspace_id")):
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Agent belongs to a different workspace",
+        }
+    if not _compatible_tenant(
+            getattr(agent, "tenant_id", None), actor.get("tenant_id")):
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Agent belongs to a different tenant",
+        }
+    return {
+        "ok": True,
+        "agent_id": resolved_agent_id,
+        "agent_execution_id": resolved_execution_id,
+        "agent": agent,
+        "execution": execution,
+    }
+
+
+def _submit_duplicate_result(
+    db: Any,
+    canvas_id: str,
+    operation_id: str,
+    actor_id: str,
+    material_sha256: str,
+) -> Optional[Dict[str, Any]]:
+    """Classify an existing operation id without ever certifying row one.
+
+    Multiple rows for one logical operation are ambiguous identity, not a
+    replay. One row is a replay only when it is the same action, actor and
+    exact material.
+    """
+    rows = find_operation_audits(db, canvas_id, operation_id)
+    if not rows:
+        return None
+    if len(rows) > 1:
+        return {
+            "success": False,
+            "conflict": True,
+            "write_outcome": WRITE_NOT_ATTEMPTED,
+            "http_status": 409,
+            "operation_id": operation_id,
+            "error": (
+                "operation identity is ambiguous; multiple audit rows share "
+                "it"),
+        }
+    existing = rows[0]
+    details = existing.details_json or {}
+    if isinstance(details, str):
+        try:
+            import json as _json
+
+            details = _json.loads(details)
+        except (TypeError, ValueError):
+            details = {}
+    if not isinstance(details, dict):
+        details = {}
+    stored_digest = str(details.get("material_sha256") or "")
+    if (str(existing.action_type or "") != SUBMIT_ACTION
+            or str(existing.user_id or "") != str(actor_id)
+            or not stored_digest or stored_digest != str(material_sha256)):
+        return {
+            "success": False,
+            "conflict": True,
+            "write_outcome": WRITE_NOT_ATTEMPTED,
+            "http_status": 409,
+            "operation_id": operation_id,
+            "audit_id": str(existing.id),
+            "error": (
+                "operation_id already used with different material or actor"),
+        }
+    submitted_at = details.get("submitted_at")
+    return {
+        "success": True,
+        "already_applied": True,
+        "replayed": True,
+        "no_change": True,
+        "write_outcome": WRITE_COMMITTED,
+        "canvas_id": canvas_id,
+        "audit_id": str(existing.id),
+        "operation_id": operation_id,
+        "action_type": SUBMIT_ACTION,
+        "agent_id": details.get("agent_id"),
+        "agent_execution_id": details.get("agent_execution_id"),
+        "material_sha256": stored_digest,
+        "submitted_at": submitted_at,
+        "message": "Canvas submission already applied",
+    }
+
+
+def _submit_canvas_guard_cas(
+    db: Any,
+    canvas_id: str,
+    expected_tenant: Any,
+    expected_workspace: Any,
+) -> bool:
+    """Linearize the submission against the exact live Canvas snapshot.
+
+    A no-op guarded DML binds the transaction to the raw tenant/workspace and
+    the active status. A move/deactivation/deletion that lands before this
+    point matches zero rows; the caller rolls back with no audit effect.
+    """
+    from sqlalchemy import update
+
+    from core.models import Canvas
+
+    statement = (
+        update(Canvas)
+        .where(
+            Canvas.id == canvas_id,
+            _raw_exact(Canvas.tenant_id, expected_tenant),
+            _raw_exact(Canvas.workspace_id, expected_workspace),
+            Canvas.status == "active",
+        )
+        .values(status=Canvas.status)
+    )
+    with db.no_autoflush:
+        try:
+            result = db.execute(statement)
+        except Exception as exc:  # noqa: BLE001 - unreadable is refusal
+            logger.warning(
+                "canvas submit guard failed: %s", type(exc).__name__)
+            return False
+        return result.rowcount == 1
 
 
 def _audit_scope_claim_cas(
@@ -2562,6 +2908,429 @@ async def restore_deleted_canvas(
             "write_outcome": write_outcome,
             "audit_id": appended_audit_id or None,
             "operation_id": operation_id,
+        }
+
+
+async def submit_canvas_event(
+    user_id: str,
+    canvas_id: str,
+    form_data: Any,
+    *,
+    operation_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+    expected_actor_tenant_id: Any = _UNSET,
+    expected_actor_workspace_id: Any = _UNSET,
+    expected_actor_status: Optional[str] = None,
+    expected_actor_is_active: Optional[bool] = None,
+    expected_canvas_tenant_id: Any = _UNSET,
+    expected_canvas_workspace_id: Any = _UNSET,
+    expected_canvas_status: Optional[str] = "active",
+    expected_material_sha256: Optional[str] = None,
+    scope_required: bool = True,
+) -> Dict[str, Any]:
+    """Append ONE verified form-submission event to the canvas ledger.
+
+    Submission is an event, not an edit and not an ownership grant. The actor
+    is the CURRENT active ``User`` row; the target is the authoritative Canvas
+    row scoped to that actor's raw tenant/workspace. Same-scope shared forms
+    are legal regardless of who created the canvas. ``Canvas.content`` is
+    never read for authority and never mutated.
+
+    The deterministic audit primary key (actor + canvas + operation) arbitrates
+    a duplicate append race. Reusing an operation id with different material or
+    from a different actor is a conflict; a same-material retry replays the
+    original audit identity without a second append.
+    """
+    from datetime import datetime, timezone
+
+    write_outcome = WRITE_NOT_ATTEMPTED
+    appended_audit_id = ""
+    operation_id = _optional_identifier(operation_id)
+    if not operation_id:
+        import uuid as _uuid
+
+        operation_id = f"http-canvas-submit:{_uuid.uuid4().hex}"
+
+    try:
+        from core.database import get_db_session
+        from core.models import Canvas, CanvasAudit
+
+        with get_db_session() as db:
+            # The CURRENT active User row is the actor authority. The request
+            # context (and any model-supplied user id) is never authority.
+            actor = active_canvas_actor(db, user_id)
+            if not actor.get("ok"):
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "http_status": int(actor.get("http_status") or 403),
+                    "operation_id": operation_id,
+                    "error": (
+                        actor.get("error")
+                        or "Acting user is not active"),
+                }
+
+            # Bind the writer to the snapshot the service authorized. A move
+            # that committed before this point is a conflict, not a new scope
+            # grant.
+            if (expected_actor_tenant_id is not _UNSET
+                    and not _same_scope_value(
+                        actor.get("tenant_id"),
+                        expected_actor_tenant_id)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "acting user changed after authorization; submit "
+                        "refused"),
+                }
+            if (expected_actor_workspace_id is not _UNSET
+                    and not _same_scope_value(
+                        actor.get("workspace_id"),
+                        expected_actor_workspace_id)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "acting user changed after authorization; submit "
+                        "refused"),
+                }
+            if (expected_actor_status is not None
+                    and str(actor.get("status") or "")
+                    != str(expected_actor_status)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "acting user changed after authorization; submit "
+                        "refused"),
+                }
+            if (expected_actor_is_active is not None
+                    and bool(actor.get("is_active"))
+                    != bool(expected_actor_is_active)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "acting user changed after authorization; submit "
+                        "refused"),
+                }
+
+            canvas_query = db.query(Canvas).filter(Canvas.id == canvas_id)
+            if scope_required:
+                canvas_query = canvas_query.with_for_update()
+            canvas_row = canvas_query.first()
+            if canvas_row is None:
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "http_status": 404,
+                    "operation_id": operation_id,
+                    "error": f"Canvas {canvas_id} not found",
+                }
+
+            expected_canvas_tenant = (
+                canvas_row.tenant_id
+                if expected_canvas_tenant_id is _UNSET
+                else expected_canvas_tenant_id)
+            expected_canvas_workspace = (
+                canvas_row.workspace_id
+                if expected_canvas_workspace_id is _UNSET
+                else expected_canvas_workspace_id)
+            if (not _same_scope_value(
+                    canvas_row.tenant_id, expected_canvas_tenant)
+                    or not _same_scope_value(
+                        canvas_row.workspace_id,
+                        expected_canvas_workspace)):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "canvas scope changed after authorization; submit "
+                        "refused"),
+                }
+            if str(canvas_row.status or "").lower() != "active":
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": "Canvas is not active",
+                }
+            if expected_canvas_status is not None and (
+                    str(canvas_row.status or "").lower()
+                    != str(expected_canvas_status).lower()):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": "Canvas is not active",
+                }
+            # Submission authority is the live Canvas scope, not edit-only
+            # creator/authorship ownership. Same-scope shared forms are valid.
+            if not _scope_allows(
+                    canvas_row.tenant_id, actor.get("tenant_id")):
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "http_status": 403,
+                    "operation_id": operation_id,
+                    "error": "Canvas belongs to a different tenant",
+                }
+            if not _scope_allows(
+                    canvas_row.workspace_id, actor.get("workspace_id")):
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "http_status": 403,
+                    "operation_id": operation_id,
+                    "error": "Canvas belongs to a different workspace",
+                }
+
+            agent_resolution = resolve_submit_agent(
+                db, actor, agent_id, agent_execution_id,
+                canvas_id=canvas_id)
+            if not agent_resolution.get("ok"):
+                return {
+                    "success": False,
+                    "write_outcome": write_outcome,
+                    "http_status": int(
+                        agent_resolution.get("http_status") or 403),
+                    "operation_id": operation_id,
+                    "error": (
+                        agent_resolution.get("error")
+                        or "Agent binding could not be verified"),
+                }
+            resolved_agent_id = agent_resolution.get("agent_id")
+            resolved_execution_id = agent_resolution.get(
+                "agent_execution_id")
+
+            material_sha256 = submit_material_digest(
+                canvas_id, form_data,
+                actor_id=str(user_id),
+                tenant_id=actor.get("tenant_id"),
+                workspace_id=actor.get("workspace_id"),
+                agent_id=resolved_agent_id,
+                agent_execution_id=resolved_execution_id,
+            )
+            if (expected_material_sha256
+                    and str(expected_material_sha256)
+                    != material_sha256):
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": write_outcome,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "submission material changed after authorization; "
+                        "submit refused"),
+                }
+
+            existing_result = _submit_duplicate_result(
+                db, canvas_id, operation_id, str(user_id), material_sha256)
+            if existing_result is not None:
+                return existing_result
+
+            canvas_tenant = canvas_row.tenant_id
+            canvas_workspace = canvas_row.workspace_id
+            canvas_type = str(canvas_row.canvas_type or "form")
+            submitted_at = datetime.now(timezone.utc)
+            material = canonical_submit_material(
+                canvas_id, form_data,
+                actor_id=str(user_id),
+                tenant_id=actor.get("tenant_id"),
+                workspace_id=actor.get("workspace_id"),
+                agent_id=resolved_agent_id,
+                agent_execution_id=resolved_execution_id,
+            )
+            details: Dict[str, Any] = {
+                "operation_id": operation_id,
+                "form_data": form_data,
+                "material": material,
+                "material_sha256": material_sha256,
+                "actor_id": str(user_id),
+                "actor_tenant_id": actor.get("tenant_id"),
+                "actor_workspace_id": actor.get("workspace_id"),
+                "tenant_id": canvas_tenant,
+                "workspace_id": canvas_workspace,
+                "agent_id": resolved_agent_id,
+                "agent_execution_id": resolved_execution_id,
+                "submitted_at": submitted_at.isoformat(),
+                "source": "canvas_submit",
+            }
+            audit = CanvasAudit(
+                id=deterministic_submit_audit_id(
+                    str(user_id), canvas_id, operation_id),
+                canvas_id=canvas_id,
+                tenant_id=(
+                    canvas_tenant
+                    if canvas_tenant is not None
+                    else (actor.get("tenant_id") or "")),
+                canvas_type=canvas_type,
+                action_type=SUBMIT_ACTION,
+                user_id=str(user_id),
+                agent_id=resolved_agent_id,
+                created_at=submitted_at,
+                details_json=details,
+            )
+            db.add(audit)
+
+            # Actor claim + Canvas no-op CAS are the linearization points.
+            # Both are in the SAME transaction as the audit append. A failure
+            # rolls back the pending audit with zero effect.
+            if not _claim_canvas_actor(db, actor):
+                db.rollback()
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": WRITE_NOT_ATTEMPTED,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "acting user changed after authorization; submit "
+                        "refused"),
+                }
+            if not _submit_canvas_guard_cas(
+                    db, canvas_id, canvas_tenant, canvas_workspace):
+                db.rollback()
+                return {
+                    "success": False,
+                    "conflict": True,
+                    "write_outcome": WRITE_NOT_ATTEMPTED,
+                    "http_status": 409,
+                    "operation_id": operation_id,
+                    "error": (
+                        "canvas scope/status changed after authorization; "
+                        "submit refused"),
+                }
+
+            try:
+                db.flush()
+                appended_audit_id = str(audit.id)
+            except Exception as exc:
+                # A competing append for the same deterministic id won the
+                # race. Only that exact durable receipt may be replayed.
+                try:
+                    from sqlalchemy.exc import IntegrityError
+
+                    duplicate_race = isinstance(exc, IntegrityError)
+                except Exception:  # noqa: BLE001 - conservative classification
+                    duplicate_race = False
+                if duplicate_race:
+                    db.rollback()
+                    duplicate = _submit_duplicate_result(
+                        db, canvas_id, operation_id, str(user_id),
+                        material_sha256)
+                    if duplicate is not None:
+                        return duplicate
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "submission race could not be resolved to one "
+                            "exact receipt"),
+                    }
+                write_outcome = WRITE_UNKNOWN
+                logger.warning(
+                    "canvas submit append failed: %s", type(exc).__name__)
+                raise
+
+            # From here the append is going to the database: a failure is not
+            # proof that nothing changed.
+            write_outcome = WRITE_UNKNOWN
+            try:
+                db.commit()
+            except Exception as exc:
+                try:
+                    from sqlalchemy.exc import IntegrityError
+
+                    duplicate_race = isinstance(exc, IntegrityError)
+                except Exception:  # noqa: BLE001 - conservative classification
+                    duplicate_race = False
+                if duplicate_race:
+                    db.rollback()
+                    duplicate = _submit_duplicate_result(
+                        db, canvas_id, operation_id, str(user_id),
+                        material_sha256)
+                    if duplicate is not None:
+                        return duplicate
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "submission race could not be resolved to one "
+                            "exact receipt"),
+                    }
+                logger.warning(
+                    "canvas submit commit outcome unknown: %s",
+                    type(exc).__name__)
+                return {
+                    "success": False,
+                    "write_outcome": WRITE_UNKNOWN,
+                    "http_status": 503,
+                    "operation_id": operation_id,
+                    "audit_id": appended_audit_id or None,
+                    "error": (
+                        "Canvas submission commit outcome could not be "
+                        "confirmed"),
+                }
+            write_outcome = WRITE_COMMITTED
+
+        return {
+            "success": True,
+            "write_outcome": write_outcome,
+            "canvas_id": canvas_id,
+            "canvas_type": canvas_type,
+            "audit_id": appended_audit_id,
+            "operation_id": operation_id,
+            "action_type": SUBMIT_ACTION,
+            "agent_id": resolved_agent_id,
+            "agent_execution_id": resolved_execution_id,
+            "material_sha256": material_sha256,
+            "submitted_at": submitted_at.isoformat(),
+            "message": "Canvas submission recorded",
+        }
+    except Exception as exc:  # noqa: BLE001 - never leak the raw failure
+        logger.warning(
+            "canvas submit failed at %s: %s",
+            "commit" if write_outcome == WRITE_UNKNOWN else "precommit",
+            type(exc).__name__)
+        return {
+            "success": False,
+            "write_outcome": write_outcome,
+            "http_status": 503,
+            "operation_id": operation_id,
+            "audit_id": appended_audit_id or None,
+            "error": (
+                "Canvas submission commit outcome could not be confirmed"
+                if write_outcome == WRITE_UNKNOWN
+                else "Canvas submission could not be verified"),
         }
 
 
