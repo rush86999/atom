@@ -1,0 +1,25 @@
+{
+  "configured_route": "opencode-go/deepseek-v4.1-flash",
+  "native_terminal_exit": 0,
+  "final_text_events": 0,
+  "batch_complete": false,
+  "rejected": [
+    "new authValue:any",
+    "boxed String spoofing actual biometric string error",
+    "filtered getPendingActions in place of full durable queue assertions"
+  ],
+  "accepted": [
+    "real View query component",
+    "SDK permission enums and full notification permission fixture",
+    "success discriminant fields omit nonexistent error/warning"
+  ],
+  "root_corrections": [
+    "scoped mocks provide real enum values",
+    "auth observer ReturnType",
+    "canonical retained queue read refuses unreadable state",
+    "exhausted failed work retained and no automatic sixth dispatch"
+  ],
+  "shell_attempts": 2,
+  "shell_attempts_blocked": true,
+  "model_tests_run": false
+}

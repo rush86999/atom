@@ -1,0 +1,11 @@
+{
+  "source": "3f2713057",
+  "owned_files": {
+    "mobile/src/__tests__/integration/devicePermissions.integration.test.ts": "8213890208de6024d9ddd95c155938f49265520fadc48d0339a813211a9e7fcc",
+    "mobile/src/__tests__/navigation/NavigationErrors.test.tsx": "6f8e8836c67c24119bdbf08c2f9c8e1a915d743f38a3c8f26f849bbd487c970c",
+    "mobile/src/__tests__/integration/offlineSyncNetwork.integration.test.ts": "0ad806486fa0daad9ec03932551f1c5862178fa7916bb478cede9bace70b6042",
+    "mobile/src/contexts/__tests__/DeviceContext.test.tsx": "1b54361f8ea9e5fe7a54c927a5914b2faee57198bd49ec38a0304134bf5d7449",
+    "mobile/src/__tests__/services/biometricService.test.ts": "8c3172ee9083b9d381ae93785fc4ed8b0ff98b82595f7af06ec5659e7c0f9df2",
+    "mobile/src/__tests__/services/workflowSyncService.test.ts": "07ebfa24528309a42cbfd17fee1f3731bd6f81831c8cd9a29ead1790b097bbc0"
+  }
+}

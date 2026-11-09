@@ -1,0 +1,58 @@
+{
+  "camera-final-photo-material-negative": {
+    "git_source": "cbf70edb9",
+    "captured_base": "72466a9909ad5c11668a6e357a324f0bc0a5d5d0",
+    "original_clean_flag": false,
+    "checks": 253,
+    "mismatches": []
+  },
+  "camera-final-photo-material-repaired": {
+    "git_source": "f026cd78c",
+    "captured_base": "cbf70edb9bb91feed86ac3b1c53d1b10d725da5a",
+    "original_clean_flag": false,
+    "checks": 253,
+    "mismatches": []
+  },
+  "camera-final-material-consumer-regression": {
+    "git_source": "f026cd78c",
+    "captured_base": "cbf70edb9bb91feed86ac3b1c53d1b10d725da5a",
+    "original_clean_flag": false,
+    "checks": 253,
+    "mismatches": []
+  },
+  "camera-final-material-strict-typecheck": {
+    "git_source": "f026cd78c",
+    "captured_base": "cbf70edb9bb91feed86ac3b1c53d1b10d725da5a",
+    "original_clean_flag": false,
+    "checks": 253,
+    "mismatches": []
+  },
+  "mobile-six-fixture-original-baseline": {
+    "git_source": "3f2713057",
+    "captured_base": "72466a9909ad5c11668a6e357a324f0bc0a5d5d0",
+    "original_clean_flag": true,
+    "checks": 252,
+    "mismatches": []
+  },
+  "mobile-six-fixture-reviewed-candidate": {
+    "git_source": "0d9449d76",
+    "captured_base": "f026cd78cfb3d2418a6444adeb96ec3a9e6fab53",
+    "original_clean_flag": false,
+    "checks": 253,
+    "mismatches": []
+  },
+  "mobile-six-fixture-reviewed-typecheck": {
+    "git_source": "0d9449d76",
+    "captured_base": "f026cd78cfb3d2418a6444adeb96ec3a9e6fab53",
+    "original_clean_flag": false,
+    "checks": 253,
+    "mismatches": []
+  },
+  "mobile-reviewed-fixtures-broad-regression": {
+    "git_source": "0d9449d76",
+    "captured_base": "0d9449d7602f49c02d37a5f48c97f04c671eff9b",
+    "original_clean_flag": true,
+    "checks": 253,
+    "mismatches": []
+  }
+}

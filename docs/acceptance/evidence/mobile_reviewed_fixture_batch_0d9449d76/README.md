@@ -1,0 +1,11 @@
+# Reviewed fixture batch and final photo material
+
+Final fixture source0d9449d76; photo productf026cd78c. No live model/application/device/native permission action. Configured Flash CLI edited six public source copies only; private agent policy limited edits to those paths. Two shell attempts were denied as unavailable. The capped batch ended with no final summary: its partial output is not accepted wholesale. Root rejected a new any, a boxed-string biometric SDK disguise and filtered queue observation. Two source proposals were retained with additional SDK-shaped corrections; other changes were individually repaired or rejected. No compiler/config/dependency weakening or test removal/skip.
+
+Fixture baseline267passed/1failed; reviewed268/268, exact full test names preserved. The failing test expected data loss after exhausted retries, contrary to accepted queue retention. It now reads canonical persisted rows, requires failed status/attempt5/payload retention, and proves no automatic sixth dispatch. This is not evidence of a new retry engine or live network behavior.
+
+Photo sourcecbf70edb9 captured4/4 failures: stale resized dimensions/size, lost quality0 and nonexistent/unreadable final artifact accepted. Correctedf026cd78c passes4/4 plus128 camera consumers. Final output uses encoder dimensions and final-file size; source EXIF is retained, not represented as newly extracted final-file metadata. Remote mounted-camera/transport qualification remains open.
+
+Broader43-file selection:1,659passed, zero failed, two existing platform-registration sentinels skipped. The strict generic driver retains verification_pass=false because it requires no pending cases; actual Jest exit0. Full TypeScript still fails211diagnostics(previous351); whole build unqualified. All captures retain original dirty/base metadata and match declared subsequent Git freezes; no clean served identity is claimed.
+
+Remaining concrete findings: biometric error mapping expects an object though installed SDK returns a string; offline service initialization drops the NetInfo unsubscribe and lifecycle ownership is unqualified; remaining fixture/compiler and real transport/account/effect rows are open. Accepted predecessor packets retain original scope.

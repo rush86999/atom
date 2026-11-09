@@ -1,0 +1,1014 @@
+--- mobile/src/__tests__/integration/devicePermissions.integration.test.ts
++++ mobile/src/__tests__/integration/devicePermissions.integration.test.ts
+@@ -21,6 +21,26 @@
+ // Mock fetch for API calls
+ global.fetch = jest.fn();
+ 
++const grantedNotificationPermission = (): Notifications.NotificationPermissionsStatus => ({
++  status: Camera.PermissionStatus.GRANTED,
++  canAskAgain: true,
++  granted: true,
++  expires: 'never',
++  ios: {
++    status: Notifications.IosAuthorizationStatus.AUTHORIZED,
++    allowsDisplayInNotificationCenter: true,
++    allowsDisplayOnLockScreen: true,
++    allowsDisplayInCarPlay: true,
++    allowsAlert: true,
++    allowsBadge: true,
++    allowsSound: true,
++    alertStyle: Notifications.IosAlertStyle.BANNER,
++  },
++  android: {
++    importance: Notifications.AndroidImportance.DEFAULT,
++  },
++});
++
+ describe('Device Permissions Integration', () => {
+   beforeEach(() => {
+     jest.clearAllMocks();
+@@ -39,7 +59,7 @@
+   describe('Permission Request Workflows', () => {
+     test('should request camera permission and handle grant', async () => {
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -55,7 +75,7 @@
+ 
+     test('should request camera permission and handle denial', async () => {
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: true,
+         granted: false,
+         expires: 'never',
+@@ -71,7 +91,7 @@
+ 
+     test('should request location permission (foreground) and handle grant', async () => {
+       const mockRequestPermission = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -86,7 +106,7 @@
+ 
+     test('should request location permission (background) and handle grant', async () => {
+       const mockRequestPermission = jest.spyOn(Location, 'requestBackgroundPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -100,18 +120,9 @@
+     });
+ 
+     test('should request notification permissions and handle grant', async () => {
+-      const mockRequestPermission = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
+-        canAskAgain: true,
+-        granted: true,
+-        expires: 'never',
+-        ios: {
+-          allowsAlert: true,
+-          allowsBadge: true,
+-          allowsSound: true,
+-        },
+-        android: {},
+-      });
++      const mockRequestPermission = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue(
++        grantedNotificationPermission()
++      );
+ 
+       const result = await Notifications.requestPermissionsAsync();
+ 
+@@ -144,20 +155,20 @@
+       // Initial state: notAsked
+       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
+         .mockResolvedValueOnce({
+-          status: 'notAsked',
++          status: Camera.PermissionStatus.UNDETERMINED,
+           canAskAgain: true,
+           granted: false,
+           expires: 'never',
+         })
+         .mockResolvedValueOnce({
+-          status: 'granted',
++          status: Camera.PermissionStatus.GRANTED,
+           canAskAgain: true,
+           granted: true,
+           expires: 'never',
+         });
+ 
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -165,7 +176,7 @@
+ 
+       // Check initial state
+       const initialState = await Camera.getCameraPermissionsAsync();
+-      expect(initialState.status).toBe('notAsked');
++      expect(initialState.status).toBe(Camera.PermissionStatus.UNDETERMINED);
+ 
+       // Request permission
+       await Camera.requestCameraPermissionsAsync();
+@@ -180,14 +191,14 @@
+ 
+     test('should track permission state from notAsked to denied', async () => {
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: true,
+         granted: false,
+         expires: 'never',
+       });
+ 
+       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValue({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: true,
+         granted: false,
+         expires: 'never',
+@@ -208,7 +219,7 @@
+     test('should handle canAskAgain flag correctly', async () => {
+       // Test with canAskAgain = true
+       const mockRequestPermission1 = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValueOnce({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: true,
+         granted: false,
+         expires: 'never',
+@@ -219,7 +230,7 @@
+ 
+       // Test with canAskAgain = false (Android "Don't ask again")
+       mockRequestPermission1.mockResolvedValueOnce({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: false,
+         granted: false,
+         expires: 'never',
+@@ -235,13 +246,13 @@
+       // First app launch - permission not asked
+       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
+         .mockResolvedValueOnce({
+-          status: 'notAsked',
++          status: Camera.PermissionStatus.UNDETERMINED,
+           canAskAgain: true,
+           granted: false,
+           expires: 'never',
+         })
+         .mockResolvedValueOnce({
+-          status: 'granted',
++          status: Camera.PermissionStatus.GRANTED,
+           canAskAgain: true,
+           granted: true,
+           expires: 'never',
+@@ -256,11 +267,11 @@
+ 
+       // Second app launch - load from storage
+       const parsedState = JSON.parse(storedState!);
+-      expect(parsedState.status).toBe('notAsked');
++      expect(parsedState.status).toBe(Camera.PermissionStatus.UNDETERMINED);
+ 
+       // Now permission granted
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -272,7 +283,7 @@
+       await AsyncStorage.setItem(permissionKey, JSON.stringify(state2));
+ 
+       // Verify stored state
+-      const updatedState = JSON.parse(await AsyncStorage.getItem(permissionKey)!);
++      const updatedState = JSON.parse((await AsyncStorage.getItem(permissionKey))!);
+       expect(updatedState.status).toBe('granted');
+ 
+       expect(mockGetPermission).toHaveBeenCalledTimes(2); // Called twice: initial + after grant
+@@ -287,27 +298,22 @@
+   describe('Multi-Permission Flows', () => {
+     test('should request multiple permissions in sequence', async () => {
+       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+       });
+ 
+       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
+-        canAskAgain: true,
+-        granted: true,
+-        expires: 'never',
+-      });
+-
+-      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
+-        canAskAgain: true,
+-        granted: true,
+-        expires: 'never',
+-        ios: { allowsAlert: true, allowsBadge: true, allowsSound: true },
+-        android: {},
+-      });
++        status: Camera.PermissionStatus.GRANTED,
++        canAskAgain: true,
++        granted: true,
++        expires: 'never',
++      });
++
++      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue(
++        grantedNotificationPermission()
++      );
+ 
+       // Request permissions in sequence
+       const cameraResult = await Camera.requestCameraPermissionsAsync();
+@@ -326,7 +332,7 @@
+     test('should handle partial grant (some granted, some denied)', async () => {
+       // Camera granted
+       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -334,21 +340,16 @@
+ 
+       // Location denied
+       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: true,
+         granted: false,
+         expires: 'never',
+       });
+ 
+       // Notifications granted
+-      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
+-        canAskAgain: true,
+-        granted: true,
+-        expires: 'never',
+-        ios: { allowsAlert: true, allowsBadge: true, allowsSound: true },
+-        android: {},
+-      });
++      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue(
++        grantedNotificationPermission()
++      );
+ 
+       const cameraResult = await Camera.requestCameraPermissionsAsync();
+       const locationResult = await Location.requestForegroundPermissionsAsync();
+@@ -376,7 +377,7 @@
+     test('should show appropriate UI for each permission type', async () => {
+       // Test camera permission UI prompt
+       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -389,7 +390,7 @@
+ 
+       // Test location permission UI prompt
+       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: true,
+         granted: false,
+         expires: 'never',
+@@ -416,14 +417,14 @@
+       // Some permissions can be requested together (iOS)
+       // Camera and Location must be requested separately
+       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+       });
+ 
+       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -453,7 +454,7 @@
+       // In real tests, we'd use jest.replaceProperty if supported
+ 
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -469,7 +470,7 @@
+     test('should handle Android permission rationale', async () => {
+       // Test Android "Don't ask again" behavior
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'denied',
++        status: Camera.PermissionStatus.DENIED,
+         canAskAgain: false, // Android "Don't ask again"
+         granted: false,
+         expires: 'never',
+@@ -493,13 +494,13 @@
+       // iOS permissions can be changed in Settings without app prompt
+       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
+         .mockResolvedValueOnce({
+-          status: 'granted',
++          status: Camera.PermissionStatus.GRANTED,
+           canAskAgain: true,
+           granted: true,
+           expires: 'never',
+         })
+         .mockResolvedValueOnce({
+-          status: 'denied', // User revoked in Settings
++          status: Camera.PermissionStatus.DENIED, // User revoked in Settings
+           canAskAgain: true,
+           granted: false,
+           expires: 'never',
+@@ -519,7 +520,7 @@
+     test('should handle Android runtime permissions', async () => {
+       // Android requires runtime permissions for dangerous permissions
+       const mockRequestPermission = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -551,7 +552,7 @@
+     test('should cache granted permissions in AsyncStorage', async () => {
+       const cacheKey = 'atom_permissions_cache';
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
+-        status: 'granted',
++        status: Camera.PermissionStatus.GRANTED,
+         canAskAgain: true,
+         granted: true,
+         expires: 'never',
+@@ -610,13 +611,13 @@
+       const cacheKey = 'atom_permissions_cache';
+       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
+         .mockResolvedValueOnce({
+-          status: 'granted',
++          status: Camera.PermissionStatus.GRANTED,
+           canAskAgain: true,
+           granted: true,
+           expires: 'never',
+         })
+         .mockResolvedValueOnce({
+-          status: 'denied', // Permission revoked
++          status: Camera.PermissionStatus.DENIED, // Permission revoked
+           canAskAgain: true,
+           granted: false,
+           expires: 'never',
+@@ -665,13 +666,13 @@
+     test('should recover from permission denial after opening settings', async () => {
+       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync')
+         .mockResolvedValueOnce({
+-          status: 'denied',
++          status: Camera.PermissionStatus.DENIED,
+           canAskAgain: true,
+           granted: false,
+           expires: 'never',
+         })
+         .mockResolvedValueOnce({
+-          status: 'granted', // User granted permission after opening settings
++          status: Camera.PermissionStatus.GRANTED, // User granted permission after opening settings
+           canAskAgain: true,
+           granted: true,
+           expires: 'never',
+@@ -679,13 +680,13 @@
+ 
+       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
+         .mockResolvedValueOnce({
+-          status: 'denied',
++          status: Camera.PermissionStatus.DENIED,
+           canAskAgain: true,
+           granted: false,
+           expires: 'never',
+         })
+         .mockResolvedValueOnce({
+-          status: 'granted',
++          status: Camera.PermissionStatus.GRANTED,
+           canAskAgain: true,
+           granted: true,
+           expires: 'never',
+--- mobile/src/__tests__/navigation/NavigationErrors.test.tsx
++++ mobile/src/__tests__/navigation/NavigationErrors.test.tsx
+@@ -11,6 +11,7 @@
+  */
+ 
+ import React from 'react';
++import { View } from 'react-native';
+ import { render, waitFor } from '@testing-library/react-native';
+ import { act } from 'react-test-renderer';
+ import AppNavigator from '../../navigation/AppNavigator';
+@@ -131,55 +132,55 @@
+     it('should handle navigation to WorkflowDetail without workflowId', async () => {
+       // Should not crash with undefined params
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle navigation to ExecutionProgress without executionId', async () => {
+       // Should handle missing executionId
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle navigation to AgentChat without agentId', async () => {
+       // Should handle missing agentId
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle null params gracefully', async () => {
+       // Should not crash with null params
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle empty string params', async () => {
+       // Should handle empty string params differently from undefined
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle navigation with undefined required param', async () => {
+       // Should not crash
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle navigation with null required param', async () => {
+       // Should handle null vs undefined correctly
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle navigation with empty string required param', async () => {
+       // Should treat empty string as valid (not undefined)
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify default value for missing optional param', async () => {
+       // Optional params should default to undefined
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+   });
+ 
+@@ -187,49 +188,49 @@
+     it('should handle navigation to non-existent screen', async () => {
+       // Should ignore invalid screen name
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle empty screen name', async () => {
+       // Should handle empty string screen name
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle null screen name', async () => {
+       // Should handle null screen name gracefully
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle undefined screen name', async () => {
+       // Should handle undefined screen name
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify no crashes from invalid screen names', async () => {
+       // Should not crash
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify error boundary catches navigation errors', async () => {
+       // Error boundary should prevent uncaught errors
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle navigation to wrong navigator screen', async () => {
+       // Should handle screen from wrong navigator
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify graceful handling of unknown screen', async () => {
+       // Should show default screen for unknown routes
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+   });
+ 
+@@ -336,19 +337,19 @@
+     it('should catch navigation errors without crashing', async () => {
+       // Should catch navigation errors
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify error screen renders after navigation error', async () => {
+       // Should show default screen instead of crashing
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify retry mechanism after navigation error', async () => {
+       // Should allow navigation after error
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify error logging for navigation errors', async () => {
+@@ -356,7 +357,7 @@
+ 
+       // Should log navigation errors
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+ 
+       consoleSpy.mockRestore();
+     });
+@@ -364,13 +365,13 @@
+     it('should verify app does not crash on navigation errors', async () => {
+       // Should not crash app
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify recovery after navigation error', async () => {
+       // Should recover to valid screen
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+   });
+ 
+@@ -378,49 +379,49 @@
+     it('should handle number param instead of string', async () => {
+       // Should handle type coercion (123 vs '123')
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle object param instead of string', async () => {
+       // Should handle object param gracefully
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle array param', async () => {
+       // Should handle array param gracefully
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle boolean param', async () => {
+       // Should handle boolean param gracefully
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify type coercion for params', async () => {
+       // Should coerce types or handle mismatch
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify no crashes from type mismatches', async () => {
+       // Should not crash on type mismatch
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle mixed type params in same navigation', async () => {
+       // Should handle mixed types gracefully
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify error handling for invalid param types', async () => {
+       // Should handle invalid types gracefully
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+   });
+ 
+@@ -457,7 +458,7 @@
+     it('should verify graceful handling of timeouts', async () => {
+       // Should handle slow navigation gracefully
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should handle deep link with many params', async () => {
+@@ -479,7 +480,7 @@
+         });
+       }
+ 
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+   });
+ 
+@@ -530,7 +531,7 @@
+     it('should fallback to default screen on invalid route', async () => {
+       // Should fallback to WorkflowsList (initial tab)
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should fallback to login screen on auth error', async () => {
+@@ -544,19 +545,19 @@
+     it('should verify graceful degradation', async () => {
+       // Should degrade gracefully instead of crashing
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify error screen displays correctly', async () => {
+       // Should show error screen or default screen
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+ 
+     it('should verify recovery after fallback', async () => {
+       // Should allow normal navigation after fallback
+       const { UNSAFE_getAllByType } = render(<AppNavigator />);
+-      expect(() => UNSAFE_getAllByType('View')).not.toThrow();
++      expect(() => UNSAFE_getAllByType(View)).not.toThrow();
+     });
+   });
+ });
+--- mobile/src/__tests__/integration/offlineSyncNetwork.integration.test.ts
++++ mobile/src/__tests__/integration/offlineSyncNetwork.integration.test.ts
+@@ -48,7 +48,7 @@
+ 
+   describe('Network State Transitions', () => {
+     test('should detect network state change from online to offline', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
+ 
+       // Transition to offline
+@@ -64,7 +64,7 @@
+     });
+ 
+     test('should detect network state change from offline to online', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
+ 
+       // Transition to online
+@@ -92,7 +92,7 @@
+         'device_1'
+       );
+ 
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue).toHaveLength(1);
+       expect(queue[0].type).toBe('agent_message');
+     });
+@@ -108,12 +108,12 @@
+       );
+ 
+       // Verify action is queued
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue.length).toBeGreaterThanOrEqual(1);
+     });
+ 
+     test('should handle network type changes (wifi, cellular, none)', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
+ 
+       // Wifi
+@@ -175,7 +175,7 @@
+       }
+ 
+       // Verify actions are queued
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue.length).toBe(5);
+ 
+       // Trigger sync
+@@ -193,7 +193,7 @@
+       await offlineSyncService.queueAction('agent_message', { message: 'Critical' }, 'critical', 'user_1', 'device_1');
+ 
+       // Get sorted queue
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+ 
+       // Verify actions were queued (may have actions from previous tests)
+       expect(queue.length).toBeGreaterThanOrEqual(4);
+@@ -225,7 +225,7 @@
+       expect(result.failed).toBe(1);
+ 
+       // Action should still be in queue (retry pending)
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue).toHaveLength(1);
+       expect(queue[0].syncAttempts).toBe(1);
+     });
+@@ -245,7 +245,7 @@
+       expect(result.failed).toBeGreaterThanOrEqual(0);
+ 
+       // Verify retry count increased
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       if (queue.length > 0) {
+         expect(queue[0].syncAttempts).toBeGreaterThanOrEqual(1);
+       }
+@@ -299,7 +299,7 @@
+         );
+       }
+ 
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue.length).toBe(150);
+ 
+       // Trigger sync (should process in batches)
+@@ -387,7 +387,7 @@
+         );
+       }
+ 
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+ 
+       // The sync will process in batches, but all should complete
+       const result = await offlineSyncService.triggerSync();
+@@ -419,7 +419,7 @@
+     });
+ 
+     test('should handle intermittent connectivity (flapping)', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
+ 
+       // Simulate network flapping
+@@ -476,13 +476,13 @@
+       expect(result.synced).toBe(0);
+ 
+       // Action should be retried later
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue).toHaveLength(1);
+       expect(queue[0].syncAttempts).toBe(1);
+     });
+ 
+     test('should handle connection with limited internet reachability', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+ 
+       // Mock connection with internet not reachable
+       jest.spyOn(netInfoMock, 'fetch').mockResolvedValue({
+@@ -521,7 +521,7 @@
+ 
+   describe('Sync Listener Integration', () => {
+     test('should register network state listener on initialization', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+       const mockAddEventListener = jest.spyOn(netInfoMock, 'addEventListener');
+ 
+       // Initialize sync service (should register listener)
+@@ -535,7 +535,7 @@
+     });
+ 
+     test('should unregister network state listener on cleanup', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+ 
+       const mockAddEventListener = jest.spyOn(netInfoMock, 'addEventListener').mockReturnValue({
+         remove: jest.fn(),
+@@ -633,7 +633,7 @@
+       expect(result1.failed).toBe(1);
+       expect(result1.synced).toBe(0);
+ 
+-      const queue1 = await offlineSyncService.getQueue();
++      const queue1 = await offlineSyncService.getPendingActions();
+       expect(queue1).toHaveLength(1);
+       expect(queue1[0].status).toBe('pending');
+       expect(queue1[0].syncAttempts).toBe(1);
+@@ -656,7 +656,7 @@
+       expect(result2.failed).toBe(1);
+       expect(result2.synced).toBe(0);
+ 
+-      const queue2 = await offlineSyncService.getQueue();
++      const queue2 = await offlineSyncService.getPendingActions();
+       expect(queue2).toHaveLength(1);
+       expect(queue2[0].status).toBe('pending');
+       expect(queue2[0].syncAttempts).toBe(2);
+@@ -687,7 +687,7 @@
+       }
+ 
+       // After 5 failed attempts the action is dropped from the queue.
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue).toHaveLength(0);
+ 
+       const state = await offlineSyncService.getSyncState();
+@@ -718,7 +718,7 @@
+         );
+       }
+ 
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue.length).toBe(25);
+ 
+       // Start sync (non-blocking)
+@@ -736,7 +736,7 @@
+       expect(state.syncInProgress).toBe(false);
+ 
+       // Verify remaining actions still in queue
+-      const finalQueue = await offlineSyncService.getQueue();
++      const finalQueue = await offlineSyncService.getPendingActions();
+       // Some actions may have been processed before cancellation
+       expect(finalQueue.length).toBeGreaterThan(0);
+     });
+@@ -777,7 +777,7 @@
+         );
+       }
+ 
+-      const queue = await offlineSyncService.getQueue();
++      const queue = await offlineSyncService.getPendingActions();
+       expect(queue.length).toBe(20);
+ 
+       // Mock API that fails halfway through (simulating network loss)
+@@ -801,7 +801,7 @@
+ 
+       // Failed actions are re-queued as `pending` (with a retry count) so the
+       // next sync retries them — they are never orphaned as `failed`.
+-      const finalQueue = await offlineSyncService.getQueue();
++      const finalQueue = await offlineSyncService.getPendingActions();
+       const requeuedActions = finalQueue.filter(
+         (a) => a.status === 'pending' && a.syncAttempts > 0
+       );
+@@ -827,7 +827,7 @@
+       expect(result1.failed).toBe(15);
+       expect(result1.synced).toBe(0);
+ 
+-      const queue1 = await offlineSyncService.getQueue();
++      const queue1 = await offlineSyncService.getPendingActions();
+       expect(queue1).toHaveLength(15);
+       expect(queue1.every((a) => a.status === 'pending' && a.syncAttempts === 1)).toBe(true);
+ 
+@@ -843,13 +843,13 @@
+       expect(result2.failed).toBe(15);
+       expect(result2.synced).toBe(0);
+ 
+-      const queue2 = await offlineSyncService.getQueue();
++      const queue2 = await offlineSyncService.getPendingActions();
+       expect(queue2).toHaveLength(15);
+       expect(queue2.every((a) => a.status === 'pending' && a.syncAttempts === 2)).toBe(true);
+     });
+ 
+     test('should handle network type switching during sync', async () => {
+-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
++      const netInfoMock = NetInfo;
+ 
+       // Queue actions
+       for (let i = 0; i < 10; i++) {
+--- mobile/src/contexts/__tests__/DeviceContext.test.tsx
++++ mobile/src/contexts/__tests__/DeviceContext.test.tsx
+@@ -156,6 +156,8 @@
+ });
+ 
+ describe('DeviceContext', () => {
++  let authValue: any;
++
+   describe('Initialization', () => {
+     test('should initialize with default state', async () => {
+       renderWithProviders(<></>);
+--- mobile/src/__tests__/services/biometricService.test.ts
++++ mobile/src/__tests__/services/biometricService.test.ts
+@@ -21,6 +21,17 @@
+ // Mock SecureStore
+ jest.mock('expo-secure-store');
+ 
++// The SDK types declare `error` as a string, while biometricService reads the
++// legacy structured `{ code, message }` shape. Keep both representations in
++// one assignable value so the mocks exercise the service's mapping behavior.
++const authenticationFailure = (
++  code: string,
++  message: string
++): { success: false; error: string; warning?: string } => ({
++  success: false,
++  error: Object.assign(message, { code, message }),
++});
++
+ describe('BiometricService', () => {
+   beforeEach(() => {
+     jest.clearAllMocks();
+@@ -150,8 +161,6 @@
+       ]);
+       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+         success: true,
+-        error: undefined,
+-        warning: undefined,
+       });
+ 
+       const result: BiometricResult = await biometricService.authenticate();
+@@ -169,8 +178,6 @@
+       ]);
+       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+         success: true,
+-        error: undefined,
+-        warning: undefined,
+       });
+ 
+       const result = await biometricService.authenticate();
+@@ -259,8 +266,6 @@
+       ]);
+       const authSpy = jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+         success: true,
+-        error: undefined,
+-        warning: undefined,
+       });
+ 
+       await biometricService.authenticate({
+@@ -288,8 +293,6 @@
+       ]);
+       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+         success: true,
+-        error: undefined,
+-        warning: undefined,
+       });
+ 
+       const result = await biometricService.authenticate();
+@@ -457,8 +460,6 @@
+       // Succeed on 4th attempt
+       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+         success: true,
+-        error: undefined,
+-        warning: undefined,
+       });
+       await biometricService.authenticate();
+ 
+@@ -480,8 +481,6 @@
+       ]);
+       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+         success: true,
+-        error: undefined,
+-        warning: undefined,
+       });
+ 
+       // Mock SecureStore to capture the token storage
+@@ -896,8 +895,6 @@
+     test('should forward all authentication options', async () => {
+       const authSpy = jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+         success: true,
+-        error: undefined,
+-        warning: undefined,
+       });
+ 
+       await biometricService.authenticate({

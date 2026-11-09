@@ -1,0 +1,8 @@
+Repair ONLY six owned public TEST COPIES below. Implement code edits, no shell/subagents/network/installs/model calls or device actions. All other files read-only. Read COMPILER_BASELINE.log and source consumers/SDK_TYPES. Preserve every test case and assertion intent; no deletion/skips/xfail, any casts/unknown-doublecasts, ts-ignore, compiler changes, ambient shims or product changes. Fix typed enums, shapes, nullability and Jest tuples faithfully. If actual production defect required, report it and continue independent owned fixes. Tests cannot execute here: explicitly report NOT run; never claim compiler success. Return edited files and unresolved real defects. Ignore absolute compiler prefixes; relative mobile/src copies are authoritative source3f2713057.
+OWNED FILES:
+mobile/src/__tests__/integration/devicePermissions.integration.test.ts
+mobile/src/__tests__/navigation/NavigationErrors.test.tsx
+mobile/src/__tests__/integration/offlineSyncNetwork.integration.test.ts
+mobile/src/contexts/__tests__/DeviceContext.test.tsx
+mobile/src/__tests__/services/biometricService.test.ts
+mobile/src/__tests__/services/workflowSyncService.test.ts
