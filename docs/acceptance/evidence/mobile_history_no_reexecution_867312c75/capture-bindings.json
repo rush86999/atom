@@ -1,0 +1,10 @@
+{
+  "captures": {
+    "agent-history-new-work-negative": "0c9196826",
+    "agent-history-no-command-result": "867312c75",
+    "agent-history-full-typecheck": "867312c75",
+    "agent-history-broad-regression": "867312c75"
+  },
+  "source_file_checks": 1024,
+  "mismatches": 0
+}

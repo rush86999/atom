@@ -1,0 +1,21 @@
+{
+  "actual_exit": 1,
+  "started": 1794204801.9786391,
+  "finished": 1794204804.302353,
+  "selected_kind": "syncservices",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/agentSyncService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/canvasSyncService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/syncList.response-contract.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/workflowSyncService.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 138,
+    "numPassedTests": 137,
+    "numFailedTests": 1,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

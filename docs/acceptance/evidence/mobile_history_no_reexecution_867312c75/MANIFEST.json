@@ -1,0 +1,30 @@
+{
+  "executed_source": "867312c75021880146a7219dacd5b79a5f3f920e",
+  "source_files": {
+    "mobile/src/services/agentSyncService.ts": "f0e9f7bc0774540dcde90ee4b178b42e5ff2afcf813980f50f14b8b7d86cfb19",
+    "mobile/src/services/offlineSyncService.ts": "cbafbad1c1af9056cb7268d3712ffade92244f70cffa815f8f051962c05ae956",
+    "mobile/src/__tests__/services/agentSyncService.test.ts": "38a485d34a7f154d118ab18f96a2d9988806fb63229985669d358ddd6e24410c",
+    "backend/api/agent_routes.py": "ba11824577f43d612e175e601497aafbd569824c0e0d6ff612eeeb993b0ead7a"
+  },
+  "artifacts": {
+    "agent-history-full-typecheck.spec.json": "439715fe5879d8eb3a38da596d5eacddc33d679deccf960f13efe0ac81ac2ad2",
+    "agent-history-full-typecheck.exit.json": "c7d86df2f5d3f8f5e76f43fad13382a5698f19454a690331ed46929cc6be4891",
+    "agent-history-no-command-result.exit.json": "26a4700871ff36d71b1b9b6fec5e9ca68801dec01b8e2db90fef466e9e2beeae",
+    "agent-history-no-command-result.spec.json": "4bd7b818a14a7a9094dbe578477f28212635365cef8b8e4a37aab0427ea32a7e",
+    "native-attempt.jsonl": "ad5dc756a7d70c0118126375ffb8f6de390d73940a57f31dd347cb5e7c2c2d61",
+    "native-attempt.err": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "agent-history-no-command-result.log": "269a2eacc146de116ca78dd19868490d09c07c13cb205b5d4e6707da14b64822",
+    "agent-history-broad-regression.spec.json": "85c65988f719e9b93aeb67a637ecd49d3c744d9268a89e59a678384ac3b65ccd",
+    "agent-history-broad-regression.exit.json": "790d436e8dd1c5facbd5562657c3491267f366335b0c304e56a42cde204720dd",
+    "native-effective-policy.json": "34795f631a1abd7b8c9d2f4f57cb2cf8bef1907e54b43ed7cc3481bc3f22e0da",
+    "agent-history-broad-regression.log": "d1ac30953b2b2af42630727125f043b417c60550973250cc760c60f5c1f53398",
+    "backend-agent-history-route.txt": "ba11824577f43d612e175e601497aafbd569824c0e0d6ff612eeeb993b0ead7a",
+    "README.md": "04e3d97f0c827b7c3720ac3c194c66b9ab0020cb66bd247a73da54281e27702a",
+    "capture-bindings.json": "33250d793d3d0b8877db018cc224f35b63e8cc9adfc1e3a02457f688b5ee305a",
+    "native-attempt.exit.json": "bacbc735e31d77626266c9acc18d0a66f2e50d72a651d3e6d82bd275cfddba1d",
+    "agent-history-new-work-negative.log": "afcc87efdd805c01292c714172b74184df2f8cce23264efe413d42c5ac77085c",
+    "agent-history-full-typecheck.log": "5b79dda7fe6354ef3b9a00ba75f0901f770147d8037f62f281f25aa55ed10c7c",
+    "agent-history-new-work-negative.exit.json": "7023f87c6f2072a679e42c1b6b6ee46852d473c736dab3d2476663314d9c5a6b",
+    "agent-history-new-work-negative.spec.json": "57d4659aa3473dc3340f107c4c4012a9668724db1cf8faad19346a16248f18b3"
+  }
+}

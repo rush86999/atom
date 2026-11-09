@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `1ad7158dc`; later changes
+reference describes the checked-in companion at source `867312c75`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -22,7 +22,7 @@ npm run typecheck
 
 Skipping install scripts was intentional for these controlled checks. It does
 not prepare native modules or demonstrate an iOS/Android build. The strict
-project-wide type check still fails with 181 diagnostics at this source (402 at
+project-wide type check still fails with 179 diagnostics at this source (402 at
 `2abf3c689`; 354 at `2a5345b5b`). Keep its complete source/test scope;
 do not hide errors with exclusions, ambient module shims or weaker settings.
 
@@ -56,13 +56,15 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Location ownership | Installed subscription removal, shared pending starts, stop-generation fencing, stale callback refusal and retryable failed removal; 96 service controls plus 67 screen/agent controls at `2a5345b5b`. | Actual OS permissions/background location, physical GPS stopping, device and complete mobile journeys. |
 | Voice input | Mounted component supplies the installed Expo AV high-quality preset; 72 component controls at `9bb7c99a3`. | No production import caller found for this component; real microphone, native permissions, recording files and integrated chat wiring remain unqualified. |
 
-The latest combined controlled selection at `1ad7158dc` has 1,767 passes,
+The latest combined controlled selection at `867312c75` has 1,775 passes,
 zero failures and two intentional platform-registration sentinels skipped across
 47 files. The generic verification driver therefore remains false under its
 zero-skips rule; this is not 1,769 executed passes or a qualified mobile build.
 
 Source-bound packets:
 
+- [Cache write refusal controls](../docs/acceptance/evidence/mobile_cache_write_receipt_591c03883/README.md)
+- [History retention without reexecution](../docs/acceptance/evidence/mobile_history_no_reexecution_867312c75/README.md)
 - [Cache response integrity and remaining DTO boundary](../docs/acceptance/evidence/mobile_sync_response_integrity_1ad7158dc/README.md)
 
 - [Native biometric error and sync lifecycle controls](../docs/acceptance/evidence/mobile_biometric_sync_lifecycle_30106a1d1/README.md)
