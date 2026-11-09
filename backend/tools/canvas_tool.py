@@ -618,9 +618,7 @@ async def present_form(
                     if (not governance_check.get("allowed")
                             or governance_check.get(
                                 "requires_human_approval")):
-                        logger.warning(
-                            "Governance blocked form presentation: %s",
-                            governance_check.get("reason"))
+                        logger.warning("Governance blocked form presentation")
                         return {
                             "success": False,
                             "error": (
@@ -731,9 +729,7 @@ async def present_form(
         verified = bool(oracle is not None and oracle.verified)
         evidence = str(getattr(oracle, "evidence", "") or "")
         if not verified:
-            logger.error(
-                "Form presentation committed but could not be verified: %s",
-                evidence or "no oracle verdict")
+            logger.error("Form presentation committed but could not be verified")
             return {
                 "success": False,
                 "status": "committed_unverified",

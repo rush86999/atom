@@ -1487,22 +1487,32 @@ def _canvas_present_postcondition(component_type: str):
                 reasons.append(
                     f"tenant={observed_tenant!r}, expected {expected_tenant!r}")
             if component_type == "form":
+                required_bindings = (
+                    "_oracle_expected_canvas_id", "_oracle_expected_actor_id",
+                    "_oracle_expected_tenant_id", "_oracle_expected_workspace_id",
+                    "_oracle_expected_title", "_oracle_expected_material",
+                )
+                if any(key not in ctx for key in required_bindings):
+                    return OracleResult(action, False, "missing frozen form request binding")
+                if not isinstance(ctx["_oracle_expected_actor_id"], str) or not ctx["_oracle_expected_actor_id"].strip():
+                    return OracleResult(action, False, "missing frozen form actor")
+                if not isinstance(ctx["_oracle_expected_material"], dict):
+                    return OracleResult(action, False, "missing frozen form material")
                 # A form is a durable SURFACE, not only a presentation event.
                 # The authoritative Canvas row must still carry the exact
                 # schema/title and actor scope that this presentation claims.
                 # Chart/markdown keep their existing audit-only semantics.
                 expected_actor = str(
                     ctx.get("_oracle_expected_actor_id") or "").strip()
-                form_actor = expected_actor or str(
-                    details.get("actor_id") or "").strip()
+                form_actor = expected_actor
                 title_declared = (
                     "_oracle_expected_title" in ctx or "title" in details)
                 expected_title = (
                     ctx.get("_oracle_expected_title")
                     if "_oracle_expected_title" in ctx
                     else details.get("title"))
-                form_tenant = expected_tenant or observed_tenant
-                form_workspace = expected_workspace or observed_workspace
+                form_tenant = ctx["_oracle_expected_tenant_id"]
+                form_workspace = ctx["_oracle_expected_workspace_id"]
                 expected_material = ctx.get("_oracle_expected_material")
                 if not isinstance(expected_material, dict):
                     expected_material = (
@@ -1542,13 +1552,11 @@ def _canvas_present_postcondition(component_type: str):
                         reasons.append(
                             f"audit actor={row.user_id!r}, expected "
                             f"{form_actor!r}")
-                    if form_tenant and str(
-                            canvas.tenant_id or "") != form_tenant:
+                    if canvas.tenant_id != form_tenant or row.tenant_id != form_tenant:
                         reasons.append(
                             f"canvas tenant={canvas.tenant_id!r}, expected "
                             f"{form_tenant!r}")
-                    if form_workspace and str(
-                            canvas.workspace_id or "") != form_workspace:
+                    if canvas.workspace_id != form_workspace or details.get("workspace_id") != form_workspace:
                         reasons.append(
                             f"canvas workspace={canvas.workspace_id!r}, "
                             f"expected {form_workspace!r}")

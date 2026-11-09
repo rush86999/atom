@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 import contextlib
+import pytest
 from core.models import Canvas
 from tests.test_canvas_lifecycle_verified import probe, app_client, broadcast_spy, _user  # noqa: F401
 
@@ -49,4 +50,26 @@ def test_form_producer_does_not_broadcast_unpersisted_success(app_client, broadc
     monkeypatch.setattr('core.database.get_db_session', failing_session)
     presented = asyncio.run(present_form(user_id=actor.id, form_schema={'fields': []}, title='Observed form'))
     assert presented['success'] is False, presented
+    assert broadcast_spy == []
+
+
+@pytest.mark.parametrize("missing", [
+    "_oracle_expected_actor_id", "_oracle_expected_title",
+    "_oracle_expected_material",
+])
+def test_form_missing_frozen_identity_never_broadcasts(app_client, broadcast_spy, monkeypatch, missing):
+    from tools.canvas_tool import present_form
+    from core.oracle import validate as actual_validate
+    actor = _actor(app_client)
+    monkeypatch.setattr('tools.canvas_tool.FeatureFlags.should_enforce_governance', lambda *_: False)
+
+    async def without_frozen_binding(action, context):
+        context = dict(context)
+        context.pop(missing, None)
+        return await actual_validate(action, context)
+
+    monkeypatch.setattr('core.oracle.validate', without_frozen_binding)
+    presented = asyncio.run(present_form(user_id=actor.id, form_schema={'fields': []}, title='Frozen title'))
+    assert presented['success'] is False, 'An audit cannot supply its own missing authorization binding'
+    assert presented['verification']['effect'] == 'committed'
     assert broadcast_spy == []
