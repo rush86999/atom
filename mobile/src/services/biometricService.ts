@@ -70,6 +70,38 @@ const DEFAULT_PREFERENCES: BiometricPreferences = {
 };
 
 /**
+ * Expo LocalAuthentication returns failure codes as plain strings. Native iOS/Android
+ * emissions use `lockout`; `locked_out` is accepted only as an internal compatibility
+ * alias and is never sent to the native module by this service.
+ */
+function getErrorCode(error: unknown): string | undefined {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+  ) {
+    return error.code;
+  }
+
+  return undefined;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    error.message.length > 0
+  ) {
+    return error.message;
+  }
+
+  return 'Authentication failed';
+}
+
+/**
  * Biometric Service
  */
 class BiometricService {
@@ -194,86 +226,104 @@ class BiometricService {
         disableDeviceFallback: options?.disableDeviceFallback || false,
       });
 
-      // Record attempt
-      await this.recordAttempt(
-        result.success,
-        result.success ? undefined : this.mapErrorToType(result.error),
-        biometricType
-      );
+      if (!result.success) {
+        const classification = this.classifySdkError(result.error);
 
-      // Clear lockout on success
-      if (result.success) {
-        this.lockoutUntil = null;
-        this.attempts = [];
-        await this.saveAttempts();
+        // Record attempt
+        await this.recordAttempt(false, classification.type, biometricType);
+
+        return {
+          success: false,
+          error: classification.message,
+          biometricType,
+        };
       }
 
+      // Record the success, then clear prior failures and lockout.
+      await this.recordAttempt(true, undefined, biometricType);
+      this.lockoutUntil = null;
+      this.attempts = [];
+      await this.saveAttempts();
+
       return {
-        success: result.success,
-        error: result.success ? undefined : this.mapErrorCode(result.error),
+        success: true,
+        error: undefined,
         biometricType,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Record failed attempt
-      const errorType = this.mapErrorToType(error);
+      const errorType = this.mapThrownErrorToType(error);
       await this.recordAttempt(false, errorType, await this.getBiometricType());
 
       return {
         success: false,
-        error: error.message || 'Authentication failed',
+        error: getErrorMessage(error),
       };
     }
   }
 
   /**
-   * Map error code to message
+   * Map an Expo LocalAuthentication failure string to our public error classification.
+   * Unknown SDK codes are generic authentication failures, never successes.
    */
-  private mapErrorCode(error: LocalAuthentication.LocalAuthenticationError | undefined): string {
-    if (!error) {
-      return 'Authentication failed';
-    }
-
-    switch (error.code) {
+  private classifySdkError(error: string | undefined): {
+    type: BiometricError;
+    message: string;
+  } {
+    switch (error) {
       case 'not_enrolled':
-        return 'No biometric enrolled. Please set up biometric authentication in your device settings.';
+        return {
+          type: 'not_enrolled',
+          message:
+            'No biometric enrolled. Please set up biometric authentication in your device settings.',
+        };
+      case 'lockout':
       case 'locked_out':
-        return 'Too many attempts. Biometric authentication is temporarily locked.';
+        return {
+          type: 'locked_out',
+          message: 'Too many attempts. Biometric authentication is temporarily locked.',
+        };
       case 'user_cancel':
+        return {
+          type: 'user_cancelled',
+          message: 'Authentication was cancelled.',
+        };
       case 'system_cancel':
-        return 'Authentication was cancelled.';
+        return {
+          type: 'system_cancelled',
+          message: 'Authentication was cancelled.',
+        };
       case 'passcode_not_set':
-        return 'Device passcode is not set. Please set a passcode in your device settings.';
+        return {
+          type: 'passcode_not_set',
+          message:
+            'Device passcode is not set. Please set a passcode in your device settings.',
+        };
       case 'not_available':
-        return 'Biometric authentication is not available on this device.';
+        return {
+          type: 'not_available',
+          message: 'Biometric authentication is not available on this device.',
+        };
+      case 'authentication_failed':
       default:
-        return error.message || 'Authentication failed';
+        return {
+          type: 'authentication_failed',
+          message: 'Authentication failed',
+        };
     }
   }
 
   /**
-   * Map error to BiometricError type
+   * Map an unexpected thrown value to a BiometricError type.
    */
-  private mapErrorToType(error: any): BiometricError {
-    if (!error || !error.code) {
+  private mapThrownErrorToType(error: unknown): BiometricError {
+    const code = getErrorCode(error);
+
+    if (!code) {
       return 'unknown';
     }
 
-    switch (error.code) {
-      case 'not_enrolled':
-        return 'not_enrolled';
-      case 'locked_out':
-        return 'locked_out';
-      case 'user_cancel':
-        return 'user_cancelled';
-      case 'system_cancel':
-        return 'system_cancelled';
-      case 'passcode_not_set':
-        return 'passcode_not_set';
-      case 'not_available':
-        return 'not_available';
-      default:
-        return 'authentication_failed';
-    }
+    return this.classifySdkError(code).type;
   }
 
   /**

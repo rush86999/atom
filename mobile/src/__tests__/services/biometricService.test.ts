@@ -182,7 +182,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Authentication failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
 
@@ -200,7 +200,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'not_enrolled', message: 'Not enrolled' },
+        error: 'not_enrolled',
         warning: undefined,
       });
 
@@ -218,15 +218,15 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
 
       const result = await biometricService.authenticate();
 
       expect(result.success).toBe(false);
-      // The error message from the mock is returned as-is for unknown codes
-      expect(result.error).toBe('Failed');
+      // SDK string errors carry no custom native message; use the explicit classification.
+      expect(result.error).toBe('Authentication failed');
     });
 
     test('should support cancel fallback', async () => {
@@ -237,7 +237,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'user_cancel', message: 'Cancelled' },
+        error: 'user_cancel',
         warning: undefined,
       });
 
@@ -345,7 +345,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
 
@@ -367,7 +367,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
 
@@ -391,7 +391,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
 
@@ -415,7 +415,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
 
@@ -439,7 +439,7 @@ describe('BiometricService', () => {
       // Fail 3 times
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
       for (let i = 0; i < 3; i++) {
@@ -762,7 +762,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
     });
@@ -827,7 +827,7 @@ describe('BiometricService', () => {
     });
 
     const errorCases: Array<[string, string, string]> = [
-      ['locked_out', 'locked_out', 'Too many attempts'],
+      ['lockout', 'locked_out', 'Too many attempts'],
       ['user_cancel', 'user_cancelled', 'Authentication was cancelled'],
       ['system_cancel', 'system_cancelled', 'Authentication was cancelled'],
       ['passcode_not_set', 'passcode_not_set', 'Device passcode is not set'],
@@ -840,7 +840,7 @@ describe('BiometricService', () => {
       async (code, expectedAttemptError, expectedMessagePart) => {
         jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
           success: false,
-          error: { code, message: 'raw' },
+          error: code,
           warning: undefined,
         });
 
@@ -915,7 +915,7 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: false,
-        error: { code: 'authentication_failed', message: 'Failed' },
+        error: 'authentication_failed',
         warning: undefined,
       });
     });
