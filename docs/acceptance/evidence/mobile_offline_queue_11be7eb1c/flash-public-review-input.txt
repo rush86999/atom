@@ -1,0 +1,341 @@
+Public-source engineering review only. All tools denied. Return JSON {findings:[{severity,problem,fix}],scope}. At most5 concrete findings, max500 words; no rewrite or speculative platform list. Review this newly repaired existing queue writer for deadlocks, lost writes, stale dispatch, or false success. State/update metadata and existing storage booleans are in scope; native multi-process/active-account lifecycle are explicitly NOT qualified and not solved in this slice. Semantics: unresolved pending/failed intent cannot be silently dropped, duplicate writers serialize in one JS runtime, a deleted snapshot may not dispatch. Controlled739consumer tests currently pass; do not treat that as proof. No new datastore/queue engine. Snippets:
+  async queueAction(
+    type: OfflineActionType,
+    payload: any,
+    priorityLevel: SyncPriority = 'normal',
+    userId: string,
+    deviceId: string,
+    conflictResolution: ConflictResolution = 'last_write_wins',
+    entityType?: EntityType,
+    entityId?: string
+  ): Promise<string> {
+    const priority = PRIORITY_LEVELS[priorityLevel];
+    const sizeBytes = this.calculateActionSize(payload);
+
+    const action: OfflineAction = {
+      id: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      payload,
+      priority,
+      priorityLevel,
+      status: 'pending',
+      createdAt: new Date(),
+      syncAttempts: 0,
+      conflictResolution,
+      userId,
+      deviceId,
+      entityType,
+      entityId,
+      sizeBytes,
+      deltaHash: DELTA_SYNC_ENABLED ? this.generateDeltaHash(payload) : undefined,
+    };
+
+    try {
+      return await this.withQueueMutation(async () => {
+        // Check storage quota before adding
+        const quotaOk = await this.checkStorageQuota(sizeBytes);
+        if (!quotaOk) {
+          throw new Error('Offline storage quota reached. Resolve or explicitly remove queued work before adding more.');
+        }
+
+        // Get existing queue
+        const queue = await this.getQueue();
+
+        // Add new action (sorted by priority, then by creation time)
+        queue.push(action);
+        queue.sort((a, b) => {
+          if (a.priority !== b.priority) {
+            return b.priority - a.priority; // Higher priority first
+          }
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        });
+
+        // Save queue
+        await this.saveQueue(queue);
+
+        // Update sync state
+        await this.updateSyncState({
+          pendingCount: queue.filter((a) => a.status === 'pending').length,
+        });
+
+        // Update storage quota
+        await this.updateStorageQuota(action.entityType, sizeBytes);
+
+        console.log(`OfflineSync: Queued action ${action.id} (type: ${type}, priority: ${priorityLevel})`);
+
+        // If online, trigger immediate sync for high-priority actions
+        if (this.isOnline && priority >= 7) {
+          this.triggerSync();
+        }
+
+        return action.id;
+      });
+    } catch (error) {
+      console.error('OfflineSync: Failed to queue action:', error);
+      throw error;
+    }
+  }
+
+
+  async getPendingActions(): Promise<OfflineAction[]> {
+    return (await this.getQueue()).filter((a) => a.status === 'pending' || a.status === 'failed');
+  }
+
+  async retryActions(ids: readonly string[]): Promise<number> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const selected = queue.filter((a) => ids.includes(a.id));
+      if (selected.some((a) => a.status === 'syncing')) throw new Error('An action is already being synchronized.');
+      const retryable = selected.filter((a) => a.status === 'pending' || a.status === 'failed');
+      if (!retryable.length) return 0;
+      for (const action of retryable) {
+        action.syncAttempts = 0;
+        action.status = 'pending';
+        delete action.lastSyncError;
+      }
+      await this.saveQueue(queue);
+      await this.updateSyncState({ pendingCount: queue.filter((a) => a.status === 'pending').length });
+      return retryable.length;
+    });
+  }
+
+  async prioritizeAction(id: string): Promise<boolean> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const action = queue.find((a) => a.id === id);
+      if (!action || action.status === 'completed') return false;
+      if (action.status === 'syncing') throw new Error('An action is already being synchronized.');
+      action.priority = Math.min(action.priority + 2, 10);
+      action.priorityLevel = action.priority >= 10 ? 'critical' : action.priority >= 7 ? 'high' : action.priority >= 5 ? 'normal' : 'low';
+      queue.sort((a, b) => b.priority - a.priority || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      await this.saveQueue(queue);
+      return true;
+    });
+  }
+
+  async removeActions(ids: readonly string[]): Promise<number> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      if (queue.some((a) => ids.includes(a.id) && a.status === 'syncing')) throw new Error('An in-flight action cannot be represented as stopped.');
+      const remaining = queue.filter((a) => !ids.includes(a.id));
+      if (remaining.length === queue.length) return 0;
+      await this.saveQueue(remaining);
+      await this.updateSyncState({ pendingCount: remaining.filter((a) => a.status === 'pending').length });
+      return queue.length - remaining.length;
+    });
+  }
+
+  /**
+   * Clear all offline actions
+   */
+  async clearQueue(): Promise<void> {
+    return this.withQueueMutation(async () => {
+      if ((await this.getQueue()).some((a) => a.status === 'syncing')) throw new Error('In-flight actions cannot be represented as stopped.');
+      if (!(await mmkvStorage.delete('offline_queue' as StorageKey))) {
+        throw new Error('Offline queue deletion was not confirmed.');
+      }
+      await this.updateSyncState({ pendingCount: 0 });
+    });
+  }
+
+  // Private helper methods
+
+  /** Serialize participating queue writes in this JS runtime; not a native/process lock. */
+  private withQueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.queueMutationTail.then(operation);
+    // Both outcomes release the next writer; a rejected write never poisons the tail.
+    this.queueMutationTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private async getQueue(): Promise<OfflineAction[]> {
+    const queueData = await mmkvStorage.getString('offline_queue' as StorageKey);
+    if (!queueData) return [];
+
+    try {
+      const parsed = JSON.parse(queueData);
+      // Convert date strings back to Date objects
+      return parsed.map((action: any) => ({
+        ...action,
+        createdAt: new Date(action.createdAt),
+      }));
+    } catch (error) {
+      console.error('OfflineSync: Queue parsing failed; original bytes retained.');
+      // Keep the original bytes for recovery. A parse error is not an empty queue.
+      throw new Error('Offline queue data is unreadable; original data has been retained.');
+    }
+  }
+
+  private async saveQueue(queue: OfflineAction[]): Promise<void> {
+    if (!(await mmkvStorage.setString('offline_queue' as StorageKey, JSON.stringify(queue)))) {
+      throw new Error('Offline queue write was not confirmed.');
+    }
+  }
+
+  private async claimAction(expected: OfflineAction): Promise<boolean> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const current = queue.find((a) => a.id === expected.id);
+      if (!current || current.status !== 'pending') return false;
+      const material = (a: OfflineAction) => JSON.stringify([a.type, a.payload, a.userId, a.deviceId, a.entityType, a.entityId, a.conflictResolution, a.deltaHash]);
+      if (material(current) !== material(expected)) return false;
+      current.status = 'syncing';
+      await this.saveQueue(queue);
+      return true;
+    });
+  }
+
+  private async updateActionStatus(id: string, status: OfflineActionStatus): Promise<void> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const action = queue.find((a) => a.id === id);
+
+      if (action) {
+        action.status = status;
+        await this.saveQueue(queue);
+      }
+    });
+  }
+
+  private async incrementSyncAttempts(id: string): Promise<void> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const action = queue.find((a) => a.id === id);
+
+      if (action) {
+        action.syncAttempts += 1;
+        await this.saveQueue(queue);
+      }
+    });
+  }
+
+  private async removeActionFromQueue(id: string): Promise<void> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      await this.saveQueue(queue.filter((a) => a.id !== id));
+    });
+  }
+
+  private async removeCompletedActions(): Promise<void> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const filtered = queue.filter((a) => a.status !== 'completed');
+      await this.saveQueue(filtered);
+    });
+  }
+
+
+  private async syncAction(action: OfflineAction): Promise<{ success: boolean; conflict?: boolean; skipped?: boolean }> {
+    let admitted = false;
+    try {
+      // Apply exponential backoff for retries
+      if (action.syncAttempts > 0) {
+        const delay = Math.min(
+          BASE_RETRY_DELAY * Math.pow(2, action.syncAttempts),
+          MAX_RETRY_DELAY
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      // Check if max attempts reached
+      if (action.syncAttempts >= MAX_SYNC_ATTEMPTS) {
+        console.error(`OfflineSync: Max sync attempts reached for action ${action.id}`);
+        return { success: false };
+      }
+
+      admitted = await this.claimAction(action);
+      if (!admitted) return { success: false, skipped: true };
+
+      switch (action.type) {
+        case 'agent_message':
+          return await this.syncAgentMessage(action);
+        case 'workflow_trigger':
+          return await this.syncWorkflowTrigger(action);
+        case 'form_submit':
+          return await this.syncFormSubmit(action);
+        case 'feedback':
+          return await this.syncFeedback(action);
+        case 'canvas_update':
+          return await this.syncCanvasUpdate(action);
+        case 'agent_sync':
+          return await this.syncAgentEntity(action);
+        case 'workflow_sync':
+          return await this.syncWorkflowEntity(action);
+        case 'canvas_sync':
+          return await this.syncCanvasEntity(action);
+        case 'episode_sync':
+          return await this.syncEpisodeEntity(action);
+        default:
+          console.warn(`OfflineSync: Unknown action type: ${action.type}`);
+          return { success: false };
+      }
+    } catch (error) {
+      console.error(`OfflineSync: Failed to sync action ${action.id}:`, error);
+      return { success: false, skipped: !admitted };
+    }
+  }
+
+
+  private async updateSyncState(updates: Partial<SyncState>): Promise<void> {
+    const currentState = await this.getSyncState();
+    const newState = { ...currentState, ...updates };
+    await mmkvStorage.setObject('sync_state' as StorageKey, newState);
+  }
+
+
+  private async updateStorageQuota(entityType: EntityType | undefined, bytes: number): Promise<void> {
+    if (entityType && this.storageQuota.breakdown[entityType] !== undefined) {
+      this.storageQuota.breakdown[entityType] += bytes;
+    } else {
+      this.storageQuota.breakdown.other += bytes;
+    }
+    this.storageQuota.usedBytes += bytes;
+
+    await mmkvStorage.setObject('storage_quota' as StorageKey, this.storageQuota);
+  }
+
+
+  private async cleanupOldEntries(requiredBytes: number = 0): Promise<void> {
+    return this.withQueueMutation(async () => {
+      console.log('OfflineSync: Cleaning up old entries');
+
+      const queue = await this.getQueue();
+
+      // Sort by creation time (oldest first)
+      const sorted = [...queue].sort((a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+
+      let freedBytes = 0;
+      const toRemove: string[] = [];
+
+      for (const action of sorted) {
+        // Only terminal completed entries are disposable, regardless of priority.
+        if (action.status !== 'completed') continue;
+
+        // Remove until we have enough space
+        toRemove.push(action.id);
+        freedBytes += action.sizeBytes || 0;
+
+        if (freedBytes >= requiredBytes) break;
+      }
+
+      if (toRemove.length > 0) {
+        const filtered = queue.filter(a => !toRemove.includes(a.id));
+        await this.saveQueue(filtered);
+
+        // Update storage quota
+        for (const action of sorted.filter(a => toRemove.includes(a.id))) {
+          if (action.entityType && this.storageQuota.breakdown[action.entityType] !== undefined) {
+            this.storageQuota.breakdown[action.entityType] -= action.sizeBytes || 0;
+          }
+          this.storageQuota.usedBytes -= action.sizeBytes || 0;
+        }
+
+        await mmkvStorage.setObject('storage_quota' as StorageKey, this.storageQuota);
+
+        console.log(`OfflineSync: Cleaned up ${toRemove.length} entries, freed ${freedBytes} bytes`);
+      }
+    });
+  }
+

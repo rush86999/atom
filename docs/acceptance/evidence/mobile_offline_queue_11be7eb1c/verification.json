@@ -1,0 +1,26 @@
+{
+  "source": "11be7eb1c45e4fd174317dbca07a9bfd1447f054",
+  "positive": {
+    "selected_files": 17,
+    "cases": 743,
+    "passed": 743,
+    "skipped": 0
+  },
+  "positive_captured_source_hashes_match_frozen_commit": true,
+  "negative_source_files_all_bound": true,
+  "source_reconstruction_is_explicit": true,
+  "compiler": {
+    "actual_exit": 2,
+    "diagnostics": 409,
+    "full_mobile_build_qualified": false
+  },
+  "excluded": "offline-cache-and-claim-negative claim subcase faulted sync_state rather than offline_queue; corrected key-targeted control is retained",
+  "scope": "controlled single-JS-runtime queue/storage/UI consumer, fake clock and doubled backend; not native physical persistence or real elapsed fourteen-day soak",
+  "remaining": [
+    "safe runtime initialization/current authenticated session binding",
+    "restart/interrupted syncing claims and uncertain backend effect reconciliation",
+    "native encrypted storage migration, actual device/network behavior",
+    "JSON-valid malformed queue schema qualification",
+    "whole mobile compiler/build and camera/result navigation"
+  ]
+}

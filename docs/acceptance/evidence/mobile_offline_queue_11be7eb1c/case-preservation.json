@@ -1,0 +1,12 @@
+{
+  "mobile/src/__tests__/services/offlineSyncService.test.ts": {
+    "cases_retained_with_explicit_policy_corrections": 74,
+    "old_expect_calls": 166,
+    "new_expect_calls": 167
+  },
+  "mobile/src/components/__tests__/PendingActionsList.test.tsx": {
+    "cases_retained_with_explicit_policy_corrections": 56,
+    "old_expect_calls": 97,
+    "new_expect_calls": 97
+  }
+}

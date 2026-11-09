@@ -1,0 +1,33 @@
+{
+  "worker_actual_exit": 0,
+  "configured_route": "opencode-go/deepseek-v4.1-flash",
+  "tool_use": "denied; public snippets only",
+  "findings": [
+    {
+      "index": 0,
+      "verdict": "not reproduced / incorrect call graph",
+      "reason": "quota admission throws instead of calling cleanup; checkStorageQuota has no nested mutation acquisition"
+    },
+    {
+      "index": 1,
+      "verdict": "reproduced metadata false-failure boundary; repaired",
+      "evidence": "four additional projection/quota controls; canonical queue confirmation is preserved across metadata failure",
+      "remaining": "native uncertain write/replay and active-session qualification not established"
+    },
+    {
+      "index": 2,
+      "verdict": "ordinary path refuted by caller trace; interruption boundary open",
+      "reason": "outer triggerSync handles non-success by retaining pending or failed; interrupted syncing recovery remains separate"
+    },
+    {
+      "index": 3,
+      "verdict": "reproduced / repaired",
+      "reason": "quota rebuilt from current serialized queue and no longer leaks removals/clear; projection separated from global storage quota"
+    },
+    {
+      "index": 4,
+      "verdict": "rejected product semantics",
+      "reason": "failed exhaustion intentionally requires explicit owner retry; it is retained and visible, not automatically redispatched"
+    }
+  ]
+}

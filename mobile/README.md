@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `7441ef81d`; later changes
+reference describes the checked-in companion at source `11be7eb1c`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -48,11 +48,12 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Camera and gallery | Installed SDK ownership, permission calls, single barcode callback plus existing batch-service compatibility, gallery-selection fields, permission and awaited gallery-write refusal/success paths; exact video completion joins and mounted-settings validation; 124 selected cases at `d1f51887b`. | Native capture/preview, actual gallery writes and recording guarantees; camera/result navigation and video UI controls; automatic document edge detection is a placeholder. |
 | Notification acquisition | Current permission and exact optional user/device cache binding; 169 selected notification/context cases at `70030548e`. | Confirmed backend registration, delivery and actual OS/device behavior. Acquiring an SDK token is not a durable backend registration receipt. |
 | Forms and chat | Focused controls for numeric/length validation, installed picker APIs and swipe actions are being retained during repair. | Complete compiler/build, integrated mobile journeys, native access and end-to-end task completion. |
-| Storage and offline work | Installed MMKV4 wrapper exports/getters and failure behavior; 724 selected cross-consumer controls at `7441ef81d`. Existing storage/queue implementations remain the consumer surfaces. | Native MMKV compatibility and encrypted/key migration; durable retry/prioritization, concurrent additions and retained failed/unsent work. Existing stateful UI mocks do not prove those queue behaviors. |
+| Storage and offline work | Installed MMKV4 wrapper; serialized existing queue writes, retained failed/unsent work, persisted UI retry/priority/delete and truthful incomplete outcomes; 743 selected controls at `11be7eb1c`. Fourteen-day retention is simulated time. | Native MMKV/encrypted migration, current-session binding, safe automatic startup, interrupted/uncertain effects and real elapsed soak. Controlled storage/UI tests do not establish those behaviors. |
 
 Source-bound packets:
 
 - [Camera/gallery SDK controls](../docs/acceptance/evidence/mobile_camera_sdk_8ef724ee0/README.md)
+- [Offline queue preservation controls](../docs/acceptance/evidence/mobile_offline_queue_11be7eb1c/README.md)
 - [Storage SDK controls](../docs/acceptance/evidence/mobile_storage_sdk_7441ef81d/README.md)
 - [Video completion controls](../docs/acceptance/evidence/mobile_video_completion_d1f51887b/README.md)
 - [Notification cache subject controls](../docs/acceptance/evidence/mobile_notification_subject_70030548e/README.md)

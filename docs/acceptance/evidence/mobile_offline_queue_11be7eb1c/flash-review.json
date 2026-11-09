@@ -1,0 +1,30 @@
+{
+  "findings": [
+    {
+      "severity": "high",
+      "problem": "`withQueueMutation` is a non-reentrant promise chain, but `queueAction` holds it while awaiting `checkStorageQuota`, and `cleanupOldEntries` is itself wrapped by the same chain. If quota enforcement reaches cleanup (the only cleanup path shown), the outer result awaits cleanup, which awaits the same tail, so the writer hangs and every later queue mutation queues behind it.",
+      "fix": "Make the mutation lock reentrant or ownership-scoped, or move quota cleanup outside the held section and re-check quota afterward; detect and reject nested acquisition rather than self-waiting."
+    },
+    {
+      "severity": "high",
+      "problem": "`queueAction` commits `offline_queue`, then writes `sync_state` and `storage_quota`; the latter writes ignore `setObject` boolean results. If metadata persistence fails or throws, the action is durable while the caller sees failure, so consumer retry enqueues a duplicate. `updateStorageQuota` also mutates in-memory state before durability.",
+      "fix": "Verify every `setObject` result, derive `pendingCount` and quota from the persisted queue after saving, or commit queue plus metadata in one durable record. Treat the queue save as the success boundary or roll it back, and add a caller idempotency key."
+    },
+    {
+      "severity": "high",
+      "problem": "After `claimAction` sets `syncing`, the unknown-type/default branch and any throw from a `sync*` method return without restoring status; there is no finally. The action remains `syncing` forever, and `retryActions`, `prioritizeAction`, `removeActions`, and `clearQueue` all reject it, so the intent can never dispatch or be removed. `claimAction` also leaves `pendingCount` stale.",
+      "fix": "Centralize status transitions: for admitted actions, persist `failed` or `pending` plus `lastSyncError` in a finally/compensation path and recompute `pendingCount`. Use a claim lease or timeout to recover interrupted claims."
+    },
+    {
+      "severity": "medium",
+      "problem": "`removeActions`, `removeCompletedActions`, and `clearQueue` do not reconcile `storageQuota`. `clearQueue` deletes `offline_queue` and zeroes `pendingCount` but leaves `usedBytes` and `breakdown` intact, so quota checks can reject new work against an empty queue; removals leak quota.",
+      "fix": "Recompute quota from the remaining queue inside the same mutation, and reset `usedBytes` plus `breakdown` on clear; persist and verify the result."
+    },
+    {
+      "severity": "medium",
+      "problem": "`getPendingActions` returns both `pending` and `failed`, but `claimAction` only admits `pending`. Automatic dispatch of a failed action therefore returns `{skipped: true}` indefinitely; unless every caller treats skipped as requiring manual retry, failed intent is silently stranded.",
+      "fix": "Atomically claim failed actions by resetting attempts under the mutation, or exclude failed actions from auto-dispatch and explicitly report them as retryable. Do not report skipped for an action that is eligible for automatic retry."
+    }
+  ],
+  "scope": "Reviewed only the supplied queue writer and helpers: queueAction, getPendingActions, retryActions, prioritizeAction, removeActions, clearQueue, withQueueMutation, claimAction, status/attempt helpers, syncAction, updateSyncState, updateStorageQuota, and cleanupOldEntries. State and update metadata plus existing storage booleans are in scope. Native multi-process and active-account lifecycle are excluded and unqualified."
+}
