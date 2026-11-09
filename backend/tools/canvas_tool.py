@@ -14,6 +14,7 @@ Refactored to use standardized decorators and service factory.
 """
 
 import hashlib
+import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import uuid
@@ -516,6 +517,94 @@ async def present_markdown(
         return {"success": False, "error": str(e)}
 
 
+def _form_operation_ids(actor_id: str, operation_id: str):
+    """Deterministic, collision-safe Canvas/audit ids for one operation.
+
+    The tuple is JSON-encoded so opaque identifiers cannot run together and
+    collide. Actor scope is part of the key: the same actor + exact operation
+    replays one surface, while a different actor is a different operation.
+    """
+    def _uuid(kind: str) -> str:
+        name = json.dumps(
+            [
+                "atom:canvas:present_form",
+                str(kind),
+                str(actor_id),
+                str(operation_id),
+            ],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, name))
+
+    return _uuid("canvas"), _uuid("audit")
+
+
+def _form_replay_conflict(
+    canvas,
+    audit,
+    *,
+    actor_id: str,
+    tenant_id: Any,
+    workspace_id: Any,
+    title: Any,
+    material,  # type: ignore[no-untyped-def]
+    material_digest: str,
+    agent_id: Optional[str],
+    session_id: Optional[str],
+    operation_id: str,
+) -> Optional[str]:
+    """Return why an existing actor/operation surface is not this replay."""
+    if canvas is None or audit is None:
+        return "form operation identity is incomplete"
+
+    details = audit.details_json or {}
+    if isinstance(details, str):
+        try:
+            details = json.loads(details)
+        except (TypeError, ValueError):
+            details = {}
+    if not isinstance(details, dict):
+        details = {}
+
+    stored_agent = str(audit.agent_id or "").strip()
+    expected_agent = str(agent_id or "").strip()
+    stored_session = "" if audit.session_id is None else str(audit.session_id)
+    expected_session = "" if session_id is None else str(session_id)
+    stored_material = details.get("material")
+    stored_material_digest = (
+        material_sha256(stored_material)
+        if isinstance(stored_material, dict) else "")
+
+    if (str(audit.action_type or "") != "present"
+            or str(canvas.canvas_type or "").lower() != "form"
+            or str(audit.canvas_type or "").lower() != "form"):
+        return "operation already names a different canvas action"
+    if str(audit.canvas_id or "") != str(canvas.id):
+        return "audit is bound to a different canvas"
+    if (str(audit.user_id or "") != actor_id
+            or str(canvas.created_by or "") != actor_id):
+        return "operation already belongs to a different actor"
+    if (canvas.tenant_id != tenant_id or audit.tenant_id != tenant_id
+            or details.get("tenant_id") != tenant_id
+            or canvas.workspace_id != workspace_id
+            or details.get("workspace_id") != workspace_id):
+        return "operation already belongs to a different scope"
+    if str(details.get("operation_id") or "") != operation_id:
+        return "audit carries a different operation identity"
+    if (str(canvas.name or "") != str(title or "")
+            or details.get("title") != title):
+        return "operation already names a different title"
+    if (not stored_material_digest
+            or stored_material_digest != str(material_digest)):
+        return "operation already names different material"
+    if stored_agent != expected_agent:
+        return "operation already names a different agent"
+    if stored_session != expected_session:
+        return "operation already belongs to a different session"
+    return None
+
+
 async def present_form(
     user_id: str,
     form_schema: Dict[str, Any],
@@ -554,10 +643,14 @@ async def present_form(
     governance_check = None
     commit_attempted = False
     committed = False
+    already_applied = False
+    replayed_execution_id = None
 
     schema = form_schema if form_schema is not None else {}
+    display_title = title if title is not None else "Untitled form"
     material = presentation_material(
-        "canvas.present_form", {"form_schema": schema})
+        "canvas.present_form",
+        {"form_schema": schema, "title": display_title})
     if material is None:
         return {"success": False, "error": "form_schema is required"}
 
@@ -566,7 +659,6 @@ async def present_form(
     resolved_operation_id = (
         str(operation_id).strip() if operation_id is not None else ""
     ) or f"canvas-present-form:{uuid.uuid4().hex}"
-    display_title = title if title is not None else "Untitled form"
     material_digest = material_sha256(material)
 
     try:
@@ -592,19 +684,37 @@ async def present_form(
                     "error": "Acting user has no tenant scope",
                 }
 
+            canvas_id, audit_id = _form_operation_ids(actor_id, resolved_operation_id)
+            existing_canvas = db.get(Canvas, canvas_id)
+            existing_audit = db.get(CanvasAudit, audit_id)
+            if existing_canvas is not None or existing_audit is not None:
+                conflict = _form_replay_conflict(
+                    existing_canvas, existing_audit, actor_id=actor_id,
+                    tenant_id=actor_tenant_id, workspace_id=actor_workspace_id,
+                    title=display_title, material=material,
+                    material_digest=material_digest, agent_id=agent_id,
+                    session_id=session_id, operation_id=resolved_operation_id)
+                if conflict:
+                    return {"success": False, "status": "conflict", "error": conflict,
+                            "canvas_id": canvas_id, "audit_id": audit_id,
+                            "operation_id": resolved_operation_id,
+                            "verification": {"status": "refused", "effect": "none"}}
+                already_applied = True
+                replayed_execution_id = (existing_audit.details_json or {}).get("agent_execution_id")
+            if agent_id:
+                bound = resolve_submit_agent(db, actor, agent_id, None, canvas_id=canvas_id)
+                if not bound.get("ok"):
+                    db.rollback()
+                    return {"success": False, "error": "Form agent scope could not be authorized"}
+                agent = bound["agent"]
+
             # Governance: resolve the agent and check permissions. A policy
             # that requires human approval is NOT waived by a presentation.
-            if FeatureFlags.should_enforce_governance('canvas'):
-                resolver = AgentContextResolver(db)
+            if agent and FeatureFlags.should_enforce_governance('canvas'):
                 from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(
                     db, workspace_id=actor_workspace_id, tenant_id=actor_tenant_id)
 
-                agent, _ = await resolver.resolve_agent_for_request(
-                    user_id=user_id,
-                    requested_agent_id=agent_id,
-                    action_type="present_form"
-                )
 
                 if agent:
                     bound = resolve_submit_agent(db, actor, agent.id, None, canvas_id=canvas_id)
@@ -633,70 +743,72 @@ async def present_form(
                                 f"{governance_check.get('reason')}"),
                         }
 
-                    agent_execution = AgentExecution(
-                        agent_id=agent.id,
-                        tenant_id=actor_tenant_id,
-                        workspace_id=actor_workspace_id,
-                        status="running",
-                        input_summary=(
-                            f"Present form: {display_title}"),
-                        triggered_by="canvas"
-                    )
-                    db.add(agent_execution)
-                    db.flush()
+                    if not already_applied:
+                        agent_execution = AgentExecution(
+                            agent_id=agent.id,
+                            tenant_id=actor_tenant_id,
+                            workspace_id=actor_workspace_id,
+                            status="running",
+                            input_summary=(
+                                f"Present form: {display_title}"),
+                            triggered_by="canvas"
+                        )
+                        db.add(agent_execution)
+                        db.flush()
 
-            db.add(Canvas(
-                id=canvas_id,
-                tenant_id=actor_tenant_id,
-                workspace_id=actor_workspace_id,
-                created_by=actor_id,
-                name=str(display_title),
-                canvas_type="form",
-                content={"schema": schema, "title": display_title},
-                status="active",
-                last_edited_by=actor_id,
-            ))
-            db.add(CanvasAudit(
-                id=audit_id,
-                canvas_id=canvas_id,
-                tenant_id=actor_tenant_id,
-                session_id=session_id,
-                action_type="present",
-                canvas_type="form",
-                user_id=actor_id,
-                agent_id=agent.id if agent else None,
-                details_json={
-                    "canvas_type": "form",
-                    "component_type": "form",
-                    "component_name": None,
-                    "agent_execution_id": (
-                        agent_execution.id if agent_execution else None),
-                    "governance_check_passed": (
-                        governance_check.get("allowed")
-                        if isinstance(governance_check, dict) else None),
-                    "title": display_title,
-                    "field_count": (
-                        len(schema.get("fields", []))
-                        if isinstance(schema, dict) else 0),
-                    "schema": schema,
-                    "form_schema": schema,
-                    "material": material,
-                    "material_sha256": material_digest,
-                    "operation_id": resolved_operation_id,
-                    "workspace_id": actor_workspace_id,
-                    "tenant_id": actor_tenant_id,
-                    "session_id": session_id,
-                    "actor_id": actor_id,
-                },
-            ))
+            if not already_applied:
+                db.add(Canvas(
+                    id=canvas_id,
+                    tenant_id=actor_tenant_id,
+                    workspace_id=actor_workspace_id,
+                    created_by=actor_id,
+                    name=str(display_title),
+                    canvas_type="form",
+                    content={"schema": schema, "title": display_title},
+                    status="active",
+                    last_edited_by=actor_id,
+                ))
+                db.add(CanvasAudit(
+                    id=audit_id,
+                    canvas_id=canvas_id,
+                    tenant_id=actor_tenant_id,
+                    session_id=session_id,
+                    action_type="present",
+                    canvas_type="form",
+                    user_id=actor_id,
+                    agent_id=agent.id if agent else None,
+                    details_json={
+                        "canvas_type": "form",
+                        "component_type": "form",
+                        "component_name": None,
+                        "agent_execution_id": (
+                            agent_execution.id if agent_execution else None),
+                        "governance_check_passed": (
+                            governance_check.get("allowed")
+                            if isinstance(governance_check, dict) else None),
+                        "title": display_title,
+                        "field_count": (
+                            len(schema.get("fields", []))
+                            if isinstance(schema, dict) else 0),
+                        "schema": schema,
+                        "form_schema": schema,
+                        "material": material,
+                        "material_sha256": material_digest,
+                        "operation_id": resolved_operation_id,
+                        "workspace_id": actor_workspace_id,
+                        "tenant_id": actor_tenant_id,
+                        "session_id": session_id,
+                        "actor_id": actor_id,
+                    },
+                ))
 
-            if agent_execution:
-                agent_execution.status = "completed"
-                agent_execution.output_summary = (
-                    f"Presented form with "
-                    f"{len(schema.get('fields', []))} fields"
-                    if isinstance(schema, dict) else "Presented form")
-                agent_execution.completed_at = datetime.now()
+                if agent_execution:
+                    agent_execution.status = "completed"
+                    agent_execution.output_summary = (
+                        f"Presented form with "
+                        f"{len(schema.get('fields', []))} fields"
+                        if isinstance(schema, dict) else "Presented form")
+                    agent_execution.completed_at = datetime.now()
 
             # The actor claim is the transaction's linearization point: a
             # move/deactivation committed before this point refuses the form.
@@ -719,11 +831,12 @@ async def present_form(
                     if not bound.get("ok"):
                         db.rollback()
                         return {"success": False, "error": "Form agent authority changed"}
-                    check = governance.can_perform_action(agent_id=agent.id, action_type="present_form")
-                    if (not isinstance(check, dict) or check.get("allowed") is not True
-                            or check.get("requires_human_approval") is not False):
-                        db.rollback()
-                        return {"success": False, "error": "Form presentation requires an authorized review"}
+                    if FeatureFlags.should_enforce_governance('canvas'):
+                        check = governance.can_perform_action(agent_id=agent.id, action_type="present_form")
+                        if (not isinstance(check, dict) or check.get("allowed") is not True
+                                or check.get("requires_human_approval") is not False):
+                            db.rollback()
+                            return {"success": False, "error": "Form presentation requires an authorized review"}
 
             # Commit explicitly so a failed/unknown commit is observed here
             # (and never mistaken for a durable surface).
@@ -774,31 +887,33 @@ async def present_form(
                     "could not be verified"),
             }
 
-        # Broadcast only AFTER the durable surface is verified.
-        user_channels = _user_broadcast_channels(user_id, session_id)
+        if not already_applied:
+            # Broadcast only AFTER the durable surface is verified.
+            user_channels = _user_broadcast_channels(user_id, session_id)
 
-        for _user_channel in user_channels:
-            await ws_manager.broadcast(
-                _user_channel,
-            {
-                "type": "canvas:update",
-                "data": {
-                    "action": "present",
-                    "component": "form",
-                    "canvas_id": canvas_id,
-                    "session_id": session_id,
-                    "data": {"schema": form_schema, "title": title}
+            for _user_channel in user_channels:
+                await ws_manager.broadcast(
+                    _user_channel,
+                {
+                    "type": "canvas:update",
+                    "data": {
+                        "action": "present",
+                        "component": "form",
+                        "canvas_id": canvas_id,
+                        "session_id": session_id,
+                        "data": {"schema": form_schema, "title": title}
+                    }
                 }
-            }
-        )
+            )
 
         logger.info(f"Presented form to user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
         return {
             "success": True,
+            "already_applied": already_applied,
             "canvas_id": canvas_id,
             "audit_id": audit_id,
             "operation_id": resolved_operation_id,
-            "agent_execution_id": agent_execution.id if agent_execution else None,
+            "agent_execution_id": agent_execution.id if agent_execution else replayed_execution_id,
             "agent_id": agent.id if agent else None,
             "verification": {
                 "status": "verified",

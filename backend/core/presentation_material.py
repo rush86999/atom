@@ -101,9 +101,13 @@ def presentation_material(action: str, args: Dict[str, Any]) -> Dict[str, Any]:
         schema = normalize_form_schema(args)
         if schema is None:
             return None
+        # A form's title is part of its canonical identity: reusing an
+        # operation id with a different title is a changed presentation, not
+        # a replay. Chart/markdown material is deliberately unchanged.
         return {
             "kind": "form",
             "schema": schema,
+            "title": args.get("title"),
         }
     raise ValueError(f"unsupported presentation action {action!r}")
 
@@ -129,8 +133,9 @@ def chart_digest(
     })
 
 
-def form_digest(schema: Any) -> str:
-    return material_sha256({"kind": "form", "schema": schema})
+def form_digest(schema: Any, title: Any = None) -> str:
+    return material_sha256(
+        {"kind": "form", "schema": schema, "title": title})
 
 
 def presentation_digest(kind: str, material: Dict[str, Any]) -> str:
@@ -141,7 +146,7 @@ def presentation_digest(kind: str, material: Dict[str, Any]) -> str:
             material.get("chart_type"), material.get("data"),
             material.get("config") or {})
     if kind == "form":
-        return form_digest(material.get("schema"))
+        return form_digest(material.get("schema"), material.get("title"))
     raise ValueError(f"unsupported presentation kind {kind!r}")
 
 
