@@ -545,18 +545,15 @@ class CanvasSyncService {
             return false;
           }
 
+          if (this.cache.pendingFormSubmissions.length >= MAX_PENDING_SUBMISSIONS) {
+            console.warn('CanvasSync: Pending queue is full; existing intent retained');
+            return false;
+          }
           const pendingFormSubmissions = [...this.cache.pendingFormSubmissions, submission];
-
-          // Limit pending submissions
-          const limitedSubmissions = pendingFormSubmissions.length > MAX_PENDING_SUBMISSIONS
-            ? pendingFormSubmissions
-              .sort((a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime())
-              .slice(-MAX_PENDING_SUBMISSIONS)
-            : pendingFormSubmissions;
 
           const nextCache: CanvasCache = {
             ...this.cache,
-            pendingFormSubmissions: limitedSubmissions,
+            pendingFormSubmissions,
           };
           await this.saveCache(nextCache);
           this.cache = nextCache;

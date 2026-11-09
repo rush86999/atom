@@ -604,7 +604,7 @@ describe('workflowSyncService', () => {
   // ========================================================================
 
   describe('Offline Trigger Queue Limits', () => {
-    it('should cap pending triggers at 100 keeping highest priorities', async () => {
+    it('should refuse overflow while retaining queued intent and priority order', async () => {
       mockOfflineSyncService.getSyncState.mockResolvedValue({
         syncInProgress: true,
         lastSyncAt: null,
@@ -613,12 +613,16 @@ describe('workflowSyncService', () => {
       });
       (workflowSyncService as any).cache.pendingTriggers = [];
 
+      const results: Array<string | null> = [];
       for (let i = 0; i < 105; i++) {
-        await workflowSyncService.triggerWorkflow('wf-1', { i }, 'u', 'd', i % 10);
+        results.push(await workflowSyncService.triggerWorkflow('wf-1', { i }, 'u', 'd', i % 10));
       }
 
       const triggers = (workflowSyncService as any).cache.pendingTriggers;
       expect(triggers).toHaveLength(100);
+      expect(results.slice(0, 100).every(value => typeof value === 'string')).toBe(true);
+      expect(results.slice(100)).toEqual([null, null, null, null, null]);
+      expect(triggers.map((trigger: { input: { i: number } }) => trigger.input.i).sort((a: number, b: number) => a - b)).toEqual(Array.from({ length: 100 }, (_, i) => i));
       // Sorted by priority (desc) — never out of order
       for (let i = 1; i < triggers.length; i++) {
         expect(triggers[i - 1].priority).toBeGreaterThanOrEqual(triggers[i].priority);

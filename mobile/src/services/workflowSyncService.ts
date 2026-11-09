@@ -21,7 +21,13 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
-import { decodeDate, decodeDetailResponse, decodeListResponse, isRecord } from './syncResponse';
+import {
+  createCacheTransactionQueue,
+  decodeDate,
+  decodeDetailResponse,
+  decodeListResponse,
+  isRecord,
+} from './syncResponse';
 import {
   authorizePendingWriteOwner,
   readPendingWriteOwner,
@@ -312,6 +318,8 @@ class WorkflowSyncService {
     lastExecutionAt: null,
   };
   private flushInFlight: Promise<void> | null = null;
+  private readonly cacheTransaction = createCacheTransactionQueue();
+  private cacheGeneration = 0;
 
   /**
    * Initialize the workflow sync service
@@ -348,6 +356,10 @@ class WorkflowSyncService {
     try {
       console.log('WorkflowSync: Syncing workflows');
 
+      // Capture the cache generation before transport so a response started
+      // before a reset can never repopulate the cleared cache.
+      const generation = this.cacheGeneration;
+
       // Fetch and fully decode workflows before mutating the cache.
       const response = await apiService.get<unknown>('/api/workflows');
       const decoded = decodeListResponse(response, 'workflows', decodeWorkflow);
@@ -365,32 +377,44 @@ class WorkflowSyncService {
 
       const workflows = decoded.items;
 
-      // Process each workflow
-      for (const workflow of workflows) {
-        try {
-          const cached = this.cache.workflows[workflow.id];
-
-          // Check for conflict
-          if (cached && new Date(workflow.updatedAt) < new Date(cached.updatedAt)) {
-            conflicts++;
-            await this.queueConflictResolution(workflow, cached);
-            continue;
-          }
-
-          // Update cache
-          this.cache.workflows[workflow.id] = workflow;
-          synced++;
-        } catch (error) {
-          console.error(`WorkflowSync: Failed to sync workflow ${workflow.id}:`, error);
-          failed++;
+      await this.cacheTransaction(async () => {
+        if (generation !== this.cacheGeneration) {
+          return;
         }
-      }
 
-      // Update cache metadata
-      this.cache.lastSyncAt = new Date();
+        const nextCache: WorkflowCache = {
+          ...this.cache,
+          workflows: { ...this.cache.workflows },
+          executions: { ...this.cache.executions },
+          pendingTriggers: [...this.cache.pendingTriggers],
+        };
 
-      // Save cache
-      await this.saveCache();
+        // Process each workflow against the cache as it exists inside this
+        // transaction, then persist before publishing the candidate in memory.
+        for (const workflow of workflows) {
+          try {
+            const cached = nextCache.workflows[workflow.id];
+
+            // Check for conflict
+            if (cached && new Date(workflow.updatedAt) < new Date(cached.updatedAt)) {
+              conflicts++;
+              await this.queueConflictResolution(workflow, cached);
+              continue;
+            }
+
+            nextCache.workflows[workflow.id] = workflow;
+            synced++;
+          } catch (error) {
+            console.error(`WorkflowSync: Failed to sync workflow ${workflow.id}:`, error);
+            failed++;
+          }
+        }
+
+        nextCache.lastSyncAt = new Date();
+
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
+      });
 
       const duration = Date.now() - startTime;
       console.log(`WorkflowSync: Sync complete - ${synced} synced, ${failed} failed, ${conflicts} conflicts, ${duration}ms`);
@@ -429,17 +453,27 @@ class WorkflowSyncService {
     }
 
     // Fetch from server
+    const generation = this.cacheGeneration;
     try {
       const response = await apiService.get<unknown>(`/api/workflows/${workflowId}`);
       const decoded = decodeDetailResponse(response, 'workflow', workflowId, decodeWorkflow);
       if (decoded.ok) {
-        const nextCache: WorkflowCache = {
-          ...this.cache,
-          workflows: { ...this.cache.workflows, [workflowId]: decoded.item },
-        };
-        await this.saveCache(nextCache);
-        this.cache = nextCache;
-        return decoded.item;
+        const item = decoded.item;
+        return await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return null;
+          }
+
+          const nextCache: WorkflowCache = {
+            ...this.cache,
+            workflows: { ...this.cache.workflows, [item.id]: item },
+            executions: { ...this.cache.executions },
+            pendingTriggers: [...this.cache.pendingTriggers],
+          };
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+          return item;
+        });
       }
     } catch (error) {
       console.error(`WorkflowSync: Failed to fetch workflow ${workflowId}:`, error);
@@ -467,6 +501,7 @@ class WorkflowSyncService {
     priority: number = 5
   ): Promise<string | null> {
     try {
+      const generation = this.cacheGeneration;
       const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // Capture the canonical owner before creating any queued work. This is a
@@ -500,17 +535,31 @@ class WorkflowSyncService {
           deviceId: local.owner.deviceId,
         };
 
-        this.cache.pendingTriggers.push(trigger);
+        const queued = await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return false;
+          }
 
-        // Limit pending triggers
-        if (this.cache.pendingTriggers.length > MAX_PENDING_TRIGGERS) {
-          // Remove oldest low-priority triggers
-          this.cache.pendingTriggers = this.cache.pendingTriggers
-            .sort((a, b) => b.priority - a.priority || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-            .slice(0, MAX_PENDING_TRIGGERS);
+          // Never evict already-queued user intent to make room. Refuse the
+          // new enqueue instead; existing triggers remain intact.
+          if (this.cache.pendingTriggers.length >= MAX_PENDING_TRIGGERS) {
+            return false;
+          }
+
+          const nextCache: WorkflowCache = {
+            ...this.cache,
+            workflows: { ...this.cache.workflows },
+            executions: { ...this.cache.executions },
+            pendingTriggers: [...this.cache.pendingTriggers, trigger].sort((a, b) => b.priority - a.priority),
+          };
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+          return true;
+        });
+
+        if (!queued) {
+          return null;
         }
-
-        await this.saveCache();
 
         console.log(`WorkflowSync: Queued workflow trigger ${executionId} for offline execution`);
         return executionId;
@@ -551,17 +600,27 @@ class WorkflowSyncService {
     }
 
     // Fetch from server
+    const generation = this.cacheGeneration;
     try {
       const response = await apiService.get<unknown>(`/api/workflows/executions/${executionId}`);
       const decoded = decodeDetailResponse(response, 'execution', executionId, decodeWorkflowExecution);
       if (decoded.ok) {
-        const nextCache: WorkflowCache = {
-          ...this.cache,
-          executions: { ...this.cache.executions, [executionId]: decoded.item },
-        };
-        await this.saveCache(nextCache);
-        this.cache = nextCache;
-        return decoded.item;
+        const item = decoded.item;
+        return await this.cacheTransaction(async () => {
+          if (generation !== this.cacheGeneration) {
+            return null;
+          }
+
+          const nextCache: WorkflowCache = {
+            ...this.cache,
+            workflows: { ...this.cache.workflows },
+            executions: { ...this.cache.executions, [item.id]: item },
+            pendingTriggers: [...this.cache.pendingTriggers],
+          };
+          await this.saveCache(nextCache);
+          this.cache = nextCache;
+          return item;
+        });
       }
     } catch (error) {
       console.error(`WorkflowSync: Failed to fetch execution ${executionId}:`, error);
@@ -626,22 +685,36 @@ class WorkflowSyncService {
       }
 
       // Persist the dispatch boundary before any transport attempt.
-      trigger.deliveryStatus = 'dispatching';
-      try {
-        await this.saveCache();
-      } catch (error) {
-        // No POST occurred, so this in-memory row is still known undispatched.
-        trigger.deliveryStatus = 'pending';
-        throw error;
+      const marked = await this.cacheTransaction(async () => {
+        if (this.cache.pendingTriggers.indexOf(trigger) < 0) {
+          return false;
+        }
+        trigger.deliveryStatus = 'dispatching';
+        try {
+          await this.saveCache();
+        } catch (error) {
+          // No POST occurred, so this in-memory row is still known undispatched.
+          trigger.deliveryStatus = 'pending';
+          throw error;
+        }
+        return true;
+      });
+      if (!marked) {
+        continue;
       }
 
       // A replacement during the marker write means no transport is allowed.
       // No POST occurred, so restoring the known-safe pending state is safe.
       if (!isAccessTokenSnapshotCurrent(session)) {
-        trigger.deliveryStatus = 'pending';
         // A failed restoration remains a failed checkpoint, even though the
         // durable dispatch marker safely prevents automatic replay.
-        await this.saveCache();
+        await this.cacheTransaction(async () => {
+          if (this.cache.pendingTriggers.indexOf(trigger) < 0) {
+            return;
+          }
+          trigger.deliveryStatus = 'pending';
+          await this.saveCache();
+        });
         continue;
       }
 
@@ -660,31 +733,40 @@ class WorkflowSyncService {
       if (!accepted) {
         // The POST may have reached the server. Keep the exact queued input and
         // identifiers, but never automatically repeat an uncertain dispatch.
-        trigger.deliveryStatus = 'effect_unknown';
-        await this.saveCache();
+        await this.cacheTransaction(async () => {
+          if (this.cache.pendingTriggers.indexOf(trigger) < 0) {
+            return;
+          }
+          trigger.deliveryStatus = 'effect_unknown';
+          await this.saveCache();
+        });
         continue;
       }
 
       // Transport acceptance is not business completion. Remove only the exact
       // object that was dispatched; concurrent additions are preserved.
-      const index = this.cache.pendingTriggers.indexOf(trigger);
-      if (index < 0) {
-        continue;
-      }
-      this.cache.pendingTriggers.splice(index, 1);
-
-      try {
-        await this.saveCache();
-      } catch (error) {
-        // The durable row still says dispatching. Keep the uncertainty visible
-        // in memory so this process cannot dispatch it again either.
-        trigger.deliveryStatus = 'effect_unknown';
-        if (this.cache.pendingTriggers.indexOf(trigger) === -1) {
-          const restoreIndex = Math.min(index, this.cache.pendingTriggers.length);
-          this.cache.pendingTriggers.splice(restoreIndex, 0, trigger);
+      await this.cacheTransaction(async () => {
+        if (this.cache.pendingTriggers.indexOf(trigger) < 0) {
+          return;
         }
-        throw error;
-      }
+
+        const nextCache: WorkflowCache = {
+          ...this.cache,
+          workflows: { ...this.cache.workflows },
+          executions: { ...this.cache.executions },
+          pendingTriggers: this.cache.pendingTriggers.filter((row) => row !== trigger),
+        };
+
+        try {
+          await this.saveCache(nextCache);
+        } catch (error) {
+          // The durable row still says dispatching. Keep the uncertainty visible
+          // in memory so this process cannot dispatch it again either.
+          trigger.deliveryStatus = 'effect_unknown';
+          throw error;
+        }
+        this.cache = nextCache;
+      });
 
       console.log(`WorkflowSync: Synced trigger ${trigger.id}`);
     }
@@ -747,13 +829,19 @@ class WorkflowSyncService {
    * Clear cache
    */
   async clearCache(): Promise<void> {
-    this.cache = {
-      workflows: {},
-      executions: {},
-      lastSyncAt: null,
-      pendingTriggers: [],
-    };
-    await this.saveCache();
+    // Advance the generation synchronously, before the reset is queued, so any
+    // in-flight response started under the old generation is refused.
+    this.cacheGeneration += 1;
+    await this.cacheTransaction(async () => {
+      const nextCache: WorkflowCache = {
+        workflows: {},
+        executions: {},
+        lastSyncAt: null,
+        pendingTriggers: [],
+      };
+      await this.saveCache(nextCache);
+      this.cache = nextCache;
+    });
     console.log('WorkflowSync: Cache cleared');
   }
 
