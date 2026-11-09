@@ -1,0 +1,12 @@
+{
+  "source_cut": "dd2610502746",
+  "python": "3.14.7 (main, Aug  5 2026, 10:29:49) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "executable_ast_unchanged": true,
+  "iscoroutinefunction_present": true,
+  "deprecated_wrapper_source": "def iscoroutinefunction(func):\n    \"\"\"Return True if func is a decorated coroutine function.\"\"\"\n    import warnings\n    warnings._deprecated(\"asyncio.iscoroutinefunction\",\n                         f\"{warnings._DEPRECATED_MSG}; \"\n                         \"use inspect.iscoroutinefunction() instead\",\n                         remove=(3,16))\n    return _iscoroutinefunction(func)\n",
+  "policy_set_event_loop_source": "    def set_event_loop(self, loop):\n        \"\"\"Set the event loop.\"\"\"\n        if loop is not None and not isinstance(loop, AbstractEventLoop):\n            raise TypeError(f\"loop must be an instance of AbstractEventLoop or None, not '{type(loop).__name__}'\")\n        self._local._loop = loop\n",
+  "docs": [
+    "https://docs.python.org/3.14/library/asyncio-task.html#asyncio.iscoroutinefunction",
+    "https://docs.python.org/3.14/library/asyncio-eventloop.html#asyncio.get_event_loop"
+  ]
+}

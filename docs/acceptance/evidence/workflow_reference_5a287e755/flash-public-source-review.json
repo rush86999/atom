@@ -1,0 +1,146 @@
+{
+  "markdown": "# GitHub Actions Workflows\n\n> **Source cut:** immutable source `dd2610502746`. At this cut the Git index for `.github/workflows/` contains only:\n\n```text\nsource: dd2610502746\n.github/workflows/\n  README.md\n  ci.yml\n  docker.yml\n```\n\nThis file is documentation; no workflow YAML is changed and CI behavior is unchanged. There are no `deploy.yml` or `lancedb-integration.yml` workflows at this cut.\n\nListing workflows is not deployment. Building and smoke-testing an image is not deployment, registry publication, or universal qualification of the application. The content below is limited to facts encoded in `.github/workflows/ci.yml` and `.github/workflows/docker.yml`.\n\n## Workflow inventory\n\n| Path | Workflow name | Triggers | Jobs at this cut |\n|---|---|---|---|\n| `.github/workflows/ci.yml` | CI | `push` to `main`; `pull_request` to `main` | `syntax-gate`, `full-app-boots`, `quickstart-install`, `quickstart`, `backend-core`, `backend-oracle`, `backend-tests`, `e2e-journey`, `frontend-typecheck` |\n| `.github/workflows/docker.yml` | Docker Build | `push` to `main`; `pull_request` to `main` | `docker-build` |\n\nOnly `main` is listed. There is no `develop`, tag, schedule, `workflow_dispatch`, release, or environment trigger in either YAML.\n\n## `ci.yml` job dependencies\n\nEdges below are only YAML `needs:`. A job with no incoming edge does not wait for another job. All jobs are started by the same workflow trigger.\n\n```mermaid\nflowchart TB\n  QI[quickstart-install 3.11 3.12 3.13] --> Q[quickstart]\n  BC[backend-core] --> BT[backend-tests]\n  BO[backend-oracle] --> BT\n  SG[syntax-gate]\n  FAB[full-app-boots]\n  E2E[e2e-journey]\n  FT[frontend-typecheck]\n```\n\n`quickstart` uses `if: ${{ always() }}` and fails unless `needs.quickstart-install.result` is `success`, so every matrix interpreter must pass. `backend-tests` uses `if: ${{ always() }}` and fails unless both `backend-core` and `backend-oracle` are `success`. No other job declares `needs`.\n\nDiagram source only; this review does not claim it was rendered.\n\n## CI job behavior\n\n### `syntax-gate`\nPython 3.11 only. In `backend/`, runs `compileall` over shipped modules, excluding environments, dependencies, data/logs/caches, archive trees, `test_archives_*`, and `scripts/dev`. It is a syntax/compile gate, not a runtime or coverage gate.\n\n### `full-app-boots`\nPython 3.11, backend requirements with pip cache. Imports `main_api_app`, starts uvicorn on `127.0.0.1:8001`, and polls `/alive` up to 30 times at 2-second intervals.\n\n### `quickstart-install`\nMatrix `python: [3.11, 3.12, 3.13]`, `fail-fast: false`, job `timeout-minutes: 20`, Node 20. Requires absent `backend/venv` and `frontend-nextjs/node_modules`; runs `make setup`; runs `scripts/ci/verify_quickstart_storage.py` with Hugging Face/Transformers offline env; verifies venv, `.env`, `node_modules`, `.env.local`, and a `SECRET_KEY=` line; boots the app from the generated env and polls `/alive`.\n\n### `quickstart`\nAggregate gate only: no checkout or tests. Checks the whole matrix result as described above.\n\n### `backend-core`\nPython 3.11, backend requirements. Runs multiple named pytest lanes (contracts, governance/board/document/assignment/memory controls, backup/restore, workflow-route, alignment-loop) plus standalone `python -m core.memory_eval`. Most steps set `TESTING=1` and use scratch SQLite paths; the memory-eval step sets its own DB and embedding environment. Per-test timeout seats are `--timeout=300` with `--timeout-method=thread`. It is not a single monolithic full-suite invocation.\n\n### `backend-oracle`\nPython 3.11, backend requirements. Runs the ORACLE registry, mutation, replay, receipt, job-wait/recovery, and related regression pytest set. Independent of `backend-core`; both feed `backend-tests`.\n\n### `backend-tests`\nAggregate gate only: no tests. Requires both backend lanes to be `success`.\n\n### `e2e-journey`\nPython 3.11 and Node 20. Installs backend requirements plus Playwright Chromium and frontend dependencies. Boots backend on `:8001` and frontend on `:3001`; polls both. API journey tests are gating. UI journey tests use `continue-on-error: true`; a second role-UI pytest invocation is downgraded with `|| echo` of a `::warning::` message. On `always()`, dumps both server logs and uploads `e2e-screenshots` (missing files ignored). Independent of other jobs.\n\n### `frontend-typecheck`\nNode 20, `npm install --legacy-peer-deps`. `npx tsc --noEmit --skipLibCheck` is `continue-on-error: true`. The subsequent Jest suites in this job are gating: middleware/auth, RPC failure consumers, agent information UI, graduation/retry, goal utility, deferred links, assignment source-answer, agents release surface, and documents release surface.\n\nNo jobs named `backend-test`, `frontend-build`, `backend-test-full`, `test-quality-gates`, or `build-docker` exist in this workflow.\n\n## Supported installation matrix\n\nOnly `quickstart-install` runs an interpreter matrix: CPython 3.11, 3.12, and 3.13, with `fail-fast: false` and a 20-minute job timeout. Every other Python job pins 3.11. Node is 20 in `quickstart-install`, `e2e-journey`, and `frontend-typecheck`. This is the install matrix encoded in CI, not a claim about every supported runtime.\n\n## Fail-fast and continue-on-error\n\n- `quickstart-install`: matrix `fail-fast: false`; `quickstart` still requires all matrix legs to succeed.\n- `e2e-journey`: UI browser step is `continue-on-error: true`; role-UI failures after the first pytest command are reduced to a warning. API journey tests are not softened.\n- `frontend-typecheck`: TypeScript check is `continue-on-error: true`; Jest steps are not.\n- `backend-tests` and `quickstart` use `if: ${{ always() }}` so they report a failed dependency instead of being skipped.\n\n## Scratch database and data boundaries\n\n| Job/step group | Boundary encoded in YAML |\n|---|---|\n| Most backend pytest lanes | `TESTING=1` and `DATABASE_URL=sqlite:///test_ci.db` (relative to `backend/`) |\n| Governance, document export, document browser lanes | Dedicated scratch files `test_ci_governance_tier.db`, `test_ci_document_export.db`, `test_ci_document_browser_helpers.db` |\n| Mini-app journey and restart controls | `sqlite:///:memory:` plus `${{ runner.temp }}` paths for `ATOM_DATA_DIR`, `LANCEDB_URI`, and `MINIAPP_ROOTFS_DIR` |\n| `e2e-journey` | Absolute `sqlite:////tmp/atom_e2e.db`, deleted before backend start so both the booted backend and test process resolve the same file |\n| Docker smoke | `sqlite:///smoke.db` inside the disposable `atom-smoke` container |\n\nThese are ephemeral GitHub-runner or container paths. The workflows do not connect to a production database. Steps that do not set `TESTING` rely on their own `DATABASE_URL` or on the environment generated by `make setup`; they are not evidence of production-data safety.\n\n## `docker.yml` behavior\n\nSingle job `docker-build`, with no `needs`.\n\n- `actions/checkout@v4`, `docker/setup-buildx-action@v3`, `docker/build-push-action@v5`.\n- Context `.`; tag `atom:test`; `push: false`; `load: true`. No registry is named and nothing is pushed.\n- Build args include non-production dummy values for `BYOK_ENCRYPTION_KEY` and `JWT_SECRET_KEY`, plus `NEXT_PUBLIC_API_URL=http://atom-backend:8000` baked into the frontend build.\n- Smoke step runs the image detached as `atom-smoke`, mapping `3000:3000` and `8000:8000`, with `DATABASE_URL=sqlite:///smoke.db`, `ENVIRONMENT=development`, and `BYPASS_RATE_LIMIT=1`.\n- Polls backend `/alive` up to 45\u00d72 seconds and frontend `/` up to 30\u00d72 seconds, asserts `/alive` contains `alive` and the frontend returns an HTTP header, prints container logs, and removes the container.\n- No compose stack, Kubernetes, registry login, or deployment step is present.\n\n```mermaid\nflowchart TB\n  DB[docker-build]\n```\n\n`docker-build` has no dependency edge; the diagram is source only and was not rendered in this review.\n\n## Policy and guarantees not encoded here\n\nThe following are not defined by these workflow files and must not be inferred from them:\n\n- Deployment, environments, manual approvals, canary rollout, automatic rollback, `kubectl`, or registry publication.\n- Branch protection, required status checks, required reviews, CODEOWNERS, or merge queue policy.\n- Secret scanning, code scanning, Dependabot, provenance/SBOM, or other scanner policy.\n- Prometheus/Grafana deployment or canary metrics, alerting, or observability gates.\n- Wall-clock guarantees beyond explicit `timeout-minutes: 20` on `quickstart-install` and `timeout-minutes: 3` on one cache-benchmark step; pytest `--timeout` values are per-test seats.\n- Pass-rate, coverage, flakiness, cache-hit, or build-speed thresholds; no such thresholds appear in these YAML files.\n- Availability of any model or connector.\n\nBranch protection, review rules, and scanner settings live in GitHub repository/organization settings or separate configuration; verify them there rather than reading them into CI YAML.\n\n## Removed from the previous README\n\n| Previous claim | Status at `dd2610502746` |\n|---|---|\n| `deploy.yml` with staging/production jobs, canary, rollback | File absent; no such jobs or secrets |\n| `lancedb-integration.yml` with a LanceDB service container | File absent; no LanceDB service/health-check job |\n| Jobs `backend-test`, `frontend-build`, `backend-test-full`, `test-quality-gates`, `build-docker` | Names absent; actual CI jobs are listed above |\n| Fixed 15\u201320 minute durations, 98% pass rate, 25% coverage, <60-minute suite, cache-hit percentages | No corresponding thresholds; only explicit job/step timeouts exist |\n| TQ-01 to TQ-05 enforcement via random order, JSON report, reruns, coverage shell checks | No `test-quality-gates` job, no such commands in `ci.yml` |\n| `frontend-nextjs-build` and `coverage-reports` artifacts | Only `e2e-screenshots` is uploaded |\n| Develop-branch and manual deploy triggers | Triggers are `main` only; no `workflow_dispatch` |\n\nScope check: this README documents workflow YAML only. A listed workflow is not a deployment, a local image build is not a release, and a two-endpoint smoke test is not universal application qualification.",
+  "findings": [
+    {
+      "claim": "At dd2610502746, .github/workflows contains only README.md, ci.yml, and docker.yml.",
+      "source": ".github/workflows/ tree index (supplied)",
+      "evidence": "The supplied source index lists README.md, ci.yml, and docker.yml and no other workflow file."
+    },
+    {
+      "claim": "README.md is documentation and does not alter CI.",
+      "source": ".github/workflows/README.md",
+      "evidence": "The supplied README is prose; executable workflow content is in ci.yml and docker.yml."
+    },
+    {
+      "claim": "CI triggers only on push and pull_request to main.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "on: push: branches: [main]; pull_request: branches: [main]."
+    },
+    {
+      "claim": "Docker Build triggers only on push and pull_request to main.",
+      "source": ".github/workflows/docker.yml",
+      "evidence": "on: push: branches: [main]; pull_request: branches: [main]."
+    },
+    {
+      "claim": "ci.yml defines exactly nine jobs: syntax-gate, full-app-boots, quickstart-install, quickstart, backend-core, backend-oracle, backend-tests, e2e-journey, frontend-typecheck.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "These are the top-level jobs keys in the YAML."
+    },
+    {
+      "claim": "The only needs relationships are quickstart <- quickstart-install and backend-tests <- backend-core plus backend-oracle.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "quickstart has needs: [quickstart-install]; backend-tests has needs: [backend-core, backend-oracle]; no other job declares needs."
+    },
+    {
+      "claim": "quickstart is an always() aggregate requiring the full matrix to succeed.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "quickstart has needs: [quickstart-install], if: ${{ always() }}, and compares needs.quickstart-install.result to success."
+    },
+    {
+      "claim": "backend-tests is an always() aggregate requiring both backend lanes to succeed.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "backend-tests reads needs.backend-core.result and needs.backend-oracle.result and exits 1 unless both equal success."
+    },
+    {
+      "claim": "quickstart-install is the only interpreter matrix: 3.11, 3.12, 3.13, fail-fast false, 20-minute timeout.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "strategy.matrix.python is [3.11, 3.12, 3.13]; fail-fast: false; job timeout-minutes: 20."
+    },
+    {
+      "claim": "All other Python jobs pin 3.11.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "setup-python uses python-version: 3.11 in syntax-gate, full-app-boots, backend-core, backend-oracle, and e2e-journey."
+    },
+    {
+      "claim": "The e2e UI step and TypeScript check are non-gating via continue-on-error; Jest and API journey steps are gating.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "UI journey and tsc steps have continue-on-error: true; API journey and Jest steps do not."
+    },
+    {
+      "claim": "Role-UI failures inside the e2e job are downgraded to a warning.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "The role-UI pytest command is followed by || echo with a ::warning:: message."
+    },
+    {
+      "claim": "Only the e2e-screenshots artifact is uploaded.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "actions/upload-artifact@v4 uses name: e2e-screenshots and if-no-files-found: ignore; no other upload-artifact step exists."
+    },
+    {
+      "claim": "CI confines test data to runner scratch databases and temp directories.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "Steps use TESTING=1 with sqlite:///test_ci.db, dedicated test_ci_*.db files, sqlite:///:memory:, and ${{ runner.temp }} paths; e2e uses sqlite:////tmp/atom_e2e.db."
+    },
+    {
+      "claim": "Docker Build builds a local image only and does not push.",
+      "source": ".github/workflows/docker.yml",
+      "evidence": "build-push-action uses context ., tags atom:test, push: false, load: true."
+    },
+    {
+      "claim": "Docker build args include non-production dummy keys and the compose-service API URL.",
+      "source": ".github/workflows/docker.yml",
+      "evidence": "build-args supply dummy BYOK_ENCRYPTION_KEY and JWT_SECRET_KEY values plus NEXT_PUBLIC_API_URL=http://atom-backend:8000."
+    },
+    {
+      "claim": "Docker smoke runs the image and checks only backend /alive and frontend /, then removes the container.",
+      "source": ".github/workflows/docker.yml",
+      "evidence": "docker run maps 3000 and 8000, polls both endpoints, asserts /alive contains alive and frontend returns an HTTP header, prints logs, and runs docker rm."
+    },
+    {
+      "claim": "Neither workflow deploys or publishes an image.",
+      "source": ".github/workflows/ci.yml; .github/workflows/docker.yml",
+      "evidence": "No deploy, staging, production, kubectl, environment, or registry-login job exists; docker push is false."
+    },
+    {
+      "claim": "No LanceDB integration workflow or service container exists.",
+      "source": ".github/workflows/ tree index (supplied); .github/workflows/ci.yml; .github/workflows/docker.yml",
+      "evidence": "lancedb-integration.yml is absent from the supplied index, and neither YAML contains a services block or LanceDB health check."
+    },
+    {
+      "claim": "The previously documented jobs backend-test, frontend-build, backend-test-full, test-quality-gates, and build-docker do not exist.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "The actual jobs keys contain none of those names."
+    },
+    {
+      "claim": "No fixed per-job duration promises exist beyond the explicit timeout-minutes values.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "Only timeout-minutes: 20 on quickstart-install and timeout-minutes: 3 on the cache benchmark step appear."
+    },
+    {
+      "claim": "The previous 98% pass rate, 25% coverage, 60-minute suite, cache-hit, and build-speed thresholds are absent.",
+      "source": ".github/workflows/ci.yml; .github/workflows/docker.yml",
+      "evidence": "No corresponding threshold or assertion appears in either YAML."
+    },
+    {
+      "claim": "The previous TQ-01 to TQ-05 commands are absent.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "No TQ-01 through TQ-05 step names, pytest-random-order, --json-report, --reruns, or coverage-threshold shell check appear."
+    },
+    {
+      "claim": "The previous frontend-nextjs-build and coverage-reports artifacts are absent.",
+      "source": ".github/workflows/ci.yml",
+      "evidence": "The only upload-artifact use is e2e-screenshots."
+    },
+    {
+      "claim": "Branch protection, review rules, scanner policy, and environment approvals are outside these workflow files.",
+      "source": ".github/workflows/ci.yml; .github/workflows/docker.yml",
+      "evidence": "The YAML contains jobs and steps only; it has no required-review, CODEOWNERS, code-scanning, Dependabot, or environment-protection configuration."
+    },
+    {
+      "claim": "No Prometheus/Grafana deployment, canary, or alerting monitoring is encoded.",
+      "source": ".github/workflows/ci.yml; .github/workflows/docker.yml",
+      "evidence": "Neither workflow contains deployment metrics, canary metrics, Prometheus, Grafana, or alerting steps."
+    },
+    {
+      "claim": "No model or connector availability is asserted.",
+      "source": ".github/workflows/ci.yml; .github/workflows/docker.yml",
+      "evidence": "The YAML does not enumerate model or connector availability; only test environment names such as EMBEDDING_PROVIDER and FASTEMBED_MODEL appear."
+    },
+    {
+      "claim": "The Mermaid diagrams are source-only and no rendering is claimed.",
+      "source": "replacement README draft",
+      "evidence": "Both diagram sections are labeled source only and state they were not rendered in this review."
+    }
+  ],
+  "unresolved": []
+}

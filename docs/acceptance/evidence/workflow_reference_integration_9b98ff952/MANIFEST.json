@@ -1,0 +1,14 @@
+{
+  "executed_source": "de1023470d5489457dde35d71268da189f0381b2",
+  "source_files": {
+    ".github/workflows/README.md": "ebe828c9ab52406588f0800abeda10e37e9bee0378ad6bfcd46c425037594054",
+    ".github/workflows/ci.yml": "dc7b52be4d78841255327f04fb993d3d129b0986ab04166f7002b035d58b14c5",
+    ".github/workflows/docker.yml": "641aa10abda9447ae452e7e7f948df2f0c7f7341c1794d53f7818c5d88ac4989",
+    "backend/core/asyncio_compat.py": "65965c6b94a6f76edfedc65e20a77bce51b15190d34ae74503f31f2eef7c3109"
+  },
+  "artifacts": {
+    "current-main-workflow-map.json": "d3d980dff2e1feb3ae9f35fdce3a684d1e93fd745e7c303e250ae539455f263b",
+    "README.md": "9b827bdccb5c9d8751efb82e3636807e74cc16c592bb6f100c7e742d565381b3",
+    "verification.json": "e9d149c7d369e8812bd6f55a458d003787639426604c0c2e8fa46c96d1d4368b"
+  }
+}

@@ -1,0 +1,416 @@
+{
+  "source": "9b98ff9528d80c4b6da776fcabd81a8f8b86cf6a",
+  "workflows": {
+    "ci.yml": {
+      "triggers": {
+        "push": {
+          "branches": [
+            "main"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "main"
+          ]
+        }
+      },
+      "jobs": {
+        "syntax-gate": {
+          "needs": [],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "actions/setup-python@v5",
+              "continue_on_error": false
+            },
+            {
+              "name": "Compile all shipped backend modules under 3.11",
+              "continue_on_error": false
+            },
+            {
+              "name": "Check source-bound documentation inventory boundaries",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "full-app-boots": {
+          "needs": [],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "actions/setup-python@v5",
+              "continue_on_error": false
+            },
+            {
+              "name": "Install dependencies",
+              "continue_on_error": false
+            },
+            {
+              "name": "Boot the full app (main_api_app) and hit /alive",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "quickstart-install": {
+          "needs": [],
+          "matrix": {
+            "python": [
+              "3.11",
+              "3.12",
+              "3.13"
+            ]
+          },
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "actions/setup-python@v5",
+              "continue_on_error": false
+            },
+            {
+              "name": "actions/setup-node@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "Verify fresh installation directories",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run make setup (quickstart.sh)",
+              "continue_on_error": false
+            },
+            {
+              "name": "Verify storage binary compatibility",
+              "continue_on_error": false
+            },
+            {
+              "name": "Verify setup artifacts",
+              "continue_on_error": false
+            },
+            {
+              "name": "Boot the full app from the generated env",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "quickstart": {
+          "needs": [
+            "quickstart-install"
+          ],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "Require every supported interpreter installation",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "backend-core": {
+          "needs": [],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "actions/setup-python@v5",
+              "continue_on_error": false
+            },
+            {
+              "name": "Install dependencies",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run backend lane preservation contract",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run cache benchmark reproducer contract",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run backend tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run admitted governance tier and BPE actor controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run board owner and atomic-authority controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run utility-target regression controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run stored-document export authority controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run document browser prerequisite controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run goal-write authority regression controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run automatic source-answer continuation controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run evidence manifest Git-ref controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run real MCP governance-budget controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run local backup/restore contract",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run natural reviewed-improvement lifecycle controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run memory eval gate",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run served workflow-route regression control",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run registered alignment-loop regression controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run mini-app runtime-boundary journey (MINI-03 fail-closed joins)",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run real-process mini-app record restart control",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run capability reentry epoch and runtime revocation controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run verifier-backed fleet contribution credit controls",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "backend-oracle": {
+          "needs": [],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "actions/setup-python@v5",
+              "continue_on_error": false
+            },
+            {
+              "name": "Install dependencies",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run shared ORACLE registry verification controls",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "backend-tests": {
+          "needs": [
+            "backend-core",
+            "backend-oracle"
+          ],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "Require every backend lane to succeed",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "e2e-journey": {
+          "needs": [],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "Set up Python",
+              "continue_on_error": false
+            },
+            {
+              "name": "Set up Node.js",
+              "continue_on_error": false
+            },
+            {
+              "name": "Install backend dependencies",
+              "continue_on_error": false
+            },
+            {
+              "name": "Install frontend dependencies",
+              "continue_on_error": false
+            },
+            {
+              "name": "Start full backend (main_api_app) on :8001",
+              "continue_on_error": false
+            },
+            {
+              "name": "Start frontend on :3001",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run API journey tests (gating)",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run UI journey tests (non-gating)",
+              "continue_on_error": true
+            },
+            {
+              "name": "Dump server logs on failure",
+              "continue_on_error": false
+            },
+            {
+              "name": "Upload screenshots on failure",
+              "continue_on_error": false
+            }
+          ]
+        },
+        "frontend-typecheck": {
+          "needs": [],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "actions/setup-node@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "Install dependencies",
+              "continue_on_error": false
+            },
+            {
+              "name": "Type check",
+              "continue_on_error": true
+            },
+            {
+              "name": "Auth redirect regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "RPC failure-consumer regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Run agent information question UI controls",
+              "continue_on_error": false
+            },
+            {
+              "name": "Graduation outcome and client retry regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Goal utility surface regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Deferred-link regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Assignment source-answer regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Agents release-surface regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Release-surface regression tests",
+              "continue_on_error": false
+            },
+            {
+              "name": "Install menu bar frontend dependencies",
+              "continue_on_error": false
+            },
+            {
+              "name": "Build menu bar frontend with strict TypeScript",
+              "continue_on_error": false
+            },
+            {
+              "name": "Menu bar command and tab regression tests",
+              "continue_on_error": false
+            }
+          ]
+        }
+      }
+    },
+    "docker.yml": {
+      "triggers": {
+        "push": {
+          "branches": [
+            "main"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "main"
+          ]
+        }
+      },
+      "jobs": {
+        "docker-build": {
+          "needs": [],
+          "matrix": null,
+          "steps": [
+            {
+              "name": "actions/checkout@v4",
+              "continue_on_error": false
+            },
+            {
+              "name": "Set up Docker Buildx",
+              "continue_on_error": false
+            },
+            {
+              "name": "Build Docker image",
+              "continue_on_error": false
+            },
+            {
+              "name": "Smoke-test the image (backend /alive + frontend /)",
+              "continue_on_error": false
+            }
+          ]
+        }
+      }
+    }
+  }
+}

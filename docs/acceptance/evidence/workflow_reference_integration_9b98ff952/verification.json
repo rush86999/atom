@@ -1,0 +1,11 @@
+{
+  "reference_source": "de1023470d5489457dde35d71268da189f0381b2",
+  "accepted_main": "9b98ff9528d80c4b6da776fcabd81a8f8b86cf6a",
+  "ci_job_labels_exact": 9,
+  "needs_edges_exact": 3,
+  "diagram_blocks_unchanged_from_rendered_5a287e755": true,
+  "render_evidence_reused_without_relabelling": "../workflow_reference_5a287e755/",
+  "ci_yaml_matches_accepted_main": true,
+  "executable_python_ast_unchanged": true,
+  "whole_documentation_accuracy_complete": false
+}

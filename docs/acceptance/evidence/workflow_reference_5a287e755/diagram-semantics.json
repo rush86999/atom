@@ -1,0 +1,27 @@
+{
+  "source": "dd261050274604895343cca74bc80a290b4c432a",
+  "diagram_job_ids_exact": true,
+  "ci_job_count": 9,
+  "actual_needs_edges": [
+    [
+      "backend-core",
+      "backend-tests"
+    ],
+    [
+      "backend-oracle",
+      "backend-tests"
+    ],
+    [
+      "quickstart-install",
+      "quickstart"
+    ]
+  ],
+  "diagram_edges_exact": true,
+  "phantom_workflows_removed": [
+    "deploy.yml",
+    "lancedb-integration.yml"
+  ],
+  "docker_steps_review": "checkout, Buildx, build/load push:false, smoke assertion, log/remove in same success-path shell step",
+  "rendering": "both SVG and PNG rendered, visual review complete",
+  "runtime_behavior_changed": false
+}
