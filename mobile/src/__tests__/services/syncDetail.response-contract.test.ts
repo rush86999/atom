@@ -89,4 +89,25 @@ describe('Sync detail response evidence', () => {
     expect(await get(id)).toBeNull();
   });
 
+  test('canvas target invalidation retains independent useful detail work', async () => {
+    const targetId = `invalidate-target-${++sequence}`;
+    const independentId = `retain-independent-${++sequence}`;
+    const deliveries = new Map<string, (value: { success: boolean; data: ReturnType<typeof record> }) => void>();
+    jest.mocked(apiService.get).mockImplementation((url: string) => new Promise(resolve => { deliveries.set(url.split('/').pop() || '', resolve); }));
+    const target = canvasSyncService.getCanvas(targetId);
+    const independent = canvasSyncService.getCanvas(independentId);
+    await Promise.resolve();
+    await canvasSyncService.invalidateCache(targetId);
+    for (const id of [targetId, independentId]) {
+      const deliver = deliveries.get(id);
+      if (!deliver) throw new Error('Controlled detail request was not dispatched');
+      deliver({ success: true, data: record(id) });
+    }
+    expect(await target).toBeNull();
+    expect(await independent).toEqual(expect.objectContaining({ id: independentId }));
+    jest.mocked(apiService.get).mockResolvedValue({ success: false, error: 'Controlled offline' });
+    expect(await canvasSyncService.getCanvas(targetId)).toBeNull();
+    expect(await canvasSyncService.getCanvas(independentId)).toEqual(expect.objectContaining({ id: independentId }));
+  });
+
 });
