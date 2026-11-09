@@ -1,0 +1,14 @@
+{
+  "source": "1c14fed27088e538c393d4ee87cc3423a256f3a9",
+  "transport": "normal public HTTP, NextAuth CSRF/cookie protocol; no browser claim",
+  "registered": true,
+  "two_independent_web_credentials": true,
+  "separate_backend_generations": true,
+  "web_signing_key_separate": true,
+  "logout_receipt_verified": true,
+  "revoked_backend_status": 401,
+  "revoked_cookie_empty": true,
+  "peer_current": true,
+  "restart_pending": true,
+  "no_provider_calls_requested": true
+}
