@@ -36,7 +36,7 @@ interface MessageSearchParams {
   limit?: number;
 }
 
-interface ConversationSummary {
+export interface ConversationSummary {
   session_id: string;
   agent_id: string;
   agent_name: string;

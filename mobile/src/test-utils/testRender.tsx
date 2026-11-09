@@ -190,7 +190,7 @@ export function renderWithProviders(
 /**
  * Simplified render without providers for isolated component tests
  */
-export function renderIn isolation(ui: ReactElement, options?: RenderOptions) {
+export function renderInIsolation(ui: ReactElement, options?: RenderOptions) {
   return render(ui, options);
 }
 
