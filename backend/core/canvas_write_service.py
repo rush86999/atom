@@ -470,30 +470,6 @@ def _submit_refusal(
     }
 
 
-def _submit_governance_error(db, agent_id: str) -> Optional[Dict[str, Any]]:
-    """Run the EXISTING governance check, requiring an explicit allowed True."""
-    try:
-        from core.agent_governance_service import AgentGovernanceService
-
-        check = AgentGovernanceService(db).can_perform_action(
-            agent_id=agent_id,
-            action_type="canvas_submit",
-        )
-    except Exception as exc:  # noqa: BLE001 - unreadable is not permission
-        logger.warning(
-            "canvas submit governance check failed: %s", type(exc).__name__)
-        return {
-            "http_status": 503,
-            "error": "Agent governance could not be verified",
-        }
-    if not isinstance(check, dict) or check.get("allowed") is not True:
-        reason = (
-            check.get("reason") if isinstance(check, dict) else None)
-        return {
-            "http_status": 403,
-            "error": str(reason or "Agent governance denied"),
-        }
-    return None
 
 
 def _submit_preflight(
@@ -503,7 +479,6 @@ def _submit_preflight(
     operation_id: str,
     agent_id: Optional[str],
     agent_execution_id: Optional[str],
-    governance_checked: bool,
 ) -> Dict[str, Any]:
     """Freeze actor, Canvas target, optional agent and request material.
 
@@ -562,11 +537,7 @@ def _submit_preflight(
             resolved_agent_id = agent_resolution.get("agent_id")
             resolved_execution_id = agent_resolution.get(
                 "agent_execution_id")
-            if resolved_agent_id and not governance_checked:
-                governance_error = _submit_governance_error(
-                    db, resolved_agent_id)
-                if governance_error:
-                    return governance_error
+
 
             material = canonical_submit_material(
                 canvas_id, form_data,
@@ -775,7 +746,6 @@ async def submit_canvas_verified(
     agent_execution_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
     workspace_id: Optional[str] = None,
-    governance_checked: bool = False,
 ) -> Dict[str, Any]:
     """Authorize, append one submission event, then verify its exact receipt.
 
@@ -797,7 +767,6 @@ async def submit_canvas_verified(
         resolved_operation_id,
         agent_id,
         agent_execution_id,
-        governance_checked,
     ) or {}
     if not snapshot.get("ok"):
         return _submit_refusal(

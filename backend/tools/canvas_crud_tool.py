@@ -614,6 +614,7 @@ def resolve_submit_agent(
     agent_id: Optional[str] = None,
     agent_execution_id: Optional[str] = None,
     canvas_id: Optional[str] = None,
+    lock: bool = False,
 ) -> Dict[str, Any]:
     """Resolve optional submission agent binds against the CURRENT actor.
 
@@ -629,11 +630,11 @@ def resolve_submit_agent(
     execution = None
     if resolved_execution_id:
         try:
-            execution = (
-                db.query(AgentExecution)
-                .filter(AgentExecution.id == resolved_execution_id)
-                .first()
-            )
+            query = db.query(AgentExecution).filter(
+                AgentExecution.id == resolved_execution_id).populate_existing()
+            if lock:
+                query = query.with_for_update()
+            execution = query.first()
         except Exception as exc:  # noqa: BLE001 - unreadable is refusal
             logger.warning(
                 "canvas submit execution read failed: %s",
@@ -701,11 +702,11 @@ def resolve_submit_agent(
         }
 
     try:
-        agent = (
-            db.query(AgentRegistry)
-            .filter(AgentRegistry.id == resolved_agent_id)
-            .first()
-        )
+        query = db.query(AgentRegistry).filter(
+            AgentRegistry.id == resolved_agent_id).populate_existing()
+        if lock:
+            query = query.with_for_update()
+        agent = query.first()
     except Exception as exc:  # noqa: BLE001 - unreadable is refusal
         logger.warning(
             "canvas submit agent read failed: %s", type(exc).__name__)
@@ -720,6 +721,8 @@ def resolve_submit_agent(
             "http_status": 403,
             "error": "Agent not found",
         }
+    if getattr(agent, "enabled", None) is not True:
+        return {"ok": False, "http_status": 403, "error": "Agent is disabled"}
     if not _same_scope_value(
             getattr(agent, "workspace_id", None),
             actor.get("workspace_id")):
@@ -742,6 +745,35 @@ def resolve_submit_agent(
         "agent": agent,
         "execution": execution,
     }
+
+
+def _submit_governance_error(db, actor: Dict[str, Any], agent_id: str) -> Optional[Dict[str, Any]]:
+    """Run the EXISTING governance check, requiring an explicit allowed True."""
+    try:
+        from core.agent_governance_service import AgentGovernanceService
+
+        check = AgentGovernanceService(
+            db, workspace_id=actor.get("workspace_id"),
+            tenant_id=actor.get("tenant_id")).can_perform_action(
+            agent_id=agent_id,
+            action_type="canvas_submit",
+        )
+    except Exception as exc:  # noqa: BLE001 - unreadable is not permission
+        logger.warning(
+            "canvas submit governance check failed: %s", type(exc).__name__)
+        return {
+            "http_status": 503,
+            "error": "Agent governance could not be verified",
+        }
+    if (not isinstance(check, dict) or check.get("allowed") is not True
+            or check.get("requires_human_approval") is not False):
+        reason = (
+            check.get("reason") if isinstance(check, dict) else None)
+        return {
+            "http_status": 403,
+            "error": str(reason or "Agent governance denied"),
+        }
+    return None
 
 
 def _submit_duplicate_result(
@@ -3225,6 +3257,28 @@ async def submit_canvas_event(
                         "canvas scope/status changed after authorization; "
                         "submit refused"),
                 }
+
+            # Refresh and lock related authority after the transaction's write
+            # reservation. SQLite serializes writers; PostgreSQL locks these
+            # actual rows. Never authorize from an old identity-map copy.
+            with db.no_autoflush:
+                current_agent = resolve_submit_agent(
+                    db, actor, resolved_agent_id, resolved_execution_id,
+                    canvas_id=canvas_id, lock=True)
+                if not current_agent.get("ok"):
+                    db.rollback()
+                    return {
+                        "success": False, "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": int(current_agent.get("http_status") or 403),
+                        "operation_id": operation_id,
+                        "error": current_agent.get("error") or "Agent authority changed",
+                    }
+                if resolved_agent_id:
+                    denial = _submit_governance_error(db, actor, resolved_agent_id)
+                    if denial:
+                        db.rollback()
+                        return {"success": False, "write_outcome": WRITE_NOT_ATTEMPTED,
+                                "operation_id": operation_id, **denial}
 
             try:
                 db.flush()
