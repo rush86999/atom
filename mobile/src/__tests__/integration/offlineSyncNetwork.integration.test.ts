@@ -19,10 +19,21 @@
  * rather than end-to-end API success scenarios.
  */
 
-import NetInfo from '@react-native-community/netinfo';
+import NetInfo, { NetInfoStateType, NetInfoCellularGeneration } from '@react-native-community/netinfo';
 import { offlineSyncService, type OfflineAction } from '../../services/offlineSyncService';
 import { storageService } from '../../services/storageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Use the library's own callable-unsubscribe mock and actual enum values.
+jest.mock('@react-native-community/netinfo', () => {
+  const mock = jest.requireActual('@react-native-community/netinfo/jest/netinfo-mock');
+  return { __esModule: true, ...mock, default: mock, NetInfoCellularGeneration: { '4g': '4g' } };
+});
+
+const unknownWifiDetails = {
+  bssid: null, strength: null, ipAddress: null, subnet: null,
+  frequency: null, linkSpeed: null, rxLinkSpeed: null, txLinkSpeed: null,
+};
 
 // Read the actual canonical persisted rows, including in-flight work. A failed
 // storage read must not masquerade as an empty queue in these assertions.
@@ -64,7 +75,7 @@ describe('Offline Sync Network Integration', () => {
       mockFetch.mockResolvedValueOnce({
         isConnected: false,
         isInternetReachable: false,
-        type: 'none',
+        type: NetInfoStateType.none,
         details: null,
       });
 
@@ -80,8 +91,9 @@ describe('Offline Sync Network Integration', () => {
       mockFetch.mockResolvedValueOnce({
         isConnected: true,
         isInternetReachable: true,
-        type: 'wifi',
+        type: NetInfoStateType.wifi,
         details: {
+          ...unknownWifiDetails,
           isConnectionExpensive: false,
           ssid: 'TestNetwork',
         },
@@ -129,8 +141,9 @@ describe('Offline Sync Network Integration', () => {
       mockFetch.mockResolvedValueOnce({
         isConnected: true,
         isInternetReachable: true,
-        type: 'wifi',
+        type: NetInfoStateType.wifi,
         details: {
+          ...unknownWifiDetails,
           isConnectionExpensive: false,
           ssid: 'HomeWifi',
         },
@@ -143,10 +156,11 @@ describe('Offline Sync Network Integration', () => {
       mockFetch.mockResolvedValueOnce({
         isConnected: true,
         isInternetReachable: true,
-        type: 'cellular',
+        type: NetInfoStateType.cellular,
         details: {
+          carrier: null,
           isConnectionExpensive: true,
-          cellularGeneration: '4g',
+          cellularGeneration: NetInfoCellularGeneration['4g'],
         },
       });
 
@@ -157,7 +171,7 @@ describe('Offline Sync Network Integration', () => {
       mockFetch.mockResolvedValueOnce({
         isConnected: false,
         isInternetReachable: false,
-        type: 'none',
+        type: NetInfoStateType.none,
         details: null,
       });
 
@@ -436,20 +450,20 @@ describe('Offline Sync Network Integration', () => {
         .mockResolvedValueOnce({
           isConnected: true,
           isInternetReachable: true,
-          type: 'wifi',
-          details: { isConnectionExpensive: false, ssid: 'TestNetwork' },
+          type: NetInfoStateType.wifi,
+          details: { ...unknownWifiDetails, isConnectionExpensive: false, ssid: 'TestNetwork' },
         })
         .mockResolvedValueOnce({
           isConnected: false,
           isInternetReachable: false,
-          type: 'none',
+          type: NetInfoStateType.none,
           details: null,
         })
         .mockResolvedValueOnce({
           isConnected: true,
           isInternetReachable: true,
-          type: 'wifi',
-          details: { isConnectionExpensive: false, ssid: 'TestNetwork' },
+          type: NetInfoStateType.wifi,
+          details: { ...unknownWifiDetails, isConnectionExpensive: false, ssid: 'TestNetwork' },
         });
 
       // Check network states
@@ -497,8 +511,9 @@ describe('Offline Sync Network Integration', () => {
       jest.spyOn(netInfoMock, 'fetch').mockResolvedValue({
         isConnected: true,
         isInternetReachable: false,
-        type: 'wifi',
+        type: NetInfoStateType.wifi,
         details: {
+          ...unknownWifiDetails,
           isConnectionExpensive: false,
           ssid: 'CaptivePortal',
         },
@@ -879,32 +894,32 @@ describe('Offline Sync Network Integration', () => {
         .mockResolvedValueOnce({
           isConnected: true,
           isInternetReachable: true,
-          type: 'wifi',
-          details: { isConnectionExpensive: false, ssid: 'HomeWifi' },
+          type: NetInfoStateType.wifi,
+          details: { ...unknownWifiDetails, isConnectionExpensive: false, ssid: 'HomeWifi' },
         })
         .mockResolvedValueOnce({
           isConnected: true,
           isInternetReachable: true,
-          type: 'cellular',
-          details: { isConnectionExpensive: true, cellularGeneration: '4g' },
+          type: NetInfoStateType.cellular,
+          details: { carrier: null, isConnectionExpensive: true, cellularGeneration: NetInfoCellularGeneration['4g'] },
         })
         .mockResolvedValueOnce({
           isConnected: false,
           isInternetReachable: false,
-          type: 'none',
+          type: NetInfoStateType.none,
           details: null,
         })
         .mockResolvedValueOnce({
           isConnected: true,
           isInternetReachable: true,
-          type: 'wifi',
-          details: { isConnectionExpensive: false, ssid: 'HomeWifi' },
+          type: NetInfoStateType.wifi,
+          details: { ...unknownWifiDetails, isConnectionExpensive: false, ssid: 'HomeWifi' },
         })
         .mockResolvedValueOnce({
           isConnected: true,
           isInternetReachable: true,
-          type: 'wifi',
-          details: { isConnectionExpensive: false, ssid: 'HomeWifi' },
+          type: NetInfoStateType.wifi,
+          details: { ...unknownWifiDetails, isConnectionExpensive: false, ssid: 'HomeWifi' },
         });
 
       // Check network states during sync
