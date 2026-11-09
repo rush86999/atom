@@ -84,13 +84,13 @@ export const mockSecureStoreState = async (tokens: Partial<SecureStoreState>): P
 
   // Mock setItemAsync to update internal state
   (SecureStore.setItemAsync as jest.Mock).mockImplementation(async (key: string, value: string) => {
-    (mocks as any)[key] = value;
+    mocks[key] = value;
     return Promise.resolve(undefined);
   });
 
   // Mock deleteItemAsync to remove from internal state
   (SecureStore.deleteItemAsync as jest.Mock).mockImplementation(async (key: string) => {
-    delete (mocks as any)[key];
+    delete mocks[key];
     return Promise.resolve(undefined);
   });
 };
@@ -181,7 +181,7 @@ export const getAllStoredState = async (): Promise<{
   if (mmkvInstance) {
     const keys = mmkvInstance.getAllKeys();
     for (const key of keys) {
-      mmkv[key] = mmkvInstance.getString(key);
+      mmkv[key] = mmkvInstance.getString(key) ?? mmkvInstance.getNumber(key) ?? mmkvInstance.getBoolean(key);
     }
   }
 

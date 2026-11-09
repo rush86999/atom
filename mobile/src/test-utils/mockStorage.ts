@@ -97,7 +97,8 @@ export function seedMmkvStorage(data: Record<string, any>) {
   }
 
   // Fallback for environments without the jest.setup instance
-  const mockStorage = global.__mmkvStorage || new Map();
+  const mockStorage = global.__mmkvStorage;
+  if (!mockStorage) throw new Error('MMKV test storage unavailable; initialize setup or supply an explicit fixture.');
   Object.entries(data).forEach(([key, value]) => {
     mockStorage.set(key, value);
   });
