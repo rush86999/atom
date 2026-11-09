@@ -597,7 +597,9 @@ class CanvasSyncService {
       }
     }
 
-    await storageService.setObject('canvas_cache' as StorageKey, this.cache);
+    if (!(await storageService.setObject('canvas_cache' as StorageKey, this.cache))) {
+      throw new Error('Canvas cache persistence refused');
+    }
   }
 
   private async queueConflictResolution(serverCanvas: Canvas, localCanvas: Canvas): Promise<void> {

@@ -23,7 +23,7 @@ jest.mock('../../services/api', () => ({
 jest.mock('../../services/storageService', () => ({
   storageService: {
     getObject: jest.fn(() => Promise.resolve(null)),
-    setObject: jest.fn(() => Promise.resolve()),
+    setObject: jest.fn(() => Promise.resolve(true)),
   },
   StorageKey: {},
 }));

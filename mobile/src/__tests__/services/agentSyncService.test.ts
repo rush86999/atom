@@ -83,7 +83,7 @@ describe('agentSyncService', () => {
 
     // Default mock implementations
     mockStorageService.getObject.mockResolvedValue(null);
-    mockStorageService.setObject.mockResolvedValue(undefined);
+    mockStorageService.setObject.mockResolvedValue(true);
     mockOfflineSyncService.getSyncState.mockResolvedValue(onlineState);
     mockOfflineSyncService.queueAction.mockResolvedValue('action-1');
 

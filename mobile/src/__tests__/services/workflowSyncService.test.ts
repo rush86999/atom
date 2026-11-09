@@ -32,7 +32,7 @@ describe('workflowSyncService', () => {
 
     // Default mock implementations
     mockStorageService.getObject.mockResolvedValue(null);
-    mockStorageService.setObject.mockResolvedValue(undefined);
+    mockStorageService.setObject.mockResolvedValue(true);
     mockOfflineSyncService.getSyncState.mockResolvedValue({
       syncInProgress: false,
       lastSyncAt: null,

@@ -538,7 +538,9 @@ class AgentSyncService {
       }
     }
 
-    await storageService.setObject('agent_cache' as StorageKey, this.cache);
+    if (!(await storageService.setObject('agent_cache' as StorageKey, this.cache))) {
+      throw new Error('Agent cache persistence refused');
+    }
   }
 
   private async queueConflictResolution(serverAgent: Agent, localAgent: Agent): Promise<void> {

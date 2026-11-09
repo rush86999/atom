@@ -564,7 +564,9 @@ class WorkflowSyncService {
       }
     }
 
-    await storageService.setObject('workflow_cache' as StorageKey, this.cache);
+    if (!(await storageService.setObject('workflow_cache' as StorageKey, this.cache))) {
+      throw new Error('Workflow cache persistence refused');
+    }
   }
 
   private async loadMetrics(): Promise<void> {
