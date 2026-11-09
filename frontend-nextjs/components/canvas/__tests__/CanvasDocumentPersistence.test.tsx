@@ -170,7 +170,7 @@ describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as cons
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   expect(attempts).toBe(1);
  });
- it.each(['docs','doc','generic','coding'])('uses the established %s registry alias for empty native text',async(component)=>{
+ it.each(['docs','doc','generic','coding','rich_editor'])('uses the established %s registry alias for empty native text',async(component)=>{
   openDocument({content:''},component);
   expect(screen.getByRole('textbox',{name:'Document editor'})).toHaveValue('');
   fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Alias body'}});

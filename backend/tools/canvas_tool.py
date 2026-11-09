@@ -51,6 +51,44 @@ def _user_broadcast_channels(user_id: Any, session_id: Any) -> List[str]:
 
 
 
+class CanvasPresentationReceiptError(RuntimeError):
+    """Persistence may have happened; this identity must never be redispatched."""
+    def __init__(self, audit_id: str, canvas_id: str, committed: bool):
+        super().__init__("Canvas presentation persistence could not be confirmed")
+        self.audit_id = audit_id
+        self.canvas_id = canvas_id
+        self.committed = committed
+
+    def as_result(self):
+        return {
+            "success": False,
+            "status": "committed_unverified" if self.committed else "effect_unknown",
+            "canvas_id": self.canvas_id,
+            "audit_id": self.audit_id,
+            "replay": "do_not_repeat",
+            "error": str(self),
+            "verification": {"status": "unavailable", "effect": "committed" if self.committed else "unknown"},
+        }
+
+
+async def _presentation_failure_result(result, execution_id=None):
+    # Storage uncertainty is not a semantic model failure or completed work.
+    if execution_id:
+        try:
+            from core.database import get_db_session
+            with get_db_session() as db:
+                execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
+                if execution and execution.status == "running":
+                    execution.status = "failed" if result["verification"]["effect"] == "none" else "blocked"
+                    execution.error_message = result["error"]
+                    if execution.status == "failed":
+                        execution.completed_at = datetime.now()
+                    db.commit()
+        except Exception as state_error:
+            logger.warning("Presentation execution state unavailable", error_class=type(state_error).__name__)
+    return result
+
+
 async def _create_canvas_audit(
     db: Session,
     agent_id: Optional[str],
@@ -65,6 +103,7 @@ async def _create_canvas_audit(
     governance_check_passed: Optional[bool] = None,
     metadata: Dict[str, Any] = None,
     tenant_id: str = "default",
+    require_durable_receipt: bool = False,
 ) -> Optional[CanvasAudit]:
     """
     Create a canvas audit entry for tracking.
@@ -88,10 +127,15 @@ async def _create_canvas_audit(
     Returns:
         CanvasAudit object or None on failure
     """
+    audit = None
+    audit_identity = str(uuid.uuid4())
+    commit_attempted = False
+    commit_confirmed = False
     try:
         audit = CanvasAudit(
-            id=str(uuid.uuid4()),
+            id=audit_identity,
             tenant_id=tenant_id or "default",
+            canvas_type=canvas_type,
             # Chat-context attribution (same as canvas_crud_tool): when the
             # action runs inside a chat turn, the audit row attributes to
             # that turn's session/agent so training episodes capture it.
@@ -110,10 +154,31 @@ async def _create_canvas_audit(
             }
         )
         db.add(audit)
+        commit_attempted = True
         db.commit()
+        commit_confirmed = True
         db.refresh(audit)
         return audit
     except Exception as e:
+        if require_durable_receipt:
+            from sqlalchemy.exc import IntegrityError
+            logger.warning("Canvas presentation persistence unavailable",
+                           stage="readback" if commit_confirmed else "commit" if commit_attempted else "prepare", error_class=type(e).__name__)
+            if commit_attempted and audit is not None:
+                # A refresh failure cannot undo a confirmed commit. Other
+                # commit exceptions are unknown unless rollback is proven.
+                if not commit_confirmed and isinstance(e, IntegrityError):
+                    try:
+                        db.rollback()
+                    except Exception:
+                        raise CanvasPresentationReceiptError(audit_identity, str(canvas_id), False) from None
+                    return None
+                raise CanvasPresentationReceiptError(audit_identity, str(canvas_id), commit_confirmed) from None
+            try:
+                db.rollback()
+            except Exception:
+                raise CanvasPresentationReceiptError(audit_identity, str(canvas_id), False) from None
+            return None
         logger.error(f"Failed to create canvas audit: {e}")
         return None
 
@@ -147,6 +212,8 @@ async def present_chart(
     agent = None
     agent_execution = None
     governance_check = None
+    audit = None
+    audit_id = None
 
     try:
         # Governance: Resolve agent and check permissions
@@ -191,10 +258,58 @@ async def present_chart(
 
                     logger.info(f"Agent execution {agent_execution.id} for chart presentation")
 
-        # Present the chart via WebSocket
+        canvas_id = str(uuid.uuid4())
+        # Build and commit the audit BEFORE broadcasting. Audit persistence is
+        # independent of optional governance enforcement: a presentation with
+        # no durable audit must never reach the user.
+        material = presentation_material(
+            "canvas.present_chart",
+            {"chart_type": chart_type, "data": data})
+        with get_db_session() as db:
+            audit = await _create_canvas_audit(
+                db=db,
+                require_durable_receipt=True,
+                agent_id=agent.id if agent else None,
+                agent_execution_id=agent_execution.id if agent_execution else None,
+                user_id=user_id,
+                canvas_id=canvas_id,
+                session_id=session_id,
+                canvas_type=chart_type,  # Preserve the native renderer on readback
+                component_type="chart",
+                component_name=chart_type,
+                action="present",
+                governance_check_passed=governance_check["allowed"] if governance_check else None,
+                tenant_id=tenant_id or "default",
+                metadata={
+                    "title": title,
+                    "data_points": len(data),
+                    "chart_type": chart_type,
+                    "session_id": session_id,
+                    "data": data,
+                    "content": data,
+                    "chart_config": {"type": chart_type, "title": title},
+                    "material": material,
+                    "material_sha256": material_sha256(material),
+                    "operation_id": operation_id,
+                    "workspace_id": workspace_id,
+                    "tenant_id": tenant_id or "default",
+                }
+            )
+            audit_id = str(audit.id) if audit is not None else None
+
+        if audit is None:
+            logger.error("Chart presentation refused: canvas audit was not persisted")
+            return await _presentation_failure_result({
+                "success": False,
+                "status": "not_applied",
+                "canvas_id": canvas_id,
+                "verification": {"status": "refused", "effect": "none"},
+                "error": "Canvas audit could not be persisted; chart was not presented"
+            }, agent_execution.id if agent_execution else None)
+
+        # Broadcast only after the audit row is durably committed.
         user_channels = _user_broadcast_channels(user_id, session_id)
 
-        canvas_id = str(uuid.uuid4())
         for _user_channel in user_channels:
             await ws_manager.broadcast(
                 _user_channel,
@@ -205,74 +320,47 @@ async def present_chart(
                     "component": f"{chart_type}",
                     "canvas_id": canvas_id,
                     "session_id": session_id,
+                    "revision_audit_id": audit_id,
                     "data": {"data": data, "title": title, **kwargs}
                 }
             }
         )
 
-        # Create audit entry. The full chart values and operation identity are
-        # the postcondition authority; point count/type are diagnostic only.
-        audit = None
-        if FeatureFlags.should_enforce_governance('canvas'):
-            material = presentation_material(
-                "canvas.present_chart",
-                {"chart_type": chart_type, "data": data})
+        # Mark execution as completed only after the audited presentation.
+        if agent_execution:
             with get_db_session() as db:
-                audit = await _create_canvas_audit(
-                    db=db,
-                    agent_id=agent.id if agent else None,
-                    agent_execution_id=agent_execution.id if agent_execution else None,
-                    user_id=user_id,
-                    canvas_id=canvas_id,
-                    session_id=session_id,
-                    canvas_type="generic",  # Generic canvas for charts
-                    component_type="chart",
-                    component_name=chart_type,
-                    action="present",
-                    governance_check_passed=governance_check["allowed"] if governance_check else None,
-                    tenant_id=tenant_id or "default",
-                    metadata={
-                        "title": title,
-                        "data_points": len(data),
-                        "chart_type": chart_type,
-                        "session_id": session_id,
-                        "data": data,
-                        "content": data,
-                        "chart_config": {"type": chart_type, "title": title},
-                        "material": material,
-                        "material_sha256": material_sha256(material),
-                        "operation_id": operation_id,
-                        "workspace_id": workspace_id,
-                        "tenant_id": tenant_id or "default",
-                    }
-                )
+                execution = db.query(AgentExecution).filter(
+                    AgentExecution.id == agent_execution.id
+                ).first()
+                if execution:
+                    execution.status = "completed"
+                    execution.output_summary = f"Presented {chart_type} with {len(data)} data points"
+                    execution.completed_at = datetime.now()
+                    db.commit()
 
-                # Mark execution as completed
-                if agent_execution:
-                    execution = db.query(AgentExecution).filter(
-                        AgentExecution.id == agent_execution.id
-                    ).first()
-                    if execution:
-                        execution.status = "completed"
-                        execution.output_summary = f"Presented {chart_type} with {len(data)} data points"
-                        execution.completed_at = datetime.now()
-                        db.commit()
-
-                        # Record outcome for confidence
-                        from core.service_factory import ServiceFactory
-                        governance_service = ServiceFactory.get_governance_service(db)
-                        await governance_service.record_outcome(agent.id, success=True)
+                    # Record outcome for confidence
+                    from core.service_factory import ServiceFactory
+                    governance_service = ServiceFactory.get_governance_service(db)
+                    await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(f"Presented {chart_type} to user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
         return {
             "success": True,
             "chart_type": chart_type,
             "canvas_id": canvas_id,
-            "audit_id": str(audit.id) if audit is not None else None,
+            "audit_id": audit_id,
             "agent_id": agent.id if agent else None
         }
 
+    except CanvasPresentationReceiptError as error:
+        return await _presentation_failure_result(error.as_result(), agent_execution.id if agent_execution else None)
+
     except Exception as e:
+        if audit_id and audit is not None:
+            logger.warning("Committed presentation follow-through unavailable", error_class=type(e).__name__)
+            return await _presentation_failure_result(
+                CanvasPresentationReceiptError(audit_id, canvas_id, True).as_result(),
+                agent_execution.id if agent_execution else None)
         logger.error(f"Failed to present chart: {e}")
 
         # Mark execution as failed
@@ -397,6 +485,8 @@ async def present_markdown(
     agent = None
     agent_execution = None
     governance_check = None
+    audit = None
+    audit_id = None
 
     try:
         # Governance: Resolve agent and check permissions
@@ -437,10 +527,56 @@ async def present_markdown(
                     db.commit()
                     db.refresh(agent_execution)
 
-        # Present the markdown
+        canvas_id = str(uuid.uuid4())
+        # Build and commit the audit BEFORE broadcasting. Audit persistence is
+        # independent of optional governance enforcement: a presentation with
+        # no durable audit must never reach the user.
+        material = presentation_material(
+            "canvas.present_markdown", {"content": content})
+        with get_db_session() as db:
+            audit = await _create_canvas_audit(
+                db=db,
+                require_durable_receipt=True,
+                agent_id=agent.id if agent else None,
+                agent_execution_id=agent_execution.id if agent_execution else None,
+                user_id=user_id,
+                canvas_id=canvas_id,
+                session_id=session_id,  # NEW: Session isolation
+                canvas_type="markdown",
+                component_type="markdown",
+                component_name=None,
+                action="present",
+                governance_check_passed=governance_check["allowed"] if governance_check else None,
+                tenant_id=tenant_id or "default",
+                metadata={
+                    "title": title,
+                    "content": str(content),
+                    "content_length": len(content),
+                    "content_sha256": hashlib.sha256(
+                        str(content).encode("utf-8")).hexdigest(),
+                    "material": material,
+                    "material_sha256": material_sha256(material),
+                    "operation_id": operation_id,
+                    "workspace_id": workspace_id,
+                    "tenant_id": tenant_id or "default",
+                    "session_id": session_id,
+                }
+            )
+            audit_id = str(audit.id) if audit is not None else None
+
+        if audit is None:
+            logger.error("Markdown presentation refused: canvas audit was not persisted")
+            return await _presentation_failure_result({
+                "success": False,
+                "status": "not_applied",
+                "canvas_id": canvas_id,
+                "verification": {"status": "refused", "effect": "none"},
+                "error": "Canvas audit could not be persisted; markdown was not presented"
+            }, agent_execution.id if agent_execution else None)
+
+        # Present the markdown only after the audit row is durably committed.
         user_channels = _user_broadcast_channels(user_id, session_id)
 
-        canvas_id = str(uuid.uuid4())
         for _user_channel in user_channels:
             await ws_manager.broadcast(
                 _user_channel,
@@ -451,68 +587,45 @@ async def present_markdown(
                     "component": "markdown",
                     "canvas_id": canvas_id,
                     "session_id": session_id,
+                    "revision_audit_id": audit_id,
                     "data": {"content": content, "title": title}
                 }
             }
         )
 
-        # Create audit entry. The material digest and operation identity are
-        # the postcondition authority; title/length are diagnostic only.
-        audit = None
-        if FeatureFlags.should_enforce_governance('canvas'):
-            material = presentation_material(
-                "canvas.present_markdown", {"content": content})
+        # Mark execution as completed only after the audited presentation.
+        if agent_execution:
             with get_db_session() as db:
-                audit = await _create_canvas_audit(
-                    db=db,
-                    agent_id=agent.id if agent else None,
-                    agent_execution_id=agent_execution.id if agent_execution else None,
-                    user_id=user_id,
-                    canvas_id=canvas_id,
-                    session_id=session_id,  # NEW: Session isolation
-                    component_type="markdown",
-                    component_name=None,
-                    action="present",
-                    governance_check_passed=governance_check["allowed"] if governance_check else None,
-                    tenant_id=tenant_id or "default",
-                    metadata={
-                        "title": title,
-                        "content": str(content),
-                        "content_length": len(content),
-                        "content_sha256": hashlib.sha256(
-                            str(content).encode("utf-8")).hexdigest(),
-                        "material": material,
-                        "material_sha256": material_sha256(material),
-                        "operation_id": operation_id,
-                        "workspace_id": workspace_id,
-                        "tenant_id": tenant_id or "default",
-                        "session_id": session_id,
-                    }
-                )
+                execution = db.query(AgentExecution).filter(
+                    AgentExecution.id == agent_execution.id
+                ).first()
+                if execution:
+                    execution.status = "completed"
+                    execution.output_summary = f"Presented markdown ({len(content)} chars)"
+                    execution.completed_at = datetime.now()
+                    db.commit()
 
-                if agent_execution:
-                    execution = db.query(AgentExecution).filter(
-                        AgentExecution.id == agent_execution.id
-                    ).first()
-                    if execution:
-                        execution.status = "completed"
-                        execution.output_summary = f"Presented markdown ({len(content)} chars)"
-                        execution.completed_at = datetime.now()
-                        db.commit()
-
-                        from core.service_factory import ServiceFactory
-                        governance_service = ServiceFactory.get_governance_service(db)
-                        await governance_service.record_outcome(agent.id, success=True)
+                    from core.service_factory import ServiceFactory
+                    governance_service = ServiceFactory.get_governance_service(db)
+                    await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(f"Presented markdown content to user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
         return {
             "success": True,
             "canvas_id": canvas_id,
-            "audit_id": str(audit.id) if audit is not None else None,
+            "audit_id": audit_id,
             "agent_id": agent.id if agent else None
         }
 
+    except CanvasPresentationReceiptError as error:
+        return await _presentation_failure_result(error.as_result(), agent_execution.id if agent_execution else None)
+
     except Exception as e:
+        if audit_id and audit is not None:
+            logger.warning("Committed presentation follow-through unavailable", error_class=type(e).__name__)
+            return await _presentation_failure_result(
+                CanvasPresentationReceiptError(audit_id, canvas_id, True).as_result(),
+                agent_execution.id if agent_execution else None)
         logger.error(f"Failed to present markdown: {e}")
         return {"success": False, "error": str(e)}
 
@@ -1599,6 +1712,8 @@ async def present_specialized_canvas(
     agent = None
     agent_execution = None
     governance_check = None
+    audit = None
+    audit_id = None
 
     try:
         # Validate canvas type
@@ -1689,10 +1804,52 @@ async def present_specialized_canvas(
 
                     logger.info(f"Agent execution {agent_execution.id} for {canvas_type} canvas")
 
-        # Present the specialized canvas via WebSocket
+        canvas_id = str(uuid.uuid4())
+        # Build and commit the audit BEFORE broadcasting. Audit persistence is
+        # independent of optional governance enforcement: a presentation with
+        # no durable audit must never reach the user.
+        with get_db_session() as db:
+            audit = await _create_canvas_audit(
+                db=db,
+                require_durable_receipt=True,
+                agent_id=agent.id if agent else None,
+                agent_execution_id=agent_execution.id if agent_execution else None,
+                user_id=user_id,
+                canvas_id=canvas_id,
+                session_id=session_id,
+                canvas_type=canvas_type,
+                component_type=component_type,
+                component_name=None,
+                action="present",
+                governance_check_passed=governance_check["allowed"] if governance_check else None,
+                metadata={
+                    "title": title,
+                    "layout": layout,
+                    **data,
+                    # Preserve the native, unflattened payload as well as the
+                    # backwards-compatible flattened keys.
+                    "data": data,
+                    "content": data,
+                }
+            )
+            audit_id = str(audit.id) if audit is not None else None
+
+        if audit is None:
+            logger.error(
+                f"{canvas_type} presentation refused: canvas audit was not persisted")
+            return await _presentation_failure_result({
+                "success": False,
+                "status": "not_applied",
+                "canvas_id": canvas_id,
+                "verification": {"status": "refused", "effect": "none"},
+                "error": (
+                    "Canvas audit could not be persisted; "
+                    f"{canvas_type} canvas was not presented")
+            }, agent_execution.id if agent_execution else None)
+
+        # Broadcast only after the audit row is durably committed.
         user_channels = _user_broadcast_channels(user_id, session_id)
 
-        canvas_id = str(uuid.uuid4())
         for _user_channel in user_channels:
             await ws_manager.broadcast(
                 _user_channel,
@@ -1704,6 +1861,7 @@ async def present_specialized_canvas(
                     "component": component_type,
                     "canvas_id": canvas_id,
                     "session_id": session_id,
+                    "revision_audit_id": audit_id,
                     "title": title,
                     "layout": layout,
                     "data": data
@@ -1711,43 +1869,22 @@ async def present_specialized_canvas(
             }
         )
 
-        # Create audit entry
-        if FeatureFlags.should_enforce_governance('canvas'):
+        # Mark execution as completed only after the audited presentation.
+        if agent_execution:
             with get_db_session() as db:
-                await _create_canvas_audit(
-                    db=db,
-                    agent_id=agent.id if agent else None,
-                    agent_execution_id=agent_execution.id if agent_execution else None,
-                    user_id=user_id,
-                    canvas_id=canvas_id,
-                    session_id=session_id,
-                    canvas_type=canvas_type,
-                    component_type=component_type,
-                    component_name=None,
-                    action="present",
-                    governance_check_passed=governance_check["allowed"] if governance_check else None,
-                    metadata={
-                        "title": title,
-                        "layout": layout,
-                        **data
-                    }
-                )
+                execution = db.query(AgentExecution).filter(
+                    AgentExecution.id == agent_execution.id
+                ).first()
+                if execution:
+                    execution.status = "completed"
+                    execution.output_summary = f"Presented {canvas_type} canvas: {title or component_type}"
+                    execution.completed_at = datetime.now()
+                    db.commit()
 
-                # Mark execution as completed
-                if agent_execution:
-                    execution = db.query(AgentExecution).filter(
-                        AgentExecution.id == agent_execution.id
-                    ).first()
-                    if execution:
-                        execution.status = "completed"
-                        execution.output_summary = f"Presented {canvas_type} canvas: {title or component_type}"
-                        execution.completed_at = datetime.now()
-                        db.commit()
-
-                        # Record outcome for confidence
-                        from core.service_factory import ServiceFactory
-                        governance_service = ServiceFactory.get_governance_service(db)
-                        await governance_service.record_outcome(agent.id, success=True)
+                    # Record outcome for confidence
+                    from core.service_factory import ServiceFactory
+                    governance_service = ServiceFactory.get_governance_service(db)
+                    await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(
             f"Presented {canvas_type} canvas ({component_type}) to user {user_id}"
@@ -1758,12 +1895,21 @@ async def present_specialized_canvas(
             "canvas_type": canvas_type,
             "component_type": component_type,
             "canvas_id": canvas_id,
+            "audit_id": audit_id,
             "agent_id": agent.id if agent else None,
             "title": title,
             "layout": layout
         }
 
+    except CanvasPresentationReceiptError as error:
+        return await _presentation_failure_result(error.as_result(), agent_execution.id if agent_execution else None)
+
     except Exception as e:
+        if audit_id and audit is not None:
+            logger.warning("Committed presentation follow-through unavailable", error_class=type(e).__name__)
+            return await _presentation_failure_result(
+                CanvasPresentationReceiptError(audit_id, canvas_id, True).as_result(),
+                agent_execution.id if agent_execution else None)
         logger.error(f"Failed to present specialized canvas: {e}")
 
         # Mark execution as failed

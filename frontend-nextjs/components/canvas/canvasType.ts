@@ -78,7 +78,7 @@ export function normalizeCanvasComponent(component?: string | null): string {
     const raw = (component || "").trim().toLowerCase();
     if (!raw) return "markdown";
     if (raw === "sheets" || raw === "spreadsheet") return "sheet";
-    if (raw === "docs" || raw === "doc") return "document";
+    if (raw === "docs" || raw === "doc" || raw === "rich_editor") return "document";
     if (raw === "coding") return "code";
     if (raw === "generic") return "markdown";
     return raw;

@@ -379,7 +379,7 @@ class TestPresentChartGovernance:
 
     @pytest.mark.asyncio
     async def test_present_chart_outcome_recorded_failure(self, mock_ws, mock_agent_intern, mock_db):
-        """Test outcome recording for failed chart presentation after governance allows it."""
+        """A committed chart with failed delivery remains uncertain, without false model feedback."""
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
@@ -414,13 +414,13 @@ class TestPresentChartGovernance:
                             )
 
                             assert result["success"] is False
-                            # Verify outcome was recorded with success=False (called in exception handler)
-                            mock_governance.record_outcome.assert_called_once()
-                            # record_outcome is called with agent.id as positional arg and success as kwarg
-                            # The actual call pattern is: await governance_service.record_outcome(agent.id, success=False)
-                            # Access via call_args[0] for positional, call_args[1] for keyword
-                            assert mock_governance.record_outcome.call_args[0][0] == "agent-intern-123"
-                            assert mock_governance.record_outcome.call_args[1].get("success") is False
+                            # Transport failure AFTER persistence is uncertainty,
+                            # not a failed semantic judgement about the model.
+                            assert result["status"] == "committed_unverified"
+                            assert result["verification"]["effect"] == "committed"
+                            assert result["audit_id"]
+                            assert result["replay"] == "do_not_repeat"
+                            mock_governance.record_outcome.assert_not_awaited()
 
 
 # ============================================================================

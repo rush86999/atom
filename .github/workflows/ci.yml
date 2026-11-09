@@ -401,6 +401,9 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_oracle_registry_verification_gap.py \
+            tests/test_canvas_present_revision_contract.py \
+            tests/test_canvas_present_actions.py \
+            tests/test_oracle_canvas_postcondition.py \
             tests/test_oracle_effect_families.py \
             tests/test_oracle_connected_mutations.py \
             tests/test_assignment_executor.py \
