@@ -304,7 +304,7 @@ class AgentSyncService {
         const item = decoded.item;
         return await this.cacheTransaction(async () => {
           if (generation !== this.cacheGeneration) {
-            return item;
+            return null;
           }
 
           const existing = this.cache.agents[item.id];
@@ -326,7 +326,7 @@ class AgentSyncService {
     }
 
     // Return cached even if stale
-    return cached || null;
+    return generation === this.cacheGeneration ? cached || null : null;
   }
 
   /**

@@ -195,6 +195,7 @@ class CanvasSyncService {
   private flushInFlight: Promise<void> | null = null;
   private readonly cacheTransaction = createCacheTransactionQueue();
   private cacheGeneration = 0;
+  private readonly invalidatedCanvases = new Map<string, number>();
 
   /**
    * Initialize the canvas sync service
@@ -332,14 +333,15 @@ class CanvasSyncService {
 
     // Fetch from server
     const generation = this.cacheGeneration;
+    const invalidation = this.invalidatedCanvases.get(canvasId) || 0;
     try {
       const response = await apiService.get<unknown>(`/api/canvas/${canvasId}`);
       const decoded = decodeDetailResponse(response, 'canvas', canvasId, decodeCanvas);
       if (decoded.ok) {
         const item = decoded.item;
         return await this.cacheTransaction(async () => {
-          if (generation !== this.cacheGeneration) {
-            return item;
+          if (generation !== this.cacheGeneration || invalidation !== (this.invalidatedCanvases.get(canvasId) || 0)) {
+            return null;
           }
 
           const existing = this.cache.canvases[item.id];
@@ -371,7 +373,7 @@ class CanvasSyncService {
     }
 
     // Return cached even if stale for offline viewing
-    return cached || null;
+    return generation === this.cacheGeneration && invalidation === (this.invalidatedCanvases.get(canvasId) || 0) ? cached || null : null;
   }
 
   /**
@@ -766,26 +768,29 @@ class CanvasSyncService {
    * Invalidate canvas cache
    */
   async invalidateCache(canvasId: string): Promise<void> {
-    delete this.cache.canvases[canvasId];
-    delete this.cache.htmlCache[canvasId];
-    delete this.cache.cssCache[canvasId];
-    await this.saveCache();
+    this.invalidatedCanvases.set(canvasId, (this.invalidatedCanvases.get(canvasId) || 0) + 1);
+    await this.cacheTransaction(async () => {
+      const next: CanvasCache = { ...this.cache, canvases: { ...this.cache.canvases }, htmlCache: { ...this.cache.htmlCache }, cssCache: { ...this.cache.cssCache } };
+      delete next.canvases[canvasId];
+      delete next.htmlCache[canvasId];
+      delete next.cssCache[canvasId];
+      await this.saveCache(next);
+      this.cache = next;
+    });
     console.log(`CanvasSync: Invalidated cache for canvas ${canvasId}`);
   }
 
-  /**
-   * Clear all cache
-   */
+  /** Clear invalidates in-flight reads before joining the cache write queue. */
   async clearCache(): Promise<void> {
-    this.cache = {
-      canvases: {},
-      htmlCache: {},
-      cssCache: {},
-      lastSyncAt: null,
-      pendingFormSubmissions: [],
-      favorites: new Set(),
-    };
-    await this.saveCache();
+    this.cacheGeneration += 1;
+    await this.cacheTransaction(async () => {
+      const next: CanvasCache = {
+        canvases: {}, htmlCache: {}, cssCache: {}, lastSyncAt: null,
+        pendingFormSubmissions: [], favorites: new Set(),
+      };
+      await this.saveCache(next);
+      this.cache = next;
+    });
     console.log('CanvasSync: Cache cleared');
   }
 
