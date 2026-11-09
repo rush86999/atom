@@ -221,11 +221,10 @@ class CameraService {
         return null;
       }
 
-      // Get file info
-      const fileInfo = await FileSystem.getInfoAsync(photo.uri);
-
-      // Compress image if needed
+      // Keep final metadata bound to the file returned after processing.
       let finalUri = photo.uri;
+      let finalWidth = photo.width;
+      let finalHeight = photo.height;
       if (photo.width && photo.height) {
         const maxDimension = Math.max(photo.width, photo.height);
         if (maxDimension > MAX_IMAGE_DIMENSION) {
@@ -234,20 +233,27 @@ class CameraService {
             photo.uri,
             [{ resize: { width: Math.round(photo.width * scale) } }],
             {
-              compress: COMPRESSION_QUALITY,
+              compress: options.quality ?? COMPRESSION_QUALITY,
               format: ImageManipulator.SaveFormat.JPEG,
             }
           );
           finalUri = compressed.uri;
+          finalWidth = compressed.width;
+          finalHeight = compressed.height;
         }
+      }
+
+      const fileInfo = await FileSystem.getInfoAsync(finalUri);
+      if (!fileInfo.exists || fileInfo.isDirectory) {
+        throw new Error('Captured photo file is unavailable');
       }
 
       const media: CapturedMedia = {
         uri: finalUri,
         type: 'photo',
-        width: photo.width,
-        height: photo.height,
-        size: fileInfo.exists ? fileInfo.size : undefined,
+        width: finalWidth,
+        height: finalHeight,
+        size: fileInfo.size,
         exif: photo.exif || undefined,
       };
 
