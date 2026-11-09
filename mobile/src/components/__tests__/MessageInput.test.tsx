@@ -41,6 +41,9 @@ jest.mock('expo-av', () => ({
     requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
     setAudioModeAsync: jest.fn(),
     setAudioEnabledAsync: jest.fn(),
+    RecordingOptionsPresets: {
+      HIGH_QUALITY: {},
+    },
     Recording: jest.fn(),
   },
 }), { virtual: true });

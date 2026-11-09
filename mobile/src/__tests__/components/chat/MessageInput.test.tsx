@@ -367,7 +367,7 @@ describe('MessageInput', () => {
     });
 
     it('should stop recording when button is pressed again', async () => {
-      const { getByTestId, waitForElementToBeRemoved } = render(
+      const { getByTestId } = render(
         <MessageInput onSend={mockOnSend} />
       );
 
