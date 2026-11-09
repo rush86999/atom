@@ -1,0 +1,5 @@
+# Open cache-list response boundary and corrected network fixtures
+
+Source79ccbbb20. No cache-response repair or live backend integration is claimed. Independent42fc2bdd8 gate:15cases,3pass/12fail across actual agent/workflow/canvas sync services with doubled API/storage. Missing lists, explicit application failure, malformed records and non-array values can be falsely certified and write cache checkpoints; genuine empty lists remain valid. This negative is preserved and belongs to the active isolated Flash implementation lane.
+
+Separate test-only NetInfo correction uses the library's official mock, installed enum values and complete nullable Wi-Fi/cellular detail fields. Unobserved details remain null, never invented measurements. Six-file fixture regression268/268; full strict compiler184diagnostics(previous198). No tests removed/skipped, config weakened or production behavior changed in the enum repair. All captures retain dirty metadata and match subsequent Git freeze bytes. No device/OS/native/app-provider action.

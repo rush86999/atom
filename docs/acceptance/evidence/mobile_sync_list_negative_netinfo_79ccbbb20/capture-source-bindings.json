@@ -1,0 +1,23 @@
+{
+  "sync-list-invalid-records-negative": {
+    "git_source": "42fc2bdd8",
+    "captured_base": "832d62c73ade781f93bbcbe127d0c29c133a364c",
+    "original_clean_flag": false,
+    "checks": 255,
+    "mismatches": []
+  },
+  "netinfo-enum-fixture-regression": {
+    "git_source": "79ccbbb20",
+    "captured_base": "42fc2bdd808771db025be0cf60806fc08e8abb0c",
+    "original_clean_flag": false,
+    "checks": 255,
+    "mismatches": []
+  },
+  "netinfo-enum-fixture-strict-typecheck": {
+    "git_source": "79ccbbb20",
+    "captured_base": "42fc2bdd808771db025be0cf60806fc08e8abb0c",
+    "original_clean_flag": false,
+    "checks": 255,
+    "mismatches": []
+  }
+}

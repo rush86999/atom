@@ -1,0 +1,23 @@
+{
+  "actual_exit": 0,
+  "started": 1794203290.1479082,
+  "finished": 1794203293.616467,
+  "selected_kind": "compilerfixtures",
+  "verification_pass": true,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/integration/devicePermissions.integration.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/integration/offlineSyncNetwork.integration.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/navigation/NavigationErrors.test.tsx",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/biometricService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/workflowSyncService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/contexts/__tests__/DeviceContext.test.tsx"
+  ],
+  "case_counts": {
+    "numTotalTests": 268,
+    "numPassedTests": 268,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

@@ -1,0 +1,27 @@
+{
+  "executed_source": "79ccbbb203c0926afeded1b02da0a95483becd22",
+  "source_files": {
+    "mobile/src/__tests__/integration/offlineSyncNetwork.integration.test.ts": "de58f58aca3887757309e58c412e519328de27a56b47ff4cb57e5f9c17e92213",
+    "mobile/src/__tests__/services/syncList.response-contract.test.ts": "67fc2192523f4062843e8c4112824e317d3b06847e45f6bcaf258896b980cac9",
+    "mobile/src/services/agentSyncService.ts": "253b92a685f9e30d2615f9175457330d4050618f98c4051a678af49677487c94",
+    "mobile/src/services/workflowSyncService.ts": "e92d316e12bd6f8f447ab0a8c7bb14b9cdf6201047b6ac5507f8e0b1b5de9b88",
+    "mobile/src/services/canvasSyncService.ts": "e58ee1bf3bc208fa1e95cc161b30a99b90d1cf57dcdf15d49eb2d93157538e3d",
+    "mobile/package-lock.json": "af8a4d8cb7778038edb6c8b23ab1b434057f10a24ac13d4a2cc8ce8b970a6c21",
+    "mobile/tsconfig.json": "d92c2d5c519a5fc6fc2980d9ec9c05dcda8842698229462daca0689ef12147cc"
+  },
+  "artifacts": {
+    "netinfo-enum-fixture-regression-results.json": "a7629a3d8a4f288083664f964109381c555d4c455fb29f79b4bf20870951ac80",
+    "sync-list-invalid-records-negative-results.json": "179d7f38a26d55bae7e7d0298a5fea1fa0b371225137affcb9fe35b19bc31e40",
+    "netinfo-enum-fixture-strict-typecheck.log": "7801d181040e3bd5ffcfa7284e94f2550bbea3966108226c073650df95d1b835",
+    "netinfo-enum-fixture-regression.log": "330b530ea9e3af4f717f313a79ed23d50b2376b8a55e35bb9ce09f11a390eeea",
+    "sync-list-invalid-records-negative.log": "7e7daa6bb70d9416ad73bec32cac173fa75cd14198e927131f9d96cf477373d8",
+    "netinfo-enum-fixture-strict-typecheck.exit.json": "102eb4c9fb3d5e62aa894cc513fe838dd85008b25950c7dc933a0dd7da590fe9",
+    "netinfo-enum-fixture-strict-typecheck.spec.json": "b62ab8d826799ee16eed8137b5b2e4ba49fbd19d9405b7959a0df908b67c5064",
+    "README.md": "d5e3738be4388606f6fe453b9873e4cf555cfdd72caf8ead35b1bd68ca9d9db7",
+    "netinfo-enum-fixture-regression.spec.json": "20305e36d483f89421e8e7333d39676cf50858d1542f96520dad264c2cf33afa",
+    "netinfo-enum-fixture-regression.exit.json": "ac4f10b7f10d245079792c44f7aba26ccc9a798557f1c49b018fccda7c5ad906",
+    "sync-list-invalid-records-negative.exit.json": "7779fe989f8a548f57e5c3fe1633c360b6939c0d6c53d9350266b2330e41cf75",
+    "sync-list-invalid-records-negative.spec.json": "74af6c261aeb7b5c3074ff7967082fe183093d0e749d964a1c7cd8a8d8d38842",
+    "capture-source-bindings.json": "524a50d9ca300bd8021f205dcf2869f2922b4e69f55db181730be12c0b360bf0"
+  }
+}
