@@ -360,12 +360,12 @@ class DeviceSocketService {
 
       // Take a picture
       const result = await Camera.takePictureAsync({
-        quality: command.params.quality || 0.8,
+        quality: command.params.quality ?? 0.8,
         base64: true,
         exif: true,
       });
 
-      const savePath = command.params.save_path || `${FileSystem.cacheDirectory}camera_${command.command_id}.jpg`;
+      const savePath = command.params.save_path || result.uri;
 
       // If save_path is provided, save the file
       if (command.params.save_path) {
