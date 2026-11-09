@@ -1,0 +1,26 @@
+{
+  "executed_source": "d03046af4fef1d6c90970fddc202c720a090b563",
+  "source_files": {
+    "mobile/src/services/canvasService.ts": "edfd87af0a2be2844204fd8fa2250e5651a51461788e0762e25c259deb1b2147",
+    "mobile/src/screens/canvas/CanvasViewerScreen.tsx": "e4be50b6b660e33ba1663badfafe48d03ae2812f29cf6aadcde10ef34b9feed5",
+    "mobile/src/__tests__/services/canvasService.test.ts": "f81538d21ac597943cea83fe6a1ab2cb107a43759ddcd465ca249549bf832150",
+    "mobile/src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx": "9c0003d45425090144c4db63741e38e96a6fdd8f867084ede64948810d79d72e",
+    "mobile/package-lock.json": "af8a4d8cb7778038edb6c8b23ab1b434057f10a24ac13d4a2cc8ce8b970a6c21",
+    "mobile/tsconfig.json": "d92c2d5c519a5fc6fc2980d9ec9c05dcda8842698229462daca0689ef12147cc"
+  },
+  "artifacts": {
+    "canvas-netinfo-sdk-negative-results.json": "0bc2c57f90cb93bdae065277d9ea2e9a8ff69cfd4972cff08618b28347873bd5",
+    "canvas-netinfo-strict-typecheck.spec.json": "604a0dc0ee7a4b27947599dba8f6724b5adcc4a28f001b231d237543006f9cb5",
+    "canvas-netinfo-strict-typecheck.exit.json": "49d0f7be1c0ef3ea34d21ed139f9b42d58b973e30da5589e4f8affda5999101b",
+    "README.md": "5d9717e4664cc3cf9b4fe754b7bb29a9bfbeaffad63db68120a2b08f82394a80",
+    "canvas-netinfo-sdk-repaired-results.json": "037db431466907d151cdd118f13caca6fec694c175b9eb37593cf6a9f14f3dbc",
+    "canvas-netinfo-sdk-negative.log": "60351689809930a7514b430d5eba5a270f277a0d1e8e6d57548f10d05e3a81fc",
+    "canvas-netinfo-strict-typecheck.log": "c507309bfdfdd13d5e4eaa3e9c749f8d3a079844f10b61785c08184ab1198286",
+    "canvas-netinfo-sdk-negative.spec.json": "5721add0562a019f0d479c63171ea7558cbf12661ef3aca10e1a1897d3c86909",
+    "canvas-netinfo-sdk-negative.exit.json": "58238181a65e0af5e2e428f3fb3efd653f15bec16521129fb30f349d75006d70",
+    "canvas-netinfo-sdk-repaired.log": "629d4f2b5b929a1b07b0b91fa2cf3a595f4a30faf13eecc53ab2ea8c82bd8c83",
+    "capture-source-bindings.json": "42ee8b18ab54d85314b37e48734deffd80492a4ada1d6807dc477eed43a646ab",
+    "canvas-netinfo-sdk-repaired.exit.json": "8a946ec70d92b6c95be5b59f1df0ab53a3da25625cf244f63c5b29a017099aa3",
+    "canvas-netinfo-sdk-repaired.spec.json": "fbd15d33479b4ebc92e48e7d4ef13c21badbede5bdf4895c08454b8c714982cd"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "canvas-netinfo-sdk-negative": {
+    "git_source": "51db82f9d",
+    "captured_base": "91a3e8268a88808ef9bae78609337da51694cd26",
+    "original_clean_flag": false,
+    "checks": 252,
+    "mismatches": []
+  },
+  "canvas-netinfo-sdk-repaired": {
+    "git_source": "d03046af4",
+    "captured_base": "51db82f9d5c3cafe3248e1552cb45933339ab1c7",
+    "original_clean_flag": false,
+    "checks": 252,
+    "mismatches": []
+  },
+  "canvas-netinfo-strict-typecheck": {
+    "git_source": "d03046af4",
+    "captured_base": "51db82f9d5c3cafe3248e1552cb45933339ab1c7",
+    "original_clean_flag": false,
+    "checks": 252,
+    "mismatches": []
+  }
+}
