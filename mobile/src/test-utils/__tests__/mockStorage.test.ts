@@ -129,7 +129,7 @@ describe('mockStorage', () => {
       seedMmkvStorage({ theme: 'dark' });
       resetMmkvStorage();
       const instance = (global as any).__mmkvGlobalInstance;
-      expect(instance.getString('theme')).toBeNull();
+      expect(instance.getString('theme')).toBeUndefined();
     });
 
     it('falls back to __mmkvStorage map when the global instance is absent', () => {
@@ -204,4 +204,17 @@ describe('mockStorage', () => {
       expect(await getSecureStoreItem('c')).toBeNull();
     });
   });
+  it('missing storage fixtures refuse instead of acknowledging discarded seed data', () => {
+    const instance = global.__mmkvGlobalInstance;
+    const fallback = global.__mmkvStorage;
+    global.__mmkvGlobalInstance = undefined;
+    global.__mmkvStorage = undefined;
+    try {
+      expect(() => seedMmkvStorage({ retained: 'must not disappear' })).toThrow();
+    } finally {
+      global.__mmkvGlobalInstance = instance;
+      global.__mmkvStorage = fallback;
+    }
+  });
+
 });

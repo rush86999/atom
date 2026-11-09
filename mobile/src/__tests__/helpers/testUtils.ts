@@ -20,6 +20,7 @@
  */
 
 import { Platform } from 'react-native';
+import '../../test-utils/storageTestGlobals';
 import { render, RenderAPI, waitFor } from '@testing-library/react-native';
 import React from 'react';
 

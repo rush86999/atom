@@ -18,6 +18,7 @@
 
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import '../../test-utils/storageTestGlobals';
 
 // ============================================================================
 // Types
@@ -69,7 +70,7 @@ interface DeviceState {
  * @param tokens - Partial secure store state to mock
  */
 export const mockSecureStoreState = async (tokens: Partial<SecureStoreState>): Promise<void> => {
-  const mocks = {
+  const mocks: Record<string, string | null> = {
     atom_access_token: tokens.atom_access_token || null,
     atom_refresh_token: tokens.atom_refresh_token || null,
     atom_token_expiry: tokens.atom_token_expiry || null,
@@ -137,7 +138,7 @@ export const mockMMKVState = async (items: Record<string, any>): Promise<void> =
   }
 
   // Clear existing data
-  mmkvInstance.removeAll();
+  mmkvInstance.clearAll();
 
   // Set all items
   Object.entries(items).forEach(([key, value]) => {
@@ -201,7 +202,7 @@ export const clearAllStorage = async (): Promise<void> => {
   // Clear MMKV
   const mmkvInstance = global.__mmkvGlobalInstance;
   if (mmkvInstance) {
-    mmkvInstance.removeAll();
+    mmkvInstance.clearAll();
   }
 
   // Reset global mock helpers

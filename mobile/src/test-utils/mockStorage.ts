@@ -12,6 +12,8 @@
  * - Inspect storage state
  */
 
+import './storageTestGlobals';
+
 // ============================================================================
 // AsyncStorage Helpers
 // ============================================================================
@@ -45,7 +47,7 @@ export async function getAllAsyncStorageItems(): Promise<Record<string, any>> {
   const pairs = await AsyncStorage.multiGet(keys);
 
   const result: Record<string, any> = {};
-  pairs.forEach(([key, value]) => {
+  pairs.forEach(([key, value]: readonly [string, string | null]) => {
     if (value) {
       try {
         result[key] = JSON.parse(value);

@@ -345,4 +345,9 @@ describe('storageTestHelpers', () => {
       expect(result.details).toEqual({ hasDeviceId: false });
     });
   });
+  it.each([0, false])('storage readback preserves the actual primitive %s', async value => {
+    await mockMMKVState({ controlled: value });
+    expect((await getAllStoredState()).mmkv.controlled).toBe(value);
+  });
+
 });
