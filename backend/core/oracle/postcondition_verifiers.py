@@ -2165,13 +2165,26 @@ def _canvas_submit_postcondition():
         return value if isinstance(value, dict) else {}
 
     def _scope_value_same(actual: Any, expected: Any) -> bool:
-        if actual == expected:
-            return True
-        # Preserve the existing legacy null/empty equivalence for verification
-        # only; "default" remains distinct.
-        return actual in (None, "") and expected in (None, "")
+        return actual == expected
 
     async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        required = (
+            "_oracle_expected_canvas_id", "_oracle_expected_operation_id",
+            "_oracle_expected_material_sha256", "_oracle_expected_actor_id",
+            "_oracle_expected_actor_tenant_id", "_oracle_expected_actor_workspace_id",
+            "_oracle_expected_canvas_tenant_id", "_oracle_expected_canvas_workspace_id",
+            "_oracle_expected_agent_id", "_oracle_expected_agent_execution_id",
+        )
+        if any(key not in ctx for key in required):
+            return OracleResult(action, False, "incomplete frozen submission binding")
+        for key in required[:4]:
+            if not isinstance(ctx[key], str) or not ctx[key].strip():
+                return OracleResult(action, False, "invalid frozen submission identity")
+        for key in required[4:8]:
+            if ctx[key] is not None and not isinstance(ctx[key], str):
+                return OracleResult(action, False, "invalid frozen submission scope")
+        if any(not isinstance(ctx[key], str) for key in required[8:]):
+            return OracleResult(action, False, "invalid frozen submission agent identity")
         canvas_id = str(
             ctx.get("_oracle_expected_canvas_id")
             or ctx.get("canvas_id") or "").strip()

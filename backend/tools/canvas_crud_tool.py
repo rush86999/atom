@@ -571,20 +571,22 @@ def submit_material_digest(
 
 
 def deterministic_submit_audit_id(
-    actor_id: str, canvas_id: str, operation_id: str,
+    _actor_id: str, canvas_id: str, operation_id: str,
 ) -> str:
-    """Namespaced deterministic primary key for one logical submission.
+    """One ledger key per canvas/operation; actor remains bound in material.
 
-    The audit table's primary key arbitrates a duplicate append race before a
-    second row can exist. The id is scoped to the actor + canvas + operation,
-    so two different users reusing a client-chosen operation id cannot collide.
-    A JSON scan is never used to certify the first row of an ambiguous set.
+    Existing operation lookup is canvas-scoped, including actor conflicts.
+    Match that contract at the database primary key so competing actors cannot
+    append twice. Canonical tuple encoding preserves opaque ID boundaries;
+    delimiter concatenation confused canvas:part/op with canvas/part:op.
     """
+    import json
     import uuid
 
-    name = (
-        f"atom:canvas:{SUBMIT_ACTION}:"
-        f"{str(actor_id)}:{str(canvas_id)}:{str(operation_id)}")
+    name = json.dumps(
+        ["atom:canvas:submit", str(canvas_id), str(operation_id)],
+        ensure_ascii=False, separators=(",", ":"),
+    )
     return str(uuid.uuid5(uuid.NAMESPACE_URL, name))
 
 
@@ -2937,8 +2939,8 @@ async def submit_canvas_event(
     are legal regardless of who created the canvas. ``Canvas.content`` is
     never read for authority and never mutated.
 
-    The deterministic audit primary key (actor + canvas + operation) arbitrates
-    a duplicate append race. Reusing an operation id with different material or
+    The deterministic audit primary key (canvas + operation) arbitrates
+    a duplicate append race; the exact actor stays bound in request material. Reusing an operation id with different material or
     from a different actor is a conflict; a same-material retry replays the
     original audit identity without a second append.
     """

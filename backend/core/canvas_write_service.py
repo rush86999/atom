@@ -649,19 +649,11 @@ async def _submit_envelope(
     identity = {
         "canvas_id": canvas_id,
         "audit_id": result.get("audit_id"),
-        "operation_id": result.get("operation_id") or operation_id,
+        "operation_id": operation_id,
         "action_type": "submit",
-        "agent_id": (
-            result.get("agent_id")
-            if result.get("agent_id") is not None
-            else snapshot.get("agent_id")),
-        "agent_execution_id": (
-            result.get("agent_execution_id")
-            if result.get("agent_execution_id") is not None
-            else snapshot.get("agent_execution_id")),
-        "material_sha256": (
-            result.get("material_sha256")
-            or snapshot.get("material_sha256")),
+        "agent_id": snapshot.get("agent_id"),
+        "agent_execution_id": snapshot.get("agent_execution_id"),
+        "material_sha256": snapshot.get("material_sha256"),
         "submitted_at": result.get("submitted_at"),
     }
     base = {**result, **identity}
@@ -718,8 +710,7 @@ async def _submit_envelope(
         "no_change": no_change,
         "_oracle_action": "canvas.submit",
         "_oracle_expected_canvas_id": canvas_id,
-        "_oracle_expected_operation_id": (
-            result.get("operation_id") or operation_id),
+        "_oracle_expected_operation_id": operation_id,
         "_oracle_expected_material_sha256": snapshot.get("material_sha256"),
         "_oracle_expected_actor_id": snapshot.get("actor_id") or "",
         "_oracle_expected_actor_tenant_id": snapshot.get("actor_tenant_id"),
