@@ -353,7 +353,10 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
     // the wrong canvas type. Converts the content into the target's shape,
     // swaps the rendered component, and persists a pinned audit row so the
     // choice survives reloads and read-time coercion.
-    const handleTypeSwitch = (target: SwitchableCanvasType) => {
+    const handleTypeSwitch = async (target: SwitchableCanvasType) => {
+        // A type change must not clear an uncertain-save block or race a
+        // pending edit. The hook checks the current ref, not stale UI state.
+        if (autosaveBlocked || !await flushAutosave()) return;
         if (!state) return;
         // The chat host's payload effect leaves a JSON blob in
         // localContentRef for UNEDITED email canvases ({to,subject,body} has
@@ -512,6 +515,7 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
                             <CanvasTypeBadge
                                 component={state.component}
                                 onSwitch={handleTypeSwitch}
+                                disabled={autosaveBlocked || isSaving || autosaveStatus === "saving"}
                             />
                         </div>
                     </div>

@@ -583,7 +583,10 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     // is deliberately NOT updated — the switch isn't a payload delivery, and
     // the guard must keep absorbing stale re-deliveries of the old payload
     // until the PUT's WS broadcast lands with the new type.
-    const handleTypeSwitch = (target: SwitchableCanvasType) => {
+    const handleTypeSwitch = async (target: SwitchableCanvasType) => {
+        // A type change must not clear an uncertain-save block or race a
+        // pending edit. The hook checks the current ref, not stale UI state.
+        if (autosaveBlocked || !await flushAutosave()) return;
         if (!state) return;
         const conversion = switchCanvasType(target, {
             component: state.component,
@@ -747,6 +750,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                             <CanvasTypeBadge
                                 component={state.component}
                                 onSwitch={handleTypeSwitch}
+                                disabled={autosaveBlocked || isSaving || autosaveStatus === "saving"}
                             />
                         </div>
                     </div>

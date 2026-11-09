@@ -44,6 +44,31 @@ describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as cons
   expect(artifacts).toHaveLength(0);
  });
 
+
+
+ it('keeps an ordinary clean type change available without a duplicate save',async()=>{
+  const requests:string[]=[];
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{requests.push(req.url.toString());return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified',effect:'committed'}}));}));
+  openDocument({content:'Retained text'});
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+  fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await waitFor(()=>expect(requests).toHaveLength(1));
+  expect(new URL(requests[0]).searchParams.get('retype')).toBe('true');
+  expect(await screen.findByRole('button',{name:'markdown',exact:true})).toBeEnabled();
+ });
+ it('cannot clear an uncertain save through an already-open type menu',async()=>{
+  let attempts=0;
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{attempts++;return res(ctx.status(503),ctx.json({replay:'do_not_repeat',verification:{effect:'unknown'}}));}));
+  openDocument({content:'Original'});
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Unconfirmed body'}});
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Save Changes'));
+  await screen.findByText('Save not confirmed. Check version history before retrying.');
+  expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  expect(attempts).toBe(1);
+ });
  it.each(['docs','doc','generic','coding'])('uses the established %s registry alias for empty native text',async(component)=>{
   openDocument({content:''},component);
   expect(screen.getByRole('textbox',{name:'Document editor'})).toHaveValue('');
