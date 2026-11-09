@@ -1,0 +1,15 @@
+{
+  "executed_source": "f293e0667377570f77287e0d2ef0bf183f8d0ce3",
+  "source_files": {
+    "scripts/docs/inventory_reference.py": "sha256:88bfa6ab2d7d4a964bf8bd8744612c8874942d1bb2f172a5624b738958cbb103",
+    "scripts/docs/test_inventory_reference.py": "sha256:277bb95fba4c7a6b16ff3a1a26122d8d6d2a716f76699c17b6dd1b3c497e3cac"
+  },
+  "artifacts": {
+    "README.md": "sha256:f2a60c830871f7c72d4acc0a72f3997536491e004319c85a2e12a8b4e5cceeb1",
+    "fixed-positive-py311.log": "sha256:c3c4b72efb8352051711b5e7be121cfe1c031a5bb819bbcdb09a18405c61ae3e",
+    "fixed-positive-py314.log": "sha256:d56db8ba01280c4cb31ed35520a6bc14af00d1dbd8d450991b332f11db06f386",
+    "old-negative-py311.log": "sha256:3e28a4d71b1fa8dbadf65630e88b7c4d2956243fdf132091826baf625867df08",
+    "old-negative-py314.log": "sha256:fa5df172a97d640d8b58d3d12121f2ca150e575644253b91eecb5a4a07e33fbb",
+    "source-proof.json": "sha256:3890ca4ac430ac8811b8021566079cd31b957372605662d46a0e8b9a78cfd61a"
+  }
+}
