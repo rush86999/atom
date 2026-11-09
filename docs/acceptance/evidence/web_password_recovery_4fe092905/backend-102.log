@@ -1,0 +1,423 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 13:09:12 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_web_password_recovery_contract.py::test_normal_mounted_auth_recovery_route_has_its_validation_boundary[forgot-password] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 13:09:12 [    INFO] EscalationManager initialized
+2026-11-09 13:09:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 13:09:12 [    INFO] EscalationManager initialized
+2026-11-09 13:09:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 13:09:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 13:09:12 [    INFO] AgentTaskRegistry initialized
+2026-11-09 13:09:12 [    INFO] Loading integration: auth (core.auth_endpoints)
+2026-11-09 13:09:12 [    INFO] ✓ Loaded auth
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:12 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  0%]
+tests/test_web_password_recovery_contract.py::test_normal_mounted_auth_recovery_route_has_its_validation_boundary[verify-token] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:12 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  1%]
+tests/test_web_password_recovery_contract.py::test_normal_mounted_auth_recovery_route_has_its_validation_boundary[reset-password] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:12 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  2%]
+tests/test_web_password_recovery_contract.py::test_normal_recovery_mount_reuses_one_existing_handler_per_path PASSED [  3%]
+tests/test_web_password_recovery_contract.py::test_recovery_link_reaches_the_implemented_reset_page_and_token_is_hashed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:13 [    INFO] Password reset link generated for user u-4533bde2
+2026-11-09 13:09:13 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_web_password_recovery_contract.py::test_unavailable_mail_is_global_non_enumerating_and_mints_no_token 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:13 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 503 Service Unavailable"
+2026-11-09 13:09:13 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  5%]
+tests/test_web_password_recovery_contract.py::test_used_token_peer_winner_cannot_be_overwritten_by_stale_reset 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:13 [    INFO] Password reset link generated for user u-f7956708
+2026-11-09 13:09:13 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:14 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_web_password_recovery_contract.py::test_foreign_token_scope_cannot_change_the_current_account 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:14 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  7%]
+tests/test_web_password_recovery_contract.py::test_valid_recovery_is_one_use_and_normal_login_uses_the_new_credential 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:15 [    INFO] Password reset link generated for user u-4d817ca8
+2026-11-09 13:09:15 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:15 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:15 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:15 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+2026-11-09 13:09:16 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 401 Unauthorized"
+2026-11-09 13:09:16 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_web_password_recovery_contract.py::test_unusable_recovery_keeps_the_account_unchanged[used] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:16 [    INFO] Password reset link generated for user u-10c9a56d
+2026-11-09 13:09:16 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:16 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:16 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  9%]
+tests/test_web_password_recovery_contract.py::test_unusable_recovery_keeps_the_account_unchanged[expired] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:17 [    INFO] Password reset link generated for user u-bdc753b5
+2026-11-09 13:09:17 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:17 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:17 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 10%]
+tests/test_web_password_recovery_contract.py::test_unusable_recovery_keeps_the_account_unchanged[inactive] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:17 [    INFO] Password reset link generated for user u-5290ba4b
+2026-11-09 13:09:17 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:17 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:17 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 11%]
+tests/test_web_password_recovery_contract.py::test_personal_scope_aliases_remain_supported[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:18 [    INFO] Password reset link generated for user u-d9995485
+2026-11-09 13:09:18 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:18 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_web_password_recovery_contract.py::test_personal_scope_aliases_remain_supported[] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:19 [    INFO] Password reset link generated for user u-5971996b
+2026-11-09 13:09:19 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:19 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_web_password_recovery_contract.py::test_personal_scope_aliases_remain_supported[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:19 [    INFO] Password reset link generated for user u-3c677594
+2026-11-09 13:09:19 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:20 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_web_password_recovery_contract.py::test_uncertain_reset_keeps_original_identity_without_authentication_grant[lost_commit] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:20 [    INFO] Password reset link generated for user u-0afd3fab
+2026-11-09 13:09:20 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:21 [ WARNING] Password recovery failed stage=commit error_class=RuntimeError
+2026-11-09 13:09:21 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 15%]
+tests/test_web_password_recovery_contract.py::test_uncertain_reset_keeps_original_identity_without_authentication_grant[readback] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:21 [    INFO] Password reset link generated for user u-d84f4fe2
+2026-11-09 13:09:21 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:22 [ WARNING] Password recovery failed stage=readback error_class=RuntimeError
+2026-11-09 13:09:22 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_web_password_recovery_contract.py::test_confirmed_integrity_rollback_is_no_effect_and_does_not_log_material 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:22 [    INFO] Password reset link generated for user u-f35e788f
+2026-11-09 13:09:22 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:23 [ WARNING] Password recovery failed stage=commit error_class=IntegrityError
+2026-11-09 13:09:23 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 17%]
+tests/test_web_password_recovery_contract.py::test_successful_recovery_invalidates_other_outstanding_links 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:23 [    INFO] Password reset link generated for user u-296021b4
+2026-11-09 13:09:23 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:23 [    INFO] Password reset link generated for user u-296021b4
+2026-11-09 13:09:23 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:24 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:24 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:24 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 18%]
+tests/test_web_password_recovery_contract.py::test_recovery_issuance_cannot_outlive_a_peer_credential_change 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:24 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_bughunt_auth.py::TestResetPasswordPolicy::test_reset_password_rejects_empty_password PASSED [ 20%]
+tests/test_bughunt_auth.py::TestResetPasswordPolicy::test_reset_password_rejects_short_password PASSED [ 21%]
+tests/test_bughunt_auth.py::TestResetPasswordPolicy::test_register_rejects_overlong_utf8_password PASSED [ 22%]
+tests/test_bughunt_auth.py::TestResetPasswordPolicy::test_reset_password_accepts_valid_password PASSED [ 23%]
+tests/test_bughunt_auth.py::TestBcryptTruncation::test_get_password_hash_rejects_over_72_bytes PASSED [ 24%]
+tests/test_bughunt_auth.py::TestBcryptTruncation::test_distinct_long_passwords_must_not_collide PASSED [ 25%]
+tests/test_bughunt_auth.py::TestBcryptTruncation::test_short_passwords_still_hash_and_verify PASSED [ 26%]
+tests/test_bughunt_auth.py::TestMobileLoginRateLimit::test_mobile_login_is_wired_to_rate_limiter 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:25 [    INFO] HTTP Request: POST http://testserver/api/auth/mobile/login "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 27%]
+tests/test_bughunt_auth.py::TestMobileLoginRateLimit::test_mobile_login_succeeds_when_limiter_allows 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:25 [    INFO] Mobile login successful for a@b.com
+2026-11-09 13:09:25 [    INFO] HTTP Request: POST http://testserver/api/auth/mobile/login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_bughunt_auth.py::TestBiometricChallenge::test_biometric_auth_rejects_unregistered_challenge 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [ WARNING] API Error: VALIDATION_ERROR - Invalid authentication challenge
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/mobile/biometric/authenticate "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 29%]
+tests/test_bughunt_auth.py::TestBiometricChallenge::test_biometric_auth_accepts_registered_challenge 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] Biometric authentication successful for user bughunt@example.com
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/mobile/biometric/authenticate "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_bughunt_auth.py::TestAuditSanitizer::test_sanitize_redacts_secrets_in_nested_lists PASSED [ 31%]
+tests/test_bughunt_auth.py::TestAuditSanitizer::test_sanitize_still_keeps_benign_params PASSED [ 32%]
+tests/test_bughunt_auth.py::TestSecretManagerMigration::test_plaintext_kept_when_encrypted_save_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] ✓ Secrets encryption enabled
+2026-11-09 13:09:26 [    INFO] Migrating secrets to encrypted storage...
+2026-11-09 13:09:26 [   ERROR] Failed to save secrets: disk full
+PASSED                                                                   [ 33%]
+tests/test_bughunt_auth.py::TestSecretManagerMigration::test_plaintext_removed_after_successful_migration 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] ✓ Secrets encryption enabled
+2026-11-09 13:09:26 [    INFO] Migrating secrets to encrypted storage...
+2026-11-09 13:09:26 [    INFO] Saved encrypted secrets to file
+PASSED                                                                   [ 34%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_wrong_password 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 36%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_unknown_user 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 37%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_inactive_user 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 38%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_2fa_required 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_2fa_bad_code 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_2fa_valid_code 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_2fa_enabled_no_secret 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 42%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogin::test_login_internal_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [   ERROR] Login Verification Error: password backend down
+2026-11-09 13:09:26 [   ERROR] Traceback (most recent call last):
+  File "/private/tmp/atom-web-task-project-20261109/backend/core/auth_endpoints.py", line 186, in login_for_access_token
+    if not user or not verify_password(login_data.password, user.hashed_password):
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1183, in _execute_mock_call
+    raise effect
+RuntimeError: password backend down
+
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 43%]
+tests/test_covpush_w75_auth_endpoints.py::TestRegister::test_register_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_covpush_w75_auth_endpoints.py::TestRegister::test_register_duplicate_email 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 45%]
+tests/test_covpush_w75_auth_endpoints.py::TestRegister::test_register_invalid_email_422 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 46%]
+tests/test_covpush_w75_auth_endpoints.py::TestRegister::test_register_short_password_422 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 47%]
+tests/test_covpush_w75_auth_endpoints.py::TestRegister::test_register_password_too_long_bytes_422 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:26 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 48%]
+tests/test_covpush_w75_auth_endpoints.py::TestRegister::test_register_tenant_creation_failure_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [ WARNING] Could not create default tenant/workspace for user user-id-1: uuid backend down
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/register "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/test_covpush_w75_auth_endpoints.py::TestMeAndProfile::test_me 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_covpush_w75_auth_endpoints.py::TestMeAndProfile::test_profile 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: GET http://testserver/api/auth/profile "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_covpush_w75_auth_endpoints.py::TestForgotPassword::test_user_found_sends_email 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] Password reset link generated for user user-1
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_covpush_w75_auth_endpoints.py::TestForgotPassword::test_forgot_password_unknown_user_no_enumeration 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_covpush_w75_auth_endpoints.py::TestForgotPassword::test_forgot_password_rate_limited_429 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [ WARNING] forgot-password rate limit exceeded for IP testclient
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 53%]
+tests/test_covpush_w75_auth_endpoints.py::TestVerifyToken::test_valid_token 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_covpush_w75_auth_endpoints.py::TestVerifyToken::test_invalid_token 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_covpush_w75_auth_endpoints.py::TestVerifyToken::test_verify_rate_limited_429 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 56%]
+tests/test_covpush_w75_auth_endpoints.py::TestResetPassword::test_reset_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_covpush_w75_auth_endpoints.py::TestResetPassword::test_reset_invalid_token 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 58%]
+tests/test_covpush_w75_auth_endpoints.py::TestResetPassword::test_reset_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 59%]
+tests/test_covpush_w75_auth_endpoints.py::TestResetPassword::test_reset_rate_limited_429 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 60%]
+tests/test_covpush_w75_auth_endpoints.py::TestRefresh::test_refresh_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/refresh "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_covpush_w75_auth_endpoints.py::TestRefresh::test_refresh_unauthenticated_401 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/refresh "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 62%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogout::test_logout_revokes_token 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_covpush_w75_auth_endpoints.py::TestLogout::test_logout_bad_token_best_effort 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_covpush_w75_auth_endpoints.py::TestRateLimitDependencies::test_forgot_password_dependency_429 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [ WARNING] forgot-password rate limit exceeded for IP 9.9.9.9
+PASSED                                                                   [ 65%]
+tests/test_covpush_w75_auth_endpoints.py::TestRateLimitDependencies::test_verify_token_dependency_429 PASSED [ 66%]
+tests/test_covpush_w75_auth_endpoints.py::TestRateLimitDependencies::test_reset_password_dependency_429 PASSED [ 67%]
+tests/test_round56_password_recovery_rate_limit.py::TestForgotPasswordRateLimit::test_allows_up_to_limit_then_429 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [ WARNING] forgot-password rate limit exceeded for IP 1.2.3.4
+PASSED                                                                   [ 68%]
+tests/test_round56_password_recovery_rate_limit.py::TestForgotPasswordRateLimit::test_limit_is_per_ip 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [ WARNING] forgot-password rate limit exceeded for IP 1.1.1.1
+PASSED                                                                   [ 69%]
+tests/test_round56_password_recovery_rate_limit.py::TestVerifyTokenRateLimit::test_allows_up_to_limit_then_429 PASSED [ 70%]
+tests/test_round56_password_recovery_rate_limit.py::TestResetPasswordRateLimit::test_allows_up_to_limit_then_429 PASSED [ 71%]
+tests/test_round56_password_recovery_rate_limit.py::TestResetPasswordRateLimit::test_endpoint_level_429 
+-------------------------------- live log call ---------------------------------
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 13:09:27 [ WARNING] forgot-password rate limit exceeded for IP testclient
+2026-11-09 13:09:27 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 429 Too Many Requests"
+PASSED                                                                   [ 72%]
+tests/test_round18_integration_security.py::TestAuthEndpointsDoNotLogResetLink::test_no_reset_link_in_logs PASSED [ 73%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 74%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 75%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 76%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 77%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 78%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 79%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 80%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 82%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 84%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_web_password_recovery_contract.py: 20 warnings
+tests/test_covpush_w75_auth_endpoints.py: 1 warning
+  /private/tmp/atom-web-task-project-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_bughunt_auth.py::TestBiometricChallenge::test_biometric_auth_rejects_unregistered_challenge
+  /private/tmp/atom-web-task-project-20261109/backend/api/auth_routes.py:286: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 102 passed, 27 warnings in 33.00s =======================

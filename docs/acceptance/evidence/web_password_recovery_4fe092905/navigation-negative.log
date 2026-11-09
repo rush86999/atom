@@ -1,0 +1,275 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+  console.error
+    Warning: An update to ResetPassword inside a test was not wrapped in act(...).
+    
+    When testing, code that causes React state updates should be wrapped into act(...):
+    
+    act(() => {
+      /* fire events that update state */
+    });
+    /* assert on the output */
+    
+    This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+        at ResetPassword (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/pages/auth/reset-password.tsx:7:45)
+
+      36 |
+      37 |             const data = await response.json();
+    > 38 |             setTokenValid(response.ok && data.valid === true);
+         |             ^
+      39 |             if (!response.ok) {
+      40 |                 setError(extractApiErrorMessage(data, "Reset link could not be verified. Please try again later.", response.status));
+      41 |             } else if (!data.valid) {
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/auth/reset-password.tsx:38:13
+      at step (pages/auth/reset-password.tsx:66:23)
+      at Object.next (pages/auth/reset-password.tsx:47:53)
+      at fulfilled (pages/auth/reset-password.tsx:38:58)
+
+  console.error
+    Warning: An update to ResetPassword inside a test was not wrapped in act(...).
+    
+    When testing, code that causes React state updates should be wrapped into act(...):
+    
+    act(() => {
+      /* fire events that update state */
+    });
+    /* assert on the output */
+    
+    This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+        at ResetPassword (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/pages/auth/reset-password.tsx:7:45)
+
+      36 |
+      37 |             const data = await response.json();
+    > 38 |             setTokenValid(response.ok && data.valid === true);
+         |             ^
+      39 |             if (!response.ok) {
+      40 |                 setError(extractApiErrorMessage(data, "Reset link could not be verified. Please try again later.", response.status));
+      41 |             } else if (!data.valid) {
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/auth/reset-password.tsx:38:13
+      at step (pages/auth/reset-password.tsx:66:23)
+      at Object.next (pages/auth/reset-password.tsx:47:53)
+      at fulfilled (pages/auth/reset-password.tsx:38:58)
+
+FAIL tests/auth/test-reset-password.test.tsx
+  ResetPassword Component
+    Component Import/Export
+      ✓ should import and render ResetPassword component (17 ms)
+      ✓ should export ResetPassword as default (1 ms)
+    Token Verification
+      ✓ should show loading state while verifying token (15 ms)
+      ✓ should show reset form after successful token verification (9 ms)
+      ✓ should show invalid link message when token is invalid (5 ms)
+      ✓ should show invalid link message when verification fails (5 ms)
+      ✓ should call verify-token API on mount (2 ms)
+    Form Elements
+      ✓ should render password input field (4 ms)
+      ✓ should render confirm password input field (5 ms)
+      ✓ should render submit button (11 ms)
+      ✓ should render back to sign in link (6 ms)
+    State Management
+      ✓ should update password state on input change (46 ms)
+      ✓ should update confirm password state on input change (38 ms)
+      ✓ should show loading state during submission (76 ms)
+    Form Validation
+      ✓ should show error when passwords do not match (82 ms)
+      ✓ should show error when password is too short (43 ms)
+    Password Reset Flow
+      ✓ should call reset-password API on successful submission (73 ms)
+      ✓ should show success message on successful reset (76 ms)
+      ✓ should redirect to signin after successful reset (26 ms)
+      ✓ should show error message on failed reset (70 ms)
+    Accessibility
+      ✓ should have proper labels for form inputs (5 ms)
+      ✓ should show error messages in accessible divs (39 ms)
+    Edge Cases
+      ✓ should handle empty form submission (5 ms)
+      ✓ should handle network errors gracefully (75 ms)
+      ✓ should clear error state on new submission (101 ms)
+    Recovery receipt finality
+      ✓ does not show success or redirect for an unverified committed response (86 ms)
+      ✓ cancels the scheduled sign-in redirect when the user leaves the page (25 ms)
+    Request ownership across navigation
+      ✕ ignores an older verification after a new token is rejected (5 ms)
+      ✕ does not redirect from a delayed reset after token change (19 ms)
+      ✕ does not redirect from a delayed reset after unmount (16 ms)
+
+  ● ResetPassword Component › Request ownership across navigation › ignores an older verification after a new token is rejected
+
+    TestingLibraryElementError: Unable to find an element with the text: /^Invalid Reset Link$/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-800 py-12 px-4 sm:px-6 lg:px-8"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"max-w-md w-full space-y-8"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100"[39m
+              [36m>[39m
+                [0mSet new password[0m
+              [36m</h2>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"mt-2 text-center text-sm text-gray-600 dark:text-gray-400"[39m
+              [36m>[39m
+                [0mEnter your new password below.[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<form[39m
+              [33mclass[39m=[32m"mt-8 space-y-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"rounded-md bg-red-50 p-4"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-sm text-red-800"[39m
+                [36m>[39m
+                  [0mThis reset link is invalid or has expired.[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"password"[39m
+                  [36m>[39m
+                    [0mNew password[0m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"[39m
+                    [33mid[39m=[32m"password"[39m
+                    [33mname[39m=[32m"password"[39m
+                    [33mplaceholder[39m=[32m"New password"[39m
+                    [33mrequired[39m=[32m""[39m
+                    [33mtype[39m=[32m"password"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"confirmPassword"[39m
+                  [36m>[39m
+                    [0mConfirm password[0m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"[39m
+                    [33mid[39m=[32m"confirmPassword"[39m
+                    [33mname[39m=[32m"confirmPassword"[39m
+                    [33mplaceholder[39m=[32m"Confirm password"[39m
+                    [33mrequired[39m=[32m""[39m
+                    [33mtype[39m=[32m"password"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-gray-900 dark:text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"[39m
+                  [33mtype[39m=[32m"submit"[39m
+                [36m>[39m
+                  [0mReset password[0m
+                [36m</button>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"text-center"[39m
+              [36m>[39m
+                [36m<a[39m
+                  [33mclass[39m=[32m"text-sm text-blue-600 hover:text-blue-500"[39m
+                  [33mhref[39m=[32m"/auth/signin"[39m
+                [36m>[39m
+                  [0mBack to sign in[0m
+                [36m</a>[39m
+              [36m</div>[39m
+            [36m</form>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      461 |       await screen.findByText(/^Invalid Reset Link$/i);
+      462 |       await act(async () => resolveOld({ ok: true, json: async () => ({ valid: true }) }));
+    > 463 |       expect(screen.getByText(/^Invalid Reset Link$/i)).toBeInTheDocument();
+          |                     ^
+      464 |       expect(screen.queryByPlaceholderText(/new password/i)).not.toBeInTheDocument();
+      465 |     });
+      466 |
+
+      at Object.getElementError (node_modules/@testing-library/dom/dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+      at tests/auth/test-reset-password.test.tsx:463:21
+      at step (tests/auth/test-reset-password.test.tsx:33:23)
+      at Object.next (tests/auth/test-reset-password.test.tsx:14:53)
+      at fulfilled (tests/auth/test-reset-password.test.tsx:5:58)
+
+  ● ResetPassword Component › Request ownership across navigation › does not redirect from a delayed reset after token change
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+    1: "/auth/signin"
+
+      484 |       await act(async () => resolveReset({ ok: true, json: async () => ({ success: true, verification: { status: 'verified' } }) }));
+      485 |       await act(async () => { jest.advanceTimersByTime(3000); });
+    > 486 |       expect(mockPush).not.toHaveBeenCalled();
+          |                            ^
+      487 |       expect(screen.queryByText(/password reset successful/i)).not.toBeInTheDocument();
+      488 |     });
+      489 |   });
+
+      at tests/auth/test-reset-password.test.tsx:486:28
+      at step (tests/auth/test-reset-password.test.tsx:33:23)
+      at Object.next (tests/auth/test-reset-password.test.tsx:14:53)
+      at fulfilled (tests/auth/test-reset-password.test.tsx:5:58)
+
+  ● ResetPassword Component › Request ownership across navigation › does not redirect from a delayed reset after unmount
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+    1: "/auth/signin"
+
+      484 |       await act(async () => resolveReset({ ok: true, json: async () => ({ success: true, verification: { status: 'verified' } }) }));
+      485 |       await act(async () => { jest.advanceTimersByTime(3000); });
+    > 486 |       expect(mockPush).not.toHaveBeenCalled();
+          |                            ^
+      487 |       expect(screen.queryByText(/password reset successful/i)).not.toBeInTheDocument();
+      488 |     });
+      489 |   });
+
+      at tests/auth/test-reset-password.test.tsx:486:28
+      at step (tests/auth/test-reset-password.test.tsx:33:23)
+      at Object.next (tests/auth/test-reset-password.test.tsx:14:53)
+      at fulfilled (tests/auth/test-reset-password.test.tsx:5:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 27 passed, 30 total
+Snapshots:   0 total
+Time:        1.872 s, estimated 2 s
+Ran all test suites matching tests/auth/test-reset-password.test.tsx.
