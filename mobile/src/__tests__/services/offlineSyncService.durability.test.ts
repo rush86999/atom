@@ -246,4 +246,26 @@ describe('OfflineSync durable pending intent contract', () => {
     }
   });
 
+  test('one failed transport is counted once when its status projection write also fails', async () => {
+    await start(true);
+    await add('one actual failed action');
+    const write = storageService.setString.bind(storageService);
+    let refused = false;
+    jest.spyOn(storageService, 'setString').mockImplementation(async (key, value) => {
+      if (key === 'offline_queue' && !refused) {
+        const rows = JSON.parse(value);
+        if (rows[0]?.status === 'pending' && rows[0]?.syncAttempts === 1) {
+          refused = true;
+          return false;
+        }
+      }
+      return write(key, value);
+    });
+    const result = await offlineSyncService.triggerSync();
+    expect(refused).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.failed).toBe(1);
+    expect(readQueue()[0].syncAttempts).toBe(1);
+  });
+
 });

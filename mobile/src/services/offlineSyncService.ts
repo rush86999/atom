@@ -63,6 +63,7 @@ export interface OfflineAction {
 }
 
 export interface SyncResult {
+  cycleId?: string;
   success: boolean;
   skipped?: number;
   cancelled?: boolean;
@@ -79,7 +80,26 @@ export interface SyncResult {
   bytesTransferred: number;
 }
 
+/** Local pass bookkeeping, not a receipt certifying an external business effect. */
+export interface SyncEntityProgress {
+  type: EntityType | 'other';
+  total: number;
+  synced: number;
+  failed: number;
+  conflicts: number;
+  skipped: number;
+}
+
+export interface SyncCycleSnapshot {
+  id: string;
+  startedAt: number;
+  actionIds: string[];
+  entityProgress: SyncEntityProgress[];
+  result: (SyncResult & { cycleId: string }) | null;
+}
+
 export interface SyncState {
+  cycle?: SyncCycleSnapshot;
   lastSyncAt: Date | null;
   lastSuccessfulSyncAt: Date | null;
   pendingCount: number;
@@ -143,7 +163,11 @@ class OfflineSyncService {
   private listeners: Set<(state: SyncState) => void> = new Set();
   private progressListeners: Set<(progress: number, operation: string) => void> = new Set();
   private conflictListeners: Set<(conflict: OfflineAction) => void> = new Set();
-  private qualityMetrics: SyncQualityMetrics;
+  private cycleSequence = 0;
+  private qualityMetrics: SyncQualityMetrics = {
+    totalSyncs: 0, successfulSyncs: 0, failedSyncs: 0, conflictRate: 0,
+    avgSyncDuration: 0, avgBytesTransferred: 0, lastQualityCheck: new Date(),
+  };
   private cancelRequested: boolean = false;
 
   /**
@@ -288,7 +312,6 @@ class OfflineSyncService {
 
     this.syncInProgress = true;
     this.cancelRequested = false;
-    this.notifyListeners();
 
     const startTime = Date.now();
     let synced = 0;
@@ -297,23 +320,42 @@ class OfflineSyncService {
     let skipped = 0;
     let bytesTransferred = 0;
     const entities = { agents: 0, workflows: 0, canvases: 0, episodes: 0 };
+    // Identity is local to this service lifetime; no provider-operation guarantee.
+    let cycle: SyncCycleSnapshot = {
+      id: `sync_${startTime}_${++this.cycleSequence}`, startedAt: startTime,
+      actionIds: [], entityProgress: [], result: null,
+    };
+    const finalize = async (result: SyncResult): Promise<SyncResult> => {
+      const bound = { ...result, cycleId: cycle.id };
+      cycle = { ...cycle, result: bound };
+      await this.updateSyncState({ cycle, syncInProgress: false, cancelled: !!result.cancelled });
+      return bound;
+    };
 
     try {
       // Get pending actions
       const queue = await this.getQueue();
       const pendingActions = queue.filter((a) => a.status === 'pending');
+      const kinds: Array<EntityType | 'other'> = ['agents', 'workflows', 'canvases', 'episodes', 'other'];
+      cycle.actionIds = pendingActions.map(action => action.id);
+      cycle.entityProgress = kinds.map(type => ({
+        type, total: pendingActions.filter(action => (action.entityType || 'other') === type).length,
+        synced: 0, failed: 0, conflicts: 0, skipped: 0,
+      })).filter(row => row.total > 0);
+      await this.updateSyncState({ cycle, syncInProgress: true, cancelled: false, syncProgress: 0, currentOperation: 'Preparing sync' });
+      this.notifyListeners();
 
       if (pendingActions.length === 0) {
         console.log('OfflineSync: No pending actions to sync');
-        return {
-          success: true,
+        return await finalize({
+          success: queue.every(action => action.status === 'completed'),
           synced: 0,
           failed: 0,
           conflicts: 0,
           duration: Date.now() - startTime,
           entities,
           bytesTransferred,
-        };
+        });
       }
 
       console.log(`OfflineSync: Syncing ${pendingActions.length} actions`);
@@ -341,12 +383,15 @@ class OfflineSyncService {
             break;
           }
 
+          const row = cycle.entityProgress.find(item => item.type === (action.entityType || 'other'));
           try {
             const result = await this.syncAction(action);
-            if (result.skipped) { skipped++; continue; }
+            if (result.skipped) { skipped++; if (row) row.skipped++; continue; }
 
             if (result.success) {
+              await this.updateActionStatus(action.id, 'completed');
               synced++;
+              if (row) row.synced++;
               bytesTransferred += action.sizeBytes || 0;
 
               // Track entity types
@@ -354,13 +399,14 @@ class OfflineSyncService {
                 entities[action.entityType]++;
               }
 
-              await this.updateActionStatus(action.id, 'completed');
             } else if (result.conflict) {
               conflicts++;
+              if (row) row.conflicts++;
               await this.updateActionStatus(action.id, 'pending');
               this.notifyConflictListeners(action);
             } else {
               failed++;
+              if (row) row.failed++;
               await this.incrementSyncAttempts(action.id);
               // Retry below the limit; retain exhausted intent as failed for
               // an explicit owner retry/removal instead of silently dropping it.
@@ -373,6 +419,7 @@ class OfflineSyncService {
           } catch (error) {
             console.error(`OfflineSync: Failed to sync action ${action.id}:`, error);
             failed++;
+            if (row) row.failed++;
             await this.incrementSyncAttempts(action.id);
             if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
               await this.updateActionStatus(action.id, 'failed');
@@ -381,6 +428,8 @@ class OfflineSyncService {
             }
           }
         }
+        await this.updateSyncState({ cycle: { ...cycle, result: null } });
+        this.notifyListeners();
       }
 
       // Remove completed actions
@@ -417,7 +466,7 @@ class OfflineSyncService {
 
       console.log(`OfflineSync: Sync complete - ${synced} synced, ${failed} failed, ${conflicts} conflicts, ${duration}ms, ${bytesTransferred} bytes`);
 
-      return {
+      return await finalize({
         success: satisfactory,
         synced,
         failed,
@@ -427,7 +476,7 @@ class OfflineSyncService {
         duration,
         entities,
         bytesTransferred,
-      };
+      });
     } catch (error) {
       console.error('OfflineSync: Sync failed:', error);
       await this.updateQualityMetrics({
@@ -435,18 +484,22 @@ class OfflineSyncService {
         failedSyncs: this.qualityMetrics.failedSyncs + 1,
         lastQualityCheck: new Date(),
       });
-      return {
+      return await finalize({
         success: false,
+        cancelled: this.cancelRequested,
         synced,
         failed,
         conflicts,
         duration: Date.now() - startTime,
         entities,
         bytesTransferred,
-      };
+      });
     } finally {
       this.syncInProgress = false;
       this.cancelRequested = false;
+      try { await this.updateSyncState({ syncInProgress: false }); } catch {
+        console.warn('OfflineSync: Terminal state unavailable; no completion certified.');
+      }
       this.notifyListeners();
     }
   }
