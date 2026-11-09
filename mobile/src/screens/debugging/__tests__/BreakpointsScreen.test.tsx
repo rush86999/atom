@@ -19,18 +19,6 @@ jest.mock('axios', () => ({
   delete: jest.fn(),
 }));
 
-jest.mock('lucide-react-native', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-  const Icon = (name: string) => (props: any) =>
-    React.createElement(Text, { ...props, testID: name }, name);
-  return {
-    Plus: Icon('Plus'),
-    Trash2: Icon('Trash2'),
-    X: Icon('X'),
-    Check: Icon('Check'),
-  };
-}, { virtual: true });
 
 const mockGet = axios.get as jest.Mock;
 const mockPost = axios.post as jest.Mock;
@@ -151,7 +139,7 @@ describe('BreakpointsScreen', () => {
     });
 
     test('opens modal via the header button and closes with X', async () => {
-      const { getByText, getByTestId, queryByText } = render(<BreakpointsScreen route={route} />);
+      const { getByText, getByLabelText, queryByText } = render(<BreakpointsScreen route={route} />);
 
       await waitFor(() => {
         expect(getByText('Breakpoints')).toBeTruthy();
@@ -160,7 +148,7 @@ describe('BreakpointsScreen', () => {
       fireEvent.press(getByText('Add Breakpoint'));
       expect(getByText('Node ID')).toBeTruthy();
 
-      fireEvent.press(getByTestId('X'));
+      fireEvent.press(getByLabelText('Close breakpoint dialog'));
       expect(queryByText('Node ID')).toBeNull();
     });
 

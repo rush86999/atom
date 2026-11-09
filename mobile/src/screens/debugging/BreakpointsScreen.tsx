@@ -16,7 +16,7 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Trash2, X, Check } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import axios from 'axios';
 
 interface Breakpoint {
@@ -141,7 +141,7 @@ export const BreakpointsScreen: React.FC<BreakpointsScreenProps> = ({ route }) =
         style={styles.removeButton}
         onPress={() => removeBreakpoint(item.id)}
       >
-        <Trash2 size={18} color="#dc3545" />
+        <Feather name="trash-2" size={18} color="#dc3545" />
         <Text style={styles.removeButtonText}>Remove</Text>
       </TouchableOpacity>
     </View>
@@ -156,7 +156,7 @@ export const BreakpointsScreen: React.FC<BreakpointsScreenProps> = ({ route }) =
           style={styles.addButton}
           onPress={() => setShowAddModal(true)}
         >
-          <Plus size={20} color="#fff" />
+          <Feather name="plus" size={20} color="#fff" />
           <Text style={styles.addButtonText}>Add Breakpoint</Text>
         </TouchableOpacity>
       </View>
@@ -189,8 +189,8 @@ export const BreakpointsScreen: React.FC<BreakpointsScreenProps> = ({ route }) =
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Breakpoint</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color="#495057" />
+              <TouchableOpacity accessibilityLabel="Close breakpoint dialog" onPress={() => setShowAddModal(false)}>
+                <Feather name="x" size={24} color="#495057" />
               </TouchableOpacity>
             </View>
 
@@ -213,7 +213,7 @@ export const BreakpointsScreen: React.FC<BreakpointsScreenProps> = ({ route }) =
             />
 
             <TouchableOpacity style={styles.confirmButton} onPress={addBreakpoint}>
-              <Check size={20} color="#fff" />
+              <Feather name="check" size={20} color="#fff" />
               <Text style={styles.confirmButtonText}>Add Breakpoint</Text>
             </TouchableOpacity>
           </View>

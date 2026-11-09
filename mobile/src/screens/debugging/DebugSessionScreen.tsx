@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Play, Pause, SkipForward, ArrowRight, ArrowDown } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import axios from 'axios';
 
 interface DebugSession {
@@ -86,11 +86,11 @@ export const DebugSessionScreen: React.FC<DebugSessionScreenProps> = ({ route })
 
   const StepButton = ({
     action,
-    icon: Icon,
+    icon,
     label,
   }: {
     action: string;
-    icon: any;
+    icon: React.ComponentProps<typeof Feather>['name'];
     label: string;
   }) => (
     <TouchableOpacity
@@ -98,7 +98,7 @@ export const DebugSessionScreen: React.FC<DebugSessionScreenProps> = ({ route })
       onPress={() => executeStep(action as any)}
       disabled={actionLoading === action || !session}
     >
-      <Icon size={24} color="#fff" />
+      <Feather name={icon} size={24} color="#fff" />
       <Text style={styles.stepButtonLabel}>{label}</Text>
     </TouchableOpacity>
   );
@@ -159,11 +159,11 @@ export const DebugSessionScreen: React.FC<DebugSessionScreenProps> = ({ route })
       <View style={styles.controlsSection}>
         <Text style={styles.sectionTitle}>Controls</Text>
         <View style={styles.stepButtons}>
-          <StepButton action="step_over" icon={SkipForward} label="Over" />
-          <StepButton action="step_into" icon={ArrowRight} label="Into" />
-          <StepButton action="step_out" icon={ArrowDown} label="Out" />
-          <StepButton action="continue" icon={Play} label="Run" />
-          <StepButton action="pause" icon={Pause} label="Pause" />
+          <StepButton action="step_over" icon="skip-forward" label="Over" />
+          <StepButton action="step_into" icon="arrow-right" label="Into" />
+          <StepButton action="step_out" icon="arrow-down" label="Out" />
+          <StepButton action="continue" icon="play" label="Run" />
+          <StepButton action="pause" icon="pause" label="Pause" />
         </View>
       </View>
 

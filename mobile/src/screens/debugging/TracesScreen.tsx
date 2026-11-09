@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight, ChevronDown, Search, CheckCircle, XCircle, Clock } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import axios from 'axios';
 
 interface ExecutionTrace {
@@ -81,13 +81,13 @@ export const TracesScreen: React.FC<TracesScreenProps> = ({ route }) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle size={16} color="#28a745" />;
+        return <Feather name="check-circle" size={16} color="#28a745" />;
       case 'failed':
-        return <XCircle size={16} color="#dc3545" />;
+        return <Feather name="x-circle" size={16} color="#dc3545" />;
       case 'started':
-        return <Clock size={16} color="#ffc107" />;
+        return <Feather name="clock" size={16} color="#ffc107" />;
       default:
-        return <Clock size={16} color="#6c757d" />;
+        return <Feather name="clock" size={16} color="#6c757d" />;
     }
   };
 
@@ -121,7 +121,7 @@ export const TracesScreen: React.FC<TracesScreenProps> = ({ route }) => {
           onPress={() => toggleExpand(item.trace_id)}
         >
           <View style={styles.traceHeaderLeft}>
-            {isExpanded ? <ChevronDown size={20} color="#6c757d" /> : <ChevronRight size={20} color="#6c757d" />}
+            {isExpanded ? <Feather name="chevron-down" size={20} color="#6c757d" /> : <Feather name="chevron-right" size={20} color="#6c757d" />}
             {getStatusIcon(item.status)}
             <View>
               <Text style={styles.stepNumber}>Step {item.step_number}</Text>

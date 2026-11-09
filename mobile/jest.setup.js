@@ -838,12 +838,14 @@ jest.mock('@expo/vector-icons', () => {
   const Ionicons = createIconSet();
   const MaterialIcons = createIconSet();
   const FontAwesome = createIconSet();
+  const Feather = createIconSet();
 
   return {
     __esModule: true,
     Ionicons,
     MaterialIcons,
     FontAwesome,
+    Feather,
     default: Ionicons,
   };
 }, { virtual: true });

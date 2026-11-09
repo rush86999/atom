@@ -19,19 +19,6 @@ jest.mock('axios', () => ({
   delete: jest.fn(),
 }));
 
-jest.mock('lucide-react-native', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-  const Icon = (name: string) => (props: any) =>
-    React.createElement(Text, { ...props, testID: name }, name);
-  return {
-    Play: Icon('Play'),
-    Pause: Icon('Pause'),
-    SkipForward: Icon('SkipForward'),
-    ArrowRight: Icon('ArrowRight'),
-    ArrowDown: Icon('ArrowDown'),
-  };
-}, { virtual: true });
 
 const mockPost = axios.post as jest.Mock;
 const alertMock = Alert.alert as jest.Mock;

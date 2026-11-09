@@ -19,20 +19,6 @@ jest.mock('axios', () => ({
   delete: jest.fn(),
 }));
 
-jest.mock('lucide-react-native', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-  const Icon = (name: string) => (props: any) =>
-    React.createElement(Text, { ...props, testID: name }, name);
-  return {
-    ChevronRight: Icon('ChevronRight'),
-    ChevronDown: Icon('ChevronDown'),
-    Search: Icon('Search'),
-    CheckCircle: Icon('CheckCircle'),
-    XCircle: Icon('XCircle'),
-    Clock: Icon('Clock'),
-  };
-}, { virtual: true });
 
 const mockGet = axios.get as jest.Mock;
 
