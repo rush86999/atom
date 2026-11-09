@@ -19,8 +19,15 @@
  * Uses expo-camera for cross-platform camera support.
  */
 
-import { CameraView, CameraType, CameraPermissionStatus, BarcodeScanningResult } from 'expo-camera';
+import {
+  Camera,
+  CameraView,
+  PermissionStatus,
+  type BarcodeScanningResult,
+  type CameraType,
+} from 'expo-camera/next';
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
@@ -35,8 +42,8 @@ export type FlashMode = 'off' | 'on' | 'auto' | 'torch';
 export type CameraMode = 'picture' | 'video' | 'document' | 'barcode';
 
 export interface PhotoOptions {
-  quality: number; // 0-1
-  skipProcessing: boolean;
+  quality?: number; // 0-1
+  skipProcessing?: boolean;
   exif?: boolean;
 }
 
@@ -86,6 +93,17 @@ export interface CapturedPhotos {
 const COMPRESSION_QUALITY = 0.8;
 const MAX_IMAGE_DIMENSION = 2048;
 
+function toCameraPermission(status: PermissionStatus): CameraPermission {
+  switch (status) {
+    case PermissionStatus.GRANTED:
+      return 'granted';
+    case PermissionStatus.DENIED:
+      return 'denied';
+    default:
+      return 'undetermined';
+  }
+}
+
 /**
  * Camera Service
  */
@@ -102,8 +120,8 @@ class CameraService {
    */
   async initialize(): Promise<void> {
     try {
-      const { status } = await CameraView.getCameraPermissionsAsync();
-      this.permissionStatus = status === 'granted' ? 'granted' : status;
+      const { status } = await Camera.getCameraPermissionsAsync();
+      this.permissionStatus = toCameraPermission(status);
 
       console.log('CameraService: Initialized, permission:', this.permissionStatus);
     } catch (error) {
@@ -116,8 +134,8 @@ class CameraService {
    */
   async requestPermissions(): Promise<CameraPermission> {
     try {
-      const { status } = await CameraView.requestCameraPermissionsAsync();
-      this.permissionStatus = status === 'granted' ? 'granted' : status;
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      this.permissionStatus = toCameraPermission(status);
 
       console.log('CameraService: Permission requested, status:', this.permissionStatus);
       return this.permissionStatus;
@@ -132,8 +150,8 @@ class CameraService {
    */
   async getPermissionStatus(): Promise<CameraPermission> {
     try {
-      const { status } = await CameraView.getCameraPermissionsAsync();
-      this.permissionStatus = status === 'granted' ? 'granted' : status;
+      const { status } = await Camera.getCameraPermissionsAsync();
+      this.permissionStatus = toCameraPermission(status);
       return this.permissionStatus;
     } catch (error) {
       console.error('CameraService: Failed to get permission status:', error);
@@ -178,6 +196,9 @@ class CameraService {
       }
 
       const photo = await cameraRef.current.takePictureAsync(options);
+      if (!photo) {
+        return null;
+      }
 
       // Get file info
       const fileInfo = await FileSystem.getInfoAsync(photo.uri);
@@ -205,7 +226,7 @@ class CameraService {
         type: 'photo',
         width: photo.width,
         height: photo.height,
-        size: fileInfo.size ? parseInt(fileInfo.size, 10) : undefined,
+        size: fileInfo.exists ? fileInfo.size : undefined,
         exif: photo.exif || undefined,
       };
 
@@ -299,8 +320,8 @@ class CameraService {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultiple: options?.allowsMultiple ?? false,
-        maxResults: options?.maxResults ?? 1,
+        allowsMultipleSelection: options?.allowsMultiple ?? false,
+        selectionLimit: options?.maxResults ?? 1,
         quality: options?.quality ?? COMPRESSION_QUALITY,
         exif: options?.exif ?? false,
       });
@@ -314,7 +335,7 @@ class CameraService {
         type: 'photo',
         width: asset.width,
         height: asset.height,
-        size: asset.fileSize ? parseInt(asset.fileSize, 10) : undefined,
+        size: asset.fileSize,
       }));
 
       console.log(`CameraService: ${media.length} image(s) picked`);
@@ -376,18 +397,21 @@ class CameraService {
    * Scan barcode/QR code
    */
   async scanBarcode(
-    barcodeScanningResult: BarcodeScanningResult | null
+    barcodeScanningResult: BarcodeScanningResult | {
+      barcodes: { type: string; rawValue?: string; cornerPoints?: DocumentEdge[] }[];
+    } | null
   ): Promise<BarcodeResult | null> {
     try {
       if (!barcodeScanningResult) {
         return null;
       }
 
-      const [barcode] = barcodeScanningResult.barcodes;
-      if (!barcode) {
-        return null;
-      }
-
+      // The SDK emits one result. Retain the service's pre-existing batch input
+      // for callers that already supply it; do not invent that wrapper at the SDK boundary.
+      const barcode = 'barcodes' in barcodeScanningResult
+        ? barcodeScanningResult.barcodes[0]
+        : { ...barcodeScanningResult, rawValue: barcodeScanningResult.data };
+      if (!barcode || typeof barcode.type !== 'string') return null;
       return {
         type: barcode.type,
         data: barcode.rawValue || '',
@@ -656,21 +680,15 @@ class CameraService {
     console.log('CameraService: Camera mode set to', mode);
   }
 
-  /**
-   * Save photo to device gallery
-   */
+  /** Save only after explicit library permission and a completed SDK write. */
   async saveToGallery(uri: string): Promise<boolean> {
     try {
-      if (Platform.OS === 'ios') {
-        await CameraView.savePhotoToLibraryAsync(uri);
-        console.log('CameraService: Photo saved to gallery');
-        return true;
-      } else if (Platform.OS === 'android') {
-        // Android automatically saves to gallery
-        console.log('CameraService: Photo automatically saved to gallery');
-        return true;
-      }
-      return false;
+      if (Platform.OS !== 'ios' && Platform.OS !== 'android') return false;
+      const permission = await MediaLibrary.requestPermissionsAsync(true);
+      if (permission.status !== 'granted' || permission.granted !== true) return false;
+      await MediaLibrary.saveToLibraryAsync(uri);
+      console.log('CameraService: Photo saved to gallery');
+      return true;
     } catch (error) {
       console.error('CameraService: Failed to save to gallery:', error);
       return false;
@@ -681,7 +699,7 @@ class CameraService {
    * Get camera type for CameraView
    */
   getCameraType(): CameraType {
-    return this.currentCamera === 'front' ? CameraType.Front : CameraType.Back;
+    return this.currentCamera === 'front' ? 'front' : 'back';
   }
 
   /**

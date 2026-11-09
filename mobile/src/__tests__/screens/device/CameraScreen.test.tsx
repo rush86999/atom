@@ -15,7 +15,7 @@ import { CameraScreen } from '../../../screens/device/CameraScreen';
 const mockPermissionState = { value: { granted: true, canAskAgain: true } };
 const mockRequestPermission = jest.fn().mockResolvedValue({ granted: true });
 
-jest.mock('expo-camera', () => {
+jest.mock('expo-camera/next', () => {
   const React = require('react');
   const { View } = require('react-native');
   const CameraView = React.forwardRef((props: any, ref: any) => {
@@ -67,14 +67,14 @@ describe('CameraScreen', () => {
 
   describe('Permission Flow', () => {
     it('requests permission automatically when not granted', () => {
-      mockPermissionState.value = { granted: false };
+      mockPermissionState.value = { granted: false, canAskAgain: true };
       renderScreen();
 
       expect(mockRequestPermission).toHaveBeenCalled();
     });
 
     it('renders permission required UI when denied', () => {
-      mockPermissionState.value = { granted: false };
+      mockPermissionState.value = { granted: false, canAskAgain: true };
       renderScreen();
 
       expect(getByText('Camera Permission Required')).toBeTruthy();

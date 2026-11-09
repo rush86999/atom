@@ -9,25 +9,26 @@
  * - Platform-specific camera types (front/back for iOS vs Android)
  */
 
-import { CameraView, CameraType } from 'expo-camera';
+import { CameraView, Camera } from 'expo-camera/next';
+import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 import { cameraService } from '../../services/cameraService';
 
-// Mock expo-camera
-jest.mock('expo-camera', () => ({
-  CameraView: {
+// Match installed SDK ownership: permissions on Camera, availability on CameraView.
+jest.mock('expo-camera/next', () => ({
+  Camera: {
     requestCameraPermissionsAsync: jest.fn(),
     getCameraPermissionsAsync: jest.fn(),
-    isAvailableAsync: jest.fn(),
-    savePhotoToLibraryAsync: jest.fn(),
   },
-  CameraType: {
-    Front: 'front',
-    Back: 'back',
-  },
+  CameraView: { isAvailableAsync: jest.fn() },
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
+}));
+jest.mock('expo-media-library', () => ({
+  requestPermissionsAsync: jest.fn(),
+  saveToLibraryAsync: jest.fn(),
 }));
 
 // Mock expo-image-picker
@@ -106,14 +107,16 @@ describe('CameraService', () => {
     // Don't reset modules - it breaks the mocks
 
     // Default mock implementations
-    (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    (MediaLibrary.requestPermissionsAsync as jest.Mock).mockReset().mockResolvedValue({ status: 'granted', granted: true, canAskAgain: true, expires: 'never' });
+    (MediaLibrary.saveToLibraryAsync as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
       status: 'granted',
       canAskAgain: true,
       granted: true,
       expires: 'never',
     });
 
-    (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
       status: 'granted',
       canAskAgain: true,
       granted: true,
@@ -124,7 +127,7 @@ describe('CameraService', () => {
 
     (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
       exists: true,
-      size: '1024000',
+      size: 1024000,
       uri: 'file:///mock/photo.jpg',
     });
 
@@ -149,7 +152,7 @@ describe('CameraService', () => {
 
   describe('Permissions', () => {
     test('should request camera permissions and return granted', async () => {
-      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         canAskAgain: true,
         granted: true,
@@ -159,11 +162,11 @@ describe('CameraService', () => {
       const status = await cameraService.requestPermissions();
 
       expect(status).toBe('granted');
-      expect(CameraView.requestCameraPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(Camera.requestCameraPermissionsAsync).toHaveBeenCalledTimes(1);
     });
 
     test('should handle permission denied', async () => {
-      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'denied',
         canAskAgain: false,
         granted: false,
@@ -176,7 +179,7 @@ describe('CameraService', () => {
     });
 
     test('should handle undetermined permission status', async () => {
-      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'undetermined',
         canAskAgain: true,
         granted: false,
@@ -189,7 +192,7 @@ describe('CameraService', () => {
     });
 
     test('should get current permission status', async () => {
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         canAskAgain: true,
         granted: true,
@@ -199,11 +202,11 @@ describe('CameraService', () => {
       const status = await cameraService.getPermissionStatus();
 
       expect(status).toBe('granted');
-      expect(CameraView.getCameraPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(Camera.getCameraPermissionsAsync).toHaveBeenCalledTimes(1);
     });
 
     test('should return denied on permission check error', async () => {
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockRejectedValue(
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockRejectedValue(
         new Error('Permission check failed')
       );
 
@@ -263,7 +266,7 @@ describe('CameraService', () => {
   describe('Photo Capture', () => {
     beforeEach(() => {
       // Ensure permission is granted for capture tests
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,
@@ -312,7 +315,7 @@ describe('CameraService', () => {
 
     test('should return null when permission not granted', async () => {
       // Request permissions first to set denied status
-      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'denied',
         granted: false,
         canAskAgain: false,
@@ -400,10 +403,10 @@ describe('CameraService', () => {
 
     test('should get CameraType for CameraView', () => {
       cameraService.setCamera('back');
-      expect(cameraService.getCameraType()).toBe(CameraType.Back);
+      expect(cameraService.getCameraType()).toBe('back');
 
       cameraService.setCamera('front');
-      expect(cameraService.getCameraType()).toBe(CameraType.Front);
+      expect(cameraService.getCameraType()).toBe('front');
     });
   });
 
@@ -450,7 +453,7 @@ describe('CameraService', () => {
             uri: 'file:///mock/gallery-image.jpg',
             width: 1920,
             height: 1080,
-            fileSize: '2048000',
+            fileSize: 2048000,
           },
         ],
       });
@@ -497,13 +500,13 @@ describe('CameraService', () => {
             uri: 'file:///mock/image1.jpg',
             width: 1920,
             height: 1080,
-            fileSize: '1024000',
+            fileSize: 1024000,
           },
           {
             uri: 'file:///mock/image2.jpg',
             width: 1920,
             height: 1080,
-            fileSize: '1536000',
+            fileSize: 1536000,
           },
         ],
       });
@@ -516,8 +519,8 @@ describe('CameraService', () => {
       expect(images).toHaveLength(2);
       expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith({
         mediaTypes: 'images',
-        allowsMultiple: true,
-        maxResults: 2,
+        allowsMultipleSelection: true,
+        selectionLimit: 2,
         quality: 0.8,
         exif: false,
       });
@@ -539,21 +542,21 @@ describe('CameraService', () => {
   describe('Save to Gallery', () => {
     test('should save photo to gallery on iOS', async () => {
       (Platform.OS as any) = 'ios';
-      (CameraView.savePhotoToLibraryAsync as jest.Mock).mockResolvedValue(undefined);
+      (MediaLibrary.saveToLibraryAsync as jest.Mock).mockResolvedValue(undefined);
 
       const saved = await cameraService.saveToGallery('file:///mock/photo.jpg');
 
       expect(saved).toBe(true);
-      expect(CameraView.savePhotoToLibraryAsync).toHaveBeenCalledWith('file:///mock/photo.jpg');
+      expect(MediaLibrary.saveToLibraryAsync).toHaveBeenCalledWith('file:///mock/photo.jpg');
     });
 
-    test('should return true on Android (auto-save)', async () => {
+    test('should save through the media library on Android', async () => {
       (Platform.OS as any) = 'android';
 
       const saved = await cameraService.saveToGallery('file:///mock/photo.jpg');
 
       expect(saved).toBe(true);
-      expect(CameraView.savePhotoToLibraryAsync).not.toHaveBeenCalled();
+      expect(MediaLibrary.saveToLibraryAsync).toHaveBeenCalledWith('file:///mock/photo.jpg');
     });
 
     test('should return false on unsupported platform', async () => {
@@ -566,7 +569,7 @@ describe('CameraService', () => {
 
     test('should return false on save error', async () => {
       (Platform.OS as any) = 'ios';
-      (CameraView.savePhotoToLibraryAsync as jest.Mock).mockRejectedValue(
+      (MediaLibrary.saveToLibraryAsync as jest.Mock).mockRejectedValue(
         new Error('Save failed')
       );
 
@@ -583,14 +586,14 @@ describe('CameraService', () => {
   describe('Video Recording', () => {
     beforeEach(() => {
       // Reset permission to granted for these tests
-      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         canAskAgain: true,
         granted: true,
         expires: 'never',
       });
 
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,
@@ -640,7 +643,7 @@ describe('CameraService', () => {
 
     test('should return null when permission not granted for recording', async () => {
       // Request permissions first to set denied status
-      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'denied',
         granted: false,
         canAskAgain: false,
@@ -666,7 +669,7 @@ describe('CameraService', () => {
       await cameraService.saveToGallery('file:///mock/photo.jpg');
       const types = await cameraService.getAvailableCameraTypes();
 
-      expect(CameraView.savePhotoToLibraryAsync).toHaveBeenCalled();
+      expect(MediaLibrary.saveToLibraryAsync).toHaveBeenCalled();
       expect(types).toContain('front');
       expect(types).toContain('back');
     });
@@ -677,7 +680,7 @@ describe('CameraService', () => {
       await cameraService.saveToGallery('file:///mock/photo.jpg');
       const types = await cameraService.getAvailableCameraTypes();
 
-      expect(CameraView.savePhotoToLibraryAsync).not.toHaveBeenCalled();
+      expect(MediaLibrary.saveToLibraryAsync).toHaveBeenCalledWith('file:///mock/photo.jpg');
       expect(types).toContain('front');
       expect(types).toContain('back');
     });
@@ -804,7 +807,7 @@ describe('CameraService', () => {
       await cameraService.initialize();
 
       // Ensure permission is granted for capture tests
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,
@@ -1065,7 +1068,7 @@ describe('CameraService', () => {
       await cameraService.initialize();
 
       // Ensure permission is granted
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,
@@ -1074,7 +1077,7 @@ describe('CameraService', () => {
 
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
         exists: true,
-        size: '1024000',
+        size: 1024000,
         uri: 'file:///mock/photo.jpg',
       });
     });
@@ -1192,7 +1195,7 @@ describe('CameraService', () => {
     test('should clear captured photos on reset', async () => {
       // Capture some photos
       await cameraService.initialize();
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,
@@ -1260,7 +1263,7 @@ describe('CameraService', () => {
     });
 
     test('should handle requestPermissions error gracefully', async () => {
-      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockRejectedValue(
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockRejectedValue(
         new Error('Permission request failed')
       );
 
@@ -1270,14 +1273,14 @@ describe('CameraService', () => {
     });
 
     test('should handle initialize error gracefully', async () => {
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockRejectedValue(
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockRejectedValue(
         new Error('Initialize failed')
       );
 
       await cameraService.initialize();
 
       // Should not throw, just log error
-      expect(CameraView.getCameraPermissionsAsync).toHaveBeenCalled();
+      expect(Camera.getCameraPermissionsAsync).toHaveBeenCalled();
     });
   });
 
@@ -1304,7 +1307,7 @@ describe('CameraService', () => {
   describe('Photo Compression', () => {
     beforeEach(async () => {
       await cameraService.initialize();
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,
@@ -1312,7 +1315,7 @@ describe('CameraService', () => {
       });
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
         exists: true,
-        size: '2048000',
+        size: 2048000,
         uri: 'file:///mock/photo-large.jpg',
       });
     });
@@ -1361,7 +1364,7 @@ describe('CameraService', () => {
   describe('Stop Recording', () => {
     beforeEach(async () => {
       await cameraService.initialize();
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,
@@ -1369,7 +1372,7 @@ describe('CameraService', () => {
       });
       (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
         exists: true,
-        size: '512000',
+        size: 512000,
         uri: 'file:///mock/video.mp4',
       });
       mockCameraRef.current.stopRecording.mockResolvedValue({
@@ -1538,7 +1541,7 @@ describe('CameraService', () => {
   describe('Captured Photo Index', () => {
     beforeEach(async () => {
       await cameraService.initialize();
-      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+      (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'granted',
         granted: true,
         canAskAgain: true,

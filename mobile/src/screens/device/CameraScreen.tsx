@@ -26,7 +26,11 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import {
+  CameraView,
+  useCameraPermissions,
+  type BarcodeScanningResult,
+} from 'expo-camera/next';
 import { Ionicons } from '@expo/vector-icons';
 import { cameraService, CameraMode, FlashMode, CapturedMedia } from '../../services/cameraService';
 
@@ -151,8 +155,9 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
         ref={cameraRef}
         style={styles.camera}
         facing={facing}
-        flash={flash}
-        mode={mode === 'barcode' ? 'picture' : undefined}
+        flash={flash === 'torch' ? 'off' : flash}
+        enableTorch={flash === 'torch'}
+        mode={mode === 'video' ? 'video' : 'picture'}
         barcodeScannerSettings={
           mode === 'barcode'
             ? {
@@ -162,7 +167,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route })
         }
         onBarcodeScanned={
           mode === 'barcode'
-            ? ({ data }) => {
+            ? ({ data }: BarcodeScanningResult) => {
                 navigation.navigate('BarcodeResult', { data });
               }
             : undefined
