@@ -1,0 +1,21 @@
+{
+  "executed_source": "74f017752cf0d5467f653a0aa3005c71a00a4b82",
+  "source_files": {
+    "backend/tests/test_generic_information_multiday_contract.py": "sha256:f55f4079efe8ac5494408f8050dfff2d1df92d2e041904fd006ee849edcc501f",
+    "backend/tests/test_generic_information_idle_contract.py": "sha256:8ffcb931ed6da3e8454da71cef55f67ccd0a3e8b908474cbee1e5a562b510457",
+    "backend/tests/test_agent_generic_information_wait.py": "sha256:30dea4516cdf332bf211c19c591c8e6716664a481329880c34d58abc4b4e0102",
+    "backend/tests/test_agent_run_outcome_join_contract.py": "sha256:a8200b530ede4635c0589c0424375cc6640407ace92b72dd4149737a41844ec2",
+    "backend/core/information_wait.py": "sha256:7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+    "backend/core/generic_agent.py": "sha256:ca5c7486607976cfd0cbee78648fbc1c13c24b33d481ed1d5d66a57c9e7ece4a",
+    "backend/core/task_lifecycle.py": "sha256:9e81f3a422ed491489765dbf56ce9dbcb7a9ec4bf42c48f66ea02347ca8a0076",
+    "backend/api/agent_routes.py": "sha256:ba11824577f43d612e175e601497aafbd569824c0e0d6ff612eeeb993b0ead7a",
+    ".github/workflows/ci.yml": "sha256:de39a298037a7ea973224bf81e47780ec99fbf855dae91832811149947837690"
+  },
+  "artifacts": {
+    "worker.log": "sha256:9af656d7ae5ec8db5ad3a0e4feede187acb10b6251f0cbd5e55b1e239c68c896",
+    "README.md": "sha256:95d92a2e12c7693957e7971607f3ee4f1fa9af713d01e91108c59618029f4038",
+    "command.json": "sha256:b1230611609978266b34caa644d2c154b7dd250bbd7118497021f4cd9c9ad11d",
+    "verification.json": "sha256:a6defebddbc174d15c06c040c1395e2cb95d7df4e0741b9ed8a0e2b1123a82fc",
+    "independent.log": "sha256:a0c5220b0f97b2f22098da1aec59ce6af20aa15cadcb280c13a3b09b693fd397"
+  }
+}

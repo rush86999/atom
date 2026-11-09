@@ -1,0 +1,33 @@
+{
+  "interpreter": "/usr/local/bin/python3.11",
+  "command": [
+    "python3",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--profile",
+    "bounded",
+    "--cwd",
+    "backend",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_generic_information_multiday_contract.py",
+    "tests/test_generic_information_idle_contract.py",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "no:randomly",
+    "--timeout=300",
+    "--timeout-method=thread",
+    "-q",
+    "--tb=short"
+  ],
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "explicit fresh owned scratch SQLite",
+    "LANCEDB_URI": "explicit fresh owned scratch",
+    "LANCEDB_URI_BASE": "same explicit fresh root",
+    "PYTHONPATH": "existing /private/tmp/root-py311-plugins"
+  },
+  "actual_exit": 0
+}
