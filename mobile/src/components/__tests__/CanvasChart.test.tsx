@@ -784,3 +784,23 @@ describe('CanvasChart Component', () => {
     });
   });
 });
+
+
+describe('native chart point-event contract', () => {
+  test.each(['line', 'bar', 'pie'] as const)('%s exposes a native-supported point callback', (type) => {
+    const onPointPress = jest.fn();
+    const datum = { x: 'Jan', y: 100, label: 'January' };
+    const view = render(<ThemeProvider theme={{ colors: { primary: '#2196F3', onSurface: '#000', surfaceVariant: '#f5f5f5', surface: '#fff', outline: '#ccc', error: '#F44336' } }}><CanvasChart data={{type, data: [datum]}} enableZoom={false} enablePan={false} onPointPress={onPointPress} /></ThemeProvider>);
+    const series = view.getByTestId(`victory-${type}`);
+    const container = view.queryByTestId('victory-voronoi-container');
+    const activate = container?.props.onActivated;
+    const event = series.props.events?.find((entry: {target?: string}) => entry.target === 'data');
+    const press = event?.eventHandlers?.onPressIn;
+    expect(typeof activate === 'function' || typeof press === 'function').toBe(true);
+    act(() => {
+      if (typeof activate === 'function') activate([datum], {});
+      else press({}, {datum, ...datum});
+    });
+    expect(onPointPress).toHaveBeenCalledWith(datum);
+  });
+});
