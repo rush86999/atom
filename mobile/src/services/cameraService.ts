@@ -48,13 +48,26 @@ export interface PhotoOptions {
 }
 
 export interface VideoOptions {
+  /** CameraView `videoQuality` prop; applied by the consumer, never passed to recordAsync. */
   quality?: VideoQuality;
-  maxDuration?: number; // seconds
-  maxFileSize?: number; // bytes
+  /** recordAsync option: maximum video duration in seconds. */
+  maxDuration?: number;
+  /** recordAsync option: maximum video file size in bytes. */
+  maxFileSize?: number;
+  /** CameraView `mute` prop; applied by the consumer, never passed to recordAsync. */
   mute?: boolean;
 }
 
-export type VideoQuality = '2160p' | '1080p' | '720p' | '480p' | '360p';
+/** SDK-supported qualities plus the legacy 360p input, which refuses without coercion. */
+export type VideoQuality = '2160p' | '1080p' | '720p' | '480p' | '4:3' | '360p';
+
+const SUPPORTED_VIDEO_QUALITIES: readonly VideoQuality[] = [
+  '2160p',
+  '1080p',
+  '720p',
+  '480p',
+  '4:3',
+];
 
 export interface CapturedMedia {
   uri: string;
@@ -93,6 +106,13 @@ export interface CapturedPhotos {
 const COMPRESSION_QUALITY = 0.8;
 const MAX_IMAGE_DIMENSION = 2048;
 
+interface InFlightRecording {
+  readonly token: symbol;
+  readonly completion: Promise<CapturedMedia | null>;
+  stopping: boolean;
+  nativeSettled: boolean;
+}
+
 function toCameraPermission(status: PermissionStatus): CameraPermission {
   switch (status) {
     case PermissionStatus.GRANTED:
@@ -114,6 +134,7 @@ class CameraService {
   private currentMode: CameraMode = 'picture';
   private capturedPhotos: CapturedMedia[] = [];
   private currentPhotoIndex = 0;
+  private readonly activeRecordings = new WeakMap<CameraView, InFlightRecording>();
 
   /**
    * Initialize the camera service
@@ -239,7 +260,83 @@ class CameraService {
   }
 
   /**
-   * Record video
+   * Fail closed when requested CameraView props do not match the mounted
+   * camera, instead of silently recording with different settings.
+   */
+  private assertVideoCameraConfigured(camera: CameraView, options: VideoOptions): void {
+    if (camera.props.mode !== 'video') {
+      throw new Error("Set mode='video' on CameraView before starting a recording.");
+    }
+    if (options.quality !== undefined) {
+      if (!SUPPORTED_VIDEO_QUALITIES.includes(options.quality)) {
+        throw new Error(
+          `Unsupported video quality '${options.quality}'. Supported values: ${SUPPORTED_VIDEO_QUALITIES.join(', ')}. ` +
+            `360p is not supported by expo-camera and is not coerced.`
+        );
+      }
+
+      if (camera.props.videoQuality !== options.quality) {
+        throw new Error(
+          `Video quality '${options.quality}' is a CameraView prop, not a recordAsync option. ` +
+            `Set videoQuality='${options.quality}' on CameraView (currently '${camera.props.videoQuality ?? 'default'}').`
+        );
+      }
+    }
+
+    if (options.mute !== undefined && (camera.props.mute ?? false) !== options.mute) {
+      throw new Error(
+        `mute=${String(options.mute)} is a CameraView prop, not a recordAsync option. ` +
+          `Set mute={${String(options.mute)}} on CameraView (currently ${String(camera.props.mute ?? false)}).`
+      );
+    }
+  }
+
+  /**
+   * Resolve exactly when the native recording completes and clean up only the
+   * generation that owns this token.
+   */
+  private async awaitRecording(
+    camera: CameraView,
+    token: symbol,
+    nativeRecording: Promise<{ uri: string } | undefined>
+  ): Promise<CapturedMedia | null> {
+    try {
+      const video = await nativeRecording;
+      const active = this.activeRecordings.get(camera);
+      if (active?.token === token) active.nativeSettled = true;
+      if (!video || typeof video.uri !== 'string' || video.uri.length === 0) {
+        return null;
+      }
+
+      let size: number | undefined;
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(video.uri);
+        if (fileInfo.exists) {
+          size = fileInfo.size;
+        }
+      } catch (error) {
+        console.error('CameraService: Failed to inspect recorded video:', error);
+      }
+
+      return {
+        uri: video.uri,
+        type: 'video',
+        size,
+      };
+    } catch (error) {
+      console.error('CameraService: Video recording failed:', error);
+      return null;
+    } finally {
+      const active = this.activeRecordings.get(camera);
+      if (active?.token === token) {
+        this.activeRecordings.delete(camera);
+      }
+    }
+  }
+
+  /**
+   * Record video. The returned promise resolves with the completed recording
+   * when stopRecording, maxDuration, or maxFileSize ends it.
    */
   async recordVideo(
     cameraRef: React.RefObject<CameraView>,
@@ -250,7 +347,8 @@ class CameraService {
     }
   ): Promise<CapturedMedia | null> {
     try {
-      if (!cameraRef.current) {
+      const camera = cameraRef.current;
+      if (!camera) {
         throw new Error('Camera ref not available');
       }
 
@@ -258,15 +356,35 @@ class CameraService {
         throw new Error('Camera permission not granted');
       }
 
-      const video = await cameraRef.current.recordAsync(options);
+      if (this.activeRecordings.has(camera)) {
+        // A second request is not the original capture, even if its settings
+        // happen to match. Keep that capture tracked until its real completion.
+        throw new Error('A video recording is already in progress for this camera.');
+      }
 
-      console.log('CameraService: Video recording started');
-      // Note: The video recording is ongoing, caller must call stopRecording
+      this.assertVideoCameraConfigured(camera, options);
 
-      return {
-        uri: video.uri,
-        type: 'video',
+      const recordingOptions: { maxDuration?: number; maxFileSize?: number } = {};
+      if (options.maxDuration !== undefined) {
+        recordingOptions.maxDuration = options.maxDuration;
+      }
+      if (options.maxFileSize !== undefined) {
+        recordingOptions.maxFileSize = options.maxFileSize;
+      }
+
+      const nativeRecording = camera.recordAsync(recordingOptions);
+      const token = Symbol('camera-recording');
+      const entry: InFlightRecording = {
+        token,
+        stopping: false,
+        nativeSettled: false,
+        completion: this.awaitRecording(camera, token, nativeRecording),
       };
+
+      this.activeRecordings.set(camera, entry);
+      console.log('CameraService: Video recording started');
+
+      return entry.completion;
     } catch (error) {
       console.error('CameraService: Failed to record video:', error);
       return null;
@@ -274,31 +392,36 @@ class CameraService {
   }
 
   /**
-   * Stop video recording
+   * Stop video recording. stopRecording() returns void; the media comes from
+   * the exact in-flight recordAsync completion for this camera.
    */
   async stopRecording(cameraRef: React.RefObject<CameraView>): Promise<CapturedMedia | null> {
+    const camera = cameraRef.current;
+    if (!camera) {
+      console.error('CameraService: Failed to stop recording: camera ref not available');
+      return null;
+    }
+
+    const active = this.activeRecordings.get(camera);
+    if (!active) {
+      console.log('CameraService: No in-flight video recording to stop');
+      return null;
+    }
+
+    if (active.stopping || active.nativeSettled) {
+      return active.completion;
+    }
+
+    active.stopping = true;
     try {
-      if (!cameraRef.current) {
-        throw new Error('Camera ref not available');
-      }
-
-      const video = await cameraRef.current.stopRecording();
-
-      // Get file info
-      const fileInfo = await FileSystem.getInfoAsync(video.uri);
-
-      const media: CapturedMedia = {
-        uri: video.uri,
-        type: 'video',
-        size: fileInfo.size ? parseInt(fileInfo.size, 10) : undefined,
-      };
-
-      console.log('CameraService: Video recording stopped', media);
-      return media;
+      camera.stopRecording();
     } catch (error) {
+      active.stopping = false;
       console.error('CameraService: Failed to stop recording:', error);
       return null;
     }
+
+    return active.completion;
   }
 
   /**

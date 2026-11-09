@@ -96,6 +96,7 @@ describe('CameraService', () => {
   // Mock camera ref
   const mockCameraRef = {
     current: {
+      props: { mode: 'video', videoQuality: '1080p', mute: false },
       takePictureAsync: jest.fn(),
       recordAsync: jest.fn(),
       stopRecording: jest.fn(),
@@ -107,6 +108,7 @@ describe('CameraService', () => {
     // Don't reset modules - it breaks the mocks
 
     // Default mock implementations
+    mockCameraRef.current.props = { mode: 'video', videoQuality: '1080p', mute: false };
     (MediaLibrary.requestPermissionsAsync as jest.Mock).mockReset().mockResolvedValue({ status: 'granted', granted: true, canAskAgain: true, expires: 'never' });
     (MediaLibrary.saveToLibraryAsync as jest.Mock).mockReset().mockResolvedValue(undefined);
     (Camera.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
@@ -614,6 +616,7 @@ describe('CameraService', () => {
       expect(media).toEqual({
         uri: 'file:///mock/video.mp4',
         type: 'video',
+        size: 1024000,
       });
       expect(mockCameraRef.current.recordAsync).toHaveBeenCalled();
     });
@@ -628,9 +631,10 @@ describe('CameraService', () => {
         mute: true,
       };
 
+      mockCameraRef.current.props = { mode: 'video', videoQuality: '720p', mute: true };
       await cameraService.recordVideo(mockCameraRef, options);
 
-      expect(mockCameraRef.current.recordAsync).toHaveBeenCalledWith(options);
+      expect(mockCameraRef.current.recordAsync).toHaveBeenCalledWith({ maxDuration: 30 });
     });
 
     test('should return null when camera ref not available for recording', async () => {
@@ -1362,6 +1366,7 @@ describe('CameraService', () => {
   // ========================================================================
 
   describe('Stop Recording', () => {
+    let finishRecording: ((video: { uri: string } | undefined) => void) | undefined;
     beforeEach(async () => {
       await cameraService.initialize();
       (Camera.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
@@ -1375,14 +1380,19 @@ describe('CameraService', () => {
         size: 512000,
         uri: 'file:///mock/video.mp4',
       });
-      mockCameraRef.current.stopRecording.mockResolvedValue({
-        uri: 'file:///mock/video.mp4',
+      mockCameraRef.current.recordAsync.mockImplementation(() => new Promise<{ uri: string } | undefined>((resolve) => { finishRecording = resolve; }));
+      // The SDK stop method returns void; only recordAsync resolves the URI.
+      mockCameraRef.current.stopRecording.mockImplementation(() => {
+        if (!finishRecording) throw new Error('controlled recording did not start');
+        finishRecording({ uri: 'file:///mock/video.mp4' });
       });
     });
 
     test('should stop video recording and return media with size', async () => {
+      const recording = cameraService.recordVideo(mockCameraRef);
       const media = await cameraService.stopRecording(mockCameraRef);
 
+      expect(await recording).toEqual(media);
       expect(mockCameraRef.current.stopRecording).toHaveBeenCalled();
       expect(media).toEqual({
         uri: 'file:///mock/video.mp4',
@@ -1401,13 +1411,14 @@ describe('CameraService', () => {
     });
 
     test('should return null when stopRecording throws', async () => {
-      mockCameraRef.current.stopRecording.mockRejectedValue(
-        new Error('Stop failed')
-      );
-
+      mockCameraRef.current.stopRecording.mockImplementation(() => { throw new Error('Stop failed'); });
+      const recording = cameraService.recordVideo(mockCameraRef);
       const media = await cameraService.stopRecording(mockCameraRef);
-
       expect(media).toBeNull();
+      // The failed stop is not proof the native capture ended.
+      if (!finishRecording) throw new Error('controlled recording did not start');
+      finishRecording(undefined);
+      expect(await recording).toBeNull();
     });
 
     test('should handle missing file size on stop', async () => {
@@ -1416,9 +1427,11 @@ describe('CameraService', () => {
         uri: 'file:///mock/video.mp4',
       });
 
+      const recording = cameraService.recordVideo(mockCameraRef);
       const media = await cameraService.stopRecording(mockCameraRef);
-
+      expect(media?.uri).toBe('file:///mock/video.mp4');
       expect(media?.size).toBeUndefined();
+      expect(await recording).toEqual(media);
     });
   });
 
