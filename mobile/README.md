@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `b45800855`; later changes
+reference describes the checked-in companion at source `b033a5de3`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -56,13 +56,14 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Location ownership | Installed subscription removal, shared pending starts, stop-generation fencing, stale callback refusal and retryable failed removal; 96 service controls plus 67 screen/agent controls at `2a5345b5b`. | Actual OS permissions/background location, physical GPS stopping, device and complete mobile journeys. |
 | Voice input | Mounted component supplies the installed Expo AV high-quality preset; 72 component controls at `9bb7c99a3`. | No production import caller found for this component; real microphone, native permissions, recording files and integrated chat wiring remain unqualified. |
 
-The latest combined controlled selection at `b45800855` has 1,805 passes,
+The latest combined controlled selection at `b033a5de3` has 1,841 passes,
 zero failures and two intentional platform-registration sentinels skipped across
-48 files. The generic verification driver therefore remains false under its
-zero-skips rule; this is not 1,807 executed passes or a qualified mobile build.
+50 files. The generic verification driver therefore remains false under its
+zero-skips rule; this is not 1,843 executed passes or a qualified mobile build.
 
 Source-bound packets:
 
+- [Canonical pending owner and controlled joined dispatch](../docs/acceptance/evidence/mobile_pending_owner_b033a5de3/README.md)
 - [Opt-in session guard and remaining queued-owner boundary](../docs/acceptance/evidence/mobile_bound_request_b45800855/README.md)
 - [Pending-delivery markers and remaining backend recovery boundary](../docs/acceptance/evidence/mobile_pending_delivery_fbf56edd0/README.md)
 - [Cache write refusal controls](../docs/acceptance/evidence/mobile_cache_write_receipt_591c03883/README.md)

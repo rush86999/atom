@@ -1,0 +1,13 @@
+{
+  "captures": {
+    "pending-writes-owner-negative": "7cf5bd893",
+    "pending-writes-owner-native-candidate": "474393e82",
+    "pending-writes-owner-existing-services": "474393e82",
+    "pending-writes-owner-marker-restoration-negative": "907748d4f",
+    "pending-writes-owner-final-controls": "b033a5de3",
+    "pending-writes-owner-final-compiler": "b033a5de3",
+    "pending-writes-owner-final-broad": "b033a5de3"
+  },
+  "source_file_checks": 1811,
+  "mismatches": 0
+}

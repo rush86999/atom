@@ -1,0 +1,26 @@
+{
+  "actual_exit": 0,
+  "started": 1794207399.180625,
+  "finished": 1794207403.151076,
+  "selected_kind": "ownerall",
+  "verification_pass": true,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/agentSyncService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/api.session-adapter.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/api.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/canvasSyncService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/pendingWrites.owner-session-join.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/pendingWrites.uncertainty.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/syncList.response-contract.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/workflowSyncService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/storage/__tests__/authSessionSnapshot.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 237,
+    "numPassedTests": 237,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

@@ -1,0 +1,9 @@
+{
+  "source": "b033a5de3",
+  "file": "backend/core/auth.py",
+  "file_hash": "315ec0c7616fe09701c613ef930188746a22f6f999b0f16adba0ec63ac5774fb",
+  "probe_sha256": "a8ee5a57533bd007ce1a970b8b90fdd47e60c438d1e6a88274bfc6125f9b72f4",
+  "negative": "1pass1failure1error at7cf5bd893",
+  "final": "3/3pass",
+  "scope": "exact producer AST body with DB/password/token doubles; no imported backend module, server, engine or live account"
+}
