@@ -11,20 +11,28 @@ export default function ResetPassword() {
     const [error, setError] = useState("");
     const [tokenValid, setTokenValid] = useState<boolean | null>(null);
     const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const requestGeneration = useRef(0);
     const router = useRouter();
     const { token } = router.query;
 
-    useEffect(() => () => {
-        if (redirectTimer.current) clearTimeout(redirectTimer.current);
-    }, [token]);
-
     useEffect(() => {
-        if (token) {
-            verifyToken(token as string);
+        const generation = ++requestGeneration.current;
+        setTokenValid(null);
+        setPassword("");
+        setConfirmPassword("");
+        setMessage("");
+        setError("");
+        setIsLoading(false);
+        if (typeof token === "string" && token.length > 0) {
+            verifyToken(token, generation);
         }
+        return () => {
+            ++requestGeneration.current;
+            if (redirectTimer.current) clearTimeout(redirectTimer.current);
+        };
     }, [token]);
 
-    const verifyToken = async (tokenStr: string) => {
+    const verifyToken = async (tokenStr: string, generation: number) => {
         try {
             const response = await fetch("/api/auth/verify-token", {
                 method: "POST",
@@ -35,6 +43,7 @@ export default function ResetPassword() {
             });
 
             const data = await response.json();
+            if (generation !== requestGeneration.current) return;
             setTokenValid(response.ok && data.valid === true);
             if (!response.ok) {
                 setError(extractApiErrorMessage(data, "Reset link could not be verified. Please try again later.", response.status));
@@ -42,6 +51,7 @@ export default function ResetPassword() {
                 setError("This reset link is invalid or has expired.");
             }
         } catch (err) {
+            if (generation !== requestGeneration.current) return;
             setTokenValid(false);
             setError("Failed to verify reset link.");
         }
@@ -49,6 +59,7 @@ export default function ResetPassword() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const generation = requestGeneration.current;
         if (redirectTimer.current) clearTimeout(redirectTimer.current);
 
         if (password !== confirmPassword) {
@@ -79,18 +90,19 @@ export default function ResetPassword() {
 
             const data = await response.json();
 
+            if (generation !== requestGeneration.current) return;
             if (response.ok && data.success === true && data.verification?.status === "verified") {
                 setMessage("Password reset successful! Redirecting to sign in...");
                 redirectTimer.current = setTimeout(() => {
-                    router.push("/auth/signin");
+                    if (generation === requestGeneration.current) router.push("/auth/signin");
                 }, 2000);
             } else {
                 setError(extractApiErrorMessage(data, "Password change could not be confirmed. Try signing in before requesting another reset.", response.status));
             }
         } catch (err) {
-            setError("An error occurred. Please try again.");
+            if (generation === requestGeneration.current) setError("An error occurred. Please try again.");
         } finally {
-            setIsLoading(false);
+            if (generation === requestGeneration.current) setIsLoading(false);
         }
     };
 
