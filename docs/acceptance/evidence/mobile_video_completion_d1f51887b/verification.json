@@ -1,0 +1,40 @@
+{
+  "frozen_source": "d1f51887b29393998ac5a516fd6dd281ee4ccb8b",
+  "capture_base": "3a7c9e1b5f2aa0b47d66628933462d3dedc07c59",
+  "capture_source_is_clean": false,
+  "all_positive_source_hashes_match_frozen_commit": 244,
+  "initial_negative": {
+    "total": 4,
+    "failed": 3,
+    "passed": 1,
+    "runtime": "3a7c9e1b5",
+    "verifier": "initial-video-verifier.ts"
+  },
+  "intermediate_negative": {
+    "total": 15,
+    "failed": 1,
+    "passed": 14,
+    "runtime": "intermediate-video-runtime.ts",
+    "verifier": "intermediate-video-verifier-reconstructed.ts",
+    "capture_hashes_match": true
+  },
+  "positive": {
+    "selected_files": 4,
+    "total": 124,
+    "passed": 124,
+    "skipped": 0
+  },
+  "full_typecheck": {
+    "actual_exit": 2,
+    "diagnostics": 452,
+    "camera_related_diagnostics": 0,
+    "passing": false
+  },
+  "scope": "controlled actual-SDK-shaped recording consumer only",
+  "limits": [
+    "No native capture/device/OS operation",
+    "CameraScreen/result routes are not established in actual navigators; end-to-end journey open",
+    "Resolution/audio enforcement and actual permission behavior need device qualification",
+    "No new provider or credential; source-review CLI only, not app model qualification"
+  ]
+}

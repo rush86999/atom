@@ -1,0 +1,27 @@
+{
+  "native_proposal_source": "8ef724ee0",
+  "service_changes_applied": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "root_revisions": [
+    "duplicate start explicitly refused; not joined with ignored new options",
+    "no unbounded queue while prior capture is stopping",
+    "legacy360p input retained as an explicit refusal, not coerced or silently accepted",
+    "mounted camera must actually be in video mode",
+    "documented native mute defaultfalse accepted"
+  ],
+  "ui_proposal_changes_not_applied": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "ui_reason": "result route absent from actual navigators; partial settings UI would not establish a usable capture journey",
+  "native_device_execution": false
+}

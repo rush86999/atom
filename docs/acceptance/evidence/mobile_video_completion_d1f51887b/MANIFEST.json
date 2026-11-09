@@ -1,0 +1,34 @@
+{
+  "executed_source": "d1f51887b29393998ac5a516fd6dd281ee4ccb8b",
+  "source_files": {
+    "mobile/src/services/cameraService.ts": "8bca58eb19a0045eccc6b3c8318c66a36437cf181902f1100e7169accfc1361b",
+    "mobile/src/__tests__/services/cameraService.test.ts": "3813421df679d66342f65e4c6364ab25047afd42d20caefa1d3e60c7c3725646",
+    "mobile/src/__tests__/services/cameraService.video-sdk.test.ts": "430031e5e4ff53dfa261b7d0a3764cab9c795dd6ba28c30e8092a0e1af47e182",
+    "mobile/src/__tests__/services/cameraService.sdk.test.ts": "27f9809d3ce861d00eec55cc84abe8694a633906363524f4b0a1b889bded7549",
+    "mobile/src/__tests__/screens/device/CameraScreen.test.tsx": "ce1098dd1f61a7d7e49f07eb56ff526586459acd65ad217708c5d19502dfe58e",
+    "mobile/tsconfig.json": "d92c2d5c519a5fc6fc2980d9ec9c05dcda8842698229462daca0689ef12147cc",
+    "mobile/jest.config.js": "3283ce8cefd68604a3f6aac4006e5ed40a0ab218b0763161b269a1cf1aed8577",
+    "mobile/jest.setup.js": "b79175cfb5649b26f1bfc05c6cef46ca5eab3af762ec373d23ce2996ad30cea9",
+    "mobile/package-lock.json": "af8a4d8cb7778038edb6c8b23ab1b434057f10a24ac13d4a2cc8ce8b970a6c21"
+  },
+  "artifacts": {
+    "README.md": "7cf7e09c98eb5760f3bde3774bfbab98cee4c9afe81e771d40282e01ca9d1e03",
+    "camera-recording-default-preserved.exit.json": "125eedfce24841b90b3088d754e43d447362179aef7524385a515ad264157b14",
+    "camera-recording-default-preserved.log": "39eeb6a6bc2010128cd64ebf060e9e00a110350847d609666bc872d97795f115",
+    "camera-recording-default-preserved.spec.json": "fe952f430256b86ad857de46658cb423671ff86123d649a019b915a423b5b733",
+    "camera-void-stop-contract-negative.exit.json": "f8ded91782519a17d03a3f82f75eaeec1711839434a639091b0d22c2d8428099",
+    "camera-void-stop-contract-negative.log": "f35cd6c16244b62f297fdf285d36ce4971eafdada10d2f7427a18750f55c28ff",
+    "camera-void-stop-contract-negative.spec.json": "7f1827564b31c1883a023579c21a0766e96fffb4f3c7149ce238288d57e43c16",
+    "initial-video-verifier.ts": "866eafeda174309f1b9030958ca589f55d1535be1ed59afb1a2f6dd974227a42",
+    "intermediate-video-runtime.ts": "24cd8993143b54f91d0571a31ef84d4aa36620815822c4b5ee065df6e5c37425",
+    "intermediate-video-verifier-reconstructed.ts": "6ea0326d28298e369dd1d06de3f1050efa982facfeb84b7ba789d19414d62444",
+    "root-proposal-review.json": "2b6a238fe1a70aefba17d9bdbee4bdb560b623872dec70a6cf0fbcab93de2d72",
+    "verification.json": "d3e53a65cc3ba2cc1b197d64511e00682a124b503c9f15410e96507dbf5d774c",
+    "video-finalizing-native-stop-negative.exit.json": "66b1ae42efc077e8f79c52d820dd0781a89646dafef30d5703f74c36f110a41f",
+    "video-finalizing-native-stop-negative.log": "9597bc6ff300b5211ac04456a5bd64cccc0eb39b4a57691d9761b3d4fa5941e4",
+    "video-finalizing-native-stop-negative.spec.json": "f8b1c36a99747498b9db53e200763b4a1e450cd5e7ae1976f1470b123e3e004d",
+    "video-recording-final-typecheck.exit.json": "bbdbb13654dbf081e9c2dff631f866ff68f0505a8367f8c4eacdf0d089fe5211",
+    "video-recording-final-typecheck.log": "d3daf08d99bac109a4b87563029062f67a3a494738736592f7da43593bb4acfc",
+    "video-recording-final-typecheck.spec.json": "ab70eeef6f3212a41ac6e835738a4fd2a29e8596afe23fbc5e158162729c2802"
+  }
+}

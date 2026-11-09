@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `8ef724ee0`; later changes
+reference describes the checked-in companion at source `d1f51887b`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -30,11 +30,12 @@ One reproducible controlled camera selection is:
 ```bash
 npm test -- src/__tests__/services/cameraService.test.ts \
   src/__tests__/services/cameraService.sdk.test.ts \
+  src/__tests__/services/cameraService.video-sdk.test.ts \
   src/__tests__/screens/device/CameraScreen.test.tsx \
   --runInBand --watch=false --watchman=false
 ```
 
-The frozen source's three-file selection passes 108 cases. These SDK-shaped
+The frozen source's four-file selection passes 124 cases. These SDK-shaped
 doubles exercise consumer behavior, not a physical camera, permission prompt,
 photo-library write or native preview. Exact source and capture limitations are
 in the evidence linked below. A successful narrow Jest selection does not
@@ -44,7 +45,7 @@ cancel the failing project-wide compiler or qualify the entire companion.
 
 | Area | Established controlled scope | Still open |
 | --- | --- | --- |
-| Camera and gallery | Installed SDK ownership, permission calls, single barcode callback plus existing batch-service compatibility, gallery-selection fields, permission and awaited gallery-write refusal/success paths; 108 cases at `8ef724ee0`. | Native capture/preview and actual gallery writes; video start/stop completion contract and UI controls; automatic document edge detection is a placeholder. |
+| Camera and gallery | Installed SDK ownership, permission calls, single barcode callback plus existing batch-service compatibility, gallery-selection fields, permission and awaited gallery-write refusal/success paths; exact video completion joins and mounted-settings validation; 124 selected cases at `d1f51887b`. | Native capture/preview, actual gallery writes and recording guarantees; camera/result navigation and video UI controls; automatic document edge detection is a placeholder. |
 | Notification acquisition | Current permission and exact optional user/device cache binding; 169 selected notification/context cases at `70030548e`. | Confirmed backend registration, delivery and actual OS/device behavior. Acquiring an SDK token is not a durable backend registration receipt. |
 | Forms and chat | Focused controls for numeric/length validation, installed picker APIs and swipe actions are being retained during repair. | Complete compiler/build, integrated mobile journeys, native access and end-to-end task completion. |
 | Storage and offline work | Existing storage/queue implementations remain the consumer surfaces. | Installed MMKV contract, secure key/migration qualification, durable retry/prioritization and concurrent queue updates. |
@@ -52,6 +53,7 @@ cancel the failing project-wide compiler or qualify the entire companion.
 Source-bound packets:
 
 - [Camera/gallery SDK controls](../docs/acceptance/evidence/mobile_camera_sdk_8ef724ee0/README.md)
+- [Video completion controls](../docs/acceptance/evidence/mobile_video_completion_d1f51887b/README.md)
 - [Notification cache subject controls](../docs/acceptance/evidence/mobile_notification_subject_70030548e/README.md)
 
 ## Configuration and credentials
