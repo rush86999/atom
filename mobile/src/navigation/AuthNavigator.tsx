@@ -8,11 +8,20 @@
  * - Deep linking support for auth screens
  */
 
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+  getStateFromPath,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View, StyleSheet, StatusBar } from 'react-native';
-import * as Linking from 'expo-linking';
+import {
+  ActivityIndicator,
+  View,
+  StyleSheet,
+  StatusBar,
+  Linking as RNLinking,
+} from 'react-native';
 
 // Context
 import { useAuth } from '../contexts/AuthContext';
@@ -66,7 +75,7 @@ const LoadingScreen: React.FC = () => (
  * Also supports HTTPS links: https://atom.ai/...
  */
 export const linking: AuthLinkingOptions = {
-  prefixes: ['atom://', 'https://atom.ai'],
+  prefixes: ['atom://', 'https://atom.ai/'],
   config: {
     screens: {
       // Auth screens
@@ -152,28 +161,53 @@ export const linking: AuthLinkingOptions = {
 };
 
 /**
- * Unauthenticated links must not resolve protected routes such as CanvasViewer.
- * The authenticated tree uses the full linking configuration above.
+ * Deep-link helpers.
+ *
+ * React Navigation owns prefix stripping during normal linking. These exact
+ * boundaries are mirrored here because protected destinations are validated
+ * before authentication and replayed through the canonical parser later.
  */
-const unauthenticatedLinking: AuthLinkingOptions = {
-  prefixes: linking.prefixes,
-  config: {
-    screens: {
-      Login: {
-        path: 'auth/login',
-      },
-      Register: {
-        path: 'auth/register',
-      },
-      ForgotPassword: {
-        path: 'auth/reset',
-      },
-      BiometricAuth: {
-        path: 'auth/biometric',
-      },
-    },
-  },
+const ATOM_PREFIX = 'atom://';
+const HTTPS_PREFIX = 'https://atom.ai/';
+const AUTH_ROUTE_NAMES: ReadonlySet<string> = new Set([
+  'Login',
+  'Register',
+  'ForgotPassword',
+  'BiometricAuth',
+]);
+
+const getPathFromUrl = (url: string): string | undefined => {
+  if (url.startsWith(ATOM_PREFIX)) {
+    return url.slice(ATOM_PREFIX.length);
+  }
+  if (url.startsWith(HTTPS_PREFIX)) {
+    return url.slice(HTTPS_PREFIX.length);
+  }
+  return undefined;
 };
+
+const getValidatedState = (url: string) => {
+  const path = getPathFromUrl(url);
+  if (path === undefined || path.length === 0) {
+    return undefined;
+  }
+
+  try {
+    return getStateFromPath<AuthStackParamList>(path, linking.config);
+  } catch {
+    return undefined;
+  }
+};
+
+type ParsedNavigationState = NonNullable<ReturnType<typeof getValidatedState>>;
+
+type PendingIntent = {
+  state: ParsedNavigationState;
+  sequence: number;
+};
+
+const isAuthRouteState = (state: ParsedNavigationState): boolean =>
+  state.routes.some(route => AUTH_ROUTE_NAMES.has(route.name));
 
 /**
  * AuthNavigator Component
@@ -183,6 +217,21 @@ const unauthenticatedLinking: AuthLinkingOptions = {
 export const AuthNavigator: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const [isReady, setIsReady] = useState(false);
+  const [navigationReady, setNavigationReady] = useState(false);
+  const [pendingIntent, setPendingIntent] = useState<PendingIntent | null>(null);
+
+  const navigationRef = useMemo(
+    () => createNavigationContainerRef<AuthStackParamList>(),
+    []
+  );
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  const pendingIntentRef = useRef<PendingIntent | null>(null);
+  const mountedRef = useRef(true);
+  const latestSequenceRef = useRef(0);
+  const requestSequenceRef = useRef(0);
+  const initialUrlRequestedRef = useRef(false);
+
+  isAuthenticatedRef.current = isAuthenticated;
 
   // Wait for navigation to be ready
   useEffect(() => {
@@ -193,12 +242,138 @@ export const AuthNavigator: React.FC = () => {
     setIsReady(true);
   }, []);
 
+  const acceptUrl = useCallback(
+    (url: string, sequence: number): 'forward' | 'handled' | 'ignored' => {
+      // A late initial URL must not replace a newer foreground event.
+      if (sequence < latestSequenceRef.current) {
+        return 'ignored';
+      }
+
+      const state = getValidatedState(url);
+      if (!state) {
+        return 'ignored';
+      }
+
+      latestSequenceRef.current = sequence;
+
+      if (isAuthRouteState(state)) {
+        // A newer valid URL supersedes an older protected return.
+        if (pendingIntentRef.current !== null) {
+          pendingIntentRef.current = null;
+          setPendingIntent(null);
+        }
+        return isAuthenticatedRef.current ? 'ignored' : 'forward';
+      }
+
+      // Protected destinations are held as intent only. They are never
+      // mounted or entered until the authenticated tree is registered.
+      const intent: PendingIntent = { state, sequence };
+      pendingIntentRef.current = intent;
+      setPendingIntent(intent);
+      return 'handled';
+    },
+    []
+  );
+
+  const consumePendingIntent = useCallback(() => {
+    const intent = pendingIntentRef.current;
+    if (!intent || !isAuthenticatedRef.current || !navigationRef.isReady()) {
+      return;
+    }
+
+    const registered = navigationRef.getRootState().routeNames;
+    if (!intent.state.routes.every(route => registered.includes(route.name))) {
+      return;
+    }
+
+    // Clear before navigating so it can only ever be consumed once.
+    pendingIntentRef.current = null;
+    setPendingIntent(null);
+    navigationRef.resetRoot(intent.state);
+  }, [navigationRef]);
+
+  const linkingOptions = useMemo<AuthLinkingOptions>(
+    () => ({
+      ...linking,
+      async getInitialURL() {
+        // Native reports the launch URL; process the first report once.
+        if (initialUrlRequestedRef.current) {
+          return undefined;
+        }
+        initialUrlRequestedRef.current = true;
+
+        const requestSequence = ++requestSequenceRef.current;
+        const initialUrl = Promise.resolve()
+          .then(() => RNLinking.getInitialURL())
+          .then(url => {
+            if (!mountedRef.current || !url) return undefined;
+            return acceptUrl(url, requestSequence) === 'forward' ? url : undefined;
+          })
+          .catch(() => undefined);
+
+        // Preserve React Navigation 6's native 150ms launch-URL fallback.
+        // The underlying read may still deliver a validated intent later; it
+        // must not hold the login UI hostage or replace a newer valid event.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const fallback = new Promise<undefined>(resolve => {
+          timer = setTimeout(resolve, 150);
+        });
+        return Promise.race([initialUrl, fallback]).finally(() => {
+          if (timer !== undefined) clearTimeout(timer);
+        });
+      },
+      subscribe(listener) {
+        let active = true;
+        const onReceiveUrl = (event: { url: string }) => {
+          if (!active || !mountedRef.current || typeof event.url !== 'string') {
+            return;
+          }
+
+          const eventSequence = ++requestSequenceRef.current;
+          if (acceptUrl(event.url, eventSequence) === 'forward') {
+            listener(event.url);
+          }
+        };
+
+        const subscription = RNLinking.addEventListener('url', onReceiveUrl);
+        return () => {
+          active = false;
+          subscription?.remove();
+        };
+      },
+    }),
+    [acceptUrl]
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated || !navigationReady || pendingIntent === null) {
+      return;
+    }
+    consumePendingIntent();
+  }, [consumePendingIntent, isAuthenticated, navigationReady, pendingIntent]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pendingIntentRef.current = null;
+    };
+  }, []);
+
   if (!isReady || isLoading) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer linking={isAuthenticated ? linking : unauthenticatedLinking}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linkingOptions}
+      onStateChange={consumePendingIntent}
+      onReady={() => {
+        setNavigationReady(true);
+        consumePendingIntent();
+      }}
+    >
       <Stack.Navigator
         initialRouteName={isAuthenticated ? 'Main' : 'Login'}
         screenOptions={{

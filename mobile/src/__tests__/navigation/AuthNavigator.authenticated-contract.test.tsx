@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { mockAllScreens, SCREEN_TEST_IDS } from '../helpers/navigationMocks';
 
 // Screen content is controlled; both navigator implementations are real.
@@ -97,4 +97,65 @@ test.each([
     await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
     expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
   } finally { initialUrl.mockRestore(); }
+});
+
+
+test('a stalled native initial URL does not block the login screen', async () => {
+  mockSignedIn = false;
+  const {Linking} = require('react-native');
+  let finish: ((url: string | null) => void) | undefined;
+  const initial = new Promise<string | null>(resolve => { finish = resolve; });
+  const initialUrl = jest.spyOn(Linking, 'getInitialURL').mockReturnValue(initial);
+  try {
+    const view = render(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+    expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+  } finally {
+    finish?.(null);
+    initialUrl.mockRestore();
+  }
+});
+
+
+test('native initial URL rejection leaves login usable', async () => {
+  mockSignedIn = false;
+  const {Linking} = require('react-native');
+  const initialUrl = jest.spyOn(Linking, 'getInitialURL').mockRejectedValue(new Error('controlled URL unavailable'));
+  try {
+    const view = render(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+    expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+  } finally { initialUrl.mockRestore(); }
+});
+
+test('newer foreground intent wins over a delayed launch URL', async () => {
+  mockSignedIn = false;
+  const Linking: typeof import('react-native').Linking = require('react-native').Linking;
+  let finish: ((url: string | null) => void) | undefined;
+  const initial = new Promise<string | null>(resolve => {finish = resolve;});
+  const initialUrl = jest.spyOn(Linking, 'getInitialURL').mockReturnValue(initial);
+  const listener: {current?: (event: {url: string}) => void} = {};
+  // Use the real JavaScript emitter's removable subscription rather than
+  // recursively wrapping an already-mocked native method.
+  const EventEmitter = jest.requireActual('react-native/Libraries/vendor/emitter/EventEmitter').default;
+  const emitter = new EventEmitter();
+  const subscription = jest.spyOn(Linking, 'addEventListener').mockImplementation((type, callback) => {
+    listener.current = callback;
+    return emitter.addListener(type, callback);
+  });
+  try {
+    const view = render(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+    await waitFor(() => expect(typeof listener.current).toBe('function'));
+    await act(async () => {
+      listener.current?.({url: 'atom://canvas/newest-canvas'});
+      finish?.('atom://canvas/older-canvas');
+      await Promise.resolve();
+    });
+    mockSignedIn = true; view.rerender(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId('linked-canvas-viewer').props.children).toBe('newest-canvas'));
+  } finally {
+    finish?.(null);
+    initialUrl.mockRestore(); subscription.mockRestore();
+  }
 });
