@@ -125,7 +125,7 @@ def users():
 def client(db_session, users, monkeypatch):
     from core.auth import get_current_user
     from core.database import SessionLocal, get_db, get_db_session
-    from api.canvas_routes import router
+    from api.canvas_routes import router, ws_router
 
     @contextlib.contextmanager
     def _get_db_session():
@@ -136,6 +136,8 @@ def client(db_session, users, monkeypatch):
 
     app = FastAPI()
     app.include_router(router)
+    # Match normal main: the socket surface is a separate router.
+    app.include_router(ws_router)
 
     def override_db():
         yield db_session
@@ -152,7 +154,7 @@ def client(db_session, users, monkeypatch):
 
 def _ws_token(db, user):
     from core.auth import create_access_token
-    return create_access_token({"sub": user.id})
+    return create_access_token({"sub": user.id}, user=user)
 
 
 # ===========================================================================

@@ -1,0 +1,94 @@
+{
+  "source_commit": "403a391738a4ee8401ffa5cfe4b30609bac7e778",
+  "ordinary_api_first_login": {
+    "url": "/dashboard",
+    "visible_heading": "Your workspace",
+    "welcome_name": "Web Session",
+    "user_id": "9931e5b0-493b-44e0-ad02-715621ca3d88",
+    "workspace_id": "eb0bd161-14e9-4853-a3cc-978eb7b3becf"
+  },
+  "ordinary_sidebar_logout": {
+    "url": "/auth/signin",
+    "revocations_before": 0,
+    "revocations_after": 1,
+    "matching_logout_audits": 1,
+    "backend_http_statuses": [
+      200
+    ]
+  },
+  "independent_peer_session_after_logout": 200,
+  "limit": "browser session bearer was not exported; no browser-token HTTP replay claim",
+  "runtime_identity": {
+    "source_id": "403a391738a4-dirty.a4658160ddd1",
+    "revision": "403a391738a4ee8401ffa5cfe4b30609bac7e778",
+    "dirty": true,
+    "dirty_digest": "a4658160ddd1",
+    "dirty_paths": [
+      "frontend-nextjs/next-env.d.ts"
+    ],
+    "untracked_paths": [
+      "frontend-nextjs/.next-session-20261109/dev/build-manifest.json",
+      "frontend-nextjs/.next-session-20261109/dev/cache/.rscinfo",
+      "frontend-nextjs/.next-session-20261109/dev/cache/next-devtools-config.json",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000002.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000003.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000004.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000005.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000006.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000008.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000010.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000011.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000012.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000013.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000014.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000016.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000022.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000023.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000024.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000025.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000026.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000028.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000033.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000034.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000035.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000036.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000037.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000039.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000040.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000041.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000042.del",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000043.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000044.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000045.sst",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000046.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000047.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/00000048.meta",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/CURRENT",
+      "frontend-nextjs/.next-session-20261109/dev/cache/turbopack/8d0f77bfa/LOG",
+      "frontend-nextjs/.next-session-20261109/dev/fallback-build-manifest.json",
+      "frontend-nextjs/.next-session-20261109/dev/lock"
+    ],
+    "pid": 87642,
+    "started_at": "2026-11-09T20:03:01.295445+00:00",
+    "captured_at": "2026-11-09T20:07:24.981284+00:00"
+  },
+  "durable_receipt": {
+    "actor_id": "9931e5b0-493b-44e0-ad02-715621ca3d88",
+    "workspace_id": "eb0bd161-14e9-4853-a3cc-978eb7b3becf",
+    "raw_tenant_id": "e3e22ffd-2998-420a-b424-2fa8104f4bc8",
+    "session_jti": "19be9ad2-29d0-4692-9a33-248b553f08b9",
+    "operation_id": "logout:19be9ad2-29d0-4692-9a33-248b553f08b9",
+    "audit_id": "a37c6a6b-5fb9-4038-a31f-6a4140671cb2",
+    "exact_session_actor_operation_scope_match": true
+  },
+  "cleanup": {
+    "owned_processes_terminal": true,
+    "ports_closed": [
+      18147,
+      18148
+    ],
+    "disposable_build_bytes_removed": 192751767,
+    "database_and_private_evidence_retained": true,
+    "generated_next_env_restored": true
+  }
+}

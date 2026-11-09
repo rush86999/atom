@@ -1,0 +1,33 @@
+{
+  "executed_source": "31ffe48ee41ec09b5c060edce12f6289e113bc87",
+  "frontend": {
+    "passed": 180,
+    "failed": 0
+  },
+  "typescript": {
+    "exit_code": 0,
+    "output_bytes": 0
+  },
+  "original_negatives": {
+    "source": "a75dd85e0",
+    "sidebar_failed": 3,
+    "signin_return_failed": 3
+  },
+  "parent_role_fixture_baseline": {
+    "source": "a75dd85e0",
+    "failed": 6,
+    "passed": 1,
+    "candidate": "all7 original case names retained; full-profile fixture explicit, current fail-closed and Activity assertions, plus core admin negative twin"
+  },
+  "browser": {
+    "ordinary_pages": true,
+    "backend_transport_delay_seam": true,
+    "logout_requests": 1,
+    "observed_signin_ms": 12520,
+    "server_pre_dispatch_delay_ms": 30000,
+    "before_reply": true,
+    "server_termination_claim": false
+  },
+  "product_model_inference": false,
+  "full_app_completion": false
+}

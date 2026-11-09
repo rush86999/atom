@@ -1,0 +1,35 @@
+{
+  "source": "1c14fed27088e538c393d4ee87cc3423a256f3a9",
+  "transport": "normal public HTTP, NextAuth CSRF/cookie protocol; no browser claim",
+  "registered": true,
+  "two_independent_web_credentials": true,
+  "separate_backend_generations": true,
+  "web_signing_key_separate": true,
+  "logout_receipt_verified": true,
+  "revoked_backend_status": 401,
+  "revoked_cookie_empty": true,
+  "peer_current": true,
+  "restart_pending": false,
+  "no_provider_calls_requested": true,
+  "actual_backend_process_changed": true,
+  "after_restart": {
+    "revoked": {
+      "http_status": 200,
+      "empty": true,
+      "identity_matches": false
+    },
+    "peer": {
+      "http_status": 200,
+      "empty": false,
+      "identity_matches": true
+    }
+  },
+  "revoked_backend_after_restart": 401,
+  "peer_backend_after_restart": 200,
+  "original_exact_audit_rows": 1,
+  "logout_audits_for_account": 1,
+  "same_database_and_configuration": true,
+  "original_encrypted_cookies_replayed": true,
+  "live_provider_calls_requested": 0,
+  "browser_capture": false
+}

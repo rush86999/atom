@@ -209,7 +209,7 @@ def _http_client(env, *, user=None):
 
     app.dependency_overrides[get_db] = _db
     actor = user or env["user"]
-    token = create_access_token({"sub": actor.id})
+    token = create_access_token({"sub": actor.id}, user=actor)
     return (
         TestClient(app, raise_server_exceptions=False),
         {"Authorization": f"Bearer {token}"},

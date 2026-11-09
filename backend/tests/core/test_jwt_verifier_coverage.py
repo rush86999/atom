@@ -388,6 +388,9 @@ class _FakeQuery:
 
 
 class _FakeDB:
+    # Session-shaped read scope, matching the production no-autoflush guard.
+    from contextlib import nullcontext
+    no_autoflush = nullcontext()
     def __init__(self, revoked):
         self._q = _FakeQuery(revoked)
 
@@ -396,19 +399,22 @@ class _FakeDB:
 
 
 class TestRevocation:
+    # Historical case names retained: requested but unavailable checks now refuse.
     def test_revocation_no_db_returns_false(self):
         v = JWTVerifier(secret_key=TEST_SECRET)
         tok = v.create_token("u1", jti="j1")
-        # check_revocation=True but db=None → returns False (graceful degrade)
-        payload = v.verify_token(_cred(tok), check_revocation=True, db=None)
-        assert payload["sub"] == "u1"
+        # Missing required storage cannot certify a requested revocation check.
+        with pytest.raises(HTTPException) as exc:
+            v.verify_token(_cred(tok), check_revocation=True, db=None)
+        assert exc.value.status_code == 401
 
     def test_revocation_no_jti_returns_false(self):
         v = JWTVerifier(secret_key=TEST_SECRET)
-        # Token without jti → can't check revocation → allowed
+        # Missing revocable identity cannot certify an authorized session.
         tok = pyjwt.encode({"sub": "u1", "exp": int(time.time()) + 3600}, TEST_SECRET, algorithm="HS256")
-        payload = v.verify_token(_cred(tok), check_revocation=True, db=_FakeDB(revoked=True))
-        assert payload["sub"] == "u1"
+        with pytest.raises(HTTPException) as exc:
+            v.verify_token(_cred(tok), check_revocation=True, db=_FakeDB(revoked=True))
+        assert exc.value.status_code == 401
 
     def test_revoked_token_rejected(self):
         v = JWTVerifier(secret_key=TEST_SECRET)
@@ -425,8 +431,7 @@ class TestRevocation:
         assert payload["sub"] == "u1"
 
     def test_revocation_db_exception_returns_false(self):
-        """If the revocation DB query raises, the token is allowed (graceful
-        degrade — security-first: don't take auth down on a DB hiccup)."""
+        """An unavailable revocation read cannot grant access."""
         v = JWTVerifier(secret_key=TEST_SECRET)
         tok = v.create_token("u1", jti="j1")
 
@@ -434,22 +439,23 @@ class TestRevocation:
             def query(self, model):
                 raise RuntimeError("db down")
 
-        payload = v.verify_token(_cred(tok), check_revocation=True, db=BoomDB())
-        assert payload["sub"] == "u1"
+        with pytest.raises(HTTPException) as exc:
+            v.verify_token(_cred(tok), check_revocation=True, db=BoomDB())
+        assert exc.value.status_code == 401
 
     def test_is_token_revoked_no_revokedtoken_model(self, monkeypatch):
-        """If RevokedToken model is None (import failed), revocation is skipped."""
+        """Missing revocation model is unknown and refuses."""
         v = JWTVerifier(secret_key=TEST_SECRET)
         with patch.object(jwtv_mod, "RevokedToken", None):
-            assert v._is_token_revoked({"jti": "x"}, _FakeDB(revoked=True)) is False
+            assert v._is_token_revoked({"jti": "x"}, _FakeDB(revoked=True)) is True
 
     def test_is_token_revoked_no_db(self):
         v = JWTVerifier(secret_key=TEST_SECRET)
-        assert v._is_token_revoked({"jti": "x"}, None) is False
+        assert v._is_token_revoked({"jti": "x"}, None) is True
 
     def test_is_token_revoked_no_jti(self):
         v = JWTVerifier(secret_key=TEST_SECRET)
-        assert v._is_token_revoked({}, _FakeDB(revoked=True)) is False
+        assert v._is_token_revoked({}, _FakeDB(revoked=True)) is True
 
     def test_is_token_revoked_yes(self):
         v = JWTVerifier(secret_key=TEST_SECRET)

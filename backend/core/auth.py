@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 import os
 import secrets
+import uuid
 from typing import Any, Dict, Optional, Union
 import bcrypt
 from jose import JWTError, jwt
@@ -107,8 +108,58 @@ def get_password_hash(password: str) -> str:
     hashed = bcrypt.hashpw(password, bcrypt.gensalt())
     return hashed.decode('utf-8')
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def credential_session_binding(user: User) -> str:
+    """Opaque session proof bound to the durable credential, never the raw hash.
+
+    Django's password-change session invalidation uses the same HMAC principle.
+    A credential change invalidates old proofs across processes with no cache or
+    additional revocation store. NULL password material supports explicit SSO.
+    """
+    import hashlib
+    import hmac
+    import json
+    user_id = getattr(user, "id", None)
+    password_hash = getattr(user, "hashed_password", None)
+    if not isinstance(user_id, str) or not user_id:
+        raise ValueError("Session subject is unavailable")
+    if password_hash is not None and not isinstance(password_hash, str):
+        raise ValueError("Session credential is unavailable")
+    material = json.dumps([user_id, password_hash], separators=(",", ":"), ensure_ascii=False)
+    return "v1:" + hmac.new(SECRET_KEY.encode("utf-8"),
+        b"atom-credential-session-v1\0" + material.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def credential_session_matches(payload: Dict[str, Any], user: User, *, allow_refresh: bool = False, db: Optional[Session] = None) -> bool:
+    """Authorize only with current credential AND durable revocation evidence.
+
+    Omitted/unavailable database context is not authority. The separate
+    credential_session_binding helper is the pure cryptographic operation.
+    """
+    import hmac
+    if db is None:
+        return False
+    if payload.get("type") not in (None, "access") and not (allow_refresh and payload.get("type") == "refresh"):
+        return False
+    proof = payload.get("auth_binding")
+    subject = payload.get("sub") or payload.get("id") or payload.get("user_id")
+    if not isinstance(proof, str) or subject != getattr(user, "id", None):
+        return False
+    try:
+        matches = hmac.compare_digest(proof, credential_session_binding(user))
+        return matches and not is_token_revoked(payload.get("jti"), db=db)
+    except (TypeError, ValueError):
+        return False
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None, *, user: Optional[User] = None) -> str:
     to_encode = data.copy()
+    # Claims are derived only from server-owned User material, never copied
+    # from caller data. Unbound utility tokens cannot authorize a user session.
+    to_encode.pop("auth_binding", None)
+    if user is not None:
+        if to_encode.get("sub") != user.id:
+            raise ValueError("Session subject mismatch")
+        to_encode["auth_binding"] = credential_session_binding(user)
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -121,33 +172,55 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 # --- Token revocation (logout) ---
-# Lightweight in-memory denylist of revoked jti claims. Single-process
-# single-tenant — sufficient without Redis. Bounded; expired entries are
-# pruned on access. Without this, a stolen JWT stays valid for 24h after
-# logout (ACCESS_TOKEN_EXPIRE_MINUTES = 60*24).
+# The memory denylist is only a compatibility fast path. Principal readers
+# must consult the existing durable RevokedToken ledger through the current
+# Session; clearing/restarting this process cannot restore revoked authority.
+# Cache entries are bounded by JWT expiry; no additional store is introduced.
 _revoked_tokens: set = set()
 _revoked_expiry: dict = {}  # jti -> exp timestamp (for pruning)
 
 
 def revoke_token(jti: str, exp: int) -> None:
-    """Mark a token as revoked (used by /logout)."""
+    """Cache a committed revocation; this helper alone is not durable."""
     _revoked_tokens.add(jti)
     _revoked_expiry[jti] = exp
 
 
-def is_token_revoked(jti: Optional[str]) -> bool:
-    """Check if a token has been revoked. Prunes expired entries."""
-    if not jti:
-        return False
+def is_token_revoked(jti: Optional[str], *, db: Optional[Session] = None) -> bool:
+    """Check durable revocation when db is supplied, failing closed on errors.
+
+    The no-db compatibility mode reports only the memory cache. It is never
+    sufficient session authority; credential_session_matches requires db.
+    """
+    if not isinstance(jti, str) or not jti:
+        return db is not None  # a principal session needs a revocable identity
     # Prune expired revocations.
     now = datetime.now(timezone.utc).timestamp()
     expired = [k for k, exp in _revoked_expiry.items() if exp < now]
     for k in expired:
         _revoked_tokens.discard(k)
         _revoked_expiry.pop(k, None)
-    return jti in _revoked_tokens
+    if jti in _revoked_tokens:
+        return True
+    if db is not None:
+        from core.models import RevokedToken
+        try:
+            with db.no_autoflush:
+                return db.query(RevokedToken).filter_by(jti=jti).first() is not None
+        except Exception as error:
+            logger.warning("Session revocation unavailable error_class=%s", type(error).__name__)
+            return True  # unavailable revocation evidence never grants access
+    return False
 
 
+
+
+def resolve_request_access_token(request: Request, bearer: Optional[str] = None) -> Optional[str]:
+    token = bearer or request.cookies.get("next-auth.session-token") or request.cookies.get("__Secure-next-auth.session-token")
+    token = token or request.query_params.get("token") or request.query_params.get("auth_token")
+    if isinstance(token, str) and token.startswith('"') and token.endswith('"'):
+        token = token[1:-1]
+    return token if isinstance(token, str) and token else None
 
 
 async def get_current_user(
@@ -164,22 +237,10 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    # Check Cookie if Header is missing
-    if not token:
-        token = request.cookies.get("next-auth.session-token")
-        # Also check for secure cookie name if in production
-        if not token:
-            token = request.cookies.get("__Secure-next-auth.session-token")
-        # Check query params for direct browser redirects
-        if not token:
-            token = request.query_params.get("token") or request.query_params.get("auth_token")
-            
+    token = resolve_request_access_token(request, token)
     if not token:
         raise credentials_exception
 
-    if token.startswith('"') and token.endswith('"'):
-        token = token[1:-1]
-        
     # Early validation: Skip obviously invalid tokens before JWT decode
     # Valid JWTs must have 2 dots separating 3 segments: header.payload.signature
     if token.count('.') != 2:
@@ -217,9 +278,11 @@ async def get_current_user(
         logger.warning("Unexpected error during token validation")
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id).populate_existing().first()
     if user is None:
         logger.warning("Token referenced non-existent user_id=%s", user_id)
+        raise credentials_exception
+    if not credential_session_matches(payload, user, db=db):
         raise credentials_exception
 
     # Round 43: reject tokens for non-ACTIVE accounts. Login already blocks
@@ -277,9 +340,9 @@ async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
         if is_token_revoked(token_jti):
             logger.warning(f"Rejected revoked WS token (jti={token_jti}) for user {user_id}")
             return None
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).populate_existing().first()
         # Round 43: reject non-ACTIVE accounts (deleted/suspended users)
-        if user is None or user.status != UserStatus.ACTIVE:
+        if user is None or user.status != UserStatus.ACTIVE or not credential_session_matches(payload, user, db=db):
             return None
         return user
     except JWTError:
@@ -347,12 +410,12 @@ def verify_mobile_token(token: str, db: Session) -> Optional[User]:
         if user_id is None:
             return None
 
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).populate_existing().first()
         # Reject non-ACTIVE accounts. Mirrors get_current_user (line ~190),
         # get_current_user_ws, and authenticate_mobile_user — without this,
         # a suspended/deleted user's existing 24h mobile JWT kept
         # authenticating them after their account was revoked.
-        if user is None or user.status != UserStatus.ACTIVE:
+        if user is None or user.status != UserStatus.ACTIVE or not credential_session_matches(payload, user, db=db):
             return None
         return user
     except JWTError as e:
@@ -442,6 +505,8 @@ def create_mobile_token(user: User, device_id: str, expires_delta: Optional[time
         "email": user.email,
         "device_id": device_id,
         "platform": "mobile",
+        "jti": uuid.uuid4().hex,
+        "auth_binding": credential_session_binding(user),
         "exp": expire
     }
 
@@ -452,6 +517,8 @@ def create_mobile_token(user: User, device_id: str, expires_delta: Optional[time
     refresh_to_encode = {
         "sub": str(user.id),
         "type": "refresh",
+        "jti": uuid.uuid4().hex,
+        "auth_binding": credential_session_binding(user),
         "device_id": device_id,
         "exp": refresh_expire
     }

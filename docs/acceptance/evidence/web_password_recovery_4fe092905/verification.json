@@ -1,0 +1,26 @@
+{
+  "source": "4fe092905885460cede6b675c0e3abb08542f7f3",
+  "backend": {
+    "passed": 102,
+    "scope": "real registry auth composition with scratch SQLite and captured mail; includes CI preservation controls"
+  },
+  "frontend": {
+    "passed": 87,
+    "scope": "component and proxy controls, not browser"
+  },
+  "navigation_before": {
+    "failed": 3,
+    "passed": 27,
+    "source": "34a19d4e2"
+  },
+  "typescript_exit": 0,
+  "mail": "memory transport double only",
+  "remaining": [
+    "ordinary browser recovery",
+    "existing bearer-session invalidation",
+    "PostgreSQL concurrency/runtime",
+    "full-app completion"
+  ],
+  "historical_correction": "Main already dynamically mounts core auth. Mobile-only404 was not production route evidence. No additional auth router mount remains.",
+  "log_processing": "Only generated temporary test bootstrap key diagnostics omitted, when present. Raw originals retained privately."
+}

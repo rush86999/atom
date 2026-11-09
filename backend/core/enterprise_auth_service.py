@@ -18,7 +18,7 @@ import jwt
 from sqlalchemy.orm import Session
 
 # Import UserRole from models to avoid duplication
-from core.models import UserRole, UserStatus
+from core.models import User, UserRole, UserStatus
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +206,7 @@ class EnterpriseAuthService:
             logger.error(f"Password verification error: {e}")
             return False
 
-    def create_access_token(self, user_id: str, additional_claims: Optional[Dict[str, Any]] = None) -> str:
+    def create_access_token(self, user_id: str, additional_claims: Optional[Dict[str, Any]] = None, *, user: Optional[User] = None) -> str:
         """
         Create JWT access token.
 
@@ -229,6 +229,12 @@ class EnterpriseAuthService:
 
         if additional_claims:
             payload.update(additional_claims)
+        payload.pop("auth_binding", None)
+        if user is not None:
+            from core.auth import credential_session_binding
+            if user.id != user_id:
+                raise ValueError("Session subject mismatch")
+            payload["auth_binding"] = credential_session_binding(user)
 
         # Use RS256 if keys available, otherwise HS256
         if self.private_key:
@@ -239,7 +245,7 @@ class EnterpriseAuthService:
 
         return token
 
-    def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
+    def verify_token(self, token: str, *, db: Optional[Session] = None, allow_refresh: bool = False) -> Optional[Dict[str, Any]]:
         """
         Verify JWT token and return claims.
 
@@ -261,6 +267,13 @@ class EnterpriseAuthService:
                 logger.warning("Token expired")
                 return None
 
+            # Cryptographic parsing alone is not user authorization. Every
+            # HTTP/refresh consumer supplies its current authoritative session.
+            if db is not None:
+                from core.auth import credential_session_matches
+                user = db.query(User).filter(User.id == claims.get("user_id")).populate_existing().first()
+                if user is None or user.status != UserStatus.ACTIVE or not credential_session_matches(claims, user, allow_refresh=allow_refresh, db=db):
+                    return None
             return claims
 
         except jwt.ExpiredSignatureError:
@@ -273,7 +286,7 @@ class EnterpriseAuthService:
             logger.error(f"Token verification error: {e}")
             return None
 
-    def create_refresh_token(self, user_id: str) -> str:
+    def create_refresh_token(self, user_id: str, *, user: Optional[User] = None) -> str:
         """
         Create refresh token (long-lived).
 
@@ -293,6 +306,11 @@ class EnterpriseAuthService:
             "type": "refresh"
         }
 
+        if user is not None:
+            from core.auth import credential_session_binding
+            if user.id != user_id:
+                raise ValueError("Session subject mismatch")
+            payload["auth_binding"] = credential_session_binding(user)
         # Use HS256 for refresh tokens
         token = jwt.encode(payload, self.secret_key, algorithm="HS256")
 

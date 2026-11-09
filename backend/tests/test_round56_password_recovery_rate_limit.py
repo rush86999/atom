@@ -33,6 +33,8 @@ def _clear_limiters(monkeypatch):
     monkeypatch.delenv("TESTING", raising=False)
     monkeypatch.delenv("BYPASS_RATE_LIMIT", raising=False)
     import core.auth_endpoints as mod
+    # This suite isolates rate limiting, not SMTP readiness/delivery.
+    monkeypatch.setattr(mod, "smtp_delivery_configured", lambda: True)
 
     for name in ("_recovery_limiter", "_verify_limiter", "_reset_limiter"):
         getattr(mod, name)._hits.clear()

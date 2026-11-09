@@ -1,0 +1,22 @@
+{
+  "executed_source": "e3c598cfb39e8fb63de82dbe0dcb5a4d4d5bd3c3",
+  "frontend": {
+    "passed": 108,
+    "failed": 0
+  },
+  "typescript": {
+    "exit_code": 0,
+    "output_bytes": 0
+  },
+  "failure_first": {
+    "source": "403a39173",
+    "failed": 2,
+    "passed": 10,
+    "cases": [
+      "forbids credential and bearer forwarding through redirects",
+      "cancels the refused identity response without leaving an unbounded body"
+    ]
+  },
+  "product_inference": false,
+  "scope": "controlled existing web credential consumers only"
+}

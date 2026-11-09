@@ -29,6 +29,9 @@ jest.mock("@/components/ui/use-toast", () => ({
   useToast: jest.fn(() => ({ toast: jest.fn() })),
 }));
 
+jest.mock("next-auth/react", () => ({ signOut: jest.fn().mockResolvedValue(undefined) }));
+import { signOut } from "next-auth/react";
+
 const mockPush = jest.fn();
 const mockToast = jest.fn();
 
@@ -295,6 +298,26 @@ describe("AccountSettings", () => {
       })
     );
     expect((document.getElementById("currentPassword") as HTMLInputElement).value).toBe("");
+  });
+
+  it("clears the old browser token and signs out when password change requires reauthentication", async () => {
+    // This twin checks real storage mutation; the legacy fixture's constant
+    // getItem stub cannot observe a successful removeItem.
+    getItemSpy.mockRestore();
+    localStorage.setItem('auth_token', 'test-token');
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/auth/change-password")) return Promise.resolve(okResponse({ success: true, requires_reauthentication: true }));
+      return Promise.resolve(okResponse(ACCOUNT_DATA));
+    });
+    render(<AccountSettings />);
+    await waitFor(() => expect(screen.getByText("Rishi Parikh")).toBeInTheDocument());
+    fireEvent.change(document.getElementById("currentPassword")!, { target: { value: "old-pass-1" } });
+    fireEvent.change(document.getElementById("newPassword")!, { target: { value: "new-pass-123" } });
+    fireEvent.change(document.getElementById("confirmPassword")!, { target: { value: "new-pass-123" } });
+    fireEvent.click(screen.getByRole("button", { name: /update password/i }));
+    await waitFor(() => expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/auth/signin' }));
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Password updated. Sign in again with your new password.' }));
   });
 
   it("surfaces the backend error detail when the password change is rejected", async () => {

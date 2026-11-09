@@ -588,6 +588,71 @@ reviewed at its API/shared-component scope; the broader Tasks goal remains open.
 Next user-journey work prioritizes supported core surfaces on the real full-app
 backend/profile boundary. Reuse accepted journeys before starting another run.
 
+### November9 — canonical web account recovery qualification
+
+Web first; mobile remains deferred. PR800's presentation workspace test setup is localized (205 consumer/CI controls; source89e40d321, evidence2f17476be). PR801 remains stacked and needs its own main-based hosted checks after the parent lands. Never inherit green from a changed head.
+
+Account recovery is the next independent web slice. Correction to the initial trace: normal main already loads core auth through core.lazy_integration_registry. Mobile-router-only404 probes did not establish a missing production route. Redundant remounts were removed; preserve registry ownership and one handler per path. Four actual shared-handler defects were then reproduced: wrong reset-page link, missing-mail false availability, stale token overwrite and foreign token scope acceptance.
+
+The candidate reuses the existing User/PasswordResetToken/SMTP mechanisms, with token+credential CAS, fresh credential readback, exact current scope and truthful refusal/uncertainty. Frontend requests use the canonical backend, never a second JS/Postgres credential writer; UI completion needs the verified receipt and request acceptance does not claim delivery. Validation messages omit submitted credential values. Existing method identities are retained in boundary-test migrations; no production guard is relaxed for a mock. Research: OWASP Forgot Password Cheat Sheet (https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html), retrieved2026-11-09.
+
+Continue frozen-source gates, actual ordinary-page qualification and evidence packaging before acceptance. Existing bearer-session invalidation/restart behavior remains a separate unqualified requirement; a one-use reset token does not prove it. No real email/account/provider/credential/deployment action is authorized by these scratch controls. Full app completion remains open.
+
+Recovery continuation: a successful reset also invalidates other outstanding links in the same transaction. Issuance claims the current account snapshot first, so a prior concurrent credential/scope change refuses without issuing a link. The focused real-registry API gate passes20 controls; broader qualification and ordinary browser recovery remain pending. Mobile-specific work remains last.
+
+Nov9 recovery follow-through: draftPR802 carries product4fe092905/evidenceb21402964. Committed-source backend102, frontend87 and TypeScript pass;22 source +6 artifact Git checks pass. Normal main plus ordinary browser request page now demonstrates known/unknown accepted-message twins, one captured message/token and correct reset-page link, plus invalid-link refusal. This is request-boundary evidence only; no browser credential change occurred and no full recovery/session-security acceptance follows. Mobile remains last. PR801 a3258d061 now includes parent2f fixture correction.
+
+Nov9 session-security repair in progress: native failure confirmed an old bearer remains accepted after verified recovery. Candidate shared session binding uses a versioned, domain-separated HMAC of exact durable User id and credential material; raw credential hashes never enter JWTs. Existing core/OIDC/mobile/enterprise producers and authorization/refresh readers are being coordinated. Older unbound tokens require one fresh sign-in; no legacy refresh laundering. Password changes explicitly require reauthentication and Settings clears its old browser session. No new store/schema. Native first repair passed21; shared fresh-process matrix7 passed; expanded auth/SSO/JWT143 passed; frontend104 passed. Alternate-auth valid twins are still running before source freeze. Existing open sockets/in-flight effects and cross-process logout denylist durability remain separate, not certified by this credential-binding repair. This is a web/security priority, not mobile-app delivery.
+Engineering reference: Django's documented session invalidation on password change https://docs.djangoproject.com/en/5.2/topics/auth/default/#session-invalidation-on-password-change . The bounded economy CLI architecture review agrees that explicit rejection is safer than indefinite unbound-token compatibility and identified refresh/type, SSO, stale ORM, current-session UX and long-lived-socket boundaries. Keep those distinctions visible.
+Canvas PR800 is merged at5944700f4 (tree-identical to verified2f17476be), all13 checks green. PR801 now targets main at a11333eaa; duplicate squash-history conflicts were resolved with a proven unchanged child tree. New hosted results must be checked on that head; no inherited green.
+
+Session continuation gate: alternate-auth valid twins94 passed/2 pre-existing skipped; frontend104 passed; TypeScript exit0; final credential-CAS/native/route/CI gate73 passed. Authenticated password changes now claim the exact current credential/authority snapshot too, so an in-flight request cannot overwrite a peer reset. The source is being frozen for one combined qualification; no full security or browser acceptance is declared.
+
+
+November 9 — durable web sign-out successor
+
+Canvas PR801 is merged at89527616e after all13 exact-head checks passed.
+The next confirmed web security defect was per-session sign-out: the old
+process-local denylist rejected a token only until a fresh process loaded it.
+The current successor uses the existing RevokedToken ledger for every principal
+reader, with the in-memory list only as an optimization. Missing database
+authority refuses; it never certifies a session from a pure crypto check.
+Core/mobile/enterprise issuers and HTTP/WebSocket/refresh readers share this
+contract; coordinating those callers does not start mobile-app delivery.
+
+Both existing NextAuth configurations notify the canonical backend on sign-out
+through one bounded event consumer. Local cookie clearing remains possible on
+backend failure, but no server-termination success receipt is invented. Revocation
+and existing generic audit services retain their existing commit boundaries;
+independent readback binds actor, scope, session, operation and expiry. Confirmed
+rollback, committed-unverified and lost confirmation remain distinct. No new
+session store, audit engine or schema is introduced.
+
+Keep the new-process, peer-session, bearer/cookie/query precedence, exact-audit,
+missing-database and NextAuth timeout controls in normal regression. Native
+credential/reset checks do not certify termination of already-open connections,
+in-flight work, live SSO, PostgreSQL concurrency or complete browser recovery.
+The real socket test app must mount both existing HTTP and WebSocket routers;
+its previous absent-router failures were a fixture gap, not proof that a new
+principal guard broke sockets. Main web goals remain first, mobile UI last.
+
+Web sign-in identity successor: the actual pages/api/auth/[...nextauth] credentials
+consumer now resolves the exact issued bearer through existing /api/auth/me.
+It no longer fabricates user-from-backend, copies submitted email as authority,
+or issues a parallel JS/Postgres last_login_at write. Backend login owns last_login.
+Five failure-first controls reproduce the old defect; the candidate passes67
+sign-in/sign-out/login controls and44 callback-neighborhood controls, with27 CI
+lane-preservation controls and TypeScript clean. Counts overlap; do not add them.
+Older test case names are retained, with unsafe identity-fallback expectations
+changed to explicit refusal and native-shaped identity-response valid twins.
+Legacy lib/auth credential enrichment and OAuth JS database paths remain
+separately unqualified; cached UI metadata does not replace current backend
+principal authorization. The established browser-bearer transport is unchanged;
+do not claim a new cookie-only session architecture or full browser recovery.
+The bounded Flash review's first finding was caused by a truncated review excerpt
+that omitted the callbacks wrapper; actual consumers and TypeScript prove the
+wrapper exists. Its cache-revalidation and browser-bearer hardening suggestions
+are distinct future boundaries, not evidence of a missing wrapper in product.
 ### November 9 — durable legacy canvas updates
 
 Web remains the critical path; mobile remains deferred. PR800 is qualifying its joined presentation repair on main with immutable CI commands preserved through additive gates. Do not inherit checks from earlier heads or merge on partial green.
@@ -595,3 +660,104 @@ Web remains the critical path; mobile remains deferred. PR800 is qualifying its 
 The next isolated canvas update slice replaces broadcast-only success with the existing verified writer. Planned updates require their observed revision; King carries each confirmed revision and stops projection after conflict; deep links without a revision receive a targeted refusal. An unverified committed write keeps its original receipt and is not business success. Exact title material, including empty titles, participates in replay and fresh readback verification. Shared user/session delivery and current actor claims remain in general mechanisms.
 
 Existing unit method identities are preserved while boundary fixtures carry explicit planned revisions; the separate scratch controls exercise real storage and public calls. Continue wider baseline comparison, evidence packaging and exact-head CI without replaying stable browser/model episodes. Full web goals, general employee judgment, PostgreSQL/soak and mobile are not inferred complete.
+
+November9 integration status: the preceding dated source records are preserved. PR800 is merged5944700f4 and PR801 is merged89527616e after all13 required checks passed on each exact candidate. DraftPR802 now integrates that current main; account recovery/session/logout remain controlled-scope submissions, not full web acceptance. Frozen auth sourcee173791ef records101 backend and93 frontend passes with TypeScript clean; packet34source+5artifact Git checks pass. The main integration preserves both additive CI ledgers and both guidance sections; new exact-head CI is required.
+
+Shared credential-consumer correction: three native-shaped negatives proved that
+lib/auth could replace the backend identity with an unrelated admin/user SQL row
+and retry a refused login under a submitted tenant hint. Both existing credential
+providers now use one bounded helper for the same backend login + authenticated
+/me sequence. No email suffix, domain, tenant hint, JavaScript row, or login
+envelope invents authority. Backend credentials/2FA remain the sole issuer; no
+new auth store or router is introduced. One10s deadline covers dispatch, parsing
+and identity readback, with no automatic credential retry. Backend 2FA challenges
+are preserved; late bodies after expiry are refused. Existing API-first sign-in
+UI and OAuth paths are separate; this does not qualify live identity providers.
+All106 credential/logout/callback/login controls pass; original callback case
+names remain and unsafe fallback expectations now assert refusal. No permission
+wildcard is inferred from an email or role label; backend routes still enforce
+current principal authority. Cached UI identity and already-open connections
+remain separate acceptance work. Main web first, mobile UI last.
+
+Shared credentials follow-through: the economy Flash critique's credential
+redirect and unread-body concerns were confirmed by two new consumer negatives.
+Both login and /me now use redirect=error, and final cleanup aborts any unread
+response body.108 frontend controls pass. The suggested truthy 2FA normalization
+was not adopted: the actual backend contract is200 + literal boolean, and strict
+challenge/error parsing preserves that contract without accepting malformed
+provider claims. Network failures retain the existing NextAuth null contract;
+the separate API-first UI already has its friendly connection-error path.
+
+Ordinary UI login/sidebar-logout ran once on source403a39173 in a fresh isolated
+normal app. Dashboard then /auth/signin were observed; SQL readback shows one
+revocation and one matching logout audit, with an independent peer session200.
+This is the API-first UI path, not served NextAuth credentials qualification.
+The app's late-captured health identity is truthfully dirty only from generated
+Next type/build metadata; do not relabel it clean. Both owned servers stopped,
+192751767 disposable build bytes removed, scratch data retained. A browser bearer
+was not exported, so this episode does not claim its own exact-token HTTP replay.
+Native fresh-process checks remain separate at their recorded sources. Main web
+first; mobile UI last. The API-first Sidebar's unbounded logout fetch is the
+next source-diagnosed interruption boundary; no outage-safe UI claim follows
+from a healthy-server browser pass.
+
+November9 — interruption-safe local web logout
+
+Three actual Sidebar DOM negatives on a75dd85e0 established unbounded backend
+notification, duplicate dispatch and late-response deletion of a newer local
+session. The Sidebar now shares the existing five-second notification consumer
+with NextAuth, disables repeated submission, and binds local clearing to its
+original token/current backend-session generation and mounted owner. Unavailable
+or unverified notification still permits local clearing without inventing a
+server termination receipt. No new revocation store or lifecycle was introduced.
+
+Three actual sign-in DOM negatives also proved cached/late session reads could
+revive a locally signed-out UI or navigate after unmount. Explicit local logout
+is now preserved through those reads; fresh successful backend sign-in remains
+the existing operation that clears the marker. A pending framework signOut
+request does not hold navigation, and redirect:false prevents its late client
+redirect. The framework still owns CSRF and server-cookie clearing; local
+navigation is not proof that an unavailable server cleared its cookie. The
+installed SDK and official v4 contract both support this option:
+https://next-auth.js.org/getting-started/client#using-the-redirect-false-option-1
+Use the existing APIs, not a parallel cookie/approval engine.
+
+Combined auth/layout/role gate180 passed; TypeScript verification is recorded
+with the frozen successor. The6 older role-test failures reproduce on unchanged
+a75dd85e0. Their fixture now explicitly requests full-profile role assertions;
+unknown-role expectations are strengthened to current fail-closed behavior,
+and the existing /goal-runs route is asserted by its current Activity label.
+All7 historical case names remain; a core-profile admin negative twin prevents
+release-scope broadening. Production navigation and authority gates are unchanged.
+New ordinary outage-browser qualification remains pending. Earlier healthy UI
+evidence stays403a39173 and is not relabelled. Main web first; mobile UI last.
+
+Logout interruption qualification is now recorded at31ffe48ee, not relabelled
+onto its predecessor:180 source-frozen frontend controls and TypeScript pass.
+One browser click on the real page reached /auth/signin at the12.52s observation,
+before a controlled30s pre-dispatch transport delay completed. An early URL
+observation expired; the same attempt was inspected without a resend/restart.
+The client did not certify server termination; later fixture SQL readback had
+zero revocations. Both owned processes stopped,202324954 disposable build bytes
+removed, private DB/evidence retained. Packet web_logout_interruption_31ffe48ee
+contains the exact wrapper, source hashes, assertions and screenshot. Its source
+map covers execution-relevant code/tests/CI, not this non-executed rolling guide.
+
+The economical Flash review completed at its three-step read-only bound. A
+five-second wait is the declared bounded UX tradeoff, not an unbounded hang;
+instantaneous sign-out was not claimed. HttpOnly/secure server cookies remain
+framework-owned; do not weaken them to satisfy DOM cleanup tests. Concurrent
+Set-Cookie and server-cookie failure qualification remain separate. Preserve
+original healthy403a39173 and native e173791ef records. Further supported web
+journeys and current-principal protection for remaining server consumers are
+still required; none of this closes the full app or mobile goals.
+
+### Web current-principal checkpoint — 2026-11-09
+
+Source `5248cebe0` reauthorizes both web-cookie consumers on each session read; never certify cached role/permissions after backend refusal. Distinguish known revocation from unavailable authority. Preserve exact backend-owned Personal NULL/empty/default scope; never infer caller scope. Use the installed framework contract in regression, not a callback-only mock. The new named CI step preserves existing steps. Packet `web_current_principal_5248cebe0` records native 33, frontend 180, backend 40 and TypeScript; no new ordinary browser or provider inference is claimed. Next finite configuration and public HTTP restart proofs remain active. CI observation is model-free and exact-head; a prior head's green does not transfer. Mobile remains last without deleting its goals.
+
+Configuration checkpoint `ecba0afe2`: quickstart persists private web keys without rotation; duplicate managed entries refuse. Missing auth configuration is a limitation, never default signing authority. Preserve request-time key resolution and the actual SDK/setup regression gates. One configured economical Flash review found defects repaired before clean-source requalification. Draft802 scanner incident remains visible; clean-history successor preserves attribution without a waiver. Do not repeat prior browser campaigns for metadata changes; the actual public HTTP cookie/restart bridge is still the next missing proof.
+
+### Public HTTP session restart proof — 2026-11-09
+
+At source `1c14fed27`, actual normal NextAuth CSRF/cookie login, canonical backend logout and a real same-world backend restart preserve exact generation isolation: revoked cookie grants nothing, independent peer remains current, original audit occurs once. Packet `web_cookie_restart_1c14fed27` preserves health-reported generated development dirtiness, original runtime identity and no-browser limit. No reset/SSO/browser or universal app acceptance follows. Both owned services stopped; private records retained; only exact generated cache removed. Next traced finite consumer defect is `pages/api/skills/list.ts`: legacy credential fields, public per-user caching and unavailable/refused backend reported as success/zero skills. Reuse canonical current authority and safe proxy failure semantics; preserve real empty-list success separately. Trace builder consumer and current bearer/cookie login paths before edits. Keep the full app goal map unchanged.

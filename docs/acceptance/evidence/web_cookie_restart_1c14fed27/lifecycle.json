@@ -1,0 +1,9 @@
+{
+  "first_backend_pid": 200,
+  "restarted_backend_pid": 446,
+  "frontend_pid": 220,
+  "all_owned_processes_confirmed_terminal": true,
+  "generated_frontend_cache_removed_bytes": 18084420,
+  "private_db_configuration_cookies_and_logs_retained": true,
+  "next_env_restored_from_executed_source": true
+}

@@ -1,0 +1,24 @@
+{
+  "executed_source": "1c14fed27088e538c393d4ee87cc3423a256f3a9",
+  "source_files": {
+    "backend/main_api_app.py": "sha256:323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/core/auth_endpoints.py": "sha256:875c653b7bd89f198de7fe7f2de4a1633d7326d409ddb75d2d2023829621c1e5",
+    "backend/core/auth.py": "sha256:af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/auth_helpers.py": "sha256:f40492498f356c00e9400deb7702cb88696ccc7b1df69d3bd08383d6682055fe",
+    "frontend-nextjs/lib/auth.ts": "sha256:cc59cd6463cf10f5f8d6bdcee0c48efcc2e205bf76d87c3ebac246e8e04ca559",
+    "frontend-nextjs/lib/backend-current-session.ts": "sha256:52221f9369121f03359ccdd434dee4b5830eb0a47c1b713ee3f9982111678550",
+    "frontend-nextjs/lib/backend-credentials.ts": "sha256:daa2ae591985b088d9d6f3079d7da4ae2a4b52de1437f41acea9ac413bca1932",
+    "frontend-nextjs/lib/web-auth-config.ts": "sha256:373bde253d2620e465be7656c961dd9573e67bd5b51c82db2d45349d191151b9",
+    "frontend-nextjs/pages/api/auth/[...nextauth].ts": "sha256:f277101b068d22e1d8394d398f035540c57e6f6c5ffa582f59863b847ca0dc2b",
+    "frontend-nextjs/types/next-auth.d.ts": "sha256:0177cce72bef016b0fe0c4fad49cbcedf3be67380fbc27876451fd740968fd35"
+  },
+  "artifacts": {
+    "lifecycle.json": "sha256:365a9edbed34bfe0cfcb26934832d481963b60eb834e7ee54cc810a70ea3439a",
+    "README.md": "sha256:b6dd2df5a793d4f13e9077e2077cb9a2c979f0390fd5e0ffa7f5d90bb57ef07f",
+    "runtime-identity.json": "sha256:1fb3d9c3e57d06ae84f6c988b2901a02b8201ee4318741ef487f3212950783f0",
+    "public-http-after.py": "sha256:04224883abaeef9345c9c675f8a546575a6ecc5f0ee50a0d0385153caa35eb61",
+    "verification.json": "sha256:71fc0e9cac0eb0dbb3eb5b2a51b570a6ab9ea7199810ee5098b3bf4266500346",
+    "public-http-before.py": "sha256:952e2f6743fdc3ada123c1080f037f36cecf4c67f08007078703aa2cdbb13b05",
+    "before-restart.json": "sha256:88fa4101674d5f6fd9caa7f2594204c015eefc797788726b2f0669becf3c01e6"
+  }
+}

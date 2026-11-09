@@ -49,6 +49,7 @@ def current_user():
         last_name="Doe",
         role=UserRole.MEMBER.value,
         status=UserStatus.ACTIVE,
+        is_active=True,
     )
 
 
@@ -81,7 +82,8 @@ def patches():
          patch("core.auth_endpoints.get_password_hash", return_value="new-hash") as gph, \
          patch("core.auth_endpoints.create_access_token", return_value=FAKE_TOKEN) as cat, \
          patch("core.auth_endpoints.get_config") as gc, \
-         patch("core.auth_endpoints.send_smtp_email") as smtp:
+         patch("core.auth_endpoints.send_smtp_email") as smtp, \
+         patch("core.auth_endpoints.smtp_delivery_configured", return_value=True):
         cfg = MagicMock()
         cfg.server.app_url = "http://localhost:8000"
         gc.return_value = cfg
@@ -287,9 +289,22 @@ class TestMeAndProfile:
         assert body["status"] == UserStatus.ACTIVE.value
 
 
+@pytest.fixture
+def enforced_recovery_limits(monkeypatch):
+    """Exercise actual limiter decisions, while DB dependencies remain scratch/doubled."""
+    import core.auth_endpoints as module
+    from core.security.auth_rate_limit import AuthRateLimiter
+    monkeypatch.setenv("TESTING", "0")
+    monkeypatch.setenv("BYPASS_RATE_LIMIT", "0")
+    for name,limit in [("_recovery_limiter",5),("_verify_limiter",10),("_reset_limiter",5)]:
+        monkeypatch.setattr(module,name,AuthRateLimiter(limit=limit,window_seconds=300))
+
+
+@pytest.mark.usefixtures("enforced_recovery_limits")
 class TestForgotPassword:
     def test_user_found_sends_email(self, current_user, patches):
         db = MagicMock()
+        db.execute.return_value.rowcount = 1  # exact current-account issuance claim
         db.query.return_value.filter.return_value.first.return_value = current_user
         client = make_app(db, None)
         resp = client.post("/api/auth/forgot-password", json={"email": "me@example.com"})
@@ -318,12 +333,13 @@ class TestForgotPassword:
         assert resp.status_code == 429
 
 
+@pytest.mark.usefixtures("enforced_recovery_limits")
 class TestVerifyToken:
-    def test_valid_token(self, patches):
+    def test_valid_token(self, patches, current_user):
         from core.models import PasswordResetToken
-        tok = PasswordResetToken(user_id="u1", token="deadbeef", expires_at=datetime.now(timezone.utc) + timedelta(hours=1))
+        tok = PasswordResetToken(user_id=current_user.id, tenant_id="default", token="deadbeef", expires_at=datetime.now(timezone.utc) + timedelta(hours=1))
         db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = tok
+        db.query.return_value.filter.return_value.first.side_effect = [tok, current_user]
         client = make_app(db, None)
         resp = client.post("/api/auth/verify-token", json={"token": "raw-token"})
         assert resp.status_code == 200
@@ -347,19 +363,30 @@ class TestVerifyToken:
         assert resp.status_code == 429
 
 
+@pytest.mark.usefixtures("enforced_recovery_limits")
 class TestResetPassword:
-    def test_reset_success(self, current_user, patches):
+    def test_reset_success(self, current_user, patches, db_session):
+        # Storage/binding unit: crypto remains explicitly doubled by patches;
+        # the separate normal-router integration uses native password hashes.
+        import hashlib
         from core.models import PasswordResetToken
-        reset = PasswordResetToken(user_id=current_user.id, token="hash", expires_at=datetime.now(timezone.utc) + timedelta(hours=1))
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = reset
-        db.query.return_value.filter.return_value.first.side_effect = [reset, current_user]
-        client = make_app(db, None)
-        reset.mark_as_used = MagicMock()
+        if db_session.get(Tenant,"default") is None:
+            db_session.add(Tenant(id="default",name="Unit default",subdomain="unit-default"))
+        db_session.add(current_user)
+        db_session.commit()
+        reset = PasswordResetToken(user_id=current_user.id, tenant_id="default",
+            token=hashlib.sha256(b"raw").hexdigest(), used=False,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1))
+        db_session.add(reset)
+        db_session.commit()
+        reset_id,user_id=reset.id,current_user.id
+        client = make_app(db_session, None)
         resp = client.post("/api/auth/reset-password", json={"token": "raw", "password": "newpassword1"})
         assert resp.status_code == 200
-        assert current_user.hashed_password == "new-hash"
-        reset.mark_as_used.assert_called_once()
+        assert resp.json()["verification"]["status"] == "verified"
+        db_session.expire_all()
+        assert db_session.get(User,user_id).hashed_password == "new-hash"
+        assert db_session.get(PasswordResetToken,reset_id).used is True
 
     def test_reset_invalid_token(self, patches):
         db = MagicMock()
@@ -376,7 +403,7 @@ class TestResetPassword:
         db.query.return_value.filter.return_value.first.side_effect = [reset, None]
         client = make_app(db, None)
         resp = client.post("/api/auth/reset-password", json={"token": "raw", "password": "newpassword1"})
-        assert resp.status_code == 404
+        assert resp.status_code == 400
 
     def test_reset_rate_limited_429(self, patches):
         db = MagicMock()
@@ -402,30 +429,37 @@ class TestRefresh:
 
 
 class TestLogout:
-    def test_logout_revokes_token(self, current_user, patches, _audit):
+    def test_logout_revokes_token(self, current_user, patches, _audit, db_session):
+        # Real durable rows/readback replace the old memory-only success double.
+        from core.audit_service import AuditService
+        from core.models import RevokedToken
+        db_session.add(current_user)
+        db_session.commit()
         with patch("core.auth.SECRET_KEY", SECRET), \
              patch("core.auth.ALGORITHM", "HS256"), \
-             patch("core.auth.revoke_token") as revoke:
-            client = make_app(MagicMock(), current_user)
+             patch("core.auth_endpoints.audit_service.log_event", side_effect=AuditService().log_event):
+            client = make_app(db_session, current_user)
             token = pyjwt.encode(
                 {"sub": "user-1", "jti": "jti-123", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
                 SECRET, algorithm="HS256")
             resp = client.post("/api/auth/logout", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
-        revoke.assert_called_once_with("jti-123", pytest.approx(datetime.now(timezone.utc).timestamp(), abs=4000))
-        _audit.assert_called_once()
+        assert resp.json()["verification"]["status"] == "verified"
+        assert db_session.get(RevokedToken, "jti-123").user_id == current_user.id
 
     def test_logout_bad_token_best_effort(self, current_user, patches, _audit):
+        # A dependency double cannot turn malformed credential material into a
+        # verified server logout. Historical case identity retained.
         with patch("core.auth.SECRET_KEY", SECRET), \
-             patch("core.auth.ALGORITHM", "HS256"), \
-             patch("core.auth.revoke_token") as revoke:
+             patch("core.auth.ALGORITHM", "HS256"):
             client = make_app(MagicMock(), current_user)
             resp = client.post("/api/auth/logout", headers={"Authorization": "Bearer garbage.token.zzz"})
-        assert resp.status_code == 200
-        revoke.assert_not_called()
-        _audit.assert_called_once()
+        assert resp.status_code == 401
+        assert resp.json()["verification"]["effect"] == "none"
+        _audit.assert_not_called()
 
 
+@pytest.mark.usefixtures("enforced_recovery_limits")
 class TestRateLimitDependencies:
     def test_forgot_password_dependency_429(self):
         req = MagicMock()

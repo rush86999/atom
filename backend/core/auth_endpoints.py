@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
 from core.audit_service import audit_service
@@ -26,7 +26,7 @@ from core.security.auth_rate_limit import (
     login_rate_limit,
     register_rate_limit,
 )
-from core.email_utils import send_smtp_email
+from core.email_utils import send_smtp_email, smtp_delivery_configured
 from core.models import (
     AuditEventType,
     PasswordResetToken,
@@ -128,7 +128,7 @@ class UserCreate(BaseModel):
         return (v or "").strip()
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 class ResetPasswordRequest(BaseModel):
     token: str
@@ -248,7 +248,7 @@ async def login_for_access_token(
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.id}, expires_delta=access_token_expires
+            data={"sub": user.id}, expires_delta=access_token_expires, user=user
         )
         
         # Update last login
@@ -354,7 +354,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db), _r
     # Generate token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": new_user.id}, expires_delta=access_token_expires
+        data={"sub": new_user.id}, expires_delta=access_token_expires, user=new_user
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
@@ -370,6 +370,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "role": current_user.role,
         "status": current_user.status,
         "workspace_id": current_user.workspace_id,
+        "tenant_id": current_user.tenant_id,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "last_login": current_user.last_login.isoformat() if current_user.last_login else None
     }
@@ -378,6 +379,16 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 # For now, I'll comment out the old SQLite logic to avoid conflicts and focus on the new Auth.
 # In a real scenario, we'd migrate the password reset tokens to SQLAlchemy too.
 
+def _recovery_user_allowed(user, reset_token=None) -> bool:
+    if user is None or not user.is_active:
+        return False
+    if getattr(user.status, "value", user.status) != UserStatus.ACTIVE.value:
+        return False
+    if not isinstance(user.hashed_password, str) or not user.hashed_password:
+        return False
+    return reset_token is None or reset_token.tenant_id == (user.tenant_id or PERSONAL_TENANT_ID)
+
+
 @router.post("/forgot-password")
 async def forgot_password(
     request: ForgotPasswordRequest,
@@ -385,17 +396,31 @@ async def forgot_password(
     db: Session = Depends(get_db),
     _rl=Depends(forgot_password_rate_limit),
 ):
-    """Generate a password reset token and send an email to the user."""
+    """Accept a recovery request using the existing SMTP transport."""
+    # Global readiness precedes account lookup, so missing configuration cannot
+    # distinguish an existing address or mint an unusable recovery credential.
+    if not smtp_delivery_configured():
+        raise HTTPException(status_code=503, detail="Password recovery email is unavailable. Ask the app administrator to configure delivery.")
     user = db.query(User).filter(User.email == request.email).first()
     
     # We return success even if user not found to prevent user enumeration
-    success_msg = {"success": True, "message": "If your email is in our system, you will receive a reset link shortly."}
+    success_msg = {"success": True, "message": "If the account is eligible, its recovery request has been accepted. Check your email for the next step."}
     
-    if not user:
+    if not _recovery_user_allowed(user):
         return success_msg
     
-    # Generate token
+    # Serialize issuance with credential recovery. Freeze the current authority
+    # before generating the credential; a peer reset/scope change must win.
+    snapshot = {name: getattr(user, name) for name in (
+        "id", "hashed_password", "tenant_id", "workspace_id", "email", "role", "status")}
     token = secrets.token_urlsafe(32)
+    claim = db.execute(update(User).where(
+        *(getattr(User, name) == value for name, value in snapshot.items()),
+        User.is_active.is_(True),
+    ).values(updated_at=User.updated_at).execution_options(synchronize_session=False))
+    if claim.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Recovery authorization changed. Request a new reset link.")
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     
@@ -411,7 +436,8 @@ async def forgot_password(
     
     # Send email asynchronously
     config = get_config()
-    reset_link = f"{config.server.app_url}/reset-password?token={token}"
+    app_url = config.server.app_url.rstrip("/")
+    reset_link = f"{app_url}/auth/reset-password?token={token}"
     subject = "Password Reset Request"
     # Escape user-controlled input to prevent stored XSS (CWE-79)
     import html as html_module
@@ -439,7 +465,8 @@ async def verify_token(
         PasswordResetToken.expires_at > datetime.now(timezone.utc)
     ).first()
     
-    if not reset_token:
+    user = db.query(User).filter(User.id == reset_token.user_id).first() if reset_token else None
+    if not reset_token or not _recovery_user_allowed(user, reset_token):
         return {"valid": False, "message": "Invalid or expired token"}
     
     return {"valid": True, "message": "Token is valid"}
@@ -450,35 +477,103 @@ async def reset_password(
     db: Session = Depends(get_db),
     _rl=Depends(reset_password_rate_limit),
 ):
-    """Reset the user's password using a valid token."""
+    """Consume one exact recovery token and update its current account atomically."""
+    from fastapi.responses import JSONResponse
+    from sqlalchemy.exc import IntegrityError
     token_hash = hashlib.sha256(request.token.encode()).hexdigest()
     reset_token = db.query(PasswordResetToken).filter(
         PasswordResetToken.token == token_hash,
-        PasswordResetToken.used == False,
-        PasswordResetToken.expires_at > datetime.now(timezone.utc)
+        PasswordResetToken.used.is_(False),
+        PasswordResetToken.expires_at > datetime.now(timezone.utc),
     ).first()
-    
-    if not reset_token:
+    user = db.query(User).filter(User.id == reset_token.user_id).first() if reset_token else None
+    if not reset_token or not _recovery_user_allowed(user, reset_token):
         raise HTTPException(status_code=400, detail="Invalid or expired token")
-    
-    user = db.query(User).filter(User.id == reset_token.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Update password
-    user.hashed_password = get_password_hash(request.password)
-    reset_token.mark_as_used()
-    db.commit()
-    
-    logger.info(f"Password reset successful for user {user.id}")
-    return {"success": True, "message": "Password reset successfully"}
+
+    # Freeze scalar material BEFORE hashing. ORM instances may expire/reload
+    # while a peer commits; they must never silently refresh our expectation.
+    reset_id, user_id = reset_token.id, user.id
+    expiry, token_tenant = reset_token.expires_at, reset_token.tenant_id
+    old_hash, tenant, workspace = user.hashed_password, user.tenant_id, user.workspace_id
+    email, role, user_status = user.email, user.role, user.status
+    operation_id = "password-reset:" + str(reset_id)
+    commit_attempted = commit_confirmed = False
+    stage = "hash"
+    try:
+        new_hash = get_password_hash(request.password)
+        if not verify_password(request.password, new_hash):
+            raise ValueError("credential proof failed")
+        stage = "claim"
+        actor = db.execute(update(User).where(
+            User.id == user_id, User.hashed_password == old_hash,
+            User.tenant_id == tenant, User.workspace_id == workspace,
+            User.email == email, User.role == role, User.status == user_status,
+            User.is_active.is_(True),
+        ).values(hashed_password=new_hash).execution_options(synchronize_session=False))
+        if actor.rowcount != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Recovery authorization changed. Request a new reset link.")
+        token = db.execute(update(PasswordResetToken).where(
+            PasswordResetToken.id == reset_id, PasswordResetToken.user_id == user_id,
+            PasswordResetToken.token == token_hash, PasswordResetToken.tenant_id == token_tenant,
+            PasswordResetToken.used.is_(False), PasswordResetToken.expires_at == expiry,
+            PasswordResetToken.expires_at > datetime.now(timezone.utc),
+        ).values(used=True, used_at=datetime.now(timezone.utc)).execution_options(synchronize_session=False))
+        if token.rowcount != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Reset link has changed or was already used. Request a new link.")
+        # A successful recovery invalidates every other outstanding link.
+        # Issuance claims this same account first, serializing concurrent writers.
+        db.execute(update(PasswordResetToken).where(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.used.is_(False),
+        ).values(used=True, used_at=datetime.now(timezone.utc))
+          .execution_options(synchronize_session=False))
+        # No dirty ORM assignment may issue an unconditional credential update.
+        db.expire_all()
+        stage = "commit"
+        commit_attempted = True
+        db.commit()
+        commit_confirmed = True
+        stage = "readback"
+        with Session(bind=db.get_bind()) as fresh:
+            current = fresh.get(User, user_id)
+            receipt = fresh.get(PasswordResetToken, reset_id)
+            verified = bool(current and receipt and receipt.used
+                and receipt.user_id == user_id and receipt.tenant_id == token_tenant
+                and _recovery_user_allowed(current, receipt)
+                and current.tenant_id == tenant and current.workspace_id == workspace
+                and current.email == email and current.role == role
+                and current.hashed_password == new_hash
+                and verify_password(request.password, current.hashed_password))
+        if not verified:
+            raise ValueError("credential readback mismatch")
+        return {"success": True, "message": "Password reset successfully. Sign in with your new password.",
+                "operation_id": operation_id, "verification": {"status": "verified", "effect": "committed"}}
+    except HTTPException:
+        raise
+    except Exception as error:
+        rolled_back = False
+        try:
+            db.rollback()
+            rolled_back = True
+        except Exception:
+            pass
+        logger.warning("Password recovery failed stage=%s error_class=%s", stage, type(error).__name__)
+        no_effect = not commit_confirmed and rolled_back and (not commit_attempted or isinstance(error, IntegrityError))
+        effect = "none" if no_effect else "committed" if commit_confirmed else "unknown"
+        return JSONResponse(status_code=409 if no_effect else 503, content={
+            "success": False, "detail": "Password change could not be confirmed. Try signing in before requesting another reset.",
+            "operation_id": operation_id, "replay": "do_not_repeat",
+            "verification": {"status": "refused" if no_effect else "unavailable", "effect": effect},
+        })
 
 @router.post("/refresh")
 async def refresh_token(current_user: User = Depends(get_current_user)):
     """Refresh the access token"""
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": current_user.id}, expires_delta=access_token_expires
+        data={"sub": current_user.id}, expires_delta=access_token_expires, user=current_user
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -488,38 +583,89 @@ async def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Logout the current user and revoke their token server-side."""
-    # Revoke the JWT so it can't be reused after logout (previously the token
-    # stayed valid for 24h — a stolen token survived logout).
-    from core.auth import oauth2_scheme, revoke_token
+    """Terminate the exact authenticated session using the existing ledger."""
+    import json
     import jwt as _jwt
-    from core.auth import SECRET_KEY, ALGORITHM
+    from fastapi.responses import JSONResponse
+    from sqlalchemy.exc import IntegrityError
+    from core.auth import SECRET_KEY, ALGORITHM, oauth2_scheme, resolve_request_access_token, revoke_token
+    from core.auth_helpers import revoke_token as persist_revocation
+    from core.models import RevokedToken, AuditLog
+    from core.personal_scope import resolve_tenant_id
+    actor_id, email = current_user.id, current_user.email
+    workspace, raw_tenant = current_user.workspace_id, current_user.tenant_id
+    tenant = resolve_tenant_id(current_user)
+    operation_id = audit_id = None
+    attempted = committed = False
+    stage = "credential"
+    readback_status = "unavailable"
     try:
-        # NOTE: oauth2_scheme is async (OAuth2PasswordBearer.__call__) — the
-        # missing `await` made `raw_token` a truthy coroutine, so decode always
-        # failed and the bare except swallowed it: logout NEVER revoked the
-        # token (24h reuse window). Wave-75 security bug.
-        raw_token = await oauth2_scheme(request)
-        if raw_token:
-            payload = _jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
-            jti = payload.get("jti")
-            exp = payload.get("exp", 0)
-            if jti:
-                revoke_token(jti, exp)
-    except Exception:
-        pass  # Best-effort revocation; logout shouldn't fail
-
-    audit_service.log_event(
-        db,
-        event_type=AuditEventType.LOGOUT.value,
-        action="logout",
-        description=f"User logged out: {current_user.email}",
-        user_id=current_user.id,
-        user_email=current_user.email,
-        security_level=SecurityLevel.LOW.value,
-        request=request
-    )
-    return {"success": True, "message": "Logged out successfully"}
+        raw = resolve_request_access_token(request, await oauth2_scheme(request))
+        payload = _jwt.decode(raw, SECRET_KEY, algorithms=[ALGORITHM])
+        subject = payload.get("sub") or payload.get("id") or payload.get("user_id")
+        jti, exp = payload.get("jti"), payload.get("exp")
+        if subject != actor_id or not isinstance(jti, str) or not jti or type(exp) not in (int, float):
+            raise ValueError("Session identity is unavailable")
+        operation_id = "logout:" + jti
+        stage = "revocation_commit"
+        attempted = True
+        inserted = persist_revocation(jti, datetime.fromtimestamp(exp, timezone.utc), db,
+            user_id=actor_id, revocation_reason="logout")
+        committed = True
+        # Memory is an optimization only; a fresh process checks the ledger.
+        revoke_token(jti, exp)
+        stage = "audit"
+        audit_id = audit_service.log_event(db, event_type=AuditEventType.LOGOUT.value,
+            action="logout", description="User session terminated", user_id=actor_id,
+            user_email=email, workspace_id=workspace, tenant_id=tenant, security_level=SecurityLevel.LOW.value,
+            resource="session:" + jti,
+            metadata={"operation_id": operation_id, "session_jti": jti, "tenant_id": tenant, "raw_tenant_id": raw_tenant},
+            request=request)
+        stage = "readback"
+        with Session(bind=db.get_bind()) as fresh:
+            receipt = fresh.get(RevokedToken, jti)
+            audit = fresh.get(AuditLog, audit_id) if isinstance(audit_id, str) and audit_id else None
+            try:
+                metadata = json.loads(audit.metadata_json) if audit and isinstance(audit.metadata_json, str) else None
+            except ValueError:
+                readback_status = "refuted"
+                raise
+            expiry = receipt.expires_at.replace(tzinfo=timezone.utc) if receipt and receipt.expires_at.tzinfo is None else receipt.expires_at if receipt else None
+            verified = bool(receipt and receipt.user_id == actor_id and expiry == datetime.fromtimestamp(exp, timezone.utc)
+                and audit and audit.user_id == actor_id and audit.user_email == email
+                and audit.workspace_id == workspace and audit.tenant_id == tenant and audit.action == "logout"
+                and audit.event_type == AuditEventType.LOGOUT.value and audit.success is True
+                and audit.resource == "session:" + jti
+                and metadata == {"operation_id": operation_id, "session_jti": jti, "tenant_id": tenant, "raw_tenant_id": raw_tenant, "audit_subtype": "generic"})
+        if not verified:
+            if receipt and audit and metadata is not None:
+                required = {"operation_id", "session_jti", "tenant_id", "raw_tenant_id", "audit_subtype"}
+                expected_fields = {"user_id": actor_id, "user_email": email, "workspace_id": workspace,
+                    "tenant_id": tenant, "action": "logout", "event_type": AuditEventType.LOGOUT.value,
+                    "resource": "session:" + jti}
+                missing = any(expected is not None and getattr(audit, key) is None for key, expected in expected_fields.items())
+                missing = missing or (isinstance(metadata, dict) and not required.issubset(metadata))
+                readback_status = "unavailable" if missing else "refuted"
+            raise ValueError("Logout evidence is unavailable")
+        return {"success": True, "message": "Logged out successfully", "operation_id": operation_id,
+            "audit_id": audit_id, "already_applied": not inserted,
+            "verification": {"status": "verified", "effect": "committed" if inserted else "none"}}
+    except Exception as error:
+        rolled_back = False
+        try:
+            db.rollback()
+            rolled_back = True
+        except Exception:
+            pass
+        known_none = not committed and rolled_back and (not attempted or isinstance(error, IntegrityError) or isinstance(error.__cause__, IntegrityError))
+        logger.warning("Logout unavailable stage=%s error_class=%s", stage, type(error).__name__)
+        return JSONResponse(status_code=409 if attempted and known_none else 503 if attempted else 401, content={
+            "success": False, "detail": "Server sign-out could not be confirmed. Clear this session and sign in again if needed.",
+            "operation_id": operation_id, "audit_id": audit_id if isinstance(audit_id, str) else None,
+            "replay": "do_not_repeat",
+            "verification": {"status": "refused" if known_none else readback_status,
+                             "effect": "none" if known_none else "committed" if committed else "unknown"},
+        })
 
 @router.post("/change-password")
 async def change_password(
@@ -531,12 +677,11 @@ async def change_password(
 ):
     """Change the authenticated user's password.
 
-    Requires the current password. Revokes every other active session
-    (the current JWT is kept) so a leaked token does not survive a password
-    change. Rate-limited (5/5min/IP) to blunt current-password guessing.
+    Requires the current password. Credential-bound sessions all require a
+    fresh sign-in after the committed change, including this browser. The
+    existing token ledger is reconciled as well; it is not the revocation
+    authority. Rate-limited to blunt current-password guessing.
     """
-    from core.auth import ALGORITHM, SECRET_KEY, oauth2_scheme, revoke_token
-    import jwt as _jwt
     from core.auth_helpers import revoke_all_user_tokens
 
     if not verify_password(change_data.current_password, current_user.hashed_password):
@@ -545,23 +690,26 @@ async def change_password(
     if verify_password(change_data.new_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="New password must be different from the current password")
 
-    current_user.hashed_password = get_password_hash(change_data.new_password)
+    # Freeze the same credential/authority snapshot used by recovery. An
+    # already-authenticated request must not overwrite a concurrent reset.
+    snapshot = {name: getattr(current_user, name) for name in (
+        "id", "hashed_password", "tenant_id", "workspace_id", "email", "role", "status")}
+    new_hash = get_password_hash(change_data.new_password)
+    if not verify_password(change_data.new_password, new_hash):
+        raise HTTPException(status_code=409, detail="Password change refused. No credential was changed.")
+    claim = db.execute(update(User).where(
+        *(getattr(User, name) == value for name, value in snapshot.items()),
+        User.is_active.is_(True),
+    ).values(hashed_password=new_hash).execution_options(synchronize_session=False))
+    if claim.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Account changed. Sign in again before changing your password.")
+    db.expire_all()
     db.commit()
-
-    # Keep the current session's token; revoke all others.
-    current_jti = None
-    try:
-        raw_token = await oauth2_scheme(request)
-        if raw_token:
-            payload = _jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
-            current_jti = payload.get("jti")
-    except Exception:
-        pass  # Best-effort; revocation still proceeds without except_jti
 
     revoked = revoke_all_user_tokens(
         user_id=current_user.id,
         db=db,
-        except_jti=current_jti,
         revocation_reason="password_change",
     )
 
@@ -577,7 +725,8 @@ async def change_password(
     )
 
     logger.info("Password changed for user %s (%d other sessions revoked)", current_user.id, revoked)
-    return {"success": True, "message": "Password updated successfully", "revoked_sessions": revoked}
+    return {"success": True, "message": "Password updated successfully. Sign in again with your new password.",
+            "revoked_sessions": revoked, "requires_reauthentication": True}
 
 @router.get("/profile")
 async def get_user_profile(current_user: User = Depends(get_current_user)):

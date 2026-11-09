@@ -1,0 +1,29 @@
+{
+  "executed_source": "31ffe48ee41ec09b5c060edce12f6289e113bc87",
+  "runtime_identity": "31ffe48ee41e-dirty.2e0e0b65e057",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:c5afb82298d9d7a31b8cb22538d5d5557394b5ed2fa7613324733ef682f9b9c1",
+    "frontend-nextjs/components/layout/Sidebar.tsx": "sha256:5b84b397565df5d0510bccafbf5bd2958b58e072286b006e619fb75e2d9ec8d7",
+    "frontend-nextjs/components/layout/__tests__/Sidebar.gating.test.tsx": "sha256:dd86c4b7a428b1de56045b2b4a9dfe68b428877a1ea1deac88946f5b1e3264a6",
+    "frontend-nextjs/lib/backend-session-logout.ts": "sha256:de3087f0b6f4993966e2f5c366ca559e91a49fb5750b5d0ee8a86058600e8245",
+    "frontend-nextjs/pages/auth/signin.tsx": "sha256:106eb44cc8556dbdc8b5237499b67411e48bfb569c11ec0e8cfabafa8e186a39",
+    "frontend-nextjs/tests/auth/signin-logout-return-contract.test.tsx": "sha256:d2d9331adb1785b8f21f6061b50363ac8265a5982877c52f405b9c7472e81392",
+    "frontend-nextjs/tests/components/sidebar-logout-contract.test.tsx": "sha256:1dbdbdf4b77188e907d0b6765898863081b2b5145e16f119f006454ca311df8a",
+    "frontend-nextjs/lib/backendAuth.ts": "sha256:e8ae8a6cb4cf0ece5e1c64df633d6eb972187fbbb2b537fe717b2b41a30616f9",
+    "frontend-nextjs/lib/identity.ts": "sha256:534b341971d7d3576dd7851c2adf63c8eeae296c00ab3def580fc930243ddecf",
+    "frontend-nextjs/lib/product-profile.tsx": "sha256:46be8697586ef28b417f32fa5c06e7f1c6d33c178209b1232f88be43a5156bff",
+    "frontend-nextjs/package-lock.json": "sha256:189c3fd142b26758e74e2d21befb299904b86735296284ac9d2d964ee20acbc0",
+    "backend/main_api_app.py": "sha256:323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/core/auth_endpoints.py": "sha256:47d6c4b033367171c4dabae5d9946cac92d959d8df292a572c57ad12f63a70c7"
+  },
+  "artifacts": {
+    "README.md": "sha256:c9c08093b9c6d85e31f6d8b1ca1e0f2d1dc5e46ab2db1190e32b3d2c6888889f",
+    "browser-checkpoints.json": "sha256:6246520eabc2d88a17b3cb46385baf99089cb652ee74fbb565b7a9d43a295c5d",
+    "frontend-180.json": "sha256:8e09709816c967b9d3a05f6027e79ccd35e79de575d4091a6d5912b9480da212",
+    "review-disposition.md": "sha256:506e21c4071f25c69f77229317a027eed1f5d49de05a295a45073f54db4f0eea",
+    "signout-page.jpg": "sha256:383a3443c3424bf37a48b866e7aa238192b5a39802903a9604798e29e64e5596",
+    "transport-delay-wrapper.py": "sha256:9d2bf7bd1aaaec8ed3ab43319c0d87ab39745249a27da91148a95c5764ec6d5a",
+    "verification.json": "sha256:574aa50b016757647928a40ac0d135435d04fc97dec60e3bc2ddb7b29633002d",
+    "commands.md": "sha256:6b91a3a0e502c28b35f0bb769f64c6561386dae712cba6dfbb2bb1d0be054072"
+  }
+}

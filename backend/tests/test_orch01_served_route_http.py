@@ -198,8 +198,11 @@ def served_env(tmp_path):
 # --- HTTP helpers (real socket, no TestClient) -------------------------------
 
 
-def _token_for(user_id: str) -> str:
-    return create_access_token({"sub": user_id})
+def _token_for(user_id: str, served_env) -> str:
+    with served_env["Session"]() as session:
+        user = session.query(User).filter(User.id == user_id).one_or_none()
+        assert user is not None
+        return create_access_token({"sub": user_id}, user=user)
 
 
 def _request(method: str, url: str, token: str | None, payload=None):
@@ -227,7 +230,7 @@ def test_served_http_route_persists_and_reads_back_across_fresh_sessions(
         served_env):
     base_url = served_env["base_url"]
     assert served_env["server_pid"] != os.getpid()
-    token = _token_for("user-1")
+    token = _token_for("user-1", served_env)
 
     # Unauthenticated request is refused by the REAL auth dependency —
     # no override seam exists in this process.
@@ -282,11 +285,11 @@ def test_served_http_route_persists_and_reads_back_across_fresh_sessions(
     # exact workspace and tenant match is required.
     status, _ = _request(
         "GET", f"{base_url}/api/v1/workflows/generated/{workflow_id}",
-        _token_for("user-2"))
+        _token_for("user-2", served_env))
     assert status == 404
     status, _ = _request(
         "GET", f"{base_url}/api/v1/workflows/generated/{workflow_id}",
-        _token_for("user-3"))
+        _token_for("user-3", served_env))
     assert status == 404
 
     # Empty request safe negative — refused before the model leaf.

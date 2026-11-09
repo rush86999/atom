@@ -156,13 +156,8 @@ echo "📦 Setting up frontend..."
 cd frontend-nextjs
 npm install --legacy-peer-deps
 
-# Point the frontend at the local backend (only if no .env.local yet)
-if [ ! -f ".env.local" ]; then
-    cat > .env.local <<EOF
-NEXT_PUBLIC_API_URL=http://localhost:8001
-EOF
-    echo "✅ Generated frontend-nextjs/.env.local"
-fi
+# Persist a separate web signing secret; never rotate an existing configured key.
+python3 ../scripts/setup_web_auth.py --env-file .env.local
 echo "✅ Frontend dependencies installed"
 cd ..
 

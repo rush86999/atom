@@ -357,12 +357,14 @@ async def refresh_mobile_token(
     try:
         from jose import JWTError, jwt
 
-        # Decode refresh token
+        # Use the same resolved signing key as the issuer, including the
+        # existing persisted development key when no env override is present.
+        from core.auth import SECRET_KEY, ALGORITHM
         try:
             payload = jwt.decode(
                 request.refresh_token,
-                router.auth_module.SECRET_KEY if hasattr(router, 'auth_module') else os.getenv("SECRET_KEY"),
-                algorithms=["HS256"]
+                SECRET_KEY,
+                algorithms=[ALGORITHM]
             )
         except JWTError:
             raise router.unauthorized_error("Invalid refresh token")
@@ -375,7 +377,7 @@ async def refresh_mobile_token(
             raise router.unauthorized_error("Invalid refresh token")
 
         # Get user
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).populate_existing().first()
         if not user:
             raise router.not_found_error("User", user_id)
 
@@ -385,6 +387,10 @@ async def refresh_mobile_token(
             raise router.validation_error(
                 "account", "Account is deactivated"
             )
+
+        from core.auth import credential_session_matches
+        if not credential_session_matches(payload, user, allow_refresh=True, db=db):
+            raise router.unauthorized_error("Sign in again to renew your session")
 
         # Verify device exists and is active
         device = get_mobile_device(device_id, user_id, db)

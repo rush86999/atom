@@ -1,0 +1,21 @@
+{
+  "format": "sanitized observations derived from retained private native logs; not raw trace",
+  "logout": {
+    "source": "3d591be62",
+    "old_process_me": 401,
+    "new_process_old_bearer_allowed": true,
+    "native_failed": 1,
+    "private_log": "root-logout-fresh-process-negative-20261109.log"
+  },
+  "signin": {
+    "source": "4f9d004db",
+    "failed": 5,
+    "observed": [
+      "fabricated user-from-backend identity",
+      "submitted email replaced authoritative identity",
+      "refused/missing/suspended canonical identity not checked",
+      "parallel JavaScript last_login_at update attempted"
+    ],
+    "private_log": "root-canonical-signin-negative-20261109.log"
+  }
+}

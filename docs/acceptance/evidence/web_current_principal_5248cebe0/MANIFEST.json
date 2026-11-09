@@ -1,0 +1,30 @@
+{
+  "executed_source": "5248cebe0bc154cee8402690d33321e751e52e83",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:edc1e0b303a30986d899d8c11a3b66f85f260fff3fea9c6de6637d2cd366e903",
+    "backend/core/auth_endpoints.py": "sha256:875c653b7bd89f198de7fe7f2de4a1633d7326d409ddb75d2d2023829621c1e5",
+    "backend/tests/test_logout_durable_session_contract.py": "sha256:bfdebcdda61c93f785422ece4b5a984d3554b156dc0f0bf06ebf199c0d7e0e20",
+    "backend/tests/test_web_password_recovery_contract.py": "sha256:b75826d7a88e949f70c597bfedc8a500b69cd568f52b1c4ffc231869b63fba7f",
+    "frontend-nextjs/lib/auth.ts": "sha256:31bd23695c6b397771b92ef148fd5a2a8a06659cee3ccef1e45f5b2a15db262e",
+    "frontend-nextjs/lib/backend-current-session.ts": "sha256:52221f9369121f03359ccdd434dee4b5830eb0a47c1b713ee3f9982111678550",
+    "frontend-nextjs/lib/web-auth-config.ts": "sha256:fc1f6a58d0408755c182de4c4f477fc0c29ef66aaed620fcab7e4f3c04408f7c",
+    "frontend-nextjs/pages/api/auth/[...nextauth].ts": "sha256:adabe6eae990e88ff52f40d7bf3df0d67ea217d6b41a7c4fb64cd35a85567411",
+    "frontend-nextjs/tests/contracts/nextauth-current-principal.cjs": "sha256:ec44fa05e0ae55635107aaef6f41dbf81f9fa24588061d6f4bcf07b1eadaca6a",
+    "frontend-nextjs/tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts": "sha256:7aab234b7b88fdaee184eaf8bdd40e95cad027b05151ce96487d4a3b8d137544",
+    "frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts": "sha256:8fcc0fbe48598c807bb14bc51e3f47cef2dcc828967f07f00a089bc591aa7dae",
+    "frontend-nextjs/types/next-auth.d.ts": "sha256:0177cce72bef016b0fe0c4fad49cbcedf3be67380fbc27876451fd740968fd35"
+  },
+  "artifacts": {
+    "typescript.log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "backend.log": "sha256:b1fc2b652e07ac7d8fea8867c472c26cf54631791399bd550471c9ce5ae46250",
+    "frontend.log": "sha256:4b999c9dec3febd5d1a776c274060e9ea7934577ae2c486eaec8d5817e3dfe30",
+    "README.md": "sha256:3e90f499afcc00c6d7626752c422869f53d32ecd833532aba48af54e7d6e95a3",
+    "native-sdk.log": "sha256:6c84c6d5f85e19d3ddefe8119b67b58530be6b5bd401947c3e88f881930442fb",
+    "verification.json": "sha256:03c906b363443ac609fef3e6d58ca575ecb8959b19bdc178b238fb1b4c68e990"
+  },
+  "provenance": {
+    "backend_log": "sanitized from retained exact test output; no rerun or source reattribution",
+    "superseded_evidence_commit": "4ffa791aa",
+    "scanner_incident": "39877034"
+  }
+}

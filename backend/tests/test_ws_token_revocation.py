@@ -55,7 +55,7 @@ def _make_user(db, user_id="ws-user-1", tenant_id="t-ws", email="ws@test.local")
 async def test_revoked_token_rejected_on_websocket(db):
     """A revoked JWT must NOT authenticate a WebSocket connection."""
     user = _make_user(db)
-    token = create_access_token(data={"sub": user.id})
+    token = create_access_token(data={"sub": user.id}, user=user)
 
     # The token works before revocation.
     authed = await get_current_user_ws(token, db)
@@ -77,7 +77,7 @@ async def test_revoked_token_rejected_on_websocket(db):
 async def test_non_revoked_token_still_works_on_websocket(db):
     """Sanity: a valid, non-revoked token still authenticates."""
     user = _make_user(db, user_id="ws-user-2", tenant_id="t-ws2", email="ws2@test.local")
-    token = create_access_token(data={"sub": user.id})
+    token = create_access_token(data={"sub": user.id}, user=user)
 
     authed = await get_current_user_ws(token, db)
     assert authed is not None

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/router';
 import ResetPassword from '@/pages/auth/reset-password';
@@ -23,10 +23,12 @@ describe('ResetPassword Component', () => {
       query: { token: mockToken },
       pathname: '/auth/reset-password',
     });
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = jest.fn().mockImplementation(async (url) => ({
       ok: true,
-      json: async () => ({ valid: true }),
-    }) as jest.Mock;
+      json: async () => url === '/api/auth/verify-token'
+        ? { valid: true }
+        : { success: true, verification: { status: 'verified', effect: 'committed' } },
+    })) as jest.Mock;
   });
 
   afterEach(() => {
@@ -407,4 +409,83 @@ describe('ResetPassword Component', () => {
       });
     });
   });
+  describe('Recovery receipt finality', () => {
+    it('does not show success or redirect for an unverified committed response', async () => {
+      (global.fetch as jest.Mock).mockImplementation(async (url) => ({
+        ok: true,
+        json: async () => url === '/api/auth/verify-token' ? { valid: true } : {
+          success: true, status: 'committed_unverified',
+          verification: { status: 'unavailable', effect: 'committed' },
+        },
+      }));
+      render(<ResetPassword />);
+      await screen.findByPlaceholderText(/new password/i);
+      await userEvent.type(screen.getByPlaceholderText(/new password/i), 'CurrentPassword1!');
+      await userEvent.type(screen.getByPlaceholderText(/confirm password/i), 'CurrentPassword1!');
+      fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+      await screen.findByText(/password change could not be confirmed/i);
+      expect(screen.queryByText(/password reset successful/i)).not.toBeInTheDocument();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it('cancels the scheduled sign-in redirect when the user leaves the page', async () => {
+      jest.useFakeTimers();
+      try {
+        const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+        const view = render(<ResetPassword />);
+        await screen.findByPlaceholderText(/new password/i);
+        await user.type(screen.getByPlaceholderText(/new password/i), 'CurrentPassword1!');
+        await user.type(screen.getByPlaceholderText(/confirm password/i), 'CurrentPassword1!');
+        fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+        await screen.findByText(/password reset successful/i);
+        view.unmount();
+        jest.advanceTimersByTime(3000);
+        expect(mockPush).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  });
+
+  describe('Request ownership across navigation', () => {
+    it('ignores an older verification after a new token is rejected', async () => {
+      let resolveOld: (value: unknown) => void = () => {};
+      (global.fetch as jest.Mock).mockImplementation((_url, options) => {
+        const value = JSON.parse(options.body).token;
+        return value === mockToken ? new Promise(resolve => { resolveOld = resolve; })
+          : Promise.resolve({ ok: true, json: async () => ({ valid: false }) });
+      });
+      const view = render(<ResetPassword />);
+      (useRouter as jest.Mock).mockReturnValue({ push: mockPush, query: { token: 'new-token' } });
+      view.rerender(<ResetPassword />);
+      await screen.findByText(/^Invalid Reset Link$/i);
+      await act(async () => resolveOld({ ok: true, json: async () => ({ valid: true }) }));
+      expect(screen.getByText(/^Invalid Reset Link$/i)).toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/new password/i)).not.toBeInTheDocument();
+    });
+
+    it.each(['token change', 'unmount'])('does not redirect from a delayed reset after %s', async (navigation) => {
+      jest.useFakeTimers();
+      let resolveReset: (value: unknown) => void = () => {};
+      (global.fetch as jest.Mock).mockImplementation((url) => url === '/api/auth/verify-token'
+        ? Promise.resolve({ ok: true, json: async () => ({ valid: true }) })
+        : new Promise(resolve => { resolveReset = resolve; }));
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const view = render(<ResetPassword />);
+      await screen.findByPlaceholderText(/new password/i);
+      await user.type(screen.getByPlaceholderText(/new password/i), 'CurrentPassword1!');
+      await user.type(screen.getByPlaceholderText(/confirm password/i), 'CurrentPassword1!');
+      fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+      if (navigation === 'unmount') view.unmount();
+      else {
+        (useRouter as jest.Mock).mockReturnValue({ push: mockPush, query: { token: 'new-token' } });
+        view.rerender(<ResetPassword />);
+      }
+      await act(async () => resolveReset({ ok: true, json: async () => ({ success: true, verification: { status: 'verified' } }) }));
+      await act(async () => { jest.advanceTimersByTime(3000); });
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(screen.queryByText(/password reset successful/i)).not.toBeInTheDocument();
+    });
+  });
+
 });

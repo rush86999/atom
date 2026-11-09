@@ -1,5 +1,13 @@
 # App completion state — 2026-11-07
 
+## Current operational checkpoint — 2026-11-09, web-first
+
+This checkpoint supersedes the older live-queue paragraphs, not their historical evidence. Last resolved main is `89527616e`; PR #802 remains a draft and is not accepted or merged. Its `3756bc47c` hosted backend-core failure was traced to a lazy-FastAPI route-inspection test, not waived. Successor `5248cebe0` retains exact handler/uniqueness checks and adds mounted-path readback.
+
+The current-principal repair has 33 real installed-NextAuth controls, 180 frontend controls, 40 recovery/logout controls and a clean TypeScript check; packet `web_current_principal_5248cebe0` states the transport and runtime limits. Every web session read now checks current backend authority; unavailable evidence grants nothing without destroying a recoverable cookie. No cached permission wildcard survives the projection. Actual main/PR/check identities must be refreshed before review or merge.
+
+Configuration successor `ecba0afe2` removes public development auth defaults through the existing quickstart path (native43/setup7/frontend180/TSC). Draft PR802 is closed and superseded by draft PR803, clean head `1c14fed27` following a synthetic test-token log finding; no acceptance or waiver. The public HTTP cookie/logout/restart bridge is now demonstrated at `1c14fed27`: distinct web generations, exact-generation logout, original-cookie denial and peer retention after a real same-world backend process restart, one exact durable audit. Packet `web_cookie_restart_1c14fed27` discloses generated Next development dirtiness and HTTP-only scope. Next finite web defect traced: the skills-list proxy uses legacy token fields, public cache headers and false-success empty lists on backend refusal/unavailability; fix through the existing shared authority/proxy mechanisms. Main web goals come first; mobile-specific UI/packaging comes last. Keep all 143 historical claim records and all 18 goal-map rows. These overlapping regression counts do not prove whole-app completion, served multi-model breadth, live connectors or general judgment.
+
 ## Current operational checkpoint — 2026-11-08, main `b718a6f3f`
 
 This leading checkpoint supersedes older queue paragraphs below. Historical sources, negatives and scores remain unchanged; the full app is not complete. Resolve actual remote heads and ownership before acting.

@@ -1,0 +1,2211 @@
+PASS tests/auth/test-signin.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/layout/__tests__/layout.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost/api/notifications
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+PASS tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/layout/__tests__/Sidebar.gating.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to ApprovalsPendingBadge inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ApprovalsPendingBadge (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:83:40)
+          at div
+          at a
+          at hrefProp (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/next/src/client/link.tsx:314:13)
+          at div
+          at div
+          at nav
+          at aside
+          at Sidebar (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:161:53)
+          at QueryClientProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at SessionProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/__tests__/Sidebar.gating.test.tsx:43:33)
+          at Wrapper (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      109 |                 }
+      110 |                 const data = await res.json();
+    > 111 |                 if (!cancelled && Array.isArray(data)) setHitlCount(data.length);
+          |                                                        ^
+      112 |             } catch (err: any) {
+      113 |                 if (err?.name !== "AbortError" && !cancelled) setHitlCount(null);
+      114 |             }
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/layout/Sidebar.tsx:111:56
+      at step (components/layout/Sidebar.tsx:66:23)
+      at Object.next (components/layout/Sidebar.tsx:47:53)
+      at fulfilled (components/layout/Sidebar.tsx:38:58)
+
+    console.error
+      Warning: An update to ApprovalsPendingBadge inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ApprovalsPendingBadge (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:83:40)
+          at div
+          at a
+          at hrefProp (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/next/src/client/link.tsx:314:13)
+          at div
+          at div
+          at nav
+          at aside
+          at Sidebar (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:161:53)
+          at QueryClientProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at SessionProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/__tests__/Sidebar.gating.test.tsx:43:33)
+          at Wrapper (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      109 |                 }
+      110 |                 const data = await res.json();
+    > 111 |                 if (!cancelled && Array.isArray(data)) setHitlCount(data.length);
+          |                                                        ^
+      112 |             } catch (err: any) {
+      113 |                 if (err?.name !== "AbortError" && !cancelled) setHitlCount(null);
+      114 |             }
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/layout/Sidebar.tsx:111:56
+      at step (components/layout/Sidebar.tsx:66:23)
+      at Object.next (components/layout/Sidebar.tsx:47:53)
+      at fulfilled (components/layout/Sidebar.tsx:38:58)
+
+    console.error
+      Warning: An update to ApprovalsPendingBadge inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ApprovalsPendingBadge (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:83:40)
+          at div
+          at a
+          at hrefProp (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/next/src/client/link.tsx:314:13)
+          at div
+          at div
+          at nav
+          at aside
+          at Sidebar (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:161:53)
+          at QueryClientProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at SessionProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/__tests__/Sidebar.gating.test.tsx:43:33)
+          at Wrapper (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      109 |                 }
+      110 |                 const data = await res.json();
+    > 111 |                 if (!cancelled && Array.isArray(data)) setHitlCount(data.length);
+          |                                                        ^
+      112 |             } catch (err: any) {
+      113 |                 if (err?.name !== "AbortError" && !cancelled) setHitlCount(null);
+      114 |             }
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/layout/Sidebar.tsx:111:56
+      at step (components/layout/Sidebar.tsx:66:23)
+      at Object.next (components/layout/Sidebar.tsx:47:53)
+      at fulfilled (components/layout/Sidebar.tsx:38:58)
+
+    console.error
+      Warning: An update to ApprovalsPendingBadge inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ApprovalsPendingBadge (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:83:40)
+          at div
+          at a
+          at hrefProp (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/next/src/client/link.tsx:314:13)
+          at div
+          at div
+          at nav
+          at aside
+          at Sidebar (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/Sidebar.tsx:161:53)
+          at QueryClientProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at SessionProvider (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/components/layout/__tests__/Sidebar.gating.test.tsx:43:33)
+          at Wrapper (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      109 |                 }
+      110 |                 const data = await res.json();
+    > 111 |                 if (!cancelled && Array.isArray(data)) setHitlCount(data.length);
+          |                                                        ^
+      112 |             } catch (err: any) {
+      113 |                 if (err?.name !== "AbortError" && !cancelled) setHitlCount(null);
+      114 |             }
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/layout/Sidebar.tsx:111:56
+      at step (components/layout/Sidebar.tsx:66:23)
+      at Object.next (components/layout/Sidebar.tsx:47:53)
+      at fulfilled (components/layout/Sidebar.tsx:38:58)
+
+PASS tests/pages/__tests__/login.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/components/sidebar-logout-contract.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/lib/backend-session-logout.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/auth/signin-logout-return-contract.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/api/__tests__/auth-nextauth.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.warn
+      Backend sign-in identity unavailable { code: 'backend_identity_unavailable' }
+
+      49 |       if (error instanceof BackendChallenge) throw error;
+      50 |       // Response/error bodies may contain credentials or SQL material.
+    > 51 |       console.warn('Backend sign-in identity unavailable', { code: 'backend_identity_unavailable' });
+         |               ^
+      52 |       return null;
+      53 |     } finally {
+      54 |       // Also cancel an unread refused response body, not just its timer.
+
+      at lib/backend-credentials.ts:51:15
+      at step (lib/backend-credentials.ts:48:23)
+      at Object.throw (lib/backend-credentials.ts:29:53)
+      at rejected (lib/backend-credentials.ts:21:65)
+
+    console.log
+      Created new user from google: oauth@example.com
+
+      at Object.<anonymous> (pages/api/auth/[...nextauth].ts:58:21)
+
+    console.log
+      Stored google account for user: oauth@example.com
+
+      at Object.<anonymous> (pages/api/auth/[...nextauth].ts:122:19)
+
+    console.log
+      Updated existing user from google: existing@example.com
+
+      at Object.<anonymous> (pages/api/auth/[...nextauth].ts:66:21)
+
+    console.log
+      Stored google account for user: existing@example.com
+
+      at Object.<anonymous> (pages/api/auth/[...nextauth].ts:122:19)
+
+    console.error
+      Error in OAuth sign-in callback: Error: db exploded
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts:180:35
+          at step (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts:33:23)
+          at Object.next (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts:14:53)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts:8:71
+          at new Promise (<anonymous>)
+          at __awaiter (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts:4:12)
+          at Object.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts:179:56)
+          at Promise.finally.completed (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+          at _callCircusTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+          at _runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at run (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+          at jestAdapter (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:343:7)
+
+      122 |           console.log(`Stored ${account.provider} account for user:`, user.email);
+      123 |         } catch (error) {
+    > 124 |           console.error('Error in OAuth sign-in callback:', error);
+          |                   ^
+      125 |           return false; // Deny sign-in on error
+      126 |         }
+      127 |       }
+
+      at Object.<anonymous> (pages/api/auth/[...nextauth].ts:124:19)
+      at step (pages/api/auth/[...nextauth].ts:66:23)
+      at Object.throw (pages/api/auth/[...nextauth].ts:47:53)
+      at rejected (pages/api/auth/[...nextauth].ts:39:65)
+
+PASS tests/lib/backend-credentials.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/lib/backend-signin-identity.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 11 passed, 11 total
+Tests:       180 passed, 180 total
+Snapshots:   0 total
+Time:        4.55 s
+Ran all test suites matching tests/pages/api/__tests__/auth-nextauth-callbacks.test.ts|tests/auth/test-signin.test.tsx|components/layout/__tests__/layout.test.tsx|tests/pages/api/__tests__/auth-nextauth.test.ts|components/layout/__tests__/Sidebar.gating.test.tsx|tests/pages/__tests__/login.test.tsx|tests/components/sidebar-logout-contract.test.tsx|tests/auth/signin-logout-return-contract.test.tsx|tests/lib/backend-session-logout.test.ts|tests/lib/backend-signin-identity.test.ts|tests/lib/backend-credentials.test.ts.

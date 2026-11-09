@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Query, WebSocket, status
 from sqlalchemy.orm import Session
 
-from core.auth import decode_token, get_current_user
+from core.auth import decode_token, get_current_user, credential_session_matches
 from core.models import User
 from core.rbac_service import Permission, RBACService
 
@@ -44,8 +44,8 @@ async def get_current_user_websocket(
 
         if db:
             from core.models import User
-            user = db.query(User).filter(User.id == user_id).first()
-            return user
+            user = db.query(User).filter(User.id == user_id).populate_existing().first()
+            return user if user and credential_session_matches(payload, user, db=db) else None
 
         return None
 
