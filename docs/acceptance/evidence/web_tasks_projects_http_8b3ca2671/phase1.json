@@ -1,0 +1,9 @@
+{
+  "scope": "running Next plus real backend routers, real JWT login and fresh DB requests; controlled scratch account, not whole-app boot or browser",
+  "project_id": "57b0b33c-e28a-45c4-a5c4-3c0f0202759c",
+  "task_id": "b1894b20-6e76-47f3-94b8-f52da688890b",
+  "task_status": "completed",
+  "project_name": "HTTP revised project",
+  "checks": 5,
+  "passed": 5
+}

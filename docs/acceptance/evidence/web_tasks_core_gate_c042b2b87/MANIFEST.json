@@ -1,0 +1,15 @@
+{
+  "executed_source": "c042b2b87",
+  "source_files": {
+    "frontend-nextjs/pages/_app.tsx": "0e0acac4b8f4b84a69322696487633449f6a29dcb4de1e3bc3ffe5a1a02977fd",
+    "frontend-nextjs/lib/product-profile.tsx": "46be8697586ef28b417f32fa5c06e7f1c6d33c178209b1232f88be43a5156bff",
+    "backend/core/product_profile.py": "e441aa5957f3be845119b94c7ffc281a8379fe00bf81243a3427eebac4a8c5cb",
+    "frontend-nextjs/components/shared/TaskManagement.tsx": "f3b4651a9f9e8be71411b7f01919f3149bb7171844b7f924a4313446781fc5c1"
+  },
+  "artifacts": {
+    "release-gate.md": "c9f2b1d24e99738345220f5a32947a522a4387e514d8175a05352b2ec79b0b77",
+    "README.md": "8df03f4177137014bfb859ee7be2e1655fe046a3ff090d27914eeb382bf39f61",
+    "release-gate.jpg": "1f713c0e25faff221cce880fa8df7c2f0e8941b339c32b95fc209a0016aba65a",
+    "verification.json": "0592f9e064ebebd689038850893bb04180299639c174c7e0b759347f7ec68176"
+  }
+}

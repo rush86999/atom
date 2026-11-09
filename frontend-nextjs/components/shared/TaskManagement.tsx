@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardHeader,
@@ -41,7 +41,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  dueDate: Date;
+  dueDate: Date | null;
   priority: "high" | "medium" | "low";
   status: "todo" | "in-progress" | "completed" | "blocked";
   project?: string;
@@ -79,251 +79,204 @@ export interface TaskView {
   };
 }
 
+type TaskCreateData = Omit<Task, "id" | "createdAt" | "updatedAt">;
+type ProjectCreateData = Omit<Project, "id" | "tasks" | "progress">;
+
+type TaskMutationResult = Task | void;
+type ProjectMutationResult = Project | void;
+
 export interface TaskManagementProps {
-  onTaskCreate?: (task: Task) => void;
-  onTaskUpdate?: (taskId: string, updates: Partial<Task>) => void;
-  onTaskDelete?: (taskId: string) => void;
-  onProjectCreate?: (project: Project) => void;
-  onProjectUpdate?: (projectId: string, updates: Partial<Project>) => void;
+  /**
+   * Controlled task collection. When supplied, `initialTasks` is ignored and
+   * this prop is the source of truth. The parent publishes confirmed server
+   * results; no local mirror can replace the controlled collection.
+   */
+  tasks?: Task[];
+  /**
+   * Controlled project collection. When supplied, `initialProjects` is
+   * ignored and this prop is the source of truth.
+   */
+  projects?: Project[];
+  onTaskCreate?: (
+    task: Task,
+  ) => TaskMutationResult | Promise<TaskMutationResult>;
+  onTaskUpdate?: (
+    taskId: string,
+    updates: Partial<Task>,
+  ) => TaskMutationResult | Promise<TaskMutationResult>;
+  onTaskDelete?: (
+    taskId: string,
+  ) => boolean | void | Promise<boolean | void>;
+  onProjectCreate?: (
+    project: Project,
+  ) => ProjectMutationResult | Promise<ProjectMutationResult>;
+  onProjectUpdate?: (
+    projectId: string,
+    updates: Partial<Project>,
+  ) => ProjectMutationResult | Promise<ProjectMutationResult>;
   initialTasks?: Task[];
   initialProjects?: Project[];
   showNavigation?: boolean;
   compactView?: boolean;
 }
 
-const TaskManagement: React.FC<TaskManagementProps> = ({
-  onTaskCreate,
-  onTaskUpdate,
-  onTaskDelete,
-  onProjectCreate,
-  onProjectUpdate,
-  initialTasks = [],
-  initialProjects = [],
-  showNavigation = true,
-  compactView = false,
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
+  value !== null &&
+  (typeof value === "object" || typeof value === "function") &&
+  "then" in value &&
+  typeof value.then === "function";
+
+const isTaskConfirmation = (value: unknown): value is Task =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  typeof value.id === "string" &&
+  value.id.length > 0 &&
+  "title" in value &&
+  typeof value.title === "string";
+
+const isProjectConfirmation = (value: unknown): value is Project =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  typeof value.id === "string" &&
+  value.id.length > 0 &&
+  "name" in value &&
+  typeof value.name === "string";
+
+const normalizeDate = (value: unknown, fallback?: Date): Date | null => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? fallback ?? null : value;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? fallback ?? null : parsed;
+  }
+  return fallback ?? null;
+};
+
+export const normalizeTask = (task: Task): Task => {
+  const createdAt = normalizeDate(task.createdAt);
+  const updatedAt = normalizeDate(task.updatedAt);
+  const dueDate = task.dueDate == null ? null : normalizeDate(task.dueDate);
+  if (!isTaskConfirmation(task) || !createdAt || !updatedAt || (task.dueDate != null && !dueDate)) {
+    throw new Error("Task result is incomplete");
+  }
+  return { ...task, dueDate, createdAt, updatedAt };
+};
+
+export const normalizeProject = (project: Project): Project => {
+  if (!isProjectConfirmation(project) || !Array.isArray(project.tasks) ||
+      !Number.isFinite(project.progress) || project.progress < 0 || project.progress > 100) {
+    throw new Error("Project result is incomplete");
+  }
+  return { ...project, tasks: project.tasks.map(normalizeTask) };
+};
+
+const toDateInputValue = (value: unknown): string => {
+  const date = normalizeDate(value);
+  return date ? date.toISOString().slice(0, 10) : "";
+};
+
+interface TaskFormState {
+  title: string;
+  description: string;
+  dueDate: string;
+  priority: Task["priority"];
+  status: Task["status"];
+  project: string;
+  tags: string;
+  assignee: string;
+  estimatedHours: number;
+  platform: Task["platform"];
+  color: string;
+}
+
+const buildTaskFormState = (task?: Task): TaskFormState => ({
+  title: task?.title || "",
+  description: task?.description || "",
+  dueDate: toDateInputValue(task?.dueDate),
+  priority: task?.priority || "medium",
+  status: task?.status || "todo",
+  project: task?.project || "",
+  tags: task?.tags?.join(", ") || "",
+  assignee: task?.assignee || "",
+  estimatedHours: task?.estimatedHours || 0,
+  platform: task?.platform || "local",
+  color: task?.color || "#3182CE",
+});
+
+interface TaskFormProps {
+  task?: Task;
+  projects: Project[];
+  onSubmit: (data: TaskCreateData) => Promise<boolean>;
+  onCancel: () => void;
+  pending?: boolean;
+}
+
+const TaskForm: React.FC<TaskFormProps> = ({
+  task,
+  projects,
+  onSubmit,
+  onCancel,
+  pending = false,
 }) => {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [view, setView] = useState<TaskView>({
-    type: "board",
-    filter: {},
-    sort: { field: "dueDate", direction: "asc" },
-  });
-  const [loading, setLoading] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
-  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-  const { toast } = useToast();
+  const editedTaskId = useRef(task?.id);
+  const [formData, setFormData] = useState<TaskFormState>(() =>
+    buildTaskFormState(task),
+  );
 
-  // BUG-066: Previously a mount useEffect unconditionally overwrote the real
-  // API data (passed via initialTasks/initialProjects) with hardcoded mock
-  // tasks. Removed — the wrapper fetches real data; we use it directly.
-  // (When no data is passed, the empty arrays are the correct fallback.)
-
-  const handleCreateTask = (
-    taskData: Omit<Task, "id" | "createdAt" | "updatedAt">,
-  ) => {
-    const newTask: Task = {
-      ...taskData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setTasks((prev) => [...prev, newTask]);
-    onTaskCreate?.(newTask);
-    toast({
-      title: "Task created",
-      description: "Your task has been successfully created.",
-      duration: 2000,
-    });
-  };
-
-  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? { ...task, ...updates, updatedAt: new Date() }
-          : task,
-      ),
-    );
-    onTaskUpdate?.(taskId, updates);
-    toast({
-      title: "Task updated",
-      description: "Your task has been successfully updated.",
-      duration: 2000,
-    });
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    onTaskDelete?.(taskId);
-    toast({
-      title: "Task deleted",
-      description: "Your task has been successfully deleted.",
-      duration: 2000,
-    });
-  };
-
-  const handleCreateProject = (
-    projectData: Omit<Project, "id" | "tasks" | "progress">,
-  ) => {
-    const newProject: Project = {
-      ...projectData,
-      id: Date.now().toString(),
-      tasks: [],
-      progress: 0,
-    };
-    setProjects((prev) => [...prev, newProject]);
-    onProjectCreate?.(newProject);
-    toast({
-      title: "Project created",
-      description: "Your project has been successfully created.",
-      duration: 2000,
-    });
-  };
-
-  const handleUpdateProject = (projectId: string, updates: Partial<Project>) => {
-    setProjects((prev) =>
-      prev.map((project) =>
-        project.id === projectId ? { ...project, ...updates } : project,
-      ),
-    );
-    onProjectUpdate?.(projectId, updates);
-    toast({
-      title: "Project updated",
-      description: "Your project has been successfully updated.",
-      duration: 2000,
-    });
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "destructive";
-      case "medium":
-        return "default"; // orange equivalent in shadcn usually warning or secondary
-      case "low":
-        return "secondary";
-      default:
-        return "outline";
+  // Only an actual change of edited record identity resets the draft. An
+  // unrelated parent render (new callback props, project list, pending state,
+  // etc.) must not discard what the user has typed.
+  useEffect(() => {
+    if (editedTaskId.current !== task?.id) {
+      editedTaskId.current = task?.id;
+      setFormData(buildTaskFormState(task));
     }
-  };
+  }, [task]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "default"; // green
-      case "in-progress":
-        return "secondary"; // blue
-      case "blocked":
-        return "destructive"; // red
-      case "todo":
-        return "outline"; // gray
-      default:
-        return "outline";
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pending) return;
 
-  const getFilteredTasks = () => {
-    let filtered = [...tasks];
-
-    // Apply filters
-    if (view.filter.status?.length) {
-      filtered = filtered.filter((task) =>
-        view.filter.status?.includes(task.status),
-      );
-    }
-    if (view.filter.priority?.length) {
-      filtered = filtered.filter((task) =>
-        view.filter.priority?.includes(task.priority),
-      );
-    }
-    if (view.filter.project?.length) {
-      filtered = filtered.filter((task) =>
-        view.filter.project?.includes(task.project || ""),
-      );
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      const direction = view.sort.direction === "asc" ? 1 : -1;
-      switch (view.sort.field) {
-        case "dueDate":
-          return (a.dueDate.getTime() - b.dueDate.getTime()) * direction;
-        case "priority":
-          const priorityOrder = { high: 3, medium: 2, low: 1 };
-          return (
-            (priorityOrder[a.priority] - priorityOrder[b.priority]) * direction
-          );
-        case "createdAt":
-          return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
-        case "title":
-          return a.title.localeCompare(b.title) * direction;
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  };
-
-  const TaskForm: React.FC<{
-    task?: Task;
-    onSubmit: (data: Omit<Task, "id" | "createdAt" | "updatedAt">) => void;
-    onCancel: () => void;
-  }> = ({ task, onSubmit, onCancel }) => {
-    const [formData, setFormData] = useState({
-      title: task?.title || "",
-      description: task?.description || "",
-      dueDate: task?.dueDate.toISOString().slice(0, 10) || "",
-      priority: task?.priority || "medium",
-      status: task?.status || "todo",
-      project: task?.project || "",
-      tags: task?.tags?.join(", ") || "",
-      assignee: task?.assignee || "",
-      estimatedHours: task?.estimatedHours || 0,
-      platform: task?.platform || "local",
-      color: task?.color || "#3182CE",
-    });
-
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      onSubmit({
+    try {
+      const saved = await onSubmit({
         title: formData.title,
         description: formData.description,
-        dueDate: new Date(formData.dueDate),
-        priority: formData.priority as "high" | "medium" | "low",
-        status: formData.status as
-          | "todo"
-          | "in-progress"
-          | "completed"
-          | "blocked",
-        project: formData.project && formData.project !== "no-project"
-          ? formData.project
-          : undefined,
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        priority: formData.priority,
+        status: formData.status,
+        project:
+          formData.project && formData.project !== "no-project"
+            ? formData.project
+            : undefined,
         tags: formData.tags
           ? formData.tags.split(",").map((tag) => tag.trim())
           : undefined,
         assignee: formData.assignee || undefined,
         estimatedHours: formData.estimatedHours,
-        platform: formData.platform as
-          | "notion"
-          | "trello"
-          | "asana"
-          | "jira"
-          | "local",
+        platform: formData.platform,
         color: formData.color,
       });
-      onCancel();
-    };
+      if (saved) onCancel();
+    } catch {
+      // The parent reports the failure; keeping the form mounted preserves
+      // the draft so the user can retry or correct it.
+    }
+  };
 
-    return (
-      <form onSubmit={handleSubmit} data-testid="task-form" className="space-y-4">
+  return (
+    <form
+      onSubmit={handleSubmit}
+      data-testid="task-form"
+      className="space-y-4"
+      aria-busy={pending}
+    >
+      <fieldset
+        disabled={pending}
+        className="m-0 min-w-0 space-y-4 border-0 p-0"
+      >
         <div className="space-y-2">
           <label className="text-sm font-medium">Title</label>
           <Input
@@ -386,7 +339,10 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             <Select
               value={formData.priority}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, priority: value as "high" | "medium" | "low" }))
+                setFormData((prev) => ({
+                  ...prev,
+                  priority: value as "high" | "medium" | "low",
+                }))
               }
             >
               <SelectTrigger>
@@ -405,7 +361,14 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             <Select
               value={formData.status}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, status: value as "todo" | "in-progress" | "completed" | "blocked" }))
+                setFormData((prev) => ({
+                  ...prev,
+                  status: value as
+                    | "todo"
+                    | "in-progress"
+                    | "completed"
+                    | "blocked",
+                }))
               }
             >
               <SelectTrigger>
@@ -436,7 +399,11 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
               <SelectContent>
                 <SelectItem value="no-project">No Project</SelectItem>
                 {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id} data-testid="task-project">
+                  <SelectItem
+                    key={project.id}
+                    value={project.id}
+                    data-testid="task-project"
+                  >
                     {project.name}
                   </SelectItem>
                 ))}
@@ -449,7 +416,15 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             <Select
               value={formData.platform}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, platform: value as "local" | "notion" | "trello" | "asana" | "jira" }))
+                setFormData((prev) => ({
+                  ...prev,
+                  platform: value as
+                    | "local"
+                    | "notion"
+                    | "trello"
+                    | "asana"
+                    | "jira",
+                }))
               }
               data-testid="task-platform"
             >
@@ -459,9 +434,15 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
               <SelectContent>
                 <SelectItem value="local">Local</SelectItem>
                 <SelectItem value="notion">Notion</SelectItem>
-                <SelectItem value="trello" data-testid="sync-trello">Trello</SelectItem>
-                <SelectItem value="asana" data-testid="sync-asana">Asana</SelectItem>
-                <SelectItem value="jira" data-testid="sync-jira">Jira</SelectItem>
+                <SelectItem value="trello" data-testid="sync-trello">
+                  Trello
+                </SelectItem>
+                <SelectItem value="asana" data-testid="sync-asana">
+                  Asana
+                </SelectItem>
+                <SelectItem value="jira" data-testid="sync-jira">
+                  Jira
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -501,41 +482,91 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
           />
         </div>
 
-        <div className="flex justify-end space-x-3 pt-4">
+        <div className="flex items-center justify-end space-x-3 pt-4">
+          {pending && (
+            <p
+              role="status"
+              data-testid="task-form-pending"
+              className="mr-auto text-sm text-muted-foreground"
+            >
+              Saving task...
+            </p>
+          )}
           <Button variant="outline" onClick={onCancel} type="button">
             Cancel
           </Button>
           <Button type="submit" data-testid="task-submit">
-            {task ? "Update Task" : "Create Task"}
+            {pending ? "Saving..." : task ? "Update Task" : "Create Task"}
           </Button>
         </div>
-      </form>
-    );
-  };
+      </fieldset>
+    </form>
+  );
+};
 
-  const ProjectForm: React.FC<{
-    project?: Project;
-    onSubmit: (data: Omit<Project, "id" | "tasks" | "progress">) => void;
-    onCancel: () => void;
-  }> = ({ project, onSubmit, onCancel }) => {
-    const [formData, setFormData] = useState({
-      name: project?.name || "",
-      description: project?.description || "",
-      color: project?.color || "#3182CE",
-    });
+interface ProjectFormState {
+  name: string;
+  description: string;
+  color: string;
+}
 
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      onSubmit({
+const buildProjectFormState = (project?: Project): ProjectFormState => ({
+  name: project?.name || "",
+  description: project?.description || "",
+  color: project?.color || "#3182CE",
+});
+
+interface ProjectFormProps {
+  project?: Project;
+  onSubmit: (data: ProjectCreateData) => Promise<boolean>;
+  onCancel: () => void;
+  pending?: boolean;
+}
+
+const ProjectForm: React.FC<ProjectFormProps> = ({
+  project,
+  onSubmit,
+  onCancel,
+  pending = false,
+}) => {
+  const editedProjectId = useRef(project?.id);
+  const [formData, setFormData] = useState<ProjectFormState>(() =>
+    buildProjectFormState(project),
+  );
+
+  useEffect(() => {
+    if (editedProjectId.current !== project?.id) {
+      editedProjectId.current = project?.id;
+      setFormData(buildProjectFormState(project));
+    }
+  }, [project]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pending) return;
+
+    try {
+      const saved = await onSubmit({
         name: formData.name,
         description: formData.description,
         color: formData.color,
       });
-      onCancel();
-    };
+      if (saved) onCancel();
+    } catch {
+      // Keep the draft open when persistence was not confirmed.
+    }
+  };
 
-    return (
-      <form onSubmit={handleSubmit} className="space-y-4">
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4"
+      aria-busy={pending}
+    >
+      <fieldset
+        disabled={pending}
+        className="m-0 min-w-0 space-y-4 border-0 p-0"
+      >
         <div className="space-y-2">
           <label className="text-sm font-medium">Project Name</label>
           <Input
@@ -574,16 +605,464 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
           />
         </div>
 
-        <div className="flex justify-end space-x-3 pt-4">
+        <div className="flex items-center justify-end space-x-3 pt-4">
+          {pending && (
+            <p
+              role="status"
+              data-testid="project-form-pending"
+              className="mr-auto text-sm text-muted-foreground"
+            >
+              Saving project...
+            </p>
+          )}
           <Button variant="outline" onClick={onCancel} type="button">
             Cancel
           </Button>
           <Button type="submit">
-            {project ? "Update Project" : "Create Project"}
+            {pending
+              ? "Saving..."
+              : project
+                ? "Update Project"
+                : "Create Project"}
           </Button>
         </div>
-      </form>
+      </fieldset>
+    </form>
+  );
+};
+
+const TaskManagement: React.FC<TaskManagementProps> = ({
+  onTaskCreate,
+  onTaskUpdate,
+  onTaskDelete,
+  onProjectCreate,
+  onProjectUpdate,
+  tasks: controlledTasks,
+  projects: controlledProjects,
+  initialTasks = [],
+  initialProjects = [],
+  showNavigation = true,
+  compactView = false,
+}) => {
+  const taskIsControlled = controlledTasks !== undefined;
+  const projectIsControlled = controlledProjects !== undefined;
+
+  const [localTasks, setLocalTasks] = useState<Task[]>(initialTasks);
+  const [localProjects, setLocalProjects] = useState<Project[]>(initialProjects);
+  const tasks = controlledTasks ?? localTasks;
+  const projects = controlledProjects ?? localProjects;
+  const setTasks: React.Dispatch<React.SetStateAction<Task[]>> = next => {
+    if (!taskIsControlled) setLocalTasks(next);
+  };
+  const setProjects: React.Dispatch<React.SetStateAction<Project[]>> = next => {
+    if (!projectIsControlled) setLocalProjects(next);
+  };
+  const [view, setView] = useState<TaskView>({
+    type: "board",
+    filter: {},
+    sort: { field: "dueDate", direction: "asc" },
+  });
+  const [loading, setLoading] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const mutationInFlight = useRef(false);
+  const { toast } = useToast();
+
+  // Controlled collections render directly from parent state; no shadow cache.
+  const beginMutation = () => {
+    if (mutationInFlight.current) return false;
+    mutationInFlight.current = true;
+    setIsMutating(true);
+    return true;
+  };
+
+  const endMutation = () => {
+    mutationInFlight.current = false;
+    setIsMutating(false);
+  };
+
+  const showMutationFailure = (title: string) => {
+    toast({ title, variant: "error", duration: 3000 });
+  };
+
+  const upsertTaskInProjects = (task: Task) => {
+    setProjects((prev) =>
+      prev.map((project) => {
+        const remaining = project.tasks.filter((item) => item.id !== task.id);
+        if (project.id === task.project) {
+          return { ...project, tasks: [...remaining, task] };
+        }
+        return remaining.length === project.tasks.length
+          ? project
+          : { ...project, tasks: remaining };
+      }),
     );
+  };
+
+  const handleCreateTask = async (
+    taskData: TaskCreateData,
+  ): Promise<boolean> => {
+    if (!beginMutation()) return false;
+    try {
+      if (!onTaskCreate && taskIsControlled) {
+        showMutationFailure("Failed to create task");
+        return false;
+      }
+
+      const newTask: Task = {
+        ...taskData,
+        id: Date.now().toString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const rawResult = onTaskCreate?.(newTask);
+      const asyncResult = isPromiseLike(rawResult);
+      const result: unknown = asyncResult ? await rawResult : rawResult;
+
+      if (isTaskConfirmation(result)) {
+        const confirmed = normalizeTask(result);
+        setTasks((prev) => [...prev, confirmed]);
+        upsertTaskInProjects(confirmed);
+      } else if (
+        !taskIsControlled &&
+        !asyncResult &&
+        result === undefined
+      ) {
+        // Legacy standalone behavior: a synchronous void callback is an
+        // accepted local save, so a local record can be synthesized.
+        setTasks((prev) => [...prev, newTask]);
+        upsertTaskInProjects(newTask);
+      } else {
+        // Pending/rejected/unconfirmed saves never create a visible record.
+        showMutationFailure("Failed to create task");
+        return false;
+      }
+
+      toast({
+        title: "Task created",
+        description: "Your task has been successfully created.",
+        duration: 2000,
+      });
+      return true;
+    } catch {
+      showMutationFailure("Failed to create task");
+      return false;
+    } finally {
+      endMutation();
+    }
+  };
+
+  const handleUpdateTask = async (
+    taskId: string,
+    updates: Partial<Task>,
+  ): Promise<boolean> => {
+    if (!beginMutation()) return false;
+    try {
+      if (!onTaskUpdate && taskIsControlled) {
+        showMutationFailure("Failed to update task");
+        return false;
+      }
+
+      const rawResult = onTaskUpdate?.(taskId, updates);
+      const asyncResult = isPromiseLike(rawResult);
+      const result: unknown = asyncResult ? await rawResult : rawResult;
+
+      if (isTaskConfirmation(result) && result.id === taskId) {
+        const confirmed = normalizeTask(result);
+        setTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? confirmed : task)),
+        );
+        upsertTaskInProjects(confirmed);
+      } else if (
+        !taskIsControlled &&
+        !asyncResult &&
+        result === undefined
+      ) {
+        const current = tasks.find((task) => task.id === taskId);
+        if (current) {
+          const updated = {
+            ...current,
+            ...updates,
+            updatedAt: new Date(),
+          };
+          setTasks((prev) =>
+            prev.map((task) => (task.id === taskId ? updated : task)),
+          );
+          upsertTaskInProjects(updated);
+        }
+      } else {
+        showMutationFailure("Failed to update task");
+        return false;
+      }
+
+      toast({
+        title: "Task updated",
+        description: "Your task has been successfully updated.",
+        duration: 2000,
+      });
+      return true;
+    } catch {
+      showMutationFailure("Failed to update task");
+      return false;
+    } finally {
+      endMutation();
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string): Promise<boolean> => {
+    if (!beginMutation()) return false;
+    try {
+      if (!onTaskDelete && taskIsControlled) {
+        showMutationFailure("Failed to delete task");
+        return false;
+      }
+
+      const rawResult = onTaskDelete?.(taskId);
+      const asyncResult = isPromiseLike(rawResult);
+      const result: unknown = asyncResult ? await rawResult : rawResult;
+      const confirmed =
+        result === true ||
+        (!taskIsControlled && !asyncResult && result === undefined);
+
+      if (!confirmed) {
+        // A refused or unconfirmed delete must leave the row in place.
+        showMutationFailure("Failed to delete task");
+        return false;
+      }
+
+      setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      setProjects((prev) =>
+        prev.map((project) => ({
+          ...project,
+          tasks: project.tasks.filter((task) => task.id !== taskId),
+        })),
+      );
+      toast({
+        title: "Task deleted",
+        description: "Your task has been successfully deleted.",
+        duration: 2000,
+      });
+      return true;
+    } catch {
+      showMutationFailure("Failed to delete task");
+      return false;
+    } finally {
+      endMutation();
+    }
+  };
+
+  const handleCreateProject = async (
+    projectData: ProjectCreateData,
+  ): Promise<boolean> => {
+    if (!beginMutation()) return false;
+    try {
+      if (!onProjectCreate && projectIsControlled) {
+        showMutationFailure("Failed to create project");
+        return false;
+      }
+
+      const newProject: Project = {
+        ...projectData,
+        id: Date.now().toString(),
+        tasks: [],
+        progress: 0,
+      };
+      const rawResult = onProjectCreate?.(newProject);
+      const asyncResult = isPromiseLike(rawResult);
+      const result: unknown = asyncResult ? await rawResult : rawResult;
+
+      if (isProjectConfirmation(result)) {
+        setProjects((prev) => [...prev, normalizeProject(result)]);
+      } else if (
+        !projectIsControlled &&
+        !asyncResult &&
+        result === undefined
+      ) {
+        setProjects((prev) => [...prev, newProject]);
+      } else {
+        showMutationFailure("Failed to create project");
+        return false;
+      }
+
+      toast({
+        title: "Project created",
+        description: "Your project has been successfully created.",
+        duration: 2000,
+      });
+      return true;
+    } catch {
+      showMutationFailure("Failed to create project");
+      return false;
+    } finally {
+      endMutation();
+    }
+  };
+
+  const handleUpdateProject = async (
+    projectId: string,
+    updates: Partial<Project>,
+  ): Promise<boolean> => {
+    if (!beginMutation()) return false;
+    try {
+      if (!onProjectUpdate && projectIsControlled) {
+        showMutationFailure("Failed to update project");
+        return false;
+      }
+
+      const rawResult = onProjectUpdate?.(projectId, updates);
+      const asyncResult = isPromiseLike(rawResult);
+      const result: unknown = asyncResult ? await rawResult : rawResult;
+
+      if (isProjectConfirmation(result) && result.id === projectId) {
+        const confirmed = normalizeProject(result);
+        setProjects((prev) =>
+          prev.map((project) => {
+            if (project.id !== projectId) return project;
+            return {
+              ...project,
+              ...confirmed,
+              tasks: Array.isArray(result.tasks)
+                ? confirmed.tasks
+                : project.tasks,
+              progress:
+                typeof result.progress === "number"
+                  ? confirmed.progress
+                  : project.progress,
+            };
+          }),
+        );
+      } else if (
+        !projectIsControlled &&
+        !asyncResult &&
+        result === undefined
+      ) {
+        setProjects((prev) =>
+          prev.map((project) =>
+            project.id === projectId
+              ? { ...project, ...updates }
+              : project,
+          ),
+        );
+      } else {
+        showMutationFailure("Failed to update project");
+        return false;
+      }
+
+      toast({
+        title: "Project updated",
+        description: "Your project has been successfully updated.",
+        duration: 2000,
+      });
+      return true;
+    } catch {
+      showMutationFailure("Failed to update project");
+      return false;
+    } finally {
+      endMutation();
+    }
+  };
+
+  const closeTaskDialog = () => {
+    setIsTaskDialogOpen(false);
+    setSelectedTask(null);
+  };
+
+  const closeProjectDialog = () => {
+    setIsProjectDialogOpen(false);
+    setSelectedProject(null);
+  };
+
+  const handleTaskDialogOpenChange = (open: boolean) => {
+    if (!open && mutationInFlight.current) return;
+    setIsTaskDialogOpen(open);
+    if (!open) setSelectedTask(null);
+  };
+
+  const handleProjectDialogOpenChange = (open: boolean) => {
+    if (!open && mutationInFlight.current) return;
+    setIsProjectDialogOpen(open);
+    if (!open) setSelectedProject(null);
+  };
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return "No due date";
+    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "destructive";
+      case "medium":
+        return "default"; // orange equivalent in shadcn usually warning or secondary
+      case "low":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "default"; // green
+      case "in-progress":
+        return "secondary"; // blue
+      case "blocked":
+        return "destructive"; // red
+      case "todo":
+        return "outline"; // gray
+      default:
+        return "outline";
+    }
+  };
+
+  const getFilteredTasks = () => {
+    let filtered = [...tasks];
+
+    // Apply filters
+    if (view.filter.status?.length) {
+      filtered = filtered.filter((task) =>
+        view.filter.status?.includes(task.status),
+      );
+    }
+    if (view.filter.priority?.length) {
+      filtered = filtered.filter((task) =>
+        view.filter.priority?.includes(task.priority),
+      );
+    }
+    if (view.filter.project?.length) {
+      filtered = filtered.filter((task) =>
+        view.filter.project?.includes(task.project || ""),
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const direction = view.sort.direction === "asc" ? 1 : -1;
+      switch (view.sort.field) {
+        case "dueDate":
+          if (!a.dueDate) return b.dueDate ? 1 : 0;
+          if (!b.dueDate) return -1;
+          return ((a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity)) * direction;
+        case "priority":
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return (
+            (priorityOrder[a.priority] - priorityOrder[b.priority]) * direction
+          );
+        case "createdAt":
+          return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+        case "title":
+          return a.title.localeCompare(b.title) * direction;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
   };
 
   if (loading) {
@@ -600,6 +1079,16 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
   return (
     <div className={compactView ? "p-2" : "p-6"}>
       <div className={`flex flex-col gap-${compactView ? "3" : "6"}`}>
+        {isMutating && (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="task-management-pending"
+            className="text-sm text-muted-foreground"
+          >
+            Saving changes...
+          </div>
+        )}
         {/* Header */}
         {showNavigation && (
           <div className="flex justify-between items-center">
@@ -611,6 +1100,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                   setSelectedTask(null);
                   setIsTaskDialogOpen(true);
                 }}
+                disabled={isMutating}
                 data-testid="new-task-btn"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -623,6 +1113,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                   setSelectedProject(null);
                   setIsProjectDialogOpen(true);
                 }}
+                disabled={isMutating}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 New Project
@@ -844,10 +1335,11 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                                     className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleUpdateTask(task.id, {
+                                      void handleUpdateTask(task.id, {
                                         status: "completed",
                                       });
                                     }}
+                                    disabled={isMutating}
                                   >
                                     <CheckCircle className="h-3 w-3" />
                                   </Button>
@@ -887,7 +1379,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                         {task.title}
                       </div>
                       <div className={`text-muted-foreground ${compactView ? "text-xs" : "text-sm"}`}>
-                        Due {formatDate(task.dueDate)} •{" "}
+                        {task.dueDate ? "Due " : ""}{formatDate(task.dueDate)} •{" "}
                         {task.project
                           ? projects.find((p) => p.id === task.project)?.name
                           : "No Project"}
@@ -918,9 +1410,9 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
               {filteredTasks
                 .filter(
                   (task) =>
-                    task.status !== "completed" && task.dueDate > new Date(),
+                    task.status !== "completed" && task.dueDate !== null && task.dueDate > new Date(),
                 )
-                .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+                .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity))
                 .slice(0, compactView ? 3 : 5)
                 .map((task) => (
                   <div
@@ -936,7 +1428,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                         {task.title}
                       </div>
                       <div className={`text-muted-foreground ${compactView ? "text-xs" : "text-sm"}`}>
-                        Due {formatDate(task.dueDate)} •{" "}
+                        {task.dueDate ? "Due " : ""}{formatDate(task.dueDate)} •{" "}
                         {task.project
                           ? projects.find((p) => p.id === task.project)?.name
                           : "No Project"}
@@ -966,8 +1458,9 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteTask(task.id);
+                          void handleDeleteTask(task.id);
                         }}
+                        disabled={isMutating}
                       >
                         <Trash className="h-4 w-4" />
                       </Button>
@@ -980,7 +1473,10 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
       </div>
 
       {/* Task Dialog */}
-      <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+      <Dialog
+        open={isTaskDialogOpen}
+        onOpenChange={handleTaskDialogOpenChange}
+      >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
@@ -988,22 +1484,26 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             </DialogTitle>
           </DialogHeader>
           <TaskForm
+            key={selectedTask?.id ?? "new-task"}
             task={selectedTask || undefined}
+            projects={projects}
+            pending={isMutating}
             onSubmit={(data) => {
               if (selectedTask) {
-                handleUpdateTask(selectedTask.id, data);
-              } else {
-                handleCreateTask(data);
+                return handleUpdateTask(selectedTask.id, data);
               }
-              setIsTaskDialogOpen(false);
+              return handleCreateTask(data);
             }}
-            onCancel={() => setIsTaskDialogOpen(false)}
+            onCancel={closeTaskDialog}
           />
         </DialogContent>
       </Dialog>
 
       {/* Project Dialog */}
-      <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
+      <Dialog
+        open={isProjectDialogOpen}
+        onOpenChange={handleProjectDialogOpenChange}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
@@ -1011,16 +1511,16 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             </DialogTitle>
           </DialogHeader>
           <ProjectForm
+            key={selectedProject?.id ?? "new-project"}
             project={selectedProject || undefined}
+            pending={isMutating}
             onSubmit={(data) => {
               if (selectedProject) {
-                handleUpdateProject(selectedProject.id, data);
-              } else {
-                handleCreateProject(data);
+                return handleUpdateProject(selectedProject.id, data);
               }
-              setIsProjectDialogOpen(false);
+              return handleCreateProject(data);
             }}
-            onCancel={() => setIsProjectDialogOpen(false)}
+            onCancel={closeProjectDialog}
           />
         </DialogContent>
       </Dialog>

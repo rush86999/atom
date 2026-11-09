@@ -1,0 +1,44 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/tasks/private-task",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/private-task",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/projects/private-project",
+    "status": 401,
+    "body": "{\"error\":\"Authentication required\"}"
+  }
+]

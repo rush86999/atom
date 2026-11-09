@@ -1,0 +1,26 @@
+{
+  "source": "e51546f1339e42cd8140b0d13e82b414dc521ccf",
+  "predecessor": "6132395cd",
+  "baseline": {
+    "failed": 3,
+    "passed": 17
+  },
+  "final": {
+    "python311": {
+      "passed": 50,
+      "failed": 0
+    },
+    "python314": {
+      "passed": 50,
+      "failed": 0
+    }
+  },
+  "product_controls": 23,
+  "ci_preservation_controls": 27,
+  "public_router": true,
+  "scratch_sqlite": true,
+  "controlled_auth_dependency": true,
+  "full_app_browser": false,
+  "transactional_authority_cas_qualified": false,
+  "mobile_deferred": true
+}

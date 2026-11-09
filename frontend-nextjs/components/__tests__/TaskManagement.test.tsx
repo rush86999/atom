@@ -141,7 +141,7 @@ describe('TaskManagement', () => {
       }),
       rest.delete('/api/v1/tasks/:id', (req, res, ctx) => {
         deletedIds.push(String(req.params.id));
-        return res(ctx.status(200), ctx.json({ success: true }));
+        return res(ctx.status(200), ctx.json({ success: true, deleted: String(req.params.id) }));
       }),
       rest.post('/api/v1/projects', async (req, res, ctx) => {
         postedProjectBodies.push(req.body);
@@ -150,6 +150,7 @@ describe('TaskManagement', () => {
           ctx.json({
             project: {
               id: 'p-new',
+              tasks: [],
               name: (req.body as any)?.name,
               description: (req.body as any)?.description,
               color: (req.body as any)?.color,
@@ -165,6 +166,7 @@ describe('TaskManagement', () => {
           ctx.json({
             project: {
               id: String(req.params.id),
+              tasks: [],
               name: (req.body as any)?.name ?? 'Website Launch',
               description: (req.body as any)?.description ?? 'Marketing site',
               color: (req.body as any)?.color ?? '#3182CE',
@@ -291,7 +293,8 @@ describe('TaskManagement', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Error fetching data' }));
     });
-    expect(screen.getByText('Task Management')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to load tasks and projects');
+    expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
   });
 
   it('edits a task via the dialog and PUTs the update', async () => {

@@ -1,0 +1,12 @@
+{
+  "source": "c042b2b87",
+  "routine_scratch_login_ui": true,
+  "requested_path": "/tasks",
+  "observed_surface": "safe core fallback deferred screen",
+  "profile_endpoint_status": 404,
+  "configured_backend_profile_qualified": false,
+  "browser_task_crud_exercised": false,
+  "release_gates_changed": false,
+  "scope": "ordinary Next UI against narrow controlled auth/task/project fixture; not full backend boot",
+  "backend_dirty_at_start": false
+}
