@@ -47,6 +47,24 @@ describe('Pending writes require a durable pre-dispatch boundary', () => {
   });
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
 
+  test.each(families)('$name replacement during marker persistence cannot dispatch', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    const client = await family.load();
+    mockSetObject.mockImplementationOnce(async (key: string, value: unknown) => { durable.set(key, JSON.stringify(value)); mockGeneration += 1; return true; });
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
+  test.each(families)('$name failed restoration after session replacement is reported', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    const client = await family.load();
+    mockSetObject.mockImplementationOnce(async (key: string, value: unknown) => { durable.set(key, JSON.stringify(value)); mockGeneration += 1; return true; }).mockResolvedValueOnce(false);
+    await expect(client.flush()).rejects.toThrow();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
   test.each(families)('$name a different caller cannot execute stored work', async family => {
     durable.set(family.key, JSON.stringify(family.cache()));
     const client = await family.load('different-owner', 'device-001');
