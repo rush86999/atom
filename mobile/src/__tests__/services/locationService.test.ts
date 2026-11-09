@@ -2113,4 +2113,39 @@ describe('LocationService', () => {
     });
   });
 
+  describe('tracking reservation recovery', () => {
+    test('a failed pending watch releases the reservation for a later start', async () => {
+      jest.mocked(Location.watchPositionAsync).mockRejectedValueOnce(new Error('controlled watch failure'));
+      const remove = jest.fn();
+      jest.mocked(Location.watchPositionAsync).mockResolvedValueOnce({ remove });
+      await locationService.requestPermissions();
+      expect(await locationService.startTracking()).toBe(false);
+      expect(await locationService.startTracking()).toBe(true);
+      await locationService.stopTracking();
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(locationService.isActive()).toBe(false);
+    });
+
+    test('failed disposal of a cancelled late watch keeps its handle retryable', async () => {
+      let resolveWatch: ((value: Location.LocationSubscription) => void) | undefined;
+      const pendingWatch = new Promise<Location.LocationSubscription>((resolve) => {
+        resolveWatch = resolve;
+      });
+      jest.mocked(Location.watchPositionAsync).mockReturnValueOnce(pendingWatch);
+      const remove = jest.fn(() => {}).mockImplementationOnce(() => {
+        throw new Error('controlled late removal failure');
+      });
+      await locationService.requestPermissions();
+      const starting = locationService.startTracking();
+      await locationService.stopTracking();
+      resolveWatch!({ remove });
+      expect(await starting).toBe(false);
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(locationService.isActive()).toBe(true);
+      await locationService.stopTracking();
+      expect(remove).toHaveBeenCalledTimes(2);
+      expect(locationService.isActive()).toBe(false);
+    });
+  });
+
 });
