@@ -140,3 +140,55 @@ def test_form_lost_commit_confirmation_preserves_identity(app_client, broadcast_
     assert broadcast_spy == []
     with app_client.Session() as db:
         assert db.get(Canvas, result['canvas_id']) is not None
+
+
+def test_form_disabled_oracle_cannot_certify(app_client, broadcast_spy, monkeypatch):
+    from tools.canvas_tool import present_form
+    actor = _actor(app_client)
+    monkeypatch.setattr('tools.canvas_tool.FeatureFlags.should_enforce_governance', lambda *_: False)
+    monkeypatch.setenv('ATOM_ORACLE_VERIFIER_ENABLED', 'false')
+    result = asyncio.run(present_form(user_id=actor.id, form_schema={'fields': []}))
+    assert result['success'] is False
+    assert result['verification']['effect'] == 'committed'
+    assert broadcast_spy == []
+
+
+def test_form_incomplete_policy_cannot_waive_review(app_client, broadcast_spy, monkeypatch):
+    from tools.canvas_tool import present_form
+    from core.agent_governance_service import AgentGovernanceService
+    actor = _actor(app_client)
+    agent_id = _form_agent(app_client)
+    monkeypatch.setattr('tools.canvas_tool.FeatureFlags.should_enforce_governance', lambda *_: True)
+    monkeypatch.setattr(AgentGovernanceService, 'can_perform_action', lambda *args, **kwargs: {'allowed': True})
+    result = asyncio.run(present_form(user_id=actor.id, form_schema={'fields': []}, agent_id=agent_id))
+    assert result['success'] is False
+    assert broadcast_spy == []
+
+
+def test_form_agent_disabled_after_resolution_is_not_authority(app_client, broadcast_spy, monkeypatch):
+    from tools.canvas_tool import present_form
+    from core.agent_governance_service import AgentGovernanceService
+    from core.models import AgentRegistry
+    import tools.canvas_crud_tool as crud
+    actor = _actor(app_client)
+    agent_id = _form_agent(app_client)
+    monkeypatch.setattr('tools.canvas_tool.FeatureFlags.should_enforce_governance', lambda *_: True)
+    monkeypatch.setattr(AgentGovernanceService, 'can_perform_action', lambda *args, **kwargs: {'allowed': True, 'requires_human_approval': False})
+    actual_resolve = crud.resolve_submit_agent
+    moved = False
+    def resolve_then_disable(*args, **kwargs):
+        nonlocal moved
+        bound = actual_resolve(*args, **kwargs)
+        if not moved:
+            moved = True
+            with app_client.Session() as peer:
+                peer.query(AgentRegistry).filter_by(id=agent_id).update({'enabled': False})
+                peer.commit()
+        return bound
+    monkeypatch.setattr(crud, 'resolve_submit_agent', resolve_then_disable)
+    result = asyncio.run(present_form(user_id=actor.id, form_schema={'fields': []}, agent_id=agent_id))
+    assert result['success'] is False
+    assert broadcast_spy == []
+    with app_client.Session() as db:
+        assert db.query(Canvas).count() == 0
+        assert db.get(AgentRegistry, agent_id).enabled is False

@@ -622,9 +622,9 @@ async def present_form(
                                 "Agent form presentation could not be "
                                 "authorized"),
                         }
-                    if (not governance_check.get("allowed")
+                    if (governance_check.get("allowed") is not True
                             or governance_check.get(
-                                "requires_human_approval")):
+                                "requires_human_approval") is not False):
                         logger.warning("Governance blocked form presentation")
                         return {
                             "success": False,
@@ -709,6 +709,22 @@ async def present_form(
                         "refused"),
                 }
 
+            # Re-read related authority under the actor write reservation.
+            # Never let an old ORM snapshot certify an agent disabled/moved
+            # after the initial resolution.
+            if agent:
+                with db.no_autoflush:
+                    bound = resolve_submit_agent(
+                        db, actor, agent.id, None, canvas_id=canvas_id, lock=True)
+                    if not bound.get("ok"):
+                        db.rollback()
+                        return {"success": False, "error": "Form agent authority changed"}
+                    check = governance.can_perform_action(agent_id=agent.id, action_type="present_form")
+                    if (not isinstance(check, dict) or check.get("allowed") is not True
+                            or check.get("requires_human_approval") is not False):
+                        db.rollback()
+                        return {"success": False, "error": "Form presentation requires an authorized review"}
+
             # Commit explicitly so a failed/unknown commit is observed here
             # (and never mistaken for a durable surface).
             commit_attempted = True
@@ -719,7 +735,7 @@ async def present_form(
         # read-back of the exact Canvas + present audit can certify the form
         # surface, so an unknown/failed commit never becomes success or a
         # broadcast.
-        from core.oracle import validate
+        from core.oracle import validate, oracle_verifier_enabled
 
         verification_ctx = {
             "canvas_id": canvas_id,
@@ -734,7 +750,8 @@ async def present_form(
             "_oracle_expected_workspace_id": actor_workspace_id,
             "_oracle_expected_title": display_title,
         }
-        oracle = await validate("canvas.present_form", verification_ctx)
+        oracle = (await validate("canvas.present_form", verification_ctx)
+                  if oracle_verifier_enabled() else None)
         verified = bool(oracle is not None and oracle.verified)
         evidence = str(getattr(oracle, "evidence", "") or "")
         if not verified:
