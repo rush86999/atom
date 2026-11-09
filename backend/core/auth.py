@@ -107,8 +107,51 @@ def get_password_hash(password: str) -> str:
     hashed = bcrypt.hashpw(password, bcrypt.gensalt())
     return hashed.decode('utf-8')
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def credential_session_binding(user: User) -> str:
+    """Opaque session proof bound to the durable credential, never the raw hash.
+
+    Django's password-change session invalidation uses the same HMAC principle.
+    A credential change invalidates old proofs across processes with no cache or
+    additional revocation store. NULL password material supports explicit SSO.
+    """
+    import hashlib
+    import hmac
+    import json
+    user_id = getattr(user, "id", None)
+    password_hash = getattr(user, "hashed_password", None)
+    if not isinstance(user_id, str) or not user_id:
+        raise ValueError("Session subject is unavailable")
+    if password_hash is not None and not isinstance(password_hash, str):
+        raise ValueError("Session credential is unavailable")
+    material = json.dumps([user_id, password_hash], separators=(",", ":"), ensure_ascii=False)
+    return "v1:" + hmac.new(SECRET_KEY.encode("utf-8"),
+        b"atom-credential-session-v1\0" + material.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def credential_session_matches(payload: Dict[str, Any], user: User, *, allow_refresh: bool = False) -> bool:
+    """Legacy/unbound sessions fail closed; callers must request fresh login."""
+    import hmac
+    if payload.get("type") not in (None, "access") and not (allow_refresh and payload.get("type") == "refresh"):
+        return False
+    proof = payload.get("auth_binding")
+    subject = payload.get("sub") or payload.get("id") or payload.get("user_id")
+    if not isinstance(proof, str) or subject != getattr(user, "id", None):
+        return False
+    try:
+        return hmac.compare_digest(proof, credential_session_binding(user))
+    except (TypeError, ValueError):
+        return False
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None, *, user: Optional[User] = None) -> str:
     to_encode = data.copy()
+    # Claims are derived only from server-owned User material, never copied
+    # from caller data. Unbound utility tokens cannot authorize a user session.
+    to_encode.pop("auth_binding", None)
+    if user is not None:
+        if to_encode.get("sub") != user.id:
+            raise ValueError("Session subject mismatch")
+        to_encode["auth_binding"] = credential_session_binding(user)
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -217,9 +260,11 @@ async def get_current_user(
         logger.warning("Unexpected error during token validation")
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id).populate_existing().first()
     if user is None:
         logger.warning("Token referenced non-existent user_id=%s", user_id)
+        raise credentials_exception
+    if not credential_session_matches(payload, user):
         raise credentials_exception
 
     # Round 43: reject tokens for non-ACTIVE accounts. Login already blocks
@@ -277,9 +322,9 @@ async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
         if is_token_revoked(token_jti):
             logger.warning(f"Rejected revoked WS token (jti={token_jti}) for user {user_id}")
             return None
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).populate_existing().first()
         # Round 43: reject non-ACTIVE accounts (deleted/suspended users)
-        if user is None or user.status != UserStatus.ACTIVE:
+        if user is None or user.status != UserStatus.ACTIVE or not credential_session_matches(payload, user):
             return None
         return user
     except JWTError:
@@ -347,12 +392,12 @@ def verify_mobile_token(token: str, db: Session) -> Optional[User]:
         if user_id is None:
             return None
 
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).populate_existing().first()
         # Reject non-ACTIVE accounts. Mirrors get_current_user (line ~190),
         # get_current_user_ws, and authenticate_mobile_user — without this,
         # a suspended/deleted user's existing 24h mobile JWT kept
         # authenticating them after their account was revoked.
-        if user is None or user.status != UserStatus.ACTIVE:
+        if user is None or user.status != UserStatus.ACTIVE or not credential_session_matches(payload, user):
             return None
         return user
     except JWTError as e:
@@ -442,6 +487,7 @@ def create_mobile_token(user: User, device_id: str, expires_delta: Optional[time
         "email": user.email,
         "device_id": device_id,
         "platform": "mobile",
+        "auth_binding": credential_session_binding(user),
         "exp": expire
     }
 
@@ -452,6 +498,7 @@ def create_mobile_token(user: User, device_id: str, expires_delta: Optional[time
     refresh_to_encode = {
         "sub": str(user.id),
         "type": "refresh",
+        "auth_binding": credential_session_binding(user),
         "device_id": device_id,
         "exp": refresh_expire
     }

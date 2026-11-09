@@ -248,7 +248,7 @@ async def login_for_access_token(
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.id}, expires_delta=access_token_expires
+            data={"sub": user.id}, expires_delta=access_token_expires, user=user
         )
         
         # Update last login
@@ -354,7 +354,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db), _r
     # Generate token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": new_user.id}, expires_delta=access_token_expires
+        data={"sub": new_user.id}, expires_delta=access_token_expires, user=new_user
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
@@ -572,7 +572,7 @@ async def refresh_token(current_user: User = Depends(get_current_user)):
     """Refresh the access token"""
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": current_user.id}, expires_delta=access_token_expires
+        data={"sub": current_user.id}, expires_delta=access_token_expires, user=current_user
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -625,12 +625,11 @@ async def change_password(
 ):
     """Change the authenticated user's password.
 
-    Requires the current password. Revokes every other active session
-    (the current JWT is kept) so a leaked token does not survive a password
-    change. Rate-limited (5/5min/IP) to blunt current-password guessing.
+    Requires the current password. Credential-bound sessions all require a
+    fresh sign-in after the committed change, including this browser. The
+    existing token ledger is reconciled as well; it is not the revocation
+    authority. Rate-limited to blunt current-password guessing.
     """
-    from core.auth import ALGORITHM, SECRET_KEY, oauth2_scheme, revoke_token
-    import jwt as _jwt
     from core.auth_helpers import revoke_all_user_tokens
 
     if not verify_password(change_data.current_password, current_user.hashed_password):
@@ -639,23 +638,26 @@ async def change_password(
     if verify_password(change_data.new_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="New password must be different from the current password")
 
-    current_user.hashed_password = get_password_hash(change_data.new_password)
+    # Freeze the same credential/authority snapshot used by recovery. An
+    # already-authenticated request must not overwrite a concurrent reset.
+    snapshot = {name: getattr(current_user, name) for name in (
+        "id", "hashed_password", "tenant_id", "workspace_id", "email", "role", "status")}
+    new_hash = get_password_hash(change_data.new_password)
+    if not verify_password(change_data.new_password, new_hash):
+        raise HTTPException(status_code=409, detail="Password change refused. No credential was changed.")
+    claim = db.execute(update(User).where(
+        *(getattr(User, name) == value for name, value in snapshot.items()),
+        User.is_active.is_(True),
+    ).values(hashed_password=new_hash).execution_options(synchronize_session=False))
+    if claim.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Account changed. Sign in again before changing your password.")
+    db.expire_all()
     db.commit()
-
-    # Keep the current session's token; revoke all others.
-    current_jti = None
-    try:
-        raw_token = await oauth2_scheme(request)
-        if raw_token:
-            payload = _jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
-            current_jti = payload.get("jti")
-    except Exception:
-        pass  # Best-effort; revocation still proceeds without except_jti
 
     revoked = revoke_all_user_tokens(
         user_id=current_user.id,
         db=db,
-        except_jti=current_jti,
         revocation_reason="password_change",
     )
 
@@ -671,7 +673,8 @@ async def change_password(
     )
 
     logger.info("Password changed for user %s (%d other sessions revoked)", current_user.id, revoked)
-    return {"success": True, "message": "Password updated successfully", "revoked_sessions": revoked}
+    return {"success": True, "message": "Password updated successfully. Sign in again with your new password.",
+            "revoked_sessions": revoked, "requires_reauthentication": True}
 
 @router.get("/profile")
 async def get_user_profile(current_user: User = Depends(get_current_user)):

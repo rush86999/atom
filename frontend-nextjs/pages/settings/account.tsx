@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
+import { signOut } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -86,12 +87,20 @@ export default function AccountSettings() {
             });
 
             if (res.ok) {
+                const result = await res.json();
+                const signInAgain = result.requires_reauthentication === true;
                 toast({
                     title: 'Success',
-                    description: 'Password updated successfully',
+                    description: signInAgain ? 'Password updated. Sign in again with your new password.' : 'Password updated successfully',
                     variant: 'success'
                 });
                 setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                if (signInAgain) {
+                    localStorage.removeItem('auth_token');
+                    authTokenRef.current = null;
+                    setAuthToken(null);
+                    await signOut({ callbackUrl: '/auth/signin' });
+                }
             } else {
                 const data = await res.json();
                 toast({

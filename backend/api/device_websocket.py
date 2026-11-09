@@ -284,9 +284,10 @@ async def websocket_device_endpoint(
                 await websocket.close(code=1008, reason="Invalid token")
                 return
 
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                await websocket.close(code=1008, reason="User not found")
+            user = db.query(User).filter(User.id == user_id).populate_existing().first()
+            from core.auth import credential_session_matches
+            if not user or not credential_session_matches(payload, user):
+                await websocket.close(code=1008, reason="User session is invalid")
                 return
 
             # Accept connection
