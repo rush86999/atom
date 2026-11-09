@@ -1,0 +1,235 @@
+{
+  "source": "bdd68b6eca4556fa2bd7cc67ca2d0a449d4c41ef",
+  "identity": {
+    "pid": 27463,
+    "started_at": "2026-11-09T13:03:04.173714+00:00",
+    "cwd": "/private/tmp/atom-web-task-project-20261109/backend",
+    "git_commit": "bdd68b6eca45",
+    "source_id": "bdd68b6eca45",
+    "instance_id": "bdd68b6eca45.27463.1794229436",
+    "revision": "bdd68b6eca4556fa2bd7cc67ca2d0a449d4c41ef",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-09T13:03:56.012278+00:00",
+    "process_started_at": "2026-11-09T13:03:56.012277+00:00",
+    "port": 18133,
+    "repo_path": "/private/tmp/atom-web-task-project-20261109",
+    "backend_path": "/private/tmp/atom-web-task-project-20261109/backend",
+    "error": null,
+    "database": "/private/tmp/root-web-main-core-fixture-20261109/atom.db",
+    "byok_key_store": "/private/tmp/atom-web-task-project-20261109/backend/data/byok_keys.json"
+  },
+  "real_product_profile": {
+    "profile": "core",
+    "version": "2026-10-27",
+    "statement": "Company data + trained agent workspace",
+    "capabilities": {
+      "chat": {
+        "label": "Chat",
+        "enabled": true,
+        "job": "Ask questions and direct work."
+      },
+      "documents": {
+        "label": "Data",
+        "enabled": true,
+        "job": "Upload, find, inspect and export company records."
+      },
+      "canvas": {
+        "label": "Workspace",
+        "enabled": true,
+        "job": "Review and edit deliverables: documents, tables, email drafts and presentations."
+      },
+      "agents": {
+        "label": "Agents",
+        "enabled": true,
+        "job": "Create, teach and correct an agent."
+      },
+      "learning": {
+        "label": "Learning",
+        "enabled": true,
+        "job": "Review lessons learned from conversations before they become standing guidance."
+      },
+      "activity": {
+        "label": "Activity",
+        "enabled": true,
+        "job": "See results, failures and unfinished work."
+      },
+      "settings": {
+        "label": "Settings",
+        "enabled": true,
+        "job": "Sign-in, providers and data configuration."
+      },
+      "approvals": {
+        "label": "Approvals",
+        "enabled": true,
+        "nav": false,
+        "min_role": "team_lead",
+        "job": "Supervise work that is waiting for a human decision."
+      },
+      "search": {
+        "label": "Search",
+        "enabled": false,
+        "job": "Cross-surface search (documents search stays available)."
+      },
+      "tasks": {
+        "label": "Tasks",
+        "enabled": false,
+        "job": "Task tracking."
+      },
+      "boards": {
+        "label": "Kanban",
+        "enabled": false,
+        "job": "Kanban boards."
+      },
+      "automations": {
+        "label": "Automations",
+        "enabled": false,
+        "job": "Workflow builder, scheduling and unattended automation."
+      },
+      "marketplace": {
+        "label": "Marketplace",
+        "enabled": false,
+        "job": "Agent/template marketplace."
+      },
+      "command_centers": {
+        "label": "Command Centers",
+        "enabled": false,
+        "job": "Projects, sales, support and knowledge dashboards."
+      },
+      "business_dashboards": {
+        "label": "Business Dashboards",
+        "enabled": false,
+        "job": "Sales, marketing, finance and analytics dashboards."
+      },
+      "productivity": {
+        "label": "Productivity",
+        "enabled": false,
+        "job": "Calendar, business health and voice."
+      },
+      "governance": {
+        "label": "Governance",
+        "enabled": false,
+        "job": "Admin, audit, forensics and self-healing tools."
+      },
+      "connectors": {
+        "label": "Connector Management",
+        "enabled": false,
+        "job": "Broad third-party connector setup (providers stay in Settings)."
+      },
+      "team_chat": {
+        "label": "Team Chat",
+        "enabled": false,
+        "job": "Internal team messaging."
+      }
+    },
+    "enabled_capabilities": [
+      "chat",
+      "documents",
+      "canvas",
+      "agents",
+      "learning",
+      "activity",
+      "settings",
+      "approvals"
+    ],
+    "deferred_capabilities": [
+      "search",
+      "tasks",
+      "boards",
+      "automations",
+      "marketplace",
+      "command_centers",
+      "business_dashboards",
+      "productivity",
+      "governance",
+      "connectors",
+      "team_chat"
+    ],
+    "routes": {
+      "/dashboard": "chat",
+      "/chat": "chat",
+      "/documents": "documents",
+      "/canvas": "canvas",
+      "/agents": "agents",
+      "/learning": "learning",
+      "/goal-runs": "activity",
+      "/execution-history": "activity",
+      "/activity": "activity",
+      "/assignments": "activity",
+      "/approvals": "approvals",
+      "/settings/harness-evolution": "governance",
+      "/settings": "settings",
+      "/login": "core",
+      "/auth": "core",
+      "/not-in-release": "core",
+      "/search": "search",
+      "/tasks": "tasks",
+      "/boards": "boards",
+      "/automations": "automations",
+      "/workflows": "automations",
+      "/scheduling": "automations",
+      "/marketplace": "marketplace",
+      "/dashboards": "command_centers",
+      "/communication": "command_centers",
+      "/sales": "business_dashboards",
+      "/marketing": "business_dashboards",
+      "/finance": "business_dashboards",
+      "/analytics": "business_dashboards",
+      "/calendar": "productivity",
+      "/health": "productivity",
+      "/voice": "productivity",
+      "/admin": "governance",
+      "/audit-trail": "governance",
+      "/dashboard/owner": "governance",
+      "/dashboard/forensics": "governance",
+      "/dashboard/risk": "governance",
+      "/system-status": "governance",
+      "/dev-studio": "governance",
+      "/intelligence": "governance",
+      "/integrations": "connectors",
+      "/google-drive": "connectors",
+      "/onedrive": "connectors",
+      "/team-chat": "team_chat"
+    }
+  },
+  "login_status": 200,
+  "identity_readback": {
+    "id": "36569b7c-ed6d-4221-b4be-f0668cd848c8",
+    "role": "workspace_admin",
+    "tenant_id": null,
+    "workspace_id": null,
+    "onboarding_completed": null
+  },
+  "protected_reads": {
+    "/api/agents/": {
+      "status": 200,
+      "keys": [
+        "success",
+        "data",
+        "timestamp",
+        "message"
+      ],
+      "row_count": 1
+    },
+    "/api/v1/tasks": {
+      "status": 200,
+      "keys": [
+        "tasks"
+      ],
+      "row_count": 0
+    },
+    "/api/v1/projects": {
+      "status": 200,
+      "keys": [
+        "projects"
+      ],
+      "row_count": 0
+    }
+  },
+  "browser": false,
+  "no_auth_override": true,
+  "ordinary_bootstrap": true,
+  "harness_correction": "Initial form-encoded login422 was a client-harness error; actual LoginRequest uses JSON, same as frontend"
+}
