@@ -31,7 +31,7 @@ jest.mock('@react-navigation/native', () => ({
       card: '#fff',
       text: '#000',
       border: '#ccc',
-      error: '#F44336',
+      notification: '#F44336',
       surface: '#fff',
     },
   })),
@@ -40,8 +40,10 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../../services/offlineSyncService', () => ({
   offlineSyncService: {
     subscribe: jest.fn(),
-    getQueue: jest.fn(),
-    saveQueue: jest.fn(),
+    getPendingActions: jest.fn(),
+    removeActions: jest.fn(),
+    retryActions: jest.fn(),
+    prioritizeAction: jest.fn(),
     triggerSync: jest.fn(),
   },
 }));
@@ -86,7 +88,24 @@ describe('PendingActionsList Component', () => {
 
   const mockStatefulQueue = () => {
     const queue = mockActions.map((a) => ({ ...a }));
-    (offlineSyncService.getQueue as jest.Mock).mockImplementation(async () => queue);
+    // Each read is detached like JSON storage; only service commands mutate backing state.
+    (offlineSyncService.getPendingActions as jest.Mock).mockImplementation(async () => queue.map((a) => ({ ...a })));
+    (offlineSyncService.retryActions as jest.Mock).mockImplementation(async (ids: string[]) => {
+      const selected = queue.filter((a) => ids.includes(a.id));
+      selected.forEach((a) => { a.syncAttempts = 0; a.status = 'pending'; delete a.lastSyncError; });
+      return selected.length;
+    });
+    (offlineSyncService.prioritizeAction as jest.Mock).mockImplementation(async (id: string) => {
+      const action = queue.find((a) => a.id === id);
+      if (!action) return false;
+      action.priority = Math.min(action.priority + 2, 10);
+      return true;
+    });
+    (offlineSyncService.removeActions as jest.Mock).mockImplementation(async (ids: string[]) => {
+      const previous = queue.length;
+      for (let i = queue.length - 1; i >= 0; i--) if (ids.includes(queue[i].id)) queue.splice(i, 1);
+      return previous - queue.length;
+    });
     return queue;
   };
 
@@ -99,10 +118,12 @@ describe('PendingActionsList Component', () => {
       return jest.fn();
     });
     // Clone per test: retry/prioritize handlers mutate queue entries in place
-    (offlineSyncService.getQueue as jest.Mock).mockResolvedValue(
+    (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue(
       mockActions.map((a) => ({ ...a }))
     );
-    (offlineSyncService.saveQueue as jest.Mock).mockResolvedValue(undefined);
+    (offlineSyncService.removeActions as jest.Mock).mockResolvedValue(1);
+    (offlineSyncService.retryActions as jest.Mock).mockResolvedValue(1);
+    (offlineSyncService.prioritizeAction as jest.Mock).mockResolvedValue(true);
     (offlineSyncService.triggerSync as jest.Mock).mockResolvedValue(undefined);
   });
 
@@ -117,7 +138,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should render empty state when no actions', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([]);
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([]);
 
       const { findByText } = render(<PendingActionsList />);
 
@@ -212,7 +233,7 @@ describe('PendingActionsList Component', () => {
       // explicit Delete confirmation
       const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
       expect(buttons.some((b: any) => b.text === 'Cancel')).toBe(true);
-      expect(offlineSyncService.saveQueue).not.toHaveBeenCalled();
+      expect(offlineSyncService.removeActions).not.toHaveBeenCalled();
     });
 
     test('should delete action when confirmed', async () => {
@@ -226,8 +247,8 @@ describe('PendingActionsList Component', () => {
       const deleteButton = buttons.find((b: any) => b.text === 'Delete');
       await deleteButton.onPress();
 
-      expect(offlineSyncService.saveQueue).toHaveBeenCalledWith(
-        mockActions.filter((a) => a.id !== 'action1')
+      expect(offlineSyncService.removeActions).toHaveBeenCalledWith(
+        ['action1']
       );
     });
   });
@@ -243,7 +264,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should not show retry button for successful actions', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction(),
         makeAction({ id: 'action3', type: 'canvas_update', payload: null }),
       ]);
@@ -251,7 +272,7 @@ describe('PendingActionsList Component', () => {
       const { queryAllByTestId } = render(<PendingActionsList />);
 
       await waitFor(() => {
-        expect(offlineSyncService.getQueue).toHaveBeenCalled();
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalled();
       });
 
       // No failed actions -> no retry buttons
@@ -306,7 +327,7 @@ describe('PendingActionsList Component', () => {
     test('should show loading indicator when loading', async () => {
       // Never-resolving queue read keeps the component in its loading state,
       // so the empty state must not render yet
-      (offlineSyncService.getQueue as jest.Mock).mockImplementation(
+      (offlineSyncService.getPendingActions as jest.Mock).mockImplementation(
         () => new Promise(() => {})
       );
 
@@ -316,7 +337,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should not show list when loading', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockImplementation(
+      (offlineSyncService.getPendingActions as jest.Mock).mockImplementation(
         () => new Promise(() => {})
       );
 
@@ -391,7 +412,7 @@ describe('PendingActionsList Component', () => {
 
   describe('Timestamp Formatting', () => {
     test('should show "Just now" for recent actions', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction({ createdAt: new Date(Date.now() - 30 * 1000) }),
       ]);
 
@@ -408,7 +429,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should show hours for actions within day', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction({ createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000) }),
       ]);
 
@@ -418,7 +439,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should show days for old actions', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction({ createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) }),
       ]);
 
@@ -438,7 +459,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should show success icon for successful actions', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction(),
         makeAction({ id: 'action3', type: 'canvas_update', payload: null }),
       ]);
@@ -446,7 +467,7 @@ describe('PendingActionsList Component', () => {
       const { queryAllByTestId } = render(<PendingActionsList />);
 
       await waitFor(() => {
-        expect(offlineSyncService.getQueue).toHaveBeenCalled();
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalled();
       });
 
       // Pending-only queue: no retry icons, no error rows
@@ -467,7 +488,7 @@ describe('PendingActionsList Component', () => {
       const { RefreshControl } = require('react-native');
 
       await waitFor(() => {
-        expect(offlineSyncService.getQueue).toHaveBeenCalled();
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalled();
       });
 
       const refreshControl = UNSAFE_getAllByType(RefreshControl)[0];
@@ -475,7 +496,7 @@ describe('PendingActionsList Component', () => {
 
       await waitFor(() => {
         // Mount + refresh reload both read the queue
-        expect(offlineSyncService.getQueue).toHaveBeenCalledTimes(2);
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalledTimes(2);
       });
     });
 
@@ -484,7 +505,7 @@ describe('PendingActionsList Component', () => {
       const { RefreshControl } = require('react-native');
 
       await waitFor(() => {
-        expect(offlineSyncService.getQueue).toHaveBeenCalled();
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalled();
       });
 
       const refreshControl = UNSAFE_getAllByType(RefreshControl)[0];
@@ -493,14 +514,14 @@ describe('PendingActionsList Component', () => {
       fireEvent(refreshControl, 'refresh');
 
       await waitFor(() => {
-        expect(offlineSyncService.getQueue).toHaveBeenCalledTimes(2);
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalledTimes(2);
       });
     });
   });
 
   describe('Edge Cases', () => {
     test('should handle actions with null payload', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction({ payload: null }),
       ]);
 
@@ -511,7 +532,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should handle very long error messages', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction({
           status: 'failed',
           syncAttempts: 1,
@@ -526,7 +547,7 @@ describe('PendingActionsList Component', () => {
     });
 
     test('should handle actions without error', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue([
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue([
         makeAction(),
         makeAction({ id: 'action3', type: 'canvas_update', payload: null }),
       ]);
@@ -542,7 +563,7 @@ describe('PendingActionsList Component', () => {
       const { queryByText } = render(<PendingActionsList />);
 
       await waitFor(() => {
-        expect(offlineSyncService.getQueue).toHaveBeenCalled();
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalled();
       });
 
       expect(queryByText(/Retry 0\/5/)).toBeNull();
@@ -588,8 +609,8 @@ describe('PendingActionsList Component', () => {
       const deleteButton = buttons.find((b: any) => b.text === 'Delete');
       await deleteButton.onPress();
 
-      expect(offlineSyncService.saveQueue).toHaveBeenCalledWith(
-        mockActions.filter((a) => a.id !== 'action1' && a.id !== 'action2')
+      expect(offlineSyncService.removeActions).toHaveBeenCalledWith(
+        ['action1', 'action2']
       );
     });
 
@@ -625,7 +646,7 @@ describe('PendingActionsList Component', () => {
       fireEvent(await findByText('AGENT MESSAGE'), 'onLongPress');
       fireEvent(await findByText('WORKFLOW TRIGGER'), 'onLongPress');
 
-      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      (offlineSyncService.getPendingActions as jest.Mock).mockRejectedValueOnce(new Error('boom'));
       fireEvent.press(await findByText('Retry All'));
 
       await waitFor(() => {
@@ -645,7 +666,7 @@ describe('PendingActionsList Component', () => {
 
       fireEvent.press(await findByText('Delete All'));
       const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
-      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      (offlineSyncService.removeActions as jest.Mock).mockRejectedValueOnce(new Error('boom'));
       await buttons.find((b: any) => b.text === 'Delete').onPress();
 
       await waitFor(() => {
@@ -674,7 +695,7 @@ describe('PendingActionsList Component', () => {
       await findByText('AGENT MESSAGE');
 
       // Enter select mode via the header toggle
-      fireEvent.press(screen.getByTestId('icon-checkboxes-outline'));
+      fireEvent.press(screen.getByTestId('icon-checkbox-outline'));
 
       fireEvent.press(await findByText('AGENT MESSAGE'));
 
@@ -693,22 +714,21 @@ describe('PendingActionsList Component', () => {
       fireEvent.press(getAllByTestId('icon-arrow-up')[0]);
 
       await waitFor(() => {
-        expect(findByText('Priority: 7/10')).toBeTruthy();
+        expect(screen.getByText('Priority: 7/10')).toBeTruthy();
       });
       expect(queue.find((a) => a.id === 'action1')?.priority).toBe(7);
     });
 
     test('should cap priority at 10', async () => {
-      (offlineSyncService.getQueue as jest.Mock).mockImplementation(async () => [
-        makeAction({ priority: 9 }),
-      ]);
+      const queue = mockStatefulQueue();
+      queue.splice(0, queue.length, makeAction({ priority: 9 }));
       const { findByText, getAllByTestId } = render(<PendingActionsList />);
 
       await findByText('AGENT MESSAGE');
       fireEvent.press(getAllByTestId('icon-arrow-up')[0]);
 
       await waitFor(() => {
-        expect(findByText('Priority: 10/10')).toBeTruthy();
+        expect(screen.getByText('Priority: 10/10')).toBeTruthy();
       });
     });
 
@@ -718,7 +738,7 @@ describe('PendingActionsList Component', () => {
       const { findByText, getAllByTestId } = render(<PendingActionsList />);
 
       await findByText('AGENT MESSAGE');
-      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      (offlineSyncService.getPendingActions as jest.Mock).mockRejectedValueOnce(new Error('boom'));
       fireEvent.press(getAllByTestId('icon-arrow-up')[0]);
 
       await waitFor(() => {
@@ -783,14 +803,14 @@ describe('PendingActionsList Component', () => {
       const { findByText } = render(<PendingActionsList />);
 
       await findByText('AGENT MESSAGE');
-      expect(offlineSyncService.getQueue).toHaveBeenCalledTimes(1);
+      expect(offlineSyncService.getPendingActions).toHaveBeenCalledTimes(1);
 
       await act(async () => {
         subscribeCallback?.();
       });
 
       await waitFor(() => {
-        expect(offlineSyncService.getQueue).toHaveBeenCalledTimes(2);
+        expect(offlineSyncService.getPendingActions).toHaveBeenCalledTimes(2);
       });
     });
   });
@@ -798,15 +818,15 @@ describe('PendingActionsList Component', () => {
   describe('Load Errors', () => {
     test('should log an error when the queue load fails', async () => {
       const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      (offlineSyncService.getPendingActions as jest.Mock).mockRejectedValueOnce(new Error('boom'));
 
       const { findByText } = render(<PendingActionsList />);
 
       await waitFor(() => {
         expect(errorSpy).toHaveBeenCalled();
       });
-      // Still shows the empty state after the failed load
-      expect(await findByText('All Caught Up!')).toBeTruthy();
+      // A failed read is not proof that durable work is empty.
+      expect(await findByText('Pending actions unavailable')).toBeTruthy();
       errorSpy.mockRestore();
     });
   });
@@ -823,7 +843,7 @@ describe('PendingActionsList Component', () => {
         ['episode_sync', 'albums'],
         ['mystery_type', 'document'],
       ];
-      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue(
+      (offlineSyncService.getPendingActions as jest.Mock).mockResolvedValue(
         types.map(([type], i) => makeAction({ id: `a${i}`, type, payload: null }))
       );
 
@@ -841,7 +861,7 @@ describe('PendingActionsList Component', () => {
       const { findByText, getAllByTestId } = render(<PendingActionsList />);
 
       await findByText('AGENT MESSAGE');
-      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      (offlineSyncService.getPendingActions as jest.Mock).mockRejectedValueOnce(new Error('boom'));
       fireEvent.press(getAllByTestId('icon-refresh')[0]);
 
       await waitFor(() => {
@@ -857,7 +877,7 @@ describe('PendingActionsList Component', () => {
       await findByText('AGENT MESSAGE');
       fireEvent.press(getAllByTestId('icon-trash')[0]);
       const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
-      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      (offlineSyncService.removeActions as jest.Mock).mockRejectedValueOnce(new Error('boom'));
       await buttons.find((b: any) => b.text === 'Delete').onPress();
 
       await waitFor(() => {

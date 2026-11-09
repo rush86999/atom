@@ -25,6 +25,7 @@ export type StorageKey =
   | 'device_id'
   | 'biometric_enabled'
   | 'offline_queue'
+  | 'offline_storage_quota'
   | 'sync_state'
   | 'episode_cache'
   | 'canvas_cache'
@@ -375,7 +376,8 @@ class StorageService {
   async clearCachedData(): Promise<boolean> {
     try {
       // Clear cache keys but preserve auth tokens
-      const cacheKeys: StorageKey[] = ['episode_cache', 'canvas_cache', 'preferences', 'offline_queue'];
+      // Queued user intent is not disposable cache; only explicit queue removal may erase it.
+      const cacheKeys: StorageKey[] = ['episode_cache', 'canvas_cache', 'preferences'];
 
       let allDeleted = true;
       for (const key of cacheKeys) {

@@ -64,6 +64,8 @@ export interface OfflineAction {
 
 export interface SyncResult {
   success: boolean;
+  skipped?: number;
+  cancelled?: boolean;
   synced: number;
   failed: number;
   conflicts: number;
@@ -136,12 +138,12 @@ const PRIORITY_LEVELS: Record<SyncPriority, number> = {
 class OfflineSyncService {
   private isOnline: boolean = true;
   private syncInProgress: boolean = false;
+  private queueMutationTail: Promise<void> = Promise.resolve();
   private syncTimer: NodeJS.Timeout | null = null;
   private listeners: Set<(state: SyncState) => void> = new Set();
   private progressListeners: Set<(progress: number, operation: string) => void> = new Set();
   private conflictListeners: Set<(conflict: OfflineAction) => void> = new Set();
   private qualityMetrics: SyncQualityMetrics;
-  private storageQuota: StorageQuota;
   private cancelRequested: boolean = false;
 
   /**
@@ -217,43 +219,37 @@ class OfflineSyncService {
     };
 
     try {
-      // Check storage quota before adding
-      const quotaOk = await this.checkStorageQuota(sizeBytes);
-      if (!quotaOk) {
-        await this.cleanupOldEntries(sizeBytes);
-      }
-
-      // Get existing queue
-      const queue = await this.getQueue();
-
-      // Add new action (sorted by priority, then by creation time)
-      queue.push(action);
-      queue.sort((a, b) => {
-        if (a.priority !== b.priority) {
-          return b.priority - a.priority; // Higher priority first
+      return await this.withQueueMutation(async () => {
+        // Check storage quota before adding
+        const quotaOk = await this.checkStorageQuota(sizeBytes);
+        if (!quotaOk) {
+          throw new Error('Offline storage quota reached. Resolve or explicitly remove queued work before adding more.');
         }
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+
+        // Get existing queue
+        const queue = await this.getQueue();
+
+        // Add new action (sorted by priority, then by creation time)
+        queue.push(action);
+        queue.sort((a, b) => {
+          if (a.priority !== b.priority) {
+            return b.priority - a.priority; // Higher priority first
+          }
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        });
+
+        // Save queue
+        await this.saveQueue(queue);
+
+        console.log(`OfflineSync: Queued action ${action.id} (type: ${type}, priority: ${priorityLevel})`);
+
+        // If online, trigger immediate sync for high-priority actions
+        if (this.isOnline && priority >= 7) {
+          this.triggerSync();
+        }
+
+        return action.id;
       });
-
-      // Save queue
-      await this.saveQueue(queue);
-
-      // Update sync state
-      await this.updateSyncState({
-        pendingCount: queue.filter((a) => a.status === 'pending').length,
-      });
-
-      // Update storage quota
-      await this.updateStorageQuota(action.entityType, sizeBytes);
-
-      console.log(`OfflineSync: Queued action ${action.id} (type: ${type}, priority: ${priorityLevel})`);
-
-      // If online, trigger immediate sync for high-priority actions
-      if (this.isOnline && priority >= 7) {
-        this.triggerSync();
-      }
-
-      return action.id;
     } catch (error) {
       console.error('OfflineSync: Failed to queue action:', error);
       throw error;
@@ -298,6 +294,7 @@ class OfflineSyncService {
     let synced = 0;
     let failed = 0;
     let conflicts = 0;
+    let skipped = 0;
     let bytesTransferred = 0;
     const entities = { agents: 0, workflows: 0, canvases: 0, episodes: 0 };
 
@@ -346,6 +343,7 @@ class OfflineSyncService {
 
           try {
             const result = await this.syncAction(action);
+            if (result.skipped) { skipped++; continue; }
 
             if (result.success) {
               synced++;
@@ -364,12 +362,10 @@ class OfflineSyncService {
             } else {
               failed++;
               await this.incrementSyncAttempts(action.id);
-              // Keep failed actions pending so the next sync retries them with
-              // exponential backoff (syncAction sleeps 2^attempts before each
-              // retry). Drop the action once attempts are exhausted instead of
-              // orphaning it in the queue as 'failed' forever.
+              // Retry below the limit; retain exhausted intent as failed for
+              // an explicit owner retry/removal instead of silently dropping it.
               if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
-                await this.removeActionFromQueue(action.id);
+                await this.updateActionStatus(action.id, 'failed');
               } else {
                 await this.updateActionStatus(action.id, 'pending');
               }
@@ -379,7 +375,7 @@ class OfflineSyncService {
             failed++;
             await this.incrementSyncAttempts(action.id);
             if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
-              await this.removeActionFromQueue(action.id);
+              await this.updateActionStatus(action.id, 'failed');
             } else {
               await this.updateActionStatus(action.id, 'pending');
             }
@@ -394,14 +390,16 @@ class OfflineSyncService {
       const newQueue = await this.getQueue();
       const now = new Date();
       const successfulCount = synced > 0 ? synced : 0;
+      const cancelled = this.cancelRequested;
+      const satisfactory = !cancelled && failed === 0 && conflicts === 0 && skipped === 0 && synced === pendingActions.length;
 
       await this.updateSyncState({
         lastSyncAt: now,
         lastSuccessfulSyncAt: successfulCount > 0 ? now : null,
         pendingCount: newQueue.filter((a) => a.status === 'pending').length,
         consecutiveFailures: failed === 0 ? 0 : (await this.getSyncState()).consecutiveFailures + 1,
-        syncProgress: 100,
-        currentOperation: 'Sync complete',
+        syncProgress: satisfactory ? 100 : Math.floor(((synced + failed + conflicts + skipped) / pendingActions.length) * 100),
+        currentOperation: satisfactory ? 'Sync complete' : cancelled ? 'Sync cancelled' : 'Sync incomplete',
       });
 
       const duration = Date.now() - startTime;
@@ -409,8 +407,8 @@ class OfflineSyncService {
       // Update quality metrics
       await this.updateQualityMetrics({
         totalSyncs: this.qualityMetrics.totalSyncs + 1,
-        successfulSyncs: this.qualityMetrics.successfulSyncs + (failed === 0 ? 1 : 0),
-        failedSyncs: this.qualityMetrics.failedSyncs + (failed > 0 ? 1 : 0),
+        successfulSyncs: this.qualityMetrics.successfulSyncs + (satisfactory ? 1 : 0),
+        failedSyncs: this.qualityMetrics.failedSyncs + (satisfactory ? 0 : 1),
         conflictRate: conflicts / (synced + conflicts || 1),
         avgSyncDuration: (this.qualityMetrics.avgSyncDuration * this.qualityMetrics.totalSyncs + duration) / (this.qualityMetrics.totalSyncs + 1),
         avgBytesTransferred: (this.qualityMetrics.avgBytesTransferred * this.qualityMetrics.totalSyncs + bytesTransferred) / (this.qualityMetrics.totalSyncs + 1),
@@ -420,10 +418,12 @@ class OfflineSyncService {
       console.log(`OfflineSync: Sync complete - ${synced} synced, ${failed} failed, ${conflicts} conflicts, ${duration}ms, ${bytesTransferred} bytes`);
 
       return {
-        success: true,
+        success: satisfactory,
         synced,
         failed,
         conflicts,
+        skipped,
+        cancelled,
         duration,
         entities,
         bytesTransferred,
@@ -493,13 +493,14 @@ class OfflineSyncService {
    * Get storage quota information
    */
   async getStorageQuota(): Promise<StorageQuota> {
-    return this.storageQuota;
+    return this.deriveQueueQuota(await this.getQueue());
   }
 
   /**
    * Sync a single action
    */
-  private async syncAction(action: OfflineAction): Promise<{ success: boolean; conflict?: boolean }> {
+  private async syncAction(action: OfflineAction): Promise<{ success: boolean; conflict?: boolean; skipped?: boolean }> {
+    let admitted = false;
     try {
       // Apply exponential backoff for retries
       if (action.syncAttempts > 0) {
@@ -516,8 +517,8 @@ class OfflineSyncService {
         return { success: false };
       }
 
-      // Update status to syncing
-      await this.updateActionStatus(action.id, 'syncing');
+      admitted = await this.claimAction(action);
+      if (!admitted) return { success: false, skipped: true };
 
       switch (action.type) {
         case 'agent_message':
@@ -544,7 +545,7 @@ class OfflineSyncService {
       }
     } catch (error) {
       console.error(`OfflineSync: Failed to sync action ${action.id}:`, error);
-      return { success: false };
+      return { success: false, skipped: !admitted };
     }
   }
 
@@ -887,15 +888,75 @@ class OfflineSyncService {
     return queue.filter((a) => a.status === 'pending').length;
   }
 
+  /** Return fresh serialized pending/failed rows, never shared UI references. */
+  async getPendingActions(): Promise<OfflineAction[]> {
+    return (await this.getQueue()).filter((a) => a.status === 'pending' || a.status === 'failed');
+  }
+
+  async retryActions(ids: readonly string[]): Promise<number> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const selected = queue.filter((a) => ids.includes(a.id));
+      if (selected.some((a) => a.status === 'syncing')) throw new Error('An action is already being synchronized.');
+      const retryable = selected.filter((a) => a.status === 'pending' || a.status === 'failed');
+      if (!retryable.length) return 0;
+      for (const action of retryable) {
+        action.syncAttempts = 0;
+        action.status = 'pending';
+        delete action.lastSyncError;
+      }
+      await this.saveQueue(queue);
+      return retryable.length;
+    });
+  }
+
+  async prioritizeAction(id: string): Promise<boolean> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const action = queue.find((a) => a.id === id);
+      if (!action || action.status === 'completed') return false;
+      if (action.status === 'syncing') throw new Error('An action is already being synchronized.');
+      action.priority = Math.min(action.priority + 2, 10);
+      action.priorityLevel = action.priority >= 10 ? 'critical' : action.priority >= 7 ? 'high' : action.priority >= 5 ? 'normal' : 'low';
+      queue.sort((a, b) => b.priority - a.priority || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      await this.saveQueue(queue);
+      return true;
+    });
+  }
+
+  async removeActions(ids: readonly string[]): Promise<number> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      if (queue.some((a) => ids.includes(a.id) && a.status === 'syncing')) throw new Error('An in-flight action cannot be represented as stopped.');
+      const remaining = queue.filter((a) => !ids.includes(a.id));
+      if (remaining.length === queue.length) return 0;
+      await this.saveQueue(remaining);
+      return queue.length - remaining.length;
+    });
+  }
+
   /**
    * Clear all offline actions
    */
   async clearQueue(): Promise<void> {
-    await mmkvStorage.delete('offline_queue' as StorageKey);
-    await this.updateSyncState({ pendingCount: 0 });
+    return this.withQueueMutation(async () => {
+      if ((await this.getQueue()).some((a) => a.status === 'syncing')) throw new Error('In-flight actions cannot be represented as stopped.');
+      if (!(await mmkvStorage.delete('offline_queue' as StorageKey))) {
+        throw new Error('Offline queue deletion was not confirmed.');
+      }
+      await this.reconcileQueueMetadata([]);
+    });
   }
 
   // Private helper methods
+
+  /** Serialize participating queue writes in this JS runtime; not a native/process lock. */
+  private withQueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.queueMutationTail.then(operation);
+    // Both outcomes release the next writer; a rejected write never poisons the tail.
+    this.queueMutationTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
 
   private async getQueue(): Promise<OfflineAction[]> {
     const queueData = await mmkvStorage.getString('offline_queue' as StorageKey);
@@ -909,48 +970,69 @@ class OfflineSyncService {
         createdAt: new Date(action.createdAt),
       }));
     } catch (error) {
-      console.error('OfflineSync: Failed to parse queue:', error);
-      // Clear corrupted data
-      await mmkvStorage.delete('offline_queue' as StorageKey);
-      throw new Error(
-        'Offline queue data corrupted. Queue has been reset. Please try again.'
-      );
+      console.error('OfflineSync: Queue parsing failed; original bytes retained.');
+      // Keep the original bytes for recovery. A parse error is not an empty queue.
+      throw new Error('Offline queue data is unreadable; original data has been retained.');
     }
   }
 
   private async saveQueue(queue: OfflineAction[]): Promise<void> {
-    await mmkvStorage.setString('offline_queue' as StorageKey, JSON.stringify(queue));
+    if (!(await mmkvStorage.setString('offline_queue' as StorageKey, JSON.stringify(queue)))) {
+      throw new Error('Offline queue write was not confirmed.');
+    }
+    await this.reconcileQueueMetadata(queue);
+  }
+
+  private async claimAction(expected: OfflineAction): Promise<boolean> {
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const current = queue.find((a) => a.id === expected.id);
+      if (!current || current.status !== 'pending') return false;
+      const material = (a: OfflineAction) => JSON.stringify([a.type, a.payload, a.userId, a.deviceId, a.entityType, a.entityId, a.conflictResolution, a.deltaHash]);
+      if (material(current) !== material(expected)) return false;
+      current.status = 'syncing';
+      await this.saveQueue(queue);
+      return true;
+    });
   }
 
   private async updateActionStatus(id: string, status: OfflineActionStatus): Promise<void> {
-    const queue = await this.getQueue();
-    const action = queue.find((a) => a.id === id);
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const action = queue.find((a) => a.id === id);
 
-    if (action) {
-      action.status = status;
-      await this.saveQueue(queue);
-    }
+      if (action) {
+        action.status = status;
+        await this.saveQueue(queue);
+      }
+    });
   }
 
   private async incrementSyncAttempts(id: string): Promise<void> {
-    const queue = await this.getQueue();
-    const action = queue.find((a) => a.id === id);
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const action = queue.find((a) => a.id === id);
 
-    if (action) {
-      action.syncAttempts += 1;
-      await this.saveQueue(queue);
-    }
+      if (action) {
+        action.syncAttempts += 1;
+        await this.saveQueue(queue);
+      }
+    });
   }
 
   private async removeActionFromQueue(id: string): Promise<void> {
-    const queue = await this.getQueue();
-    await this.saveQueue(queue.filter((a) => a.id !== id));
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      await this.saveQueue(queue.filter((a) => a.id !== id));
+    });
   }
 
   private async removeCompletedActions(): Promise<void> {
-    const queue = await this.getQueue();
-    const filtered = queue.filter((a) => a.status !== 'completed');
-    await this.saveQueue(filtered);
+    return this.withQueueMutation(async () => {
+      const queue = await this.getQueue();
+      const filtered = queue.filter((a) => a.status !== 'completed');
+      await this.saveQueue(filtered);
+    });
   }
 
   private async updateSyncState(updates: Partial<SyncState>): Promise<void> {
@@ -1014,7 +1096,7 @@ class OfflineSyncService {
    * Check storage quota
    */
   private async checkStorageQuota(additionalBytes: number = 0): Promise<boolean> {
-    const { usedBytes, maxBytes } = this.storageQuota;
+    const { usedBytes, maxBytes } = this.deriveQueueQuota(await this.getQueue());
     const projectedUsage = usedBytes + additionalBytes;
     const usageRatio = projectedUsage / maxBytes;
 
@@ -1033,80 +1115,74 @@ class OfflineSyncService {
   /**
    * Update storage quota
    */
-  private async updateStorageQuota(entityType: EntityType | undefined, bytes: number): Promise<void> {
-    if (entityType && this.storageQuota.breakdown[entityType] !== undefined) {
-      this.storageQuota.breakdown[entityType] += bytes;
-    } else {
-      this.storageQuota.breakdown.other += bytes;
+  private deriveQueueQuota(queue: readonly OfflineAction[]): StorageQuota {
+    const quota: StorageQuota = {
+      usedBytes: 0, maxBytes: STORAGE_QUOTA_BYTES,
+      warningThreshold: WARNING_THRESHOLD, enforcementThreshold: ENFORCEMENT_THRESHOLD,
+      breakdown: { agents: 0, workflows: 0, canvases: 0, episodes: 0, other: 0 },
+    };
+    for (const action of queue) {
+      // Rebuild the existing payload-budget estimate; stored counters are projections.
+      const bytes = this.calculateActionSize(action.payload);
+      const entity = action.entityType;
+      if (entity === 'agents' || entity === 'workflows' || entity === 'canvases' || entity === 'episodes') quota.breakdown[entity] += bytes;
+      else quota.breakdown.other += bytes;
+      quota.usedBytes += bytes;
     }
-    this.storageQuota.usedBytes += bytes;
-
-    await mmkvStorage.setObject('storage_quota' as StorageKey, this.storageQuota);
+    return quota;
   }
 
-  /**
-   * Initialize storage quota
-   */
+  private async reconcileQueueMetadata(queue: readonly OfflineAction[]): Promise<void> {
+    try {
+      const state = await this.getSyncState();
+      const stateSaved = await mmkvStorage.setObject('sync_state', { ...state, pendingCount: queue.filter((a) => a.status === 'pending').length });
+      // Keep queue-derived metadata separate from StorageService's whole-store quota.
+      const quotaSaved = await mmkvStorage.setObject('offline_storage_quota', this.deriveQueueQuota(queue));
+      if (!stateSaved || !quotaSaved) console.warn('OfflineSync: Queue committed; metadata projection write not confirmed.');
+    } catch {
+      console.warn('OfflineSync: Queue committed; metadata projection unavailable.');
+    }
+  }
+
   private async initializeStorageQuota(): Promise<void> {
-    const saved = await mmkvStorage.getObject<StorageQuota>('storage_quota' as StorageKey);
-    this.storageQuota = saved || {
-      usedBytes: 0,
-      maxBytes: STORAGE_QUOTA_BYTES,
-      warningThreshold: WARNING_THRESHOLD,
-      enforcementThreshold: ENFORCEMENT_THRESHOLD,
-      breakdown: {
-        agents: 0,
-        workflows: 0,
-        canvases: 0,
-        episodes: 0,
-        other: 0,
-      },
-    };
+    await this.reconcileQueueMetadata(await this.getQueue());
   }
 
   /**
    * Cleanup old entries using LRU strategy
    */
   private async cleanupOldEntries(requiredBytes: number = 0): Promise<void> {
-    console.log('OfflineSync: Cleaning up old entries');
+    return this.withQueueMutation(async () => {
+      console.log('OfflineSync: Cleaning up old entries');
 
-    const queue = await this.getQueue();
+      const queue = await this.getQueue();
 
-    // Sort by creation time (oldest first)
-    const sorted = [...queue].sort((a, b) =>
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
+      // Sort by creation time (oldest first)
+      const sorted = [...queue].sort((a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
 
-    let freedBytes = 0;
-    const toRemove: string[] = [];
+      let freedBytes = 0;
+      const toRemove: string[] = [];
 
-    for (const action of sorted) {
-      // Skip high-priority actions
-      if (action.priority >= 7) continue;
+      for (const action of sorted) {
+        // Only terminal completed entries are disposable, regardless of priority.
+        if (action.status !== 'completed') continue;
 
-      // Remove until we have enough space
-      toRemove.push(action.id);
-      freedBytes += action.sizeBytes || 0;
+        // Remove until we have enough space
+        toRemove.push(action.id);
+        freedBytes += action.sizeBytes || 0;
 
-      if (freedBytes >= requiredBytes) break;
-    }
-
-    if (toRemove.length > 0) {
-      const filtered = queue.filter(a => !toRemove.includes(a.id));
-      await this.saveQueue(filtered);
-
-      // Update storage quota
-      for (const action of sorted.filter(a => toRemove.includes(a.id))) {
-        if (action.entityType && this.storageQuota.breakdown[action.entityType] !== undefined) {
-          this.storageQuota.breakdown[action.entityType] -= action.sizeBytes || 0;
-        }
-        this.storageQuota.usedBytes -= action.sizeBytes || 0;
+        if (freedBytes >= requiredBytes) break;
       }
 
-      await mmkvStorage.setObject('storage_quota' as StorageKey, this.storageQuota);
+      if (toRemove.length > 0) {
+        const filtered = queue.filter(a => !toRemove.includes(a.id));
+        await this.saveQueue(filtered);
 
-      console.log(`OfflineSync: Cleaned up ${toRemove.length} entries, freed ${freedBytes} bytes`);
-    }
+        console.log(`OfflineSync: Cleaned up ${toRemove.length} entries, freed ${freedBytes} bytes`);
+      }
+    });
   }
 
   /**

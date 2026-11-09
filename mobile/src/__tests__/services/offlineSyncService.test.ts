@@ -248,7 +248,7 @@ describe('offlineSyncService', () => {
       jest.useRealTimers();
 
       const state = await offlineSyncService.getSyncState();
-      // After 5 attempts, action should be removed
+      // After5 attempts, failed intent remains for explicit owner retry/removal
       expect(state.consecutiveFailures).toBeGreaterThan(0);
     });
 
@@ -555,7 +555,7 @@ describe('offlineSyncService', () => {
 
     test('should check storage quota at warning threshold', async () => {
       // Queue enough actions to reach warning threshold (80%)
-      const largePayload = { data: 'x'.repeat(40 * 1024 * 1024) }; // 40MB
+      const largePayload = { data: 'x'.repeat(20 * 1024 * 1024) }; // ~40MB under the service's2-byte estimate
 
       await offlineSyncService.queueAction(
         'agent_message',
@@ -1054,7 +1054,7 @@ describe('offlineSyncService', () => {
 
       const state = await offlineSyncService.getSyncState();
 
-      // After 5 attempts, action should be removed
+      // After5 attempts, failed intent remains for explicit owner retry/removal
       expect(state.consecutiveFailures).toBeGreaterThanOrEqual(0);
     }, 10000);
   });
@@ -1487,7 +1487,7 @@ describe('offlineSyncService', () => {
   // ========================================================================
 
   describe('Queue Integrity', () => {
-    test('should reset the queue when stored data is corrupted', async () => {
+    test('should retain original queue bytes when stored data is corrupted', async () => {
       const { storageService } = require('../../services/storageService');
       storageService.setString('offline_queue', '{corrupted-json');
       const errorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -1495,11 +1495,11 @@ describe('offlineSyncService', () => {
       const result = await offlineSyncService.triggerSync();
 
       expect(result.success).toBe(false);
-      expect(storageService.getString('offline_queue')).toBeNull();
+      expect(storageService.getString('offline_queue')).toBe('{corrupted-json');
       errorSpy.mockRestore();
     });
 
-    test('should evict old low-priority actions when storage quota is exceeded', async () => {
+    test('should refuse new work without evicting unsent actions when quota is exceeded', async () => {
       const { storageService } = require('../../services/storageService');
       const NetInfo = require('@react-native-community/netinfo');
       const networkCallback = NetInfo.addEventListener.mock.calls[0][0];
@@ -1525,25 +1525,27 @@ describe('offlineSyncService', () => {
         'device_1'
       );
 
-      // Simulate near-full storage: 49MB of 50MB used
-      (offlineSyncService as any).storageQuota.usedBytes = 49 * 1024 * 1024;
-      const bigPayload = { data: 'x'.repeat(3 * 1024 * 1024) };
+      // Fill the real retained queue budget instead of trusting a mutable counter.
       await offlineSyncService.queueAction(
+        'agent_message', { label: 'retained-reservation', blob: 'x'.repeat(23 * 1024 * 1024) },
+        'low', 'user_1', 'device_1'
+      );
+      const bigPayload = { data: 'x'.repeat(3 * 1024 * 1024) };
+      await expect(offlineSyncService.queueAction(
         'agent_message',
         bigPayload,
         'normal',
         'user_1',
         'device_1'
-      );
+      )).rejects.toThrow('quota reached');
 
       const queue = JSON.parse(storageService.getString('offline_queue')!);
       const labels = queue.map((a: any) => a.payload.label || a.payload.data);
       expect(labels).toContain('keep-critical');
-      expect(labels).not.toContain('old-low');
-      expect(labels.some((l: any) => typeof l === 'string' && l.startsWith('x'))).toBe(true);
+      expect(labels).toContain('old-low');
+      expect(labels.some((l: any) => typeof l === 'string' && l.startsWith('x'))).toBe(false);
 
-      // Restore online state for subsequent tests
-      networkCallback({ isConnected: true });
+      // The next fixture owns network initialization; do not start a detached sync here.
     });
   });
 
@@ -1761,7 +1763,7 @@ describe('offlineSyncService', () => {
       const result = await offlineSyncService.triggerSync();
 
       expect(result.failed).toBe(9);
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
       // All remain pending — retried with backoff on the next sync
       expect(await offlineSyncService.getPendingCount()).toBe(9);
     });

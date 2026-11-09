@@ -28,7 +28,7 @@ import {
   Alert,
 } from 'react-native';
 import { useTheme } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import { offlineSyncService, OfflineAction, OfflineActionStatus } from '../../services/offlineSyncService';
 import { useRefreshControl } from '../hooks/useRefreshControl';
 
@@ -50,6 +50,7 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
   const [sortBy, setSortBy] = useState<SortOption>('time');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
 
   const { refreshControl, refreshing } = useRefreshControl({
@@ -71,10 +72,12 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
     setIsLoading(true);
     try {
       // Get pending actions from sync service
-      const queue = await (offlineSyncService as any).getQueue();
+      const queue = await offlineSyncService.getPendingActions();
       const pending = queue.filter((a: OfflineAction) => a.status === 'pending' || a.status === 'failed');
       setActions(pending);
+      setLoadError(false);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to load pending actions:', error);
     } finally {
       setIsLoading(false);
@@ -140,12 +143,10 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
 
   const handleRetryAction = async (action: OfflineAction) => {
     try {
-      // Reset sync attempts
-      action.syncAttempts = 0;
-      action.status = 'pending';
+      const retried = await offlineSyncService.retryActions([action.id]);
       await loadActions();
-      // Trigger sync
-      offlineSyncService.triggerSync();
+      // Trigger only a persisted retry, not a detached UI edit.
+      if (retried) offlineSyncService.triggerSync();
     } catch (error) {
       Alert.alert('Error', 'Failed to retry action');
     }
@@ -162,10 +163,7 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              // Remove from queue
-              const queue = await (offlineSyncService as any).getQueue();
-              const filtered = queue.filter((a: OfflineAction) => a.id !== actionId);
-              await (offlineSyncService as any).saveQueue(filtered);
+              await offlineSyncService.removeActions([actionId]);
               await loadActions();
             } catch (error) {
               Alert.alert('Error', 'Failed to delete action');
@@ -178,8 +176,7 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
 
   const handlePrioritizeAction = async (action: OfflineAction) => {
     try {
-      // Increase priority
-      action.priority = Math.min(action.priority + 2, 10);
+      await offlineSyncService.prioritizeAction(action.id);
       await loadActions();
     } catch (error) {
       Alert.alert('Error', 'Failed to prioritize action');
@@ -198,15 +195,9 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
 
   const handleBatchRetry = async () => {
     try {
-      for (const actionId of selectedActions) {
-        const action = actions.find(a => a.id === actionId);
-        if (action) {
-          action.syncAttempts = 0;
-          action.status = 'pending';
-        }
-      }
+      const retried = await offlineSyncService.retryActions([...selectedActions]);
       await loadActions();
-      offlineSyncService.triggerSync();
+      if (retried) offlineSyncService.triggerSync();
       setSelectedActions(new Set());
       setIsSelectMode(false);
     } catch (error) {
@@ -225,9 +216,7 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              const queue = await (offlineSyncService as any).getQueue();
-              const filtered = queue.filter((a: OfflineAction) => !selectedActions.has(a.id));
-              await (offlineSyncService as any).saveQueue(filtered);
+              await offlineSyncService.removeActions([...selectedActions]);
               await loadActions();
               setSelectedActions(new Set());
               setIsSelectMode(false);
@@ -374,7 +363,7 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
             style={styles.headerButton}
             onPress={() => setIsSelectMode(!isSelectMode)}
           >
-            <Icon name="checkboxes-outline" size={24} color={colors.text} />
+            <Icon name="checkbox-outline" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -457,18 +446,20 @@ export const PendingActionsList: React.FC<PendingActionsListProps> = ({
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Icon name="checkmark-circle" size={64} color="#34C759" />
+      <Icon name={loadError ? 'alert-circle' : 'checkmark-circle'} size={64} color={loadError ? colors.notification : '#34C759'} />
       <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        All Caught Up!
+        {loadError ? 'Pending actions unavailable' : 'All Caught Up!'}
       </Text>
       <Text style={[styles.emptyText, { color: colors.text }]}>
-        No pending actions to sync
+        {loadError ? 'Retained work has not been cleared. Try loading it again.' : 'No pending actions to sync'}
       </Text>
+      {loadError && <TouchableOpacity onPress={loadActions} accessibilityLabel="Retry loading pending actions"><Text style={{ color: colors.primary }}>Retry loading</Text></TouchableOpacity>}
     </View>
   );
 
   return (
     <View style={[styles.container, style]}>
+      {loadError && actions.length > 0 && <Text accessibilityRole="alert" style={{ color: colors.notification }}>Unable to refresh pending actions. Showing the last loaded work.</Text>}
       <FlatList
         data={filteredAndSortedActions}
         renderItem={renderAction}
