@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `2abf3c689`; later changes
+reference describes the checked-in companion at source `2a5345b5b`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -22,7 +22,8 @@ npm run typecheck
 
 Skipping install scripts was intentional for these controlled checks. It does
 not prepare native modules or demonstrate an iOS/Android build. The strict
-project-wide type check currently fails with 402 diagnostics at this source. Keep its complete source/test scope;
+project-wide type check still fails with 354 diagnostics at this source (402 at
+`2abf3c689`). Keep its complete source/test scope;
 do not hide errors with exclusions, ambient module shims or weaker settings.
 
 One reproducible controlled camera selection is:
@@ -51,9 +52,21 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Storage and offline work | Installed MMKV4 wrapper; serialized existing queue writes, retained failed/unsent work, persisted UI retry/priority/delete and truthful incomplete outcomes; 743 selected controls at `11be7eb1c`. Fourteen-day retention is simulated time. | Native MMKV/encrypted migration, current-session binding, safe automatic startup, interrupted/uncertain effects and real elapsed soak. Controlled storage/UI tests do not establish those behaviors. |
 | Session recovery | Request-owned generation, conditional login/refresh commits, server expiry, single-flight refresh, startup and mounted revocation controls; 808 combined controls at `ae102ca2d`. | Native restart/migration, full application bootstrap, live account/backend/device ownership and unknown-effect reconciliation. |
 | Sync reporting | Queue-derived unresolved counts, observed pass IDs/results and entity counters, current-result validation and once-only completion callbacks; 965 combined controls at `2abf3c689`, including the real service/modal join with controlled transport and storage. | Native persistence/restart, current-account queue authority, full app bootstrap, actual API/business-result and unknown-effect recovery qualification. |
+| Location ownership | Installed subscription removal, shared pending starts, stop-generation fencing, stale callback refusal and retryable failed removal; 96 service controls plus 67 screen/agent controls at `2a5345b5b`. | Actual OS permissions/background location, physical GPS stopping, device and complete mobile journeys. |
+| Voice input | Mounted component supplies the installed Expo AV high-quality preset; 72 component controls at `9bb7c99a3`. | No production import caller found for this component; real microphone, native permissions, recording files and integrated chat wiring remain unqualified. |
+
+The latest combined controlled selection at `2a5345b5b` has 1,314 passes,
+zero failures and two intentional platform-registration sentinels skipped across
+34 files. The generic verification driver therefore remains false under its
+zero-skips rule; this is not 1,316 executed passes or a qualified mobile build.
 
 Source-bound packets:
 
+- [Location start/stop ownership](../docs/acceptance/evidence/mobile_location_ownership_2a5345b5b/README.md)
+- [Location subscription and truthful callers](../docs/acceptance/evidence/mobile_location_subscription_11b54c2ea/README.md)
+- [Voice recording preset](../docs/acceptance/evidence/mobile_audio_preset_9bb7c99a3/README.md)
+- [Platform helper contracts](../docs/acceptance/evidence/mobile_platform_helpers_92807406b/README.md)
+- [Storage test helper contracts](../docs/acceptance/evidence/mobile_test_storage_helpers_8e47aab00/README.md)
 - [Observed sync results](../docs/acceptance/evidence/mobile_sync_observed_results_2abf3c689/README.md)
 - [Session recovery controls](../docs/acceptance/evidence/mobile_session_recovery_ae102ca2d/README.md)
 - [Camera/gallery SDK controls](../docs/acceptance/evidence/mobile_camera_sdk_8ef724ee0/README.md)
