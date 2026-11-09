@@ -1,0 +1,29 @@
+{
+  "executed_source": "707fadb85",
+  "jest_actual_exit": 0,
+  "suites_passed": 54,
+  "tests_passed": 1917,
+  "tests_failed": 0,
+  "tests_skipped": [
+    "testUtils skipOnPlatform / onlyOnPlatform Skipped on ios",
+    "testUtils skipOnPlatform / onlyOnPlatform Only on android"
+  ],
+  "strict_all_assertions_passed": false,
+  "compiler": {
+    "errors": 139,
+    "mobile_build_qualified": false
+  },
+  "scope": "controlled JS/Jest, cache/transport/owner and mocked UI behavior; not native/device or live backend acceptance",
+  "source_note": "Broad run captured after source commit707fadb85 with tracked tree clean; target compiler/105-case capture preceded that commit but used identical fixture bytes. No source edits occurred during broad run.",
+  "open": [
+    "139 strict compiler errors",
+    "mobile backend DTO/route and verified receipt agreement",
+    "real device/native build and platform qualification",
+    "remaining independent cache peer interleavings beyond tested scope"
+  ],
+  "native_cli": {
+    "route": "opencode-go/deepseek-v4.1-flash",
+    "all_proposals_independently_tested": true,
+    "partial_candidates_not_self_accepted": true
+  }
+}
