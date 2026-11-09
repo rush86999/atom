@@ -49,7 +49,6 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Notification acquisition | Current permission and exact optional user/device cache binding; 169 selected notification/context cases at `70030548e`. | Confirmed backend registration, delivery and actual OS/device behavior. Acquiring an SDK token is not a durable backend registration receipt. |
 | Forms and chat | Focused controls for numeric/length validation, installed picker APIs and swipe actions are being retained during repair. | Complete compiler/build, integrated mobile journeys, native access and end-to-end task completion. |
 | Storage and offline work | Installed MMKV4 wrapper; serialized existing queue writes, retained failed/unsent work, persisted UI retry/priority/delete and truthful incomplete outcomes; 743 selected controls at `11be7eb1c`. Fourteen-day retention is simulated time. | Native MMKV/encrypted migration, current-session binding, safe automatic startup, interrupted/uncertain effects and real elapsed soak. Controlled storage/UI tests do not establish those behaviors. |
-
 | Session recovery | Request-owned generation, conditional login/refresh commits, server expiry, single-flight refresh, startup and mounted revocation controls; 808 combined controls at `ae102ca2d`. | Native restart/migration, full application bootstrap, live account/backend/device ownership and unknown-effect reconciliation. |
 
 Source-bound packets:
