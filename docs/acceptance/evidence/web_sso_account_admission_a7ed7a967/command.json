@@ -1,0 +1,23 @@
+{
+  "cwd": "backend",
+  "env": {
+    "TESTING": "1",
+    "DATABASE_URL": "explicit fresh private SQLite file",
+    "ATOM_DATA_DIR": "fresh private scratch data root",
+    "PYTHONPATH": "existing compatibility plugin path and backend"
+  },
+  "gate": "run_bounded_test_gate.py --profile bounded",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/api/test_sso_oidc_routes.py",
+    "-q",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "no:randomly",
+    "--tb=short"
+  ],
+  "provider_authority": "controlled scratch issuer only; no live account/provider action"
+}
