@@ -29,6 +29,8 @@ interface Message {
   agent_maturity?: 'STUDENT' | 'INTERN' | 'SUPERVISED' | 'AUTONOMOUS';
   timestamp: Date;
   isStreaming?: boolean;
+  showTimestamp?: boolean;
+  read?: boolean;
   governance?: {
     action_complexity?: number;
     requires_approval?: boolean;
@@ -245,7 +247,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
           ]}
         >
           {/* Show agent name for first message in group */}
-          {!isUser && message.agent_name && (message as any).showTimestamp !== false && (
+          {!isUser && message.agent_name && message.showTimestamp !== false && (
             <Text style={[styles.agentName, { color: theme.colors.onSurfaceVariant }]}>
               {message.agent_name}
             </Text>
@@ -267,20 +269,21 @@ const MessageItem: React.FC<MessageItemProps> = ({
           {renderGovernanceBadges()}
 
           {/* Show timestamp for first message in group or last message */}
-          {(message as any).showTimestamp !== false && (
+          {message.showTimestamp !== false && (
             <View style={styles.timestampRow}>
               <Text style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}>
                 {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
               </Text>
 
               {/* Read receipts for user messages */}
-              {isUser && (message as any).read && (
-                <Icon
-                  source="check-all"
-                  size={14}
-                  color={theme.colors.primary}
-                  style={styles.readReceipt}
-                />
+              {isUser && message.read && (
+                <View style={styles.readReceipt}>
+                  <Icon
+                    source="check-all"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                </View>
               )}
             </View>
           )}
@@ -482,7 +485,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   /**
    * Render each item
    */
-  const renderItem = ({ item }: { item: { type: string; data?: Message; date?: Date } }) => {
+  const renderItem = ({ item }: { item: { id: string; type: string; data?: Message; date?: Date } }) => {
     if (item.type === 'date' && item.date) {
       return renderDateSeparator(item.date);
     }

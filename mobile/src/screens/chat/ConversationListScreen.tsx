@@ -16,8 +16,9 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useTheme, Avatar, Badge, Searchbar, Chip, IconButton, SwipeRow, FAB } from 'react-native-paper';
+import { useTheme, Avatar, Badge, Searchbar, Chip, IconButton, FAB } from 'react-native-paper';
 import { Icon } from 'react-native-paper';
+import { Swipeable } from 'react-native-gesture-handler';
 import { formatDistanceToNow } from 'date-fns';
 import { chatService } from '../../services/chatService';
 import { ConversationSummary } from '../../services/chatService';
@@ -307,28 +308,26 @@ export function ConversationListScreen() {
     const isSelected = selectedConversations.has(item.session_id);
 
     return (
-      <SwipeRow
-        leftOpenValue={80}
-        rightOpenValue={-150}
-        disableRightSwipe={true}
+      <Swipeable
+        renderRightActions={() => (
+          <View style={styles.swipeActions}>
+            <TouchableOpacity
+              style={[styles.swipeButton, styles.archiveButton]}
+              onPress={() => handleArchive(item.session_id)}
+            >
+              <Icon source="archive" size={24} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.swipeButton, styles.deleteButton]}
+              onPress={() => handleDelete(item.session_id)}
+            >
+              <Icon source="delete" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+        overshootRight={false}
+        rightThreshold={40}
       >
-        {/* Hidden actions */}
-        <View style={styles.swipeActions}>
-          <TouchableOpacity
-            style={[styles.swipeButton, styles.archiveButton]}
-            onPress={() => handleArchive(item.session_id)}
-          >
-            <Icon source="archive" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.swipeButton, styles.deleteButton]}
-            onPress={() => handleDelete(item.session_id)}
-          >
-            <Icon source="delete" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Visible content */}
         <TouchableOpacity
           style={[
             styles.conversationItem,
@@ -375,7 +374,7 @@ export function ConversationListScreen() {
             </Text>
           </View>
         </TouchableOpacity>
-      </SwipeRow>
+      </Swipeable>
     );
   };
 
@@ -591,7 +590,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    flex: 1,
+    height: '100%',
   },
   swipeButton: {
     width: 75,

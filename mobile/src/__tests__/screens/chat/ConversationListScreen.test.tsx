@@ -8,6 +8,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ConversationListScreen } from '../../../screens/chat/ConversationListScreen';
+import { Swipeable } from 'react-native-gesture-handler';
 
 // Mock @react-navigation/native
 const mockNavigation = {
@@ -84,11 +85,6 @@ jest.mock('react-native-paper', () => ({
     const React = require('react');
     const { TouchableOpacity } = require('react-native');
     return <TouchableOpacity onPress={onPress} testID={`icon-${icon}`} />;
-  },
-  SwipeRow: ({ children, leftOpenValue, rightOpenValue, disableRightSwipe }: any) => {
-    const React = require('react');
-    const { View } = require('react-native');
-    return <View>{children}</View>;
   },
   FAB: ({ icon, onPress, label, style }: any) => {
     const React = require('react');
@@ -174,6 +170,18 @@ jest.mock('react-native/Libraries/Alert/Alert', () => ({
 }));
 
 describe('ConversationListScreen', () => {
+  it('uses the installed gesture-handler swipe component with the actual right-action contract', async () => {
+    const view = render(<ConversationListScreen />);
+    await waitFor(() => expect(view.getByText('Test Agent 1')).toBeTruthy());
+    const rows = view.UNSAFE_getAllByType(Swipeable);
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(typeof row.props.renderRightActions).toBe('function');
+      expect(row.props.renderLeftActions).toBeUndefined();
+      expect(row.props.overshootRight).toBe(false);
+    }
+    // Archive/delete callback and failure cases below retain their assertions.
+  });
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
