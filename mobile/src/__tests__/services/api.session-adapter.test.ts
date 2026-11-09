@@ -51,7 +51,19 @@ describe('real Axios session request binding', () => {
       return { config, status: 200, statusText: 'OK', headers: {}, data: {} };
     };
     const config: AxiosRequestConfig & { expectedAccessTokenSnapshot: unknown } = { adapter, expectedAccessTokenSnapshot: expected };
-    expect((await apiService.post('/controlled/bound-write', {}, config)).success).toBe(false);
+    expect(await Reflect.apply(apiService.post, apiService, ['/controlled/bound-write', {}, config])).toMatchObject({ success: false });
+    expect(dispatched).toBe(0);
+  });
+
+  test.each<Array<'get' | 'post' | 'put' | 'delete'>[number]>(['get', 'post', 'put', 'delete'])('explicit undefined session guard on %s is rejected before Axios normalization', async verb => {
+    let dispatched = 0;
+    const adapter: AxiosAdapter = async config => {
+      dispatched += 1;
+      return { config, status: 200, statusText: 'OK', headers: {}, data: {} };
+    };
+    const config = { adapter, expectedAccessTokenSnapshot: undefined };
+    const args = verb === 'get' || verb === 'delete' ? ['/controlled/bound-write', config] : ['/controlled/bound-write', {}, config];
+    expect(await Reflect.apply(apiService[verb], apiService, args)).toMatchObject({ success: false });
     expect(dispatched).toBe(0);
   });
 

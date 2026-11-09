@@ -52,20 +52,13 @@ function isValidAccessTokenSnapshot(value: unknown): value is AccessTokenSnapsho
   );
 }
 
-function getRequestErrorMessage(error: unknown): string {
-  if (isUnknownRecord(error)) {
-    const response = error.response;
-    if (isUnknownRecord(response)) {
-      const data = response.data;
-      if (isUnknownRecord(data)) {
-        const detail = data.detail;
-        if (typeof detail === 'string' && detail.length > 0) return detail;
-      }
-    }
-    const message = error.message;
-    if (typeof message === 'string' && message.length > 0) return message;
+/** Validate before Axios normalization can discard explicit undefined. */
+function validateExpectedSnapshot(config: AxiosRequestConfig | undefined): void {
+  if (!config || !Object.prototype.hasOwnProperty.call(config, EXPECTED_SNAPSHOT_KEY)) return;
+  const expected = isUnknownRecord(config) ? config[EXPECTED_SNAPSHOT_KEY] : undefined;
+  if (!isValidAccessTokenSnapshot(expected)) {
+    throw new Error('Access token snapshot for this request is invalid');
   }
-  return 'Request failed';
 }
 
 class ApiService {
@@ -164,12 +157,13 @@ class ApiService {
    */
   async get<T>(url: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.get<T>(url, config);
+      validateExpectedSnapshot(config);
+      const response: AxiosResponse<T> = await this.client.get(url, config);
       return { success: true, data: response.data };
-    } catch (error: unknown) {
+    } catch (error: any) {
       return {
         success: false,
-        error: getRequestErrorMessage(error),
+        error: error.response?.data?.detail || error.message || 'Request failed',
       };
     }
   }
@@ -177,14 +171,15 @@ class ApiService {
   /**
    * Generic POST request
    */
-  async post<T>(url: string, data?: unknown, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
+  async post<T>(url: string, data?: any, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.post<T>(url, data, config);
+      validateExpectedSnapshot(config);
+      const response: AxiosResponse<T> = await this.client.post(url, data, config);
       return { success: true, data: response.data };
-    } catch (error: unknown) {
+    } catch (error: any) {
       return {
         success: false,
-        error: getRequestErrorMessage(error),
+        error: error.response?.data?.detail || error.message || 'Request failed',
       };
     }
   }
@@ -192,14 +187,15 @@ class ApiService {
   /**
    * Generic PUT request
    */
-  async put<T>(url: string, data?: unknown, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
+  async put<T>(url: string, data?: any, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.put<T>(url, data, config);
+      validateExpectedSnapshot(config);
+      const response: AxiosResponse<T> = await this.client.put(url, data, config);
       return { success: true, data: response.data };
-    } catch (error: unknown) {
+    } catch (error: any) {
       return {
         success: false,
-        error: getRequestErrorMessage(error),
+        error: error.response?.data?.detail || error.message || 'Request failed',
       };
     }
   }
@@ -209,12 +205,13 @@ class ApiService {
    */
   async delete<T>(url: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.delete<T>(url, config);
+      validateExpectedSnapshot(config);
+      const response: AxiosResponse<T> = await this.client.delete(url, config);
       return { success: true, data: response.data };
-    } catch (error: unknown) {
+    } catch (error: any) {
       return {
         success: false,
-        error: getRequestErrorMessage(error),
+        error: error.response?.data?.detail || error.message || 'Request failed',
       };
     }
   }
