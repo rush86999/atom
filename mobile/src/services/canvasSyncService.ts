@@ -21,6 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
+import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
 
 // Types
 export interface Canvas {
@@ -60,6 +61,90 @@ export interface CanvasSyncResult {
   failed: number;
   conflicts: number;
   duration: number;
+}
+
+function isCanvasType(value: unknown): value is Canvas['type'] {
+  return (
+    value === 'chart' ||
+    value === 'sheet' ||
+    value === 'form' ||
+    value === 'generic' ||
+    value === 'docs' ||
+    value === 'email' ||
+    value === 'orchestration' ||
+    value === 'terminal' ||
+    value === 'coding'
+  );
+}
+
+function decodeCanvas(value: unknown): Canvas | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const { id, title, type, data, html, css, userId, agentId, isFavorite } = value;
+
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  if (typeof title !== 'string') {
+    return null;
+  }
+  if (!isCanvasType(type)) {
+    return null;
+  }
+  if (data === undefined) {
+    return null;
+  }
+
+  const createdAt = decodeDate(value.createdAt);
+  const updatedAt = decodeDate(value.updatedAt);
+  if (createdAt === null || updatedAt === null) {
+    return null;
+  }
+
+  if (html !== undefined && typeof html !== 'string') {
+    return null;
+  }
+  if (css !== undefined && typeof css !== 'string') {
+    return null;
+  }
+  if (userId !== undefined && typeof userId !== 'string') {
+    return null;
+  }
+  if (agentId !== undefined && typeof agentId !== 'string') {
+    return null;
+  }
+  if (isFavorite !== undefined && typeof isFavorite !== 'boolean') {
+    return null;
+  }
+
+  const canvas: Canvas = {
+    id,
+    title,
+    type,
+    data,
+    createdAt,
+    updatedAt,
+  };
+
+  if (html !== undefined) {
+    canvas.html = html;
+  }
+  if (css !== undefined) {
+    canvas.css = css;
+  }
+  if (userId !== undefined) {
+    canvas.userId = userId;
+  }
+  if (agentId !== undefined) {
+    canvas.agentId = agentId;
+  }
+  if (isFavorite !== undefined) {
+    canvas.isFavorite = isFavorite;
+  }
+
+  return canvas;
 }
 
 // Configuration
@@ -107,11 +192,12 @@ class CanvasSyncService {
     try {
       console.log('CanvasSync: Syncing canvases');
 
-      // Fetch canvases from server
-      const response = await apiService.get('/api/canvas');
+      // Fetch and fully decode canvases before mutating the cache.
+      const response = await apiService.get<unknown>('/api/canvas');
+      const decoded = decodeListResponse(response, 'canvases', decodeCanvas);
 
-      if (!response.success || !response.data) {
-        console.error('CanvasSync: Failed to fetch canvases:', response.error);
+      if (!decoded.ok) {
+        console.error('CanvasSync: Failed to fetch canvases:', decoded.error);
         return {
           success: false,
           synced: 0,
@@ -121,7 +207,7 @@ class CanvasSyncService {
         };
       }
 
-      const canvases: Canvas[] = response.data.canvases || [];
+      const canvases = decoded.items;
 
       // Process each canvas
       for (const canvas of canvases) {

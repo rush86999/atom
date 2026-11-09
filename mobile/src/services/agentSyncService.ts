@@ -21,6 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
+import { decodeDate, decodeListResponse, isRecord, isStringArray } from './syncResponse';
 
 // Types
 export interface Agent {
@@ -70,6 +71,81 @@ export interface AgentSyncHealth {
   errorRate: number;
 }
 
+function isMaturityLevel(value: unknown): value is Agent['maturityLevel'] {
+  return (
+    value === 'STUDENT' ||
+    value === 'INTERN' ||
+    value === 'SUPERVISED' ||
+    value === 'AUTONOMOUS'
+  );
+}
+
+/**
+ * Decode the complete Agent DTO used by this cache.
+ *
+ * The live GET /api/agents summary row (id, name, description, status,
+ * last_run, category) does not contain the mandatory maturity, capabilities,
+ * system prompt, or timestamps. It is deliberately rejected here rather than
+ * being mapped by guessing; the remaining gap belongs to the producer/DTO.
+ */
+function decodeAgent(value: unknown): Agent | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const { id, name, description, maturityLevel, capabilities, systemPrompt, userId, isFavorite } =
+    value;
+
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  if (typeof name !== 'string' || typeof description !== 'string') {
+    return null;
+  }
+  if (!isMaturityLevel(maturityLevel)) {
+    return null;
+  }
+  if (!isStringArray(capabilities)) {
+    return null;
+  }
+  if (typeof systemPrompt !== 'string') {
+    return null;
+  }
+
+  const createdAt = decodeDate(value.createdAt);
+  const updatedAt = decodeDate(value.updatedAt);
+  if (createdAt === null || updatedAt === null) {
+    return null;
+  }
+
+  if (userId !== undefined && typeof userId !== 'string') {
+    return null;
+  }
+  if (isFavorite !== undefined && typeof isFavorite !== 'boolean') {
+    return null;
+  }
+
+  const agent: Agent = {
+    id,
+    name,
+    description,
+    maturityLevel,
+    capabilities,
+    systemPrompt,
+    createdAt,
+    updatedAt,
+  };
+
+  if (userId !== undefined) {
+    agent.userId = userId;
+  }
+  if (isFavorite !== undefined) {
+    agent.isFavorite = isFavorite;
+  }
+
+  return agent;
+}
+
 // Configuration
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_CACHE_SIZE = 100; // Max agents to cache
@@ -115,11 +191,12 @@ class AgentSyncService {
     try {
       console.log('AgentSync: Syncing agents');
 
-      // Fetch agents from server
-      const response = await apiService.get('/api/agents');
+      // Fetch and fully decode agents before mutating the cache.
+      const response = await apiService.get<unknown>('/api/agents');
+      const decoded = decodeListResponse(response, 'agents', decodeAgent);
 
-      if (!response.success || !response.data) {
-        console.error('AgentSync: Failed to fetch agents:', response.error);
+      if (!decoded.ok) {
+        console.error('AgentSync: Failed to fetch agents:', decoded.error);
         return {
           success: false,
           synced: 0,
@@ -129,7 +206,7 @@ class AgentSyncService {
         };
       }
 
-      const agents: Agent[] = response.data.agents || [];
+      const agents = decoded.items;
 
       // Process each agent
       for (const agent of agents) {

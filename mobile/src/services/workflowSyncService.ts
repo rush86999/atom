@@ -21,6 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
+import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
 
 // Types
 export interface Workflow {
@@ -87,6 +88,54 @@ export interface WorkflowMetrics {
   lastExecutionAt: Date | null;
 }
 
+function decodeWorkflow(value: unknown): Workflow | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const { id, name, description, definition, schema, isActive, userId } = value;
+
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  if (typeof name !== 'string' || typeof description !== 'string') {
+    return null;
+  }
+  if (definition === undefined || schema === undefined) {
+    return null;
+  }
+  if (typeof isActive !== 'boolean') {
+    return null;
+  }
+
+  const createdAt = decodeDate(value.createdAt);
+  const updatedAt = decodeDate(value.updatedAt);
+  if (createdAt === null || updatedAt === null) {
+    return null;
+  }
+
+  if (userId !== undefined && typeof userId !== 'string') {
+    return null;
+  }
+
+  const workflow: Workflow = {
+    id,
+    name,
+    description,
+    definition,
+    schema,
+    isActive,
+    createdAt,
+    updatedAt,
+  };
+
+  if (userId !== undefined) {
+    workflow.userId = userId;
+  }
+
+  return workflow;
+}
+
 // Configuration
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_CACHE_SIZE = 50; // Max workflows to cache
@@ -137,11 +186,12 @@ class WorkflowSyncService {
     try {
       console.log('WorkflowSync: Syncing workflows');
 
-      // Fetch workflows from server
-      const response = await apiService.get('/api/workflows');
+      // Fetch and fully decode workflows before mutating the cache.
+      const response = await apiService.get<unknown>('/api/workflows');
+      const decoded = decodeListResponse(response, 'workflows', decodeWorkflow);
 
-      if (!response.success || !response.data) {
-        console.error('WorkflowSync: Failed to fetch workflows:', response.error);
+      if (!decoded.ok) {
+        console.error('WorkflowSync: Failed to fetch workflows:', decoded.error);
         return {
           success: false,
           synced: 0,
@@ -151,7 +201,7 @@ class WorkflowSyncService {
         };
       }
 
-      const workflows: Workflow[] = response.data.workflows || [];
+      const workflows = decoded.items;
 
       // Process each workflow
       for (const workflow of workflows) {
