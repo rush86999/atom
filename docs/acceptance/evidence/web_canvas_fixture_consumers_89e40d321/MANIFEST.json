@@ -1,0 +1,23 @@
+{
+  "executed_source": "89e40d3212e87f48179e9fd64c23ad711dc99593",
+  "source_files": {
+    "backend/tests/test_generic_request_expectations.py": "sha256:b68d68b147c69e1ca4b2f9635d8fa53220a26974413ce28a7c61471523bc9ea3",
+    "backend/tests/test_oracle_mini_app_host_mutations.py": "sha256:be0adbe77c3fd14625dda5144b8727f0a65b729a45acdb93dedd1b2ae3e4f736",
+    "backend/tests/test_generic_real_mcp_budget_contract.py": "sha256:4c94730d119f37f981d66ea328ad454bd40feec40271c2b3b5c82ff8720ad467",
+    "backend/tests/test_budget_caller_transaction_contract.py": "sha256:e762cb9b6a334e4a7ca1633d4d09eaa9bcfdbc1d54d7fe08d2949833a7d6d7bc",
+    "backend/tests/test_budget_control.py": "sha256:1d7ff9891fbc88f2eaaeff0614fab10bdc8769bd46a6adeec37b8980cab9d9f1",
+    "backend/tests/test_governance_budget_decision_matrix.py": "sha256:d1c0970c55e3840a964306d2310dc8e38e2f566372a51be1d9f6412d13010abb",
+    "backend/tests/test_generic_reconcile_commit_contract.py": "sha256:9cf9a0ee304a439b509d5112273dc683f0050a876fc8f84ecc542688091ba189",
+    "backend/tests/test_ci_backend_lane_contract.py": "sha256:3612a87519b7b57784e14a42fb18c6cf05c4481b634233d2293486baca518d8a",
+    ".github/workflows/ci.yml": "sha256:b46814a012cc226b3e2c0c9fcdf0c1245f8a274bd7b6d04a39488df854c56629",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "sha256:2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/tests/fixtures/ci_backend_additions.json": "sha256:8d2984d19fc3a43b796ef4ccfe1c1d72dce3b487a0cedf9d0f0c8c5d15a8229b"
+  },
+  "artifacts": {
+    "README.md": "sha256:8fc77cbab0bc398e69151bd060ca5d7674d3677de854f30fd2e68000e2afb9ee",
+    "consumer-205.log": "sha256:14682e6c1de0ba265550d243ed9b0dc1477439e651d5a353d2bedef1ede46b30",
+    "consumer-205.xml": "sha256:aa6ff3e74f957a175216903e115f2687a388a4f8affbfd87faec8fd7b437d59d",
+    "hosted-failure-excerpt.json": "sha256:266560282ba305786933775c7985436bfa7b2a52185962c757280b8fe300d46d",
+    "verification.json": "sha256:05b5bbb56d57995ace47686618091f5b0d00e6bc402e2d0d5347c2db35fabe62"
+  }
+}

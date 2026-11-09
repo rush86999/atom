@@ -1,0 +1,44 @@
+{
+  "executed_source": "780fc9ab1d293717bb1349ac54ad3389400db4c0",
+  "presentation_gate": {
+    "passed": 38,
+    "failed": 0,
+    "includes_real_storage_controls": 18,
+    "python": "3.11.16"
+  },
+  "frontend": {
+    "passed": 287,
+    "suites": 14,
+    "node": "20.20.2",
+    "typescript_exit": 0
+  },
+  "affected": {
+    "passed": 59,
+    "failed": 7,
+    "baseline_source": "4f71e0c80c1a7e823316104c2afa9f6c6df022af",
+    "baseline_passed": 21,
+    "baseline_failed": 7,
+    "identical_failure_ids": [
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_autonomous_allowed",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_canvas_audit_created",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_creates_agent_execution",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_intern_allowed",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_outcome_recorded_success",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_student_blocked",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_supervised_allowed"
+    ]
+  },
+  "original_negative": {
+    "failed": 6,
+    "source_tree_represented_by": "ef83350cb",
+    "actual_before_implementation": true
+  },
+  "development_uncertainty_negative": {
+    "failed": 6,
+    "clean_frozen_source_claimed": false
+  },
+  "model": "opencode-go/deepseek-v4.1-flash",
+  "served_application_model_or_browser_replay": false,
+  "ci_change": "three added test paths; prior jobs/options identical",
+  "whole_app_complete": false
+}

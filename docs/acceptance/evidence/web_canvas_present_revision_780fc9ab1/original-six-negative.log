@@ -1,0 +1,84 @@
+
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[markdown] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 10:05:49 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 10:05:50 [    INFO] EscalationManager initialized
+2026-11-09 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:05:50 [    INFO] EscalationManager initialized
+2026-11-09 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:05:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 10:05:50 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:05:50 [    INFO] Presented markdown content to user u-86dcb770
+FAILED                                                                   [ 16%]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:05:50 [    INFO] Presented bar_chart to user u-97044527
+FAILED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:05:50 [    INFO] Presented docs canvas (rich_editor) to user u-56e74c02
+FAILED                                                                   [ 50%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:05:50 [    INFO] Presented markdown content to user u-1577ff24
+FAILED                                                                   [ 66%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:05:50 [    INFO] Presented bar_chart to user u-e0cc5354
+FAILED                                                                   [ 83%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:05:50 [    INFO] Presented docs canvas (rich_editor) to user u-70e63ad9
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:45: AssertionError: content published before durable audit
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:45: AssertionError: content published before durable audit
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:45: AssertionError: content published before durable audit
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:58: assert True is False
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:58: assert True is False
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:58: assert True is False
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[markdown]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[chart]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[specialized]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[markdown]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[chart]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[specialized]
+  /private/tmp/atom-web-canvas-document-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[markdown]
+FAILED tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[chart]
+FAILED tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[specialized]
+FAILED tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[markdown]
+FAILED tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[chart]
+FAILED tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[specialized]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 6 failed, 11 warnings in 15.14s ========================

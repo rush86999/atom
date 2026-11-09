@@ -107,7 +107,17 @@ def setup_db_mocks(mock_db):
     mock_exec = MagicMock()
     mock_exec.status = "running"
     mock_query.filter.return_value.first.return_value = mock_exec
-    mock_db.query.return_value = mock_query
+    # Governance-focused doubles must implement the authoritative User and
+    # Canvas lookup protocol, rather than return an execution as every model.
+    from core.models import User, Canvas
+    actor = User(id="user-1", email="actor@example.com", first_name="Test", last_name="Actor",
+                 role="member", status="active", is_active=True, tenant_id=None, workspace_id=None)
+    user_query = MagicMock()
+    user_query.filter.return_value.first.return_value = actor
+    canvas_query = MagicMock()
+    canvas_query.filter.return_value.first.return_value = None
+    mock_db.query.side_effect = lambda model: user_query if model is User else canvas_query if model is Canvas else mock_query
+    mock_db.execute.return_value.rowcount = 1
 
     call_count = [0]
     def get_db_side_effect(*args, **kwargs):
@@ -379,7 +389,7 @@ class TestPresentChartGovernance:
 
     @pytest.mark.asyncio
     async def test_present_chart_outcome_recorded_failure(self, mock_ws, mock_agent_intern, mock_db):
-        """Test outcome recording for failed chart presentation after governance allows it."""
+        """A committed chart with failed delivery remains uncertain, without false model feedback."""
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
@@ -414,13 +424,13 @@ class TestPresentChartGovernance:
                             )
 
                             assert result["success"] is False
-                            # Verify outcome was recorded with success=False (called in exception handler)
-                            mock_governance.record_outcome.assert_called_once()
-                            # record_outcome is called with agent.id as positional arg and success as kwarg
-                            # The actual call pattern is: await governance_service.record_outcome(agent.id, success=False)
-                            # Access via call_args[0] for positional, call_args[1] for keyword
-                            assert mock_governance.record_outcome.call_args[0][0] == "agent-intern-123"
-                            assert mock_governance.record_outcome.call_args[1].get("success") is False
+                            # Transport failure AFTER persistence is uncertainty,
+                            # not a failed semantic judgement about the model.
+                            assert result["status"] == "committed_unverified"
+                            assert result["verification"]["effect"] == "committed"
+                            assert result["audit_id"]
+                            assert result["replay"] == "do_not_repeat"
+                            mock_governance.record_outcome.assert_not_awaited()
 
 
 # ============================================================================

@@ -38,5 +38,15 @@
       "ENVIRONMENT": "development"
     },
     "run": "python -m pytest tests/test_credential_bound_session_contract.py tests/test_round60_mobile_auth_user_status.py tests/api/test_sso_oidc_routes.py tests/unit/security/test_jwt_validation.py tests/unit/test_enterprise_auth_service.py tests/test_enterprise_auth_service.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run editable canvas presentation join contract",
+    "env": {
+      "PYTEST_CURRENT_TEST": "1",
+      "DATABASE_URL": "sqlite:///test_ci.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/test_canvas_present_revision_contract.py tests/test_canvas_present_actions.py tests/test_oracle_canvas_postcondition.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]

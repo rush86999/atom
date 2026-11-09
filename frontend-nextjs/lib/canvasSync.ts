@@ -93,6 +93,7 @@ export async function syncCanvasFromStore(canvasId?: string): Promise<void> {
             component: canvasType,
             data: content,
             title: body.title,
+            revision_audit_id: body.revision_audit_id,
         };
         if (canvasType === "email" && content && typeof content === "object") {
             payload.metadata = {

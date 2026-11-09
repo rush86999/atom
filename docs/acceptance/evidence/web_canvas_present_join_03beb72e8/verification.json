@@ -1,0 +1,30 @@
+{
+  "executed_source": "03beb72e8e966ffbb1a271646e833e0d56d54dae",
+  "joined_controls": 63,
+  "joined_failures": 0,
+  "earlier_wider_run": {
+    "tests": 89,
+    "passed": 82,
+    "baseline_failure_ids": [
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_autonomous_allowed",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_canvas_audit_created",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_creates_agent_execution",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_intern_allowed",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_outcome_recorded_success",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_student_blocked",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_supervised_allowed"
+    ],
+    "attribution": "same production repair; before two extra Personal Edition parameter cases were added; not claimed as final-source 91-case run"
+  },
+  "frontend_reuse": {
+    "source": "780fc9ab1",
+    "passed": 287,
+    "typescript_exit": 0,
+    "whole_frontend_tree_unchanged": true
+  },
+  "original_negative": {
+    "source": "780fc9ab1",
+    "public_http_join_failed": 3
+  },
+  "scope": "scratch SQLite, authenticated HTTP and controlled websocket; no new browser/model/provider/PG qualification"
+}

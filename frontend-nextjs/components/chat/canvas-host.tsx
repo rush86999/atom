@@ -8,7 +8,7 @@ import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { useCanvasAutosave } from "@/hooks/useCanvasAutosave";
-import { saveCanvasAudit } from "@/lib/canvasAuditSave";
+import { saveCanvasAudit, saveCanvasAuditReceipt, CanvasAuditSaveError } from "@/lib/canvasAuditSave";
 import { onCanvasRefresh } from "@/lib/canvasSync";
 import { isCanvasContentFrame } from "@/lib/canvasFrame";
 import { CANVAS } from "@/src/lib/testIds";
@@ -64,6 +64,7 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
     const typeSwitchInFlightRef = useRef(false);
     const typeSelectionRef = useRef(false);
     const activePayloadEpochRef = useRef(0);
+    const auditBindingRef = useRef<{canvasId: string; auditId?: string; guarded: boolean} | null>(null);
     const currentStateRef = useRef(state);
     currentStateRef.current = state;
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -136,7 +137,18 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
             if (audit !== null) {
                 let ok: boolean;
                 try {
-                    ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                    const binding = auditBindingRef.current;
+                    if (binding?.canvasId === state.id && binding.guarded) {
+                        if (!binding.auditId) throw new CanvasAuditSaveError();
+                        const receipt = await saveCanvasAuditReceipt(state.id, state.component, state.title, audit.content, { expectedPriorAuditId: binding.auditId });
+                        if (!receipt) throw new CanvasAuditSaveError({status:404});
+                        if (auditBindingRef.current === binding) auditBindingRef.current = {...binding, auditId:receipt.auditId};
+                        ok = true;
+                    } else {
+                        // Legacy unversioned frames keep their existing contract;
+                        // a known guarded frame never downgrades to this branch.
+                        ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                    }
                 } finally {
                     setIsSaving(false);
                 }
@@ -267,6 +279,12 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
                 // A new payload supersedes local edits — drop any pending
                 // autosave so its timer can't re-write the superseded content.
                 resetAutosave();
+                const adoptedCanvasId = id || canvas_id;
+                const rawRevision = frame.revision_audit_id;
+                const revision = typeof rawRevision === "string" && rawRevision.length > 0 ? rawRevision : undefined;
+                const priorBinding = auditBindingRef.current;
+                auditBindingRef.current = {canvasId:adoptedCanvasId, auditId:revision,
+                    guarded:revision !== undefined || (priorBinding !== null && priorBinding.canvasId === adoptedCanvasId && priorBinding.guarded)};
                 activePayloadEpochRef.current += 1;
                 localContentRef.current = content;
 
@@ -392,7 +410,11 @@ export function CanvasHost({ lastMessage, onSocketMessage, sessionId, onVisibili
             });
 
             if (state.id) {
-                await persistCanvasTypeSwitch(state.id, conversion, state.title);
+                const binding = auditBindingRef.current;
+                if (binding?.canvasId === state.id && binding.guarded && !binding.auditId) throw new CanvasAuditSaveError();
+                const receipt = await persistCanvasTypeSwitch(state.id, conversion, state.title,
+                    binding?.canvasId === state.id && binding.guarded ? {expectedPriorAuditId:binding.auditId} : undefined);
+                if (binding?.guarded && receipt && auditBindingRef.current === binding) auditBindingRef.current = {...binding,auditId:receipt.auditId};
                 if (currentStateRef.current !== state || activePayloadEpochRef.current !== originalEpoch) return;
                 // A late receipt cannot replace edits typed while the request ran.
                 if (autosaveRevision() !== originalRevision) {

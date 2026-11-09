@@ -1,0 +1,42 @@
+{
+  "executed_source": "780fc9ab1d293717bb1349ac54ad3389400db4c0",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:31c653516fe3c69aba65de21b4e3a807a3e5eb50b88b069048b3222ab2520bf6",
+    "backend/core/canvas_type_registry.py": "sha256:0b02e4b481fb2a22f14ecf194faf01e2a0ce2ca80a5c50acd60f861f48695cf9",
+    "backend/core/feature_flags.py": "sha256:0fbfdf84e0f778e975aa81a4c15d7e4561fe34810aa0b5fa3996dfb9d355ee34",
+    "backend/core/structured_logger.py": "sha256:b0c28f0262b21f46f0d306ffbe194a90a22e750794d4fa9956a9c48525813c5f",
+    "backend/tests/test_canvas_present_actions.py": "sha256:4550761ffc72c8b4f7213ca3af04cde78ec4de21d452d3fbb1964290cc0097c0",
+    "backend/tests/test_canvas_present_revision_contract.py": "sha256:4fd7015e57ffca1716830fd1a21f43b7f0281b14c4084d53d504d9835c87e413",
+    "backend/tests/test_covpush_canvasroutes.py": "sha256:ff09184c153979a47cd05c8145c39fbbbd57974ae6fafe9dd5b44efeb9b03f20",
+    "backend/tests/test_oracle_canvas_postcondition.py": "sha256:e377fb20ca976aa92a61b7c3651d8e0b8efa52aedc86a3839ce408beb1b821a6",
+    "backend/tests/test_oracle_direct_canvas_writes.py": "sha256:7020810b7387d5bd0283a0a2f7dbca08e23e672a9e6c5112458ef40bd6974803",
+    "backend/tests/unit/test_canvas_tool_governance.py": "sha256:f57629d794ec9cb817d850dfc52271607ad079fef5bb4edf6c069547b9dc4e3f",
+    "backend/tools/canvas_crud_tool.py": "sha256:1a371037d1e0bfd50005ae5a21996e5f2b50c7c888a0e45d34bfb7580179c514",
+    "backend/tools/canvas_tool.py": "sha256:b36d9e4848ebf8b3d111e9c1d381820dbdae3382f2000e3f99c82255b880cd24",
+    "docs/engineering/AGENT_GOAL_COMPLETION_DIRECTIVE_2026_11_06.md": "sha256:88589f185a2782f93c4f72b22fe76379d65f92e49c1858d4acb317dd145ab4b0",
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "sha256:0d898b2dd7fa502f2394e82bb0475e053fe6729bb76e4e854f6091d1d2b13804",
+    "frontend-nextjs/components/canvas/__tests__/CanvasDocumentPersistence.test.tsx": "sha256:9d09610d5918a5577f3d71262598da22042bf6cd849015a9c7f1c43741947356",
+    "frontend-nextjs/components/canvas/canvasType.ts": "sha256:74cbc448ea030cf434bd212d07639a44612f5971391149285702c28d400eb652",
+    "frontend-nextjs/components/chat/canvas-host.tsx": "sha256:a43e12d02a88aba099d7749df87ef15f6cfde96fd19eafb1ae3d6f8dc83cd624",
+    "frontend-nextjs/lib/__tests__/canvasSync.test.ts": "sha256:e21334875bd4bb7b9054cd00d0421087d63346f370e3f698b3fb496c129010c2",
+    "frontend-nextjs/lib/canvasAuditSave.ts": "sha256:2f1510c810b47bdb252330c1fab5482b52982c5485a6238ce37068f5efe66d34",
+    "frontend-nextjs/lib/canvasSync.ts": "sha256:76180a929c3f0aff7a8921c0f5ee32efaff8b85e7aa65230e3ef554a8ebac5d0",
+    "frontend-nextjs/pages/canvas/[id].tsx": "sha256:16655e66f2708d4961fb4e2846afe6bedbf4aa629eea5f5631edfbba5f0ca57e",
+    "frontend-nextjs/tests/lib/canvas-audit-outcome.test.ts": "sha256:016207e4b6b73d4f4028a184f0f5d26fece12187225650ec231f9d66485ffa61",
+    "frontend-nextjs/tests/pages/canvas-detail.test.tsx": "sha256:deba6dd87a3384da15b281b4b5c5a088858591e33aef999d8dc459f956c424d5"
+  },
+  "artifacts": {
+    "baseline-governance-28.xml": "sha256:43b5584e7708508e031db8189ea0e4b76082bdbd574a013b1dd2a263992a07ba",
+    "presentation-38.log": "sha256:ce3efaa8eb23822caf57d15d6221c2a22886041e267c341b398d71896261ff57",
+    "affected-66.xml": "sha256:763dbba4af0ea1004c12bd373b5fc87216b94d6af2e884de5adbd3e82eae1e9f",
+    "cli-proposal-summary.md": "sha256:9ae24c1df6cc70ea03aeefa928b2c42c073aa34ef36ecc153d92c5e8c8c02202",
+    "README.md": "sha256:5542de4578110f082f3331218c68ff3fd23c933785ffb911988566577c7da9d6",
+    "presentation-38.xml": "sha256:8c36fe38369310537c4e74f83a823bf2bac04ce790e9674b3282ae17d379eabf",
+    "affected-66.log": "sha256:106fade9e32ebf50c0e0f15b8aacd248f0d3667195b313c57ea883c1a5aee78f",
+    "original-six-negative.log": "sha256:1af6731ac0398e01244f74a097a383a20703afa00245376e217d2b8daa2ac214",
+    "verification.json": "sha256:93879231be595562d64d870f65d6382d195ef1b6015496abd9c1caac3690ce80",
+    "frontend-287.log": "sha256:53216ae3e8f45d05ebcf41fe3c724973df4ac6bc98144f341295131419f35c75",
+    "baseline-governance-28.log": "sha256:59129d5d1c111726afcbe628370e9fa59550685eee7a71d34862cfb28bf20797",
+    "development-uncertainty-negative.log": "sha256:3456180b16d55c68851aa7e2fbe934be2ba0df333a97a5d0e29370bee248f17c"
+  }
+}

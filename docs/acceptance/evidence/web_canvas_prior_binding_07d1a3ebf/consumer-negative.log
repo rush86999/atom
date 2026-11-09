@@ -1,0 +1,119 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+FAIL components/canvas/__tests__/CanvasDocumentPersistence.test.tsx
+  ○ skipped blocks dependent co-editor work when the native document save is not confirmed
+  standalone page native text persistence
+    ✕ binds consecutive native edits to the exact loaded and confirmed audit identities (86 ms)
+    ○ skipped shows an empty document body rather than its JSON storage envelope
+    ○ skipped shows an empty markdown body rather than its JSON storage envelope
+    ○ skipped shows an empty code body rather than its JSON storage envelope
+    ○ skipped saves the exact document body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact markdown body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact code body into the original canvas audit and preserves envelope metadata
+    ○ skipped does not certify a refused native document save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native markdown save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native code save via an unrelated legacy artifact
+    ○ skipped preserves legacy plain-string document audit content
+    ○ skipped preserves legacy plain-string markdown audit content
+    ○ skipped preserves legacy plain-string code audit content
+    ○ skipped blocks a refused or uncertain type write without a lifecycle resend (404)
+    ○ skipped blocks a refused or uncertain type write without a lifecycle resend (503)
+    ○ skipped preserves newer local edits when the type receipt arrives late
+    ○ skipped cannot replace another active canvas with a late type receipt
+    ○ skipped retains the original type when the type-write response is not verified
+    ○ skipped flushes the latest pending text before persisting the new type
+    ○ skipped keeps an ordinary clean type change available without a duplicate save
+    ○ skipped cannot clear an uncertain save through an already-open type menu
+    ○ skipped uses the established docs registry alias for empty native text
+    ○ skipped uses the established doc registry alias for empty native text
+    ○ skipped uses the established generic registry alias for empty native text
+    ○ skipped uses the established coding registry alias for empty native text
+  chat host native text persistence
+    ✕ binds consecutive native edits to the exact loaded and confirmed audit identities (27 ms)
+    ○ skipped shows an empty document body rather than its JSON storage envelope
+    ○ skipped shows an empty markdown body rather than its JSON storage envelope
+    ○ skipped shows an empty code body rather than its JSON storage envelope
+    ○ skipped saves the exact document body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact markdown body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact code body into the original canvas audit and preserves envelope metadata
+    ○ skipped does not certify a refused native document save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native markdown save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native code save via an unrelated legacy artifact
+    ○ skipped preserves legacy plain-string document audit content
+    ○ skipped preserves legacy plain-string markdown audit content
+    ○ skipped preserves legacy plain-string code audit content
+    ○ skipped blocks a refused or uncertain type write without a lifecycle resend (404)
+    ○ skipped blocks a refused or uncertain type write without a lifecycle resend (503)
+    ○ skipped preserves newer local edits when the type receipt arrives late
+    ○ skipped cannot replace another active canvas with a late type receipt
+    ○ skipped retains the original type when the type-write response is not verified
+    ○ skipped flushes the latest pending text before persisting the new type
+    ○ skipped keeps an ordinary clean type change available without a duplicate save
+    ○ skipped cannot clear an uncertain save through an already-open type menu
+    ○ skipped uses the established docs registry alias for empty native text
+    ○ skipped uses the established doc registry alias for empty native text
+    ○ skipped uses the established generic registry alias for empty native text
+    ○ skipped uses the established coding registry alias for empty native text
+
+  ● standalone page native text persistence › binds consecutive native edits to the exact loaded and confirmed audit identities
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Array [
+    -   "loaded-exact",
+    -   "accepted-1",
+    +   null,
+    +   null,
+      ]
+
+      121 |   fireEvent.click(screen.getByText('Save Changes'));
+      122 |   await waitFor(()=>expect(priors).toHaveLength(2));
+    > 123 |   expect(priors).toEqual(['loaded-exact','accepted-1']);
+          |                  ^
+      124 |  });
+      125 |  it('keeps an ordinary clean type change available without a duplicate save',async()=>{
+      126 |   const requests:string[]=[];
+
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:123:18
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at fulfilled (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:5:58)
+
+  ● chat host native text persistence › binds consecutive native edits to the exact loaded and confirmed audit identities
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Array [
+    -   "loaded-exact",
+    -   "accepted-1",
+    +   null,
+    +   null,
+      ]
+
+      121 |   fireEvent.click(screen.getByText('Save Changes'));
+      122 |   await waitFor(()=>expect(priors).toHaveLength(2));
+    > 123 |   expect(priors).toEqual(['loaded-exact','accepted-1']);
+          |                  ^
+      124 |  });
+      125 |  it('keeps an ordinary clean type change available without a duplicate save',async()=>{
+      126 |   const requests:string[]=[];
+
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:123:18
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at fulfilled (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:5:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 49 skipped, 51 total
+Snapshots:   0 total
+Time:        1.089 s, estimated 2 s
+Ran all test suites matching components/canvas/__tests__/CanvasDocumentPersistence.test.tsx with tests matching "consecutive native edits".

@@ -1,0 +1,90 @@
+
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-markdown] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 10:13:51 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 10:13:52 [    INFO] EscalationManager initialized
+2026-11-09 10:13:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:13:52 [    INFO] EscalationManager initialized
+2026-11-09 10:13:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 10:13:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 10:13:52 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:13:52 [   ERROR] Failed to create canvas audit: private-content-sentinel-not-for-logs
+2026-11-09 10:13:52 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+FAILED                                                                   [ 16%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:13:52 [   ERROR] Failed to create canvas audit: private-content-sentinel-not-for-logs
+2026-11-09 10:13:52 [   ERROR] Chart presentation refused: canvas audit was not persisted
+FAILED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:13:52 [   ERROR] Failed to create canvas audit: private-content-sentinel-not-for-logs
+2026-11-09 10:13:52 [   ERROR] docs presentation refused: canvas audit was not persisted
+FAILED                                                                   [ 50%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:13:52 [   ERROR] Failed to create canvas audit: private-content-sentinel-not-for-logs
+2026-11-09 10:13:52 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+FAILED                                                                   [ 66%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:13:52 [   ERROR] Failed to create canvas audit: private-content-sentinel-not-for-logs
+2026-11-09 10:13:52 [   ERROR] Chart presentation refused: canvas audit was not persisted
+FAILED                                                                   [ 83%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 10:13:52 [   ERROR] Failed to create canvas audit: private-content-sentinel-not-for-logs
+2026-11-09 10:13:52 [   ERROR] docs presentation refused: canvas audit was not persisted
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:90: KeyError: 'status'
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:90: KeyError: 'status'
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:90: KeyError: 'status'
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:90: KeyError: 'status'
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:90: KeyError: 'status'
+/private/tmp/atom-web-canvas-document-20261109/backend/tests/test_canvas_present_revision_contract.py:90: KeyError: 'status'
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-markdown]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-chart]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-specialized]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-markdown]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-chart]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-specialized]
+  /private/tmp/atom-web-canvas-document-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-markdown]
+FAILED tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-chart]
+FAILED tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-specialized]
+FAILED tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-markdown]
+FAILED tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-chart]
+FAILED tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-specialized]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 6 failed, 6 deselected, 11 warnings in 15.43s =================
