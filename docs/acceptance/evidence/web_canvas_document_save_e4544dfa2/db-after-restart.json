@@ -1,0 +1,119 @@
+{
+  "health": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-11-09T14:02:18.897337+00:00",
+    "identity": {
+      "pid": 35974,
+      "started_at": "2026-11-09T14:01:32.241231+00:00",
+      "cwd": "/private/tmp/atom-web-canvas-document-20261109/backend",
+      "git_commit": "e4544dfa2648",
+      "source_id": "e4544dfa2648",
+      "instance_id": "e4544dfa2648.35974.1794232939",
+      "revision": "e4544dfa2648558039f82e1212809e44ce5a78bf",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-11-09T14:02:18.898448+00:00",
+      "process_started_at": "2026-11-09T14:02:18.898448+00:00",
+      "port": 18133,
+      "repo_path": "/private/tmp/atom-web-canvas-document-20261109",
+      "backend_path": "/private/tmp/atom-web-canvas-document-20261109/backend",
+      "error": null,
+      "database": "/private/tmp/root-web-main-core-fixture-20261109/atom.db",
+      "byok_key_store": "/private/tmp/atom-web-canvas-document-20261109/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 575.66
+  },
+  "canvas": {
+    "id": "8e1e7b1d-bcfe-4f12-bbb6-5c8937e85a23",
+    "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+    "workspace_id": "d39a0525-0e54-4e34-bc1a-60ea91d830bf",
+    "created_by": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+    "name": "Untitled canvas",
+    "canvas_type": "document",
+    "content": "{\"content\": \"Core workspace persistence check 2026-11-09.\\nReviewed quantity remains 4.\"}"
+  },
+  "audits": [
+    {
+      "id": "8a32b677-346f-4b33-a490-f6838d430534",
+      "canvas_id": "8e1e7b1d-bcfe-4f12-bbb6-5c8937e85a23",
+      "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+      "action_type": "create",
+      "user_id": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+      "canvas_type": "document",
+      "details_json": {
+        "source": "blank_canvas",
+        "title": "Untitled canvas",
+        "content": {
+          "content": ""
+        }
+      }
+    },
+    {
+      "id": "dc0489d6-3e2c-4bc4-8b73-c6aef2e2ca84",
+      "canvas_id": "8e1e7b1d-bcfe-4f12-bbb6-5c8937e85a23",
+      "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+      "action_type": "update",
+      "user_id": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+      "canvas_type": "document",
+      "details_json": {
+        "source": "blank_canvas",
+        "title": "Untitled canvas",
+        "content": {
+          "content": "Core workspace persistence check 2026-11-09. Reviewed quantity remains 4."
+        },
+        "review_status": "accepted",
+        "operation_id": "http-canvas-update:8a3d061a4c2c47fc911095b987fa2fd7"
+      }
+    },
+    {
+      "id": "7f3c036d-75b9-4049-a247-e3d93a5c8336",
+      "canvas_id": "8e1e7b1d-bcfe-4f12-bbb6-5c8937e85a23",
+      "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+      "action_type": "update",
+      "user_id": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+      "canvas_type": "document",
+      "details_json": {
+        "source": "blank_canvas",
+        "title": "Untitled canvas",
+        "content": {
+          "content": "Core workspace persistence check 2026-11-09. Re\nManual-save confirmation retained.viewed quantity remains 4."
+        },
+        "review_status": "accepted",
+        "operation_id": "http-canvas-update:f22c8e13bb0a4a63b4bf0040d871ae73"
+      }
+    },
+    {
+      "id": "2f8820fa-90f2-46e6-9603-cb6474c804c1",
+      "canvas_id": "8e1e7b1d-bcfe-4f12-bbb6-5c8937e85a23",
+      "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+      "action_type": "update",
+      "user_id": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+      "canvas_type": "document",
+      "details_json": {
+        "source": "blank_canvas",
+        "title": "Untitled canvas",
+        "content": {
+          "content": "Core workspace persistence check 2026-11-09.\nReviewed quantity remains 4."
+        },
+        "review_status": "accepted",
+        "operation_id": "http-canvas-update:336d498865c149e0b001e7db21703e52"
+      }
+    }
+  ],
+  "old_pid": 34861,
+  "new_pid": 35974,
+  "same_record_and_all_audit_material": true,
+  "no_restart_write_or_replay": true
+}

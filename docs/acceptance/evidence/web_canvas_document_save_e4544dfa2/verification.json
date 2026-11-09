@@ -1,0 +1,37 @@
+{
+  "executed_source": "e4544dfa2648558039f82e1212809e44ce5a78bf",
+  "checks": {
+    "integrated_clean_source_before_restart": true,
+    "integrated_clean_source_after_restart": true,
+    "same_exact_scratch_database": true,
+    "real_core_profile": true,
+    "same_original_canvas": true,
+    "same_original_member": true,
+    "exact_mirror_and_latest_audit_body": true,
+    "browser_reload_exact_body": true,
+    "real_process_changed": true,
+    "all_audit_rows_and_material_retained": true,
+    "browser_after_restart_exact_body_and_version": true,
+    "three_distinct_logical_edits_with_opaque_operations": true
+  },
+  "passed": 12,
+  "total": 12,
+  "frontend_ci_node20": {
+    "suites": 14,
+    "passed": 244,
+    "failed": 0
+  },
+  "inherited_tasks_node20": {
+    "jest_passed": 127,
+    "handler_passed": 13
+  },
+  "typescript_node20_exit": 0,
+  "actual_browser_frontend": "Node25.2.1 normal Next dev/Turbopack",
+  "actual_backend": "Python3.11.16 full main_api_app",
+  "browser_manual_save_proven": false,
+  "application_model_inference": false,
+  "engineering_cli": "configured opencode-go/deepseek-v4.1-flash proposals independently reviewed",
+  "compiler_or_package_settings_changed": false,
+  "all_prior_main_ci_steps_preserved": true,
+  "full_app_complete": false
+}

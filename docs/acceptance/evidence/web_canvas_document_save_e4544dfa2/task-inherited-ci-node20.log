@@ -1,0 +1,444 @@
+PASS tests/pages/api/__tests__/v1-financial-workflow.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/shared/__tests__/TaskManagement.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to TaskManagement inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TaskManagement (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/shared/TaskManagement.tsx:635:15)
+
+      967 |
+      968 |   const closeTaskDialog = () => {
+    > 969 |     setIsTaskDialogOpen(false);
+          |     ^
+      970 |     setSelectedTask(null);
+      971 |   };
+      972 |
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at closeTaskDialog (components/shared/TaskManagement.tsx:969:5)
+      at components/shared/TaskManagement.tsx:262:18
+      at step (components/shared/TaskManagement.tsx:77:23)
+      at Object.next (components/shared/TaskManagement.tsx:58:53)
+      at fulfilled (components/shared/TaskManagement.tsx:49:58)
+
+    console.error
+      Warning: An update to TaskManagement inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TaskManagement (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/shared/TaskManagement.tsx:635:15)
+
+      968 |   const closeTaskDialog = () => {
+      969 |     setIsTaskDialogOpen(false);
+    > 970 |     setSelectedTask(null);
+          |     ^
+      971 |   };
+      972 |
+      973 |   const closeProjectDialog = () => {
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at closeTaskDialog (components/shared/TaskManagement.tsx:970:5)
+      at components/shared/TaskManagement.tsx:262:18
+      at step (components/shared/TaskManagement.tsx:77:23)
+      at Object.next (components/shared/TaskManagement.tsx:58:53)
+      at fulfilled (components/shared/TaskManagement.tsx:49:58)
+
+PASS components/__tests__/TaskManagement.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Error fetching task/project data
+
+      60 |       }
+      61 |     } catch (error) {
+    > 62 |       console.error("Error fetching task/project data");
+         |               ^
+      63 |       setLoadError("Unable to load tasks and projects. Please try again.");
+      64 |       toast({
+      65 |         title: "Error fetching data",
+
+      at components/TaskManagement.tsx:62:15
+      at step (components/TaskManagement.tsx:77:23)
+      at Object.throw (components/TaskManagement.tsx:58:53)
+      at rejected (components/TaskManagement.tsx:50:65)
+
+PASS tests/pages/api/__tests__/v1-tasks-id.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/components/task-mutation-confirmation.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to TaskManagement inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TaskManagement (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/shared/TaskManagement.tsx:635:15)
+
+      653 |   const projects = controlledProjects ?? localProjects;
+      654 |   const setTasks: React.Dispatch<React.SetStateAction<Task[]>> = next => {
+    > 655 |     if (!taskIsControlled) setLocalTasks(next);
+          |                            ^
+      656 |   };
+      657 |   const setProjects: React.Dispatch<React.SetStateAction<Project[]>> = next => {
+      658 |     if (!projectIsControlled) setLocalProjects(next);
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at setTasks (components/shared/TaskManagement.tsx:655:28)
+      at components/shared/TaskManagement.tsx:727:9
+      at step (components/shared/TaskManagement.tsx:77:23)
+      at Object.next (components/shared/TaskManagement.tsx:58:53)
+      at fulfilled (components/shared/TaskManagement.tsx:49:58)
+
+    console.error
+      Warning: An update to TaskManagement inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TaskManagement (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/shared/TaskManagement.tsx:635:15)
+
+      656 |   };
+      657 |   const setProjects: React.Dispatch<React.SetStateAction<Project[]>> = next => {
+    > 658 |     if (!projectIsControlled) setLocalProjects(next);
+          |                               ^
+      659 |   };
+      660 |   const [view, setView] = useState<TaskView>({
+      661 |     type: "board",
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at setProjects (components/shared/TaskManagement.tsx:658:31)
+      at upsertTaskInProjects (components/shared/TaskManagement.tsx:692:5)
+      at components/shared/TaskManagement.tsx:728:9
+      at step (components/shared/TaskManagement.tsx:77:23)
+      at Object.next (components/shared/TaskManagement.tsx:58:53)
+      at fulfilled (components/shared/TaskManagement.tsx:49:58)
+
+    console.error
+      Warning: An update to TaskManagement inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TaskManagement (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/shared/TaskManagement.tsx:635:15)
+
+      682 |   const endMutation = () => {
+      683 |     mutationInFlight.current = false;
+    > 684 |     setIsMutating(false);
+          |     ^
+      685 |   };
+      686 |
+      687 |   const showMutationFailure = (title: string) => {
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at endMutation (components/shared/TaskManagement.tsx:684:5)
+      at components/shared/TaskManagement.tsx:754:7
+      at step (components/shared/TaskManagement.tsx:77:23)
+      at Object.next (components/shared/TaskManagement.tsx:58:53)
+      at fulfilled (components/shared/TaskManagement.tsx:49:58)
+
+    console.error
+      Warning: An update to TaskManagement inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TaskManagement (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/shared/TaskManagement.tsx:635:15)
+
+      656 |   };
+      657 |   const setProjects: React.Dispatch<React.SetStateAction<Project[]>> = next => {
+    > 658 |     if (!projectIsControlled) setLocalProjects(next);
+          |                               ^
+      659 |   };
+      660 |   const [view, setView] = useState<TaskView>({
+      661 |     type: "board",
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at setProjects (components/shared/TaskManagement.tsx:658:31)
+      at upsertTaskInProjects (components/shared/TaskManagement.tsx:692:5)
+      at components/shared/TaskManagement.tsx:728:9
+      at step (components/shared/TaskManagement.tsx:77:23)
+      at Object.next (components/shared/TaskManagement.tsx:58:53)
+      at fulfilled (components/shared/TaskManagement.tsx:49:58)
+
+    console.error
+      Warning: An update to TaskManagement inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TaskManagement (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/shared/TaskManagement.tsx:635:15)
+
+      682 |   const endMutation = () => {
+      683 |     mutationInFlight.current = false;
+    > 684 |     setIsMutating(false);
+          |     ^
+      685 |   };
+      686 |
+      687 |   const showMutationFailure = (title: string) => {
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at endMutation (components/shared/TaskManagement.tsx:684:5)
+      at components/shared/TaskManagement.tsx:754:7
+      at step (components/shared/TaskManagement.tsx:77:23)
+      at Object.next (components/shared/TaskManagement.tsx:58:53)
+      at fulfilled (components/shared/TaskManagement.tsx:49:58)
+
+PASS tests/components/task-management-data-loading.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Error fetching task/project data
+
+      60 |       }
+      61 |     } catch (error) {
+    > 62 |       console.error("Error fetching task/project data");
+         |               ^
+      63 |       setLoadError("Unable to load tasks and projects. Please try again.");
+      64 |       toast({
+      65 |         title: "Error fetching data",
+
+      at components/TaskManagement.tsx:62:15
+      at step (components/TaskManagement.tsx:77:23)
+      at Object.throw (components/TaskManagement.tsx:58:53)
+      at rejected (components/TaskManagement.tsx:50:65)
+
+    console.error
+      Error fetching task/project data
+
+      60 |       }
+      61 |     } catch (error) {
+    > 62 |       console.error("Error fetching task/project data");
+         |               ^
+      63 |       setLoadError("Unable to load tasks and projects. Please try again.");
+      64 |       toast({
+      65 |         title: "Error fetching data",
+
+      at components/TaskManagement.tsx:62:15
+      at step (components/TaskManagement.tsx:77:23)
+      at Object.throw (components/TaskManagement.tsx:58:53)
+      at rejected (components/TaskManagement.tsx:50:65)
+
+    console.error
+      Error fetching task/project data
+
+      60 |       }
+      61 |     } catch (error) {
+    > 62 |       console.error("Error fetching task/project data");
+         |               ^
+      63 |       setLoadError("Unable to load tasks and projects. Please try again.");
+      64 |       toast({
+      65 |         title: "Error fetching data",
+
+      at components/TaskManagement.tsx:62:15
+      at step (components/TaskManagement.tsx:77:23)
+      at Object.throw (components/TaskManagement.tsx:58:53)
+      at rejected (components/TaskManagement.tsx:50:65)
+
+    console.error
+      Error fetching task/project data
+
+      60 |       }
+      61 |     } catch (error) {
+    > 62 |       console.error("Error fetching task/project data");
+         |               ^
+      63 |       setLoadError("Unable to load tasks and projects. Please try again.");
+      64 |       toast({
+      65 |         title: "Error fetching data",
+
+      at components/TaskManagement.tsx:62:15
+      at step (components/TaskManagement.tsx:77:23)
+      at Object.throw (components/TaskManagement.tsx:58:53)
+      at rejected (components/TaskManagement.tsx:50:65)
+
+PASS tests/lib/auth-headers.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 7 passed, 7 total
+Tests:       127 passed, 127 total
+Snapshots:   0 total
+Time:        4.448 s
+Ran all test suites matching tests/components/task-mutation-confirmation.test.tsx|components/shared/__tests__/TaskManagement.test.tsx|components/__tests__/TaskManagement.test.tsx|tests/components/task-management-data-loading.test.tsx|tests/lib/auth-headers.test.ts|tests/pages/api/__tests__/v1-tasks-id.test.ts|tests/pages/api/__tests__/v1-financial-workflow.test.ts.
+TAP version 13
+# Subtest: anonymous GET tasks refuses without reading or changing private records
+ok 1 - anonymous GET tasks refuses without reading or changing private records
+  ---
+  duration_ms: 1.006541
+  ...
+# Subtest: anonymous POST tasks refuses without reading or changing private records
+ok 2 - anonymous POST tasks refuses without reading or changing private records
+  ---
+  duration_ms: 0.140708
+  ...
+# Subtest: anonymous PUT task refuses without reading or changing private records
+ok 3 - anonymous PUT task refuses without reading or changing private records
+  ---
+  duration_ms: 0.126542
+  ...
+# Subtest: anonymous DELETE task refuses without reading or changing private records
+ok 4 - anonymous DELETE task refuses without reading or changing private records
+  ---
+  duration_ms: 0.119958
+  ...
+# Subtest: anonymous GET projects refuses without reading or changing private records
+ok 5 - anonymous GET projects refuses without reading or changing private records
+  ---
+  duration_ms: 0.131625
+  ...
+# Subtest: anonymous POST projects refuses without reading or changing private records
+ok 6 - anonymous POST projects refuses without reading or changing private records
+  ---
+  duration_ms: 0.107666
+  ...
+# Subtest: anonymous PUT project refuses without reading or changing private records
+ok 7 - anonymous PUT project refuses without reading or changing private records
+  ---
+  duration_ms: 0.118875
+  ...
+# Subtest: authenticated tasks forwards exact request once and preserves backend verdict
+ok 8 - authenticated tasks forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 0.42325
+  ...
+# Subtest: authenticated task forwards exact request once and preserves backend verdict
+ok 9 - authenticated task forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 0.197292
+  ...
+# Subtest: authenticated projects forwards exact request once and preserves backend verdict
+ok 10 - authenticated projects forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 0.119417
+  ...
+# Subtest: authenticated project forwards exact request once and preserves backend verdict
+ok 11 - authenticated project forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 0.087708
+  ...
+# Subtest: mutation confirmation loss returns unknown and never resends
+ok 12 - mutation confirmation loss returns unknown and never resends
+  ---
+  duration_ms: 0.18225
+  ...
+# Subtest: dot-segment record ids cannot change the authoritative target path
+ok 13 - dot-segment record ids cannot change the authoritative target path
+  ---
+  duration_ms: 0.070792
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 157.115666
+

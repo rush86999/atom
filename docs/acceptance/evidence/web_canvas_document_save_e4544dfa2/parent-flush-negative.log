@@ -1,0 +1,149 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+  console.log
+    MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+  console.log
+    MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+  console.warn
+    [MSW] Warning: captured a request without a matching request handler:
+    
+      • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+    
+    If you still wish to intercept this unhandled request, please create a request handler for it.
+    Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at ../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+  console.log
+    MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+  console.warn
+    [MSW] Warning: captured a request without a matching request handler:
+    
+      • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+    
+    If you still wish to intercept this unhandled request, please create a request handler for it.
+    Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at ../../atom-web-task-project-20261109/frontend-nextjs/node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+  console.log
+    MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+  console.log
+    MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+FAIL tests/pages/canvas-detail.test.tsx
+  CanvasDetailPage
+    ○ skipped shows loading state then renders canvas
+    ○ skipped derives version from history count
+    ○ skipped version derivation failure does not block rendering
+    ○ skipped shows not-found state when canvas load fails
+    ○ skipped shows fallback title when canvas has no title
+    ○ skipped derives email metadata for email canvases
+    ○ skipped refresh button reloads the canvas
+    ○ skipped loads and shows version history panel
+    ○ skipped restore button posts the audit id and refetches the canvas
+    ○ skipped delete entries offer no restore button
+    ○ skipped shows empty history message when no entries
+    ○ skipped history toggle closes the panel on second click
+    ○ skipped delete cancels when confirm is declined
+    ○ skipped delete confirms and navigates back to canvas list
+    ○ skipped chat: empty input does not send
+    ○ skipped chat: sends message and appends user + assistant messages
+    ○ skipped chat: sends on Enter key
+    ○ skipped side panel: all four tabs render and Journey panel opens
+    ○ skipped autonomy tab: topics grouped by canvas type with live gate chips
+    ○ skipped chat: canvas agent resolved on load is sent with the turn
+    ○ skipped chat: server-bound session hydrates panel history after refresh
+    ○ skipped chat: failed hydration drops the stale session and starts fresh
+    ○ skipped chat: transient hydration failure keeps the session and offers a retry
+    ○ skipped chat: no_llm_provider error renders system message
+    ○ skipped chat: credit-exhaustion envelope renders the truthful message and the next message still dispatches
+    ○ skipped chat: after a credit failure the Enter path also dispatches with no blocking overlay
+    ○ skipped chat: network error renders system message
+    ○ skipped chat: http error names the failure stage, never claims a poll
+    ○ skipped chat: request-security rejection surfaces its category
+    ○ skipped shows agent responding indicator while awaiting reply
+    ○ skipped chat: chat_token_done releases the composer before the POST resolves
+    ○ skipped websocket canvas:update refreshes canvas content
+    ○ skipped websocket ignores mini_app_state broadcasts
+    ○ skipped websocket close action clears canvas
+    ○ skipped websocket accepts string-encoded messages
+    ○ skipped websocket ignores updates for a different canvas
+    ○ skipped canvas load with success:false shows not-found
+    ○ skipped history without count or list does not set a version
+    ○ skipped history entry without created_at renders empty date
+    ○ skipped canvas without canvas_type falls back to generic
+    ○ skipped history load failure is logged without crash
+    ○ skipped delete failure is logged without crash
+    ○ skipped chat: second message includes assistant history
+    ○ skipped history panel close button collapses it
+    ○ skipped training: co-editor tab is the default side panel
+    ○ skipped training: header graduation button switches to the training panel
+    ○ skipped training: side tabs toggle between co-editor and training
+    ○ skipped training: passes the agent query hint to the panel
+    ○ skipped training: training-session canvases open on the training tab
+    ○ skipped chat: returning from another side tab re-pins the transcript to the latest message
+    ○ skipped feedback: assistant replies carry thumbs; thumbs up feeds chat feedback with attribution
+    ○ skipped feedback: with an agent present, thumbs also feed the training loop
+    ○ skipped feedback: note submits corrective feedback carrying the comment
+    ○ skipped feedback: clicking the chosen thumb again clears it without re-sending
+  canvas chat reasoning steps (training parity)
+    ✕ chat: refuses dependent dispatch when the document flush is not confirmed (109 ms)
+    ○ skipped agent_step_update is captured and rateable in the co-editor chat
+    ○ skipped renders a draggable border between the canvas view and the chat panel
+    ○ skipped dragging the border left widens the chat and right shrinks it
+    ○ skipped keyboard resizing clamps the chat to small/large and double-click resets
+    ○ skipped chat: a /teach confirmation renders the learned card in the panel
+    ○ skipped chat: a detected directive renders the confirm-first card, not a save
+
+  ● canvas chat reasoning steps (training parity) › chat: refuses dependent dispatch when the document flush is not confirmed
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 0
+    Received length: 1
+    Received array:  [["/api/chat/message", {"agent_id": undefined, "context": {"agent_id": undefined, "canvas_content": {"rows": 10}, "canvas_id": "cv1", "canvas_title": "Q3 Sales Chart", "canvas_type": "sheets", "conversation_history": [], "current_page": "/canvas/cv1"}, "message": "Use my latest reviewed quantity", "request_id": "00bcfa72-68db-48a1-a2a5-a8489c0d6e7f", "session_id": "new", "user_id": "me"}, {"retry": false, "timeout": 300000}]]
+
+      1445 |     fireEvent.click(screen.getByRole("button", {name: /send/i}));
+      1446 |     await waitFor(() => expect(mockPanelFlush).toHaveBeenCalledTimes(1));
+    > 1447 |     expect(mockPost.mock.calls.filter((c:any[])=>c[0]==='/api/chat/message')).toHaveLength(0);
+           |                                                                               ^
+      1448 |     expect(input).toHaveValue("Use my latest reviewed quantity");
+      1449 |     expect(screen.getByText(/document save is not confirmed/i)).toBeInTheDocument();
+      1450 |     expect(screen.getByRole("button", {name: /send/i})).not.toBeDisabled();
+
+      at tests/pages/canvas-detail.test.tsx:1447:79
+      at step (tests/pages/canvas-detail.test.tsx:52:23)
+      at Object.next (tests/pages/canvas-detail.test.tsx:33:53)
+      at fulfilled (tests/pages/canvas-detail.test.tsx:24:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 60 skipped, 61 total
+Snapshots:   0 total
+Time:        0.964 s
+Ran all test suites within paths "tests/pages/canvas-detail.test.tsx".
