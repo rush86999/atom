@@ -38,6 +38,20 @@ describe('Sync list response evidence', () => {
     jest.useRealTimers();
   });
 
+  test.each(cases)('$resource refused cache persistence cannot certify successful sync', async ({ resource, sync }) => {
+    jest.mocked(apiService.get).mockResolvedValue({ success: true, data: { [resource]: [] } });
+    jest.mocked(storageService.setObject).mockResolvedValueOnce(false);
+    expect((await sync()).success).toBe(false);
+    expect(storageService.setObject).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(cases)('$resource thrown cache persistence cannot certify successful sync', async ({ resource, sync }) => {
+    jest.mocked(apiService.get).mockResolvedValue({ success: true, data: { [resource]: [] } });
+    jest.mocked(storageService.setObject).mockRejectedValueOnce(new Error('Controlled persistence failure'));
+    expect((await sync()).success).toBe(false);
+    expect(storageService.setObject).toHaveBeenCalledTimes(1);
+  });
+
   test.each(cases)('$resource missing list refuses without a cache checkpoint', async ({ sync }) => {
     jest.mocked(apiService.get).mockResolvedValue({ success: true, data: {} });
     expect((await sync()).success).toBe(false);
