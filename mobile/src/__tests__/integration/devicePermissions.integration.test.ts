@@ -18,8 +18,41 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+// SDK enum values in these scoped doubles match the installed Expo declarations.
+jest.mock('expo-camera', () => ({
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied', UNDETERMINED: 'undetermined' },
+  requestCameraPermissionsAsync: jest.fn(),
+  getCameraPermissionsAsync: jest.fn(),
+}));
+jest.mock('expo-notifications', () => ({
+  requestPermissionsAsync: jest.fn(),
+  IosAuthorizationStatus: { AUTHORIZED: 2 },
+  IosAlertStyle: { BANNER: 1 },
+  AndroidImportance: { DEFAULT: 5 },
+}));
+
 // Mock fetch for API calls
 global.fetch = jest.fn();
+
+const grantedNotificationPermission = (): Notifications.NotificationPermissionsStatus => ({
+  status: Camera.PermissionStatus.GRANTED,
+  canAskAgain: true,
+  granted: true,
+  expires: 'never',
+  ios: {
+    status: Notifications.IosAuthorizationStatus.AUTHORIZED,
+    allowsDisplayInNotificationCenter: true,
+    allowsDisplayOnLockScreen: true,
+    allowsDisplayInCarPlay: true,
+    allowsAlert: true,
+    allowsBadge: true,
+    allowsSound: true,
+    alertStyle: Notifications.IosAlertStyle.BANNER,
+  },
+  android: {
+    importance: Notifications.AndroidImportance.DEFAULT,
+  },
+});
 
 describe('Device Permissions Integration', () => {
   beforeEach(() => {
@@ -39,7 +72,7 @@ describe('Device Permissions Integration', () => {
   describe('Permission Request Workflows', () => {
     test('should request camera permission and handle grant', async () => {
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -55,7 +88,7 @@ describe('Device Permissions Integration', () => {
 
     test('should request camera permission and handle denial', async () => {
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: true,
         granted: false,
         expires: 'never',
@@ -71,7 +104,7 @@ describe('Device Permissions Integration', () => {
 
     test('should request location permission (foreground) and handle grant', async () => {
       const mockRequestPermission = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -86,7 +119,7 @@ describe('Device Permissions Integration', () => {
 
     test('should request location permission (background) and handle grant', async () => {
       const mockRequestPermission = jest.spyOn(Location, 'requestBackgroundPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -100,18 +133,9 @@ describe('Device Permissions Integration', () => {
     });
 
     test('should request notification permissions and handle grant', async () => {
-      const mockRequestPermission = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue({
-        status: 'granted',
-        canAskAgain: true,
-        granted: true,
-        expires: 'never',
-        ios: {
-          allowsAlert: true,
-          allowsBadge: true,
-          allowsSound: true,
-        },
-        android: {},
-      });
+      const mockRequestPermission = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue(
+        grantedNotificationPermission()
+      );
 
       const result = await Notifications.requestPermissionsAsync();
 
@@ -144,20 +168,20 @@ describe('Device Permissions Integration', () => {
       // Initial state: notAsked
       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
         .mockResolvedValueOnce({
-          status: 'notAsked',
+          status: Camera.PermissionStatus.UNDETERMINED,
           canAskAgain: true,
           granted: false,
           expires: 'never',
         })
         .mockResolvedValueOnce({
-          status: 'granted',
+          status: Camera.PermissionStatus.GRANTED,
           canAskAgain: true,
           granted: true,
           expires: 'never',
         });
 
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -165,7 +189,7 @@ describe('Device Permissions Integration', () => {
 
       // Check initial state
       const initialState = await Camera.getCameraPermissionsAsync();
-      expect(initialState.status).toBe('notAsked');
+      expect(initialState.status).toBe(Camera.PermissionStatus.UNDETERMINED);
 
       // Request permission
       await Camera.requestCameraPermissionsAsync();
@@ -180,14 +204,14 @@ describe('Device Permissions Integration', () => {
 
     test('should track permission state from notAsked to denied', async () => {
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: true,
         granted: false,
         expires: 'never',
       });
 
       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync').mockResolvedValue({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: true,
         granted: false,
         expires: 'never',
@@ -208,7 +232,7 @@ describe('Device Permissions Integration', () => {
     test('should handle canAskAgain flag correctly', async () => {
       // Test with canAskAgain = true
       const mockRequestPermission1 = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValueOnce({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: true,
         granted: false,
         expires: 'never',
@@ -219,7 +243,7 @@ describe('Device Permissions Integration', () => {
 
       // Test with canAskAgain = false (Android "Don't ask again")
       mockRequestPermission1.mockResolvedValueOnce({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: false,
         granted: false,
         expires: 'never',
@@ -235,13 +259,13 @@ describe('Device Permissions Integration', () => {
       // First app launch - permission not asked
       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
         .mockResolvedValueOnce({
-          status: 'notAsked',
+          status: Camera.PermissionStatus.UNDETERMINED,
           canAskAgain: true,
           granted: false,
           expires: 'never',
         })
         .mockResolvedValueOnce({
-          status: 'granted',
+          status: Camera.PermissionStatus.GRANTED,
           canAskAgain: true,
           granted: true,
           expires: 'never',
@@ -256,11 +280,11 @@ describe('Device Permissions Integration', () => {
 
       // Second app launch - load from storage
       const parsedState = JSON.parse(storedState!);
-      expect(parsedState.status).toBe('notAsked');
+      expect(parsedState.status).toBe(Camera.PermissionStatus.UNDETERMINED);
 
       // Now permission granted
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -272,7 +296,7 @@ describe('Device Permissions Integration', () => {
       await AsyncStorage.setItem(permissionKey, JSON.stringify(state2));
 
       // Verify stored state
-      const updatedState = JSON.parse(await AsyncStorage.getItem(permissionKey)!);
+      const updatedState = JSON.parse((await AsyncStorage.getItem(permissionKey))!);
       expect(updatedState.status).toBe('granted');
 
       expect(mockGetPermission).toHaveBeenCalledTimes(2); // Called twice: initial + after grant
@@ -287,27 +311,22 @@ describe('Device Permissions Integration', () => {
   describe('Multi-Permission Flows', () => {
     test('should request multiple permissions in sequence', async () => {
       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
       });
 
       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
       });
 
-      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue({
-        status: 'granted',
-        canAskAgain: true,
-        granted: true,
-        expires: 'never',
-        ios: { allowsAlert: true, allowsBadge: true, allowsSound: true },
-        android: {},
-      });
+      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue(
+        grantedNotificationPermission()
+      );
 
       // Request permissions in sequence
       const cameraResult = await Camera.requestCameraPermissionsAsync();
@@ -326,7 +345,7 @@ describe('Device Permissions Integration', () => {
     test('should handle partial grant (some granted, some denied)', async () => {
       // Camera granted
       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -334,21 +353,16 @@ describe('Device Permissions Integration', () => {
 
       // Location denied
       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: true,
         granted: false,
         expires: 'never',
       });
 
       // Notifications granted
-      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue({
-        status: 'granted',
-        canAskAgain: true,
-        granted: true,
-        expires: 'never',
-        ios: { allowsAlert: true, allowsBadge: true, allowsSound: true },
-        android: {},
-      });
+      const mockNotifications = jest.spyOn(Notifications, 'requestPermissionsAsync').mockResolvedValue(
+        grantedNotificationPermission()
+      );
 
       const cameraResult = await Camera.requestCameraPermissionsAsync();
       const locationResult = await Location.requestForegroundPermissionsAsync();
@@ -376,7 +390,7 @@ describe('Device Permissions Integration', () => {
     test('should show appropriate UI for each permission type', async () => {
       // Test camera permission UI prompt
       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -389,7 +403,7 @@ describe('Device Permissions Integration', () => {
 
       // Test location permission UI prompt
       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: true,
         granted: false,
         expires: 'never',
@@ -416,14 +430,14 @@ describe('Device Permissions Integration', () => {
       // Some permissions can be requested together (iOS)
       // Camera and Location must be requested separately
       const mockCamera = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
       });
 
       const mockLocation = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -453,7 +467,7 @@ describe('Device Permissions Integration', () => {
       // In real tests, we'd use jest.replaceProperty if supported
 
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -469,7 +483,7 @@ describe('Device Permissions Integration', () => {
     test('should handle Android permission rationale', async () => {
       // Test Android "Don't ask again" behavior
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'denied',
+        status: Camera.PermissionStatus.DENIED,
         canAskAgain: false, // Android "Don't ask again"
         granted: false,
         expires: 'never',
@@ -493,13 +507,13 @@ describe('Device Permissions Integration', () => {
       // iOS permissions can be changed in Settings without app prompt
       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
         .mockResolvedValueOnce({
-          status: 'granted',
+          status: Camera.PermissionStatus.GRANTED,
           canAskAgain: true,
           granted: true,
           expires: 'never',
         })
         .mockResolvedValueOnce({
-          status: 'denied', // User revoked in Settings
+          status: Camera.PermissionStatus.DENIED, // User revoked in Settings
           canAskAgain: true,
           granted: false,
           expires: 'never',
@@ -519,7 +533,7 @@ describe('Device Permissions Integration', () => {
     test('should handle Android runtime permissions', async () => {
       // Android requires runtime permissions for dangerous permissions
       const mockRequestPermission = jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -551,7 +565,7 @@ describe('Device Permissions Integration', () => {
     test('should cache granted permissions in AsyncStorage', async () => {
       const cacheKey = 'atom_permissions_cache';
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync').mockResolvedValue({
-        status: 'granted',
+        status: Camera.PermissionStatus.GRANTED,
         canAskAgain: true,
         granted: true,
         expires: 'never',
@@ -610,13 +624,13 @@ describe('Device Permissions Integration', () => {
       const cacheKey = 'atom_permissions_cache';
       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
         .mockResolvedValueOnce({
-          status: 'granted',
+          status: Camera.PermissionStatus.GRANTED,
           canAskAgain: true,
           granted: true,
           expires: 'never',
         })
         .mockResolvedValueOnce({
-          status: 'denied', // Permission revoked
+          status: Camera.PermissionStatus.DENIED, // Permission revoked
           canAskAgain: true,
           granted: false,
           expires: 'never',
@@ -665,13 +679,13 @@ describe('Device Permissions Integration', () => {
     test('should recover from permission denial after opening settings', async () => {
       const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync')
         .mockResolvedValueOnce({
-          status: 'denied',
+          status: Camera.PermissionStatus.DENIED,
           canAskAgain: true,
           granted: false,
           expires: 'never',
         })
         .mockResolvedValueOnce({
-          status: 'granted', // User granted permission after opening settings
+          status: Camera.PermissionStatus.GRANTED, // User granted permission after opening settings
           canAskAgain: true,
           granted: true,
           expires: 'never',
@@ -679,13 +693,13 @@ describe('Device Permissions Integration', () => {
 
       const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
         .mockResolvedValueOnce({
-          status: 'denied',
+          status: Camera.PermissionStatus.DENIED,
           canAskAgain: true,
           granted: false,
           expires: 'never',
         })
         .mockResolvedValueOnce({
-          status: 'granted',
+          status: Camera.PermissionStatus.GRANTED,
           canAskAgain: true,
           granted: true,
           expires: 'never',

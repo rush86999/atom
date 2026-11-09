@@ -20,8 +20,17 @@
  */
 
 import NetInfo from '@react-native-community/netinfo';
-import { offlineSyncService } from '../../services/offlineSyncService';
+import { offlineSyncService, type OfflineAction } from '../../services/offlineSyncService';
+import { storageService } from '../../services/storageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Read the actual canonical persisted rows, including in-flight work. A failed
+// storage read must not masquerade as an empty queue in these assertions.
+async function readRetainedQueue(): Promise<OfflineAction[]> {
+  const queue = await storageService.getObject<OfflineAction[]>('offline_queue');
+  if (queue === null) throw new Error('Expected a readable retained offline queue');
+  return queue;
+}
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -48,7 +57,7 @@ describe('Offline Sync Network Integration', () => {
 
   describe('Network State Transitions', () => {
     test('should detect network state change from online to offline', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
 
       // Transition to offline
@@ -64,7 +73,7 @@ describe('Offline Sync Network Integration', () => {
     });
 
     test('should detect network state change from offline to online', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
 
       // Transition to online
@@ -92,7 +101,7 @@ describe('Offline Sync Network Integration', () => {
         'device_1'
       );
 
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue).toHaveLength(1);
       expect(queue[0].type).toBe('agent_message');
     });
@@ -108,12 +117,12 @@ describe('Offline Sync Network Integration', () => {
       );
 
       // Verify action is queued
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue.length).toBeGreaterThanOrEqual(1);
     });
 
     test('should handle network type changes (wifi, cellular, none)', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
 
       // Wifi
@@ -175,7 +184,7 @@ describe('Offline Sync Network Integration', () => {
       }
 
       // Verify actions are queued
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue.length).toBe(5);
 
       // Trigger sync
@@ -193,7 +202,7 @@ describe('Offline Sync Network Integration', () => {
       await offlineSyncService.queueAction('agent_message', { message: 'Critical' }, 'critical', 'user_1', 'device_1');
 
       // Get sorted queue
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
 
       // Verify actions were queued (may have actions from previous tests)
       expect(queue.length).toBeGreaterThanOrEqual(4);
@@ -225,7 +234,7 @@ describe('Offline Sync Network Integration', () => {
       expect(result.failed).toBe(1);
 
       // Action should still be in queue (retry pending)
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue).toHaveLength(1);
       expect(queue[0].syncAttempts).toBe(1);
     });
@@ -245,7 +254,7 @@ describe('Offline Sync Network Integration', () => {
       expect(result.failed).toBeGreaterThanOrEqual(0);
 
       // Verify retry count increased
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       if (queue.length > 0) {
         expect(queue[0].syncAttempts).toBeGreaterThanOrEqual(1);
       }
@@ -299,7 +308,7 @@ describe('Offline Sync Network Integration', () => {
         );
       }
 
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue.length).toBe(150);
 
       // Trigger sync (should process in batches)
@@ -387,7 +396,7 @@ describe('Offline Sync Network Integration', () => {
         );
       }
 
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
 
       // The sync will process in batches, but all should complete
       const result = await offlineSyncService.triggerSync();
@@ -419,7 +428,7 @@ describe('Offline Sync Network Integration', () => {
     });
 
     test('should handle intermittent connectivity (flapping)', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
       const mockFetch = jest.spyOn(netInfoMock, 'fetch');
 
       // Simulate network flapping
@@ -476,13 +485,13 @@ describe('Offline Sync Network Integration', () => {
       expect(result.synced).toBe(0);
 
       // Action should be retried later
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue).toHaveLength(1);
       expect(queue[0].syncAttempts).toBe(1);
     });
 
     test('should handle connection with limited internet reachability', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
 
       // Mock connection with internet not reachable
       jest.spyOn(netInfoMock, 'fetch').mockResolvedValue({
@@ -521,7 +530,7 @@ describe('Offline Sync Network Integration', () => {
 
   describe('Sync Listener Integration', () => {
     test('should register network state listener on initialization', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
       const mockAddEventListener = jest.spyOn(netInfoMock, 'addEventListener');
 
       // Initialize sync service (should register listener)
@@ -535,11 +544,9 @@ describe('Offline Sync Network Integration', () => {
     });
 
     test('should unregister network state listener on cleanup', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
 
-      const mockAddEventListener = jest.spyOn(netInfoMock, 'addEventListener').mockReturnValue({
-        remove: jest.fn(),
-      });
+      const mockAddEventListener = jest.spyOn(netInfoMock, 'addEventListener').mockReturnValue(jest.fn());
 
       // Initialize sync service
       await offlineSyncService.initialize();
@@ -633,7 +640,7 @@ describe('Offline Sync Network Integration', () => {
       expect(result1.failed).toBe(1);
       expect(result1.synced).toBe(0);
 
-      const queue1 = await offlineSyncService.getQueue();
+      const queue1 = await readRetainedQueue();
       expect(queue1).toHaveLength(1);
       expect(queue1[0].status).toBe('pending');
       expect(queue1[0].syncAttempts).toBe(1);
@@ -656,7 +663,7 @@ describe('Offline Sync Network Integration', () => {
       expect(result2.failed).toBe(1);
       expect(result2.synced).toBe(0);
 
-      const queue2 = await offlineSyncService.getQueue();
+      const queue2 = await readRetainedQueue();
       expect(queue2).toHaveLength(1);
       expect(queue2[0].status).toBe('pending');
       expect(queue2[0].syncAttempts).toBe(2);
@@ -686,9 +693,14 @@ describe('Offline Sync Network Integration', () => {
         await syncPromise;
       }
 
-      // After 5 failed attempts the action is dropped from the queue.
-      const queue = await offlineSyncService.getQueue();
-      expect(queue).toHaveLength(0);
+      // Exhausted work is retained for explicit recovery, never silently dropped.
+      const queue = await readRetainedQueue();
+      expect(queue).toHaveLength(1);
+      expect(queue[0]).toMatchObject({ status: 'failed', syncAttempts: 5, payload: { message: 'Test', agentId: 'agent_123', sessionId: 'session_456' } });
+      const attempts = jest.mocked(global.fetch).mock.calls.length;
+      await offlineSyncService.triggerSync();
+      expect(jest.mocked(global.fetch).mock.calls).toHaveLength(attempts);
+      expect(await readRetainedQueue()).toEqual(queue);
 
       const state = await offlineSyncService.getSyncState();
       expect(state.consecutiveFailures).toBe(5);
@@ -718,7 +730,7 @@ describe('Offline Sync Network Integration', () => {
         );
       }
 
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue.length).toBe(25);
 
       // Start sync (non-blocking)
@@ -736,7 +748,7 @@ describe('Offline Sync Network Integration', () => {
       expect(state.syncInProgress).toBe(false);
 
       // Verify remaining actions still in queue
-      const finalQueue = await offlineSyncService.getQueue();
+      const finalQueue = await readRetainedQueue();
       // Some actions may have been processed before cancellation
       expect(finalQueue.length).toBeGreaterThan(0);
     });
@@ -777,7 +789,7 @@ describe('Offline Sync Network Integration', () => {
         );
       }
 
-      const queue = await offlineSyncService.getQueue();
+      const queue = await readRetainedQueue();
       expect(queue.length).toBe(20);
 
       // Mock API that fails halfway through (simulating network loss)
@@ -801,7 +813,7 @@ describe('Offline Sync Network Integration', () => {
 
       // Failed actions are re-queued as `pending` (with a retry count) so the
       // next sync retries them — they are never orphaned as `failed`.
-      const finalQueue = await offlineSyncService.getQueue();
+      const finalQueue = await readRetainedQueue();
       const requeuedActions = finalQueue.filter(
         (a) => a.status === 'pending' && a.syncAttempts > 0
       );
@@ -827,7 +839,7 @@ describe('Offline Sync Network Integration', () => {
       expect(result1.failed).toBe(15);
       expect(result1.synced).toBe(0);
 
-      const queue1 = await offlineSyncService.getQueue();
+      const queue1 = await readRetainedQueue();
       expect(queue1).toHaveLength(15);
       expect(queue1.every((a) => a.status === 'pending' && a.syncAttempts === 1)).toBe(true);
 
@@ -843,13 +855,13 @@ describe('Offline Sync Network Integration', () => {
       expect(result2.failed).toBe(15);
       expect(result2.synced).toBe(0);
 
-      const queue2 = await offlineSyncService.getQueue();
+      const queue2 = await readRetainedQueue();
       expect(queue2).toHaveLength(15);
       expect(queue2.every((a) => a.status === 'pending' && a.syncAttempts === 2)).toBe(true);
     });
 
     test('should handle network type switching during sync', async () => {
-      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+      const netInfoMock = NetInfo;
 
       // Queue actions
       for (let i = 0; i < 10; i++) {

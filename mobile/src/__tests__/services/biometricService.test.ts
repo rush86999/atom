@@ -150,8 +150,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       const result: BiometricResult = await biometricService.authenticate();
@@ -169,8 +167,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       const result = await biometricService.authenticate();
@@ -259,8 +255,6 @@ describe('BiometricService', () => {
       ]);
       const authSpy = jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       await biometricService.authenticate({
@@ -288,8 +282,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       const result = await biometricService.authenticate();
@@ -457,8 +449,6 @@ describe('BiometricService', () => {
       // Succeed on 4th attempt
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
       await biometricService.authenticate();
 
@@ -480,8 +470,6 @@ describe('BiometricService', () => {
       ]);
       jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       // Mock SecureStore to capture the token storage
@@ -896,8 +884,6 @@ describe('BiometricService', () => {
     test('should forward all authentication options', async () => {
       const authSpy = jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
         success: true,
-        error: undefined,
-        warning: undefined,
       });
 
       await biometricService.authenticate({

@@ -156,6 +156,8 @@ beforeEach(async () => {
 });
 
 describe('DeviceContext', () => {
+  let authValue: ReturnType<typeof useAuth>;
+
   describe('Initialization', () => {
     test('should initialize with default state', async () => {
       renderWithProviders(<></>);
