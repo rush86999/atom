@@ -202,3 +202,16 @@ async def test_correct_body_but_wrong_title_cannot_verify(present_world,monkeypa
     result=await tool.update_canvas(user.id,created['canvas_id'],{'title':'Authorized'},expected_prior_audit_id=created['audit_id'])
     assert result['success'] is False and result['status']=='committed_unverified',result
     assert result['verification']['effect']=='committed'
+
+
+def test_real_registry_exposes_planned_revision_and_safe_usage():
+    from tools.registry import ToolRegistry
+    registry=ToolRegistry();registry._register_canvas_tools()
+    metadata=registry.get('update_canvas')
+    assert metadata.version=='2.0.0'
+    assert 'expected_prior_audit_id' in metadata.to_dict()['parameters']
+    assert 'revision_audit_id' in metadata.description
+    assert 'expected_prior_audit_id' in metadata.examples[0]['code']
+    simplified=next(t for t in registry.get_simplified_tools() if t['name']=='update_canvas')
+    assert 'expected_prior_audit_id' in simplified['parameters']
+    assert 'missing or stale revisions refuse' in simplified['description']
