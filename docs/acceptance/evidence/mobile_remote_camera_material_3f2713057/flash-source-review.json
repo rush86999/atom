@@ -1,0 +1,629 @@
+{
+  "scope": {
+    "mode": "source-only architecture and contract proposal",
+    "evidence_basis": "Only the snippets provided in the request. No repository inspection, no tools, no code execution, no test runs, no device interaction.",
+    "authorization_status": "Design only. No native permissions were requested or granted, no camera capture or file write was performed, and no remote command was authorized or executed.",
+    "constraints": [
+      "Do not claim headless capture works.",
+      "Do not remove or degrade the existing CameraScreen camera feature.",
+      "Do not introduce a new permission engine, command engine, handler registry, or operation engine.",
+      "Remote commands must stay inside the existing authorization/dispatch path.",
+      "No actual device or native permission action is authorized by this proposal."
+    ]
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "blocker",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "DeviceSocket.handleCameraSnap",
+      "issue": "Calls the nonexistent top-level API `Camera.takePictureAsync(...)`. In the CameraView-generation expo-camera API, `takePictureAsync` is an instance method of a mounted `CameraView`; the top-level `Camera` object does not expose it.",
+      "consequence": "Every remote `camera_snap` fails at runtime with a TypeError and is reported as a generic capture failure. No photo is produced. This path must not be described as working or simulated with a fake result."
+    },
+    {
+      "id": "F2",
+      "severity": "blocker",
+      "file": "mobile/src/services/cameraService.ts",
+      "symbol": "CameraService.takePicture",
+      "issue": "The service requires the caller to pass `React.RefObject<CameraView>` but stores no reference to the currently mounted camera. The only valid capture surface is the local `cameraRef` inside `CameraScreen.tsx`, which is never shared. There is no registration API.",
+      "consequence": "`deviceSocket` has no legitimate way to obtain the mounted view. Any implementation that invents a global ref or calls a top-level capture API is either broken or a hidden headless-capture claim."
+    },
+    {
+      "id": "F3",
+      "severity": "high",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "DeviceSocket.handleCameraSnap",
+      "issue": "`quality: command.params.quality || 0.8` coerces a valid `quality` value of `0` to `0.8`. Zero is a real, useful setting meaning maximum compression.",
+      "consequence": "The remote command cannot request quality 0. The intended request is silently altered. Use nullish/default semantics only for `undefined` or `null`."
+    },
+    {
+      "id": "F4",
+      "severity": "high",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "DeviceSocket.handleCameraSnap",
+      "issue": "A default `savePath` under `FileSystem.cacheDirectory` is constructed unconditionally, but `FileSystem.copyAsync` runs only when `command.params.save_path` is supplied. The result then reports `file_path: savePath` even though that file was never created.",
+      "consequence": "Consumers receive a fabricated path and may fail to read it or mistake it for a captured artifact. The actual file is `result.uri`, and after `CameraService` post-processing it may be a different URI again."
+    },
+    {
+      "id": "F5",
+      "severity": "high",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "DeviceSocket.handleCameraSnap",
+      "issue": "The socket handler calls `Camera.requestCameraPermissionsAsync()` directly. This duplicates the service's permission authority and can raise an OS permission prompt in response to a remote command, without a foreground user gesture.",
+      "consequence": "A remote command can trigger permission UI and bypasses the intended screen/service permission flow. It is also not a substitute for capture-time revalidation."
+    },
+    {
+      "id": "F6",
+      "severity": "high",
+      "file": "mobile/src/services/cameraService.ts",
+      "symbol": "CameraService.permissionStatus",
+      "issue": "`permissionStatus` is cached from `initialize`, `requestPermissions`, or `getPermissionStatus`, but `takePicture` checks only the cached value. It is not refreshed at capture time.",
+      "consequence": "If the user revokes camera permission in OS settings while the screen is mounted, the cached value can remain `granted`. The command may attempt capture under a stale authorization assumption instead of failing closed."
+    },
+    {
+      "id": "F7",
+      "severity": "high",
+      "file": "mobile/src/screens/device/CameraScreen.tsx",
+      "symbol": "CameraScreen.cameraRef",
+      "issue": "There is no mount, readiness, or unmount lifecycle exposed to the service. `CameraView` may be mounted but not ready, and an unmount leaves no shared state that a command can consult.",
+      "consequence": "Capture can be attempted against a view that is not ready or no longer mounted. Failures are nondeterministic. The correct behavior is explicit `not_mounted` or `not_ready` failure, never queuing, retrying, or pretending success."
+    },
+    {
+      "id": "F8",
+      "severity": "medium",
+      "file": "mobile/src/services/cameraService.ts",
+      "symbol": "CameraService.takePicture",
+      "issue": "`takePicture` catches every error and returns `null`. The caller cannot distinguish missing ref, permission denial, readiness failure, or native capture failure.",
+      "consequence": "`deviceSocket` can only emit a generic error. The mounted-view entry point needs a small typed error taxonomy; the existing `takePicture` null contract can remain for `CameraScreen` compatibility."
+    },
+    {
+      "id": "F9",
+      "severity": "medium",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "DeviceSocket.handleCameraSnap / PhotoOptions",
+      "issue": "The socket result expects `base64_data`, but `PhotoOptions` does not include `base64`. If base64 is requested from the native call while the service also resizes or compresses the image, the base64 may describe a different image than the returned file URI.",
+      "consequence": "The wire payload and the stored file can disagree. Either derive base64 from the final returned URI, or explicitly change the contract and coordinate with consumers."
+    },
+    {
+      "id": "F10",
+      "severity": "medium",
+      "file": "mobile/src/services/cameraService.ts",
+      "symbol": "CameraService.takePicture post-processing",
+      "issue": "When the image exceeds `MAX_IMAGE_DIMENSION`, `ImageManipulator.manipulateAsync` re-encodes with fixed `COMPRESSION_QUALITY`, not the caller-supplied quality.",
+      "consequence": "A capture requested with `quality: 0` can be partially undone by post-processing. The exact constant values are not visible in the snippet, but the control flow is clear. This matters specifically for honoring quality 0 end-to-end."
+    },
+    {
+      "id": "F11",
+      "severity": "low",
+      "file": "mobile/src/services/cameraService.ts",
+      "symbol": "CameraService.takePicture",
+      "issue": "`fileInfo.size` is read from the native photo before compression. If `finalUri` is the compressed file, `media.size` can describe the pre-compression file.",
+      "consequence": "Reported metadata can be inconsistent with the URI the consumer receives. Re-stat `finalUri` after post-processing."
+    },
+    {
+      "id": "F12",
+      "severity": "medium",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "unused handler map",
+      "issue": "An unused map exists, but there is no registration API and no population path. It is not an extension point that can be switched on.",
+      "consequence": "Turning it into a general handler registry would add a second dispatch mechanism and still would not solve camera-view ownership. Do not implement or advertise it as part of this change."
+    },
+    {
+      "id": "F13",
+      "severity": "low",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "DeviceSocket.handleCameraSnap",
+      "issue": "`command.params.quality` is dereferenced without optional chaining, and the value is not validated as a number in the 0..1 range.",
+      "consequence": "Malformed or absent params produce avoidable errors or are forwarded without validation. Use `command.params?.` and validate before forwarding."
+    },
+    {
+      "id": "F14",
+      "severity": "info",
+      "file": "mobile/src/services/deviceSocket.ts",
+      "symbol": "Camera import",
+      "issue": "`Camera.requestCameraPermissionsAsync` still exists even though `Camera.takePictureAsync` does not. Removing the whole camera import may be wrong if other command paths legitimately use permission APIs.",
+      "consequence": "Remove only the capture call and the socket-level permission request. Verify remaining references before pruning imports."
+    }
+  ],
+  "existing_mechanism_to_reuse": [
+    {
+      "mechanism": "`cameraService` singleton / `CameraService` class",
+      "reuse": "Make the existing service the single owner of the mounted view and the single capture entry point. Do not create a parallel camera manager."
+    },
+    {
+      "mechanism": "`CameraService.takePicture(cameraRef, options)` internals",
+      "reuse": "Extract the existing capture/file-info/compression/media assembly into one private core used by both the current ref-based API and the new mounted-view API. This preserves `CameraScreen` behavior."
+    },
+    {
+      "mechanism": "`CameraScreen` `cameraRef` and `CameraView`",
+      "reuse": "The actual `CameraView` instance is the only valid capture handle. Reuse `onCameraReady` for readiness and the existing `useRef` as the registered instance."
+    },
+    {
+      "mechanism": "`PhotoOptions` and `CapturedMedia`",
+      "reuse": "Extend additively with optional `base64` fields rather than inventing new media or result models. Existing `CameraScreen` callers remain valid."
+    },
+    {
+      "mechanism": "`CameraService` permission helpers and `toCameraPermission`",
+      "reuse": "Reuse `Camera.getCameraPermissionsAsync()` and the existing mapping for capture-time revalidation. Do not add a new permission model."
+    },
+    {
+      "mechanism": "`DeviceSocket.handleCommand` / `handleCameraSnap` / `ResultMessage`",
+      "reuse": "Keep the existing command switch and result shape. Replace only the broken capture body. The camera handler remains under the same dispatch and authorization path."
+    },
+    {
+      "mechanism": "`FileSystem.copyAsync`, `getInfoAsync`, and the existing file-system module",
+      "reuse": "Use the same APIs for explicit saves, post-processing metadata, and optional base64 derivation. Do not add a file-operation engine."
+    },
+    {
+      "mechanism": "React effect cleanup",
+      "reuse": "Use a per-registration opaque token and cleanup on unmount. This is the stale-unmount guard; no new lifecycle system is needed."
+    }
+  ],
+  "contract": {
+    "mounted_view_contract": {
+      "types": {
+        "MountedCameraToken": "Opaque per-registration identity token, for example a symbol. Not serializable, not a permission token, not an authorization credential.",
+        "CameraCaptureErrorCode": "'not_mounted' | 'not_ready' | 'permission_denied' | 'capture_failed'",
+        "CameraCaptureError": "Local error type carrying one of the codes above. This is not a permission or command engine."
+      },
+      "api": [
+        {
+          "signature": "registerMountedView(view: CameraView): MountedCameraToken",
+          "semantics": "Stores the exact mounted view instance, creates a new token, resets readiness to false, and returns the token. Last registration wins. A previous token becomes stale."
+        },
+        {
+          "signature": "markMountedViewReady(token: MountedCameraToken): void",
+          "semantics": "Sets readiness only if the token is still current. A stale token is a no-op. Does not request permissions."
+        },
+        {
+          "signature": "unregisterMountedView(token: MountedCameraToken): void",
+          "semantics": "Clears the mounted view and readiness only if the token is still current. A stale unmount from an older registration cannot clear a newer view."
+        },
+        {
+          "signature": "captureFromMountedView(options: CaptureOptions): Promise<CapturedMedia>",
+          "semantics": "Requires a current mounted view, readiness true, and a fresh OS permission check of granted. Captures on the exact registered instance and returns the actual final URI. Throws CameraCaptureError with a specific code; never invents a URI."
+        },
+        {
+          "signature": "takePicture(cameraRef, options): Promise<CapturedMedia | null>",
+          "semantics": "Existing API preserved for CameraScreen. Internally uses the same capture core. Keeps the null-on-error behavior for compatibility."
+        }
+      ],
+      "capture_options": {
+        "quality": "Forwarded exactly. `0` must remain `0`. Default only when the value is undefined or null.",
+        "base64": "Optional additive flag. If true, derive base64 from the final returned URI so the payload matches the stored file.",
+        "exif": "Pass through unchanged.",
+        "skipProcessing": "Pass through unchanged.",
+        "post_processing_quality": "When resizing/compressing, use the caller-supplied quality when present, falling back to the existing COMPRESSION_QUALITY constant only when absent."
+      },
+      "invariants": [
+        "Only `CameraView.takePictureAsync` on the exact registered instance is used for capture.",
+        "A capture is possible only when a current token exists, readiness is true, and a fresh permission check returns granted.",
+        "A stale `markReady` or `unregister` call is a no-op and cannot affect a newer registration.",
+        "Readiness is not inferred from mount. It must be explicitly marked from `onCameraReady`.",
+        "Capture fails deterministically with `not_mounted` or `not_ready`; it does not queue, poll, retry, or fabricate a result.",
+        "The socket never calls `requestCameraPermissionsAsync` and never changes facing, flash, mode, or other camera configuration.",
+        "`file_path` is always a real artifact: the actual final capture URI, or an explicit save destination only after a successful copy.",
+        "No explicit save means no default copy and no fabricated cache path.",
+        "Base64, when present, is derived from the final file URI, not from an earlier unprocessed capture.",
+        "No headless capture fallback exists."
+      ]
+    },
+    "socket_result_contract": {
+      "success": {
+        "type": "result",
+        "success": true,
+        "data": {
+          "base64_data": "optional string, present when a base64 capture was requested",
+          "width": "number, from CapturedMedia",
+          "height": "number, from CapturedMedia"
+        },
+        "file_path": "actual final capture URI, or the explicit save_path only after copyAsync resolves",
+        "timestamp": "ISO timestamp"
+      },
+      "failure": {
+        "type": "result",
+        "success": false,
+        "error": "specific, stable message derived from CameraCaptureError.code or the save failure",
+        "timestamp": "ISO timestamp"
+      },
+      "compatibility_note": "The top-level result shape remains unchanged. The semantic change is that `file_path` is now truthful instead of always a guessed cache path. Backend consumers must not assume a cache-directory prefix."
+    }
+  },
+  "implementation_plan": [
+    {
+      "step": 1,
+      "file": "mobile/src/services/cameraService.ts",
+      "change": "Add `MountedCameraToken`, `CameraCaptureErrorCode`, and `CameraCaptureError`. Add private fields for the current view, current token, and ready flag. Add `registerMountedView`, `markMountedViewReady`, and `unregisterMountedView` with strict token-identity checks.",
+      "notes": "Registration replaces any previous registration. Readiness starts false. Unregister only clears if the supplied token is current."
+    },
+    {
+      "step": 2,
+      "file": "mobile/src/services/cameraService.ts",
+      "change": "Extract the existing capture body into a private `captureWithView(view, options)` that performs the native `takePictureAsync`, file info, optional compression, and media assembly. Add a separate `assertFreshPermission()` that calls `Camera.getCameraPermissionsAsync()`, updates `permissionStatus`, and throws `CameraCaptureError('permission_denied')` unless the fresh status is granted.",
+      "notes": "`assertFreshPermission` never prompts. It fails closed on API error. `takePicture` becomes a thin wrapper preserving ref validation, logging, and null-on-error behavior."
+    },
+    {
+      "step": 3,
+      "file": "mobile/src/services/cameraService.ts",
+      "change": "Implement `captureFromMountedView(options)` with this order: snapshot view and token; fail `not_mounted` if absent; fail `not_ready` if readiness is false; await fresh permission; re-check token and view identity; call `captureWithView`; throw `capture_failed` if no media; return media.",
+      "notes": "The post-await identity re-check prevents an unmount during permission revalidation from silently targeting a replaced view. An in-flight native capture cannot be cancelled; do not add cancellation infrastructure."
+    },
+    {
+      "step": 4,
+      "file": "mobile/src/services/cameraService.ts",
+      "change": "Honor caller quality in post-processing: use `options.quality ?? COMPRESSION_QUALITY` in the ImageManipulator compression step, and re-stat `finalUri` after compression so `media.size` matches the returned file. When `base64` is requested, read the final URI as base64.",
+      "notes": "This is a behavior change for callers that previously supplied a quality but were re-encoded at the fixed constant. Flag it in the commit message. It is required for quality 0 to survive end-to-end."
+    },
+    {
+      "step": 5,
+      "file": "mobile/src/screens/device/CameraScreen.tsx",
+      "change": "Keep `cameraRef` and all existing UI/permission-flows intact. Add a mounted-token ref and a ready ref. In an effect keyed on `permission?.granted`, register `cameraRef.current`, store the token, apply an already-fired readiness signal, and return a cleanup that unregisters that exact token and clears local refs. Wire `onCameraReady` to set the ready ref and call `markMountedViewReady(token)` when a token exists.",
+      "notes": "Do not add focus-based gating, remote mode switching, or a second permission prompt. If `cameraRef.current` is not available in the effect, do not register; the readiness ref re-applies on the next successful registration. Reset the ready ref on cleanup."
+    },
+    {
+      "step": 6,
+      "file": "mobile/src/services/deviceSocket.ts",
+      "change": "Rewrite `handleCameraSnap` to call `cameraService.captureFromMountedView`. Use `const params = command.params ?? {}`. Forward `params.quality` only when it is a number in 0..1, with a default of 0.8 only for undefined/null. Pass `exif: true` and the existing base64 requirement through the additive option. Remove the socket-level permission request and the top-level capture call.",
+      "notes": "Special-case quality 0 explicitly in tests. Do not call `Camera.requestCameraPermissionsAsync`. Preserve the existing result shape and timestamp format."
+    },
+    {
+      "step": 7,
+      "file": "mobile/src/services/deviceSocket.ts",
+      "change": "Remove the unconditional default `save_path`. Set `filePath = media.uri`. If and only if a non-empty explicit `save_path` is supplied, await `FileSystem.copyAsync({ from: media.uri, to: params.save_path })` and then set `filePath = params.save_path`. On copy failure, return `success: false` and do not report a file path.",
+      "notes": "Copy failure is a command failure even though the native capture succeeded. Do not silently create parent directories unless that becomes an explicit, reviewed policy."
+    },
+    {
+      "step": 8,
+      "file": "mobile/src/services/deviceSocket.ts",
+      "change": "Map `CameraCaptureError.code` to stable messages: `not_mounted` -> `Camera is not open on the device`; `not_ready` -> `Camera is not ready yet`; `permission_denied` -> `Camera permission not granted`; `capture_failed` -> the underlying capture message. Keep generic fallback handling for unexpected errors.",
+      "notes": "Do not expose a fake success or a guessed file path for any error case."
+    },
+    {
+      "step": 9,
+      "file": "mobile/src/services/deviceSocket.ts",
+      "change": "Leave the unused handler map untouched. Do not add handler registration, a new dispatcher, or a new command path. Optionally remove the dead map in a separate cleanup after confirming no external references.",
+      "notes": "The mounted-view registration in CameraService is the chosen mechanism. The unused map is neither needed nor sufficient."
+    },
+    {
+      "step": 10,
+      "file": "backend consumer (verification only)",
+      "change": "Verify how the backend consumes `file_path` and `base64_data`. Confirm it does not assume `file_path` is always under the mobile cache directory and that it can handle the actual final URI. No backend code change is proposed here.",
+      "notes": "If the backend requires a stable cache path, that is a wire-contract decision to resolve explicitly rather than by lying in the result."
+    }
+  ],
+  "decisive_tests": [
+    {
+      "id": "T1",
+      "layer": "static",
+      "name": "No top-level capture API remains",
+      "setup": "Search mobile sources for `Camera.takePictureAsync` and for `requestCameraPermissionsAsync` in deviceSocket.",
+      "assertions": [
+        "No `Camera.takePictureAsync` occurrence remains in the camera command path.",
+        "No socket-level permission request remains.",
+        "The only capture call is `takePictureAsync` on a mounted CameraView instance."
+      ],
+      "why_decisive": "Directly proves the broken API path is gone and the remote command cannot trigger a permission prompt."
+    },
+    {
+      "id": "T2",
+      "layer": "unit",
+      "name": "Mounted view is the exact registered instance",
+      "setup": "Create fake CameraView A and B with jest mock `takePictureAsync`. Register A, mark A ready, capture.",
+      "assertions": [
+        "A.takePictureAsync is called exactly once.",
+        "B.takePictureAsync is not called.",
+        "Returned media.uri equals A's resolved URI."
+      ],
+      "why_decisive": "Proves capture ownership is explicit and does not depend on a global ref or top-level API."
+    },
+    {
+      "id": "T3",
+      "layer": "unit",
+      "name": "Stale unmount cannot clear a newer view",
+      "setup": "Register A -> tokenA. Register B -> tokenB. Call unregister(tokenA). Mark tokenB ready. Capture.",
+      "assertions": [
+        "B remains registered.",
+        "Capture succeeds using B.",
+        "A.takePictureAsync is never called."
+      ],
+      "why_decisive": "This is the stale-unmount requirement. A naive boolean or ref cleanup fails this test."
+    },
+    {
+      "id": "T4",
+      "layer": "unit",
+      "name": "Stale readiness is ignored",
+      "setup": "Register A -> tokenA. Register B -> tokenB. Call markMountedViewReady(tokenA). Capture without marking tokenB ready.",
+      "assertions": [
+        "Capture rejects with code `not_ready`.",
+        "No native capture is attempted."
+      ],
+      "why_decisive": "Proves readiness is bound to the current registration, not to a global or stale callback."
+    },
+    {
+      "id": "T5",
+      "layer": "unit",
+      "name": "Capture before readiness fails closed",
+      "setup": "Register and do not call markReady. Attempt capture.",
+      "assertions": [
+        "Rejects with code `not_ready`.",
+        "`takePictureAsync` is not called.",
+        "No fake media or path is returned."
+      ],
+      "why_decisive": "Prevents a mounted-but-not-ready view from producing a nondeterministic native failure or a simulated success."
+    },
+    {
+      "id": "T6",
+      "layer": "unit",
+      "name": "Capture after unmount fails closed",
+      "setup": "Register, mark ready, unregister with the current token. Attempt capture.",
+      "assertions": [
+        "Rejects with code `not_mounted`.",
+        "`takePictureAsync` is not called."
+      ],
+      "why_decisive": "Proves unmount gating and confirms no headless fallback exists."
+    },
+    {
+      "id": "T7",
+      "layer": "unit",
+      "name": "Permission is revalidated at capture time",
+      "setup": "Register and mark ready. Mock `Camera.getCameraPermissionsAsync` to return denied. Attempt capture.",
+      "assertions": [
+        "Rejects with code `permission_denied`.",
+        "`takePictureAsync` is not called.",
+        "`Camera.requestCameraPermissionsAsync` is not called."
+      ],
+      "why_decisive": "Covers OS revocation after screen mount and proves the command does not prompt or bypass authorization."
+    },
+    {
+      "id": "T8",
+      "layer": "unit",
+      "name": "Permission granted allows capture and updates cached state",
+      "setup": "Register and mark ready. Mock fresh permission as granted. Capture.",
+      "assertions": [
+        "Capture succeeds.",
+        "The service's cached permission status is `granted`.",
+        "No permission prompt was requested."
+      ],
+      "why_decisive": "Verifies reauthorization is a fresh check, not a stale cached assumption, and that it does not introduce prompting."
+    },
+    {
+      "id": "T9",
+      "layer": "unit",
+      "name": "Quality 0 is preserved",
+      "setup": "Call the socket handler with `params.quality = 0`, or call the service capture path with `quality: 0`. Assert the native option.",
+      "assertions": [
+        "`takePictureAsync` receives `quality === 0`, not 0.8.",
+        "If post-processing runs, the manipulator compression value is 0, not COMPRESSION_QUALITY."
+      ],
+      "why_decisive": "This is the explicit quality-0 requirement and catches both the truthiness bug and the later re-encode bug."
+    },
+    {
+      "id": "T10",
+      "layer": "unit",
+      "name": "Quality defaults only when absent",
+      "setup": "Call with quality undefined, then with quality 0.5.",
+      "assertions": [
+        "Undefined yields the documented default 0.8.",
+        "0.5 is forwarded unchanged.",
+        "Null is treated like undefined; 0 is never treated as absent."
+      ],
+      "why_decisive": "Verifies the fallback semantics are precise."
+    },
+    {
+      "id": "T11",
+      "layer": "unit",
+      "name": "No explicit save means no copy and a real URI",
+      "setup": "Capture with fake media URI `file:///cache/final.jpg` and no save_path.",
+      "assertions": [
+        "`FileSystem.copyAsync` is not called.",
+        "`file_path` equals `file:///cache/final.jpg`.",
+        "`file_path` does not equal any invented `${cacheDirectory}camera_<id>.jpg` path."
+      ],
+      "why_decisive": "Catches the fabricated-path bug directly."
+    },
+    {
+      "id": "T12",
+      "layer": "unit",
+      "name": "Explicit save reports success only after copy resolves",
+      "setup": "Capture with media URI `file:///cache/final.jpg` and explicit save_path `file:///docs/snap.jpg`. Mock copyAsync resolve.",
+      "assertions": [
+        "copyAsync is called with `{ from: media.uri, to: save_path }`.",
+        "`file_path` equals save_path.",
+        "The result is success only after the promise resolves."
+      ],
+      "why_decisive": "Proves explicit-save semantics and prevents optimistic success."
+    },
+    {
+      "id": "T13",
+      "layer": "unit",
+      "name": "Explicit save failure is a command failure",
+      "setup": "Mock copyAsync to reject.",
+      "assertions": [
+        "Result is `success: false`.",
+        "No `file_path` is reported.",
+        "The error indicates the save failure rather than a capture failure."
+      ],
+      "why_decisive": "Prevents reporting a path that was never written."
+    },
+    {
+      "id": "T14",
+      "layer": "unit",
+      "name": "Base64 matches the returned file",
+      "setup": "Mock post-processing to return a compressed URI; request base64. Make readAsStringAsync return known base64 for the final URI.",
+      "assertions": [
+        "`base64_data` is derived from the final URI.",
+        "`base64_data` does not come from the pre-compression native image."
+      ],
+      "why_decisive": "Prevents the payload from describing a different image than `file_path`."
+    },
+    {
+      "id": "T15",
+      "layer": "unit",
+      "name": "Missing params are safe",
+      "setup": "Call `handleCameraSnap` with `params` undefined.",
+      "assertions": [
+        "No TypeError is thrown for `params.quality` or `params.save_path`.",
+        "Default quality is applied.",
+        "No save copy is attempted."
+      ],
+      "why_decisive": "Covers malformed remote commands without widening the command contract."
+    },
+    {
+      "id": "T16",
+      "layer": "unit",
+      "name": "Existing takePicture behavior is preserved",
+      "setup": "Call `cameraService.takePicture` with a ref containing a fake view, then with a null ref.",
+      "assertions": [
+        "Valid ref returns CapturedMedia with the actual URI.",
+        "Null ref returns null.",
+        "Permission denial returns null, preserving the existing local caller contract."
+      ],
+      "why_decisive": "Confirms the camera feature used by CameraScreen was not broken by the refactor."
+    },
+    {
+      "id": "T17",
+      "layer": "integration-device",
+      "name": "Foreground CameraScreen explicit save",
+      "setup": "Open CameraScreen, grant permission, let onCameraReady fire, send camera_snap with a save_path under an app-writable directory.",
+      "assertions": [
+        "The returned file_path exists and is readable on the device.",
+        "Image dimensions match the returned width/height.",
+        "The camera preview is not removed or reconfigured."
+      ],
+      "why_decisive": "Verifies the actual native boundary and proves the result is not a fabricated cache path."
+    },
+    {
+      "id": "T18",
+      "layer": "integration-device",
+      "name": "No save_path returns a real temporary URI",
+      "setup": "Send camera_snap without save_path.",
+      "assertions": [
+        "file_path is the actual captured file URI.",
+        "The file is readable.",
+        "No copy operation is performed and no nonexistent path is returned."
+      ],
+      "why_decisive": "Verifies the corrected no-save contract end to end."
+    },
+    {
+      "id": "T19",
+      "layer": "integration-device",
+      "name": "Quality 0 is observably honored",
+      "setup": "Capture the same static scene twice through the command path: quality 0 and quality 0.8, with post-processing controlled.",
+      "assertions": [
+        "The provided quality reaches the native capture and any post-processing step.",
+        "The quality-0 artifact is not silently normalized to 0.8.",
+        "No quality parameter is dropped."
+      ],
+      "why_decisive": "A unit mock can verify forwarding, but an on-device check catches platform normalization or post-processing overrides."
+    },
+    {
+      "id": "T20",
+      "layer": "integration-device",
+      "name": "No CameraScreen means explicit failure",
+      "setup": "Navigate away or unmount CameraScreen. Send camera_snap.",
+      "assertions": [
+        "Result is `success: false` with a `not_mounted` style message.",
+        "No native capture occurs.",
+        "No file is fabricated or reported."
+      ],
+      "why_decisive": "Directly enforces 'never pretend headless capture works'."
+    },
+    {
+      "id": "T21",
+      "layer": "integration-device",
+      "name": "OS permission revocation fails closed without prompting",
+      "setup": "Open CameraScreen, revoke camera permission in OS settings, return to the app without re-granting, send camera_snap.",
+      "assertions": [
+        "Command fails with a permission message.",
+        "No OS permission prompt is raised by the remote command.",
+        "No capture occurs."
+      ],
+      "why_decisive": "Verifies capture-time reauthorization and proves the remote path cannot prompt or bypass permission."
+    },
+    {
+      "id": "T22",
+      "layer": "authorization",
+      "name": "Unauthorized socket session cannot reach the camera handler",
+      "setup": "Use the existing socket authentication/authorization test harness to send a camera_snap without valid authorization.",
+      "assertions": [
+        "The existing authorization layer rejects the command before handler execution.",
+        "`captureFromMountedView` is not called.",
+        "No new authorization bypass is introduced."
+      ],
+      "why_decisive": "Ensures the change stays inside the existing authorization boundary. If the harness does not exist, this test is blocked and must be resolved as a governance issue before shipping."
+    },
+    {
+      "id": "T23",
+      "layer": "unit",
+      "name": "Unmount during permission revalidation does not target a replacement view",
+      "setup": "Begin capture, delay the permission promise, unregister and register a new view during the await, then resolve permission.",
+      "assertions": [
+        "The old capture attempt does not call the new view's takePictureAsync.",
+        "The attempt fails with `not_mounted` or otherwise targets only the snapshot it started with.",
+        "The new registration remains intact."
+      ],
+      "why_decisive": "Covers the async race between permission revalidation and view replacement."
+    }
+  ],
+  "unresolved_authorization_governance": [
+    {
+      "id": "G1",
+      "issue": "The provided `deviceSocket` snippet does not show a per-command authorization check. It is unknown whether the socket handshake or pairing layer authorizes all commands, camera commands specifically, or neither.",
+      "decision_needed": "Confirm which existing layer authorizes remote commands and whether camera capture requires a distinct scope or explicit user consent. Do not invent a new authority inside CameraService.",
+      "default_in_this_proposal": "Keep `handleCameraSnap` inside the existing `handleCommand` dispatch and add no new authorization logic. If command-level authorization does not exist, treat this as a blocker for shipping, not as a camera-service problem."
+    },
+    {
+      "id": "G2",
+      "issue": "A mounted CameraScreen is only a weak signal of user presence or consent. The screen may remain open while the user is elsewhere, and registration is based on mount, not focus or recent interaction.",
+      "decision_needed": "Decide whether capture requires a focused screen, recent user interaction, a visible indicator, or a time-bound consent window. Focus gating or timeouts are policy changes, not implementation details.",
+      "default_in_this_proposal": "Register on mount and unregister on unmount only. Do not add focus or interaction gating silently."
+    },
+    {
+      "id": "G3",
+      "issue": "`save_path` is remote-caller-controlled. A successful copy can write to any path the app can access, which is a write and potential exfiltration primitive.",
+      "decision_needed": "Decide whether to restrict saves to app-owned directories, normalize paths, or use an allowlist. This is a security contract change and can break existing integrations.",
+      "default_in_this_proposal": "Preserve existing save semantics, perform the copy only when explicitly requested, and surface failures. Do not silently add a path policy as part of the camera fix."
+    },
+    {
+      "id": "G4",
+      "issue": "Base64 image data and EXIF are transmitted over the socket. EXIF may include location and device metadata. Retention and logging are unspecified.",
+      "decision_needed": "Decide whether EXIF should be stripped, whether base64 is required at all, and what retention/audit rules apply.",
+      "default_in_this_proposal": "Preserve the existing `exif: true` and base64 result shape for compatibility. Do not add a new telemetry or audit subsystem."
+    },
+    {
+      "id": "G5",
+      "issue": "Headless capture is not possible with this architecture. Without a mounted foreground CameraView, there is no valid native capture session.",
+      "decision_needed": "Product must accept 'camera screen open' as a hard requirement, or separately design a foreground/native capability with its own authorization, platform constraints, and store-review implications.",
+      "default_in_this_proposal": "Return an explicit not-mounted failure. Do not attempt background capture or simulate it."
+    },
+    {
+      "id": "G6",
+      "issue": "If permission is missing, the proposal fails the command rather than prompting. A remote command must not raise an OS permission dialog without a user gesture.",
+      "decision_needed": "If the product requires automatic recovery, decide how a foreground user gesture is obtained. That is a UX and consent decision, not something the camera service should do on behalf of a remote command.",
+      "default_in_this_proposal": "Revalidate only; never call `requestCameraPermissionsAsync` from the socket. Existing CameraScreen permission flow remains the acquisition path."
+    },
+    {
+      "id": "G7",
+      "issue": "If multiple CameraViews can be mounted at once, last-registration-wins means the older screen loses capture and the remote command may target the most recently mounted instance.",
+      "decision_needed": "Confirm whether multiple camera screens can coexist. If they can, define the ownership policy explicitly; do not build an arbitration engine implicitly.",
+      "default_in_this_proposal": "Single-owner, last-registration-wins, with stale-token no-ops."
+    },
+    {
+      "id": "G8",
+      "issue": "Changing `file_path` from a guessed cache path to the actual final URI, and deriving base64 from the final file, is a wire-contract semantic change.",
+      "decision_needed": "Confirm backend compatibility and versioning. If consumers require a cache path, define a real normalization step rather than returning a path that was never written.",
+      "default_in_this_proposal": "Return truthful paths and align base64 with the returned file. No backend code change is part of this proposal."
+    }
+  ],
+  "explicit_non_goals": [
+    "No generic handler registration API.",
+    "No new command dispatcher, operation engine, or permission engine.",
+    "No headless capture, background capture, or fallback that fakes a camera result.",
+    "No remote permission prompt.",
+    "No remote changes to camera facing, flash, or mode.",
+    "No removal of CameraScreen or its local capture feature.",
+    "No new native dependency or native module.",
+    "No backend changes in this proposal.",
+    "No claim that any test, build, or device flow has been run."
+  ]
+}

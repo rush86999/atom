@@ -1,0 +1,18 @@
+{
+  "actual_exit": 1,
+  "started": 1794201050.8960772,
+  "finished": 1794201053.3580182,
+  "selected_kind": "devicesocket",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/deviceSocket.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 37,
+    "numPassedTests": 35,
+    "numFailedTests": 2,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

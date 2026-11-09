@@ -1,0 +1,24 @@
+{
+  "executed_source": "3f271305765359793a98153eec0572c1157e5f8e",
+  "source_files": {
+    "mobile/src/services/deviceSocket.ts": "d6abc57fb6968a0002649685c181306a120f39124d75e04220fb1a3347135fa8",
+    "mobile/src/__tests__/services/deviceSocket.test.ts": "3484e027c6cb46256f4b0e887186b3c6118e6de85d1e4512dcc7f68698590875",
+    "mobile/package-lock.json": "af8a4d8cb7778038edb6c8b23ab1b434057f10a24ac13d4a2cc8ce8b970a6c21",
+    "mobile/tsconfig.json": "d92c2d5c519a5fc6fc2980d9ec9c05dcda8842698229462daca0689ef12147cc"
+  },
+  "artifacts": {
+    "flash-source-review.json": "f6e4250e5b338298586e87885eb1e9b7c52b0d52714343695b5c6351ea80fc3f",
+    "remote-camera-result-material-negative.log": "147721985c9cb8e66b86eea0e035104a6b83b7152050b543cc7240720116bd22",
+    "remote-camera-result-material-negative.exit.json": "7f102afa24dd60b8ef1b08485a0ec46875c81a8646b41c28ad02a61990cfdc95",
+    "remote-camera-result-material-negative.spec.json": "c0f6a5298f6972e991c7f7e7dfcfe8171159cde3375d01d71113294264a34493",
+    "flash-public-input.txt": "3374f50526fa05883fbed730ccb2ed7a81d4864dd129bdac2280f67387c64196",
+    "remote-camera-result-material-repaired.log": "dd7c48c5c8a59d6e3fe4f806c1ad7b415e98a14a8665916b7f17b03061f9b063",
+    "flash-client-exit.json": "2872f69fe9368f46c76edd77260de7f1f37e231ea18a7f89041e55be95d83014",
+    "remote-camera-result-material-negative-results.json": "c3345c906600fe187ad044a7431d14691ddc00fe7c856376e3e12eea8103c426",
+    "remote-camera-result-material-repaired.spec.json": "d412af380800ee92833983b95a9f5384a3eeb6de8339b176c1e435d9c95e1413",
+    "remote-camera-result-material-repaired.exit.json": "6bd34848f5f79343e4a295cdb1c673e766643bcd607e531d0069e1bc900b93ad",
+    "README.md": "b60e2b0979e67a3501e5d01038bb455365c9f11ecbc4bc8006f53ba57a5621c7",
+    "NEXT_WORK_ORDER.md": "fd8b0664d75604b4a29c7924ab4fb0f41fd4d02d40016e7c5eda183a7b674b0d",
+    "remote-camera-result-material-repaired-results.json": "34924f4094f71050e48c9bd9c32e69e26204b893dc36e87c55fc7ebd3d68f568"
+  }
+}

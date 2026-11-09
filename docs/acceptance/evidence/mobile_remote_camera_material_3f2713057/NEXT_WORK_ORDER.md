@@ -1,0 +1,5 @@
+# Remaining remote-camera work
+
+Reuse existing cameraService and CameraScreen CameraView, not a parallel command manager. Trace authenticated backend device tool, ownership and governance into the actual mobile transport first: backend sends native WebSocket messages, this service currently uses Socket.IO. An open camera is not consent. Keep all write/permission tests controlled; no real device authorization.
+
+Implement exact mounted-view registration/readiness and stale unmount protection, fresh permission revalidation without remote OS prompts, per-view overlap prevention, matching final URI/metadata/base64 and truthful explicit-save completion. Preserve local camera UI and established video behavior. Never claim headless capture, invent a path or trust caller-supplied maturity/scope. Decisive controlled twins: no mounted/not-ready/foreign or revoked authority, stale permission await/unmount, duplicate overlap, native refusal, quality0, resized dimensions/bytes, copy failure, current actor/device command-result correlation. Verify backend/public transport boundary before any native qualification.

@@ -1,0 +1,2907 @@
+
+> atom-mobile@1.0.0 test
+> jest src/__tests__/services/deviceSocket.test.ts --runInBand --watch=false --watchman=false --json --outputFile=/private/tmp/root-mobile-build-20261109/remote-camera-result-material-negative-results.json
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+  console.warn
+    ProgressBarAndroid has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/progress-bar-android' instead of 'react-native'. See https://github.com/react-native-progress-view/progress-bar-android
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as ProgressBarAndroid] (node_modules/react-native/index.js:143:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    Clipboard has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-clipboard/clipboard' instead of 'react-native'. See https://github.com/react-native-clipboard/clipboard
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as Clipboard] (node_modules/react-native/index.js:226:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `addListener` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:63:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `removeListeners` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:68:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    PushNotificationIOS has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. See https://github.com/react-native-push-notification-ios/push-notification-ios
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as PushNotificationIOS] (node_modules/react-native/index.js:287:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.error
+    [DeviceSocket] No auth token found
+
+       95 |       const token = await secureGet('atom_access_token');
+       96 |       if (!token) {
+    >  97 |         console.error('[DeviceSocket] No auth token found');
+          |                 ^
+       98 |         return false;
+       99 |       }
+      100 |
+
+      at DeviceSocketService.error (src/services/deviceSocket.ts:97:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.error
+    [DeviceSocket] No auth token found
+
+       95 |       const token = await secureGet('atom_access_token');
+       96 |       if (!token) {
+    >  97 |         console.error('[DeviceSocket] No auth token found');
+          |                 ^
+       98 |         return false;
+       99 |       }
+      100 |
+
+      at DeviceSocketService.error (src/services/deviceSocket.ts:97:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Device registered: d1
+
+      at log (src/services/deviceSocket.ts:195:15)
+
+  console.log
+    [DeviceSocket] Heartbeat started
+
+      at DeviceSocketService.log [as startHeartbeat] (src/services/deviceSocket.ts:242:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.error
+    [DeviceSocket] Connection error: boom
+
+      167 |
+      168 |     this.socket.on('connect_error', (error: any) => {
+    > 169 |       console.error('[DeviceSocket] Connection error:', error.message);
+          |               ^
+      170 |       this.reconnectAttempts++;
+      171 |
+      172 |       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+
+      at error (src/services/deviceSocket.ts:169:15)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at Object.fire (src/__tests__/services/deviceSocket.test.ts:272:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    [DeviceSocket] Connection error: boom
+
+      167 |
+      168 |     this.socket.on('connect_error', (error: any) => {
+    > 169 |       console.error('[DeviceSocket] Connection error:', error.message);
+          |               ^
+      170 |       this.reconnectAttempts++;
+      171 |
+      172 |       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+
+      at error (src/services/deviceSocket.ts:169:15)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at Object.fire (src/__tests__/services/deviceSocket.test.ts:272:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    [DeviceSocket] Connection error: boom
+
+      167 |
+      168 |     this.socket.on('connect_error', (error: any) => {
+    > 169 |       console.error('[DeviceSocket] Connection error:', error.message);
+          |               ^
+      170 |       this.reconnectAttempts++;
+      171 |
+      172 |       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+
+      at error (src/services/deviceSocket.ts:169:15)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at Object.fire (src/__tests__/services/deviceSocket.test.ts:272:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    [DeviceSocket] Connection error: boom
+
+      167 |
+      168 |     this.socket.on('connect_error', (error: any) => {
+    > 169 |       console.error('[DeviceSocket] Connection error:', error.message);
+          |               ^
+      170 |       this.reconnectAttempts++;
+      171 |
+      172 |       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+
+      at error (src/services/deviceSocket.ts:169:15)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at Object.fire (src/__tests__/services/deviceSocket.test.ts:272:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    [DeviceSocket] Connection error: boom
+
+      167 |
+      168 |     this.socket.on('connect_error', (error: any) => {
+    > 169 |       console.error('[DeviceSocket] Connection error:', error.message);
+          |               ^
+      170 |       this.reconnectAttempts++;
+      171 |
+      172 |       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+
+      at error (src/services/deviceSocket.ts:169:15)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at Object.fire (src/__tests__/services/deviceSocket.test.ts:272:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    [DeviceSocket] Max reconnection attempts reached
+
+      171 |
+      172 |       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+    > 173 |         console.error('[DeviceSocket] Max reconnection attempts reached');
+          |                 ^
+      174 |         this.disconnect();
+      175 |       }
+      176 |     });
+
+      at error (src/services/deviceSocket.ts:173:17)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at Object.fire (src/__tests__/services/deviceSocket.test.ts:272:9)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.error
+    [DeviceSocket] Connection error: boom
+
+      167 |
+      168 |     this.socket.on('connect_error', (error: any) => {
+    > 169 |       console.error('[DeviceSocket] Connection error:', error.message);
+          |               ^
+      170 |       this.reconnectAttempts++;
+      171 |
+      172 |       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+
+      at error (src/services/deviceSocket.ts:169:15)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at Object.fire (src/__tests__/services/deviceSocket.test.ts:282:7)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Device registered: d1
+
+      at log (src/services/deviceSocket.ts:195:15)
+
+  console.log
+    [DeviceSocket] Heartbeat started
+
+      at DeviceSocketService.log [as startHeartbeat] (src/services/deviceSocket.ts:242:13)
+
+  console.log
+    [DeviceSocket] Disconnected: transport close
+
+      at log (src/services/deviceSocket.ts:179:15)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Device registered: d1
+
+      at log (src/services/deviceSocket.ts:195:15)
+
+  console.log
+    [DeviceSocket] Heartbeat started
+
+      at DeviceSocketService.log [as startHeartbeat] (src/services/deviceSocket.ts:242:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Device registered: d1
+
+      at log (src/services/deviceSocket.ts:195:15)
+
+  console.log
+    [DeviceSocket] Heartbeat started
+
+      at DeviceSocketService.log [as startHeartbeat] (src/services/deviceSocket.ts:242:13)
+
+  console.log
+    [DeviceSocket] Device registered: d1
+
+      at log (src/services/deviceSocket.ts:195:15)
+
+  console.log
+    [DeviceSocket] Heartbeat started
+
+      at DeviceSocketService.log [as startHeartbeat] (src/services/deviceSocket.ts:242:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Server welcome message: { type: 'connected', text: 'welcome' }
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:274:17)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.warn
+    [DeviceSocket] Received malformed message: null
+
+      260 |   private async handleMessage(message: any): Promise<void> {
+      261 |     if (!message || typeof message !== 'object' || !message.type) {
+    > 262 |       console.warn('[DeviceSocket] Received malformed message:', message);
+          |               ^
+      263 |       return;
+      264 |     }
+      265 |
+
+      at DeviceSocketService.warn (src/services/deviceSocket.ts:262:15)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at DeviceSocketService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at DeviceSocketService.apply [as handleMessage] (src/services/deviceSocket.ts:260:30)
+      at handleMessage (src/services/deviceSocket.ts:189:12)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at fire (src/__tests__/services/deviceSocket.test.ts:115:3)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (src/__tests__/services/deviceSocket.test.ts:114:18)
+      at Object.fireMessage (src/__tests__/services/deviceSocket.test.ts:380:13)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    [DeviceSocket] Received malformed message: {}
+
+      260 |   private async handleMessage(message: any): Promise<void> {
+      261 |     if (!message || typeof message !== 'object' || !message.type) {
+    > 262 |       console.warn('[DeviceSocket] Received malformed message:', message);
+          |               ^
+      263 |       return;
+      264 |     }
+      265 |
+
+      at DeviceSocketService.warn (src/services/deviceSocket.ts:262:15)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at DeviceSocketService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at DeviceSocketService.apply [as handleMessage] (src/services/deviceSocket.ts:260:30)
+      at handleMessage (src/services/deviceSocket.ts:189:12)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at fire (src/__tests__/services/deviceSocket.test.ts:115:3)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (src/__tests__/services/deviceSocket.test.ts:114:18)
+      at Object.fireMessage (src/__tests__/services/deviceSocket.test.ts:381:13)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    [DeviceSocket] Received malformed message: not-an-object
+
+      260 |   private async handleMessage(message: any): Promise<void> {
+      261 |     if (!message || typeof message !== 'object' || !message.type) {
+    > 262 |       console.warn('[DeviceSocket] Received malformed message:', message);
+          |               ^
+      263 |       return;
+      264 |     }
+      265 |
+
+      at DeviceSocketService.warn (src/services/deviceSocket.ts:262:15)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at DeviceSocketService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at DeviceSocketService.apply [as handleMessage] (src/services/deviceSocket.ts:260:30)
+      at handleMessage (src/services/deviceSocket.ts:189:12)
+      at handler (src/__tests__/services/deviceSocket.test.ts:108:10)
+      at fire (src/__tests__/services/deviceSocket.test.ts:115:3)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (src/__tests__/services/deviceSocket.test.ts:114:18)
+      at Object.fireMessage (src/__tests__/services/deviceSocket.test.ts:382:13)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: get_location
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: get_location
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: get_location
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: send_notification
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: send_notification
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: send_notification
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: execute_command
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: screen_record_start
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Received command: screen_record_stop
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: definitely_not_real
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-1
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Device registered: d1
+
+      at log (src/services/deviceSocket.ts:195:15)
+
+  console.log
+    [DeviceSocket] Heartbeat started
+
+      at DeviceSocketService.log [as startHeartbeat] (src/services/deviceSocket.ts:242:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Received command: unknown_thing
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.log
+    [DeviceSocket] Sent result for command: cmd-1
+
+      at DeviceSocketService.log [as sendResult] (src/services/deviceSocket.ts:559:13)
+
+  console.log
+    [DeviceSocket] Disconnected
+
+      at DeviceSocketService.log [as disconnect] (src/services/deviceSocket.ts:150:13)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-0
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-1
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-2
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-3
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-4
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-5
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-6
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-7
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-8
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-9
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-10
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-11
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-12
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-13
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-14
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-15
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-16
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-17
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-18
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-19
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-20
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-21
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-22
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-23
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-24
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-25
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-26
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-27
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-28
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-29
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-30
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-31
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-32
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-33
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-34
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-35
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-36
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-37
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-38
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-39
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-40
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-41
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-42
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-43
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-44
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-45
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-46
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-47
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-48
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-49
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-50
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-51
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-52
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-53
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-54
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-55
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-56
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-57
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-58
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Received command: camera_snap
+
+      at DeviceSocketService.log (src/services/deviceSocket.ts:286:13)
+
+  console.warn
+    [DeviceSocket] Result queued (not connected): cmd-59
+
+      552 |         this.pendingResults.shift();
+      553 |       }
+    > 554 |       console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
+          |               ^
+      555 |       return;
+      556 |     }
+      557 |
+
+      at DeviceSocketService.warn [as sendResult] (src/services/deviceSocket.ts:554:15)
+      at DeviceSocketService.sendResult (src/services/deviceSocket.ts:327:12)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [DeviceSocket] Connected to server
+
+      at log (src/services/deviceSocket.ts:160:15)
+
+  console.log
+    [DeviceSocket] Registering device...
+
+      at DeviceSocketService.log [as registerDevice] (src/services/deviceSocket.ts:227:13)
+
+  console.log
+    [DeviceSocket] Device registered: d1
+
+      at log (src/services/deviceSocket.ts:195:15)
+
+  console.log
+    [DeviceSocket] Heartbeat started
+
+      at DeviceSocketService.log [as startHeartbeat] (src/services/deviceSocket.ts:242:13)
+
+FAIL src/__tests__/services/deviceSocket.test.ts
+  deviceSocketService
+    Connection
+      ✓ should configure the notification handler on startup (7 ms)
+      ✓ should refuse to connect when the auth token is unavailable (1 ms)
+      ✓ should fail safely when token retrieval throws (1 ms)
+      ✓ should connect with the auth token in the query (1 ms)
+      ✓ should generate and persist a device id on first connect (1 ms)
+      ✓ should reuse an existing device id
+      ✓ should register the device when connected (1 ms)
+      ✓ should disconnect and clean up the socket (2 ms)
+    Reconnection
+      ✓ should stop reconnecting and disconnect after max attempts (3 ms)
+      ✓ should keep trying before the attempt limit is reached (1 ms)
+      ✓ should mark disconnected and stop heartbeat on socket disconnect (1 ms)
+    Heartbeat
+      ✓ should send a heartbeat every 30 seconds after registration (2 ms)
+      ✓ should restart the heartbeat interval on re-registration (1 ms)
+      ✓ should respond to a heartbeat probe immediately (1 ms)
+      ✓ should not emit heartbeats while disconnected
+    Message Routing
+      ✓ should handle welcome "connected" messages without crashing (2 ms)
+      ✓ should tolerate malformed messages without throwing (3 ms)
+      ✓ should warn on unknown message types (1 ms)
+    Command Handling
+      ✓ should execute camera_snap and send the photo result (1 ms)
+      ✕ camera_snap preserves explicitly requested zero quality (3 ms)
+      ✕ camera_snap without an explicit save reports the actual capture URI (1 ms)
+      ✓ should reject camera_snap when permission is denied (1 ms)
+      ✓ should report camera capture failures (1 ms)
+      ✓ should save the photo when save_path is provided
+      ✓ should return coordinates for get_location (1 ms)
+      ✓ should reject get_location when permission is denied (1 ms)
+      ✓ should report non-Error location failures with the fallback message (1 ms)
+      ✓ should send a notification when permission is granted (1 ms)
+      ✓ should reject send_notification when permission is denied (1 ms)
+      ✓ should report non-Error notification failures with the fallback message (1 ms)
+      ✓ should always reject execute_command on mobile (1 ms)
+      ✓ should reject screen recording commands (1 ms)
+      ✓ should return an error result for unknown commands (1 ms)
+      ✓ should send an error result when a handler throws (1 ms)
+    Result Delivery
+      ✓ should queue results while disconnected and flush them after registration (1 ms)
+      ✓ should emit results immediately when connected (2 ms)
+      ✓ should cap the number of queued results while disconnected (30 ms)
+
+  ● deviceSocketService › Command Handling › camera_snap preserves explicitly requested zero quality
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      Object {
+        "base64": true,
+        "exif": true,
+    -   "quality": 0,
+    +   "quality": 0.8,
+      },
+
+    Number of calls: 1
+
+      429 |       fire('connect');
+      430 |       await fireMessage(command('camera_snap', { quality: 0 }));
+    > 431 |       expect(mockCamera().takePictureAsync).toHaveBeenCalledWith({ quality: 0, base64: true, exif: true });
+          |                                             ^
+      432 |     });
+      433 |
+      434 |     test('camera_snap without an explicit save reports the actual capture URI', async () => {
+
+      at Object.toHaveBeenCalledWith (src/__tests__/services/deviceSocket.test.ts:431:45)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● deviceSocketService › Command Handling › camera_snap without an explicit save reports the actual capture URI
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "file:///actual-capture.jpg"
+    Received: "/mock/cache/camera_cmd-1.jpg"
+
+      439 |       const result = mockSocket.emit.mock.calls.at(-1)?.[1];
+      440 |       expect(result.success).toBe(true);
+    > 441 |       expect(result.file_path).toBe('file:///actual-capture.jpg');
+          |                                ^
+      442 |       expect(mockFileSystem().copyAsync).not.toHaveBeenCalled();
+      443 |     });
+      444 |
+
+      at Object.toBe (src/__tests__/services/deviceSocket.test.ts:441:32)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 35 passed, 37 total
+Snapshots:   0 total
+Time:        0.97 s
+Ran all test suites matching /src\/__tests__\/services\/deviceSocket.test.ts/i.
+Test results written to: ../../root-mobile-build-20261109/remote-camera-result-material-negative-results.json

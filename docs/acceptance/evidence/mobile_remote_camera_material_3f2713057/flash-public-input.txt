@@ -1,0 +1,328 @@
+Public source-only architecture/contract proposal. Do not use tools. Return JSON findings, existing_mechanism_to_reuse, implementation_plan, decisive_tests. No code execution/test claims. Current deviceSocket calls nonexistent top-level Expo takePictureAsync. CameraScreen has actual mounted CameraView; CameraService.takePicture requires that ref. No handler registration API exists despite unused map; never pretend headless capture works or remove camera feature. Need minimal general mounted-view ownership registration at existing camera service, usable from socket, stale unmount cannot clear newer view, ready/unmount gating and permission reauthorization; honor quality0 and actual file URI, copy success if explicit save. Do not introduce new permission/command/operation engine. Remote command must not bypass existing authorization. Explain unresolved authorization/governance concerns separately, do not create new authority. No actual native permissions/device actions authorized.
+
+mobile/src/services/deviceSocket.ts
+  private async handleCommand(command: CommandMessage): Promise<void> {
+    console.log('[DeviceSocket] Received command:', command.command);
+
+    try {
+      let result: ResultMessage;
+
+      switch (command.command) {
+        case 'camera_snap':
+          result = await this.handleCameraSnap(command);
+          break;
+
+        case 'screen_record_start':
+          result = await this.handleScreenRecordStart(command);
+          break;
+
+        case 'screen_record_stop':
+          result = await this.handleScreenRecordStop(command);
+          break;
+
+        case 'get_location':
+          result = await this.handleGetLocation(command);
+          break;
+
+        case 'send_notification':
+   * Handle camera snap command
+   */
+  private async handleCameraSnap(command: CommandMessage): Promise<ResultMessage> {
+    try {
+      // Request camera permissions
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        return {
+          type: 'result',
+          command_id: command.command_id,
+          success: false,
+          error: 'Camera permission not granted',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Take a picture
+      const result = await Camera.takePictureAsync({
+        quality: command.params.quality || 0.8,
+        base64: true,
+        exif: true,
+      });
+
+      const savePath = command.params.save_path || `${FileSystem.cacheDirectory}camera_${command.command_id}.jpg`;
+
+      // If save_path is provided, save the file
+      if (command.params.save_path) {
+        await FileSystem.copyAsync({
+          from: result.uri,
+          to: savePath,
+        });
+      }
+
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: true,
+        data: {
+          base64_data: result.base64,
+          width: result.width,
+          height: result.height,
+        },
+        file_path: savePath,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to capture photo',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Handle screen record start command
+   * NOTE: Screen recording on mobile requires platform-specific solutions:
+
+mobile/src/services/cameraService.ts
+export type CameraMode = 'picture' | 'video' | 'document' | 'barcode';
+
+export interface PhotoOptions {
+  quality?: number; // 0-1
+  skipProcessing?: boolean;
+  exif?: boolean;
+}
+
+export interface VideoOptions {
+  /** CameraView `videoQuality` prop; applied by the consumer, never passed to recordAsync. */
+  quality?: VideoQuality;
+  /** recordAsync option: maximum video duration in seconds. */
+  maxDuration?: number;
+  /** recordAsync option: maximum video file size in bytes. */
+  maxFileSize?: number;
+  /** CameraView `mute` prop; applied by the consumer, never passed to recordAsync. */
+  mute?: boolean;
+}
+
+/** SDK-supported qualities plus the legacy 360p input, which refuses without coercion. */
+export type VideoQuality = '2160p' | '1080p' | '720p' | '480p' | '4:3' | '360p';
+
+const SUPPORTED_VIDEO_QUALITIES: readonly VideoQuality[] = [
+  '2160p',
+  '1080p',
+  '720p',
+  '480p',
+  '4:3',
+];
+
+export interface CapturedMedia {
+  uri: string;
+  type: 'photo' | 'video';
+  width?: number;
+  height?: number;
+  duration?: number; // Video duration in seconds
+  size?: number; // File size in bytes
+  exif?: any; // EXIF metadata
+}
+
+export interface DocumentEdge {
+  x: number;
+  y: number;
+}
+
+export interface DocumentCorners {
+  topLeft: DocumentEdge;
+  topRight: DocumentEdge;
+  bottomRight: DocumentEdge;
+class CameraService {
+  private permissionStatus: CameraPermission = 'undetermined';
+  private currentCamera: CameraFace = 'back';
+  private currentFlash: FlashMode = 'off';
+  private currentMode: CameraMode = 'picture';
+  private capturedPhotos: CapturedMedia[] = [];
+  private currentPhotoIndex = 0;
+  private readonly activeRecordings = new WeakMap<CameraView, InFlightRecording>();
+
+  /**
+   * Initialize the camera service
+   */
+  async initialize(): Promise<void> {
+    try {
+      const { status } = await Camera.getCameraPermissionsAsync();
+      this.permissionStatus = toCameraPermission(status);
+
+      console.log('CameraService: Initialized, permission:', this.permissionStatus);
+    } catch (error) {
+      console.error('CameraService: Failed to initialize:', error);
+    }
+  }
+
+  /**
+   * Request camera permissions
+   */
+  async requestPermissions(): Promise<CameraPermission> {
+    try {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      this.permissionStatus = toCameraPermission(status);
+
+      console.log('CameraService: Permission requested, status:', this.permissionStatus);
+      return this.permissionStatus;
+    } catch (error) {
+      console.error('CameraService: Failed to request permissions:', error);
+      return 'denied';
+    }
+  }
+
+  /**
+   * Get current permission status
+   */
+  async getPermissionStatus(): Promise<CameraPermission> {
+    try {
+      const { status } = await Camera.getCameraPermissionsAsync();
+      this.permissionStatus = toCameraPermission(status);
+      return this.permissionStatus;
+    } catch (error) {
+      console.error('CameraService: Failed to get permission status:', error);
+      return 'denied';
+    }
+  }
+
+  /**
+   * Take a picture
+   */
+  async takePicture(
+    cameraRef: React.RefObject<CameraView>,
+    options: PhotoOptions = {
+      quality: COMPRESSION_QUALITY,
+      skipProcessing: false,
+    }
+  ): Promise<CapturedMedia | null> {
+    try {
+      if (!cameraRef.current) {
+        throw new Error('Camera ref not available');
+      }
+
+      if (this.permissionStatus !== 'granted') {
+        throw new Error('Camera permission not granted');
+      }
+
+      const photo = await cameraRef.current.takePictureAsync(options);
+      if (!photo) {
+        return null;
+      }
+
+      // Get file info
+      const fileInfo = await FileSystem.getInfoAsync(photo.uri);
+
+      // Compress image if needed
+      let finalUri = photo.uri;
+      if (photo.width && photo.height) {
+        const maxDimension = Math.max(photo.width, photo.height);
+        if (maxDimension > MAX_IMAGE_DIMENSION) {
+          const scale = MAX_IMAGE_DIMENSION / maxDimension;
+          const compressed = await ImageManipulator.manipulateAsync(
+            photo.uri,
+            [{ resize: { width: Math.round(photo.width * scale) } }],
+            {
+              compress: COMPRESSION_QUALITY,
+              format: ImageManipulator.SaveFormat.JPEG,
+            }
+          );
+          finalUri = compressed.uri;
+        }
+      }
+
+      const media: CapturedMedia = {
+        uri: finalUri,
+        type: 'photo',
+        width: photo.width,
+        height: photo.height,
+        size: fileInfo.exists ? fileInfo.size : undefined,
+        exif: photo.exif || undefined,
+      };
+
+      console.log('CameraService: Photo captured', media);
+      return media;
+    } catch (error) {
+      console.error('CameraService: Failed to take picture:', error);
+      return null;
+    }
+  }
+
+mobile/src/screens/device/CameraScreen.tsx
+
+export const CameraScreen: React.FC<CameraScreenProps> = ({ navigation, route }) => {
+  const cameraRef = useRef<CameraView>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  // Camera state
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [flash, setFlash] = useState<FlashMode>('off');
+  const [mode, setMode] = useState<CameraMode>(route.params?.mode || 'picture');
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  // Captured photos
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedMedia[]>([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [showReview, setShowReview] = useState(false);
+
+  useEffect(() => {
+    cameraService.setCameraMode(mode);
+  }, [mode]);
+
+  // Request permission if not granted
+  useEffect(() => {
+    if (!permission?.granted) {
+      requestPermission();
+    }
+  }, [permission]);
+
+  if (!permission) {
+    return <View style={styles.container} />;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.permissionContainer}>
+        <Ionicons name="camera-outline" size={64} color="#2196F3" />
+        <Text style={styles.permissionTitle}>Camera Permission Required</Text>
+        <Text style={styles.permissionText}>
+          We need your permission to use the camera
+        </Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const handleCapture = async () => {
+    if (isCapturing) return;
+
+    setIsCapturing(true);
+    try {
+      const photo = await cameraService.takePicture(cameraRef, {
+        quality: 0.9,
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing={facing}
+        flash={flash === 'torch' ? 'off' : flash}
+        enableTorch={flash === 'torch'}
+        mode={mode === 'video' ? 'video' : 'picture'}
+        barcodeScannerSettings={
+          mode === 'barcode'
+            ? {
+                barcodeTypes: ['qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93'],
+              }
+            : undefined
+        }
+        onBarcodeScanned={
+          mode === 'barcode'
+            ? ({ data }: BarcodeScanningResult) => {
+                navigation.navigate('BarcodeResult', { data });
