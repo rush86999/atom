@@ -11,6 +11,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = Path(__file__).parent / "fixtures/ci_backend_before_parallel.json"
+ADDITIONS = Path(__file__).parent / "fixtures/ci_backend_additions.json"
 
 
 def workflow():
@@ -29,7 +30,12 @@ def test_every_existing_backend_command_environment_and_setup_is_preserved():
         actual.extend(step for step in lane["steps"][len(setup):]
                       if step.get("name") != "Run backend lane preservation contract")
     canonical = lambda item: json.dumps(item, sort_keys=True)
-    assert Counter(map(canonical, actual)) == Counter(map(canonical, before["test_steps"]))
+    # The original pre-parallel ledger stays immutable. New gates must be
+    # declared exactly once in the additive ledger, preserving every original
+    # command, environment and setup rather than relaxing to a subset check.
+    additions = json.loads(ADDITIONS.read_text())
+    expected = before["test_steps"] + additions
+    assert Counter(map(canonical, actual)) == Counter(map(canonical, expected))
     assert any(step.get("name") == "Run backend lane preservation contract"
                for step in jobs["backend-core"]["steps"])
     assert len(jobs["backend-oracle"]["steps"]) == len(setup) + 1
