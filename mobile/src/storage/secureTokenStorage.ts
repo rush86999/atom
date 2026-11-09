@@ -136,6 +136,16 @@ export interface AccessTokenSnapshot {
   readonly generation: number;
 }
 
+/**
+ * The token plus the session-scoped profile/device hints that were observed in
+ * the same serialized read. These values are hints for identifying queued work;
+ * they are never execution authority by themselves.
+ */
+export interface AuthSessionSnapshot extends AccessTokenSnapshot {
+  readonly userData: string | null;
+  readonly deviceId: string | null;
+}
+
 export function secureSet(key: string, value: string): Promise<void> {
   if (key !== ACCESS_TOKEN_KEY) return writeSecureValue(key, value);
   return withAccessToken(async () => {
@@ -172,6 +182,26 @@ export function readAccessTokenSnapshot(): Promise<AccessTokenSnapshot> {
     token: accessTokenRevoked ? null : await readSecureValue(ACCESS_TOKEN_KEY),
     generation: accessTokenGeneration,
   }));
+}
+
+/**
+ * Read the token and the existing profile/device keys through the same
+ * serialization boundary. No nested token-lock calls and no additional store
+ * are introduced; the generation is captured after every await so callers can
+ * prove the observation is still current.
+ */
+export function readAuthSessionSnapshot(): Promise<AuthSessionSnapshot> {
+  return withAccessToken(async () => {
+    const token = accessTokenRevoked ? null : await readSecureValue(ACCESS_TOKEN_KEY);
+    const userData = await AsyncStorage.getItem('atom_user_data');
+    const deviceId = await readSecureValue('atom_device_id');
+    return {
+      token: accessTokenRevoked ? null : token,
+      generation: accessTokenGeneration,
+      userData,
+      deviceId,
+    };
+  });
 }
 
 export function invalidateAccessToken(snapshot: AccessTokenSnapshot): Promise<boolean> {

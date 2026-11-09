@@ -22,6 +22,12 @@ import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
 import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
+import {
+  authorizePendingWriteOwner,
+  readPendingWriteOwner,
+} from './pendingWriteOwner';
+import type { PendingWriteOwner } from './pendingWriteOwner';
+import { isAccessTokenSnapshotCurrent } from '../storage/secureTokenStorage';
 
 // Types
 export interface Canvas {
@@ -45,6 +51,10 @@ export interface CanvasFormData {
   status: 'pending' | 'submitted' | 'failed';
   deliveryStatus?: 'pending' | 'dispatching' | 'effect_unknown';
   error?: string;
+  // Optional only for legacy queued rows; new rows capture the canonical owner.
+  userId?: string;
+  workspaceId?: string;
+  deviceId?: string;
 }
 
 export interface CanvasCache {
@@ -147,6 +157,20 @@ function decodeCanvas(value: unknown): Canvas | null {
   }
 
   return canvas;
+}
+
+function getSubmissionOwner(submission: CanvasFormData): PendingWriteOwner | null {
+  const { userId, workspaceId, deviceId } = submission;
+  if (typeof userId !== 'string' || userId.length === 0) {
+    return null;
+  }
+  if (typeof workspaceId !== 'string' || workspaceId.length === 0) {
+    return null;
+  }
+  if (typeof deviceId !== 'string' || deviceId.length === 0) {
+    return null;
+  }
+  return { userId, workspaceId, deviceId };
 }
 
 // Configuration
@@ -413,18 +437,34 @@ class CanvasSyncService {
     deviceId: string
   ): Promise<boolean> {
     try {
+      // Capture the canonical owner before creating any queued work. This is a
+      // local hint; it becomes authority only after the caller is re-authorized.
+      const local = await readPendingWriteOwner(userId, deviceId);
+      if (!local) {
+        return false;
+      }
+
       const submission: CanvasFormData = {
         canvasId,
         formData,
         submittedAt: new Date(),
         status: 'pending',
         deliveryStatus: 'pending',
+        userId: local.owner.userId,
+        workspaceId: local.owner.workspaceId,
+        deviceId: local.owner.deviceId,
       };
 
       // Check if offline
       const isOffline = !(await this.isOnline());
 
       if (isOffline) {
+        // The network-state read above is an await: the captured session must
+        // still be current before the row can be enqueued.
+        if (!isAccessTokenSnapshotCurrent(local.session)) {
+          return false;
+        }
+
         // Queue for offline submission
         this.cache.pendingFormSubmissions.push(submission);
 
@@ -441,11 +481,20 @@ class CanvasSyncService {
         return true;
       }
 
-      // Submit immediately
-      const response = await apiService.post(`/api/canvas/${canvasId}/submit`, {
-        form_data: formData,
-        submitted_at: submission.submittedAt,
-      });
+      // Submit immediately only against the exact owner the server confirms.
+      const session = await authorizePendingWriteOwner(local.owner, userId, deviceId);
+      if (!session) {
+        return false;
+      }
+
+      const response = await apiService.post(
+        `/api/canvas/${canvasId}/submit`,
+        {
+          form_data: formData,
+          submitted_at: submission.submittedAt,
+        },
+        { expectedAccessTokenSnapshot: session }
+      );
 
       if (response.success) {
         console.log(`CanvasSync: Submitted form for canvas ${canvasId}`);
@@ -497,6 +546,19 @@ class CanvasSyncService {
         continue;
       }
 
+      // Legacy/unknown owners are retained unresolved, never assigned to the
+      // current actor. Every row is authorized independently.
+      const owner = getSubmissionOwner(submission);
+      if (!owner) {
+        continue;
+      }
+
+      // Authorize the queued owner before persisting any dispatch marker.
+      const session = await authorizePendingWriteOwner(owner, userId, deviceId);
+      if (!session) {
+        continue;
+      }
+
       // Persist the dispatch boundary before any transport attempt.
       submission.deliveryStatus = 'dispatching';
       try {
@@ -507,12 +569,29 @@ class CanvasSyncService {
         throw error;
       }
 
+      // A replacement during the marker write means no transport is allowed.
+      // No POST occurred, so restoring the known-safe pending state is safe.
+      if (!isAccessTokenSnapshotCurrent(session)) {
+        submission.deliveryStatus = 'pending';
+        try {
+          await this.saveCache();
+        } catch {
+          // Keep the row in memory; the durable marker still blocks an
+          // unowned automatic dispatch after a restart.
+        }
+        continue;
+      }
+
       let accepted = false;
       try {
-        const response = await apiService.post(`/api/canvas/${submission.canvasId}/submit`, {
-          form_data: submission.formData,
-          submitted_at: submission.submittedAt,
-        });
+        const response = await apiService.post(
+          `/api/canvas/${submission.canvasId}/submit`,
+          {
+            form_data: submission.formData,
+            submitted_at: submission.submittedAt,
+          },
+          { expectedAccessTokenSnapshot: session }
+        );
         accepted = response.success;
       } catch (error) {
         console.error(`CanvasSync: Failed to sync form submission for canvas ${submission.canvasId}:`, error);

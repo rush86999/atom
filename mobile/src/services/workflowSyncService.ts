@@ -22,6 +22,12 @@ import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
 import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
+import {
+  authorizePendingWriteOwner,
+  readPendingWriteOwner,
+} from './pendingWriteOwner';
+import type { PendingWriteOwner } from './pendingWriteOwner';
+import { isAccessTokenSnapshotCurrent } from '../storage/secureTokenStorage';
 
 // Types
 export interface Workflow {
@@ -71,6 +77,10 @@ export interface WorkflowTrigger {
   createdAt: Date;
   retryCount: number;
   deliveryStatus?: 'pending' | 'dispatching' | 'effect_unknown';
+  // Optional only for legacy queued rows; new rows capture the canonical owner.
+  userId?: string;
+  workspaceId?: string;
+  deviceId?: string;
 }
 
 export interface WorkflowSyncResult {
@@ -136,6 +146,20 @@ function decodeWorkflow(value: unknown): Workflow | null {
   }
 
   return workflow;
+}
+
+function getTriggerOwner(trigger: WorkflowTrigger): PendingWriteOwner | null {
+  const { userId, workspaceId, deviceId } = trigger;
+  if (typeof userId !== 'string' || userId.length === 0) {
+    return null;
+  }
+  if (typeof workspaceId !== 'string' || workspaceId.length === 0) {
+    return null;
+  }
+  if (typeof deviceId !== 'string' || deviceId.length === 0) {
+    return null;
+  }
+  return { userId, workspaceId, deviceId };
 }
 
 // Configuration
@@ -306,10 +330,23 @@ class WorkflowSyncService {
     try {
       const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+      // Capture the canonical owner before creating any queued work. This is a
+      // local hint; it becomes authority only after the caller is re-authorized.
+      const local = await readPendingWriteOwner(userId, deviceId);
+      if (!local) {
+        return null;
+      }
+
       // Check if offline
       const isOffline = !(await this.isOnline());
 
       if (isOffline) {
+        // The network-state read above is an await: the captured session must
+        // still be current before the row can be enqueued.
+        if (!isAccessTokenSnapshotCurrent(local.session)) {
+          return null;
+        }
+
         // Queue for offline execution
         const trigger: WorkflowTrigger = {
           id: executionId,
@@ -319,6 +356,9 @@ class WorkflowSyncService {
           createdAt: new Date(),
           retryCount: 0,
           deliveryStatus: 'pending',
+          userId: local.owner.userId,
+          workspaceId: local.owner.workspaceId,
+          deviceId: local.owner.deviceId,
         };
 
         this.cache.pendingTriggers.push(trigger);
@@ -337,8 +377,17 @@ class WorkflowSyncService {
         return executionId;
       }
 
-      // Execute immediately
-      const response = await apiService.post(`/api/workflows/${workflowId}/trigger`, input);
+      // Execute immediately only against the exact owner the server confirms.
+      const session = await authorizePendingWriteOwner(local.owner, userId, deviceId);
+      if (!session) {
+        return null;
+      }
+
+      const response = await apiService.post(
+        `/api/workflows/${workflowId}/trigger`,
+        input,
+        { expectedAccessTokenSnapshot: session }
+      );
 
       if (response.success) {
         console.log(`WorkflowSync: Triggered workflow ${workflowId}, execution ${executionId}`);
@@ -420,6 +469,19 @@ class WorkflowSyncService {
         continue;
       }
 
+      // Legacy/unknown owners are retained unresolved, never assigned to the
+      // current actor. Every row is authorized independently.
+      const owner = getTriggerOwner(trigger);
+      if (!owner) {
+        continue;
+      }
+
+      // Authorize the queued owner before persisting any dispatch marker.
+      const session = await authorizePendingWriteOwner(owner, userId, deviceId);
+      if (!session) {
+        continue;
+      }
+
       // Persist the dispatch boundary before any transport attempt.
       trigger.deliveryStatus = 'dispatching';
       try {
@@ -430,11 +492,25 @@ class WorkflowSyncService {
         throw error;
       }
 
+      // A replacement during the marker write means no transport is allowed.
+      // No POST occurred, so restoring the known-safe pending state is safe.
+      if (!isAccessTokenSnapshotCurrent(session)) {
+        trigger.deliveryStatus = 'pending';
+        try {
+          await this.saveCache();
+        } catch {
+          // Keep the row in memory; the durable marker still blocks an
+          // unowned automatic dispatch after a restart.
+        }
+        continue;
+      }
+
       let accepted = false;
       try {
         const response = await apiService.post(
           `/api/workflows/${trigger.workflowId}/trigger`,
-          trigger.input
+          trigger.input,
+          { expectedAccessTokenSnapshot: session }
         );
         accepted = response.success;
       } catch (error) {
