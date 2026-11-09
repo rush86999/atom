@@ -158,63 +158,15 @@ export const authOptions: NextAuthOptions = {
     maxAge: 24 * 60 * 60, // 1 day (reduced from 30 days for security)
     updateAge: 60 * 60, // Update session every hour
   },
-  // Enhanced security configuration
+  // Reuse NextAuth's installed cookie defaults. They already provide the
+  // Secure/httpOnly/sameSite=Lax settings and the __Host-/__Secure- prefixes;
+  // a custom override must not add Domain to __Host- cookies (which makes the
+  // browser reject them) or fork the framework's cookie policy.
   useSecureCookies: process.env.NODE_ENV === "production",
-  cookies: {
-    sessionToken: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
-      },
-    },
-    callbackUrl: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.callback-url" : "next-auth.callback-url",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
-      },
-    },
-    csrfToken: {
-      name: process.env.NODE_ENV === "production" ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
-      },
-    },
-    pkceCodeVerifier: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.pkce.code_verifier" : "next-auth.pkce.code_verifier",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
-      },
-    },
-    state: {
-      name: process.env.NODE_ENV === "production" ? "__Host-next-auth.state" : "next-auth.state",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
-      },
-    },
-  },
   // Resolve at request time: a build must not bake a runtime signing key.
   get secret() { return resolveWebAuthSecret(); },
-  debug: true,
+  // Never enable unconditional SDK debug logging for credential requests.
+  debug: false,
 };
 
 export default NextAuth(authOptions);
