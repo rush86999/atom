@@ -1,6 +1,6 @@
 # GitHub Actions reference
 
-Source cut: `dd2610502746` (2026-11-08). This reference describes checked-in
+Source cut: `9b98ff9528d8` (2026-11-09). This reference describes checked-in
 workflow definitions, not a report that every run or every app goal has passed.
 Recheck the YAML and exact commit's [Actions](https://github.com/rush86999/atom/actions)
 when the implementation changes. The workflow directory contains this README,
@@ -37,7 +37,7 @@ flowchart TB
 
 | Job ID | Actual responsibility |
 | --- | --- |
-| `syntax-gate` | Compile shipped backend modules under Python 3.11, with the archived/environment exclusions in YAML. |
+| `syntax-gate` | Compile shipped backend modules under Python 3.11, with the archived/environment exclusions in YAML, then run the source-bound documentation inventory boundary controls. |
 | `full-app-boots` | Install backend requirements, import the full app, start it and probe `/alive`. This is a boot check, not a business-task completion test. |
 | `quickstart-install` | Fresh `make setup`, storage binary compatibility, setup artifacts and app boot for Python 3.11, 3.12 and 3.13 with Node 20. `fail-fast: false` keeps other matrix entries running after a failure. |
 | `quickstart` | Aggregate all install entries; `always()` runs the result check and explicitly refuses a non-success matrix result. |
@@ -45,7 +45,7 @@ flowchart TB
 | `backend-oracle` | Explicit oracle/governance/consumer boundary selections in the YAML. This does not close whole-app ORACLE coverage. |
 | `backend-tests` | Aggregate `backend-core` and `backend-oracle`; `always()` plus explicit result checks require both lanes to succeed. |
 | `e2e-journey` | Boot the backend and frontend and run the selected API/browser journeys. See the gating distinctions below. |
-| `frontend-typecheck` | Install frontend dependencies, attempt the type check, and run the named frontend regression tests. The type-check step itself is currently best-effort. |
+| `frontend-typecheck` | Install frontend dependencies, attempt the web type check, and run the named frontend regression tests plus the menu bar companion install, strict TypeScript/Vite build and Jest controls. The web type-check step itself is currently best-effort; the companion build is gating. |
 
 ### What a green job means
 
