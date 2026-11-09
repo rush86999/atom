@@ -1,0 +1,10 @@
+
+> atom-menubar@0.1.0 test
+> jest --runInBand --detectOpenHandles --json --outputFile=/private/tmp/root-menubar-tab-corrected-jest-results-20261108.json
+
+Test Suites: 1 passed, 1 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        1.253 s, estimated 3 s
+Ran all test suites.
+Test results written to: ../../root-menubar-tab-corrected-jest-results-20261108.json

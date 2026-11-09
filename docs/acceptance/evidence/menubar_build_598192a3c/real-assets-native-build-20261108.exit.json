@@ -1,0 +1,11 @@
+{
+  "actual_exit": 0,
+  "interrupted_low_disk": false,
+  "finished": 1794181966.012801,
+  "assets_unchanged": true,
+  "free_after": 6460764160,
+  "binary_exists": true,
+  "binary_path": "/private/tmp/root-menubar-baseline-1sl_vq91/cargo-target/debug/atom-menubar",
+  "binary_sha256": "c5da4295338ff8e2417e208d44be7960f49f268c74c71372597bd03740be3305",
+  "binary_size": 33603824
+}

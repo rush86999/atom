@@ -6,8 +6,7 @@
  * GET /api/analytics/dashboard/kpis?time_window=…
  */
 
-import React, { useCallback, useEffect, useState } from "react";
-import { panelStyles as ps } from "../styles/panelStyles";
+import { useCallback, useEffect, useState } from "react";
 
 interface DashboardKPIs {
   total_executions: number;

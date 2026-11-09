@@ -673,3 +673,12 @@ jobs:
         # Documents must not advertise deferred search; the card follows the
         # existing product-profile capability and keeps a supported next action.
         run: npx jest tests/pages/documents.test.tsx tests/pages/document-detail.test.tsx --runInBand --no-coverage
+      - name: Install menu bar frontend dependencies
+        working-directory: menubar
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build menu bar frontend with strict TypeScript
+        working-directory: menubar
+        run: npm run build
+      - name: Menu bar command and tab regression tests
+        working-directory: menubar
+        run: npm test -- --runInBand --watch=false --ci

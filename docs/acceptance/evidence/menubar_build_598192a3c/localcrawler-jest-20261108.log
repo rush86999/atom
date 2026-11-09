@@ -1,0 +1,164 @@
+
+> atom-menubar@0.1.0 test
+> jest --runInBand --detectOpenHandles --json --outputFile=/private/tmp/root-menubar-localcrawler-jest-results-20261108.json
+
+FAIL src/components/__tests__/WindowManager.test.tsx
+  ● Window Manager (MenuBar) › test_window_state_management
+
+    Unable to find an element by: [data-testid="canvas-list"]
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"menubar-container"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid rgb(51, 51, 51);"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<div[39m
+                [33mstyle[39m=[32m"font-size: 14px; font-weight: 700; color: rgb(255, 255, 255);"[39m
+              [36m>[39m
+                [0mAtom[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mstyle[39m=[32m"font-size: 11px; color: rgb(136, 136, 136);"[39m
+              [36m>[39m
+                [0mdisconnected[0m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mstyle[39m=[32m"display: flex; align-items: center; gap: 12px;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mdata-testid[39m=[32m"status-indicator"[39m
+              [36m>[39m
+                [0mStatus: disconnected[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mdata-testid[39m=[32m"notification-badge"[39m
+              [36m>[39m
+                [0mNotifications: 0[0m
+              [36m</div>[39m
+              [36m<button[39m
+                [33mstyle[39m=[32m"background: none; color: rgb(136, 136, 136); font-size: 16px; cursor: pointer; padding: 4px; position: relative;"[39m
+                [33mtitle[39m=[32m"Settings"[39m
+              [36m>[39m
+                [0m⚙️[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; overflow-x: auto; border-bottom: 1px solid rgb(51, 51, 51); background: rgb(26, 26, 26);"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mdata-testid[39m=[32m"tab-chat"[39m
+              [33mstyle[39m=[32m"flex: 1 1 0%; background: transparent; border-bottom: 2px solid transparent; color: rgb(136, 136, 136); font-size: 11px; font-weight: 400; padding: 8px 4px; cursor: pointer; position: relative; white-space: nowrap;"[39m
+            [36m>[39m
+              [0m💬[0m
+              [0m [0m
+              [0mChat[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mdata-testid[39m=[32m"tab-agents"[39m
+              [33mstyle[39m=[32m"flex: 1 1 0%; background: rgb(42, 42, 42); border-bottom: 2px solid rgb(33, 150, 243); color: rgb(255, 255, 255); font-size: 11px; font-weight: 600; padding: 8px 4px; cursor: pointer; position: relative; white-space: nowrap;"[39m
+            [36m>[39m
+              [0m🤖[0m
+              [0m [0m
+              [0mAgents[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mdata-testid[39m=[32m"tab-canvases"[39m
+              [33mstyle[39m=[32m"flex: 1 1 0%; background: transparent; border-bottom: 2px solid transparent; color: rgb(136, 136, 136); font-size: 11px; font-weight: 400; padding: 8px 4px; cursor: pointer; position: relative; white-space: nowrap;"[39m
+            [36m>[39m
+              [0m🎨[0m
+              [0m [0m
+              [0mCanvas[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mdata-testid[39m=[32m"tab-workflows"[39m
+              [33mstyle[39m=[32m"flex: 1 1 0%; background: transparent; border-bottom: 2px solid transparent; color: rgb(136, 136, 136); font-size: 11px; font-weight: 400; padding: 8px 4px; cursor: pointer; position: relative; white-space: nowrap;"[39m
+            [36m>[39m
+              [0m⚙️[0m
+              [0m [0m
+              [0mWorkflows[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mdata-testid[39m=[32m"tab-approvals"[39m
+              [33mstyle[39m=[32m"flex: 1 1 0%; background: transparent; border-bottom: 2px solid transparent; color: rgb(136, 136, 136); font-size: 11px; font-weight: 400; padding: 8px 4px; cursor: pointer; position: relative; white-space: nowrap;"[39m
+            [36m>[39m
+              [0m✅[0m
+              [0m [0m
+              [0mApprovals[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mdata-testid[39m=[32m"tab-integrations"[39m
+              [33mstyle[39m=[32m"flex: 1 1 0%; background: transparent; border-bottom: 2px solid transparent; color: rgb(136, 136, 136); font-size: 11px; font-weight: 400; padding: 8px 4px; cursor: pointer; position: relative; white-space: nowrap;"[39m
+            [36m>[39m
+              [0m🔗[0m
+              [0m [0m
+              [0mIntegrations[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mdata-testid[39m=[32m"tab-analytics"[39m
+              [33mstyle[39m=[32m"flex: 1 1 0%; background: transparent; border-bottom: 2px solid transparent; color: rgb(136, 136, 136); font-size: 11px; font-weight: 400; padding: 8px 4px; cursor: pointer; position: relative; white-space: nowrap;"[39m
+            [36m>[39m
+              [0m📊[0m
+              [0m [0m
+              [0mAnalytics[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"padding: 12px; flex: 1 1 0%; overflow-y: auto;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<div[39m
+                [33mdata-testid[39m=[32m"agent-list"[39m
+              [36m>[39m
+                [0mAgents: 2[0m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"padding: 6px 12px; background: rgb(42, 42, 42); border-radius: 6px; font-size: 10px; color: rgb(102, 102, 102); text-align: center;"[39m
+          [36m>[39m
+            [0mPress[0m
+            [0m [0m
+            [36m<kbd[39m
+              [33mstyle[39m=[32m"background: rgb(68, 68, 68); padding: 2px 5px; border-radius: 3px;"[39m
+            [36m>[39m
+              [0m⌘⇧A[0m
+            [36m</kbd>[39m
+            [0m [0m
+            [0mtoggle •[0m
+            [0m [0m
+            [36m<kbd[39m
+              [33mstyle[39m=[32m"background: rgb(68, 68, 68); padding: 2px 5px; border-radius: 3px;"[39m
+            [36m>[39m
+              [0m⌘⇧C[0m
+            [36m</kbd>[39m
+            [0m [0m
+            [0mchat[0m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      274 |     );
+      275 |
+    > 276 |     await waitFor(() => {
+          |                  ^
+      277 |       expect(getByTestId('agent-list')).toBeTruthy();
+      278 |       expect(getByTestId('canvas-list')).toBeTruthy();
+      279 |     });
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at Object.<anonymous> (src/components/__tests__/WindowManager.test.tsx:276:18)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 16 passed, 17 total
+Snapshots:   0 total
+Time:        2.574 s
+Ran all test suites.
+Test results written to: ../../root-menubar-localcrawler-jest-results-20261108.json
