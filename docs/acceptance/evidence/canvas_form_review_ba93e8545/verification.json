@@ -1,0 +1,45 @@
+{
+  "status": "partial_not_merge_ready",
+  "focused": {
+    "runtime_source": "ba93e8545",
+    "python314": 48,
+    "python311": 48
+  },
+  "broader": {
+    "python314": {
+      "runtime_source": "ba93e8545",
+      "passed": 167,
+      "failed": 4
+    },
+    "python311": {
+      "runtime_source": "733624e4b",
+      "passed": 167,
+      "failed": 4
+    }
+  },
+  "baseline": {
+    "source": "b550fd728e6992f06d0793e6e5f54a636c66f0db",
+    "python311": {
+      "passed": 4,
+      "failed": 4
+    },
+    "failure_nodes_equal": true
+  },
+  "open_negative": {
+    "runtime_source": "ba93e8545",
+    "test_source": "6a7814f92",
+    "passed": 11,
+    "failed": 3,
+    "issues": [
+      "missing explicit agent creates fallback side effect",
+      "same operation creates duplicate surfaces",
+      "changed material reuses operation"
+    ]
+  },
+  "boundaries": [
+    "scratch SQLite only",
+    "authentication dependency controlled; not real login/JWT",
+    "no browser or PostgreSQL qualification",
+    "native CLI repair isolated; not yet adjudicated"
+  ]
+}

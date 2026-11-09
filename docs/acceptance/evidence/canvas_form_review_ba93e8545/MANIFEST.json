@@ -1,0 +1,23 @@
+{
+  "executed_source": "ba93e854570b716b9fb5abb8cce11433f4f078e4",
+  "source_files": {
+    "backend/tools/canvas_tool.py": "c7d5318cd4d0f58cea59b58f4c6acc972b7e66831f7c01758a00a7f168f8f440",
+    "backend/core/presentation_material.py": "ce369427d9a303976602bd23cc63e293ddb5ad71d7702028db8763195b277822",
+    "backend/core/oracle/postcondition_verifiers.py": "d4e9fbb4bb43ea4820dd05fe6a9ce385cf75bf9ffcdb07f449e3b44646207831",
+    "backend/tools/canvas_crud_tool.py": "48ae6d9c5401bb8462daa18666ae487af712fe3bb79ad4c77efb08aa3bd38938",
+    "backend/api/canvas_routes.py": "15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/canvas_write_service.py": "33ab8d36af5d52ec0392de63444b969ca5af9b707807cc89a30e597325fe52de",
+    "backend/tests/test_canvas_form_producer_submit_join.py": "71c65f14eabd4e7e687787ddadcc0185132e18299bb5a2adeed58adb1d160b1b",
+    "backend/tests/test_canvas_submit_receipt_contract.py": "34d1c1335a6e5a9a6710fce3ab44cd47717fb8242ee52128dc6f9eb109956084",
+    "backend/tests/test_covpush_canvasroutes.py": "ff09184c153979a47cd05c8145c39fbbbd57974ae6fafe9dd5b44efeb9b03f20"
+  },
+  "artifacts": {
+    "broader-311.log": "6f247bb9be7e42bb02861bea32e7dfd7026eeb5902eb14b60b23257bb743d2e8",
+    "broader-314.log": "3bd4b02c0254699464d330b7c240b80f85aeb0d4254c9a97fe0c986c7b8b9b5a",
+    "focused-314.log": "77679e518052fcc37071db178ee598994db0ae61cd285f4ce91c81b4aaaf0b3e",
+    "focused-311.log": "b2bbc5e0cdf4cd5799ae8659739e540ccae53cf01c6df3a67682dc6492ed143d",
+    "websocket-baseline-311.log": "e536db549ef3ec8daa9fdaed2afca54fc352395aef2765881ce34c84b9e142d8",
+    "verification.json": "b909c5be4cb45317697aefc655b819e9d9c50ab17ecdc00083df21c92d1b4c01",
+    "retry-selection-negative-314.log": "7f6bdab1c41c6d34742e37d50b1933d2de183c4e6a5acd639663777982ab38da"
+  }
+}
