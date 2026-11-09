@@ -58,7 +58,11 @@ global.fetch = jest.fn();
 type AppStateStatus = 'active' | 'background' | 'inactive';
 
 // Use global listeners from jest.setup.js
-declare const global: any & { appStateListeners: Array<(AppStateStatus) => void> };
+declare const global: typeof globalThis & {
+  appStateListeners: Array<(state: AppStateStatus) => void>;
+  __resetAsyncStorageMock?: () => void;
+  __resetSecureStoreMock?: () => void;
+};
 
 /**
  * Simulate app state change
@@ -70,7 +74,7 @@ export const simulateAppStateChange = (nextState: AppStateStatus): void => {
   console.log(`[MockAppState] State change: ${nextState}`);
 
   // Trigger all registered listeners from jest.setup.js
-  global.appStateListeners.forEach((callback: (AppStateStatus) => void) => {
+  global.appStateListeners.forEach((callback: (state: AppStateStatus) => void) => {
     try {
       callback(nextState);
     } catch (error) {
@@ -92,7 +96,7 @@ export const waitForAppStateChange = async (timeout: number = 1000): Promise<voi
 /**
  * Get all registered AppState listeners
  */
-export const getAppStateListeners = (): Array<(AppStateStatus) => void> => {
+export const getAppStateListeners = (): Array<(state: AppStateStatus) => void> => {
   return [...global.appStateListeners];
 };
 
