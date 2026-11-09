@@ -856,18 +856,24 @@ class OfflineSyncService {
    */
   async getSyncState(): Promise<SyncState> {
     const state = await mmkvStorage.getObject<SyncState>('sync_state');
-    return (
-      state ?? {
+    const queue = await this.getQueue();
+    if (queue.some(action => !['pending', 'syncing', 'completed', 'failed'].includes(action.status))) {
+      throw new Error('Offline queue status is unreadable; original data has been retained.');
+    }
+    // Cached progress is advisory; durable unresolved work owns this count.
+    const pendingCount = queue.filter(action => action.status !== 'completed').length;
+    return {
+      ...(state ?? {
         lastSyncAt: null,
         lastSuccessfulSyncAt: null,
-        pendingCount: 0,
         syncInProgress: false,
         consecutiveFailures: 0,
         currentOperation: '',
         syncProgress: 0,
         cancelled: false,
-      }
-    );
+      }),
+      pendingCount,
+    };
   }
 
   /**
@@ -1049,6 +1055,9 @@ class OfflineSyncService {
   private notifyListeners(): void {
     this.getSyncState().then((state) => {
       this.listeners.forEach((callback) => callback(state));
+    }).catch(() => {
+      // An unreadable authoritative queue is never published as an empty one.
+      console.warn('OfflineSync: Sync state unavailable; retained work not certified.');
     });
   }
 
