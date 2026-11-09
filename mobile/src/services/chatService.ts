@@ -323,7 +323,7 @@ class ChatService {
   /**
    * Retry failed message
    */
-  async retryMessage(messageId: string): Promise<ApiResponse<void>> {
+  async retryMessage(messageId: string): Promise<ApiResponse<{ message: ChatMessage; session_id: string }>> {
     const failedMessage = this.failedMessages.get(messageId);
     if (!failedMessage) {
       return {

@@ -374,6 +374,7 @@ describe('chatService', () => {
         message: 'hello',
       }));
       expect(result.success).toBe(true);
+      expect(result.data).toEqual({ message: { id: 'new' }, session_id: 's1' });
       expect(chatService.getFailedMessages()).toHaveLength(0);
     });
 
