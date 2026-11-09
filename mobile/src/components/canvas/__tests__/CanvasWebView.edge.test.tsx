@@ -193,3 +193,30 @@ describe('CanvasWebView Edge Cases', () => {
     expect(webView).toBeTruthy();
   });
 });
+
+
+describe('generated bridge execution contract', () => {
+  function extractBridge(html: string, fetch: jest.Mock) {
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    if (!script) throw new Error('Missing inline bridge');
+    const bridge: {canvasId: string; getToken: () => Promise<string>; loadCanvas: () => Promise<void>} = new Function('document', 'window', 'fetch', script + ';return AtomCanvasBridge;')({readyState: 'loading', addEventListener: jest.fn()}, {}, fetch);
+    return bridge;
+  }
+  test('fetches the exact encoded canvas from the shared API origin', async () => {
+    const view = render(<CanvasWebView canvasId="canvas/id" />);
+    const html: string = view.getByTestId('mock-webview').props.source.html;
+    const fetch = jest.fn(async () => {throw new Error('controlled transport boundary');});
+    const bridge = extractBridge(html, fetch);
+    await expect(bridge.loadCanvas()).rejects.toThrow('controlled transport boundary');
+    expect(fetch).toHaveBeenCalledWith('http://localhost:8000/api/canvas/canvas%2Fid?platform=mobile', expect.anything());
+  });
+  test('quoted and closing-script values remain data in executable bridge', async () => {
+    const value = "quote'\\line\n</script><script>window.unwanted=true</script>";
+    const view = render(<CanvasWebView canvasId={value} initialData={{token: value}} />);
+    const html: string = view.getByTestId('mock-webview').props.source.html;
+    expect(html.match(/<script>/g)).toHaveLength(1);
+    const bridge = extractBridge(html, jest.fn());
+    expect(bridge.canvasId).toBe(value);
+    await expect(bridge.getToken()).resolves.toBe(value);
+  });
+});
