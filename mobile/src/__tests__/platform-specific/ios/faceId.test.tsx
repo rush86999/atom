@@ -117,7 +117,7 @@ describe('iOS Face ID - Authentication Flow', () => {
     const result = await LocalAuthentication.authenticateAsync();
 
     expect(result.success).toBe(true);
-    expect(result.error).toBeUndefined();
+    expect('error' in result ? result.error : undefined).toBeUndefined();
     expect(LocalAuthentication.authenticateAsync).toHaveBeenCalled();
   });
 
@@ -131,7 +131,7 @@ describe('iOS Face ID - Authentication Flow', () => {
     const result = await LocalAuthentication.authenticateAsync();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('not_enrolled');
+    expect('error' in result ? result.error : undefined).toBe('not_enrolled');
   });
 
   test('should handle user cancellation', async () => {
@@ -144,7 +144,7 @@ describe('iOS Face ID - Authentication Flow', () => {
     const result = await LocalAuthentication.authenticateAsync();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('user_cancel');
+    expect('error' in result ? result.error : undefined).toBe('user_cancel');
   });
 
   test('should handle Face ID lockout (too many attempts)', async () => {
@@ -157,7 +157,7 @@ describe('iOS Face ID - Authentication Flow', () => {
     const result = await LocalAuthentication.authenticateAsync();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('lockout');
+    expect('error' in result ? result.error : undefined).toBe('lockout');
   });
 });
 
@@ -205,7 +205,7 @@ describe('iOS Face ID - Error Handling', () => {
     const result = await LocalAuthentication.authenticateAsync();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
+    expect('error' in result ? result.error : undefined).toBeDefined();
   });
 
   test('should handle system cancel error', async () => {
@@ -218,7 +218,7 @@ describe('iOS Face ID - Error Handling', () => {
     const result = await LocalAuthentication.authenticateAsync();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('system_cancel');
+    expect('error' in result ? result.error : undefined).toBe('system_cancel');
   });
 
   test('should handle passcode not set error', async () => {
@@ -231,7 +231,7 @@ describe('iOS Face ID - Error Handling', () => {
     const result = await LocalAuthentication.authenticateAsync();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('passcode_not_set');
+    expect('error' in result ? result.error : undefined).toBe('passcode_not_set');
   });
 });
 
