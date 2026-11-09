@@ -303,4 +303,39 @@ describe('OfflineSync durable pending intent contract', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  test('reinitialization owns one network listener and one pair of background timers', async () => {
+    const removeOld = jest.fn();
+    const removeNew = jest.fn();
+    jest.mocked(NetInfo.addEventListener).mockReturnValueOnce(removeOld).mockReturnValueOnce(removeNew);
+    await start();
+    await start();
+    expect(removeOld).toHaveBeenCalledTimes(1);
+    expect(removeNew).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(2);
+    offlineSyncService.destroy();
+    expect(removeNew).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('late older initialization cannot replace the newer network generation', async () => {
+    let resolveOld: ((state: NetInfoState) => void) | undefined;
+    jest.mocked(NetInfo.fetch).mockReturnValueOnce(new Promise<NetInfoState>((resolve) => { resolveOld = resolve; }));
+    const oldStart = offlineSyncService.initialize();
+    await start(false);
+    resolveOld!({ type: NetInfoStateType.unknown, isConnected: true, isInternetReachable: null, details: null });
+    await oldStart;
+    expect(NetInfo.addEventListener).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(2);
+  });
+
+  test('unsubscribe failure still clears timers and retains the callable for retry', async () => {
+    const unsubscribe = jest.fn(() => {}).mockImplementationOnce(() => { throw new Error('controlled unsubscribe failure'); });
+    jest.mocked(NetInfo.addEventListener).mockReturnValueOnce(unsubscribe);
+    await start();
+    expect(() => offlineSyncService.destroy()).toThrow('controlled unsubscribe failure');
+    expect(jest.getTimerCount()).toBe(0);
+    expect(() => offlineSyncService.destroy()).not.toThrow();
+    expect(unsubscribe).toHaveBeenCalledTimes(2);
+  });
+
 });

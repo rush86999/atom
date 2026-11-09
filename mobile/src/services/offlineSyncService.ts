@@ -160,6 +160,9 @@ class OfflineSyncService {
   private syncInProgress: boolean = false;
   private queueMutationTail: Promise<void> = Promise.resolve();
   private syncTimer: NodeJS.Timeout | null = null;
+  private cleanupTimer: NodeJS.Timeout | null = null;
+  private networkUnsubscribe: (() => void) | null = null;
+  private lifecycleGeneration = 0;
   private listeners: Set<(state: SyncState) => void> = new Set();
   private progressListeners: Set<(progress: number, operation: string) => void> = new Set();
   private conflictListeners: Set<(conflict: OfflineAction) => void> = new Set();
@@ -175,12 +178,16 @@ class OfflineSyncService {
    * Initialize the sync service
    */
   async initialize(): Promise<void> {
+    const generation = ++this.lifecycleGeneration;
+    this.clearBackgroundTasks();
     // Check initial network state
     const netInfo = await NetInfo.fetch();
+    if (generation !== this.lifecycleGeneration) return;
     this.isOnline = netInfo.isConnected ?? false;
 
     // Listen for network changes
-    NetInfo.addEventListener((state) => {
+    this.networkUnsubscribe = NetInfo.addEventListener((state) => {
+      if (generation !== this.lifecycleGeneration) return;
       const wasOnline = this.isOnline;
       this.isOnline = state.isConnected ?? false;
 
@@ -195,18 +202,21 @@ class OfflineSyncService {
 
     // Load sync state
     await this.loadSyncState();
+    if (generation !== this.lifecycleGeneration) return;
 
     // Load quality metrics
     await this.loadQualityMetrics();
+    if (generation !== this.lifecycleGeneration) return;
 
     // Initialize storage quota
     await this.initializeStorageQuota();
+    if (generation !== this.lifecycleGeneration) return;
 
     // Start periodic sync (every 5 minutes)
-    this.startPeriodicSync();
+    this.startPeriodicSync(generation);
 
     // Start cleanup task (every hour)
-    this.startCleanupTask();
+    this.startCleanupTask(generation);
   }
 
   /**
@@ -1128,10 +1138,10 @@ class OfflineSyncService {
     });
   }
 
-  private startPeriodicSync(): void {
+  private startPeriodicSync(generation: number): void {
     // Sync every 5 minutes when online
     this.syncTimer = setInterval(() => {
-      if (this.isOnline && !this.syncInProgress) {
+      if (generation === this.lifecycleGeneration && this.isOnline && !this.syncInProgress) {
         this.triggerSync();
       }
     }, 5 * 60 * 1000);
@@ -1140,9 +1150,11 @@ class OfflineSyncService {
   /**
    * Start cleanup task (runs hourly)
    */
-  private startCleanupTask(): void {
-    setInterval(async () => {
+  private startCleanupTask(generation: number): void {
+    this.cleanupTimer = setInterval(async () => {
+      if (generation !== this.lifecycleGeneration) return;
       await this.cleanupOldEntries();
+      if (generation !== this.lifecycleGeneration) return;
       await this.checkStorageQuota();
     }, 60 * 60 * 1000); // Every hour
   }
@@ -1302,13 +1314,32 @@ class OfflineSyncService {
   /**
    * Cleanup
    */
-  destroy(): void {
-    this.notificationVersion += 1;
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
+  private clearBackgroundTasks(): void {
+    try {
+      if (this.networkUnsubscribe) {
+        this.networkUnsubscribe();
+        this.networkUnsubscribe = null;
+      }
+    } finally {
+      if (this.syncTimer) {
+        clearInterval(this.syncTimer);
+        this.syncTimer = null;
+      }
+      if (this.cleanupTimer) {
+        clearInterval(this.cleanupTimer);
+        this.cleanupTimer = null;
+      }
     }
-    this.listeners.clear();
+  }
+
+  destroy(): void {
+    this.lifecycleGeneration += 1;
+    this.notificationVersion += 1;
+    try {
+      this.clearBackgroundTasks();
+    } finally {
+      this.listeners.clear();
+    }
   }
 }
 
