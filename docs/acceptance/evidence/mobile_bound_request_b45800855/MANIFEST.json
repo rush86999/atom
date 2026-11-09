@@ -1,0 +1,38 @@
+{
+  "executed_source": "b45800855168b52e11991574c82b7b9537eb3620",
+  "source_files": {
+    "mobile/src/services/api.ts": "dee2041d2d02eb826696492670f8fc759fa17d0d00b0f353542759f4466da9f8",
+    "mobile/src/storage/secureTokenStorage.ts": "c222b24dfe10e6b843ba467071b2c573b473a2362f919c59f0dfeb712a0d5fb6",
+    "mobile/src/types/common.ts": "902e3fd878380a7155343eb7ce994e013f8240a67bcfa46c926358d858280c11",
+    "mobile/src/__tests__/services/api.session-adapter.test.ts": "fa6674956be8e43b533467cea5854b218bb164bb44a6c60f6c3e4b98d49543f7",
+    "mobile/src/__tests__/services/api.test.ts": "eef25689c80d4eb455872e6316e130d6f587c36c1e7a4718cf758a2df597f467"
+  },
+  "artifacts": {
+    "api-bound-write-final-compiler.log": "4c744214cc3fc5c94420392156ee7d355aaf6913d9adb4f6f17ed0ad59a3922e",
+    "api-bound-write-native-candidate.log": "f5f563081f14aa2784d9f3f53b2b87176c223a01e7fcbf56c67f97144f02f5dd",
+    "api-bound-write-final-broad.log": "f580490fbda9db220f9eb54536218731ae4ebd1540338f33f11f933a9c561f45",
+    "api-bound-write-malformed-negative.log": "bbb31ec333f0867e062f717f0a3ba5d0263daefec7ff7a0bc400e49dd4c8955b",
+    "native-proposal.err": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "native-work-order.txt": "2b7ff1e07643217ecc53f61b1f8c7b8081e10e3e8bd3f547a94738156c8ae619",
+    "native-proposal.exit.json": "e1fbbf3c757103516862f2c3b52fd91bcc231b2121ad8ebe64394035d3f7c0ac",
+    "api-bound-write-all-verb-result.log": "b8983a3e1c2fa2948d8a70b009039da38c9faa5878cb59d6d151293b2806aba5",
+    "api-bound-write-all-verb-result.exit.json": "4c5e35249d09011f87d994353aace26fc3d91acbdd8040969868db1eab0212f1",
+    "api-bound-write-all-verb-result.spec.json": "e7b662a7ca4d79e2d228158dddb614fa639b1dede5470576d18c58cdc2aac3c6",
+    "api-bound-write-malformed-negative.exit.json": "6763dd77d5394aa62547e6d1418f2a5e6467b0a61eb7140cd634b51747c49440",
+    "api-bound-write-final-compiler.spec.json": "d6475f9bb313bbeb9e55b11d44895e839f93ad6c6dfb9d1d74f80b0fbd796100",
+    "api-bound-write-malformed-negative.spec.json": "07816497313606b08918150cdd6fcce4e95c94df474259d9b4e96e461125e1fb",
+    "api-bound-write-final-compiler.exit.json": "81611d65718df74ceb8f6f52afc7777b3828455d03ab6d00e635e799067a7c20",
+    "api-bound-write-account-negative.spec.json": "7b30e14789ef370fcdf48f09db6ebb63382ac282143e682407d7d32dc1f04d13",
+    "api-bound-write-account-negative.exit.json": "439088a7fb01d75b1942674b0acddff287d71c571af1eee5607e20c1502bb341",
+    "native-effective-policy.json": "b9c1ad795fb4d2b1c1f72fa54dff8393c161bc63cc201cc919e8e84b1030afe5",
+    "api-bound-write-native-candidate.exit.json": "25225fccaf4db4ecf2bc5c1a87d7b9262b4cfd35ddef8853ee0910a65ece0a54",
+    "README.md": "05f0bee6c9458c34dfeb56d86ba3cc4642f2aee3695b5b96cea73f2f02ce0fed",
+    "api-bound-write-native-candidate.spec.json": "caa2fd833e402488742d4c84df5e3db3b1b325b5b2af4edfcc5c4aca68487f7a",
+    "api-bound-write-final-broad.exit.json": "540c518151433bc450b91ce68997704200455df8c57b3a12e84b0ad66fd75ef5",
+    "api-bound-write-account-negative.log": "fa06ed3ee5a7c9deb31ad520333bd3b39d4ac1084ae0f65de0102e9b642c6c40",
+    "api-bound-write-final-broad.spec.json": "11414e80dc5e96949b53ceb6da1813fa91033867f22d151549e815882fabbb0c",
+    "native-adjudication.json": "9e6dd29e5235ec337fedcf588577b278a35946a4c79c3eb78560f5c645820b88",
+    "capture-bindings.json": "1791eb05f58b6e3b23d898bc43943ad04996daa175c88c510f9743b467551cb5",
+    "native-proposal.jsonl": "3ecf3fa7c1c4699d181a6464bf3b676d91947f5d9bd83a34efbef5ca2a1f3269"
+  }
+}

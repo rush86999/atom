@@ -1,0 +1,10 @@
+{
+  "worker": 83997,
+  "terminal_exit": 0,
+  "candidate_source": "13c27668c",
+  "candidate_tests": "43pass1fail; Axios normalization drops explicit undefined",
+  "accepted": "opt-in interceptor exact-session validation and metadata stripping",
+  "root_repair": "pre-normalization validation in all4methods; restored existing generic error/body behavior; four independent verb twins",
+  "queued_owner_wiring": "not yet implemented",
+  "physical_transport_cancellation": "not claimed"
+}

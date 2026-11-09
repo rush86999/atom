@@ -1,0 +1,12 @@
+{
+  "captures": {
+    "api-bound-write-account-negative": "4f50d4ee3",
+    "api-bound-write-malformed-negative": "55ab60ff6",
+    "api-bound-write-native-candidate": "13c27668c",
+    "api-bound-write-all-verb-result": "b45800855",
+    "api-bound-write-final-compiler": "b45800855",
+    "api-bound-write-final-broad": "b45800855"
+  },
+  "source_file_checks": 1542,
+  "mismatches": 0
+}
