@@ -1,0 +1,27 @@
+{
+  "source": "f7d4ea037",
+  "hosted_negative": {
+    "head": "98bf10e93",
+    "job": 129058398156,
+    "run": 42586779428,
+    "url": "https://github.com/rush86999/atom/actions/runs/42586779428/job/129058398156",
+    "passed": 40,
+    "failed": 1,
+    "failed_test": "test_every_existing_backend_command_environment_and_setup_is_preserved"
+  },
+  "local_negative": {
+    "passed": 26,
+    "failed": 1
+  },
+  "local_repair": {
+    "passed": 27,
+    "failed": 0
+  },
+  "preserved": [
+    "original immutable baseline bytes",
+    "exact Counter equality for every original and explicitly added gate",
+    "both backend-lane dependencies and always/failure/skipped result matrix",
+    "54 form controls already qualified on both runtimes; no runtime change here"
+  ],
+  "reason": "The legitimate added form gate was missing from CI coverage preservation ledger; new additive ledger declares it exactly once without relaxing coverage equality."
+}

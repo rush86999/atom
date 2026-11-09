@@ -1,0 +1,141 @@
+
+tests/test_canvas_form_producer_submit_join.py::test_ordinary_present_form_then_submit_has_durable_scope 
+-------------------------------- live log setup --------------------------------
+2026-11-09 03:19:38 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 03:19:38 [    INFO] EscalationManager initialized
+2026-11-09 03:19:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:19:38 [    INFO] EscalationManager initialized
+2026-11-09 03:19:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:19:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 03:19:38 [    INFO] AgentTaskRegistry initialized
+2026-11-09 03:19:39 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:39 [    INFO] Presented form to user form-actor
+2026-11-09 03:19:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_canvas_form_producer_submit_join.py::test_form_producer_does_not_broadcast_unpersisted_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:40 [   ERROR] Form presentation failed at controlled boundary: RuntimeError
+PASSED                                                                   [ 14%]
+tests/test_canvas_form_producer_submit_join.py::test_form_missing_frozen_identity_never_broadcasts[_oracle_expected_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:41 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [ 21%]
+tests/test_canvas_form_producer_submit_join.py::test_form_missing_frozen_identity_never_broadcasts[_oracle_expected_title] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:42 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [ 28%]
+tests/test_canvas_form_producer_submit_join.py::test_form_missing_frozen_identity_never_broadcasts[_oracle_expected_material] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:42 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [ 35%]
+tests/test_canvas_form_producer_submit_join.py::test_form_governance_uses_current_actor_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:43 [    INFO] Resolved agent via explicit agent_id: Form Agent
+2026-11-09 03:19:43 [    INFO] Presented form to user form-actor (agent: Form Agent)
+PASSED                                                                   [ 42%]
+tests/test_canvas_form_producer_submit_join.py::test_form_foreign_agent_is_not_presentation_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:44 [    INFO] Resolved agent via explicit agent_id: Form Agent
+PASSED                                                                   [ 50%]
+tests/test_canvas_form_producer_submit_join.py::test_form_lost_commit_confirmation_preserves_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:44 [   ERROR] Form presentation failed at controlled boundary: RuntimeError
+PASSED                                                                   [ 57%]
+tests/test_canvas_form_producer_submit_join.py::test_form_disabled_oracle_cannot_certify 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:45 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [ 64%]
+tests/test_canvas_form_producer_submit_join.py::test_form_incomplete_policy_cannot_waive_review 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:46 [    INFO] Resolved agent via explicit agent_id: Form Agent
+2026-11-09 03:19:46 [ WARNING] Governance blocked form presentation
+PASSED                                                                   [ 71%]
+tests/test_canvas_form_producer_submit_join.py::test_form_agent_disabled_after_resolution_is_not_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:46 [    INFO] Resolved agent via explicit agent_id: Form Agent
+PASSED                                                                   [ 78%]
+tests/test_canvas_form_producer_submit_join.py::test_form_explicit_missing_agent_has_no_fallback_side_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:47 [ WARNING] Requested agent_id missing-explicit-agent not found
+2026-11-09 03:19:47 [    INFO] Creating system default Chat Assistant agent
+2026-11-09 03:19:47 [    INFO] Created system default agent: f17c0dd1-d00e-417c-9a73-4efa7e072208
+2026-11-09 03:19:47 [    INFO] Resolved agent via system default: Chat Assistant
+FAILED                                                                   [ 85%]
+tests/test_canvas_form_producer_submit_join.py::test_form_same_operation_replays_one_surface 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:48 [    INFO] Presented form to user form-actor
+2026-11-09 03:19:48 [    INFO] Presented form to user form-actor
+FAILED                                                                   [ 92%]
+tests/test_canvas_form_producer_submit_join.py::test_form_changed_material_cannot_reuse_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:49 [    INFO] Presented form to user form-actor
+2026-11-09 03:19:49 [    INFO] Presented form to user form-actor
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: A refused explicit agent must not create a replacement agent
+    assert 1 == 0
+     +  where 1 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x178564e20>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x178564e20> = query(<class 'core.models.AgentRegistry'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x17857f9d0>.query
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_context_resolver:agent_context_resolver.py:75 Requested agent_id missing-explicit-agent not found
+INFO     core.agent_context_resolver:agent_context_resolver.py:191 Creating system default Chat Assistant agent
+INFO     core.agent_context_resolver:agent_context_resolver.py:223 Created system default agent: f17c0dd1-d00e-417c-9a73-4efa7e072208
+INFO     core.agent_context_resolver:agent_context_resolver.py:91 Resolved agent via system default: Chat Assistant
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_form_producer_submit_join.py:206: AssertionError: A refused explicit agent must not create a replacement agent
+E   AssertionError: assert None is True
+     +  where None = <built-in method get of dict object at 0x178934c00>('already_applied')
+     +    where <built-in method get of dict object at 0x178934c00> = {'agent_execution_id': None, 'agent_id': None, 'audit_id': 'c31a10f4-d689-47ca-8fda-364302bc8f0d', 'canvas_id': '3586c3d7-bdb8-4bc5-9e90-3879d3f8ec43', ...}.get
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:19:48.444105+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:19:48.447048+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_form_producer_submit_join.py:220: AssertionError: assert None is True
+E   assert True is False
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:19:49.114583+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:19:49.117327+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_form_producer_submit_join.py:238: assert True is False
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852
+  /usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25
+  /usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.fields import FieldInfo as FieldInfoV1
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_form_producer_submit_join.py::test_form_explicit_missing_agent_has_no_fallback_side_effect
+FAILED tests/test_canvas_form_producer_submit_join.py::test_form_same_operation_replays_one_surface
+FAILED tests/test_canvas_form_producer_submit_join.py::test_form_changed_material_cannot_reuse_operation
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 3 failed, 11 passed, 6 warnings in 26.14s ===================

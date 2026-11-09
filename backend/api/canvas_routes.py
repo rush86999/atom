@@ -69,6 +69,13 @@ class CanvasSubmitRequest(BaseModel):
     form_data: Dict[str, Any] = Field(..., description="Form field data to submit")
     agent_id: Optional[str] = Field(None, description="Optional agent ID for governance checks")
     agent_execution_id: Optional[str] = Field(None, description="Optional agent execution ID")
+    operation_id: Optional[str] = Field(
+        None,
+        description=(
+            "Optional stable identity for this logical submission. A retry "
+            "with the same id/material replays the original receipt."
+        ),
+    )
 
 
 # ============================================================================
@@ -1359,56 +1366,37 @@ async def submit_canvas(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
-    """
-    Submit form data for a canvas.
+    """Submit one scoped event with a durable, independently verified receipt."""
+    from fastapi.encoders import jsonable_encoder
+    from fastapi.responses import JSONResponse
+    from core.canvas_write_service import submit_canvas_verified
 
-    Validates authentication, required fields, and governance permissions.
-    """
-    # Governance check if agent_id provided
-    if request.agent_id:
-        governance = AgentGovernanceService(db)
-        check = governance.can_perform_action(
-            agent_id=request.agent_id,
-            action_type="canvas_submit"
-        )
-
-        if not check.get("allowed", True):
-            raise router.error_response(
-                error_code="GOVERNANCE_DENIED",
-                message=check.get("reason", "Permission denied"),
-                status_code=403
-            )
-
-    # Persist the submission via the canvas audit trail.
-    try:
-        from core.database import get_db_session
-        from core.models import CanvasAudit
-        with get_db_session() as db:
-            audit = CanvasAudit(
-                canvas_id=request.canvas_id,
-                tenant_id=getattr(current_user, "tenant_id", None) or "default",
-                canvas_type="form",
-                action_type="submit",
-                user_id=str(current_user.id) if current_user else "system",
-                agent_id=request.agent_id if hasattr(request, "agent_id") else None,
-                details_json={
-                    "form_data": request.form_data,
-                    "agent_id": request.agent_id if hasattr(request, "agent_id") else None,
-                    "submitted_at": datetime.now(timezone.utc).isoformat(),
-                },
-            )
-            db.add(audit)
-            db.commit()
-    except Exception as e:
-        logger.warning(f"Canvas submit persistence failed (non-fatal): {e}")
-
-    return router.success_response(
-        data={
-            "canvas_id": request.canvas_id,
-            "submitted": True,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+    result = await submit_canvas_verified(
+        user_id=str(current_user.id),
+        canvas_id=request.canvas_id,
+        form_data=request.form_data,
+        operation_id=request.operation_id,
+        agent_id=request.agent_id,
+        agent_execution_id=request.agent_execution_id,
     )
+    status = int(result.get("http_status") or 503)
+    verified = bool(result.get("success") and (result.get("verification") or {}).get("status") == "verified")
+    body = {
+        **result,
+        "success": verified,
+        "data": {
+            "canvas_id": request.canvas_id,
+            "submitted": verified,
+            "timestamp": result.get("submitted_at"),
+        },
+    }
+    body.pop("http_status", None)
+    if result.get("error_code") == "GOVERNANCE_DENIED":
+        refusal = router.error_response(
+            error_code="GOVERNANCE_DENIED",
+            message=result.get("error"), status_code=status)
+        body["detail"] = refusal.detail
+    return JSONResponse(status_code=status, content=jsonable_encoder(body))
 
 
 # ============================================================================

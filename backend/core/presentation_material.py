@@ -59,6 +59,20 @@ def chart_config(args: Dict[str, Any]) -> Dict[str, Any]:
     return normalize_chart(args)[2]
 
 
+def normalize_form_schema(args: Dict[str, Any]) -> Any:
+    """Return the form schema from either producer or action argument shape.
+
+    ``present_form`` exposes ``form_schema`` while the canvas event carries
+    ``schema``. Both names must resolve to the SAME material; ``None`` is the
+    only absent value, so an explicit empty schema is preserved.
+    """
+    args = args or {}
+    schema = args.get("form_schema")
+    if schema is None:
+        schema = args.get("schema")
+    return schema
+
+
 def presentation_material(action: str, args: Dict[str, Any]) -> Dict[str, Any]:
     """One canonical material object for the action's authorized arguments."""
     name = str(action or "")
@@ -82,6 +96,18 @@ def presentation_material(action: str, args: Dict[str, Any]) -> Dict[str, Any]:
             "chart_type": chart_type,
             "data": data,
             "config": config,
+        }
+    if name.endswith("canvas.present_form") or name.endswith("present_form"):
+        schema = normalize_form_schema(args)
+        if schema is None:
+            return None
+        # A form's title is part of its canonical identity: reusing an
+        # operation id with a different title is a changed presentation, not
+        # a replay. Chart/markdown material is deliberately unchanged.
+        return {
+            "kind": "form",
+            "schema": schema,
+            "title": args.get("title"),
         }
     raise ValueError(f"unsupported presentation action {action!r}")
 
@@ -107,6 +133,11 @@ def chart_digest(
     })
 
 
+def form_digest(schema: Any, title: Any = None) -> str:
+    return material_sha256(
+        {"kind": "form", "schema": schema, "title": title})
+
+
 def presentation_digest(kind: str, material: Dict[str, Any]) -> str:
     if kind == "markdown":
         return markdown_digest(material.get("content"))
@@ -114,6 +145,8 @@ def presentation_digest(kind: str, material: Dict[str, Any]) -> str:
         return chart_digest(
             material.get("chart_type"), material.get("data"),
             material.get("config") or {})
+    if kind == "form":
+        return form_digest(material.get("schema"), material.get("title"))
     raise ValueError(f"unsupported presentation kind {kind!r}")
 
 

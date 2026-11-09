@@ -275,11 +275,29 @@ class TestCanvasMarkdownPresentation:
             assert result["success"] is True
 
 
+# Only the form family now requires a durable authoritative surface. Reuse the
+# existing isolated DB fixture, rather than assuming a hardcoded user exists.
+from tests.test_canvas_lifecycle_verified import probe, _user  # noqa: E402,F401
+
+
+@pytest.fixture
+def scoped_form_world(probe, monkeypatch):
+    from types import SimpleNamespace
+    with probe.Session() as db:
+        actor = _user(db, user_id="integration-form-user", tenant_id="integration-form-tenant", workspace_id="integration-form-workspace")
+        agent = AgentRegistry(id="integration-form-agent", name="Integration Form Agent", category="testing", module_path="test.module", class_name="TestCanvas", status="autonomous", enabled=True, tenant_id=actor.tenant_id, workspace_id=actor.workspace_id)
+        db.add(agent)
+        db.commit()
+        actor_id, agent_id = actor.id, agent.id
+    monkeypatch.setattr(FeatureFlags, "should_enforce_governance", lambda *_: True)
+    return SimpleNamespace(actor_id=actor_id, agent_id=agent_id, Session=probe.Session)
+
+
 class TestCanvasFormPresentation:
     """Tests for canvas form presentation functionality."""
 
     @pytest.mark.asyncio
-    async def test_present_form_success(self, db_session):
+    async def test_present_form_success(self, scoped_form_world):
         """Test presenting a form successfully."""
         form_schema = {
             "fields": [
@@ -292,16 +310,23 @@ class TestCanvasFormPresentation:
             mock_ws.broadcast = AsyncMock()
 
             result = await present_form(
-                user_id="test_user",
+                user_id=scoped_form_world.actor_id,
                 form_schema=form_schema,
                 title="Contact Form"
             )
 
             assert result["success"] is True
             assert mock_ws.broadcast.called
+            from core.models import Canvas
+            with scoped_form_world.Session() as db:
+                canvas = db.get(Canvas, result["canvas_id"])
+                assert canvas is not None
+                assert canvas.created_by == scoped_form_world.actor_id
+                assert canvas.workspace_id == "integration-form-workspace"
+                assert canvas.content["schema"] == form_schema
 
     @pytest.mark.asyncio
-    async def test_present_form_with_agent(self, db_session, canvas_agent):
+    async def test_present_form_with_agent(self, scoped_form_world):
         """Test form presentation with agent governance."""
         form_schema = {
             "fields": [
@@ -313,16 +338,16 @@ class TestCanvasFormPresentation:
             mock_ws.broadcast = AsyncMock()
 
             result = await present_form(
-                user_id="test_user",
+                user_id=scoped_form_world.actor_id,
                 form_schema=form_schema,
                 title="Approval Form",
-                agent_id=canvas_agent.id
+                agent_id=scoped_form_world.agent_id
             )
 
             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_present_form_complex_fields(self, db_session):
+    async def test_present_form_complex_fields(self, scoped_form_world):
         """Test form with complex field types."""
         form_schema = {
             "fields": [
@@ -337,7 +362,7 @@ class TestCanvasFormPresentation:
             mock_ws.broadcast = AsyncMock()
 
             result = await present_form(
-                user_id="test_user",
+                user_id=scoped_form_world.actor_id,
                 form_schema=form_schema,
                 title="Complex Form"
             )

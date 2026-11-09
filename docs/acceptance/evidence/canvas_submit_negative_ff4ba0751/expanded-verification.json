@@ -1,0 +1,13 @@
+{
+  "runtime_source": "b550fd728e6992f06d0793e6e5f54a636c66f0db",
+  "test_source": "cc17c4a436743d792ae8bb90501741326d9c6255",
+  "test_sha256": "bc36f60d833a87cca3c435c0fa519d3f642881ba2d54b97421d2d0a5760f002e",
+  "actual_exit": 1,
+  "result": "6failed1passed",
+  "new_cases": [
+    "explicit operation replay appends twice",
+    "same operation accepts changed material",
+    "stale request actor bypasses authoritative deactivation"
+  ],
+  "scope": "same mounted route and fresh scratchSQLite fixture; no production code changed"
+}

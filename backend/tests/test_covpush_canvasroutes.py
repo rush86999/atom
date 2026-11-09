@@ -747,7 +747,7 @@ class TestSubmitCanvas:
         assert row.tenant_id == "t1"
         assert row.details_json["form_data"] == {"name": "Alice", "qty": 3}
 
-    def test_submit_persistence_failure_is_non_fatal(self, client, db_session, users, monkeypatch):
+    def test_submit_persistence_failure_cannot_certify_success(self, client, db_session, users, monkeypatch):
         u = _make_user(db_session)
         users["current"] = u
         c = _make_canvas(db_session, u.id)
@@ -756,8 +756,9 @@ class TestSubmitCanvas:
             raise RuntimeError("db down")
         monkeypatch.setattr("core.database.get_db_session", lambda: _boom())
         res = self._submit(client, c.id)
-        assert res.status_code == 200
-        assert res.json()["success"] is True
+        assert res.status_code == 503
+        assert res.json()["success"] is False
+        assert res.json()["data"]["submitted"] is False
 
 
 # ===========================================================================

@@ -1,0 +1,50 @@
+{
+  "runtime_source": "5fa53f10b",
+  "executed_test_and_ci_source": "3644c792a",
+  "focused": {
+    "python314": {
+      "passed": 54,
+      "failed": 0
+    },
+    "python311": {
+      "passed": 54,
+      "failed": 0
+    }
+  },
+  "producer_fixture_change": {
+    "base_old_tests": "3 passed at b550",
+    "candidate_old_tests": "3 failed at 5fa53f10b",
+    "reason": "hardcoded unseeded user replaced by real scoped User and Agent; original success assertions retained, durable scope/schema assertions added"
+  },
+  "predecessor_evidence": [
+    "canvas_submit_negative_ff4ba0751",
+    "canvas_submit_compatibility_cc7538142",
+    "canvas_form_review_ba93e8545"
+  ],
+  "broader_predecessor": {
+    "python314": "167 passed / 4 baseline WebSocket failures at ba93e8545",
+    "python311": "167 passed / 4 baseline WebSocket failures at 733624e4b",
+    "baseline": "same 4 exact node IDs reproduced at b550 on both runtimes"
+  },
+  "native_cli": {
+    "model": "opencode-go/deepseek-v4.1-flash",
+    "first": {
+      "actual_exit": 0,
+      "step_cap": 40,
+      "proposal_source": "f2ba59e6a",
+      "root_adjudication": "normal join passed; root added/repaired frozen identity, scope, policy, commit uncertainty and related-row controls"
+    },
+    "second": {
+      "actual_exit": 0,
+      "step_cap": 25,
+      "root_adjudication": "partial helpers/title binding only; unwired proposal failed 3 with 48 passing; root wired producer and exact replay/agent selection; final54 gates pass"
+    }
+  },
+  "limits": [
+    "scratch SQLite with real ledger/User/Canvas/CAS and fresh readback; controlled authentication dependency",
+    "no browser delivery/login qualification",
+    "no PostgreSQL/multi-worker/soak qualification",
+    "CLI engineering inference authorized; no application model/provider call, deployment or real account mutation",
+    "hosted checks and review not yet qualified"
+  ]
+}

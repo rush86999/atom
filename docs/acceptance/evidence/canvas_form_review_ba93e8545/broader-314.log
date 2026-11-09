@@ -1,0 +1,884 @@
+
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_is_verified_against_durable_material 
+-------------------------------- live log setup --------------------------------
+2026-11-09 03:18:29 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 03:18:29 [    INFO] EscalationManager initialized
+2026-11-09 03:18:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:18:29 [    INFO] EscalationManager initialized
+2026-11-09 03:18:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:18:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 03:18:29 [    INFO] AgentTaskRegistry initialized
+2026-11-09 03:18:29 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5652c5c6'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-676dd5386c5b (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-676dd5386c5b "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_same_title_and_length_still_checks_exact_content 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-6b4d15a8'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-fbfcb3beabf5 (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-fbfcb3beabf5?title=same%20title "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-31d27fdd'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-7108a36f84b7 (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7108a36f84b7?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7108a36f84b7?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_byte_identical_without_operation_is_a_distinct_edit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-ba2b59f2'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-91d48c677e37 (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-91d48c677e37 "HTTP/1.1 200 OK"
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-ba2b59f2'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-91d48c677e37 (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-91d48c677e37 "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_is_verified_and_append_only 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-096a9326'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Restored canvas c-26df6326db6b to version 863ffc2a-9a5a-47bb-b6cf-66e6d6a9e3db (email) — appended as a new version
+2026-11-09 03:18:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-26df6326db6b/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_is_truthful_and_adds_no_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-a6b23cb4babb/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-867bf94f9f4d "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  4%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_stale_prior_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-8d7fe45d'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-b17ed68bc420 (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b17ed68bc420 "HTTP/1.1 200 OK"
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b17ed68bc420?expected_prior_audit_id=460ebd06-fce9-4046-a2dc-c8729f414132 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_canvas_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-3bc033a39794/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  5%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_unavailable_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-2cc2d4f9'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-34964508520a (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-34964508520a "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_refuted_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-27aedf6c'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-347b8751f8e4 (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-347b8751f8e4 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_kill_switch_never_fabricates_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-cac613a6'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-6ad1dfbf7a1d (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6ad1dfbf7a1d "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_verifier_gets_no_request_session 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-b7719952'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-0d8c910d3144 (generic)
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-0d8c910d3144 "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-2de21c387e54 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_exception_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-7af43bc6'. type='canvas:update'
+2026-11-09 03:18:30 [    INFO] Updated canvas c-d98e7b5ef793 (generic)
+2026-11-09 03:18:30 [ WARNING] direct canvas canvas.update oracle unavailable: oracle crashed
+2026-11-09 03:18:30 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-d98e7b5ef793 "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_wrong_canvas_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-131e4f4ac2dd/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  9%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_old_identical_material_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-e3a2765a7424/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_operation_mismatch PASSED [ 10%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_absent_audit PASSED [ 11%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_stale_mirror PASSED [ 11%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_restore_target_mismatch PASSED [ 12%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_after_later_edit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-0cd400bd'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Updated canvas c-b9e8c915604f (generic)
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b9e8c915604f?operation_id=op-late-1 "HTTP/1.1 200 OK"
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-0cd400bd'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Updated canvas c-b9e8c915604f (generic)
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b9e8c915604f "HTTP/1.1 200 OK"
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b9e8c915604f?operation_id=op-late-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_effect_unknown_keeps_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-e25067514709?operation_id=op-unknown-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_kill_switch_is_unverified_no_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-f2144c704593/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-bfa6bac8c583/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 14%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-8b479ac557a7/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 15%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_stale_mirror_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-70e5a09b848f/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_old_identical_audit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-177ca10fab21 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_manual_save_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-007e4319'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Updated canvas c-a4bdb1b06bb2 (generic)
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-a4bdb1b06bb2 "HTTP/1.1 200 OK"
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-007e4319'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Updated canvas c-a4bdb1b06bb2 (generic)
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-a4bdb1b06bb2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_operation_id_different_material_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4d7ff537'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Updated canvas c-145a1dce49e5 (generic)
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-145a1dce49e5?operation_id=op-bound-1 "HTTP/1.1 200 OK"
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-145a1dce49e5?operation_id=op-bound-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 17%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-459f06fc'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Restored canvas c-c90f91117307 to version ee3a92d1-1bb8-4d88-a5b6-17aa697470c0 (generic) — appended as a new version
+2026-11-09 03:18:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-c90f91117307/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_oracle_direct_canvas_writes.py::test_writer_rechecks_scope_after_service_preflight 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b66c4c32a694 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 18%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_stale_mirror_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5f74cb08'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Updated canvas c-6a4e73c20329 (generic)
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6a4e73c20329 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_oracle_direct_canvas_writes.py::test_same_scope_coeditor_can_save_without_creator_ownership 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-0af0307b'. type='canvas:update'
+2026-11-09 03:18:31 [    INFO] Updated canvas c-414f70db9cc1 (generic)
+2026-11-09 03:18:31 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-414f70db9cc1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_commits_across_real_sessions 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-multisession'. type='canvas:update'
+2026-11-09 03:18:32 [    INFO] Updated canvas c-multisession (generic)
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-multisession "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_target_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-f9722e60f584/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 21%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_null_workspace_cannot_edit_scoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-0caa2dfc1471 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 21%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_workspace_principal_can_edit_legacy_unscoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-e4f5e8d3'. type='canvas:update'
+2026-11-09 03:18:32 [    INFO] Updated canvas c-7e6838e72c25 (generic)
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7e6838e72c25 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_scope_change_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-2f360e3b'. type='canvas:update'
+2026-11-09 03:18:32 [    INFO] Updated canvas c-ae1f2ff497ab (generic)
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ae1f2ff497ab "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_scope_move_after_writer_check_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-866d4ec4e9d1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_scope_move_after_writer_check_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-5b2051dbc0e2/restore "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_scope_move_refuses_mirror_refresh 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-66b37825'. type='canvas:update'
+2026-11-09 03:18:32 [    INFO] Updated canvas c-439a2fb63da0 (generic)
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-439a2fb63da0?operation_id=op-scope-dup "HTTP/1.1 200 OK"
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-439a2fb63da0?operation_id=op-scope-dup "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_workspace_scoped_unchanged_still_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-08195c2c'. type='canvas:update'
+2026-11-09 03:18:32 [    INFO] Updated canvas c-f1e5516f939b (generic)
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f1e5516f939b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_workspace_scoped_unchanged_still_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-7346ed0b'. type='canvas:update'
+2026-11-09 03:18:32 [    INFO] Restored canvas c-a9a47e925147 to version f0f2097e-0339-4f87-a297-3ad79a422016 (generic) — appended as a new version
+2026-11-09 03:18:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-a9a47e925147/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_null_to_default_scope_move_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:32 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-8bf62dc68773 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_canvas_lifecycle_verified.py::test_owner_delete_has_verified_receipt_and_fresh_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:33 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:33 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_binds_exact_tombstone_source_and_content 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:34 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:34 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:18:34 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 03:18:34 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_canvas_lifecycle_verified.py::test_same_scope_coeditor_still_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:coeditor'. type='canvas:update'
+2026-11-09 03:18:35 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:35 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_canvas_lifecycle_verified.py::test_null_default_single_tenant_compatible 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-null'. type='canvas:update'
+2026-11-09 03:18:35 [    INFO] Deleted canvas probe-legacy
+2026-11-09 03:18:35 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-legacy "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_canvas_lifecycle_verified.py::test_audit_only_canvas_uses_latest_audit_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-09 03:18:36 [    INFO] Deleted canvas probe-audit-only
+2026-11-09 03:18:36 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-audit-only "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_canvas_lifecycle_verified.py::test_audit_only_canvas_undelete_binds_source_without_mirror 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-09 03:18:37 [    INFO] Deleted canvas probe-audit-only
+2026-11-09 03:18:37 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-audit-only "HTTP/1.1 200 OK"
+2026-11-09 03:18:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-09 03:18:37 [    INFO] Restored deleted canvas probe-audit-only
+2026-11-09 03:18:37 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-audit-only/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_canvas_lifecycle_verified.py::test_stranger_gets_404_and_zero_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:37 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+tests/test_canvas_lifecycle_verified.py::test_stranger_cannot_replay_another_users_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:38 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:38 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-owner "HTTP/1.1 200 OK"
+2026-11-09 03:18:38 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-owner "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_tenant_coeditor_refuses_before_effect[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:39 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 31%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_tenant_coeditor_refuses_before_effect[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:40 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:40 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:18:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_workspace_coeditor_refuses_before_effect[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:40 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_workspace_coeditor_refuses_before_effect[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:41 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:41 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:18:41 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 33%]
+tests/test_canvas_lifecycle_verified.py::test_delete_same_operation_replays_one_tombstone_no_second_broadcast 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:42 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:42 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-delete-1 "HTTP/1.1 200 OK"
+2026-11-09 03:18:42 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-delete-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_canvas_lifecycle_verified.py::test_delete_different_operation_is_idempotent_with_original_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:43 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:43 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-a "HTTP/1.1 200 OK"
+2026-11-09 03:18:43 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_same_operation_replays_one_restore 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:43 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:43 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:18:43 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 03:18:43 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+2026-11-09 03:18:43 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_non_deleted_canvas_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 35%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_without_content_source_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-empty/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+tests/test_canvas_lifecycle_verified.py::test_delete_expected_prior_mismatch_is_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:46 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?expected_prior_audit_id=not-the-latest "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+tests/test_canvas_lifecycle_verified.py::test_same_operation_different_material_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:46 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:46 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:46 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-reused "HTTP/1.1 200 OK"
+2026-11-09 03:18:46 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:46 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 03:18:46 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+2026-11-09 03:18:46 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-reused "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 37%]
+tests/test_canvas_lifecycle_verified.py::test_ambiguous_operation_identity_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:47 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-duplicate "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/test_canvas_lifecycle_verified.py::test_scope_move_before_effect_refuses_and_preserves_winner 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:48 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/test_canvas_lifecycle_verified.py::test_scope_move_after_commit_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:49 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:49 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[workspace-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:49 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 39%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[workspace-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:50 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:50 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:18:50 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[inactive-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:51 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 40%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[inactive-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:51 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:51 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:18:51 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 41%]
+tests/test_canvas_lifecycle_verified.py::test_unchanged_active_actor_valid_twin[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:52 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:52 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_canvas_lifecycle_verified.py::test_unchanged_active_actor_valid_twin[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:53 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:53 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:18:53 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 03:18:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_ignores_model_user_id_and_uses_context_actor 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:54 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'victim', 'canvas_id': 'probe-canvas'}
+PASSED                                                                   [ 43%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_context_actor_wins_over_model_supplied_victim 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:54 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'victim', 'canvas_id': 'probe-canvas'}
+2026-11-09 03:18:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:54 [    INFO] Deleted canvas probe-canvas
+PASSED                                                                   [ 43%]
+tests/test_canvas_lifecycle_verified.py::test_standard_call_tool_entry_resolves_the_verified_lifecycle 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:55 [    INFO] Deleted canvas probe-canvas
+PASSED                                                                   [ 44%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_without_trusted_context_actor_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:56 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'owner', 'canvas_id': 'probe-canvas'}
+PASSED                                                                   [ 45%]
+tests/test_canvas_lifecycle_verified.py::test_missing_audit_readback_is_committed_unverified_and_no_second_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:57 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_canvas_lifecycle_verified.py::test_unknown_commit_outcome_keeps_identity_and_never_claims_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:57 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_wrong_actor_scope_operation_and_digest 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:58 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:58 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_a_later_lifecycle_row 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:18:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 03:18:59 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:18:59 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_missing_audit PASSED [ 47%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:00 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 48%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:01 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 49%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:02 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:02 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:02 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 49%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:03 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:03 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:03 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 50%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[delete-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:03 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:03 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[delete-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:04 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:04 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[undelete-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:05 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:05 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:05 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 03:19:05 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[undelete-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:06 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:06 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:06 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 03:19:06 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_lead_canvas_lifecycle_authority.py::test_stranger_without_authorship_is_still_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:06 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 53%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[tenant-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:07 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[tenant-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:08 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:08 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:08 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 54%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[workspace-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:09 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 54%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[workspace-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:09 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:09 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:09 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 55%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[status-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:10 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[status-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:11 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:11 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:11 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[inactive-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:12 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[inactive-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] Deleted canvas probe-canvas
+2026-11-09 03:19:13 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 03:19:13 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_covpush_canvasroutes.py::TestListCanvasTypes::test_governance_denied_when_agent_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [ WARNING] API Error: GOVERNANCE_DENIED - Agent not found
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/types?agent_id=ghost-agent "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 58%]
+tests/test_covpush_canvasroutes.py::TestListCanvasTypes::test_stopped_agent_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [ WARNING] API Error: GOVERNANCE_DENIED - Agent is stopped
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/types?agent_id=ag-1db2756b "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 59%]
+tests/test_covpush_canvasroutes.py::TestListCanvasTypes::test_autonomous_agent_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/types?agent_id=ag-77614fcf "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_covpush_canvasroutes.py::TestRecordings::test_list_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_covpush_canvasroutes.py::TestRecordings::test_list_with_rows_and_agent_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings?agent_id=ag-b2fd4248 "HTTP/1.1 200 OK"
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_covpush_canvasroutes.py::TestRecordings::test_get_recording_404 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings/does-not-exist "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 61%]
+tests/test_covpush_canvasroutes.py::TestRecordings::test_get_recording_other_users_is_404 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings/rec-bdb035fc81c9 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 61%]
+tests/test_covpush_canvasroutes.py::TestRecordings::test_get_recording_own 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings/rec-84fc7ebb6d2f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_404_for_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 63%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_404_for_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 63%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-6e09dc0fcf74 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_read_deleted_returns_404 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-b977a96d5082 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 64%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_404_for_other_user 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 65%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-24fa60e4'. type='canvas:update'
+2026-11-09 03:19:13 [    INFO] Updated canvas c-482aeba3c966 (generic)
+2026-11-09 03:19:13 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-482aeba3c966 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_persists_exact_material_and_one_new_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-46f05570'. type='canvas:update'
+2026-11-09 03:19:13 [    INFO] Updated canvas c-ea4617bb0b3e (generic)
+2026-11-09 03:19:13 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ea4617bb0b3e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_update_accepts_string_and_list_content 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-31e820b8'. type='canvas:update'
+2026-11-09 03:19:13 [    INFO] Updated canvas c-322be6ce7557 (markdown)
+2026-11-09 03:19:13 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-322be6ce7557?canvas_type=markdown&title=Md "HTTP/1.1 200 OK"
+2026-11-09 03:19:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-31e820b8'. type='canvas:update'
+2026-11-09 03:19:13 [    INFO] Updated canvas c-115912f43bfd (sheet)
+2026-11-09 03:19:13 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-115912f43bfd?canvas_type=sheet "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_delete_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4cf36273'. type='canvas:update'
+2026-11-09 03:19:13 [    INFO] Deleted canvas c-9c4809b057a2
+2026-11-09 03:19:13 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-9c4809b057a2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_covpush_canvasroutes.py::TestCanvasCRUD::test_delete_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 68%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_400_without_audit_id 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1c2033029406/restore "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 69%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_404_for_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:13 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ghost/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 69%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_404_for_unknown_version 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-b88e1eeac4c4/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 70%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_refuses_delete_marker 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-70131199e0c3/restore "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 70%]
+tests/test_covpush_canvasroutes.py::TestCanvasRestore::test_restore_appends_new_version_with_old_content 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5f7bd47f'. type='canvas:update'
+2026-11-09 03:19:14 [    INFO] Restored canvas c-338595d56fd7 to version 6eace99d-513c-4d6c-9c27-041517c3842f (email) — appended as a new version
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-338595d56fd7/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/test_covpush_canvasroutes.py::TestForkCanvas::test_fork_404_when_source_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ghost/fork "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 71%]
+tests/test_covpush_canvasroutes.py::TestForkCanvas::test_fork_404_for_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ghost/fork "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 72%]
+tests/test_covpush_canvasroutes.py::TestForkCanvas::test_fork_404_when_source_row_missing_after_read 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ghost/fork "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 73%]
+tests/test_covpush_canvasroutes.py::TestForkCanvas::test_fork_creates_independent_private_copy 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-38afdda23702/fork "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/test_covpush_canvasroutes.py::TestCanvasHistory::test_history_404_for_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost/history "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 74%]
+tests/test_covpush_canvasroutes.py::TestCanvasHistory::test_history_404_for_other_users_canvas_not_500 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-77addef16ee0/history "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 74%]
+tests/test_covpush_canvasroutes.py::TestCanvasHistory::test_history_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-0856980358a0/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/test_covpush_canvasroutes.py::TestCanvasHistory::test_history_500_on_db_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [   ERROR] Canvas audit history failed: db down
+Traceback (most recent call last):
+  File "/private/tmp/atom-canvas-submit-integrity-20261109/backend/api/canvas_routes.py", line 1190, in get_canvas_history
+    with get_db_session() as db:
+         ~~~~~~~~~~~~~~^^
+  File "/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_covpush_canvasroutes.py", line 561, in <lambda>
+    monkeypatch.setattr("core.database.get_db_session", lambda: _boom())
+                                                                ~~~~~^^
+  File "/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_covpush_canvasroutes.py", line 560, in _boom
+    raise RuntimeError("db down")
+RuntimeError: db down
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-af82a97ceef2/history "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 76%]
+tests/test_covpush_canvasroutes.py::TestListUserCanvases::test_list_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_covpush_canvasroutes.py::TestListUserCanvases::test_list_filters_by_type_and_deleted 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/?canvas_type=docs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_covpush_canvasroutes.py::TestListUserCanvases::test_list_includes_deleted_when_requested 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/?include_deleted=true "HTTP/1.1 200 OK"
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_create_context 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-db69bc3f1a64/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_create_context_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1138ce7e10c0/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1138ce7e10c0/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_get_context_404 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost/context "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 79%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_get_context_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-074930e6ca0a/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:14 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-074930e6ca0a/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_update_state_empty_400 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ghost/context/state "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 80%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_update_state_404_when_no_context 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ghost/context/state "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 81%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_update_state_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-531f5f748b66/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:14 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-531f5f748b66/context/state "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_record_correction_404 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-ghost/context/correction "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 82%]
+tests/test_covpush_canvasroutes.py::TestCanvasContext::test_record_correction_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-9296a9713b68/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:15 [    INFO] incident eval generated: canvas=c-9296a9713b68 class=other property=changed
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-9296a9713b68/context/correction "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_without_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_denied_agent_returns_403 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t1: Tenant t1 not found
+2026-11-09 03:19:15 [ WARNING] API Error: GOVERNANCE_DENIED - Maturity check failed. Required: supervised
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 84%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_allowed_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t1: Tenant t1 not found
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_persists_audit_row_with_form_data 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_persistence_failure_cannot_certify_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [ WARNING] canvas submit scope preflight failed: RuntimeError
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 85%]
+tests/test_covpush_canvasroutes.py::TestStartRecording::test_start_recording_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-3c5a14cf'. type='canvas:recording_started'
+2026-11-09 03:19:15 [    INFO] Started canvas recording 69aa39be-3427-4b54-9bed-6c17c170eec0 for agent ag-83f193c3, user u-3c5a14cf, reason: manual_generic
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/recordings/start "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_covpush_canvasroutes.py::TestCanvasSummary::test_summary_404_without_context 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-e0151a7d6fc1/summary "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 87%]
+tests/test_covpush_canvasroutes.py::TestCanvasSummary::test_summary_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-4bbb025a0874/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:15 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-4bbb025a0874/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_covpush_canvasroutes.py::TestCanvasSummary::test_summary_timeout_504 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-625963b43949/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:15 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-625963b43949/summary "HTTP/1.1 504 Gateway Timeout"
+PASSED                                                                   [ 88%]
+tests/test_covpush_canvasroutes.py::TestCanvasSummary::test_summary_generic_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-99eff6364376/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:15 [   ERROR] Failed to generate summary for canvas c-99eff6364376: boom
+2026-11-09 03:19:15 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-99eff6364376/summary "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 88%]
+tests/test_covpush_canvasroutes.py::TestCanvasSummary::test_summary_empty_result_500 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-55dba1feddca/context "HTTP/1.1 200 OK"
+2026-11-09 03:19:15 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-55dba1feddca/summary "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 89%]
+tests/test_covpush_canvasroutes.py::TestStateConnectionManager::test_broadcast_state_cleans_dead_connections 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [ WARNING] Failed to send to WebSocket connection: dead socket
+PASSED                                                                   [ 90%]
+tests/test_covpush_canvasroutes.py::TestStateConnectionManager::test_broadcast_state_no_connections_noop PASSED [ 90%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_missing_token_closes PASSED [ 91%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_invalid_token_closes PASSED [ 91%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_nonexistent_canvas_closes PASSED [ 92%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_non_owner_closes PASSED [ 92%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_owner_receives_state_update_and_persists FAILED [ 93%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_persist_failure_is_non_fatal FAILED [ 94%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_broadcast_failure_disconnects FAILED [ 94%]
+tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_invalid_json_does_not_hang FAILED [ 95%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_put_logic_404_missing_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ghost/logic "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 95%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_put_logic_403_non_owner_private_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-866fcbf1db21/logic "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 96%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_put_logic_governance_denied_is_403 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:15 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-126c4dc5f775/logic "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 97%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_put_logic_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:16 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-da6aa827409b/logic "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_get_logic_404 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:16 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-ghost/logic "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 98%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_get_logic_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:16 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-5f19be11e922/logic "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_run_logic_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-4513820a49a0/logic/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_covpush_canvasroutes.py::TestCanvasLogic::test_run_logic_governance_denied_is_403 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:19:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-85459d015e25/logic/run "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   starlette.websockets.WebSocketDisconnect
+/usr/local/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+E   starlette.websockets.WebSocketDisconnect
+/usr/local/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+E   starlette.websockets.WebSocketDisconnect
+/usr/local/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+E   starlette.websockets.WebSocketDisconnect
+/usr/local/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852
+  /usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25
+  /usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.fields import FieldInfo as FieldInfoV1
+
+tests/test_oracle_direct_canvas_writes.py: 44 warnings
+tests/test_covpush_canvasroutes.py: 70 warnings
+  /private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_owner_receives_state_update_and_persists
+FAILED tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_persist_failure_is_non_fatal
+FAILED tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_broadcast_failure_disconnects
+FAILED tests/test_covpush_canvasroutes.py::TestCanvasWebSocket::test_ws_invalid_json_does_not_hang
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============ 4 failed, 167 passed, 120 warnings in 65.25s (0:01:05) ============
