@@ -2023,4 +2023,27 @@ describe('LocationService', () => {
       expect(locationService.getLastKnownLocation()).toBeNull();
     });
   });
+  describe('installed subscription contract', () => {
+    test('removes the returned subscription once across repeated stops', async () => {
+      const remove = jest.fn();
+      jest.mocked(Location.watchPositionAsync).mockResolvedValueOnce({ remove });
+      await locationService.requestPermissions();
+      expect(await locationService.startTracking()).toBe(true);
+      await locationService.stopTracking();
+      await locationService.stopTracking();
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(locationService.isActive()).toBe(false);
+    });
+
+    test('does not claim inactive when subscription removal fails', async () => {
+      const remove = jest.fn(() => { throw new Error('controlled removal failure'); });
+      jest.mocked(Location.watchPositionAsync).mockResolvedValueOnce({ remove });
+      await locationService.requestPermissions();
+      expect(await locationService.startTracking()).toBe(true);
+      await locationService.stopTracking();
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(locationService.isActive()).toBe(true);
+    });
+  });
+
 });
