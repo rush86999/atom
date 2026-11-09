@@ -1,0 +1,906 @@
+
+> atom-mobile@1.0.0 test
+> jest src/__tests__/navigation/AuthNavigator.authenticated-contract.test.tsx --runInBand --watch=false --watchman=false
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+  console.warn
+    ProgressBarAndroid has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/progress-bar-android' instead of 'react-native'. See https://github.com/react-native-progress-view/progress-bar-android
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as ProgressBarAndroid] (node_modules/react-native/index.js:143:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    Clipboard has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-clipboard/clipboard' instead of 'react-native'. See https://github.com/react-native-clipboard/clipboard
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as Clipboard] (node_modules/react-native/index.js:226:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `addListener` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:63:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `removeListeners` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:68:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    PushNotificationIOS has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. See https://github.com/react-native-push-notification-ios/push-notification-ios
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as PushNotificationIOS] (node_modules/react-native/index.js:287:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: An update to ForwardRef(NavigationContainerInner) inside a test was not wrapped in act(...).
+    
+    When testing, code that causes React state updates should be wrapped into act(...):
+    
+    act(() => {
+      /* fire events that update state */
+    });
+    /* assert on the output */
+    
+    This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16677:9)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14877:5)
+      at scheduleUpdateOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:7510:7)
+      at setState (node_modules/@react-navigation/native/src/useThenable.tsx:26:11)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+    
+    Error message:
+    
+    TypeError: Cannot read properties of undefined (reading 'remove')
+        at theme (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@react-navigation/native/src/NavigationContainer.tsx:55:5)
+        at AuthNavigator (/private/tmp/atom-mobile-build-20261109/mobile/src/navigation/AuthNavigator.tsx:219:41)
+
+      at call (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:72:30)
+      at printWarning (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:46:7)
+      at error (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16376:5)
+      at captureCommitPhaseError (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12805:5)
+      at safelyCallDestroy (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:12964:11)
+      at commitHookEffectListUnmount (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14589:11)
+      at commitPassiveUnmountInsideDeletedTreeOnFiber (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14539:5)
+      at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14447:11)
+      at commitPassiveUnmountEffects_begin (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:14432:3)
+      at commitPassiveUnmountEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16247:3)
+      at flushPassiveEffectsImpl (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16197:14)
+      at flushPassiveEffects (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:16012:9)
+      at callback (node_modules/react/cjs/react.development.js:2667:24)
+      at flushActQueue (node_modules/react/cjs/react.development.js:2521:11)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at unmount (node_modules/@testing-library/react-native/src/render.tsx:119:13)
+      at fn (node_modules/@testing-library/react-native/src/cleanup.ts:10:32)
+          at Set.forEach (<anonymous>)
+      at forEach (node_modules/@testing-library/react-native/src/cleanup.ts:10:16)
+      at Object.<anonymous> (node_modules/@testing-library/react-native/src/index.ts:15:14)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL src/__tests__/navigation/AuthNavigator.authenticated-contract.test.tsx
+  ✓ authenticated root mounts the real tab navigator under one navigation container (115 ms)
+  ✓ real parser resolves workflow/wf-123 with exact leaf identity (4 ms)
+  ✓ real parser resolves agent/agent-123 with exact leaf identity (2 ms)
+  ✓ real parser resolves execution/exec-123 with exact leaf identity (2 ms)
+  ✓ real parser resolves workflow/PO%2F0007?source=review with exact leaf identity (1 ms)
+  ✓ canvas deep link targets the actual registered viewer name (1 ms)
+  ✓ logout and login switch the real root without retaining protected tabs (43 ms)
+  ✓ canvas initial link is protected when signedIn=true (25 ms)
+  ✓ canvas initial link is protected when signedIn=false (8 ms)
+  ✓ protected return after login: atom://canvas/canvas-return (29 ms)
+  ✓ protected return after login: https://atom.ai/canvas/canvas-return (34 ms)
+  ✓ protected return after login: https://atom.ai.evil.invalid/canvas/canvas-return (29 ms)
+  ✓ protected return after login: atom://canvas/ (22 ms)
+  ✕ a stalled native initial URL does not block the login screen (18 ms)
+
+  ● a stalled native initial URL does not block the login screen
+
+    Unable to find an element with testID: login-screen
+
+      109 |   try {
+      110 |     const view = render(<AuthNavigator />);
+    > 111 |     await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+          |                  ^
+      112 |     expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+      113 |   } finally {
+      114 |     finish?.(null);
+
+      at Object.<anonymous> (src/__tests__/navigation/AuthNavigator.authenticated-contract.test.tsx:111:18)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 13 passed, 14 total
+Snapshots:   0 total
+Time:        1.573 s, estimated 4 s
+Ran all test suites matching /src\/__tests__\/navigation\/AuthNavigator.authenticated-contract.test.tsx/i.

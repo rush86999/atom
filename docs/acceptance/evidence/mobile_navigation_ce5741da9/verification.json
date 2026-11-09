@@ -1,0 +1,32 @@
+{
+  "executed_source": "ce5741da98ef252d55f828f95398f864eef7d402",
+  "scope": "selected mobile JavaScript regression with native transports controlled",
+  "suites_passed": 73,
+  "tests_passed": 2374,
+  "tests_failed": 0,
+  "tests_skipped": 2,
+  "skip_names": [
+    "testUtils skipOnPlatform / onlyOnPlatform Skipped on ios",
+    "testUtils skipOnPlatform / onlyOnPlatform Only on android"
+  ],
+  "strict_compiler_errors": 60,
+  "build_qualified": false,
+  "full_mobile_suite_qualified": false,
+  "strict_all_assertions_passed": false,
+  "materialized_shared_paths": [
+    "frontend-nextjs/shared/test-utils",
+    "frontend-nextjs/shared/property-tests"
+  ],
+  "boundaries": [
+    "No physical device, OS link association or biometric operation",
+    "No real account/backend HTTP receipt/restart qualification",
+    "Prior compiler counts were sparse-checkout observations, never build acceptance",
+    "Navigation content leaves controlled, parent navigation/parser real",
+    "Pending auth-epoch stale intent audit and secure owner offline cache remain open"
+  ],
+  "intermediate_attribution": {
+    "navigation-gate.log": "uncommitted final reviewed runtime before timer type-only correction; final 73-suite run is authoritative at executed_source",
+    "native-stall-negative.log": "reviewed CLI candidate before bounded native URL fallback; one fail13pass",
+    "timer-final.log": "exact timer-corrected runtime before commit ce5741da9"
+  }
+}

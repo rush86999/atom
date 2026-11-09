@@ -1,0 +1,97 @@
+
+> atom-mobile@1.0.0 typecheck
+> tsc --noEmit
+
+../frontend-nextjs/shared/test-utils/async-utils.ts(79,36): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+src/__tests__/helpers/__tests__/navigationMocks.test.tsx(257,12): error TS18047: 'ctx.user' is possibly 'null'.
+src/__tests__/helpers/mockExpoModules.ts(19,27): error TS2724: '"expo-camera"' has no exported member named 'CameraPermissionStatus'. Did you mean 'PermissionStatus'?
+src/__tests__/helpers/navigationMocks.tsx(96,29): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/navigationMocks.tsx(110,20): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/navigationTestUtils.ts(350,20): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ readonly WorkflowsList: {}; readonly WorkflowDetail: { readonly workflowId: { readonly type: "string"; readonly required: true; }; }; readonly WorkflowTrigger: { readonly workflowId: { readonly type: "string"; readonly required: true; }; readonly workflowName: { ...; }; }; readonly ExecutionProgress: { ...; }; rea...'.
+  No index signature with a parameter of type 'string' was found on type '{ readonly WorkflowsList: {}; readonly WorkflowDetail: { readonly workflowId: { readonly type: "string"; readonly required: true; }; }; readonly WorkflowTrigger: { readonly workflowId: { readonly type: "string"; readonly required: true; }; readonly workflowName: { ...; }; }; readonly ExecutionProgress: { ...; }; rea...'.
+src/__tests__/helpers/navigationTestUtils.ts(352,28): error TS18046: 'spec' is of type 'unknown'.
+src/__tests__/journeys/AuthJourneyRound82.test.tsx(191,12): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+src/__tests__/navigation/AppNavigator.test.tsx(23,49): error TS5097: An import path can only end with a '.tsx' extension when 'allowImportingTsExtensions' is enabled.
+src/__tests__/navigation/NavigationState.test.tsx(49,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/navigation/RouteParameters.test.tsx(1009,33): error TS2345: Argument of type '"NonExistentParamList"' is not assignable to parameter of type '"WorkflowStackParamList" | "AgentStackParamList" | "ChatStackParamList" | "AuthStackParamList" | "MainTabParamList" | "AnalyticsStackParamList" | "SettingsStackParamList"'.
+src/__tests__/platform-specific/android/notificationChannels.test.tsx(314,7): error TS2353: Object literal may only specify known properties, and 'channelId' does not exist in type 'NotificationContentInput'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(73,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'typeof View | typeof TouchableOpacity' is not assignable to parameter of type 'string | FunctionComponent<ViewProps> | ComponentClass<ViewProps, any>'.
+      Type 'typeof TouchableOpacity' is not assignable to type 'string | FunctionComponent<ViewProps> | ComponentClass<ViewProps, any>'.
+        Type 'typeof TouchableOpacity' is not assignable to type 'ComponentClass<ViewProps, any>'.
+          Construct signature return types 'TouchableOpacity' and 'Component<ViewProps, any, any>' are incompatible.
+            The types of 'props.hitSlop' are incompatible between these types.
+              Type 'number | Insets | null | undefined' is not assignable to type 'Insets | undefined'.
+                Type 'null' is not assignable to type 'Insets | undefined'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(232,7): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(specifics: ({ ios?: typeof View | undefined; android?: typeof View | undefined; windows?: typeof View | undefined; macos?: typeof View | undefined; web?: typeof View | undefined; native?: typeof View | undefined; } & { ...; }) | { ...; }): typeof View', gave the following error.
+    Property 'forceTouchAvailable' is missing in type 'typeof Text' but required in type 'typeof View'.
+  Overload 2 of 2, '(specifics: { ios?: typeof View | undefined; android?: typeof View | undefined; windows?: typeof View | undefined; macos?: typeof View | undefined; web?: typeof View | undefined; native?: typeof View | undefined; }): typeof View | undefined', gave the following error.
+    Property 'forceTouchAvailable' is missing in type 'typeof Text' but required in type 'typeof View'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(246,56): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(() => CElement<ViewProps, View>) | undefined' is not assignable to parameter of type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+      Type 'undefined' is not assignable to type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(271,35): error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(286,31): error TS2339: Property 'isPad' does not exist on type 'Platform'.
+  Property 'isPad' does not exist on type 'PlatformAndroidStatic'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(296,20): error TS2339: Property 'isPad' does not exist on type 'Platform'.
+  Property 'isPad' does not exist on type 'PlatformAndroidStatic'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(383,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Object literal may only specify known properties, and 'ios' does not exist in type 'Attributes & ViewProps'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(420,56): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(() => CElement<ViewProps, View>) | undefined' is not assignable to parameter of type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+      Type 'undefined' is not assignable to type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+src/__tests__/platform-specific/platformErrors.test.tsx(110,15): error TS2339: Property 'isAvailableAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-camera/build/index")'.
+src/__tests__/platform-specific/platformErrors.test.tsx(112,40): error TS2339: Property 'isAvailableAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-camera/build/index")'.
+src/__tests__/platform-specific/platformErrors.test.tsx(150,31): error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+src/__tests__/platform-specific/platformErrors.test.tsx(168,27): error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+src/__tests__/property/device-state-invariants.test.ts(506,51): error TS2367: This comparison appears to be unintentional because the types '"granted"' and '"denied"' have no overlap.
+src/__tests__/screens/auth/RegisterScreen.test.tsx(515,36): error TS2322: Type '(value: Response | PromiseLike<Response>) => void' is not assignable to type '(value: unknown) => void'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'Response | PromiseLike<Response>'.
+src/__tests__/screens/settings/SettingsScreen.test.tsx(514,9): error TS2322: Type 'null' is not assignable to type 'string'.
+src/__tests__/services/agentService.test.ts(66,53): error TS2322: Type '"AUTONOMOUS"' is not assignable to type 'AgentMaturity | "ALL" | undefined'.
+src/__tests__/services/agentService.test.ts(80,38): error TS2322: Type '"ACTIVE"' is not assignable to type 'AgentStatus | "ALL" | undefined'.
+src/__tests__/services/agentService.test.ts(136,9): error TS2322: Type '"AUTONOMOUS"' is not assignable to type 'AgentMaturity | "ALL" | undefined'.
+src/__tests__/services/agentService.test.ts(137,9): error TS2322: Type '"ACTIVE"' is not assignable to type 'AgentStatus | "ALL" | undefined'.
+src/__tests__/services/canvasSyncService.test.ts(617,42): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/__tests__/services/notificationService.test.ts(826,52): error TS2559: Type '"id"' has no properties in common with type 'NotificationContentInput'.
+src/__tests__/services/workflowService.test.ts(80,9): error TS2322: Type '"updated_at"' is not assignable to type '"name" | "created_at" | "execution_count" | "success_rate" | undefined'.
+src/__tests__/services/workflowService.test.ts(154,48): error TS2353: Object literal may only specify known properties, and 'input' does not exist in type 'WorkflowTriggerRequest'.
+src/components/__tests__/Location.test.tsx(304,22): error TS7053: Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{}'.
+  Property '1' does not exist on type '{}'.
+src/components/__tests__/Location.test.tsx(304,36): error TS7053: Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{}'.
+  Property '1' does not exist on type '{}'.
+src/components/__tests__/Location.test.tsx(305,9): error TS7053: Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{}'.
+  Property '1' does not exist on type '{}'.
+src/components/__tests__/OfflineIndicator.test.tsx(560,23): error TS2345: Argument of type 'ReactTestInstance | null' is not assignable to parameter of type 'ReactTestInstance'.
+  Type 'null' is not assignable to type 'ReactTestInstance'.
+src/components/__tests__/OfflineIndicator.test.tsx(579,23): error TS2345: Argument of type 'ReactTestInstance | null' is not assignable to parameter of type 'ReactTestInstance'.
+  Type 'null' is not assignable to type 'ReactTestInstance'.
+src/components/chat/StreamingText.tsx(20,26): error TS2307: Cannot find module 'react-native-markdown-display' or its corresponding type declarations.
+src/components/chat/StreamingText.tsx(21,23): error TS2307: Cannot find module 'react-native-syntax-highlighter' or its corresponding type declarations.
+src/components/chat/StreamingText.tsx(22,29): error TS2307: Cannot find module 'react-syntax-highlighter/dist/esm/styles/prism' or its corresponding type declarations.
+src/contexts/__tests__/WebSocketContext.test.tsx(1533,30): error TS2339: Property 'socket' does not exist on type '{ messages: any[]; isStreaming: boolean; sendMessage: (content: string) => void; }'.
+src/contexts/__tests__/WebSocketContext.test.tsx(2305,30): error TS2339: Property 'connect' does not exist on type '{ messages: any[]; isStreaming: boolean; sendMessage: (content: string) => void; }'.
+src/contexts/__tests__/WebSocketContext.test.tsx(2345,30): error TS2339: Property 'connect' does not exist on type '{ messages: any[]; isStreaming: boolean; sendMessage: (content: string) => void; }'.
+src/screens/canvas/CanvasViewerScreen.tsx(110,32): error TS2339: Property 'data' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(111,36): error TS2339: Property 'metadata' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(141,30): error TS2339: Property 'data' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(142,34): error TS2339: Property 'metadata' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(360,16): error TS2339: Property 'push' does not exist on type 'Omit<NavigationProp<RootParamList>, "getState"> & { getState(): Readonly<{ key: string; index: number; routeNames: string[]; history?: unknown[] | undefined; routes: NavigationRoute<...>[]; type: string; stale: false; }> | undefined; }'.
+src/services/deviceSocket.ts(362,35): error TS2339: Property 'takePictureAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-camera/build/index")'.
+src/services/offlineSyncService.ts(692,56): error TS2339: Property 'updated_at' does not exist on type '{}'.
+src/services/offlineSyncService.ts(764,56): error TS2339: Property 'updated_at' does not exist on type '{}'.
+src/shared/test-utils/async-utils.ts(79,36): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+src/test-utils/__tests__/mockData.test.ts(136,29): error TS2551: Property 'osName' does not exist on type '{ id: string; name: string; platform: "ios"; osVersion: string; appVersion: string; model: string; manufacturer: string; totalMemory: number; supportedCpuArchitectures: string[]; deviceYearClass: number; }'. Did you mean 'name'?
+src/test-utils/__tests__/mockData.test.ts(137,29): error TS2339: Property 'modelName' does not exist on type '{ id: string; name: string; platform: "ios"; osVersion: string; appVersion: string; model: string; manufacturer: string; totalMemory: number; supportedCpuArchitectures: string[]; deviceYearClass: number; }'.
+src/test-utils/testRender.tsx(136,21): error TS2322: Type '{ children: Element; value: any; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.
+  Property 'value' does not exist on type 'IntrinsicAttributes & { children: ReactNode; }'.
+src/test-utils/testRender.tsx(137,28): error TS2322: Type '{ children: Element; value: any; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.
+  Property 'value' does not exist on type 'IntrinsicAttributes & { children: ReactNode; }'.
+src/test-utils/testRender.tsx(138,27): error TS2322: Type '{ children: ReactNode; value: any; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.
+  Property 'value' does not exist on type 'IntrinsicAttributes & { children: ReactNode; }'.
