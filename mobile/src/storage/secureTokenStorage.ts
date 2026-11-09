@@ -142,8 +142,13 @@ export function secureSet(key: string, value: string): Promise<void> {
     // Invalidate old request ownership even if a native write is uncertain.
     accessTokenGeneration += 1;
     accessTokenRevoked = true;
-    await writeSecureValue(key, value);
-    accessTokenRevoked = false;
+    try {
+      await writeSecureValue(key, value);
+      accessTokenRevoked = false;
+    } catch (error) {
+      publishSessionRevocation();
+      throw error;
+    }
   });
 }
 
@@ -211,13 +216,18 @@ export function commitAuthSession(
         await readSecureValue('atom_refresh_token') !== expectedRefreshToken) return false;
     accessTokenGeneration += 1;
     accessTokenRevoked = true;
-    await writeSecureValue(ACCESS_TOKEN_KEY, values.token);
-    if (values.refreshToken) await writeSecureValue('atom_refresh_token', values.refreshToken);
-    else await deleteSecureValue('atom_refresh_token');
-    await writeSecureValue('atom_token_expiry', values.expiresAt);
-    if (values.userData === null) await AsyncStorage.removeItem('atom_user_data');
-    else if (values.userData !== undefined) await AsyncStorage.setItem('atom_user_data', values.userData);
-    accessTokenRevoked = false;
+    try {
+      await writeSecureValue(ACCESS_TOKEN_KEY, values.token);
+      if (values.refreshToken) await writeSecureValue('atom_refresh_token', values.refreshToken);
+      else await deleteSecureValue('atom_refresh_token');
+      await writeSecureValue('atom_token_expiry', values.expiresAt);
+      if (values.userData === null) await AsyncStorage.removeItem('atom_user_data');
+      else if (values.userData !== undefined) await AsyncStorage.setItem('atom_user_data', values.userData);
+      accessTokenRevoked = false;
+    } catch (error) {
+      publishSessionRevocation();
+      throw error;
+    }
     return true;
   });
 }
