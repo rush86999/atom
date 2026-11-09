@@ -13,22 +13,23 @@
 // and runs the same production TypeScript validation stage before bundling;
 // it is not a type-check bypass.
 //
-// Heavy (actual build) requires >= 4 GiB available memory and takes an
-// exclusive lock so two heavy contract runs cannot overlap. Bounded checks
-// require >= 2 GiB. Logs stay under /private/tmp; fixtures are removed.
+// Actual builds require >=4 GiB free temporary disk; bounded checks >=2 GiB.
+// The caller serializes heavy runs through the existing resource gate.
+// Use the current Node executable and platform temporary root; no hard-coded
+// macOS path or PATH-selected newer Node. Fixtures are removed; logs retained.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync, spawnSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '../..');
-const nextBin = path.join(root, 'node_modules', '.bin', 'next');
+const nextBin = path.join(root, 'node_modules', 'next', 'dist', 'bin', 'next');
 const projectConfigPath = path.join(root, 'next.config.js');
 const projectNodeModules = fs.realpathSync(path.join(root, 'node_modules'));
-const logDir = path.join('/private/tmp', `atom-production-type-gate-logs-${process.pid}`);
-const lockPath = path.join('/private/tmp', 'atom-production-type-gate.heavy.lock');
+const tempRoot = os.tmpdir();
+const logDir = fs.mkdtempSync(path.join(tempRoot, 'atom-production-type-gate-logs-'));
 
 const BUILD_TIMEOUT_MS = 15 * 60 * 1000;
 const MIN_BOUNDED_BYTES = 2 * 1024 ** 3;
@@ -58,82 +59,15 @@ function formatBytes(bytes) {
   return `${(bytes / 1024 ** 3).toFixed(2)} GiB`;
 }
 
-function availableMemoryBytes() {
-  if (process.platform === 'linux') {
-    try {
-      const meminfo = fs.readFileSync('/proc/meminfo', 'utf8');
-      const match = meminfo.match(/^MemAvailable:\s+(\d+)\s+kB$/m);
-      if (match) return Number(match[1]) * 1024;
-    } catch {
-      // Fall through to os.freemem().
-    }
-  }
-  if (process.platform === 'darwin') {
-    try {
-      const vmStat = execFileSync('vm_stat', { encoding: 'utf8' });
-      const pageSize = Number((vmStat.match(/page size of (\d+)/) || [])[1] || 4096);
-      const pages = (label) => {
-        const match = vmStat.match(new RegExp(`${label}:\\s+(\\d+)`));
-        return match ? Number(match[1]) : 0;
-      };
-      const availablePages =
-        pages('Pages free') +
-        pages('Pages inactive') +
-        pages('Pages speculative') +
-        pages('Pages purgeable');
-      return availablePages * pageSize;
-    } catch {
-      // Fall through to os.freemem().
-    }
-  }
-  return os.freemem();
-}
-
+// Local callers use the existing shared run_bounded_test_gate wrapper.
+// CI runs these two fixtures sequentially in one job; no second lock engine.
 function assertResourceGate(kind) {
   const required = kind === 'heavy' ? MIN_HEAVY_BYTES : MIN_BOUNDED_BYTES;
-  const available = availableMemoryBytes();
-  assert.ok(
-    available >= required,
-    `resource gate (${kind}): need >= ${formatBytes(required)} available, ` +
-      `have ${formatBytes(available)}; refusing to start`,
-  );
-}
-
-function processIsAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code === 'EPERM';
-  }
-}
-
-function acquireHeavyLock() {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const fd = fs.openSync(lockPath, 'wx');
-      fs.writeSync(fd, `${process.pid}\n`);
-      let released = false;
-      return () => {
-        if (released) return;
-        released = true;
-        fs.closeSync(fd);
-        fs.rmSync(lockPath, { force: true });
-      };
-    } catch (error) {
-      if (error.code !== 'EEXIST') throw error;
-      const holder = Number(fs.readFileSync(lockPath, 'utf8').trim());
-      if (holder && !processIsAlive(holder)) {
-        fs.rmSync(lockPath, { force: true });
-        continue;
-      }
-      assert.fail(
-        `another heavy production type-gate build is already running ` +
-          `(lock: ${lockPath}, pid: ${holder || 'unknown'})`,
-      );
-    }
-  }
-  assert.fail(`could not acquire heavy build lock at ${lockPath}`);
+  const disk = fs.statfsSync(tempRoot);
+  const available = disk.bavail * disk.bsize;
+  assert.ok(available >= required,
+    `disk gate (${kind}): need >= ${formatBytes(required)} free, ` +
+    `have ${formatBytes(available)}; refusing to start`);
 }
 
 // Minimal environment: no inherited secrets, no live backend target, no
@@ -142,7 +76,7 @@ function buildEnv() {
   return {
     PATH: process.env.PATH || '',
     HOME: process.env.HOME || '',
-    TMPDIR: process.env.TMPDIR || '/private/tmp',
+    TMPDIR: tempRoot,
     LANG: process.env.LANG || 'en_US.UTF-8',
     CI: '1',
     NODE_ENV: 'production',
@@ -174,7 +108,7 @@ function runBuild(label, baseDir, pageSource) {
   const fixtureDir = path.join(baseDir, label);
   writeFixture(fixtureDir, pageSource);
   const logPath = path.join(logDir, `${label}.log`);
-  const result = spawnSync(nextBin, ['build', '--webpack'], {
+  const result = spawnSync(process.execPath, [nextBin, 'build', '--webpack'], {
     cwd: fixtureDir,
     env: buildEnv(),
     encoding: 'utf8',
@@ -260,9 +194,8 @@ test('production config enforces type errors and omits the removed eslint option
 
 test('installed next build fails only on the injected type error; valid twin builds', () => {
   assertResourceGate('heavy');
-  const release = acquireHeavyLock();
   fs.mkdirSync(logDir, { recursive: true });
-  const baseDir = fs.mkdtempSync(path.join('/private/tmp', 'atom-production-type-gate-'));
+  const baseDir = fs.mkdtempSync(path.join(tempRoot, 'atom-production-type-gate-'));
 
   try {
     const negative = runBuild(
@@ -326,6 +259,5 @@ test('installed next build fails only on the injected type error; valid twin bui
     assertNoEnvironmentFailure(positive.output, 'valid');
   } finally {
     fs.rmSync(baseDir, { recursive: true, force: true });
-    release();
   }
 });
