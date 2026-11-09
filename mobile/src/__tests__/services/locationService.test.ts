@@ -2060,4 +2060,40 @@ describe('LocationService', () => {
     });
   });
 
+  describe('pending tracking ownership', () => {
+    test('stop invalidates a start that has not received its subscription', async () => {
+      let resolveWatch: ((value: Location.LocationSubscription) => void) | undefined;
+      const pendingWatch = new Promise<Location.LocationSubscription>((resolve) => {
+        resolveWatch = resolve;
+      });
+      jest.mocked(Location.watchPositionAsync).mockReturnValueOnce(pendingWatch);
+      const remove = jest.fn();
+      await locationService.requestPermissions();
+      const starting = locationService.startTracking();
+      await locationService.stopTracking();
+      resolveWatch!({ remove });
+      expect(await starting).toBe(false);
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(locationService.isActive()).toBe(false);
+    });
+
+    test('concurrent starts share one pending subscription', async () => {
+      let resolveWatch: ((value: Location.LocationSubscription) => void) | undefined;
+      const pendingWatch = new Promise<Location.LocationSubscription>((resolve) => {
+        resolveWatch = resolve;
+      });
+      jest.mocked(Location.watchPositionAsync).mockReturnValueOnce(pendingWatch);
+      const remove = jest.fn();
+      await locationService.requestPermissions();
+      const first = locationService.startTracking();
+      const second = locationService.startTracking();
+      resolveWatch!({ remove });
+      expect(await first).toBe(true);
+      expect(await second).toBe(true);
+      expect(Location.watchPositionAsync).toHaveBeenCalledTimes(1);
+      await locationService.stopTracking();
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+  });
+
 });
