@@ -1,0 +1,198 @@
+
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[markdown-patch0-Changed] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 11:19:37 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 11:19:37 [    INFO] EscalationManager initialized
+2026-11-09 11:19:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 11:19:37 [    INFO] EscalationManager initialized
+2026-11-09 11:19:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 11:19:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 11:19:37 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:19:37 [    INFO] Presented markdown content to user u-e3377028
+FAILED                                                                   [ 20%]
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[chart-patch1-expected1] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:19:37 [    INFO] Presented bar_chart to user u-d8a6e7ba
+FAILED                                                                   [ 40%]
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[specialized-patch2-expected2] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:19:37 [    INFO] Presented docs canvas (rich_editor) to user u-27d411d4
+FAILED                                                                   [ 60%]
+tests/test_canvas_legacy_update_contract.py::test_missing_revision_refuses_without_frame_or_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:19:37 [    INFO] Presented markdown content to user u-253371ed
+2026-11-09 11:19:37 [    INFO] Updated canvas 5e17618a-8a60-483f-952d-302847d7163e for user u-253371ed
+FAILED                                                                   [ 80%]
+tests/test_canvas_legacy_update_contract.py::test_unknown_target_has_no_update_frame 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:19:37 [    INFO] Updated canvas does-not-exist for user u-2fa9be57
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_____ test_update_is_durable_and_revision_guarded[markdown-patch0-Changed] _____
+
+present_world = (<module 'tools.canvas_tool' from '/private/tmp/atom-web-canvas-document-20261109/backend/tools/canvas_tool.py'>, <core.models.User object at 0x158bb1550>, <sqlalchemy.orm.session.Session object at 0x1591a2110>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x157ebd910>
+kind = 'markdown', patch = {'content': 'Changed'}, expected = 'Changed'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind,patch,expected", [
+        ("markdown", {"content":"Changed"}, "Changed"),
+        ("chart", {"data":[]}, []),
+        ("specialized", {"content":""}, {"content":""}),
+    ])
+    async def test_update_is_durable_and_revision_guarded(present_world,monkeypatch,kind,patch,expected):
+        tool,user,db=present_world
+        monkeypatch.setattr(tool.ws_manager,"broadcast",AsyncMock())
+        created=await invoke(tool,kind,user.id)
+>       result=await tool.update_canvas(user.id,created["canvas_id"],patch,expected_prior_audit_id=created["audit_id"],operation_id="legacy-update-"+kind)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: update_canvas() got an unexpected keyword argument 'expected_prior_audit_id'
+
+tests/test_canvas_legacy_update_contract.py:17: TypeError
+------------------------------ Captured log setup ------------------------------
+INFO     core.auth:auth.py:56 Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented markdown content to user u-e3377028", "timestamp": "2026-11-09T16:19:37.815124+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented markdown content to user u-e3377028
+_____ test_update_is_durable_and_revision_guarded[chart-patch1-expected1] ______
+
+present_world = (<module 'tools.canvas_tool' from '/private/tmp/atom-web-canvas-document-20261109/backend/tools/canvas_tool.py'>, <core.models.User object at 0x159537490>, <sqlalchemy.orm.session.Session object at 0x159536f50>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x159536a50>
+kind = 'chart', patch = {'data': []}, expected = []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind,patch,expected", [
+        ("markdown", {"content":"Changed"}, "Changed"),
+        ("chart", {"data":[]}, []),
+        ("specialized", {"content":""}, {"content":""}),
+    ])
+    async def test_update_is_durable_and_revision_guarded(present_world,monkeypatch,kind,patch,expected):
+        tool,user,db=present_world
+        monkeypatch.setattr(tool.ws_manager,"broadcast",AsyncMock())
+        created=await invoke(tool,kind,user.id)
+>       result=await tool.update_canvas(user.id,created["canvas_id"],patch,expected_prior_audit_id=created["audit_id"],operation_id="legacy-update-"+kind)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: update_canvas() got an unexpected keyword argument 'expected_prior_audit_id'
+
+tests/test_canvas_legacy_update_contract.py:17: TypeError
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented bar_chart to user u-d8a6e7ba", "timestamp": "2026-11-09T16:19:37.920580+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented bar_chart to user u-d8a6e7ba
+__ test_update_is_durable_and_revision_guarded[specialized-patch2-expected2] ___
+
+present_world = (<module 'tools.canvas_tool' from '/private/tmp/atom-web-canvas-document-20261109/backend/tools/canvas_tool.py'>, <core.models.User object at 0x159568150>, <sqlalchemy.orm.session.Session object at 0x1595681d0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15956a2d0>
+kind = 'specialized', patch = {'content': ''}, expected = {'content': ''}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind,patch,expected", [
+        ("markdown", {"content":"Changed"}, "Changed"),
+        ("chart", {"data":[]}, []),
+        ("specialized", {"content":""}, {"content":""}),
+    ])
+    async def test_update_is_durable_and_revision_guarded(present_world,monkeypatch,kind,patch,expected):
+        tool,user,db=present_world
+        monkeypatch.setattr(tool.ws_manager,"broadcast",AsyncMock())
+        created=await invoke(tool,kind,user.id)
+>       result=await tool.update_canvas(user.id,created["canvas_id"],patch,expected_prior_audit_id=created["audit_id"],operation_id="legacy-update-"+kind)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: update_canvas() got an unexpected keyword argument 'expected_prior_audit_id'
+
+tests/test_canvas_legacy_update_contract.py:17: TypeError
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented docs canvas (rich_editor) to user u-27d411d4", "timestamp": "2026-11-09T16:19:37.940852+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented docs canvas (rich_editor) to user u-27d411d4
+_____________ test_missing_revision_refuses_without_frame_or_audit _____________
+
+present_world = (<module 'tools.canvas_tool' from '/private/tmp/atom-web-canvas-document-20261109/backend/tools/canvas_tool.py'>, <core.models.User object at 0x159593590>, <sqlalchemy.orm.session.Session object at 0x1595938d0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x159591250>
+
+    @pytest.mark.asyncio
+    async def test_missing_revision_refuses_without_frame_or_audit(present_world,monkeypatch):
+        tool,user,db=present_world
+        frames=AsyncMock();monkeypatch.setattr(tool.ws_manager,"broadcast",frames)
+        created=await invoke(tool,"markdown",user.id);frames.reset_mock()
+        before=db.query(CanvasAudit).count()
+        result=await tool.update_canvas(user.id,created["canvas_id"],{"content":"Unsafe"})
+>       assert result["success"] is False,result
+E       AssertionError: {'agent_id': None, 'canvas_id': '5e17618a-8a60-483f-952d-302847d7163e', 'session_id': None, 'success': True, ...}
+E       assert True is False
+
+tests/test_canvas_legacy_update_contract.py:36: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented markdown content to user u-253371ed", "timestamp": "2026-11-09T16:19:37.959596+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "Updated canvas 5e17618a-8a60-483f-952d-302847d7163e for user u-253371ed", "timestamp": "2026-11-09T16:19:37.961804+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented markdown content to user u-253371ed
+INFO     tools.canvas_tool:structured_logger.py:118 Updated canvas 5e17618a-8a60-483f-952d-302847d7163e for user u-253371ed
+___________________ test_unknown_target_has_no_update_frame ____________________
+
+present_world = (<module 'tools.canvas_tool' from '/private/tmp/atom-web-canvas-document-20261109/backend/tools/canvas_tool.py'>, <core.models.User object at 0x159593290>, <sqlalchemy.orm.session.Session object at 0x1595932d0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15959b7d0>
+
+    @pytest.mark.asyncio
+    async def test_unknown_target_has_no_update_frame(present_world,monkeypatch):
+        tool,user,db=present_world
+        frames=AsyncMock();monkeypatch.setattr(tool.ws_manager,"broadcast",frames)
+        result=await tool.update_canvas(user.id,"does-not-exist",{"content":"Unsafe"})
+>       assert result["success"] is False,result
+E       AssertionError: {'agent_id': None, 'canvas_id': 'does-not-exist', 'session_id': None, 'success': True, ...}
+E       assert True is False
+
+tests/test_canvas_legacy_update_contract.py:46: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Updated canvas does-not-exist for user u-2fa9be57", "timestamp": "2026-11-09T16:19:37.978621+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Updated canvas does-not-exist for user u-2fa9be57
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[markdown-patch0-Changed]
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[chart-patch1-expected1]
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[specialized-patch2-expected2]
+tests/test_canvas_legacy_update_contract.py::test_missing_revision_refuses_without_frame_or_audit
+tests/test_canvas_legacy_update_contract.py::test_unknown_target_has_no_update_frame
+  /private/tmp/atom-web-canvas-document-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[markdown-patch0-Changed]
+FAILED tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[chart-patch1-expected1]
+FAILED tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[specialized-patch2-expected2]
+FAILED tests/test_canvas_legacy_update_contract.py::test_missing_revision_refuses_without_frame_or_audit
+FAILED tests/test_canvas_legacy_update_contract.py::test_unknown_target_has_no_update_frame
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 failed, 10 warnings in 15.68s ========================
