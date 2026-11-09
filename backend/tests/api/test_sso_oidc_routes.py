@@ -6,6 +6,7 @@ tests therefore exercise the product's real network callback path, including
 ID-token signature/issuer/audience/nonce verification.
 """
 import json
+import logging
 import os
 import tempfile
 import uuid
@@ -13,11 +14,11 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 import core.models  # noqa: F401
 from api import sso_oidc_routes
@@ -25,6 +26,7 @@ from api.sso_oidc_routes import router
 from core.auth import SECRET_KEY, get_current_user
 from core.database import Base, get_db
 from core.models import User
+from core.personal_scope import PERSONAL_TENANT_ID
 from scripts.controlled_oidc_provider import OIDCProvider
 
 CLIENT_ID = "atom-acceptance-client"
@@ -163,6 +165,102 @@ def _new_provider(mode="valid", **kwargs):
     )
     defaults.update(kwargs)
     return OIDCProvider(mode=mode, **defaults).start()
+
+
+def _existing_user(db, **overrides):
+    values = dict(
+        id=f"u-{uuid.uuid4().hex[:8]}",
+        email="SSO.User@Example.com",
+        hashed_password="existing-hash",
+        first_name="Old",
+        last_name="Name",
+        role="viewer",
+        status="active",
+        is_active=True,
+    )
+    values.update(overrides)
+    user = User(**values)
+    db.add(user)
+    db.commit()
+    return user
+
+
+@pytest.fixture()
+def concurrency_client(tmp_path):
+    """A real file-backed SQLite app with an independent connection pool.
+
+    The module-level ``engine`` fixture uses ``StaticPool`` so the test can pass
+    one in-memory session around. Concurrency assertions must not share that one
+    connection: this fixture gives every Session its own SQLite connection so a
+    peer commit is a genuinely separate transaction.
+    """
+    db_path = tmp_path / "sso_concurrency.db"
+    eng = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False, "timeout": 20},
+        poolclass=NullPool,
+    )
+    Base.metadata.create_all(eng)
+    Session = sessionmaker(bind=eng)
+    db = Session()
+    admin = User(
+        id=f"admin-{uuid.uuid4().hex[:8]}",
+        email="admin@example.com",
+        hashed_password="h",
+        first_name="Ad",
+        last_name="Min",
+        role="super_admin",
+        status="active",
+    )
+    db.add(admin)
+    db.commit()
+
+    app = FastAPI()
+    app.include_router(router)
+
+    def _get_db():
+        yield db
+
+    def _get_current_user():
+        return admin
+
+    app.dependency_overrides[get_db] = _get_db
+    app.dependency_overrides[get_current_user] = _get_current_user
+    client = TestClient(app, base_url="http://testserver")
+    try:
+        yield client, eng, Session, db
+    finally:
+        client.close()
+        db.close()
+        eng.dispose()
+
+
+def _before_claim_peer_write(engine, Session, user_id, changes):
+    """Commit a peer mutation on a separate connection just before the claim.
+
+    The listener runs on the callback's ``UPDATE users`` statement, before that
+    statement is sent to SQLite. The peer Session checks out a different
+    connection, commits, and closes; the callback's CAS must then match no row.
+    """
+    fired = {"done": False}
+
+    def _listener(conn, cursor, statement, parameters, context, executemany):
+        if fired["done"]:
+            return
+        if not statement.lstrip().lower().startswith("update users"):
+            return
+        fired["done"] = True
+        peer = Session()
+        try:
+            row = peer.query(User).filter(User.id == user_id).one()
+            for field, value in changes.items():
+                setattr(row, field, value)
+            peer.commit()
+        finally:
+            peer.close()
+
+    event.listen(engine, "before_cursor_execute", _listener)
+    return fired, _listener
 
 
 # ============================================================================
@@ -374,3 +472,269 @@ def test_discovery_issuer_mismatch_rejected(client, monkeypatch):
         assert resp.status_code == 502
     finally:
         p.stop()
+
+
+# ============================================================================
+# Existing-account admission
+# ============================================================================
+
+@pytest.mark.parametrize("status,is_active", [
+    ("suspended", True),
+    ("pending", True),
+    ("deleted", True),
+    ("inactive", True),
+    ("disabled", True),
+    ("quarantined", True),
+    ("active", False),
+], ids=[
+    "status-suspended",
+    "status-pending",
+    "status-deleted",
+    "status-inactive",
+    "status-disabled",
+    "status-unknown",
+    "active-with-inactive-flag",
+])
+def test_callback_refuses_non_active_existing_user(
+        client, provider, db, status, is_active):
+    _save_config(client, provider)
+    existing = _existing_user(db, status=status, is_active=is_active)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 403
+    db.expire_all()
+    row = (
+        db.query(User)
+        .filter(User.id == existing.id)
+        .populate_existing()
+        .one()
+    )
+    assert row.status == status
+    assert row.is_active is is_active
+    assert row.role == "viewer"
+    assert row.hashed_password == "existing-hash"
+    assert row.first_name == "Old"
+    assert row.last_name == "Name"
+    assert row.email == "SSO.User@Example.com"
+    assert row.last_login is None
+
+
+def test_callback_admits_active_existing_user_without_changing_authority(
+        client, provider, db):
+    # A non-member default role must not rewrite an existing account's role.
+    _save_config(client, provider, default_role="admin")
+    existing = _existing_user(db)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 200
+    db.expire_all()
+    row = (
+        db.query(User)
+        .filter(User.id == existing.id)
+        .populate_existing()
+        .one()
+    )
+    assert row.status == "active"
+    assert row.is_active is True
+    assert row.role == "viewer"
+    assert row.hashed_password == "existing-hash"
+    assert row.first_name == "Old"
+    assert row.last_name == "Name"
+    assert row.email == "SSO.User@Example.com"
+    assert row.last_login is not None
+    assert _decode(_callback_token(resp))["sub"] == existing.id
+
+
+def test_callback_issued_session_authorizes_canonical_reader(client, provider, db):
+    """The success test's admin override is config-only.
+
+    This mounts a fresh canonical reader (``core.auth.get_current_user``) with
+    only the database dependency overridden, so the returned bearer is proven
+    to carry current account authority rather than an admin principal injected
+    by the config fixture.
+    """
+    _save_config(client, provider)
+    existing = _existing_user(db)
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+    assert resp.status_code == 200
+    token = _callback_token(resp)
+
+    reader_app = FastAPI()
+
+    @reader_app.get("/me")
+    async def me(current_user: User = Depends(get_current_user)):
+        return {"id": current_user.id}
+
+    ReaderSession = sessionmaker(bind=db.get_bind())
+
+    def _fresh_db():
+        session = ReaderSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    reader_app.dependency_overrides[get_db] = _fresh_db
+    reader = TestClient(reader_app, base_url="http://testserver")
+    try:
+        me_resp = reader.get(
+            "/me", headers={"Authorization": f"Bearer {token}"})
+    finally:
+        reader.close()
+
+    assert me_resp.status_code == 200
+    assert me_resp.json()["id"] == existing.id
+
+
+def test_callback_jit_twin_provisions_active_member(client, provider, db):
+    _save_config(client, provider, default_role="member")
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 200
+    user = (
+        db.query(User)
+        .filter(User.email == "sso.user@example.com")
+        .populate_existing()
+        .one()
+    )
+    assert user.status == "active"
+    assert user.is_active is True
+    assert user.role == "member"
+    assert user.hashed_password is None
+    assert user.tenant_id == PERSONAL_TENANT_ID
+    assert user.first_name == "Sso"
+    assert user.last_name == "User"
+    assert user.last_login is not None
+    assert _decode(_callback_token(resp))["sub"] == user.id
+
+
+# ============================================================================
+# Peer authority changes before the admission claim
+# ============================================================================
+
+_PEER_CHANGES = [
+    ("deactivation-status", {"status": "suspended"}),
+    ("deactivation-flag", {"is_active": False}),
+    ("role-scope", {"role": "admin"}),
+    ("password-material", {"hashed_password": "peer-reset-hash"}),
+    ("tenant-workspace-scope", {
+        "tenant_id": "tenant-b", "workspace_id": "workspace-b"}),
+    ("email-identity", {"email": "changed@example.com"}),
+]
+
+
+@pytest.mark.parametrize(
+    "changes", [case[1] for case in _PEER_CHANGES],
+    ids=[case[0] for case in _PEER_CHANGES])
+def test_callback_peer_authority_change_before_claim_refused(
+        concurrency_client, provider, changes):
+    client, engine, Session, db = concurrency_client
+    _save_config(client, provider)
+    existing = _existing_user(db)
+
+    fired, listener = _before_claim_peer_write(
+        engine, Session, existing.id, changes)
+    try:
+        callback = _provider_redirect(_start_login(client))
+        resp = _callback(client, callback)
+    finally:
+        event.remove(engine, "before_cursor_execute", listener)
+
+    assert fired["done"] is True
+    assert resp.status_code == 409
+
+    fresh = Session()
+    try:
+        row = fresh.query(User).filter(User.id == existing.id).one()
+        expected = {
+            "email": "SSO.User@Example.com",
+            "hashed_password": "existing-hash",
+            "role": "viewer",
+            "status": "active",
+            "is_active": True,
+            "tenant_id": None,
+            "workspace_id": None,
+            "last_login": None,
+        }
+        expected.update(changes)
+        for field, value in expected.items():
+            assert getattr(row, field) == value
+    finally:
+        fresh.close()
+
+
+# ============================================================================
+# Database failure handling
+# ============================================================================
+
+def test_callback_admission_db_error_is_sanitized(
+        client, provider, db, monkeypatch, caplog):
+    _save_config(client, provider)
+    existing = _existing_user(db)
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError(
+            "UPDATE users SET hashed_password='super-secret-hash' "
+            "WHERE id='u-x'")
+
+    monkeypatch.setattr(
+        sso_oidc_routes, "_claim_existing_user_admission", _boom)
+
+    callback = _provider_redirect(_start_login(client))
+    with caplog.at_level(logging.INFO, logger=sso_oidc_routes.__name__):
+        resp = _callback(client, callback)
+
+    assert resp.status_code == 503
+    db.expire_all()
+    row = (
+        db.query(User)
+        .filter(User.id == existing.id)
+        .populate_existing()
+        .one()
+    )
+    assert row.status == "active"
+    assert row.is_active is True
+    assert row.role == "viewer"
+    assert row.hashed_password == "existing-hash"
+    assert row.last_login is None
+    assert "super-secret-hash" not in caplog.text
+    assert "hashed_password" not in caplog.text
+    assert "UPDATE users" not in caplog.text
+
+
+def test_callback_uncertain_commit_does_not_return_session(
+        client, provider, db, monkeypatch):
+    _save_config(client, provider)
+    existing = _existing_user(db)
+    real_commit = db.commit
+
+    def _fail_commit():
+        raise RuntimeError(
+            "commit failed for hashed_password='super-secret-hash'")
+
+    monkeypatch.setattr(db, "commit", _fail_commit)
+    try:
+        callback = _provider_redirect(_start_login(client))
+        resp = _callback(client, callback)
+    finally:
+        monkeypatch.setattr(db, "commit", real_commit)
+
+    assert resp.status_code == 503
+    fresh = sessionmaker(bind=db.get_bind())()
+    try:
+        row = fresh.query(User).filter(User.id == existing.id).one()
+        assert row.status == "active"
+        assert row.is_active is True
+        assert row.role == "viewer"
+        assert row.hashed_password == "existing-hash"
+        assert row.last_login is None
+    finally:
+        fresh.close()

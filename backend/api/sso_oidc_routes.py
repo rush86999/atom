@@ -442,6 +442,76 @@ _CALLBACK_HTML = """<!DOCTYPE html>
 """
 
 
+def _existing_user_is_active(user: User) -> bool:
+    """External SSO may sign in only an account that is currently usable."""
+    status = getattr(user, "status", "")
+    status = getattr(status, "value", status)
+    return (
+        str(status or "") == UserStatus.ACTIVE.value
+        and getattr(user, "is_active", None) is True
+    )
+
+
+def _claim_existing_user_admission(
+    db: Session, user: User
+) -> Optional[User]:
+    """CAS-claim an existing account and stamp ``last_login`` in one write.
+
+    External SSO verifies the IdP identity; it does not own the local account
+    lifecycle. The conditional UPDATE binds the exact row that admitted the
+    request (identity, current email, active/status/role, raw tenant/workspace,
+    and the credential material used by the session binding). A peer
+    deactivation, scope move or credential change that commits first makes the
+    claim match zero rows, so this request is refused before any token exists.
+
+    The ORM object is never mutated for the claim: no dirty-flush path can
+    overwrite the peer's committed authority, and ``synchronize_session=False``
+    keeps the identity map from pretending the write happened.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import update
+
+    if not _existing_user_is_active(user):
+        return None
+
+    snapshot = {
+        name: getattr(user, name) for name in (
+            "id", "email", "status", "is_active", "role",
+            "tenant_id", "workspace_id", "hashed_password")
+    }
+    now = datetime.now(timezone.utc)
+    with db.no_autoflush:
+        claimed = db.execute(
+            update(User)
+            .where(
+                User.id == snapshot["id"],
+                User.email == snapshot["email"],
+                User.status == snapshot["status"],
+                User.is_active.is_(True),
+                User.role == snapshot["role"],
+                User.tenant_id == snapshot["tenant_id"],
+                User.workspace_id == snapshot["workspace_id"],
+                User.hashed_password == snapshot["hashed_password"],
+            )
+            .values(last_login=now)
+            .execution_options(synchronize_session=False)
+        )
+        if claimed.rowcount != 1:
+            db.rollback()
+            return None
+        current = (
+            db.query(User)
+            .filter(User.id == snapshot["id"])
+            .populate_existing()
+            .first()
+        )
+    if current is None or not _existing_user_is_active(current):
+        db.rollback()
+        return None
+    return current
+
+
 @router.get("/callback")
 async def oidc_callback(
     code: Optional[str] = None,
@@ -553,15 +623,66 @@ async def oidc_callback(
             raise HTTPException(status_code=403, detail="Email domain is not permitted for SSO login")
 
     from sqlalchemy import func
-    user = db.query(User).filter(func.lower(User.email) == email).first()
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == email)
+        .populate_existing()
+        .first()
+    )
     if user:
-        # Ensure the account is usable via SSO.
-        if user.status != UserStatus.ACTIVE.value:
-            user.status = UserStatus.ACTIVE.value
-        user.is_active = True
+        # External SSO proves who the IdP authenticated; it does not own the
+        # local account lifecycle. An existing suspended/pending/deleted/
+        # disabled/unknown account, or an active row with is_active=False,
+        # stays exactly as the local authority left it.
+        if not _existing_user_is_active(user):
+            logger.warning(
+                "OIDC callback refused: existing account is not active "
+                "(user_id=%s)", user.id)
+            raise HTTPException(
+                status_code=403,
+                detail="Account is not active for SSO sign-in",
+            )
+        try:
+            user = _claim_existing_user_admission(db, user)
+        except Exception as exc:  # noqa: BLE001 — DB errors fail closed
+            db.rollback()
+            logger.error(
+                "OIDC existing-account admission failed (error_class=%s)",
+                type(exc).__name__)
+            raise HTTPException(
+                status_code=503,
+                detail="SSO sign-in could not be completed",
+            )
+        if user is None:
+            raise HTTPException(
+                status_code=409,
+                detail="SSO account authorization changed. Sign in again.",
+            )
+
+        # Issue the session from the row that won the claim, before commit.
+        # A failed/uncertain commit discards the token instead of returning a
+        # credential that was never durably admitted.
+        from datetime import timedelta
+        try:
+            access_jwt = create_access_token(
+                data={"sub": user.id},
+                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+                user=user,
+            )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 — uncertain commit fails closed
+            db.rollback()
+            logger.error(
+                "OIDC existing-account session commit failed (error_class=%s)",
+                type(exc).__name__)
+            raise HTTPException(
+                status_code=503,
+                detail="SSO sign-in could not be completed",
+            )
     else:
         # NOTE: the User model has no auth_provider column; nothing is stored
         # on the row to mark SSO provenance (adding a migration is out of scope).
+        from datetime import datetime, timezone
         user = User(
             email=email,
             hashed_password=None,  # SSO-provisioned users have no local password
@@ -577,23 +698,40 @@ async def oidc_callback(
             status=UserStatus.ACTIVE.value,
             is_active=True,
             tenant_id=PERSONAL_TENANT_ID,
+            last_login=datetime.now(timezone.utc),
         )
         db.add(user)
         logger.info("OIDC auto-provisioned user (email=%r, role=%s)", email, user.role)
+        try:
+            db.commit()
+            db.refresh(user)
+        except Exception as exc:  # noqa: BLE001 — DB errors fail closed
+            db.rollback()
+            logger.error(
+                "OIDC auto-provisioning failed (error_class=%s)",
+                type(exc).__name__)
+            raise HTTPException(
+                status_code=503,
+                detail="SSO sign-in could not be completed",
+            )
 
-    from datetime import datetime, timezone
-    user.last_login = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(user)
-
-    # Same JWT session helper the normal login endpoint uses
-    # (core/auth_endpoints.py login_for_access_token).
-    from datetime import timedelta
-    access_jwt = create_access_token(
-        data={"sub": user.id},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-        user=user,
-    )
+        # Same JWT session helper the normal login endpoint uses
+        # (core/auth_endpoints.py login_for_access_token).
+        from datetime import timedelta
+        try:
+            access_jwt = create_access_token(
+                data={"sub": user.id},
+                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+                user=user,
+            )
+        except Exception as exc:  # noqa: BLE001 — credential binding failure
+            logger.error(
+                "OIDC session issuance failed (error_class=%s)",
+                type(exc).__name__)
+            raise HTTPException(
+                status_code=503,
+                detail="SSO sign-in could not be completed",
+            )
 
     import json as _json
     html = _CALLBACK_HTML.format(
