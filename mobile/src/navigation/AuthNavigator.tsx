@@ -23,6 +23,8 @@ import { AppNavigator } from './AppNavigator';
 
 const Stack = createNativeStackNavigator();
 
+const AuthenticatedAppNavigator = () => <AppNavigator embedded />;
+
 /**
  * Navigation Types
  */
@@ -231,7 +233,7 @@ export const AuthNavigator: React.FC = () => {
             {/* Main App */}
             <Stack.Screen
               name="Main"
-              component={AppNavigator}
+              component={AuthenticatedAppNavigator}
               options={{
                 headerShown: false,
               }}

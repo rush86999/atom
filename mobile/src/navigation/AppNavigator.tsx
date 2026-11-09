@@ -191,9 +191,8 @@ function ChatStackNavigator() {
 // Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
 
-export function AppNavigator() {
-  return (
-    <NavigationContainer>
+export function AppNavigator({ embedded = false }: { embedded?: boolean } = {}) {
+  const navigator = (
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
@@ -264,8 +263,10 @@ export function AppNavigator() {
           }}
         />
       </Tab.Navigator>
-    </NavigationContainer>
   );
+  // AuthNavigator owns the production root. Standalone callers retain the
+  // existing container without disconnecting the authenticated navigation tree.
+  return embedded ? navigator : <NavigationContainer>{navigator}</NavigationContainer>;
 }
 
 // Export navigation types
