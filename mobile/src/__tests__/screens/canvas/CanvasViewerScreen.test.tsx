@@ -143,7 +143,10 @@ jest.mock('@react-native-community/netinfo', () => {
     fetch: mockFetch,
     addEventListener: jest.fn((cb) => {
       listeners.push(cb);
-      return { remove: jest.fn(() => {}) };
+      return jest.fn(() => {
+        const index = listeners.indexOf(cb);
+        if (index !== -1) listeners.splice(index, 1);
+      });
     }),
     // Test helper to fire connectivity changes
     _emit: (state: any) => listeners.forEach((cb) => cb(state)),
@@ -342,6 +345,14 @@ describe('CanvasViewerScreen', () => {
   });
 
   describe('Offline Support', () => {
+    it('unsubscribes the SDK listener function on unmount', async () => {
+      const { unmount } = renderCanvas();
+      await waitForLoaded();
+      const unsubscribe = NetInfo.addEventListener.mock.results.at(-1).value;
+      unmount();
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+
     it('shows offline error when disconnected and no cache exists', async () => {
       (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: false });
 

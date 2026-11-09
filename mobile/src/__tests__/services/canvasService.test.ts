@@ -10,11 +10,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NetInfo } from '@react-native-community/netinfo';
+import NetInfo from '@react-native-community/netinfo';
 import { canvasService } from '../../services/canvasService';
 
-// The global netinfo mock (jest.setup) only exports default/fetch/etc. — it
-// omits the `NetInfo` named export that canvasService imports. Provide it.
+// Match the installed module: default object and named functions, no NetInfo alias.
 jest.mock('@react-native-community/netinfo', () => {
   const fetch = jest.fn().mockResolvedValue({
     isConnected: true,
@@ -24,10 +23,10 @@ jest.mock('@react-native-community/netinfo', () => {
   });
   const mockModule = {
     fetch,
-    addEventListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+    addEventListener: jest.fn().mockReturnValue(jest.fn()),
     useNetInfo: jest.fn().mockReturnValue({ isConnected: true }),
   };
-  return { default: mockModule, ...mockModule, NetInfo: mockModule };
+  return { __esModule: true, default: mockModule, ...mockModule };
 });
 
 // The real AsyncStorage mock (jest.setup) is backed by an in-memory map —
