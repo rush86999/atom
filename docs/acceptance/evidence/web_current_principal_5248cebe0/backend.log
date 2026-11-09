@@ -1,0 +1,306 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 16:43:42 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_web_password_recovery_contract.py::test_normal_mounted_auth_recovery_route_has_its_validation_boundary[forgot-password] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 16:43:43 [    INFO] EscalationManager initialized
+2026-11-09 16:43:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 16:43:43 [    INFO] EscalationManager initialized
+2026-11-09 16:43:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 16:43:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 16:43:43 [    INFO] AgentTaskRegistry initialized
+2026-11-09 16:43:43 [    INFO] Loading integration: auth (core.auth_endpoints)
+2026-11-09 16:43:43 [    INFO] ✓ Loaded auth
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:43 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  2%]
+tests/test_web_password_recovery_contract.py::test_normal_mounted_auth_recovery_route_has_its_validation_boundary[verify-token] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:43 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  5%]
+tests/test_web_password_recovery_contract.py::test_normal_mounted_auth_recovery_route_has_its_validation_boundary[reset-password] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:43 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [  7%]
+tests/test_web_password_recovery_contract.py::test_normal_recovery_mount_reuses_one_existing_handler_per_path PASSED [ 10%]
+tests/test_web_password_recovery_contract.py::test_recovery_link_reaches_the_implemented_reset_page_and_token_is_hashed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:43 [    INFO] Password reset link generated for user u-1cea0ad0
+2026-11-09 16:43:43 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_web_password_recovery_contract.py::test_unavailable_mail_is_global_non_enumerating_and_mints_no_token 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:43 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 503 Service Unavailable"
+2026-11-09 16:43:43 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 15%]
+tests/test_web_password_recovery_contract.py::test_used_token_peer_winner_cannot_be_overwritten_by_stale_reset 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:44 [    INFO] Password reset link generated for user u-772e2903
+2026-11-09 16:43:44 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:44 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 17%]
+tests/test_web_password_recovery_contract.py::test_foreign_token_scope_cannot_change_the_current_account 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:45 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 20%]
+tests/test_web_password_recovery_contract.py::test_valid_recovery_is_one_use_and_normal_login_uses_the_new_credential 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:45 [    INFO] Password reset link generated for user u-b719b1f3
+2026-11-09 16:43:45 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:45 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 16:43:46 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:46 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+2026-11-09 16:43:46 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 401 Unauthorized"
+2026-11-09 16:43:46 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_web_password_recovery_contract.py::test_unusable_recovery_keeps_the_account_unchanged[used] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:47 [    INFO] Password reset link generated for user u-08ee34bf
+2026-11-09 16:43:47 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:47 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 16:43:47 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 25%]
+tests/test_web_password_recovery_contract.py::test_unusable_recovery_keeps_the_account_unchanged[expired] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:47 [    INFO] Password reset link generated for user u-29129e9b
+2026-11-09 16:43:47 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:47 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 16:43:47 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 27%]
+tests/test_web_password_recovery_contract.py::test_unusable_recovery_keeps_the_account_unchanged[inactive] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:48 [    INFO] Password reset link generated for user u-bbec1920
+2026-11-09 16:43:48 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:48 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 16:43:48 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 30%]
+tests/test_web_password_recovery_contract.py::test_personal_scope_aliases_remain_supported[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:48 [    INFO] Password reset link generated for user u-81e6e5f3
+2026-11-09 16:43:48 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:49 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_web_password_recovery_contract.py::test_personal_scope_aliases_remain_supported[] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:49 [    INFO] Password reset link generated for user u-06ebc8d7
+2026-11-09 16:43:49 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:50 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_web_password_recovery_contract.py::test_personal_scope_aliases_remain_supported[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:50 [    INFO] Password reset link generated for user u-43992d84
+2026-11-09 16:43:50 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:51 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_web_password_recovery_contract.py::test_uncertain_reset_keeps_original_identity_without_authentication_grant[lost_commit] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:51 [    INFO] Password reset link generated for user u-1a58b46c
+2026-11-09 16:43:51 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:51 [ WARNING] Password recovery failed stage=commit error_class=RuntimeError
+2026-11-09 16:43:51 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 40%]
+tests/test_web_password_recovery_contract.py::test_uncertain_reset_keeps_original_identity_without_authentication_grant[readback] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:52 [    INFO] Password reset link generated for user u-cb887ce3
+2026-11-09 16:43:52 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:52 [ WARNING] Password recovery failed stage=readback error_class=RuntimeError
+2026-11-09 16:43:52 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 42%]
+tests/test_web_password_recovery_contract.py::test_confirmed_integrity_rollback_is_no_effect_and_does_not_log_material 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:53 [    INFO] Password reset link generated for user u-cb6e61d6
+2026-11-09 16:43:53 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:53 [ WARNING] Password recovery failed stage=commit error_class=IntegrityError
+2026-11-09 16:43:53 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 45%]
+tests/test_web_password_recovery_contract.py::test_successful_recovery_invalidates_other_outstanding_links 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:54 [    INFO] Password reset link generated for user u-88a0cfcc
+2026-11-09 16:43:54 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:54 [    INFO] Password reset link generated for user u-88a0cfcc
+2026-11-09 16:43:54 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:54 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 200 OK"
+2026-11-09 16:43:54 [    INFO] HTTP Request: POST http://testserver/api/auth/verify-token "HTTP/1.1 200 OK"
+2026-11-09 16:43:54 [    INFO] HTTP Request: POST http://testserver/api/auth/reset-password "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 47%]
+tests/test_web_password_recovery_contract.py::test_recovery_issuance_cannot_outlive_a_peer_credential_change 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:55 [    INFO] HTTP Request: POST http://testserver/api/auth/forgot-password "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 50%]
+tests/test_logout_durable_session_contract.py::test_logged_out_bearer_stays_refused_in_a_fresh_python_process 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:55 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:43:55 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 200 OK"
+2026-11-09 16:43:55 [    INFO] Token revoked: jti=c6ff348f-16e4-4743-a462-60499426ff89, user_id=u-7d1b4b1f, reason=logout
+2026-11-09 16:43:55 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+2026-11-09 16:43:55 [ WARNING] Rejected revoked token (jti=c6ff348f-16e4-4743-a462-60499426ff89) for user u-7d1b4b1f
+2026-11-09 16:43:55 [ WARNING] Unexpected error during token validation
+2026-11-09 16:43:55 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 52%]
+tests/test_logout_durable_session_contract.py::test_logout_revokes_the_same_transport_that_authorized_it[cookie] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:58 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:43:58 [    INFO] Token revoked: jti=a538e38e-cb79-4737-b472-d831e6fc43ea, user_id=u-3d9cc8a2, reason=logout
+2026-11-09 16:43:58 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+2026-11-09 16:43:58 [ WARNING] Rejected revoked token (jti=a538e38e-cb79-4737-b472-d831e6fc43ea) for user u-3d9cc8a2
+2026-11-09 16:43:58 [ WARNING] Unexpected error during token validation
+2026-11-09 16:43:58 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 55%]
+tests/test_logout_durable_session_contract.py::test_logout_revokes_the_same_transport_that_authorized_it[secure_cookie] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:59 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:43:59 [    INFO] Token revoked: jti=03b296ed-4981-4bba-85ed-81285981b429, user_id=u-29d2ff91, reason=logout
+2026-11-09 16:43:59 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+2026-11-09 16:43:59 [ WARNING] Rejected revoked token (jti=03b296ed-4981-4bba-85ed-81285981b429) for user u-29d2ff91
+2026-11-09 16:43:59 [ WARNING] Unexpected error during token validation
+2026-11-09 16:43:59 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 57%]
+tests/test_logout_durable_session_contract.py::test_logout_revokes_the_same_transport_that_authorized_it[query] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:43:59 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:43:59 [    INFO] Token revoked: jti=e131aba8-c2e7-4c60-86a1-a78bd11bf84f, user_id=u-d55989d2, reason=logout
+2026-11-09 16:43:59 [    INFO] HTTP Request: POST http://testserver/api/auth/logout?auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LWQ1NTk4OWQyIiwiYXV0aF9iaW5kaW5nIjoidjE6YzZhMGIwMDcwY2NjY2FlODkxYWYyMzk5ZmFkYmE0NWQwMzRlMWY2ZWE4NjM3ZmU0NDlhZmFkY2U3ZmRlMDRhNiIsImV4cCI6MTc5NDM0NzAzOSwianRpIjoiZTEzMWFiYTgtYzJlNy00YzYwLTg2YTEtYTc4YmQxMWJmODRmIn0.jANkl-NnLKKRRLDIOUVDM4IJrXvWHuW1WR5GOnZcROg "HTTP/1.1 200 OK"
+2026-11-09 16:43:59 [ WARNING] Rejected revoked token (jti=e131aba8-c2e7-4c60-86a1-a78bd11bf84f) for user u-d55989d2
+2026-11-09 16:43:59 [ WARNING] Unexpected error during token validation
+2026-11-09 16:43:59 [    INFO] HTTP Request: GET http://testserver/api/auth/me?auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LWQ1NTk4OWQyIiwiYXV0aF9iaW5kaW5nIjoidjE6YzZhMGIwMDcwY2NjY2FlODkxYWYyMzk5ZmFkYmE0NWQwMzRlMWY2ZWE4NjM3ZmU0NDlhZmFkY2U3ZmRlMDRhNiIsImV4cCI6MTc5NDM0NzAzOSwianRpIjoiZTEzMWFiYTgtYzJlNy00YzYwLTg2YTEtYTc4YmQxMWJmODRmIn0.jANkl-NnLKKRRLDIOUVDM4IJrXvWHuW1WR5GOnZcROg "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 60%]
+tests/test_logout_durable_session_contract.py::test_logout_only_revokes_the_selected_session 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:00 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:00 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:00 [    INFO] Token revoked: jti=6ddadddb-8df6-4043-a7ca-553a4230ad54, user_id=u-008579eb, reason=logout
+2026-11-09 16:44:00 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+2026-11-09 16:44:00 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_logout_durable_session_contract.py::test_bearer_precedes_an_unrelated_cookie_for_logout 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:00 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:01 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:01 [    INFO] Token revoked: jti=619450ac-da7d-4a7a-a0ae-94ecfe1242d9, user_id=u-7aaf3335, reason=logout
+2026-11-09 16:44:01 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+2026-11-09 16:44:01 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_logout_durable_session_contract.py::test_unverified_logout_audit_never_reports_success[missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:01 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:01 [    INFO] Token revoked: jti=b8ff1690-fd6c-4b4e-8845-b24778afa46f, user_id=u-52320636, reason=logout
+2026-11-09 16:44:01 [ WARNING] Logout unavailable stage=readback error_class=ValueError
+2026-11-09 16:44:01 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 67%]
+tests/test_logout_durable_session_contract.py::test_unverified_logout_audit_never_reports_success[contradictory] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:02 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:02 [    INFO] Token revoked: jti=dd1e97d5-1043-4700-b869-f27c57be59ca, user_id=u-87703f9a, reason=logout
+2026-11-09 16:44:02 [ WARNING] Logout unavailable stage=readback error_class=ValueError
+2026-11-09 16:44:02 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 70%]
+tests/test_logout_durable_session_contract.py::test_unverified_logout_audit_never_reports_success[tenant_alias] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:02 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:02 [    INFO] Token revoked: jti=e93d046e-5842-475f-a9c4-5e49930413a1, user_id=u-3609b586, reason=logout
+2026-11-09 16:44:02 [ WARNING] Logout unavailable stage=readback error_class=ValueError
+2026-11-09 16:44:02 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 72%]
+tests/test_logout_durable_session_contract.py::test_unverified_logout_audit_never_reports_success[workspace_alias] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:03 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:03 [    INFO] Token revoked: jti=dac590da-757d-4125-b3cd-f882ebc27b3e, user_id=u-e4d94bef, reason=logout
+2026-11-09 16:44:03 [ WARNING] Logout unavailable stage=readback error_class=ValueError
+2026-11-09 16:44:03 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 75%]
+tests/test_logout_durable_session_contract.py::test_unverified_logout_audit_never_reports_success[tenant_column] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:03 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:03 [    INFO] Token revoked: jti=56946c2e-20a0-4e34-bc4d-ad9f6d68b350, user_id=u-74abb762, reason=logout
+2026-11-09 16:44:03 [ WARNING] Logout unavailable stage=readback error_class=ValueError
+2026-11-09 16:44:03 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 77%]
+tests/test_logout_durable_session_contract.py::test_unverified_logout_audit_never_reports_success[missing_tenant_column] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:04 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:04 [    INFO] Token revoked: jti=338027af-498c-4440-9856-f1cf71ef6420, user_id=u-05ffa214, reason=logout
+2026-11-09 16:44:04 [ WARNING] Logout unavailable stage=readback error_class=ValueError
+2026-11-09 16:44:04 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 80%]
+tests/test_logout_durable_session_contract.py::test_lost_logout_confirmation_preserves_identity_and_durable_refusal 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:04 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:04 [    INFO] Token revoked: jti=51726a77-8c6f-43c9-981c-281d427ac2ca, user_id=u-f9cb6c2d, reason=logout
+2026-11-09 16:44:04 [ WARNING] Logout unavailable stage=revocation_commit error_class=RuntimeError
+2026-11-09 16:44:04 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 503 Service Unavailable"
+2026-11-09 16:44:04 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 82%]
+tests/test_logout_durable_session_contract.py::test_confirmed_logout_rollback_is_truthful_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:05 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:05 [   ERROR] Token revocation failed error_class=IntegrityError
+2026-11-09 16:44:05 [ WARNING] Logout unavailable stage=revocation_commit error_class=HTTPException
+2026-11-09 16:44:05 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 409 Conflict"
+2026-11-09 16:44:05 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_logout_durable_session_contract.py::test_unavailable_revocation_read_cannot_grant_a_session 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:05 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:05 [ WARNING] Session revocation unavailable error_class=RuntimeError
+2026-11-09 16:44:05 [    INFO] HTTP Request: GET http://testserver/api/auth/me "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 87%]
+tests/test_logout_durable_session_contract.py::test_credential_binding_without_revocation_context_is_not_authority PASSED [ 90%]
+tests/test_logout_durable_session_contract.py::test_revocation_read_does_not_flush_or_erase_unrelated_caller_work 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:06 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_logout_durable_session_contract.py::test_personal_scope_aliases_preserve_raw_identity_in_the_receipt[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:06 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:06 [    INFO] HTTP Request: GET http://testserver/api/auth/me?tenant_id=foreign-tenant&workspace_id=foreign-workspace "HTTP/1.1 200 OK"
+2026-11-09 16:44:06 [    INFO] Token revoked: jti=3ae7b699-be35-4c55-919d-280312c400ce, user_id=u-b23c8778, reason=logout
+2026-11-09 16:44:06 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_logout_durable_session_contract.py::test_personal_scope_aliases_preserve_raw_identity_in_the_receipt[] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:07 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:07 [    INFO] HTTP Request: GET http://testserver/api/auth/me?tenant_id=foreign-tenant&workspace_id=foreign-workspace "HTTP/1.1 200 OK"
+2026-11-09 16:44:07 [    INFO] Token revoked: jti=8b3a1b40-1306-4c08-a8a8-5f6adfc8b416, user_id=u-7cca4ff9, reason=logout
+2026-11-09 16:44:07 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_logout_durable_session_contract.py::test_personal_scope_aliases_preserve_raw_identity_in_the_receipt[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 16:44:07 [    INFO] HTTP Request: POST http://testserver/api/auth/login "HTTP/1.1 200 OK"
+2026-11-09 16:44:07 [    INFO] HTTP Request: GET http://testserver/api/auth/me?tenant_id=foreign-tenant&workspace_id=foreign-workspace "HTTP/1.1 200 OK"
+2026-11-09 16:44:07 [    INFO] Token revoked: jti=8380fb33-ea92-468f-b4b9-96ab3c4cac1b, user_id=u-7f0f2206, reason=logout
+2026-11-09 16:44:07 [    INFO] HTTP Request: POST http://testserver/api/auth/logout "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_web_password_recovery_contract.py: 20 warnings
+tests/test_logout_durable_session_contract.py: 20 warnings
+  /private/tmp/atom-web-task-project-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 40 passed, 45 warnings in 41.37s =======================

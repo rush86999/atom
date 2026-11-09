@@ -751,3 +751,7 @@ Set-Cookie and server-cookie failure qualification remain separate. Preserve
 original healthy403a39173 and native e173791ef records. Further supported web
 journeys and current-principal protection for remaining server consumers are
 still required; none of this closes the full app or mobile goals.
+
+### Web current-principal checkpoint — 2026-11-09
+
+Source `5248cebe0` reauthorizes both web-cookie consumers on each session read; never certify cached role/permissions after backend refusal. Distinguish known revocation from unavailable authority. Preserve exact backend-owned Personal NULL/empty/default scope; never infer caller scope. Use the installed framework contract in regression, not a callback-only mock. The new named CI step preserves existing steps. Packet `web_current_principal_5248cebe0` records native 33, frontend 180, backend 40 and TypeScript; no new ordinary browser or provider inference is claimed. Next finite configuration and public HTTP restart proofs remain active. CI observation is model-free and exact-head; a prior head's green does not transfer. Mobile remains last without deleting its goals.
