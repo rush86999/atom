@@ -19,7 +19,7 @@
  */
 
 import { apiService } from './api';
-import { storageService, StorageKey } from './storageService';
+import { storageService } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
 import {
   createCacheTransactionQueue,
@@ -822,7 +822,7 @@ class WorkflowSyncService {
 
     this.metrics.lastExecutionAt = execution.startedAt;
 
-    await storageService.setObject('workflow_metrics' as StorageKey, this.metrics);
+    await storageService.setObject('workflow_metrics', this.metrics);
   }
 
   /**
@@ -848,7 +848,7 @@ class WorkflowSyncService {
   // Private helper methods
 
   private async loadCache(): Promise<void> {
-    const cached = await storageService.getObject<WorkflowCache>('workflow_cache' as StorageKey);
+    const cached = await storageService.getObject<WorkflowCache>('workflow_cache');
 
     this.cache = cached || {
       workflows: {},
@@ -920,13 +920,13 @@ class WorkflowSyncService {
       }
     }
 
-    if (!(await storageService.setObject('workflow_cache' as StorageKey, cache))) {
+    if (!(await storageService.setObject('workflow_cache', cache))) {
       throw new Error('Workflow cache persistence refused');
     }
   }
 
   private async loadMetrics(): Promise<void> {
-    const cached = await storageService.getObject<WorkflowMetrics>('workflow_metrics' as StorageKey);
+    const cached = await storageService.getObject<WorkflowMetrics>('workflow_metrics');
     this.metrics = cached || {
       totalExecutions: 0,
       successfulExecutions: 0,

@@ -14,6 +14,7 @@ import { workflowSyncService } from '../../services/workflowSyncService';
 import { apiService } from '../../services/api';
 import { storageService } from '../../services/storageService';
 import { offlineSyncService } from '../../services/offlineSyncService';
+import type { SyncState } from '../../services/offlineSyncService';
 
 // These unit cases isolate existing service behavior; canonical owner/server
 // helper is exercised with controlled session/server doubles in
@@ -34,6 +35,18 @@ const mockApiService = apiService as jest.Mocked<typeof apiService>;
 const mockStorageService = storageService as jest.Mocked<typeof storageService>;
 const mockOfflineSyncService = offlineSyncService as jest.Mocked<typeof offlineSyncService>;
 
+const mockSyncState = (overrides: Partial<SyncState> = {}): SyncState => ({
+  lastSyncAt: null,
+  lastSuccessfulSyncAt: null,
+  pendingCount: 0,
+  syncInProgress: false,
+  consecutiveFailures: 0,
+  currentOperation: '',
+  syncProgress: 0,
+  cancelled: false,
+  ...overrides,
+});
+
 describe('workflowSyncService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -42,12 +55,7 @@ describe('workflowSyncService', () => {
     // Default mock implementations
     mockStorageService.getObject.mockResolvedValue(null);
     mockStorageService.setObject.mockResolvedValue(true);
-    mockOfflineSyncService.getSyncState.mockResolvedValue({
-      syncInProgress: false,
-      lastSyncAt: null,
-      pendingActions: 0,
-      syncProgress: 0,
-    });
+    mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState());
 
     // Initialize service
     await workflowSyncService.initialize();
@@ -216,12 +224,11 @@ describe('workflowSyncService', () => {
   // Offline queue tests (4 tests)
   describe('Offline Queue', () => {
     it('should queue workflow triggers offline', async () => {
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState({
         syncInProgress: true, // isOnline() returns false, so isOffline = true
-        lastSyncAt: null,
-        pendingActions: 10,
+        pendingCount: 10,
         syncProgress: 50,
-      });
+      }));
 
       const executionId = await workflowSyncService.triggerWorkflow(
         'wf-1',
@@ -239,12 +246,7 @@ describe('workflowSyncService', () => {
     });
 
     it('should sync queued triggers on reconnect', async () => {
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
-        syncInProgress: false,
-        lastSyncAt: null,
-        pendingActions: 0,
-        syncProgress: 0,
-      });
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState());
 
       mockApiService.post.mockResolvedValue({
         success: true,
@@ -283,9 +285,9 @@ describe('workflowSyncService', () => {
     it('should clear synced triggers', async () => {
       // Queue through the public producer; changing a storage mock after
       // singleton initialization never loaded the old test's pending row.
-      mockOfflineSyncService.getSyncState.mockResolvedValue({ syncInProgress: true });
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState({ syncInProgress: true }));
       expect(await workflowSyncService.triggerWorkflow('wf-1', {}, 'user-123', 'device-123')).not.toBeNull();
-      mockOfflineSyncService.getSyncState.mockResolvedValue({ syncInProgress: false });
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState({ syncInProgress: false }));
       mockApiService.post.mockResolvedValue({ success: true, data: { executionId: 'exec-123' } });
       mockStorageService.setObject.mockClear();
       await workflowSyncService.syncExecutions('user-123', 'device-123');
@@ -368,10 +370,11 @@ describe('workflowSyncService', () => {
         mockWorkflow('wf-2', new Date('2024-01-02')),
       ];
 
-      // First workflow syncs successfully
-      // Second workflow fails
-      mockApiService.get.mockResolvedValue(async () => {
-        throw new Error('Partial sync error');
+      // A malformed second row refutes the entire batch before any cache
+      // publication; a valid first row is not evidence of complete coverage.
+      mockApiService.get.mockResolvedValue({
+        success: true,
+        data: { workflows: [workflows[0], { ...workflows[1], definition: undefined }] },
       });
 
       const result = await workflowSyncService.syncWorkflows('user-123', 'device-123');
@@ -437,12 +440,7 @@ describe('workflowSyncService', () => {
   // Trigger workflow tests (2 tests)
   describe('Trigger Workflow', () => {
     it('should trigger workflow immediately when online', async () => {
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
-        syncInProgress: false,
-        lastSyncAt: null,
-        pendingActions: 0,
-        syncProgress: 0,
-      });
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState());
 
       mockApiService.post.mockResolvedValue({
         success: true,
@@ -463,12 +461,7 @@ describe('workflowSyncService', () => {
     });
 
     it('should handle trigger failure', async () => {
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
-        syncInProgress: false,
-        lastSyncAt: null,
-        pendingActions: 0,
-        syncProgress: 0,
-      });
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState());
 
       mockApiService.post.mockResolvedValue({
         success: false,
@@ -502,12 +495,7 @@ describe('workflowSyncService', () => {
       await workflowSyncService.getExecution('exec-1');
 
       // Now replay it
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
-        syncInProgress: false,
-        lastSyncAt: null,
-        pendingActions: 0,
-        syncProgress: 0,
-      });
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState());
 
       mockApiService.post.mockResolvedValue({
         success: true,
@@ -579,12 +567,7 @@ describe('workflowSyncService', () => {
     });
 
     it('should return null when the trigger request throws', async () => {
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
-        syncInProgress: false,
-        lastSyncAt: null,
-        pendingActions: 0,
-        syncProgress: 0,
-      });
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState());
       mockApiService.post.mockRejectedValue(new Error('network down'));
 
       const executionId = await workflowSyncService.triggerWorkflow(
@@ -605,12 +588,9 @@ describe('workflowSyncService', () => {
 
   describe('Offline Trigger Queue Limits', () => {
     it('should refuse overflow while retaining queued intent and priority order', async () => {
-      mockOfflineSyncService.getSyncState.mockResolvedValue({
+      mockOfflineSyncService.getSyncState.mockResolvedValue(mockSyncState({
         syncInProgress: true,
-        lastSyncAt: null,
-        pendingActions: 0,
-        syncProgress: 0,
-      });
+      }));
       (workflowSyncService as any).cache.pendingTriggers = [];
 
       const results: Array<string | null> = [];

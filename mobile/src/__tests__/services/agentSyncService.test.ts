@@ -550,10 +550,12 @@ describe('agentSyncService', () => {
         favorites: [],
       });
 
-      let fresh: typeof agentSyncService;
+      const isolated: { service?: typeof agentSyncService } = {};
       jest.isolateModules(() => {
-        fresh = require('../../services/agentSyncService').agentSyncService;
+        isolated.service = require('../../services/agentSyncService').agentSyncService;
       });
+      const fresh = isolated.service;
+      if (!fresh) throw new Error('Isolated agent sync service was not initialized');
       await fresh.initialize();
 
       expect(fresh.getAllAgents()).toHaveLength(1);

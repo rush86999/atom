@@ -19,7 +19,7 @@
  */
 
 import { apiService } from './api';
-import { storageService, StorageKey } from './storageService';
+import { storageService } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
 import { createCacheTransactionQueue, decodeDate, decodeDetailResponse, decodeListResponse, isRecord } from './syncResponse';
 import {
@@ -794,7 +794,7 @@ class CanvasSyncService {
   // Private helper methods
 
   private async loadCache(): Promise<void> {
-    const cached = await storageService.getObject<CanvasCache>('canvas_cache' as StorageKey);
+    const cached = await storageService.getObject<CanvasCache>('canvas_cache');
 
     this.cache = cached || {
       canvases: {},
@@ -840,7 +840,7 @@ class CanvasSyncService {
       }
     }
 
-    if (!(await storageService.setObject('canvas_cache' as StorageKey, cache))) {
+    if (!(await storageService.setObject('canvas_cache', cache))) {
       throw new Error('Canvas cache persistence refused');
     }
   }

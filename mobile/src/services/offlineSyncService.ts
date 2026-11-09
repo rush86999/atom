@@ -14,7 +14,7 @@
  */
 
 import NetInfo from '@react-native-community/netinfo';
-import { storageService, StorageKey } from './storageService';
+import { storageService } from './storageService';
 import { storageService as mmkvStorage } from './storageService';
 import { apiService } from './api';
 
@@ -1019,7 +1019,7 @@ class OfflineSyncService {
   async clearQueue(): Promise<void> {
     return this.withQueueMutation(async () => {
       if ((await this.getQueue()).some((a) => a.status === 'syncing')) throw new Error('In-flight actions cannot be represented as stopped.');
-      if (!(await mmkvStorage.delete('offline_queue' as StorageKey))) {
+      if (!(await mmkvStorage.delete('offline_queue'))) {
         throw new Error('Offline queue deletion was not confirmed.');
       }
       await this.reconcileQueueMetadata([]);
@@ -1037,7 +1037,7 @@ class OfflineSyncService {
   }
 
   private async getQueue(): Promise<OfflineAction[]> {
-    const queueData = await mmkvStorage.getString('offline_queue' as StorageKey);
+    const queueData = await mmkvStorage.getString('offline_queue');
     if (!queueData) return [];
 
     try {
@@ -1055,7 +1055,7 @@ class OfflineSyncService {
   }
 
   private async saveQueue(queue: OfflineAction[]): Promise<void> {
-    if (!(await mmkvStorage.setString('offline_queue' as StorageKey, JSON.stringify(queue)))) {
+    if (!(await mmkvStorage.setString('offline_queue', JSON.stringify(queue)))) {
       throw new Error('Offline queue write was not confirmed.');
     }
     await this.reconcileQueueMetadata(queue);
@@ -1117,7 +1117,7 @@ class OfflineSyncService {
   private async updateSyncState(updates: Partial<SyncState>): Promise<void> {
     const currentState = await this.getSyncState();
     const newState = { ...currentState, ...updates };
-    if (!(await mmkvStorage.setObject('sync_state' as StorageKey, newState))) {
+    if (!(await mmkvStorage.setObject('sync_state', newState))) {
       throw new Error('Sync state write was not confirmed.');
     }
   }
@@ -1277,7 +1277,7 @@ class OfflineSyncService {
    * Load quality metrics
    */
   private async loadQualityMetrics(): Promise<void> {
-    const saved = await mmkvStorage.getObject<SyncQualityMetrics>('sync_quality_metrics' as StorageKey);
+    const saved = await mmkvStorage.getObject<SyncQualityMetrics>('sync_quality_metrics');
     this.qualityMetrics = saved || {
       totalSyncs: 0,
       successfulSyncs: 0,
@@ -1294,7 +1294,7 @@ class OfflineSyncService {
    */
   private async updateQualityMetrics(updates: Partial<SyncQualityMetrics>): Promise<void> {
     this.qualityMetrics = { ...this.qualityMetrics, ...updates };
-    await mmkvStorage.setObject('sync_quality_metrics' as StorageKey, this.qualityMetrics);
+    await mmkvStorage.setObject('sync_quality_metrics', this.qualityMetrics);
   }
 
   /**

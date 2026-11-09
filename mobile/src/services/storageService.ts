@@ -29,6 +29,11 @@ export type StorageKey =
   | 'sync_state'
   | 'episode_cache'
   | 'canvas_cache'
+  | 'agent_cache'
+  | 'workflow_cache'
+  | 'workflow_metrics'
+  | 'sync_quality_metrics'
+  | 'storage_quota'
   | 'preferences';
 
 export interface StorageStats {
@@ -514,7 +519,7 @@ class StorageService {
     };
 
     // Save quota to storage
-    if (!(await this.setObject('storage_quota' as StorageKey, quota))) {
+    if (!(await this.setObject('storage_quota', quota))) {
       throw new Error('Failed to persist storage quota');
     }
     this.quota = quota;

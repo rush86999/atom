@@ -19,7 +19,7 @@
  */
 
 import { apiService } from './api';
-import { storageService, StorageKey } from './storageService';
+import { storageService } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
 import { createCacheTransactionQueue, decodeDate, decodeDetailResponse, decodeListResponse, isRecord, isStringArray } from './syncResponse';
 
@@ -570,7 +570,7 @@ class AgentSyncService {
   // Private helper methods
 
   private async loadCache(): Promise<void> {
-    const cached = await storageService.getObject<AgentCache>('agent_cache' as StorageKey);
+    const cached = await storageService.getObject<AgentCache>('agent_cache');
 
     this.cache = cached || {
       agents: {},
@@ -612,7 +612,7 @@ class AgentSyncService {
       }
     }
 
-    if (!(await storageService.setObject('agent_cache' as StorageKey, cache))) {
+    if (!(await storageService.setObject('agent_cache', cache))) {
       throw new Error('Agent cache persistence refused');
     }
   }
