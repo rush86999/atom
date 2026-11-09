@@ -1,0 +1,2688 @@
+
+> atom-mobile@1.0.0 test
+> jest src/__tests__/services/locationService.test.ts --runInBand --watch=false --watchman=false --json --outputFile=/private/tmp/root-mobile-build-20261109/location-pending-start-ownership-negative-results.json
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryTimeoutMs" with value 30000 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "maxRetries" with value 3 was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "retryConfig" with value {"delayMs": 1000, "maxAttempts": 3, "timeoutMs": 30000} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+  console.warn
+    ProgressBarAndroid has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/progress-bar-android' instead of 'react-native'. See https://github.com/react-native-progress-view/progress-bar-android
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as ProgressBarAndroid] (node_modules/react-native/index.js:143:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    Clipboard has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-clipboard/clipboard' instead of 'react-native'. See https://github.com/react-native-clipboard/clipboard
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as Clipboard] (node_modules/react-native/index.js:226:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `addListener` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:63:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    `new NativeEventEmitter()` was called with a non-null argument without the required `removeListeners` method.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at new warn (node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter.js:68:17)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Utilities/DevSettings.js:32:19)
+      at Object.require [as DevSettings] (node_modules/react-native/index.js:238:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.warn
+    PushNotificationIOS has been extracted from react-native core and will be removed in a future release. It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. See https://github.com/react-native-push-notification-ios/push-notification-ios
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at warn (node_modules/react-native/Libraries/Utilities/warnOnce.js:27:11)
+      at Object.warnOnce [as PushNotificationIOS] (node_modules/react-native/index.js:287:5)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedSectionList.js:13:1)
+      at Object.require [as VirtualizedSectionList] (node_modules/@react-native/virtualized-lists/index.js:46:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedSectionList.js:16:45)
+      at Object.require [as VirtualizedSectionList] (node_modules/react-native/index.js:197:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@react-native/virtualized-lists/Lists/VirtualizedList.js:27:1)
+      at Object.require [as VirtualizedList] (node_modules/@react-native/virtualized-lists/index.js:43:12)
+      at Object.<anonymous> (node_modules/react-native/Libraries/Lists/VirtualizedList.js:16:45)
+      at Object.require [as VirtualizedList] (node_modules/react-native/index.js:194:12)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ColorPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ColorPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ColorPropType] (node_modules/react-native/index.js:383:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    EdgeInsetsPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using EdgeInsetsPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as EdgeInsetsPropType] (node_modules/react-native/index.js:393:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    PointPropType will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using PointPropType, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as PointPropType] (node_modules/react-native/index.js:403:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    ViewPropTypes will be removed from React Native, along with all other PropTypes. We recommend that you migrate away from PropTypes and switch to a type system like TypeScript. If you need to continue using ViewPropTypes, migrate to the 'deprecated-react-native-prop-types' package.
+
+      54 |   const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+      55 |     if (key !== 'Settings') {
+    > 56 |       acc[key] = ReactNative[key];
+         |                             ^
+      57 |     }
+      58 |     return acc;
+      59 |   }, {});
+
+      at Object.error [as ViewPropTypes] (node_modules/react-native/index.js:413:13)
+      at jest.setup.js:56:29
+          at Array.reduce (<anonymous>)
+      at reduce (jest.setup.js:54:52)
+      at Object.require (node_modules/@testing-library/jest-native/dist/to-be-visible.js:4:24)
+      at Object.require (node_modules/@testing-library/jest-native/dist/index.js:12:23)
+      at Object.require (jest.setup.js:85:1)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: denied
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: undetermined
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Background permission: granted
+
+      at LocationService.log (src/services/locationService.ts:154:17)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Failed to get permission status: Error: Permission check failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:214:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      184 |       };
+      185 |     } catch (error) {
+    > 186 |       console.error('LocationService: Failed to get permission status:', error);
+          |               ^
+      187 |       return {
+      188 |         foreground: 'denied',
+      189 |         background: 'denied',
+
+      at LocationService.error (src/services/locationService.ts:186:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Failed to request permissions: Error: Request failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:228:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      158 |       return this.permissionStatus;
+      159 |     } catch (error) {
+    > 160 |       console.error('LocationService: Failed to request permissions:', error);
+          |               ^
+      161 |       return 'denied';
+      162 |     }
+      163 |   }
+
+      at LocationService.error (src/services/locationService.ts:160:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: 5,
+      heading: 45,
+      speed: 5.5,
+      timestamp: 1794199917731
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: denied
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.warn
+    LocationService: Location permission not granted
+
+      221 |     try {
+      222 |       if (this.permissionStatus !== 'granted') {
+    > 223 |         console.warn('LocationService: Location permission not granted');
+          |                 ^
+      224 |         return null;
+      225 |       }
+      226 |
+
+      at LocationService.warn (src/services/locationService.ts:223:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at LocationService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at LocationService.apply [as getCurrentLocation] (src/services/locationService.ts:220:27)
+      at Object.getCurrentLocation (src/__tests__/services/locationService.test.ts:274:50)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.error
+    LocationService: Failed to get current location: Error: Location unavailable
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:284:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      247 |       return locationInfo;
+      248 |     } catch (error) {
+    > 249 |       console.error('LocationService: Failed to get current location:', error);
+          |               ^
+      250 |       return null;
+      251 |     }
+      252 |   }
+
+      at LocationService.error (src/services/locationService.ts:249:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: undefined,
+      accuracy: undefined,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 1794199917765
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: denied
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.warn
+    LocationService: Location permission not granted
+
+      258 |     try {
+      259 |       if (this.permissionStatus !== 'granted') {
+    > 260 |         console.warn('LocationService: Location permission not granted');
+          |                 ^
+      261 |         return false;
+      262 |       }
+      263 |
+
+      at LocationService.warn (src/services/locationService.ts:260:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at LocationService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at LocationService.apply [as startTracking] (src/services/locationService.ts:257:22)
+      at Object.startTracking (src/__tests__/services/locationService.test.ts:348:45)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Already tracking
+
+      at LocationService.log (src/services/locationService.ts:265:17)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.error
+    LocationService: Failed to start tracking: Error: Tracking failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:382:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      282 |       return true;
+      283 |     } catch (error) {
+    > 284 |       console.error('LocationService: Failed to start tracking:', error);
+          |               ^
+      285 |       return false;
+      286 |     }
+      287 |   }
+
+      at LocationService.error (src/services/locationService.ts:284:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.error
+    LocationService: Failed to stop tracking: Error: Stop failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:395:15)
+        at /private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:397:39
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:404:13)
+        at Object.mockConstructor [as remove] (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:148:19)
+        at LocationService.remove (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:329:22)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at LocationService.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at LocationService.apply [as stopTracking] (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:326:21)
+        at Object.stopTracking (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:398:36)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      333 |         // handle and tracking flags so callers see the truthful active state
+      334 |         // and a later stop can retry.
+    > 335 |         console.error('LocationService: Failed to stop tracking:', error);
+          |                 ^
+      336 |         return;
+      337 |       }
+      338 |     }
+
+      at LocationService.error (src/services/locationService.ts:335:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at LocationService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at LocationService.apply [as stopTracking] (src/services/locationService.ts:326:21)
+      at Object.stopTracking (src/__tests__/services/locationService.test.ts:398:36)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Reverse geocode failed: Error: Geocode failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:571:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      636 |       return null;
+      637 |     } catch (error) {
+    > 638 |       console.error('LocationService: Reverse geocode failed:', error);
+          |               ^
+      639 |       return null;
+      640 |     }
+      641 |   }
+
+      at LocationService.error (src/services/locationService.ts:638:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Geocode failed: Error: Geocode failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:612:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      655 |       return null;
+      656 |     } catch (error) {
+    > 657 |       console.error('LocationService: Geocode failed:', error);
+          |               ^
+      658 |       return null;
+      659 |     }
+      660 |   }
+
+      at LocationService.error (src/services/locationService.ts:657:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: 5,
+      heading: 45,
+      speed: 5.5,
+      timestamp: 1794199917731
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: 5,
+      heading: 45,
+      speed: 5.5,
+      timestamp: 1794199917731
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofences loaded 10 regions
+
+      at LocationService.log (src/services/locationService.ts:593:17)
+
+  console.log
+    LocationService: Location history loaded 10 entries
+
+      at LocationService.log (src/services/locationService.ts:567:17)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofences loaded 100 regions
+
+      at LocationService.log (src/services/locationService.ts:593:17)
+
+  console.log
+    LocationService: Location history loaded 100 entries
+
+      at LocationService.log (src/services/locationService.ts:567:17)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofences loaded 1 regions
+
+      at LocationService.log (src/services/locationService.ts:593:17)
+
+  console.log
+    LocationService: Location history loaded 1 entries
+
+      at LocationService.log (src/services/locationService.ts:567:17)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Location history cleared
+
+      at LocationService.log (src/services/locationService.ts:541:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofences loaded 1100 regions
+
+      at LocationService.log (src/services/locationService.ts:593:17)
+
+  console.log
+    LocationService: Location history loaded 1000 entries
+
+      at LocationService.log (src/services/locationService.ts:567:17)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofence added Test Region
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 1794199917795
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofence added Test Region 2
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.78,
+      longitude: -122.42,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 1794199917796
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofence added Test Region 3
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 1794199917797
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofence added Test Region 4
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Geofence added Test Region 5
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 1794199917798
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofence added Test Region 6
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 1234567890
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Started background tracking
+
+      at LocationService.log (src/services/locationService.ts:313:17)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Accuracy set to high
+
+      at LocationService.log [as setAccuracy] (src/services/locationService.ts:214:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Accuracy set to best
+
+      at LocationService.log [as setAccuracy] (src/services/locationService.ts:214:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Accuracy set to navigation
+
+      at LocationService.log [as setAccuracy] (src/services/locationService.ts:214:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Accuracy set to balanced
+
+      at LocationService.log [as setAccuracy] (src/services/locationService.ts:214:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Accuracy set to low
+
+      at LocationService.log [as setAccuracy] (src/services/locationService.ts:214:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Started background tracking
+
+      at LocationService.log (src/services/locationService.ts:313:17)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.warn
+    LocationService: Background permission not granted
+
+      301 |         const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+      302 |         if (bgStatus !== Location.PermissionStatus.GRANTED) {
+    > 303 |           console.warn('LocationService: Background permission not granted');
+          |                   ^
+      304 |           return false;
+      305 |         }
+      306 |         this.backgroundPermissionStatus = 'granted';
+
+      at LocationService.warn (src/services/locationService.ts:303:19)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Started background tracking
+
+      at LocationService.log (src/services/locationService.ts:313:17)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Started background tracking
+
+      at LocationService.log (src/services/locationService.ts:313:17)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Location updated {
+      latitude: 40.7128,
+      longitude: -74.006,
+      altitude: 10,
+      accuracy: 12,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 1000000
+    }
+
+      at LocationService.log (src/services/locationService.ts:393:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Location updated {
+      latitude: 1,
+      longitude: 1,
+      altitude: 1,
+      accuracy: 1,
+      altitudeAccuracy: undefined,
+      heading: undefined,
+      speed: undefined,
+      timestamp: 2000000
+    }
+
+      at LocationService.log (src/services/locationService.ts:393:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Failed to initialize: Error: Permission check failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1707:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      126 |       console.log('LocationService: Initialized, permission:', this.permissionStatus);
+      127 |     } catch (error) {
+    > 128 |       console.error('LocationService: Failed to initialize:', error);
+          |               ^
+      129 |     }
+      130 |   }
+      131 |
+
+      at LocationService.error (src/services/locationService.ts:128:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Failed to open settings: Error: Cannot open URL
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1748:41)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      203 |       }
+      204 |     } catch (error) {
+    > 205 |       console.error('LocationService: Failed to open settings:', error);
+          |               ^
+      206 |     }
+      207 |   }
+      208 |
+
+      at LocationService.error (src/services/locationService.ts:205:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.warn
+    LocationService: Location permission not granted
+
+      293 |     try {
+      294 |       if (this.permissionStatus !== 'granted') {
+    > 295 |         console.warn('LocationService: Location permission not granted');
+          |                 ^
+      296 |         return false;
+      297 |       }
+      298 |
+
+      at LocationService.warn (src/services/locationService.ts:295:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at LocationService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at LocationService.apply [as startBackgroundTracking] (src/services/locationService.ts:292:32)
+      at Object.startBackgroundTracking (src/__tests__/services/locationService.test.ts:1756:45)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.error
+    LocationService: Failed to start tracking: Error: Tracking unavailable
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1777:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      282 |       return true;
+      283 |     } catch (error) {
+    > 284 |       console.error('LocationService: Failed to start tracking:', error);
+          |               ^
+      285 |       return false;
+      286 |     }
+      287 |   }
+
+      at LocationService.error (src/services/locationService.ts:284:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofence added Home
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Geofence added Work
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Geofence removed g1
+
+      at LocationService.log (src/services/locationService.ts:441:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofence added Isolation
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: 5,
+      heading: 45,
+      speed: 5.5,
+      timestamp: 1794199917731
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Geofences loaded 1000 regions
+
+      at LocationService.log (src/services/locationService.ts:593:17)
+
+  console.log
+    LocationService: Location history loaded 1000 entries
+
+      at LocationService.log (src/services/locationService.ts:567:17)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: 5,
+      heading: 45,
+      speed: 5.5,
+      timestamp: 1794199917731
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.error
+    LocationService: Failed to save location history: Error: Write failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1912:50)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      549 |       await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(this.locationHistory));
+      550 |     } catch (error) {
+    > 551 |       console.error('LocationService: Failed to save location history:', error);
+          |               ^
+      552 |     }
+      553 |   }
+      554 |
+
+      at LocationService.error (src/services/locationService.ts:551:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Current location retrieved {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      altitude: 100,
+      accuracy: 10,
+      altitudeAccuracy: 5,
+      heading: 45,
+      speed: 5.5,
+      timestamp: 1794199917731
+    }
+
+      at LocationService.log (src/services/locationService.ts:246:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Failed to load geofences: Error: Read failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1923:50)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      594 |       }
+      595 |     } catch (error) {
+    > 596 |       console.error('LocationService: Failed to load geofences:', error);
+          |               ^
+      597 |     }
+      598 |   }
+      599 |
+
+      at LocationService.error (src/services/locationService.ts:596:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Failed to save geofences: Error: Write failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1931:50)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      579 |       await AsyncStorage.setItem(GEOFENCES_STORAGE_KEY, JSON.stringify(this.geofences));
+      580 |     } catch (error) {
+    > 581 |       console.error('LocationService: Failed to save geofences:', error);
+          |               ^
+      582 |     }
+      583 |   }
+      584 |
+
+      at LocationService.error (src/services/locationService.ts:581:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Geofence added Persist Fail
+
+      at LocationService.log (src/services/locationService.ts:432:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.error
+    LocationService: Failed to load geofences: Error: Read failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1951:50)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      594 |       }
+      595 |     } catch (error) {
+    > 596 |       console.error('LocationService: Failed to load geofences:', error);
+          |               ^
+      597 |     }
+      598 |   }
+      599 |
+
+      at LocationService.error (src/services/locationService.ts:596:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Initialized, permission: granted
+
+      at LocationService.log (src/services/locationService.ts:126:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Mock location set {
+      latitude: 51.5074,
+      longitude: -0.1278,
+      accuracy: 5,
+      timestamp: 123456789
+    }
+
+      at LocationService.log (src/services/locationService.ts:670:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.error
+    LocationService: Failed to start background tracking: Error: Background permission request failed
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:1996:9)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:316:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:252:3)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      316 |       return success;
+      317 |     } catch (error) {
+    > 318 |       console.error('LocationService: Failed to start background tracking:', error);
+          |               ^
+      319 |       return false;
+      320 |     }
+      321 |   }
+
+      at LocationService.error (src/services/locationService.ts:318:15)
+          at Generator.throw (<anonymous>)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:20:9)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.error
+    LocationService: Failed to stop tracking: Error: controlled removal failure
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:2053:44)
+        at /private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:397:39
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:404:13)
+        at Object.mockConstructor [as remove] (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:148:19)
+        at LocationService.remove (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:329:22)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at LocationService.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at LocationService.apply [as stopTracking] (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:326:21)
+        at Object.stopTracking (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:2057:29)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      333 |         // handle and tracking flags so callers see the truthful active state
+      334 |         // and a later stop can retry.
+    > 335 |         console.error('LocationService: Failed to stop tracking:', error);
+          |                 ^
+      336 |         return;
+      337 |       }
+      338 |     }
+
+      at LocationService.error (src/services/locationService.ts:335:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at LocationService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at LocationService.apply [as stopTracking] (src/services/locationService.ts:326:21)
+      at Object.stopTracking (src/__tests__/services/locationService.test.ts:2057:29)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.error
+    LocationService: Failed to stop tracking: Error: controlled removal failure
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:2053:44)
+        at /private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:397:39
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:404:13)
+        at Object.mockConstructor [as remove] (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-mock/build/index.js:148:19)
+        at LocationService.remove (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:329:22)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at LocationService.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at LocationService.apply [as stopTracking] (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:326:21)
+        at LocationService.stopTracking (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:701:16)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at LocationService.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at LocationService.apply [as destroy] (/private/tmp/atom-mobile-build-20261109/mobile/src/services/locationService.ts:700:16)
+        at Object.destroy (/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts:120:29)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at asyncGeneratorStep (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at _next (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+        at new Promise (<anonymous>)
+        at Object.<anonymous> (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at Promise.then.completed (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/utils.js:231:10)
+        at _callCircusHook (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:281:40)
+        at _runTest (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:254:5)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:126:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at _runTestsForDescribeBlock (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:121:9)
+        at run (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/run.js:71:3)
+        at runAndTransformResultsToJestFormat (/private/tmp/atom-mobile-build-20261109/mobile/node_modules/jest-config/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+
+      333 |         // handle and tracking flags so callers see the truthful active state
+      334 |         // and a later stop can retry.
+    > 335 |         console.error('LocationService: Failed to stop tracking:', error);
+          |                 ^
+      336 |         return;
+      337 |       }
+      338 |     }
+
+      at LocationService.error (src/services/locationService.ts:335:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at LocationService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at LocationService.apply [as stopTracking] (src/services/locationService.ts:326:21)
+      at LocationService.stopTracking (src/services/locationService.ts:701:16)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at LocationService.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at LocationService.apply [as destroy] (src/services/locationService.ts:700:16)
+      at Object.destroy (src/__tests__/services/locationService.test.ts:120:29)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7)
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+  console.log
+    LocationService: Permission requested, status: granted
+
+      at LocationService.log (src/services/locationService.ts:157:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Started tracking
+
+      at LocationService.log (src/services/locationService.ts:281:15)
+
+  console.log
+    LocationService: Stopped tracking
+
+      at LocationService.log (src/services/locationService.ts:347:13)
+
+FAIL src/__tests__/services/locationService.test.ts
+  LocationService
+    Permissions
+      ✓ should request foreground permissions and return granted (7 ms)
+      ✓ should handle permission denied (1 ms)
+      ✓ should handle undetermined permission status (1 ms)
+      ✓ should request foreground only when foreground=true (1 ms)
+      ✓ should request background permissions on Android
+      ✓ should get current permission status (1 ms)
+      ✓ should return denied on permission check error (14 ms)
+      ✓ should return denied on permission request error (2 ms)
+    Current Location
+      ✓ should get current location with valid coordinates (1 ms)
+      ✓ should return null when permission not granted (3 ms)
+      ✓ should return null on location error (1 ms)
+      ✓ should handle missing optional coordinate fields (1 ms)
+    Location Tracking
+      ✓ should start location tracking successfully (1 ms)
+      ✓ should not start tracking when permission denied (1 ms)
+      ✓ should not start tracking if already tracking (1 ms)
+      ✓ should stop location tracking (2 ms)
+      ✓ should handle tracking start error (1 ms)
+      ✓ should handle stop error gracefully (3 ms)
+    Distance Calculation
+      ✓ should calculate distance between two coordinates (1 ms)
+      ✓ should calculate short distances accurately
+      ✓ should handle coordinates with altitude (1 ms)
+    Geofencing
+      ✓ should check if point is within geofence
+      ✓ should detect geofence boundary (1 ms)
+      ✓ should handle geofence event subscription
+    Geocoding
+      ✓ should reverse geocode coordinates to address (1 ms)
+      ✓ should return null when reverse geocode returns empty
+      ✓ should fall back to city when street not available (1 ms)
+      ✓ should handle reverse geocode error
+      ✓ should geocode address to coordinates (1 ms)
+      ✓ should return null when geocode returns empty
+      ✓ should handle geocode error (1 ms)
+      ✓ should handle missing address components in reverse geocode (1 ms)
+      ✓ should handle partial address with only city (1 ms)
+      ✓ should handle geocode with invalid address
+    State Management
+      ✓ should get last known location (1 ms)
+      ✓ should return null when no last known location
+      ✓ should report tracking status correctly (2 ms)
+    Cleanup
+      ✓ should cleanup and stop tracking on destroy (1 ms)
+      ✓ should clear geofence listeners on destroy
+    Location History
+      ✓ should add location to history (1 ms)
+      ✓ should get location history (1 ms)
+      ✓ should get location history with limit (1 ms)
+      ✓ should clear location history (1 ms)
+      ✓ should return empty array when no history exists
+      ✓ should limit history to MAX_HISTORY_ENTRIES (2 ms)
+    Settings Deep Link
+      ✓ should open settings on iOS (1 ms)
+      ✓ should send intent on Android
+    Geofence Events
+      ✓ should subscribe to enter events (1 ms)
+      ✓ should subscribe to exit events (1 ms)
+      ✓ should unsubscribe removes callback (1 ms)
+      ✓ should notify multiple geofence listeners
+      ✓ should include correct data in geofence notification (1 ms)
+    Platform-Specific Behavior
+      ✓ should request background permission on Android (1 ms)
+      ✓ should not request background permission on iOS
+    Battery Usage
+      ✓ should return low when not tracking (1 ms)
+      ✓ should return high for background tracking
+      ✓ should return medium for high accuracy (1 ms)
+      ✓ should return high for best accuracy (1 ms)
+      ✓ should return high for navigation accuracy (1 ms)
+      ✓ should return low for balanced accuracy (1 ms)
+      ✓ should return low for low accuracy (1 ms)
+    Background Tracking
+      ✓ should request background permission on Android (1 ms)
+      ✓ should fail when background permission denied (1 ms)
+      ✓ should work on iOS with foreground permission
+      ✓ should clear background tracking state on stop (1 ms)
+      ✓ should clear updateTimer on stop (1 ms)
+    Watch Position Callback
+      ✓ should process location updates from the watch callback (1 ms)
+      ✓ should throttle rapid updates and process them after the throttle window (1 ms)
+      ✓ should stop tracking clear a pending throttled update timer (1 ms)
+    Extended Error Paths
+      ✓ should not throw when initialize fails
+      ✓ should read status (not request) when foreground=false (1 ms)
+      ✓ should query background permission status on Android
+      ✓ should not throw when opening settings fails (2 ms)
+      ✓ should refuse background tracking without foreground permission (1 ms)
+      ✓ should return false when background tracking setup throws (1 ms)
+    Geofence Management
+      ✓ should add, list, and remove geofences (1 ms)
+      ✓ should isolate a throwing geofence listener from other listeners
+    History Limits and Storage Failures
+      ✓ should bound history at MAX_HISTORY_ENTRIES when adding entries (3 ms)
+      ✓ should not throw when saving location history fails
+      ✓ should not throw when loading location history fails (1 ms)
+      ✓ should not throw when saving geofences fails (1 ms)
+      ✓ should not throw when loading geofences fails (1 ms)
+    Mock Location
+      ✓ should set a mock location and record it in history (1 ms)
+    Error-Path Coverage
+      ✓ should return false when background permission request throws (1 ms)
+      ✓ should return Unknown location when all address parts are missing (1 ms)
+      ✓ should stop tracking gracefully when no subscription is active
+      ✓ should not throw when destroy runs with no active tracking (1 ms)
+    installed subscription contract
+      ✓ removes the returned subscription once across repeated stops (1 ms)
+      ✓ does not claim inactive when subscription removal fails (2 ms)
+    pending tracking ownership
+      ✕ stop invalidates a start that has not received its subscription (1 ms)
+      ✕ concurrent starts share one pending subscription (1 ms)
+
+  ● LocationService › pending tracking ownership › stop invalidates a start that has not received its subscription
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      2073 |       await locationService.stopTracking();
+      2074 |       resolveWatch!({ remove });
+    > 2075 |       expect(await starting).toBe(false);
+           |                              ^
+      2076 |       expect(remove).toHaveBeenCalledTimes(1);
+      2077 |       expect(locationService.isActive()).toBe(false);
+      2078 |     });
+
+      at Object.toBe (src/__tests__/services/locationService.test.ts:2075:30)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● LocationService › pending tracking ownership › concurrent starts share one pending subscription
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 1
+    Received number of calls: 2
+
+      2091 |       expect(await first).toBe(true);
+      2092 |       expect(await second).toBe(true);
+    > 2093 |       expect(Location.watchPositionAsync).toHaveBeenCalledTimes(1);
+           |                                           ^
+      2094 |       await locationService.stopTracking();
+      2095 |       expect(remove).toHaveBeenCalledTimes(1);
+      2096 |     });
+
+      at Object.toHaveBeenCalledTimes (src/__tests__/services/locationService.test.ts:2093:43)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 89 passed, 91 total
+Snapshots:   0 total
+Time:        0.72 s, estimated 1 s
+Ran all test suites matching /src\/__tests__\/services\/locationService.test.ts/i.
+Test results written to: ../../root-mobile-build-20261109/location-pending-start-ownership-negative-results.json

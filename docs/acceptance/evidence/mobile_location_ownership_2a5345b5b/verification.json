@@ -1,0 +1,29 @@
+{
+  "service": {
+    "passed": 96,
+    "failed": 0
+  },
+  "combined": {
+    "files": 34,
+    "passed": 1314,
+    "failed": 0,
+    "pending": 2,
+    "pending_names": [
+      "testUtils skipOnPlatform / onlyOnPlatform Skipped on ios",
+      "testUtils skipOnPlatform / onlyOnPlatform Only on android"
+    ],
+    "raw_driver_verification_pass": false,
+    "raw_jest_exit": 0
+  },
+  "full_strict_compiler": {
+    "exit": 2,
+    "diagnostics": 354,
+    "build_qualified": false
+  },
+  "capture_bindings": {
+    "captures": 8,
+    "source_checks": 2016,
+    "mismatches": 0
+  },
+  "native_device_or_permissions_exercised": false
+}

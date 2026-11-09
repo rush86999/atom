@@ -1,0 +1,18 @@
+{
+  "actual_exit": 0,
+  "started": 1794200442.598432,
+  "finished": 1794200445.474901,
+  "selected_kind": "locationservice",
+  "verification_pass": true,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/locationService.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 96,
+    "numPassedTests": 96,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

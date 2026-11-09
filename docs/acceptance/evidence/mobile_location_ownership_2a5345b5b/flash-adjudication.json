@@ -1,0 +1,12 @@
+{
+  "configured_model": "opencode-go/deepseek-v4.1-flash",
+  "private_worker_tool_events": 0,
+  "accepted": "shared pending promise, monotonic generation, callbacks and background completion bound to generation",
+  "rejected_claim": "model said failed remove retains handle but stale-disposal catch discarded it",
+  "native_candidate": "fd7b69e24: 93/94, failed disposal retained as negative",
+  "root_repairs": [
+    "retryable stale subscription set without overwriting a newer active handle",
+    "Android permission-await intent fence"
+  ],
+  "raw_model_test_claims_are_not_acceptance": true
+}

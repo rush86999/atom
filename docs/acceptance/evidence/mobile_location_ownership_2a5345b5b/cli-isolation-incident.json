@@ -1,0 +1,12 @@
+{
+  "old_actual_exit": 130,
+  "old_tool_kinds": [
+    "read",
+    "shell"
+  ],
+  "old_tool_calls": 13,
+  "edit_write_tools_observed": false,
+  "root_cause": "shared background server did not use launcher workspace deny-all policy",
+  "correction": "--standalone run --agent build; private effective configuration inspected; replacement actual tool events zero",
+  "raw_stopped_trace_not_published": "contains unrelated primary worktree inspection; retained privately"
+}
