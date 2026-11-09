@@ -1,3 +1,4 @@
+import { authFetch } from "@/lib/auth-headers";
 import React, { useState, useEffect, useCallback } from "react";
 import TaskManagement, { Task, Project } from "./shared/TaskManagement";
 import { useToast } from "@/components/ui/use-toast";
@@ -11,8 +12,8 @@ const TaskManagementWrapper: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       const [tasksRes, projectsRes] = await Promise.all([
-        fetch("/api/v1/tasks"),
-        fetch("/api/v1/projects")
+        authFetch("/api/v1/tasks"),
+        authFetch("/api/v1/projects")
       ]);
 
       if (tasksRes.ok && projectsRes.ok) {
@@ -61,7 +62,7 @@ const TaskManagementWrapper: React.FC = () => {
 
   const handleCreateTask = async (task: Task) => {
     try {
-      const response = await fetch("/api/v1/tasks", {
+      const response = await authFetch("/api/v1/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(task),
@@ -96,7 +97,7 @@ const TaskManagementWrapper: React.FC = () => {
 
   const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      const response = await fetch(`/api/v1/tasks/${taskId}`, {
+      const response = await authFetch(`/api/v1/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
@@ -123,7 +124,7 @@ const TaskManagementWrapper: React.FC = () => {
 
   const handleDeleteTask = async (taskId: string) => {
     try {
-      const response = await fetch(`/api/v1/tasks/${taskId}`, {
+      const response = await authFetch(`/api/v1/tasks/${taskId}`, {
         method: "DELETE",
       });
 
@@ -145,7 +146,7 @@ const TaskManagementWrapper: React.FC = () => {
 
   const handleCreateProject = async (project: Project) => {
     try {
-      const response = await fetch("/api/v1/projects", {
+      const response = await authFetch("/api/v1/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(project),
@@ -167,7 +168,7 @@ const TaskManagementWrapper: React.FC = () => {
 
   const handleUpdateProject = async (projectId: string, updates: Partial<Project>) => {
     try {
-      const response = await fetch(`/api/v1/projects/${projectId}`, {
+      const response = await authFetch(`/api/v1/projects/${projectId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
