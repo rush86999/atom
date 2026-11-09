@@ -28,6 +28,16 @@ import React from 'react';
 // Platform.OS Mocking
 // ============================================================================
 
+type PlatformSelectSpec<T> = {
+  ios?: T;
+  android?: T;
+  macos?: T;
+  windows?: T;
+  web?: T;
+  native?: T;
+  default?: T;
+};
+
 let originalOS: string = '';
 let platformSpies: jest.SpyInstance[] = [];
 
@@ -54,10 +64,20 @@ export const mockPlatform = (platform: 'ios' | 'android'): void => {
     configurable: true,
   });
 
-  // Mock Platform.select to return platform-specific value
-  const selectSpy = jest.spyOn(Platform, 'select').mockImplementation((spec) => {
-    return spec[platform] ?? spec.ios ?? spec.android ?? spec.default ?? spec.native;
-  });
+  // Match React Native's installed select contract: the selected platform
+  // key wins by presence (0, false, and explicit undefined included), then
+  // native, then default. Another platform's key is never borrowed.
+  const selectSpy = jest.spyOn(Platform, 'select').mockImplementation(
+    (spec: PlatformSelectSpec<unknown>) => {
+      if (platform in spec) {
+        return spec[platform];
+      }
+      if ('native' in spec) {
+        return spec.native;
+      }
+      return spec.default;
+    }
+  );
 
   platformSpies.push(selectSpy);
 };
@@ -500,10 +520,10 @@ export const createMockWebSocket = (connected = true) => {
  * const mockFn = createMockFn((x) => x * 2);
  * expect(mockFn(5)).toBe(10);
  */
-export const createMockFn = <T extends (...args: unknown[]) => unknown>(
-  implementation: T
-): jest.MockedFunction<T> => {
-  return jest.fn(implementation) as jest.MockedFunction<T>;
+export const createMockFn = <TArgs extends unknown[], TReturn>(
+  implementation: (...args: TArgs) => TReturn
+): jest.Mock<TReturn, TArgs> => {
+  return jest.fn<TReturn, TArgs>(implementation);
 };
 
 /**
@@ -517,10 +537,10 @@ export const createMockFn = <T extends (...args: unknown[]) => unknown>(
  * });
  * const result = await mockAsyncFn(1);
  */
-export const createMockAsyncFn = <T extends (...args: unknown[]) => Promise<unknown>>(
-  implementation: T
-): jest.MockedFunction<T> => {
-  return jest.fn(implementation) as jest.MockedFunction<T>;
+export const createMockAsyncFn = <TArgs extends unknown[], TReturn>(
+  implementation: (...args: TArgs) => Promise<TReturn>
+): jest.Mock<Promise<TReturn>, TArgs> => {
+  return jest.fn<Promise<TReturn>, TArgs>(implementation);
 };
 
 // ============================================================================

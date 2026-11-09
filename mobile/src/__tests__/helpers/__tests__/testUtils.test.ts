@@ -235,7 +235,7 @@ describe('testUtils', () => {
       const platforms: Array<'ios' | 'android'> = [];
 
       await testEachPlatform(async (platform) => {
-        platforms.push(Platform.OS);
+        platforms.push(platform);
       });
 
       expect(platforms).toEqual(['ios', 'android']);
@@ -352,14 +352,68 @@ describe('testUtils', () => {
     it('should walk the fallback chain when the platform key is absent', () => {
       mockPlatform('ios');
 
-      // spec[platform] missing, then spec.ios missing -> spec.android
-      expect(Platform.select({ android: 'Android Value' })).toBe('Android Value');
-      // spec.android missing -> spec.default
+      // spec.ios missing -> spec.native
+      expect(Platform.select({ native: 'Native Value' })).toBe('Native Value');
+      // spec.ios and spec.native missing -> spec.default
       expect(Platform.select({ default: 'Default Value' })).toBe('Default Value');
       // everything missing -> undefined
       expect(Platform.select({})).toBeUndefined();
-      // spec.native reached when spec.default missing
-      expect(Platform.select({ native: 'Native Value' })).toBe('Native Value');
+      // another platform's key is never borrowed in place of native/default
+      expect(Platform.select({ android: 'Android Value' })).toBeUndefined();
+    });
+  });
+
+  // ========================================================================
+  // SDK Contract Regressions
+  // ========================================================================
+
+  describe('SDK contract regressions', () => {
+    describe('Platform.select', () => {
+      afterEach(() => {
+        restorePlatform();
+      });
+
+      it('uses platform presence, then native, then default', () => {
+        mockPlatform('ios');
+
+        expect(Platform.select({ ios: 0, native: 1, default: 2 })).toBe(0);
+        expect(Platform.select({ ios: false, native: true, default: true })).toBe(false);
+        expect(
+          Platform.select({ ios: undefined, native: 'native', default: 'default' })
+        ).toBeUndefined();
+        expect(Platform.select({ native: 'native', default: 'default' })).toBe('native');
+        expect(Platform.select({ default: 'default' })).toBe('default');
+      });
+
+      it('never borrows another platform key', () => {
+        mockPlatform('ios');
+
+        expect(Platform.select({ android: 'android-only' })).toBeUndefined();
+      });
+    });
+
+    describe('mock helper types', () => {
+      it('createMockFn preserves argument tuples and mock.calls', () => {
+        const mockFn = createMockFn((id: number, label: string) => `${label}:${id}`);
+
+        expect(mockFn(2, 'item')).toBe('item:2');
+        expect(mockFn.mock.calls).toEqual([[2, 'item']]);
+
+        mockFn.mockReturnValue('overridden');
+        expect(mockFn(3, 'item')).toBe('overridden');
+      });
+
+      it('createMockAsyncFn preserves async tuples and mockResolvedValue', async () => {
+        const mockAsyncFn = createMockAsyncFn(
+          async (id: number): Promise<{ id: number; name: string }> => ({ id, name: 'Test' })
+        );
+
+        await expect(mockAsyncFn(1)).resolves.toEqual({ id: 1, name: 'Test' });
+        expect(mockAsyncFn.mock.calls).toEqual([[1]]);
+
+        mockAsyncFn.mockResolvedValue({ id: 7, name: 'Mocked' });
+        await expect(mockAsyncFn(7)).resolves.toEqual({ id: 7, name: 'Mocked' });
+      });
     });
   });
 
