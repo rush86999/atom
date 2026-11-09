@@ -1,0 +1,18 @@
+{
+  "actual_exit": 1,
+  "started": 1794198881.418313,
+  "finished": 1794198883.454206,
+  "selected_kind": "platformcontract",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/helpers/__tests__/platformSelection.contract.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 10,
+    "numPassedTests": 4,
+    "numFailedTests": 6,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

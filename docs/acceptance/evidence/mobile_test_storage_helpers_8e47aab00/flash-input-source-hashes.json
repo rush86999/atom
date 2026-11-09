@@ -1,0 +1,5 @@
+{
+  "mobile/src/test-utils/mockStorage.ts": "9a6c75128f3fc723ed0fdb5b6d256bc4bec35226b795d4354ce82f3df91c7c09",
+  "mobile/src/__tests__/helpers/storageTestHelpers.ts": "66656a8908b032ee98188eb1a175e0aa2292ac67ea154391b3910971e2711a3b",
+  "mobile/src/__tests__/helpers/testUtils.ts": "4c03a5f4bab04fc4d2fbb6d2a828c2561ba9223fa75ddfc953696090781374da"
+}

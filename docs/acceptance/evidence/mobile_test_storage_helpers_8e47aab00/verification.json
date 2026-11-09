@@ -1,0 +1,28 @@
+{
+  "byte_matched_runtime_source": "8e47aab00dd0b8602b2c91ff8c2737690bf3e73b",
+  "baseline": {
+    "passed": 60,
+    "failed": 37,
+    "pending": 2
+  },
+  "helper": {
+    "passed": 100,
+    "failed": 0,
+    "intentional_registration_pending": 2
+  },
+  "combined": {
+    "passed": 1065,
+    "failed": 0,
+    "intentional_registration_pending": 2,
+    "actual_files": 28
+  },
+  "pending_names_unchanged": [
+    "testUtils skipOnPlatform / onlyOnPlatform Only on android",
+    "testUtils skipOnPlatform / onlyOnPlatform Skipped on ios"
+  ],
+  "strict_driver_verification_pass": false,
+  "strict_driver_reason": "The generic driver requires zero pending tests; it was not weakened. These two pre-existing registrations deliberately exercise skipOnPlatform/onlyOnPlatform. No claim that their callback bodies ran.",
+  "full_typecheck_diagnostics": 374,
+  "full_typecheck_exit": 2,
+  "scope": "Test helper contracts only; no native/app/backend qualification"
+}

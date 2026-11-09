@@ -1,0 +1,52 @@
+{
+  "changes": [
+    {
+      "path": "mobile/src/__tests__/helpers/storageTestHelpers.ts",
+      "old": "import * as SecureStore from 'expo-secure-store';\nimport AsyncStorage from '@react-native-async-storage/async-storage';",
+      "new": "import * as SecureStore from 'expo-secure-store';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\nimport '../../test-utils/storageTestGlobals';"
+    },
+    {
+      "path": "mobile/src/__tests__/helpers/storageTestHelpers.ts",
+      "old": "  const mocks = {\n    atom_access_token: tokens.atom_access_token || null,\n    atom_refresh_token: tokens.atom_refresh_token || null,\n    atom_token_expiry: tokens.atom_token_expiry || null,\n    atom_biometric_enabled: tokens.atom_biometric_enabled || null,\n  };",
+      "new": "  const mocks: Record<string, string | null> = {\n    atom_access_token: tokens.atom_access_token || null,\n    atom_refresh_token: tokens.atom_refresh_token || null,\n    atom_token_expiry: tokens.atom_token_expiry || null,\n    atom_biometric_enabled: tokens.atom_biometric_enabled || null,\n  };"
+    },
+    {
+      "path": "mobile/src/__tests__/helpers/storageTestHelpers.ts",
+      "old": "  // Clear existing data\n  mmkvInstance.removeAll();",
+      "new": "  // Clear existing data\n  mmkvInstance.clearAll();"
+    },
+    {
+      "path": "mobile/src/__tests__/helpers/storageTestHelpers.ts",
+      "old": "  // Clear MMKV\n  const mmkvInstance = global.__mmkvGlobalInstance;\n  if (mmkvInstance) {\n    mmkvInstance.removeAll();\n  }",
+      "new": "  // Clear MMKV\n  const mmkvInstance = global.__mmkvGlobalInstance;\n  if (mmkvInstance) {\n    mmkvInstance.clearAll();\n  }"
+    },
+    {
+      "path": "mobile/src/__tests__/helpers/testUtils.ts",
+      "old": "import { Platform } from 'react-native';",
+      "new": "import { Platform } from 'react-native';\nimport '../../test-utils/storageTestGlobals';"
+    },
+    {
+      "path": "mobile/src/test-utils/mockStorage.ts",
+      "old": " * - Inspect storage state\n */\n\n// ============================================================================\n// AsyncStorage Helpers",
+      "new": " * - Inspect storage state\n */\n\nimport './storageTestGlobals';\n\n// ============================================================================\n// AsyncStorage Helpers"
+    },
+    {
+      "path": "mobile/src/test-utils/mockStorage.ts",
+      "old": "  const pairs = await AsyncStorage.multiGet(keys);\n\n  const result: Record<string, any> = {};\n  pairs.forEach(([key, value]) => {",
+      "new": "  const pairs = await AsyncStorage.multiGet(keys);\n\n  const result: Record<string, any> = {};\n  pairs.forEach(([key, value]: [string, string | null]) => {"
+    },
+    {
+      "path": "mobile/src/test-utils/mockStorage.ts",
+      "old": "  // Fallback for environments without the jest.setup instance\n  const mockStorage = global.__mmkvStorage || new Map();\n  Object.entries(data).forEach(([key, value]) => {\n    mockStorage.set(key, value);\n  });",
+      "new": "  // Fallback for environments without the jest.setup instance\n  const mockStorage = new Map<string, any>();\n  Object.entries(data).forEach(([key, value]) => {\n    mockStorage.set(key, value);\n  });"
+    }
+  ],
+  "new_files": [
+    {
+      "path": "mobile/src/test-utils/storageTestGlobals.ts",
+      "content": "/**\n * Ambient types for the in-house storage globals installed by jest.setup.js.\n *\n * Import this module from test helpers that read those globals so TypeScript\n * sees the exact shape the setup file creates.\n */\n\nexport interface MockMmkvInstance {\n  set(key: string, value: unknown): void;\n  getString(key: string): string | undefined;\n  getNumber(key: string): number | undefined;\n  getBoolean(key: string): boolean | undefined;\n  remove(key: string): boolean;\n  contains(key: string): boolean;\n  getAllKeys(): string[];\n  clearAll(): void;\n  readonly size: number;\n}\n\ndeclare global {\n  var __mmkvGlobalInstance: MockMmkvInstance | undefined;\n  var __resetMmkvMock: (() => void) | undefined;\n  var __resetAsyncStorageMock: (() => void) | undefined;\n  var __resetSecureStoreMock: (() => void) | undefined;\n}\n"
+    }
+  ],
+  "reason": "Declares the storage globals that jest.setup.js actually installs (the MMKV instance with clearAll/remove/size and the callable reset helpers) in a single importable module, then imports it from the three helper consumers so globalThis is typed without any/unknown access. Fixes the SecureStore mock index typing and the AsyncStorage multiGet callback parameter typing, replaces the two helper removeAll calls with the real clearAll method, and removes the dead global.__mmkvStorage fallback reference because the setup owner does not create that global.",
+  "tests": "Run the mobile TypeScript check (tsc --noEmit) and verify the listed TS7017/TS7053/TS7031 errors in these files are gone, then run the storage helper Jest suites to confirm reset, seed, scoped storage, and MMKV clearAll behavior are unchanged."
+}

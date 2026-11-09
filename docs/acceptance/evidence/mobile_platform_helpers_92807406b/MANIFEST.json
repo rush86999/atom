@@ -1,0 +1,34 @@
+{
+  "executed_source": "92807406b986f4117042d0600c833a8a85ae34af",
+  "source_files": {
+    "mobile/src/__tests__/helpers/testUtils.ts": "f595ff5c9860b553b7abd18f40ed46b2d59bbc2c37572753cd3d17b26bcfddad",
+    "mobile/src/__tests__/helpers/__tests__/testUtils.test.ts": "27bcc2323ea5feafe8127c20ac5df894dd256c60905239914a45cc6def433194",
+    "mobile/src/__tests__/helpers/__tests__/platformSelection.contract.test.ts": "15fa0d5773a6b462601147bb489a218a4328b89f5aa089f23c10d34ea07ee585",
+    "mobile/tsconfig.json": "d92c2d5c519a5fc6fc2980d9ec9c05dcda8842698229462daca0689ef12147cc",
+    "mobile/jest.config.js": "3283ce8cefd68604a3f6aac4006e5ed40a0ab218b0763161b269a1cf1aed8577"
+  },
+  "artifacts": {
+    "platform-selection-sdk-contract-negative.log": "4a7b3810491db5dbdc108746c389f13f44171bc17b8edae6e25715322ed72dbc",
+    "platform-helper-reviewed-regression.spec.json": "e0166789c073f27f27d3874b4ebbd72141e74b02444e8856e97543a14c23b8aa",
+    "platform-helper-reviewed-regression.exit.json": "33620c52ca135240e61a218278b8ce199f3d71a03d3ada236b4f5b00ef044a8f",
+    "platform-selection-sdk-contract-negative.spec.json": "20aa342725b0a0393469516ad68d372c894cfe99c19f60a67df38e47bc9c4d5f",
+    "platform-selection-sdk-contract-negative.exit.json": "0ab4e44c7248e5c70a4adf51998e6076c9d859247d5ac47ca266b863a4f660b4",
+    "platform-helper-reviewed-regression-results.json": "26f5c656dfdd65eb217d4f5b9e25d15f4701c17979084d33a6f7c4dbb5c312d7",
+    "platform-helper-reviewed-typecheck.log": "a7abedc352e49a27bc86930ad65c36e7cf987d39e75d178eb3bd146de18024ba",
+    "platform-selection-reviewed-result-results.json": "ad3291cd5e2304fceaef6a092eaed7dbd79146e442639774d8fbabf068bacb8b",
+    "platform-selection-reviewed-result.spec.json": "bee1a92dad84b21c8b0f9bfdcf0e3464eaf856e8214138e3f0b58075299049cd",
+    "README.md": "e6942d6f4c29b1ae9d411458368e9c90314d5a559257832636d5cca962c2775a",
+    "flash-proposal.json": "4bc04bd8e11d860767639f4e027c08c4575f8f543c9b6c0e731b1b5f7652dbf4",
+    "platform-selection-reviewed-result.exit.json": "80bc53130c5e879108914916a80c368e2c5d8df2bd686ea9d545eedeb28d69bf",
+    "platform-helper-integrated-result-results.json": "ae0aee12638d9b8a3a98d4512fb0ab3eb24953065a1cfa065571e7a73e251f25",
+    "platform-helper-integrated-result.exit.json": "d75b5103c7437f0fe79d76e770e43c9378ba12a0a27ed382d0b097381cd54bbf",
+    "platform-helper-reviewed-typecheck.spec.json": "ecf44fdd6ee3c8fb2b0dc31473a70d42142e6d96b1d3256e944ba41d76afc4c7",
+    "platform-helper-reviewed-typecheck.exit.json": "4344af3fa0fc620fb7d6797145977970edf15da120e407beda47d75fa18f59d2",
+    "platform-helper-integrated-result.spec.json": "543ddcd72c5367d612c535a5b0c09280c5b57ee8e5593faf325bc8729b25ea50",
+    "platform-helper-integrated-result.log": "934025a4c57bfe6629250cb22cc31b6be06b056b7a7c7fa84621ebbcb8f0ecad",
+    "platform-selection-reviewed-result.log": "746e09d461988d18bd59d2e616c4866d29e62032839beabbd1ee5194d716a82a",
+    "flash-exit.json": "007a140be2ef17642a00a9fbf14d4928f4783bce93c60460821487546a020ff2",
+    "platform-selection-sdk-contract-negative-results.json": "0bb131aa68919cc4cf31e7567263c087c5935ab9fba727171bfe49ba822db1c1",
+    "platform-helper-reviewed-regression.log": "a70de8c00262b3fcde0dc7b67a4b8496d8693ef5f4d9d48b23470d9789ef6e8d"
+  }
+}

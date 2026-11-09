@@ -1,0 +1,17 @@
+{
+  "actual_exit": 0,
+  "accepted_replacement_count": 7,
+  "rejected": [
+    {
+      "path": "mobile/src/test-utils/mockStorage.ts",
+      "reason": "Drops explicitly supplied fallback fixture; current tests prove owner exists outside default setup."
+    }
+  ],
+  "root_changes": [
+    "Installed SDK MMKV Pick replaces handwritten unknown-valued interface",
+    "Declare explicit fallback fixture ownership, retain supported fallback map",
+    "Use readonly AsyncStorage pair type"
+  ],
+  "baseline": "99cases60pass37fail2intentionalregistrationpending",
+  "not_applied_to_production": true
+}

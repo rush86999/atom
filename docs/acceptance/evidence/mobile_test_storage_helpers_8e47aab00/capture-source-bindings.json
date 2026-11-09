@@ -1,0 +1,32 @@
+[
+  {
+    "capture": "storage-helper-existing-baseline",
+    "source": "2abf3c689e8e36716b72eea7843a0c245e5aec5a",
+    "source_count": 250,
+    "mismatches": []
+  },
+  {
+    "capture": "storage-helper-value-and-orphan-negative",
+    "source": "3da2cede8c0e8f7f12181c144873f90091755df0",
+    "source_count": 251,
+    "mismatches": []
+  },
+  {
+    "capture": "storage-helper-preserved-values-result",
+    "source": "8e47aab00dd0b8602b2c91ff8c2737690bf3e73b",
+    "source_count": 251,
+    "mismatches": []
+  },
+  {
+    "capture": "mobile-reviewed-helper-core-regression",
+    "source": "8e47aab00dd0b8602b2c91ff8c2737690bf3e73b",
+    "source_count": 251,
+    "mismatches": []
+  },
+  {
+    "capture": "mobile-reviewed-helper-full-typecheck",
+    "source": "8e47aab00dd0b8602b2c91ff8c2737690bf3e73b",
+    "source_count": 251,
+    "mismatches": []
+  }
+]

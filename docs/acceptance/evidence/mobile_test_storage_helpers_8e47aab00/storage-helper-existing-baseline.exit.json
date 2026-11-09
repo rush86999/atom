@@ -1,0 +1,20 @@
+{
+  "actual_exit": 1,
+  "started": 1794197800.148496,
+  "finished": 1794197802.70387,
+  "selected_kind": "storagehelpers",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/helpers/__tests__/storageTestHelpers.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/helpers/__tests__/testUtils.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/test-utils/__tests__/mockStorage.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 99,
+    "numPassedTests": 60,
+    "numFailedTests": 37,
+    "numPendingTests": 2
+  },
+  "scope": "full selected file set"
+}

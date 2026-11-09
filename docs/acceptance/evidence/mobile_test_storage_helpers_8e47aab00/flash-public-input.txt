@@ -1,0 +1,673 @@
+FINITE CODE PROPOSAL, public source only; tools disabled. Produce ONLY a JSON object {"changes":[{"path":"...","old":"exact existing substring","new":"replacement"}],"new_files":[{"path":"...","content":"..."}],"reason":"...","tests":"..."}. No markdown fences. You are the implementation worker; root applies after review and runs tests. Source2abf3c689. Fix the exact typed contract of the existing in-house test storage globals and the helper consumers shown below. Globals actually exist in jest.setup.js; declare their real in-house types in mobile/src/test-utils/storageTestGlobals.ts and import that module in these three helpers. This is not permission to fake an SDK module or hide errors. Only these four paths allowed. Preserve existing test APIs and behavior, false/zero values, missing-value semantics, callable mock resets and real scoped storage. InstalledMMKV4 usesclearAll/remove/size/createMMKV; removeAll isNOT real andMUSTNOT be added as alias. Fix existinghelper removeAll calls to clearAll. Do not add any casts or asunknownas/assertion/suppression, moduleSDKshims, testdeletions, configchanges, deps or production changes. Do not blindly annotate properties that the actualowner doesnotcreate. No new stores/auth/router. You may leave out-of-scope testUtils errors forlater. Return small exact replacement blocks, no fullcopies of unchanged files.
+
+RELEVANT DIAGNOSTICS
+src/__tests__/helpers/storageTestHelpers.ts(81,28): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ atom_access_token: string | null; atom_refresh_token: string | null; atom_token_expiry: string | null; atom_biometric_enabled: string | null; }'.
+src/__tests__/helpers/storageTestHelpers.ts(133,31): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(179,31): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(202,31): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(208,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(209,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(211,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(212,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(214,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(215,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(58,63): error TS2339: Property 'default' does not exist on type '{ ios?: unknown; android?: unknown; windows?: unknown; macos?: unknown; web?: unknown; native?: unknown; }'.
+src/__tests__/helpers/testUtils.ts(335,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(336,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(338,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(339,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(341,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(342,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(505,10): error TS2352: Conversion of type 'Mock<unknown, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' to type 'MockedFunction<T>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/__tests__/helpers/testUtils.ts(522,10): error TS2352: Conversion of type 'Mock<Promise<unknown>, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' to type 'MockedFunction<T>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/test-utils/mockStorage.ts(23,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(24,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(48,19): error TS7031: Binding element 'key' implicitly has an 'any' type.
+src/test-utils/mockStorage.ts(48,24): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/test-utils/mockStorage.ts(77,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(78,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(89,27): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(98,30): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(112,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(113,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+FILE mobile/src/test-utils/mockStorage.ts SHA256 9a6c75128f3fc723ed0fdb5b6d256bc4bec35226b795d4354ce82f3df91c7c09
+
+LINES 1-229
+/**
+ * Mock Storage Utilities for Atom Mobile Tests
+ *
+ * This file provides helper functions for managing mocked storage
+ * (AsyncStorage, MMKV, SecureStore) during tests.
+ *
+ * Features:
+ * - Reset AsyncStorage to clean state
+ * - Reset MMKV to clean state
+ * - Reset SecureStore to clean state
+ * - Seed storage with test data
+ * - Inspect storage state
+ */
+
+// ============================================================================
+// AsyncStorage Helpers
+// ============================================================================
+
+/**
+ * Reset AsyncStorage mock to clean state
+ */
+export function resetAsyncStorage() {
+  if (global.__resetAsyncStorageMock) {
+    global.__resetAsyncStorageMock();
+  }
+}
+
+/**
+ * Seed AsyncStorage with test data
+ */
+export function seedAsyncStorage(data: Record<string, any>) {
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+
+  Object.entries(data).forEach(([key, value]) => {
+    AsyncStorage.setItem(key, JSON.stringify(value));
+  });
+}
+
+/**
+ * Get all items from AsyncStorage
+ */
+export async function getAllAsyncStorageItems(): Promise<Record<string, any>> {
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+  const keys = await AsyncStorage.getAllKeys();
+  const pairs = await AsyncStorage.multiGet(keys);
+
+  const result: Record<string, any> = {};
+  pairs.forEach(([key, value]) => {
+    if (value) {
+      try {
+        result[key] = JSON.parse(value);
+      } catch {
+        result[key] = value;
+      }
+    }
+  });
+
+  return result;
+}
+
+/**
+ * Clear AsyncStorage
+ */
+export async function clearAsyncStorage() {
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+  await AsyncStorage.clear();
+}
+
+// ============================================================================
+// MMKV Helpers
+// ============================================================================
+
+/**
+ * Reset MMKV mock to clean state
+ */
+export function resetMmkvStorage() {
+  if (global.__resetMmkvMock) {
+    global.__resetMmkvMock();
+  }
+}
+
+/**
+ * Seed MMKV with test data
+ */
+export function seedMmkvStorage(data: Record<string, any>) {
+  // The global instance installed by jest.setup.js is the store services
+  // actually read from — write through to it (previous code seeded a
+  // throwaway `__mmkvStorage` map that nothing ever read).
+  const instance = global.__mmkvGlobalInstance;
+  if (instance) {
+    Object.entries(data).forEach(([key, value]) => {
+      instance.set(key, value);
+    });
+    return;
+  }
+
+  // Fallback for environments without the jest.setup instance
+  const mockStorage = global.__mmkvStorage || new Map();
+  Object.entries(data).forEach(([key, value]) => {
+    mockStorage.set(key, value);
+  });
+}
+
+// ============================================================================
+// SecureStore Helpers
+// ============================================================================
+
+/**
+ * Reset SecureStore mock to clean state
+ */
+export function resetSecureStore() {
+  if (global.__resetSecureStoreMock) {
+    global.__resetSecureStoreMock();
+  }
+}
+
+/**
+ * Seed SecureStore with test data
+ */
+export async function seedSecureStore(data: Record<string, string>) {
+  const SecureStore = require('expo-secure-store');
+
+  await Promise.all(
+    Object.entries(data).map(([key, value]) =>
+      SecureStore.setItemAsync(key, value)
+    )
+  );
+}
+
+/**
+ * Get item from SecureStore
+ */
+export async function getSecureStoreItem(key: string): Promise<string | null> {
+  const SecureStore = require('expo-secure-store');
+  return await SecureStore.getItemAsync(key);
+}
+
+// ============================================================================
+// Combined Storage Helpers
+// ============================================================================
+
+/**
+ * Reset all storage mocks to clean state
+ */
+export function resetAllStorage() {
+  resetAsyncStorage();
+  resetMmkvStorage();
+  resetSecureStore();
+}
+
+/**
+ * Seed all storage with test data
+ */
+export async function seedAllStorage(data: {
+  asyncStorage?: Record<string, any>;
+  mmkv?: Record<string, any>;
+  secureStore?: Record<string, string>;
+}) {
+  if (data.asyncStorage) {
+    seedAsyncStorage(data.asyncStorage);
+  }
+
+  if (data.mmkv) {
+    seedMmkvStorage(data.mmkv);
+  }
+
+  if (data.secureStore) {
+    await seedSecureStore(data.secureStore);
+  }
+}
+
+/**
+ * Clear all storage
+ */
+export async function clearAllStorage() {
+  await clearAsyncStorage();
+  resetMmkvStorage();
+  resetSecureStore();
+}
+
+// ============================================================================
+// Auth Token Helpers
+// ============================================================================
+
+/**
+ * Set mock auth token in SecureStore
+ */
+export async function setMockAuthToken(token: string = 'test-auth-token') {
+  await seedSecureStore({
+    auth_token: token,
+  });
+}
+
+/**
+ * Get mock auth token from SecureStore
+ */
+export async function getMockAuthToken(): Promise<string | null> {
+  return await getSecureStoreItem('auth_token');
+}
+
+/**
+ * Clear mock auth token
+ */
+export async function clearMockAuthToken() {
+  const SecureStore = require('expo-secure-store');
+  await SecureStore.deleteItemAsync('auth_token');
+}
+
+// ============================================================================
+// Default Export
+// ============================================================================
+
+export default {
+  resetAsyncStorage,
+  seedAsyncStorage,
+  getAllAsyncStorageItems,
+  clearAsyncStorage,
+  resetMmkvStorage,
+  seedMmkvStorage,
+  resetSecureStore,
+  seedSecureStore,
+  getSecureStoreItem,
+  resetAllStorage,
+  seedAllStorage,
+  clearAllStorage,
+  setMockAuthToken,
+  getMockAuthToken,
+  clearMockAuthToken,
+};
+
+FILE mobile/src/__tests__/helpers/storageTestHelpers.ts SHA256 66656a8908b032ee98188eb1a175e0aa2292ac67ea154391b3910971e2711a3b
+
+LINES 1-218
+/**
+ * Storage Test Helper Utilities
+ *
+ * Provides helper functions for mocking storage state in tests:
+ * - SecureStore (tokens, sensitive data)
+ * - AsyncStorage (user data, device state, preferences)
+ * - MMKV (app state, cache)
+ *
+ * Usage:
+ *   import { mockSecureStoreState, setupAuthenticatedState } from './helpers/storageTestHelpers';
+ *
+ *   // Set up storage before mounting provider
+ *   await mockSecureStoreState({ access_token: 'token123' });
+ *
+ *   // Or use predefined scenarios
+ *   await setupAuthenticatedState();
+ */
+
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface SecureStoreState {
+  atom_access_token?: string;
+  atom_refresh_token?: string;
+  atom_token_expiry?: string;
+  atom_biometric_enabled?: string;
+}
+
+interface AsyncStorageState {
+  atom_user_data?: string; // JSON string
+  atom_device_id?: string;
+  atom_device_token?: string;
+  atom_device_registered?: string; // 'true' | 'false'
+  atom_device_capabilities?: string; // JSON string
+  atom_last_sync?: string; // ISO date string
+  // Room subscriptions stored as 'socket_room_{roomName}' keys
+  // Cannot use wildcard in TypeScript interface
+}
+
+interface MMKVState {
+  [key: string]: any;
+}
+
+interface AuthState {
+  access_token: string;
+  refresh_token?: string;
+  expires_at: number;
+  user: any;
+}
+
+interface DeviceState {
+  device_id: string;
+  device_token?: string;
+  is_registered: boolean;
+  capabilities: any;
+  last_sync?: Date;
+}
+
+// ============================================================================
+// Storage State Helpers
+// ============================================================================
+
+/**
+ * Mock SecureStore items (tokens, biometric settings)
+ * @param tokens - Partial secure store state to mock
+ */
+export const mockSecureStoreState = async (tokens: Partial<SecureStoreState>): Promise<void> => {
+  const mocks = {
+    atom_access_token: tokens.atom_access_token || null,
+    atom_refresh_token: tokens.atom_refresh_token || null,
+    atom_token_expiry: tokens.atom_token_expiry || null,
+    atom_biometric_enabled: tokens.atom_biometric_enabled || null,
+  };
+
+  // Mock getItemAsync to return stored values
+  (SecureStore.getItemAsync as jest.Mock).mockImplementation((key: string) => {
+    return Promise.resolve(mocks[key] || null);
+  });
+
+  // Mock setItemAsync to update internal state
+  (SecureStore.setItemAsync as jest.Mock).mockImplementation(async (key: string, value: string) => {
+    (mocks as any)[key] = value;
+    return Promise.resolve(undefined);
+  });
+
+  // Mock deleteItemAsync to remove from internal state
+  (SecureStore.deleteItemAsync as jest.Mock).mockImplementation(async (key: string) => {
+    delete (mocks as any)[key];
+    return Promise.resolve(undefined);
+  });
+};
+
+/**
+ * Mock AsyncStorage items (user data, device state, preferences)
+ * @param items - Key-value pairs to store
+ */
+export const mockAsyncStorageState = async (items: Record<string, string>): Promise<void> => {
+  const storage = { ...items };
+
+  // Mock getItem to return stored values
+  (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+    return Promise.resolve(storage[key] || null);
+  });
+
+  // Mock setItem to update internal state
+  (AsyncStorage.setItem as jest.Mock).mockImplementation(async (key: string, value: string) => {
+    storage[key] = value;
+    return Promise.resolve(undefined);
+  });
+
+  // Mock removeItem to delete from internal state
+  (AsyncStorage.removeItem as jest.Mock).mockImplementation(async (key: string) => {
+    delete storage[key];
+    return Promise.resolve(undefined);
+  });
+
+  // Mock getAllKeys to return all keys
+  (AsyncStorage.getAllKeys as jest.Mock).mockImplementation(() => {
+    return Promise.resolve(Object.keys(storage));
+  });
+};
+
+/**
+ * Mock MMKV items (app state, cache)
+ * Note: This uses the global MMKV instance from jest.setup.js
+ * @param items - Key-value pairs to store
+ */
+export const mockMMKVState = async (items: Record<string, any>): Promise<void> => {
+  const mmkvInstance = global.__mmkvGlobalInstance;
+  if (!mmkvInstance) {
+    console.warn('MMKV instance not found. Make sure jest.setup.js is loaded.');
+    return;
+  }
+
+  // Clear existing data
+  mmkvInstance.removeAll();
+
+  // Set all items
+  Object.entries(items).forEach(([key, value]) => {
+    mmkvInstance.set(key, value);
+  });
+};
+
+/**
+ * Get all currently stored state across all storage systems
+ * @returns Object with current state from all storage systems
+ */
+export const getAllStoredState = async (): Promise<{
+  secureStore: SecureStoreState;
+  asyncStorage: AsyncStorageState;
+  mmkv: MMKVState;
+}> => {
+  // Get SecureStore state
+  const secureStore: SecureStoreState = {};
+  const secureKeys = ['atom_access_token', 'atom_refresh_token', 'atom_token_expiry', 'atom_biometric_enabled'];
+  for (const key of secureKeys) {
+    const value = await SecureStore.getItemAsync(key);
+    if (value !== null) {
+      (secureStore as any)[key] = value;
+    }
+  }
+
+  // Get AsyncStorage state
+  const asyncStorage: AsyncStorageState = {};
+  const allKeys = await AsyncStorage.getAllKeys();
+  for (const key of allKeys) {
+    const value = await AsyncStorage.getItem(key);
+    if (value !== null) {
+      (asyncStorage as any)[key] = value;
+    }
+  }
+
+  // Get MMKV state
+  const mmkv: MMKVState = {};
+  const mmkvInstance = global.__mmkvGlobalInstance;
+  if (mmkvInstance) {
+    const keys = mmkvInstance.getAllKeys();
+    for (const key of keys) {
+      mmkv[key] = mmkvInstance.getString(key);
+    }
+  }
+
+  return { secureStore, asyncStorage, mmkv };
+};
+
+/**
+ * Clear all storage (SecureStore, AsyncStorage, MMKV)
+ * Useful for test cleanup or testing "fresh install" scenarios
+ */
+export const clearAllStorage = async (): Promise<void> => {
+  // Clear SecureStore mocks
+  await mockSecureStoreState({});
+
+  // Clear AsyncStorage mocks
+  await mockAsyncStorageState({});
+
+  // Clear MMKV
+  const mmkvInstance = global.__mmkvGlobalInstance;
+  if (mmkvInstance) {
+    mmkvInstance.removeAll();
+  }
+
+  // Reset global mock helpers
+  if (global.__resetSecureStoreMock) {
+    global.__resetSecureStoreMock();
+  }
+  if (global.__resetAsyncStorageMock) {
+    global.__resetAsyncStorageMock();
+  }
+  if (global.__resetMmkvMock) {
+    global.__resetMmkvMock();
+  }
+};
+
+
+FILE mobile/src/__tests__/helpers/testUtils.ts SHA256 4c03a5f4bab04fc4d2fbb6d2a828c2561ba9223fa75ddfc953696090781374da
+
+LINES 1-22
+/**
+ * Test Utilities
+ *
+ * Helper functions for React Native testing, including Platform.OS mocking,
+ * component rendering, and async utilities.
+ *
+ * Usage:
+ * ```typescript
+ * import { mockPlatform, restorePlatform, createMockTestComponent } from './testUtils';
+ * import { render } from '@testing-library/react-native';
+ *
+ * beforeEach(() => {
+ *   mockPlatform('ios');
+ * });
+ *
+ * afterEach(() => {
+ *   restorePlatform();
+ * });
+ * ```
+ */
+
+import { Platform } from 'react-native';
+
+LINES 329-346
+export const resetAllMocks = (): void => {
+  jest.clearAllMocks();
+  jest.clearAllTimers();
+  jest.useRealTimers();
+
+  // Reset Expo module mocks
+  if (global.__resetMmkvMock) {
+    global.__resetMmkvMock();
+  }
+  if (global.__resetAsyncStorageMock) {
+    global.__resetAsyncStorageMock();
+  }
+  if (global.__resetSecureStoreMock) {
+    global.__resetSecureStoreMock();
+  }
+};
+
+/**
+
+REAL OWNER JEST SETUP (not editable)
+      socketUrl: 'http://localhost:8000',
+      eas: {
+        projectId: 'test-project-id',
+      },
+    },
+  },
+  default: {
+    expoConfig: {
+      name: 'Atom',
+      slug: 'atom',
+      version: '1.0.0',
+      extra: {
+        apiUrl: 'http://localhost:8000',
+        socketUrl: 'http://localhost:8000',
+      },
+    },
+  },
+}));
+
+// ============================================================================
+// expo-device Mock
+// ============================================================================
+
+jest.mock('expo-device', () => {
+  const Device = {
+    osName: 'iOS',
+    osVersion: '16.0',
+    modelName: 'iPhone 14',
+    modelId: 'iPhone14,7',
+    brand: 'Apple',
+    manufacturerName: 'Apple',
+    platformApiLevel: 16,
+    deviceYearClass: 2022,
+    totalMemory: 6 * 1024 * 1024 * 1024, // 6GB
+    supportedCpuArchitectures: ['arm64'],
+    isDevice: true, // Add isDevice property to Device object
+  };
+
+  // Support both `import * as Device` and `import { Device }` patterns
+  return {
+    default: Device,
+    ...Device,
+    Device,
+  };
+});
+
+// ============================================================================
+// react-native-mmkv Mock (for existing tests)
+// ============================================================================
+
+// Create storage map at module level for persistence
+const mockMmkvStorage = new Map();
+
+jest.mock('react-native-mmkv', () => {
+  // Create mock instance inside the factory function
+  const createMMKVMock = () => ({
+    set: jest.fn((key, value) => {
+      mockMmkvStorage.set(key, value);
+    }),
+    getString: jest.fn((key) => {
+      const value = mockMmkvStorage.get(key);
+      return typeof value === 'string' ? value : undefined;
+    }),
+    getNumber: jest.fn((key) => {
+      const val = mockMmkvStorage.get(key);
+      return typeof val === 'number' ? val : undefined;
+    }),
+    getBoolean: jest.fn((key) => {
+      const val = mockMmkvStorage.get(key);
+      return typeof val === 'boolean' ? val : undefined;
+    }),
+    remove: jest.fn((key) => mockMmkvStorage.delete(key)),
+    contains: jest.fn((key) => {
+      return mockMmkvStorage.has(key);
+    }),
+    getAllKeys: jest.fn(() => {
+      return Array.from(mockMmkvStorage.keys());
+    }),
+    clearAll: jest.fn(() => {
+      mockMmkvStorage.clear();
+    }),
+    get size() {
+      return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
+        return acc + key.length + String(value).length;
+      }, 0);
+    },
+  });
+
+  // Create a single global MMKV instance that will be used by all tests
+  const globalMMKVInstance = createMMKVMock();
+
+  const mockModule = {
+    createMMKV: jest.fn(() => globalMMKVInstance),
+  };
+
+  // Store instance globally for reset access
+  global.__mmkvGlobalInstance = globalMMKVInstance;
+
+  return mockModule;
+});
+
+// Components also import react-native-vector-icons/Ionicons directly
+// (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
+// happens before mapping when the real module exists at the mapped path).
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+    return React.createElement(View, {
+      ...props,
+      ref,
+      testID: `icon-${name}`,
+      style: { width: size, height: size, color },
+    });
+  });
+  Icon.Font = {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return { __esModule: true, default: Icon, Ionicons: Icon };
+}, { virtual: true });
+
+// Export helper to reset mock MMKV storage for tests
+global.__resetMmkvMock = () => {
+  mockMmkvStorage.clear();
+  // Clear all mock call history
+  if (global.__mmkvGlobalInstance) {
+    global.__mmkvGlobalInstance.set.mockClear();
+    global.__mmkvGlobalInstance.getString.mockClear();
+    global.__mmkvGlobalInstance.getNumber.mockClear();
+    global.__mmkvGlobalInstance.getBoolean.mockClear();
+    global.__mmkvGlobalInstance.remove.mockClear();
+    global.__mmkvGlobalInstance.contains.mockClear();
+    global.__mmkvGlobalInstance.getAllKeys.mockClear();
+    global.__mmkvGlobalInstance.clearAll.mockClear();
+  }
+};
