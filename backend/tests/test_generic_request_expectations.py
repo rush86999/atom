@@ -160,6 +160,13 @@ def test_plain_args_generic_and_assignment_produce_the_same_verified_effect(
 # ---------------------------------------------------------------------------
 
 def test_plain_args_non_miniapp_presentation_is_verified(host, monkeypatch):
+    # Only presentation requires this authoritative row. Budget fixture
+    # consumers configure their own workspace and must not inherit a seed.
+    from core.models import Workspace
+    with host.Session() as db:
+        db.add(Workspace(id=WORKSPACE, tenant_id=TENANT,
+                         name="Presentation proof workspace", status="active"))
+        db.commit()
     _enable_oracle(monkeypatch)
     monkeypatch.setattr("core.generic_agent.get_db_session", host.session)
     monkeypatch.setattr(
