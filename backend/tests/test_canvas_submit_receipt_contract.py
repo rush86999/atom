@@ -66,3 +66,42 @@ def test_submit_same_scope_shared_form_remains_supported(app_client):
         rows = db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').all()
         assert len(rows) == 1
         assert rows[0].user_id == 'submit-actor'
+
+
+def test_submit_explicit_operation_replay_appends_once(app_client):
+    canvas_id = _seed(app_client)
+    payload = {'canvas_id': canvas_id, 'form_data': {'quantity': 0}, 'operation_id': 'submit-operation-001'}
+    first = app_client.client.post('/api/canvas/submit', json=payload)
+    second = app_client.client.post('/api/canvas/submit', json=payload)
+    assert first.status_code == second.status_code == 200
+    with app_client.Session() as db:
+        rows = db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').all()
+        assert len(rows) == 1
+    assert first.json()['audit_id'] == second.json()['audit_id']
+    assert second.json()['operation_id'] == 'submit-operation-001'
+    assert second.json()['already_applied'] is True
+
+
+def test_submit_reused_operation_cannot_change_material(app_client):
+    canvas_id = _seed(app_client)
+    payload = {'canvas_id': canvas_id, 'form_data': {'quantity': 0}, 'operation_id': 'submit-operation-001'}
+    first = app_client.client.post('/api/canvas/submit', json=payload)
+    assert first.status_code == 200
+    second = app_client.client.post('/api/canvas/submit', json={**payload, 'form_data': {'quantity': 1}})
+    assert second.status_code == 409, second.text
+    with app_client.Session() as db:
+        rows = db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').all()
+        assert len(rows) == 1
+        assert rows[0].details_json['form_data'] == {'quantity': 0}
+
+
+def test_submit_stale_request_actor_cannot_bypass_deactivation(app_client):
+    from core.models import User, UserStatus
+    canvas_id = _seed(app_client)
+    with app_client.Session() as db:
+        db.query(User).filter(User.id == 'submit-actor').update({'status': UserStatus.SUSPENDED, 'is_active': False}, synchronize_session=False)
+        db.commit()
+    response = app_client.client.post('/api/canvas/submit', json={'canvas_id': canvas_id, 'form_data': {'observed': True}})
+    assert response.status_code == 403, response.text
+    with app_client.Session() as db:
+        assert db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').count() == 0
