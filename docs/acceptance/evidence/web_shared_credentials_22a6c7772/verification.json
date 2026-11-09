@@ -1,0 +1,32 @@
+{
+  "executed_source": "22a6c77725575f7a17faebdfcd49c56a5a89eb6a",
+  "frontend": {
+    "passed": 106,
+    "failed": 0
+  },
+  "typescript": {
+    "exit_code": 0,
+    "output_bytes": 0
+  },
+  "negative": {
+    "source": "a80f751b1",
+    "failed": 3,
+    "passed": 5,
+    "format": "sanitized retained observations",
+    "observed": [
+      "unrelated admin row substituted for backend member identity",
+      "unrelated standard user SQL row substituted after refused /me",
+      "failed login retried under submitted tenant hint"
+    ]
+  },
+  "legacy_case_names_retained": {
+    "auth-nextauth.test.ts": 15,
+    "auth-nextauth-callbacks.test.ts": 11
+  },
+  "limits": [
+    "controlled consumer transport; no live provider or account",
+    "not full ordinary browser reset",
+    "OAuth JS paths remain unqualified",
+    "cached UI metadata is not backend authority"
+  ]
+}
