@@ -37,3 +37,17 @@ it('does not coerce numeric or aliased identifiers into receipt identity',async(
  try{await saveCanvasAudit('exact-canvas','document','Title','Body');throw new Error('expected failure');}
  catch(e:any){expect(e.retryable).toBe(false);expect(e.operationId).toBeUndefined();expect(e.auditId).toBeUndefined();}
 });
+
+it.each(['Body', [['Part','Quantity'],['A',2]], {body:'Draft',to:'buyer@example.com'}])('confirms manual type writes through the same JSON and no-retry contract %#',async(content)=>{
+ put.mockResolvedValue({data:verified});
+ expect(await saveCanvasAudit('exact-canvas','markdown','Title',content,{retype:true})).toBe(true);
+ expect(put).toHaveBeenCalledTimes(1);
+ const [url,body,config]=put.mock.calls[0];
+ expect(new URL(url,'http://localhost').searchParams.get('retype')).toBe('true');
+ expect(body).toBe(JSON.stringify(content));
+ expect(config).toMatchObject({retry:false,headers:{'Content-Type':'application/json'}});
+});
+it('does not mark ordinary edits as manual type changes',async()=>{
+ put.mockResolvedValue({data:verified});await saveCanvasAudit('exact-canvas','document','Title','Body');
+ expect(new URL(put.mock.calls[0][0],'http://localhost').searchParams.has('retype')).toBe(false);
+});

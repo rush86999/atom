@@ -83,6 +83,18 @@ export function useCanvasAutosave({
         }
     }, []);
 
+    // Related audited mutations share the same no-repeat barrier. Only an
+    // authoritative payload reset may release an unconfirmed type change.
+    const block = useCallback(() => {
+        blockedRef.current = true;
+        dirtyRef.current = true;
+        clearTimer();
+        if (mountedRef.current) {
+            setBlocked(true);
+            setStatus("error");
+        }
+    }, [clearTimer]);
+
     const runSave = useCallback(async (final: boolean): Promise<boolean> => {
         if (blockedRef.current) return false;
         if (inFlightRef.current) {
@@ -231,7 +243,8 @@ export function useCanvasAutosave({
         };
     }, [clearTimer, flush, runSave]);
 
-    return { status, blocked, schedule, flush, reset };
+    const revision = useCallback(() => editRevisionRef.current, []);
+    return { status, blocked, schedule, flush, reset, block, revision };
 }
 
 export default useCanvasAutosave;

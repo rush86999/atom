@@ -105,7 +105,8 @@ export async function saveCanvasAudit(
     canvasId: string,
     canvasType: string,
     title: string | undefined,
-    content: unknown
+    content: unknown,
+    options: { retype?: boolean } = {}
 ): Promise<boolean> {
     try {
         const { apiClient } = await import("@/lib/api");
@@ -115,7 +116,8 @@ export async function saveCanvasAudit(
         const response = await apiClient.put(
             `/api/canvas/${encodeURIComponent(canvasId)}` +
             `?canvas_type=${encodeURIComponent(canvasType)}` +
-            `&title=${encodeURIComponent(title || "")}`,
+            `&title=${encodeURIComponent(title || "")}` +
+            (options.retype ? "&retype=true" : ""),
             JSON.stringify(content),
             {
                 headers: { "Content-Type": "application/json" },

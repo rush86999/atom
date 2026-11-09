@@ -197,16 +197,17 @@ export function switchCanvasType(target: SwitchableCanvasType, src: CanvasTypeSo
     }
 }
 
-/** Persist a manual retype (best-effort — the canvas stays usable offline). */
+/** A type change uses the same exact-canvas verified receipt as other edits. */
 export async function persistCanvasTypeSwitch(
     canvasId: string,
     conversion: CanvasTypeConversion,
     title?: string,
 ): Promise<void> {
-    const { apiClient } = await import("@/lib/api");
-    const params = new URLSearchParams({ canvas_type: conversion.component, retype: "true" });
-    if (title) params.set("title", title);
-    await apiClient.put(`/api/canvas/${canvasId}?${params.toString()}`, conversion.payload);
+    const { saveCanvasAudit, CanvasAuditSaveError } = await import("@/lib/canvasAuditSave");
+    if (!await saveCanvasAudit(canvasId, conversion.component, title, conversion.payload, { retype: true })) {
+        // Type changes have no legacy-artifact fallback.
+        throw new CanvasAuditSaveError({ status: 404 });
+    }
 }
 
 /** Known editable text payloads, shared by standalone and chat canvas hosts.

@@ -46,6 +46,69 @@ describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as cons
 
 
 
+ it.each([404,503])('blocks a refused or uncertain type write without a lifecycle resend (%s)',async(status)=>{
+  let attempts=0;
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{attempts++;return res(ctx.status(status),ctx.json({replay:'do_not_repeat',verification:{effect:'unknown'}}));}));
+  const view=openDocument({content:'Retained text'});
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+  fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await screen.findByText('Save not confirmed. Check version history before retrying.');
+  expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Still retained'}});
+  fireEvent(window,new Event('beforeunload'));
+  view.unmount();
+  expect(attempts).toBe(1);
+ });
+ it('preserves newer local edits when the type receipt arrives late',async()=>{
+  let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve});let attempts=0;
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{attempts++;await pending;return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified'}}));}));
+  openDocument({content:'Retained text'});
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+  fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await waitFor(()=>expect(attempts).toBe(1));
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Typed during type request'}});
+  release();
+  await screen.findByText('Save not confirmed. Check version history before retrying.');
+  expect(screen.getByRole('textbox',{name:'Document editor'})).toHaveValue('Typed during type request');
+  expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+  expect(attempts).toBe(1);
+ });
+ it('cannot replace another active canvas with a late type receipt',async()=>{
+  let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve});let attempts=0;
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{attempts++;await pending;return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified'}}));}));
+  const view=openDocument({content:'Retained text'});
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+  fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await waitFor(()=>expect(attempts).toBe(1));
+  view.rerender(<Surface lastMessage={{type:'canvas:update',data:{action:'present',id:'another-document',component:'document',data:{content:'Another canvas'},version:1}}}/>);
+  release();
+  await waitFor(()=>expect(screen.getByRole('button',{name:'document',exact:true})).toBeEnabled());
+  expect(screen.getByRole('textbox',{name:'Document editor'})).toHaveValue('Another canvas');
+  expect(screen.queryByRole('button',{name:'markdown',exact:true})).not.toBeInTheDocument();
+ });
+ it('retains the original type when the type-write response is not verified',async()=>{
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>res(ctx.json({success:true,canvas_id:'different-canvas',verification:{status:'verified'}}))));
+  openDocument({content:'Retained text'});
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+  fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await screen.findByText('Save not confirmed. Check version history before retrying.');
+  expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+  expect(screen.queryByRole('button',{name:'markdown',exact:true})).not.toBeInTheDocument();
+ });
+ it('flushes the latest pending text before persisting the new type',async()=>{
+  const writes:any[]=[];
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{writes.push({url:req.url.toString(),body:req.body});return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified'}}));}));
+  openDocument({content:'Original'});
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Latest edit before conversion'}});
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));
+  fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await screen.findByRole('button',{name:'markdown',exact:true});
+  expect(writes).toHaveLength(2);
+  expect(writes[0].body).toEqual({content:'Latest edit before conversion'});
+  expect(new URL(writes[0].url).searchParams.has('retype')).toBe(false);
+  expect(writes[1].body).toBe('Latest edit before conversion');
+  expect(new URL(writes[1].url).searchParams.get('retype')).toBe('true');
+ });
  it('keeps an ordinary clean type change available without a duplicate save',async()=>{
   const requests:string[]=[];
   server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{requests.push(req.url.toString());return res(ctx.json({success:true,canvas_id:req.params.id,verification:{status:'verified',effect:'committed'}}));}));
