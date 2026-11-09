@@ -1,6 +1,6 @@
 import { authFetch } from "@/lib/auth-headers";
 import React, { useState, useEffect, useCallback } from "react";
-import TaskManagement, { Task, Project } from "./shared/TaskManagement";
+import TaskManagement, { Task, Project, normalizeTask, normalizeProject } from "./shared/TaskManagement";
 import { useToast } from "@/components/ui/use-toast";
 
 const TaskManagementWrapper: React.FC = () => {
@@ -46,16 +46,11 @@ const TaskManagementWrapper: React.FC = () => {
         const projectsData = await projectsRes.json();
         if (!Array.isArray(projectsData?.projects)) throw new Error("Invalid project collection");
 
-        const parsedTasks = tasksData.tasks.map((t: any) => ({
-          ...t,
-          dueDate: new Date(t.dueDate),
-          createdAt: new Date(t.createdAt),
-          updatedAt: new Date(t.updatedAt),
-        }));
+        const parsedTasks = tasksData.tasks.map(normalizeTask);
 
-        const parsedProjects = projectsData.projects.map((p: any) => ({
+        const parsedProjects = projectsData.projects.map((p: Project) => normalizeProject({
           ...p,
-          tasks: parsedTasks.filter((t: any) => t.project === p.id)
+          tasks: parsedTasks.filter((t: Task) => t.project === p.id)
         }));
 
         setTasks(parsedTasks);
@@ -96,139 +91,77 @@ const TaskManagementWrapper: React.FC = () => {
     );
   }
 
-  const handleCreateTask = async (task: Task) => {
-    try {
-      const response = await authFetch("/api/v1/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(task),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const newTask = {
-          ...data.task,
-          dueDate: new Date(data.task.dueDate),
-          createdAt: new Date(data.task.createdAt),
-          updatedAt: new Date(data.task.updatedAt)
-        };
-        setTasks((prev) => [...prev, newTask]);
-        // Update project task list if assigned
-        if (newTask.project) {
-          setProjects(prev => prev.map(p =>
-            p.id === newTask.project
-              ? { ...p, tasks: [...p.tasks, newTask] }
-              : p
-          ));
-        }
-        toast({ title: "Task created" });
-      } else {
-        throw new Error("Failed to create task");
-      }
-    } catch (error) {
-      console.error("Error creating task:", error);
-      toast({ title: "Failed to create task", variant: "error" });
-    }
+  const saveTaskInProjects = (saved: Task) => {
+    setProjects(previous => previous.map(project => ({
+      ...project,
+      tasks: [...project.tasks.filter(task => task.id !== saved.id), ...(project.id === saved.project ? [saved] : [])],
+    })));
   };
 
-  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-    try {
-      const response = await authFetch(`/api/v1/tasks/${taskId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const updatedTask = {
-          ...data.task,
-          dueDate: new Date(data.task.dueDate),
-          createdAt: new Date(data.task.createdAt),
-          updatedAt: new Date(data.task.updatedAt)
-        };
-        setTasks((prev) => prev.map(t => t.id === taskId ? updatedTask : t));
-        toast({ title: "Task updated" });
-      } else {
-        throw new Error("Failed to update task");
-      }
-    } catch (error) {
-      console.error("Error updating task:", error);
-      toast({ title: "Failed to update task", variant: "error" });
-    }
+  const handleCreateTask = async (task: Task): Promise<Task> => {
+    const response = await authFetch("/api/v1/tasks", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(task),
+    });
+    if (!response.ok) throw new Error("Task creation was not confirmed");
+    const data = await response.json();
+    const saved = normalizeTask(data.task);
+    setTasks(previous => [...previous, saved]);
+    saveTaskInProjects(saved);
+    return saved;
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    try {
-      const response = await authFetch(`/api/v1/tasks/${taskId}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        setTasks((prev) => prev.filter(t => t.id !== taskId));
-        setProjects(prev => prev.map(p => ({
-          ...p,
-          tasks: p.tasks.filter(t => t.id !== taskId)
-        })));
-        toast({ title: "Task deleted" });
-      } else {
-        throw new Error("Failed to delete task");
-      }
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      toast({ title: "Failed to delete task", variant: "error" });
-    }
+  const handleUpdateTask = async (taskId: string, updates: Partial<Task>): Promise<Task> => {
+    const response = await authFetch(`/api/v1/tasks/${encodeURIComponent(taskId)}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates),
+    });
+    if (!response.ok) throw new Error("Task update was not confirmed");
+    const data = await response.json();
+    const saved = normalizeTask(data.task);
+    if (saved.id !== taskId) throw new Error("Task result does not match the request");
+    setTasks(previous => previous.map(task => task.id === taskId ? saved : task));
+    saveTaskInProjects(saved);
+    return saved;
   };
 
-  const handleCreateProject = async (project: Project) => {
-    try {
-      const response = await authFetch("/api/v1/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(project),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const newProject = { ...data.project, tasks: [] };
-        setProjects((prev) => [...prev, newProject]);
-        toast({ title: "Project created" });
-      } else {
-        throw new Error("Failed to create project");
-      }
-    } catch (error) {
-      console.error("Error creating project:", error);
-      toast({ title: "Failed to create project", variant: "error" });
-    }
+  const handleDeleteTask = async (taskId: string): Promise<boolean> => {
+    const response = await authFetch(`/api/v1/tasks/${encodeURIComponent(taskId)}`, { method: "DELETE" });
+    if (!response.ok) throw new Error("Task deletion was not confirmed");
+    const data = await response.json();
+    if (data.success !== true || data.deleted !== taskId) throw new Error("Task deletion result does not match the request");
+    setTasks(previous => previous.filter(task => task.id !== taskId));
+    setProjects(previous => previous.map(project => ({ ...project, tasks: project.tasks.filter(task => task.id !== taskId) })));
+    return true;
   };
 
-  const handleUpdateProject = async (projectId: string, updates: Partial<Project>) => {
-    try {
-      const response = await authFetch(`/api/v1/projects/${projectId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
+  const handleCreateProject = async (project: Project): Promise<Project> => {
+    const response = await authFetch("/api/v1/projects", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(project),
+    });
+    if (!response.ok) throw new Error("Project creation was not confirmed");
+    const data = await response.json();
+    const saved = normalizeProject(data.project);
+    setProjects(previous => [...previous, saved]);
+    return saved;
+  };
 
-      if (response.ok) {
-        const data = await response.json();
-        setProjects((prev) => prev.map(p => p.id === projectId ? { ...p, ...data.project } : p));
-        toast({ title: "Project updated" });
-      } else {
-        throw new Error("Failed to update project");
-      }
-    } catch (error) {
-      console.error("Error updating project:", error);
-      toast({ title: "Failed to update project", variant: "error" });
-    }
+  const handleUpdateProject = async (projectId: string, updates: Partial<Project>): Promise<Project> => {
+    const response = await authFetch(`/api/v1/projects/${encodeURIComponent(projectId)}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates),
+    });
+    if (!response.ok) throw new Error("Project update was not confirmed");
+    const data = await response.json();
+    const saved = normalizeProject(data.project);
+    if (saved.id !== projectId) throw new Error("Project result does not match the request");
+    setProjects(previous => previous.map(project => project.id === projectId ? saved : project));
+    return saved;
   };
 
   return (
     <TaskManagement
       showNavigation={true}
       compactView={false}
-      initialTasks={tasks}
-      initialProjects={projects}
+      tasks={tasks}
+      projects={projects}
       onTaskCreate={handleCreateTask}
       onTaskUpdate={handleUpdateTask}
       onTaskDelete={handleDeleteTask}

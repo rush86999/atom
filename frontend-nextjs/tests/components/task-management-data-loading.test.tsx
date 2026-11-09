@@ -7,8 +7,9 @@ const mockToast = jest.fn();
 jest.mock('@/lib/auth-headers', () => ({ authFetch: (...args: unknown[]) => mockFetch(...args) }));
 jest.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 jest.mock('@/components/shared/TaskManagement', () => ({
+  ...jest.requireActual('@/components/shared/TaskManagement'),
   __esModule: true,
-  default: (props: { initialTasks: unknown[] }) => <div data-testid="visible-task-total">{props.initialTasks.length}</div>,
+  default: (props: { tasks?: unknown[]; initialTasks?: unknown[] }) => <div data-testid="visible-task-total">{(props.tasks ?? props.initialTasks ?? []).length}</div>,
 }));
 const rows = Array.from({ length: 150 }, (_, index) => ({
   id: `task-${index}`, title: `Task ${index}`, status: 'todo', priority: 'medium',

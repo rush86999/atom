@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import TaskManagement, { Task } from '@/components/shared/TaskManagement';
+import TaskManagement, { Task, normalizeTask } from '@/components/shared/TaskManagement';
 const mockToast = jest.fn();
 jest.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 const task = (): Task => ({ id: 'server-task-id', title: 'Confirmed task', status: 'todo', priority: 'medium', platform: 'local', dueDate: new Date(Date.now() + 86400000), createdAt: new Date(), updatedAt: new Date() });
@@ -53,4 +53,33 @@ test('an ordinary parent rerender preserves an unfinished task draft', async () 
   fireEvent.change(screen.getByTestId('task-title'), { target: { value: 'Keep this unfinished draft' } });
   view.rerender(<TaskManagement onTaskCreate={callback} />);
   expect(screen.getByTestId('task-title')).toHaveValue('Keep this unfinished draft');
+});
+
+test('a mismatched update result cannot replace the requested task', async () => {
+  const update = jest.fn(async () => ({ ...task(), id: 'different-record', status: 'completed' as const }));
+  render(<TaskManagement initialTasks={[task()]} onTaskUpdate={update} />);
+  const column = screen.getByText('TODO (1)').parentElement;
+  if (!column) throw new Error('column missing');
+  fireEvent.click(within(column).getByRole('button'));
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Failed to update task' })));
+  expect(screen.getByText('TODO (1)')).toBeInTheDocument();
+  expect(screen.getByText('COMPLETED (0)')).toBeInTheDocument();
+});
+test('controlled collections remain the parent source of truth after acknowledgement', async () => {
+  const create = jest.fn(async () => task());
+  const view = render(<TaskManagement tasks={[]} onTaskCreate={create} />);
+  await submit('Confirmed task');
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Task created' })));
+  expect(screen.queryByText('Confirmed task')).not.toBeInTheDocument();
+  view.rerender(<TaskManagement tasks={[task()]} onTaskCreate={create} />);
+  expect(screen.getAllByText('Confirmed task').length).toBeGreaterThan(0);
+  expect(create).toHaveBeenCalledTimes(1);
+});
+test('undated tasks stay undated and are excluded from the upcoming list', () => {
+  render(<TaskManagement initialTasks={[{ ...task(), dueDate: null }]} />);
+  expect(screen.getByText('No due date')).toBeInTheDocument();
+  expect(screen.getAllByText('Confirmed task')).toHaveLength(1);
+});
+test('invalid observed timestamps refuse instead of inheriting the current time', () => {
+  expect(() => normalizeTask({ ...task(), createdAt: new Date(NaN) })).toThrow('Task result is incomplete');
 });
