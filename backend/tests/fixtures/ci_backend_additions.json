@@ -37,7 +37,7 @@
       "SECRET_KEY": "ci-test-secret-key",
       "ENVIRONMENT": "development"
     },
-    "run": "python -m pytest tests/test_credential_bound_session_contract.py tests/test_round60_mobile_auth_user_status.py tests/api/test_sso_oidc_routes.py tests/unit/security/test_jwt_validation.py tests/unit/test_enterprise_auth_service.py tests/test_enterprise_auth_service.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    "run": "python -m pytest tests/test_logout_durable_session_contract.py tests/test_credential_bound_session_contract.py tests/test_round60_mobile_auth_user_status.py tests/api/test_sso_oidc_routes.py tests/unit/security/test_jwt_validation.py tests/unit/test_enterprise_auth_service.py tests/test_enterprise_auth_service.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   },
   {
     "name": "Run editable canvas presentation join contract",

@@ -635,3 +635,21 @@ in-flight work, live SSO, PostgreSQL concurrency or complete browser recovery.
 The real socket test app must mount both existing HTTP and WebSocket routers;
 its previous absent-router failures were a fixture gap, not proof that a new
 principal guard broke sockets. Main web goals remain first, mobile UI last.
+
+Web sign-in identity successor: the actual pages/api/auth/[...nextauth] credentials
+consumer now resolves the exact issued bearer through existing /api/auth/me.
+It no longer fabricates user-from-backend, copies submitted email as authority,
+or issues a parallel JS/Postgres last_login_at write. Backend login owns last_login.
+Five failure-first controls reproduce the old defect; the candidate passes67
+sign-in/sign-out/login controls and44 callback-neighborhood controls, with27 CI
+lane-preservation controls and TypeScript clean. Counts overlap; do not add them.
+Older test case names are retained, with unsafe identity-fallback expectations
+changed to explicit refusal and native-shaped identity-response valid twins.
+Legacy lib/auth credential enrichment and OAuth JS database paths remain
+separately unqualified; cached UI metadata does not replace current backend
+principal authorization. The established browser-bearer transport is unchanged;
+do not claim a new cookie-only session architecture or full browser recovery.
+The bounded Flash review's first finding was caused by a truncated review excerpt
+that omitted the callbacks wrapper; actual consumers and TypeScript prove the
+wrapper exists. Its cache-revalidation and browser-bearer hardening suggestions
+are distinct future boundaries, not evidence of a missing wrapper in product.

@@ -64,12 +64,8 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
     it("returns a user with backend token on successful login", async () => {
       (global as any).fetch = jest
         .fn()
-        .mockResolvedValue(
-          jsonResponse(true, {
-            access_token: "at-123",
-            user: { id: "u-1", name: "Alice Smith" },
-          }),
-        );
+        .mockResolvedValueOnce(jsonResponse(true, { access_token: "at-123" }))
+        .mockResolvedValueOnce(jsonResponse(true, { id: "u-1", email: "alice@example.com", first_name: "Alice", last_name: "Smith", status: "active" }));
       const result = await credentialsProvider.options.authorize(
         { email: "alice@example.com", password: "secret" },
         {} as any,
@@ -89,12 +85,8 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
     it("builds a name from first/last name claims when name is missing", async () => {
       (global as any).fetch = jest
         .fn()
-        .mockResolvedValue(
-          jsonResponse(true, {
-            access_token: "at",
-            user: { id: "u-2", first_name: "Bob", last_name: "Jones" },
-          }),
-        );
+        .mockResolvedValueOnce(jsonResponse(true, { access_token: "at" }))
+        .mockResolvedValueOnce(jsonResponse(true, { id: "u-2", email: "bob@example.com", first_name: "Bob", last_name: "Jones", status: "active" }));
       const result = await credentialsProvider.options.authorize(
         { email: "bob@example.com", password: "x" },
         {} as any,
@@ -217,10 +209,8 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
       expect(token.id).toBe("u-9");
       expect(token.email).toBe("e@x.com");
       expect(token.backendToken).toBe("backend-tok");
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE users SET last_login_at"),
-        ["u-9"],
-      );
+      // Durable login metadata belongs to the existing backend issuer.
+      expect(mockQuery).not.toHaveBeenCalled();
     });
 
     it("passes the token through unchanged when no user is present", async () => {

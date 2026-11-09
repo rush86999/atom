@@ -38,28 +38,31 @@ export const authOptions: NextAuthOptions = {
             })
           });
 
-          const contentType = res.headers.get("content-type");
-          if (!contentType || !contentType.includes("application/json")) {
-            const text = await res.text();
-            console.error("[NextAuth Authorize] Non-JSON response:", res.status, text.slice(0, 200));
-            return null;
-          }
-
+          if (!res.ok) return null;
           const data = await res.json();
-
-          if (res.ok && data.access_token) {
-            return {
-              id: data.user?.id || data.id || "user-from-backend",
-              email: credentials?.email,
-              name: data.user?.name || `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || credentials?.email?.split('@')[0] || "Atom User",
-              token: data.access_token,
-            };
-          }
-
-          console.error("[NextAuth Authorize] Login failed:", res.status, data);
-          return null;
-        } catch (error) {
-          console.error("[NextAuth Authorize] Error during authentication:", error);
+          if (typeof data.access_token !== 'string' || !data.access_token) return null;
+          // The credential issuer owns identity. Login intentionally returns a
+          // token only; neither submitted fields nor a second database certify it.
+          const identityResponse = await fetch(`${backendUrl}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${data.access_token}`, Accept: 'application/json' },
+            cache: 'no-store',
+          });
+          if (!identityResponse.ok) return null;
+          const identity = await identityResponse.json();
+          if (typeof identity.id !== 'string' || !identity.id ||
+              typeof identity.email !== 'string' || !identity.email ||
+              identity.status !== 'active') return null;
+          return {
+            id: identity.id,
+            email: identity.email,
+            name: `${identity.first_name || ''} ${identity.last_name || ''}`.trim() || identity.email,
+            role: identity.role,
+            workspace_id: identity.workspace_id,
+            token: data.access_token,
+          };
+        } catch {
+          // Never log response bodies, submitted credentials or bearer material.
+          console.warn('[NextAuth Authorize] Backend identity unavailable');
           return null;
         }
       },
@@ -169,17 +172,12 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore
         token.backendToken = user.token || user.backendToken;
 
-        // Record session in database
-        try {
-          const { query } = await import('../../../lib/db');
-          // Use a hash of the token or a unique ID as session identifier
-          // Since we don't have the actual session token here (it's generated later),
-          // we'll use a combination of user ID and a timestamp/random string stored in the token
-          // For now, we'll just update the last login time
-          await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
-        } catch (e) {
-          console.error('Failed to update last login:', e);
-        }
+        // The backend login handler owns durable last_login. Avoid a second
+        // credential/identity store and its incompatible last_login_at schema.
+        // @ts-ignore - scoped backend identity is additive session metadata
+        token.workspace_id = user.workspace_id;
+        // @ts-ignore
+        token.role = user.role;
       }
       return token;
     },
@@ -189,6 +187,10 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         // @ts-ignore - backendToken added for internal use
         session.backendToken = token.backendToken as string;
+        // @ts-ignore - backend-authoritative additive identity metadata
+        session.user.workspace_id = token.workspace_id;
+        // @ts-ignore
+        session.user.role = token.role;
       }
       return session;
     },
