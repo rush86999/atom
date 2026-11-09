@@ -1,0 +1,24 @@
+{
+  "executed_source": "07d1a3ebf6ea4cdaa98893d91d2f6c522b471ec3",
+  "frontend": {
+    "node": "20.20.2",
+    "passed": 285,
+    "suites": 14,
+    "typescript_exit": 0
+  },
+  "backend": {
+    "python": "3.11.16",
+    "passed": 106,
+    "failures": 0,
+    "errors": 0,
+    "scratch_database": true
+  },
+  "negative": {
+    "failed": 2,
+    "source_tree_represented_by": "4e1dcd309",
+    "phase": "development before implementation; source-only test commit preserves executed bytes"
+  },
+  "served_browser_or_model_replay": false,
+  "legacy_unversioned_frames_fully_concurrency_qualified": false,
+  "research": "https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1"
+}

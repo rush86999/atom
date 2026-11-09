@@ -1,0 +1,27 @@
+{
+  "executed_source": "07d1a3ebf6ea4cdaa98893d91d2f6c522b471ec3",
+  "source_files": {
+    "backend/tests/test_oracle_direct_canvas_writes.py": "sha256:7020810b7387d5bd0283a0a2f7dbca08e23e672a9e6c5112458ef40bd6974803",
+    "backend/tools/canvas_crud_tool.py": "sha256:1a371037d1e0bfd50005ae5a21996e5f2b50c7c888a0e45d34bfb7580179c514",
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "sha256:0d898b2dd7fa502f2394e82bb0475e053fe6729bb76e4e854f6091d1d2b13804",
+    "frontend-nextjs/components/canvas/__tests__/CanvasDocumentPersistence.test.tsx": "sha256:ff212499c336020f2c22d72791de9dca9bcb3e2596337539bb36b2dfce2d298e",
+    "frontend-nextjs/components/canvas/canvasType.ts": "sha256:27fd49481b7d6a90f9c37db08455652532c2c1cddbf62d4e8f5552dd7b241b2e",
+    "frontend-nextjs/components/chat/canvas-host.tsx": "sha256:a43e12d02a88aba099d7749df87ef15f6cfde96fd19eafb1ae3d6f8dc83cd624",
+    "frontend-nextjs/lib/__tests__/canvasSync.test.ts": "sha256:e21334875bd4bb7b9054cd00d0421087d63346f370e3f698b3fb496c129010c2",
+    "frontend-nextjs/lib/canvasAuditSave.ts": "sha256:2f1510c810b47bdb252330c1fab5482b52982c5485a6238ce37068f5efe66d34",
+    "frontend-nextjs/lib/canvasSync.ts": "sha256:76180a929c3f0aff7a8921c0f5ee32efaff8b85e7aa65230e3ef554a8ebac5d0",
+    "frontend-nextjs/pages/canvas/[id].tsx": "sha256:16655e66f2708d4961fb4e2846afe6bedbf4aa629eea5f5631edfbba5f0ca57e",
+    "frontend-nextjs/tests/lib/canvas-audit-outcome.test.ts": "sha256:016207e4b6b73d4f4028a184f0f5d26fece12187225650ec231f9d66485ffa61",
+    "frontend-nextjs/tests/pages/canvas-detail.test.tsx": "sha256:deba6dd87a3384da15b281b4b5c5a088858591e33aef999d8dc459f956c424d5",
+    ".github/workflows/ci.yml": "sha256:cc5f77a24420a0ed5f4c7d57545258eeacf8f7b05537710a4ad20b61285094fd"
+  },
+  "artifacts": {
+    "backend-106.log": "sha256:0294d0531394ac6ae3b7d6a0e282f50458b4306319c5ec9c6559294900294e8b",
+    "cli-proposal-summary.md": "sha256:301e6bf16f8475e999c356e4e904759d0e58a673612e51b6a48802caa11d68e6",
+    "README.md": "sha256:28891bbf23f65214a603849065ac4128b576efd56b0cccc8dffad36d2db69eb6",
+    "consumer-negative.log": "sha256:1bfcdd9bf80cf18726f1b53e177b9cacbe4d360ea3c6a1a4ef6d98a81038cc6e",
+    "verification.json": "sha256:d76cf6fc63fa7aa441d5eec75d1541d7c6d580f5d938130e29a0aab20270226d",
+    "backend-106.xml": "sha256:7bb8d9db01f40427ade739e866d932dd8cdd518bfb1d0cf8dc101f59bb5c7f3f",
+    "frontend-285.log": "sha256:a2d62e40c99452093db2d3a45c4c43a18ce1a8a9afa844fdaa974511a4b7ecf0"
+  }
+}
