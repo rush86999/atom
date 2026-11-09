@@ -22,6 +22,7 @@ import { WebView } from 'react-native-webview';
 import { useTheme } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import { API_BASE_URL } from '../../services/api';
 
 // Types
 interface CanvasWebViewProps {
@@ -72,6 +73,24 @@ interface CanvasHealth {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 /**
+ * Serialize a value for embedding inside an inline <script> block.
+ *
+ * JSON.stringify handles JavaScript string syntax (quotes, backslashes,
+ * newlines). Escaping "<" to a Unicode escape additionally prevents an embedded
+ * value from terminating the script element, and the line/paragraph separators
+ * are escaped so they cannot break the surrounding JavaScript source.
+ */
+const serializeForInlineScript = (value: unknown): string => {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) return 'null';
+
+  return serialized
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+};
+
+/**
  * CanvasWebView Component
  *
  * Renders web-based canvas components in a WebView with
@@ -117,7 +136,11 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
    * Generate HTML for canvas rendering with enhanced bridge
    */
   const generateCanvasHTML = () => {
-    const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://atom.example.com';
+    const token = typeof initialData?.token === 'string' ? initialData.token : '';
+    const canvasIdLiteral = serializeForInlineScript(canvasId);
+    const canvasTypeLiteral = serializeForInlineScript(canvasType);
+    const tokenLiteral = serializeForInlineScript(token);
+    const canvasApiBaseLiteral = serializeForInlineScript(`${API_BASE_URL}/api/canvas/`);
 
     return `
 <!DOCTYPE html>
@@ -258,8 +281,8 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
   <script>
     // Enhanced Canvas Bridge for bidirectional communication
     const AtomCanvasBridge = {
-      canvasId: '${canvasId}',
-      canvasType: '${canvasType}',
+      canvasId: ${canvasIdLiteral},
+      canvasType: ${canvasTypeLiteral},
       token: null,
       state: null,
       subscribers: [],
@@ -299,7 +322,7 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
       },
 
       async getToken() {
-        return '${initialData?.token || ''}';
+        return ${tokenLiteral};
       },
 
       setupStateAPI() {
@@ -338,7 +361,7 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
       },
 
       async loadCanvas() {
-        const response = await fetch('${API_BASE}/api/canvas/${this.canvasId}?platform=mobile', {
+        const response = await fetch(${canvasApiBaseLiteral} + encodeURIComponent(this.canvasId) + '?platform=mobile', {
           headers: {
             'Authorization': \`Bearer \${this.token}\`,
             'Content-Type': 'application/json'
@@ -822,7 +845,7 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
         startInLoadingState={true}
         scalesPageToFit={true}
         style={[styles.webView, { opacity: loading || error ? 0 : 1 }]}
-        renderLoading={() => null}
+        renderLoading={() => <View />}
         originWhitelist={['*']}
         mixedContentMode="compatibility"
         thirdPartyCookiesEnabled={false}

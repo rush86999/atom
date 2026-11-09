@@ -64,8 +64,8 @@ describe('CanvasWebView Component', () => {
       const { getByTestId } = render(<CanvasWebView {...defaultProps} />);
       const webView = getByTestId('mock-webview');
       const html: string = webView.props.source.html;
-      expect(html).toContain("canvasId: 'canvas-1'");
-      expect(html).toContain("canvasType: 'chart'");
+      expect(html).toContain('canvasId: "canvas-1"');
+      expect(html).toContain('canvasType: "chart"');
     });
 
     test('does not attach touch handler when gestures are disabled', () => {

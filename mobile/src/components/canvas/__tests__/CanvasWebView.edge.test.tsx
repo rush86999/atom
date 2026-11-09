@@ -52,7 +52,7 @@ describe('CanvasWebView Edge Cases', () => {
   test('uses "generic" as default canvasType when not provided', () => {
     const { getByTestId } = render(<CanvasWebView {...defaultProps} />);
     const html: string = getByTestId('mock-webview').props.source.html;
-    expect(html).toContain("canvasType: 'generic'");
+    expect(html).toContain('canvasType: "generic"');
   });
 
   test('embeds zoom-disabled viewport and touch-action when enableZoom is false', () => {
