@@ -100,6 +100,7 @@ beforeEach(async () => {
     ok: true,
     json: async () => ({
       access_token: mockAccessToken,
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
       refresh_token: mockRefreshToken,
       user: mockUser,
     }),
@@ -699,6 +700,7 @@ describe('Token Refresh', () => {
       ok: true,
       json: async () => ({
         access_token: newAccessToken,
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
         refresh_token: newRefreshToken,
       }),
     });
@@ -994,6 +996,7 @@ describe('Authentication State Persistence', () => {
       ok: true,
       json: async () => ({
         access_token: newAccessToken,
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
         refresh_token: mockRefreshToken,
       }),
     });
@@ -1006,7 +1009,7 @@ describe('Authentication State Persistence', () => {
 
     // Verify token was refreshed
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/auth/refresh'),
+      expect.stringContaining('/api/auth/mobile/refresh'),
       expect.objectContaining({
         method: 'POST',
       })
@@ -1028,7 +1031,11 @@ describe('Device Registration', () => {
     const deviceId = 'device_123';
     const pushToken = 'push_token_abc';
 
-    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(mockAccessToken);
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation(async key => {
+      if (key === 'atom_access_token') return mockAccessToken;
+      if (key === 'atom_token_expiry') return String(Date.now() + 3600000);
+      return null;
+    });
 
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -1129,7 +1136,10 @@ describe('Device Registration', () => {
 describe('Coverage Wave Additions', () => {
   test('should reuse existing device token on login', async () => {
     (global.fetch as jest.Mock).mockReset();
-    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({
+      access_token: mockAccessToken, refresh_token: mockRefreshToken,
+      expires_at: new Date(Date.now() + 3600000).toISOString(), user: mockUser,
+    }) });
     (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('existing_device_token');
     const onResult = jest.fn();
 
@@ -1328,6 +1338,7 @@ describe('Coverage Wave Additions', () => {
       ok: true,
       json: async () => ({
         access_token: 'token_no_refresh',
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
         user: { id: 'u1' },
       }),
     });
@@ -1365,6 +1376,7 @@ describe('Coverage Wave Additions', () => {
       ok: true,
       json: async () => ({
         access_token: 'token_no_user',
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
         refresh_token: 'rt',
       }),
     });
@@ -1473,6 +1485,7 @@ describe('Coverage Wave Additions', () => {
           ok: true,
           json: async () => ({
             access_token: mockAccessToken,
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
             refresh_token: mockRefreshToken,
             user: mockUser,
           }),

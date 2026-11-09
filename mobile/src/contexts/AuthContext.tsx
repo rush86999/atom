@@ -14,7 +14,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { secureGet, secureSet, readAccessTokenSnapshot, commitAuthSession, clearAuthSession } from '../storage/secureTokenStorage';
+import { secureGet, secureSet, readAccessTokenSnapshot, commitAuthSession, clearAuthSession, AccessTokenSnapshot } from '../storage/secureTokenStorage';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
@@ -73,6 +73,13 @@ const BIOMETRIC_KEY = 'atom_biometric_enabled';
 // API Base URL - use Constants.expoConfig pattern for Jest compatibility
 const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
 
+/** Accept the timezone-qualified expiry emitted by the mobile auth API. */
+function serverExpiry(value: unknown): string | null {
+  if (typeof value !== 'string' || !/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
+  const milliseconds = Date.parse(value);
+  return Number.isFinite(milliseconds) && milliseconds > Date.now() ? String(milliseconds) : null;
+}
+
 /**
  * AuthProvider Component
  */
@@ -81,6 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+  const refreshInFlight = React.useRef<{ generation: number; promise: Promise<boolean> } | null>(null);
 
   /**
    * Initialize authentication state on mount
@@ -237,7 +245,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const data = await response.json();
 
-      const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
+      const expiresAt = serverExpiry(data.expires_at);
+      if (!expiresAt) return { success: false, error: 'Invalid session expiry from server' };
       const committed = await commitAuthSession(startingSession, {
         token: data.access_token,
         refreshToken: data.refresh_token,
@@ -303,13 +312,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const refreshToken = async (): Promise<boolean> => {
     try {
       const startingSession = await readAccessTokenSnapshot();
+      const existing = refreshInFlight.current;
+      if (existing?.generation === startingSession.generation) return existing.promise;
+      const promise = performTokenRefresh(startingSession);
+      refreshInFlight.current = { generation: startingSession.generation, promise };
+      const cleanup = () => {
+        if (refreshInFlight.current?.promise === promise) refreshInFlight.current = null;
+      };
+      promise.then(cleanup, cleanup);
+      return promise;
+    } catch {
+      return false;
+    }
+  };
+
+  const performTokenRefresh = async (startingSession: AccessTokenSnapshot): Promise<boolean> => {
+    try {
       const refreshTokenValue = await secureGet(REFRESH_TOKEN_KEY);
 
       if (!refreshTokenValue) {
         return false;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/mobile/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -323,7 +348,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const data = await response.json();
 
-      const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
+      const expiresAt = serverExpiry(data.expires_at);
+      if (!expiresAt) return false;
       return await commitAuthSession(startingSession, {
         token: data.access_token,
         refreshToken: data.refresh_token || refreshTokenValue,
