@@ -75,6 +75,7 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
         email: "alice@example.com",
         name: "Alice Smith",
         token: "at-123",
+        access_token: "at-123",
       });
       expect((global as any).fetch).toHaveBeenCalledWith(
         expect.stringMatching(/\/api\/auth\/login$/),

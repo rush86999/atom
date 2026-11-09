@@ -60,12 +60,8 @@ describe("pages/api/auth/[...nextauth] authorize (extra branches)", () => {
     );
     const result = await credentialsProvider.options.authorize(undefined, {} as any);
     expect(result).toBeNull();
-    expect((global as any).fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/auth\/login$/),
-      expect.objectContaining({
-        body: JSON.stringify({ username: "", password: "" }),
-      }),
-    );
+    // Missing submitted credentials do not dispatch an authentication attempt.
+    expect((global as any).fetch).not.toHaveBeenCalled();
   });
 
   it("strips a trailing slash from the backend URL", async () => {

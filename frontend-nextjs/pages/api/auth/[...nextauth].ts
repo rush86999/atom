@@ -1,6 +1,7 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { createBackendSignOutEvent } from "@/lib/backend-session-logout";
+import { createBackendCredentialsAuthorize } from "@/lib/backend-credentials";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 
@@ -21,51 +22,10 @@ export const authOptions: NextAuthOptions = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        totp_code: { label: "2FA Code", type: "text" }
       },
-      async authorize(credentials) {
-        try {
-          const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-          const res = await fetch(`${backendUrl}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify({
-              username: credentials?.email || '',
-              password: credentials?.password || ''
-            })
-          });
-
-          if (!res.ok) return null;
-          const data = await res.json();
-          if (typeof data.access_token !== 'string' || !data.access_token) return null;
-          // The credential issuer owns identity. Login intentionally returns a
-          // token only; neither submitted fields nor a second database certify it.
-          const identityResponse = await fetch(`${backendUrl}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${data.access_token}`, Accept: 'application/json' },
-            cache: 'no-store',
-          });
-          if (!identityResponse.ok) return null;
-          const identity = await identityResponse.json();
-          if (typeof identity.id !== 'string' || !identity.id ||
-              typeof identity.email !== 'string' || !identity.email ||
-              identity.status !== 'active') return null;
-          return {
-            id: identity.id,
-            email: identity.email,
-            name: `${identity.first_name || ''} ${identity.last_name || ''}`.trim() || identity.email,
-            role: identity.role,
-            workspace_id: identity.workspace_id,
-            token: data.access_token,
-          };
-        } catch {
-          // Never log response bodies, submitted credentials or bearer material.
-          console.warn('[NextAuth Authorize] Backend identity unavailable');
-          return null;
-        }
-      },
+      authorize: createBackendCredentialsAuthorize(() => process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"),
     }),
   ],
   events: {

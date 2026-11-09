@@ -662,3 +662,19 @@ The next isolated canvas update slice replaces broadcast-only success with the e
 Existing unit method identities are preserved while boundary fixtures carry explicit planned revisions; the separate scratch controls exercise real storage and public calls. Continue wider baseline comparison, evidence packaging and exact-head CI without replaying stable browser/model episodes. Full web goals, general employee judgment, PostgreSQL/soak and mobile are not inferred complete.
 
 November9 integration status: the preceding dated source records are preserved. PR800 is merged5944700f4 and PR801 is merged89527616e after all13 required checks passed on each exact candidate. DraftPR802 now integrates that current main; account recovery/session/logout remain controlled-scope submissions, not full web acceptance. Frozen auth sourcee173791ef records101 backend and93 frontend passes with TypeScript clean; packet34source+5artifact Git checks pass. The main integration preserves both additive CI ledgers and both guidance sections; new exact-head CI is required.
+
+Shared credential-consumer correction: three native-shaped negatives proved that
+lib/auth could replace the backend identity with an unrelated admin/user SQL row
+and retry a refused login under a submitted tenant hint. Both existing credential
+providers now use one bounded helper for the same backend login + authenticated
+/me sequence. No email suffix, domain, tenant hint, JavaScript row, or login
+envelope invents authority. Backend credentials/2FA remain the sole issuer; no
+new auth store or router is introduced. One10s deadline covers dispatch, parsing
+and identity readback, with no automatic credential retry. Backend 2FA challenges
+are preserved; late bodies after expiry are refused. Existing API-first sign-in
+UI and OAuth paths are separate; this does not qualify live identity providers.
+All106 credential/logout/callback/login controls pass; original callback case
+names remain and unsafe fallback expectations now assert refusal. No permission
+wildcard is inferred from an email or role label; backend routes still enforce
+current principal authority. Cached UI identity and already-open connections
+remain separate acceptance work. Main web first, mobile UI last.

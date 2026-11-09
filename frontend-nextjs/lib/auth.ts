@@ -1,8 +1,7 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import { createBackendSignOutEvent } from './backend-session-logout';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { query } from './db';
-import { USE_BACKEND_API, adminAPI, tenantAPI } from './api';
+import { createBackendCredentialsAuthorize } from './backend-credentials';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,230 +13,7 @@ export const authOptions: NextAuthOptions = {
         tenant_subdomain: { label: 'Tenant Subdomain', type: 'text' },
         totp_code: { label: '2FA Code', type: 'text' }
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        // const db = new DatabaseService(); // REMOVED
-
-        try {
-          // Unified authentication flow: Always use backend API to ensure consistent JWT generation
-          // This handles both admin and tenant users, and properly manages 2FA challenges
-
-          let loginPayload = {
-            username: credentials.email,
-            password: credentials.password,
-            totp_code: credentials.totp_code
-          };
-
-          // Call backend login endpoint
-          const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL || process.env.PYTHON_BACKEND_URL || ""}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(loginPayload)
-          });
-
-          const loginData = await loginResponse.json();
-
-          if (loginResponse.ok && loginData.access_token) {
-            // Get rich user info from DB to populate session (keep existing rich session data)
-            // Check admin_users first
-            if (credentials.email.endsWith('@atom-saas.com') || credentials.email === 'admin@example.com') {
-              if (USE_BACKEND_API) {
-                // Use backend API
-                try {
-                  const adminUsers = await adminAPI.getAdminUsers();
-                  const admin = adminUsers.data.find((u: any) => u.email === credentials.email);
-
-                  if (admin && admin.status === 'active') {
-                    // Update last login via API
-                    await adminAPI.updateAdminLastLogin(admin.id);
-
-                    return {
-                      id: admin.id,
-                      email: admin.email,
-                      name: admin.name,
-                      role: 'super_admin',
-                      admin_role: admin.role_name,
-                      permissions: admin.permissions,
-                      tenant_id: null,
-                      access_token: loginData.access_token
-                    };
-                  }
-                } catch (error) {
-                  console.error('Failed to fetch admin users from API:', error);
-                  // Fall back to direct DB query
-                }
-              }
-
-              // Fallback to direct DB query
-              const adminResult = await query(`
-                SELECT au.*, ar.name as role_name, ar.permissions
-                FROM admin_users au
-                JOIN admin_roles ar ON au.role_id = ar.id
-                WHERE au.email = $1 AND au.status = 'active'
-              `, [credentials.email]);
-
-              if (adminResult.rows.length > 0) {
-                const admin = adminResult.rows[0];
-                // Update last login
-                await query('UPDATE admin_users SET last_login = NOW() WHERE id = $1', [admin.id]);
-
-                return {
-                  id: admin.id,
-                  email: admin.email,
-                  name: admin.name,
-                  role: 'super_admin',
-                  admin_role: admin.role_name,
-                  permissions: admin.permissions,
-                  tenant_id: null,
-                  access_token: loginData.access_token
-                };
-              }
-            }
-
-            // Check standard users (including super_admins in main table)
-            const userResult = await query(
-              "SELECT * FROM users WHERE email = $1 AND status = 'active'",
-              [credentials.email]
-            );
-
-            if (userResult.rows.length > 0) {
-              const user = userResult.rows[0];
-
-              // Determine tenant details if applicable
-              let tenantSubdomain = null;
-              let tenantName = null;
-              let planType = null;
-
-              if (user.tenant_id) {
-                if (USE_BACKEND_API) {
-                  try {
-                    const tenantData = await tenantAPI.getTenantBySubdomain(''); // Get by ID instead
-                    // Note: We need to add getTenantById to the API
-                    // For now, fall back to DB query
-                  } catch (error) {
-                    console.error('Failed to fetch tenant from API:', error);
-                  }
-                }
-
-                // Fallback to direct DB query
-                const tenantResult = await query('SELECT * FROM tenants WHERE id = $1', [user.tenant_id]);
-                if (tenantResult.rows.length > 0) {
-                  tenantSubdomain = tenantResult.rows[0].subdomain;
-                  tenantName = tenantResult.rows[0].name;
-                  planType = tenantResult.rows[0].plan_type;
-                }
-              }
-
-              return {
-                id: user.id,
-                email: user.email,
-                name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.name || user.email,
-                role: user.role,
-                admin_role: user.role === 'super_admin' ? 'super_admin' : undefined,
-                permissions: user.role === 'super_admin' ? ['*'] : ['basic'],
-                tenant_id: user.tenant_id,
-                tenant_subdomain: tenantSubdomain,
-                tenant_name: tenantName,
-                plan_type: planType,
-                access_token: loginData.access_token // Correctly pass the token
-              };
-            }
-          } else if (loginResponse.status === 401 && loginData.detail === 'Invalid 2FA code') {
-            throw new Error('INVALID_2FA_CODE');
-          } else if (loginData.two_factor_required) {
-            throw new Error("2FA_REQUIRED");
-          }
-
-          // Handle tenant user login
-          const tenantSubdomain = credentials.tenant_subdomain || extractSubdomainFromRequest();
-
-          if (tenantSubdomain) {
-            // Get tenant by subdomain
-            let tenant;
-
-            if (USE_BACKEND_API) {
-              try {
-                const tenantData = await tenantAPI.getTenantBySubdomain(tenantSubdomain);
-                tenant = tenantData.data;
-              } catch (error) {
-                console.error('Failed to fetch tenant from API:', error);
-                // Fall back to DB query
-              }
-            }
-
-            if (!tenant) {
-              // Fallback to direct DB query
-              const tenantResult = await query(
-                "SELECT * FROM tenants WHERE subdomain = $1 AND status = 'active'",
-                [tenantSubdomain]
-              );
-
-              if (tenantResult.rows.length === 0) {
-                return null;
-              }
-
-              tenant = tenantResult.rows[0];
-            }
-
-            // Set tenant context for database queries
-            await query('SELECT set_tenant_context($1)', [tenant.id]);
-
-            // Get user via backend login endpoint which now handles 2FA
-            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL || process.env.PYTHON_BACKEND_URL || ""}/api/auth/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                username: credentials.email,
-                password: credentials.password,
-                totp_code: credentials.totp_code
-              })
-            });
-
-            const loginData = await loginResponse.json();
-
-            if (loginResponse.ok && loginData.access_token) {
-              // Get user info if token is returned
-              const userResult = await query(
-                "SELECT * FROM users WHERE email = $1 AND status = 'active'",
-                [credentials.email]
-              );
-
-              if (userResult.rows.length > 0) {
-                const user = userResult.rows[0];
-                return {
-                  id: user.id,
-                  email: user.email,
-                  name: user.name,
-                  role: user.role,
-                  tenant_id: user.tenant_id,
-                  tenant_subdomain: tenant.subdomain,
-                  tenant_name: tenant.name,
-                  plan_type: tenant.plan_type,
-                  permissions: ['basic'],
-                  access_token: loginData.access_token // Pass token to session if needed
-                };
-              }
-            } else if (loginResponse.status === 401 && loginData.detail === 'Invalid 2FA code') {
-              throw new Error('INVALID_2FA_CODE');
-            } else if (loginData.two_factor_required) {
-              // Signal to frontend that 2FA is needed
-              throw new Error("2FA_REQUIRED");
-            }
-          }
-
-          return null;
-
-        } catch (error: any) {
-          if (error.message === '2FA_REQUIRED' || error.message === 'INVALID_2FA_CODE') {
-            throw error;
-          }
-          console.error('Authentication error:', error);
-          return null;
-        }
-      }
+      authorize: createBackendCredentialsAuthorize(() => process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL || process.env.PYTHON_BACKEND_URL || ""),
     }),
     // Add OAuth providers here for tenant users
     // GoogleProvider, MicrosoftProvider, etc.
@@ -259,6 +35,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = user.role;
+        token.workspace_id = user.workspace_id;
         token.tenant_id = user.tenant_id;
         token.tenant_subdomain = user.tenant_subdomain;
         token.tenant_name = user.tenant_name;
@@ -274,6 +51,7 @@ export const authOptions: NextAuthOptions = {
       session.user.email = token.email;
       session.user.name = token.name;
       session.user.role = token.role;
+      session.user.workspace_id = token.workspace_id;
       session.user.tenant_id = token.tenant_id;
       session.user.tenant_subdomain = token.tenant_subdomain;
       session.user.tenant_name = token.tenant_name;
@@ -300,10 +78,5 @@ export const authOptions: NextAuthOptions = {
     return s;
   })(),
 };
-
-function extractSubdomainFromRequest(): string | null {
-  // This will be implemented in the middleware to extract from request hostname
-  return null;
-}
 
 export default NextAuth(authOptions);
