@@ -166,6 +166,16 @@ describe('LocationScreen', () => {
       });
     });
 
+    it('keeps tracking on when stopping did not remove the subscription', async () => {
+      locationService.isActive.mockReturnValue(true);
+      render(<LocationScreen navigation={{}} />);
+      await waitFor(() => expect(getByText('ON')).toBeTruthy());
+      fireEvent.press(getByText('ON'));
+      await waitFor(() => expect(locationService.stopTracking).toHaveBeenCalled());
+      await waitFor(() => expect(Alert).toHaveBeenCalledWith('Error', 'Location tracking is still active'));
+      expect(getByText('ON')).toBeTruthy();
+    });
+
     it('shows error alert when startTracking fails', async () => {
       locationService.startTracking.mockResolvedValue(false);
 

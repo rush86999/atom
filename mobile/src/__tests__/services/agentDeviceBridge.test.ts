@@ -327,6 +327,18 @@ describe('agentDeviceBridge', () => {
       expect(mockLocationService.startTracking).toHaveBeenCalled();
     });
 
+    it('does not report stopped when the location service remains active', async () => {
+      mockAlert.mockImplementationOnce((title, message, buttons) => {
+        buttons[1].onPress();
+      });
+      mockLocationService.isActive.mockReturnValue(true);
+      const result = await agentDeviceBridge.requestCapability(
+        mockRequest('INTERN', 'location', 'stopTracking')
+      );
+      expect(mockLocationService.stopTracking).toHaveBeenCalled();
+      expect(result.data.tracking).toBe(true);
+    });
+
     it('should execute notification sendNotification', async () => {
       const request = mockRequest('INTERN', 'notification', 'sendNotification', {
         title: 'Test Title',
