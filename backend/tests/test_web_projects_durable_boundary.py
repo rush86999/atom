@@ -73,3 +73,56 @@ def test_anonymous_backend_task_and_project_access_is_refused(world):
     client.app.dependency_overrides.pop(get_current_user)
     for route in ['/api/v1/tasks', '/api/v1/projects']:
         assert client.get(route).status_code == 401
+
+def test_project_identity_and_workspace_come_from_server_not_body(world):
+    client, sessions = world
+    response = client.post('/api/v1/projects', json={'name': 'Server-owned', 'id': 'forged-id', 'workspace_id': 'forged-workspace', 'tenant_id': 'forged-tenant', 'metadata': {'privileged': True}})
+    assert response.status_code in (200, 201), response.text
+    row = response.json()['project']
+    assert row['id'] != 'forged-id'
+    with sessions() as db:
+        from service_delivery.models import Project
+        stored = db.get(Project, row['id'])
+        assert stored.workspace_id == 'web-workspace'
+        assert not (stored.metadata_json or {}).get('privileged')
+
+def test_project_edit_preserves_existing_financial_status_and_metadata(world):
+    client, sessions = world
+    with sessions() as db:
+        from service_delivery.models import Project, ProjectStatus
+        db.add(Project(id='preserved-project', workspace_id='web-workspace', name='Existing', status=ProjectStatus.ACTIVE, budget_amount=123.5, metadata_json={'color': '#000000', 'retained': 'existing data'}))
+        db.commit()
+    response = client.put('/api/v1/projects/preserved-project', json={'color': '#abcdef', 'budget_amount': 0, 'status': 'completed', 'metadata': {'retained': 'overwritten'}})
+    assert response.status_code == 200, response.text
+    with sessions() as db:
+        from service_delivery.models import Project, ProjectStatus
+        stored = db.get(Project, 'preserved-project')
+        assert stored.budget_amount == 123.5
+        assert stored.status == ProjectStatus.ACTIVE
+        assert stored.metadata_json == {'color': '#abcdef', 'retained': 'existing data'}
+
+def test_task_links_real_project_and_can_explicitly_unlink(world):
+    client, _ = world
+    project = client.post('/api/v1/projects', json={'name': 'Linked project'}).json()['project']
+    response = client.post('/api/v1/tasks', json={'title': 'Linked task', 'project': project['id']})
+    assert response.status_code == 200, response.text
+    task = response.json()['task']; assert task['project'] == project['id']
+    assert client.put(f"/api/v1/tasks/{task['id']}", json={'project': None}).json()['task']['project'] is None
+
+@pytest.mark.parametrize('payload', [{'name': ''}, {'name': True}, {'name': 'Valid', 'color': 'url(unsafe)'}, {'name': 'Valid', 'description': []}])
+def test_invalid_project_material_has_no_created_row(world, payload):
+    client, _ = world
+    assert client.post('/api/v1/projects', json=payload).status_code == 422
+    assert client.get('/api/v1/projects').json()['projects'] == []
+
+def test_database_failure_is_not_an_empty_success_or_raw_error(world, caplog):
+    client, _ = world
+    class BrokenDatabase:
+        def query(self, *args, **kwargs): raise RuntimeError('controlled-sensitive-parameter')
+        def rollback(self): pass
+    client.app.dependency_overrides[get_db] = BrokenDatabase
+    for route in ['/api/v1/tasks', '/api/v1/projects']:
+        result = client.get(route)
+        assert result.status_code == 500
+        assert 'controlled-sensitive-parameter' not in result.text
+    assert 'controlled-sensitive-parameter' not in caplog.text
