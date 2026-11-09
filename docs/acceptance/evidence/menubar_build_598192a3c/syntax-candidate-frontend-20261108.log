@@ -1,0 +1,153 @@
+
+> atom-menubar@0.1.0 build
+> tsc && vite build
+
+src/components/__tests__/WindowManager.test.tsx(16,27): error TS6133: 'fireEvent' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(16,44): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+src/components/__tests__/WindowManager.test.tsx(17,21): error TS2307: Cannot find module '../MenuBar' or its corresponding type declarations.
+src/components/__tests__/WindowManager.test.tsx(22,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(23,11): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(26,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(27,11): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(31,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(33,12): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(34,51): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(35,52): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(40,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(46,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(52,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(58,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(64,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(70,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(71,45): error TS6133: 'onClose' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(78,1): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(79,44): error TS6133: 'onClose' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(86,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(96,3): error TS2304: Cannot find name 'beforeEach'.
+src/components/__tests__/WindowManager.test.tsx(97,5): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(98,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(98,45): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(105,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(106,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(112,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(116,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(124,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(125,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(133,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(137,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(138,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(146,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(147,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(153,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(157,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(163,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(170,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(171,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(177,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(181,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(186,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(193,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(194,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(200,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(204,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(209,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(216,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(217,26): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(218,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(219,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(224,11): error TS6133: 'getByTestId' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(225,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(229,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(229,64): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(233,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(240,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(241,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(252,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(256,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(257,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(261,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(268,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(269,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(275,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(279,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(283,28): error TS2580: Cannot find name 'require'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/components/__tests__/WindowManager.test.tsx(284,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(291,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(292,26): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(293,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(294,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(299,11): error TS6133: 'getByTestId' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(300,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(304,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(304,65): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(308,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(308,57): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(315,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(316,5): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(317,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(327,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(331,5): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(334,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(337,5): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(344,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(345,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(350,13): error TS6133: 'getByTestId' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(351,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(355,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(358,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(366,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(367,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(375,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(379,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(384,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(391,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(392,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(397,24): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(404,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(408,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(415,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(416,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(418,24): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(420,11): error TS6133: 'getByTestId' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(421,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(425,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(427,9): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(438,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(439,26): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(440,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(441,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(447,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(451,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(458,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(465,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(466,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(477,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(481,7): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(485,5): error TS2304: Cannot find name 'expect'.
+src/components/__tests__/WindowManager.test.tsx(492,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/components/__tests__/WindowManager.test.tsx(493,16): error TS2503: Cannot find namespace 'jest'.
+src/components/__tests__/WindowManager.test.tsx(501,11): error TS6133: 'getByTestId' is declared but its value is never read.
+src/components/__tests__/WindowManager.test.tsx(502,60): error TS2304: Cannot find name 'jest'.
+src/components/__tests__/WindowManager.test.tsx(507,7): error TS2304: Cannot find name 'expect'.
+src/components/AgentDetail.tsx(2,1): error TS6133: 'invoke' is declared but its value is never read.
+src/components/AnalyticsPanel.tsx(9,8): error TS6133: 'React' is declared but its value is never read.
+src/components/AnalyticsPanel.tsx(10,1): error TS6133: 'ps' is declared but its value is never read.
+src/components/ApprovalsPanel.tsx(13,8): error TS6133: 'React' is declared but its value is never read.
+src/components/ApprovalsPanel.tsx(14,1): error TS6133: 'ps' is declared but its value is never read.
+src/components/IntegrationsPanel.tsx(14,8): error TS6133: 'React' is declared but its value is never read.
+src/components/QuickChat.tsx(239,59): error TS2345: Argument of type '"up" | null' is not assignable to parameter of type '"up" | "down"'.
+  Type 'null' is not assignable to type '"up" | "down"'.
+src/components/QuickChat.tsx(253,59): error TS2345: Argument of type '"down" | null' is not assignable to parameter of type '"up" | "down"'.
+  Type 'null' is not assignable to type '"up" | "down"'.
+src/components/WorkflowsPanel.tsx(12,8): error TS6133: 'React' is declared but its value is never read.
+src/components/WorkflowsPanel.tsx(13,1): error TS6133: 'ps' is declared but its value is never read.
+src/MenuBar.tsx(16,1): error TS6133: 'getIntegrationHealth' is declared but its value is never read.
+src/MenuBar.tsx(16,38): error TS2307: Cannot find module '../src/services/integrationService' or its corresponding type declarations.
+src/MenuBar.tsx(39,35): error TS6133: 'user' is declared but its value is never read.
+src/MenuBar.tsx(47,10): error TS6133: 'agentStatus' is declared but its value is never read.
+src/MenuBar.tsx(48,10): error TS6133: 'latency' is declared but its value is never read.
+src/MenuBar.tsx(264,13): error TS2322: Type 'string | ConnectionStatus' is not assignable to type 'ReactNode'.
+  Type 'ConnectionStatus' is not assignable to type 'ReactNode'.
+src/MenuBar.tsx(264,35): error TS2693: 'ConnectionStatus' only refers to a type, but is being used as a value here.
+src/MenuBar.tsx(268,28): error TS2322: Type 'ConnectionStatus' is not assignable to type '"error" | "connected" | "disconnected" | "connecting"'.
+src/MenuBar.tsx(363,12): error TS2741: Property 'agents' is missing in type '{ autoFocus: true; onSend: (message: string, agentId?: string | undefined) => Promise<string | undefined>; }' but required in type 'QuickChatProps'.

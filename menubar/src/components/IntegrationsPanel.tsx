@@ -11,7 +11,7 @@
  *   DELETE /api/v1/auth/oauth/tokens/:provider           disconnect
  */
 
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { panelStyles as ps } from "../styles/panelStyles";
 
 interface IntegrationHealthRow {
@@ -138,7 +138,7 @@ export default function IntegrationsPanel({
       <div style={ps.header}>
         <span style={ps.title}>Integrations</span>
         <span
-          style={{...ps.count}} data-count= ${healthy === total && total > 0 ? "all-healthy" : ""}`}
+          style={{...ps.count}} data-count={`${healthy === total && total > 0 ? "all-healthy" : ""}`}
           data-testid="integrations-summary"
         >
           {loading ? "Checking…" : `${healthy} of ${total} healthy`}

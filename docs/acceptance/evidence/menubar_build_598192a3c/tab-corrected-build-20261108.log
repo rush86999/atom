@@ -1,0 +1,13 @@
+
+> atom-menubar@0.1.0 build
+> tsc && vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 49 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:  0.30 kB
+dist/assets/index-eBzlj5pD.css    2.25 kB │ gzip:  0.92 kB
+dist/assets/index-C38KAygZ.js   195.60 kB │ gzip: 57.88 kB
+✓ built in 858ms

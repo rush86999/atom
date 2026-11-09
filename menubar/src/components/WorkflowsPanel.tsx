@@ -9,8 +9,7 @@
  *   POST /api/mobile/workflows/trigger        run a workflow
  */
 
-import React, { useCallback, useEffect, useState } from "react";
-import { panelStyles as ps } from "../styles/panelStyles";
+import { useCallback, useEffect, useState } from "react";
 
 interface Workflow {
   id: string;

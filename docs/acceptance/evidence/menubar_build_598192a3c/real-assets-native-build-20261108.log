@@ -1,0 +1,474 @@
+   Compiling serde_core v1.0.229
+   Compiling smallvec v1.16.5
+   Compiling stable_deref_trait v1.2.1
+   Compiling yoke v0.8.4
+   Compiling zerovec v0.11.9
+   Compiling core-foundation-sys v0.8.7
+   Compiling objc2-exception-helper v0.1.1
+   Compiling objc2 v0.6.5
+   Compiling bitflags v2.13.2
+   Compiling serde v1.0.229
+   Compiling tinystr v0.8.5
+   Compiling errno v0.3.14
+   Compiling icu_locale_core v2.4.0
+   Compiling potential_utf v0.1.6
+   Compiling zerotrie v0.2.5
+   Compiling pin-project-lite v0.2.17
+   Compiling icu_collections v2.4.0
+   Compiling icu_provider v2.4.0
+   Compiling percent-encoding v2.3.2
+   Compiling block2 v0.6.2
+   Compiling objc2-core-foundation v0.3.2
+   Compiling parking_lot_core v0.9.12
+   Compiling once_cell v1.21.4
+   Compiling parking_lot v0.12.5
+   Compiling icu_normalizer v2.4.0
+   Compiling icu_properties v2.4.0
+   Compiling signal-hook-registry v1.4.8
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.4
+   Compiling futures-core v0.3.34
+   Compiling idna_adapter v1.2.2
+   Compiling tokio v1.54.1
+   Compiling objc2-foundation v0.3.2
+   Compiling form_urlencoded v1.2.2
+   Compiling objc2-quartz-core v0.3.2
+   Compiling idna v1.1.0
+   Compiling core-foundation v0.10.1
+   Compiling url v2.5.8
+   Compiling objc2-app-kit v0.3.2
+   Compiling futures-sink v0.3.34
+   Compiling serde_json v1.0.154
+   Compiling slab v0.4.12
+   Compiling time v0.3.55
+   Compiling dpi v0.1.2
+   Compiling crossbeam-utils v0.8.23
+   Compiling getrandom v0.3.4
+   Compiling uuid v1.29.1
+   Compiling futures-task v0.3.34
+   Compiling raw-window-handle v0.6.2
+   Compiling futures-util v0.3.34
+   Compiling cfb v0.14.0
+   Compiling crossbeam-channel v0.5.17
+   Compiling httparse v1.10.1
+   Compiling jsonptr v0.7.1
+   Compiling tracing-core v0.1.36
+   Compiling erased-serde v0.4.11
+   Compiling serde_spanned v1.1.3
+   Compiling toml_datetime v1.1.3+spec-1.1.0
+   Compiling http-body v1.1.0
+   Compiling phf_shared v0.13.1
+   Compiling foreign-types-shared v0.3.1
+   Compiling foreign-types v0.5.0
+   Compiling phf v0.13.1
+   Compiling serde-untagged v0.1.9
+   Compiling toml v1.2.1+spec-1.1.0
+   Compiling tracing v0.1.44
+   Compiling json-patch v4.2.0
+   Compiling infer v0.22.0
+   Compiling cookie v0.18.2
+   Compiling zerocopy v0.8.63
+   Compiling rustix v1.1.6
+   Compiling objc2-web-kit v0.3.2
+   Compiling plist v1.10.3
+   Compiling tokio-util v0.7.20
+   Compiling urlpattern v0.6.0
+   Compiling core-graphics-types v0.2.0
+   Compiling serde_with v3.24.0
+   Compiling security-framework-sys v2.17.0
+   Compiling try-lock v0.2.5
+   Compiling semver v1.0.28
+   Compiling fastrand v2.5.0
+   Compiling atomic-waker v1.1.2
+   Compiling tower-service v0.3.3
+   Compiling h2 v0.4.20
+   Compiling tauri-utils v2.10.2
+   Compiling tempfile v3.27.0
+   Compiling want v0.3.2
+   Compiling security-framework v3.7.0
+   Compiling core-graphics v0.25.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling system-configuration-sys v0.6.0
+   Compiling rand_core v0.9.5
+   Compiling png v0.18.1
+   Compiling futures-channel v0.3.34
+   Compiling dispatch2 v0.3.1
+   Compiling keyboard-types v0.8.3
+   Compiling core-foundation v0.9.4
+   Compiling muda v0.20.0
+   Compiling system-configuration v0.7.0
+   Compiling tao v0.37.2
+   Compiling hyper v1.12.0
+   Compiling rand_chacha v0.9.0
+   Compiling wry v0.57.1
+   Compiling tauri-runtime v2.12.2
+   Compiling native-tls v0.2.18
+   Compiling sync_wrapper v1.0.2
+   Compiling objc2-core-graphics v0.3.2
+   Compiling simdutf8 v0.1.5
+   Compiling tower-layer v0.3.3
+   Compiling mime v0.3.18
+   Compiling ipnet v2.12.2
+   Compiling encoding_rs v0.8.44
+   Compiling hyper-util v0.1.21
+   Compiling tower v0.5.3
+   Compiling serialize-to-javascript v0.1.2
+   Compiling tray-icon v0.25.1
+   Compiling tauri-runtime-wry v2.12.3
+   Compiling tokio-native-tls v0.3.1
+   Compiling rand v0.9.5
+   Compiling http-body-util v0.1.5
+   Compiling window-vibrancy v0.8.1
+   Compiling sha1 v0.10.7
+   Compiling data-encoding v2.11.1
+   Compiling ryu v1.0.23
+   Compiling utf-8 v0.7.6
+   Compiling embed_plist v1.2.2
+   Compiling zeroize v1.9.1
+   Compiling rustls-pki-types v1.15.1
+   Compiling tauri v2.12.5
+   Compiling tungstenite v0.26.2
+   Compiling serde_urlencoded v0.7.1
+   Compiling hyper-tls v0.6.0
+   Compiling tower-http v0.6.11
+   Compiling num-traits v0.2.19
+warning: stripping debug info with `rust-objcopy` failed: signal: 6 (SIGABRT)
+  |
+  = note: dyld[69772]: Library not loaded: @rpath/libLLVM.dylib
+            Referenced from: <AC0D75A8-23BF-301F-B7CE-3E5CC0C1BC06> /Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/rust-objcopy
+            Reason: tried: '/Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/../lib/libLLVM.dylib' (no such file), '/Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/../lib/libLLVM.dylib' (no such file), '/private/tmp/root-menubar-baseline-1sl_vq91/cargo-target/debug/deps/libLLVM.dylib' (no such file), '/Users/rushiparikh/lib/libLLVM.dylib' (no such file), '/usr/local/lib/libLLVM.dylib' (no such file), '/usr/lib/libLLVM.dylib' (no such file, not in dyld cache)
+          
+
+warning: `atom-menubar` (build script) generated 1 warning
+   Compiling iana-time-zone v0.1.65
+   Compiling os_pipe v1.2.3
+   Compiling shared_child v1.1.2
+   Compiling open v5.4.5
+   Compiling base64 v0.22.1
+   Compiling reqwest v0.12.28
+   Compiling tauri-plugin-shell v2.6.0
+   Compiling chrono v0.4.45
+   Compiling atom-menubar v0.1.0 (/private/tmp/atom-menubar-build-20261108/menubar/src-tauri)
+   Compiling tokio-tungstenite v0.26.2
+   Compiling keyring v3.6.3
+warning: unused import: `Manager`
+ --> src/menu.rs:1:18
+  |
+1 | use tauri::{App, Manager, menu::{Menu, MenuItem, PredefinedMenuItem, Submenu, IsMenuItem}, Runtime};
+  |                  ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Manager`
+ --> src/autolaunch.rs:3:24
+  |
+3 | use tauri::{AppHandle, Manager};
+  |                        ^^^^^^^
+
+warning: unused imports: `Emitter` and `menu::Menu`
+  --> src/main.rs:20:5
+   |
+20 |     menu::Menu,
+   |     ^^^^^^^^^^
+21 |     tray::TrayIconBuilder,
+22 |     Emitter, Listener, Manager,
+   |     ^^^^^^^
+
+warning: unused variable: `url`
+  --> src/websocket.rs:74:13
+   |
+74 |         let url = Url::parse(&self.url)?;
+   |             ^^^ help: if this is intentional, prefix it with an underscore: `_url`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `app_handle`
+  --> src/main.rs:75:17
+   |
+75 |             let app_handle = app.handle().clone();
+   |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_app_handle`
+
+warning: field `token` is never read
+  --> src/main.rs:33:5
+   |
+32 | struct UserSession {
+   |        ----------- field in this struct
+33 |     token: String,
+   |     ^^^^^
+   |
+   = note: `UserSession` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `create_menu_bar_menu` is never used
+  --> src/menu.rs:48:8
+   |
+48 | pub fn create_menu_bar_menu<R: Runtime>(app: &App<R>) -> Result<Menu<R>, String> {
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `WEBSOCKET_URL` is never used
+  --> src/websocket.rs:11:7
+   |
+11 | const WEBSOCKET_URL: &str = "ws://localhost:8000/ws/menubar"; // Configure as needed
+   |       ^^^^^^^^^^^^^
+
+warning: enum `WebSocketEvent` is never used
+  --> src/websocket.rs:19:10
+   |
+19 | pub enum WebSocketEvent {
+   |          ^^^^^^^^^^^^^^
+
+warning: struct `WebSocketMessage` is never constructed
+  --> src/websocket.rs:50:12
+   |
+50 | pub struct WebSocketMessage {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: struct `WebSocketClient` is never constructed
+  --> src/websocket.rs:59:12
+   |
+59 | pub struct WebSocketClient {
+   |            ^^^^^^^^^^^^^^^
+
+warning: associated items `new` and `connect` are never used
+  --> src/websocket.rs:65:12
+   |
+64 | impl WebSocketClient {
+   | -------------------- associated items in this implementation
+65 |     pub fn new(url: String, token: String) -> Self {
+   |            ^^^
+...
+70 |     pub async fn connect<F>(self, mut callback: F) -> Result<(), Box<dyn std::error::Error>>
+   |                  ^^^^^^^
+
+warning: function `connect_with_reconnect` is never used
+   --> src/websocket.rs:114:14
+    |
+114 | pub async fn connect_with_reconnect(
+    |              ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `registered_hotkeys` is never read
+  --> src/hotkeys.rs:42:5
+   |
+40 | pub struct HotkeyManager {
+   |            ------------- field in this struct
+41 |     config: Mutex<HotkeyConfig>,
+42 |     registered_hotkeys: Mutex<HashMap<String, String>>, // hotkey -> action
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `load_config`, `get_config`, `parse_hotkey`, and `register_hotkeys` are never used
+   --> src/hotkeys.rs:53:12
+    |
+ 45 | impl HotkeyManager {
+    | ------------------ associated items in this implementation
+...
+ 53 |     pub fn load_config(&self, config: HotkeyConfig) {
+    |            ^^^^^^^^^^^
+...
+ 57 |     pub fn get_config(&self) -> HotkeyConfig {
+    |            ^^^^^^^^^^
+...
+116 |     pub fn parse_hotkey(hotkey: &str) -> Option<(String, Vec<String>)> {
+    |            ^^^^^^^^^^^^
+...
+138 |     pub fn register_hotkeys(&self, _app: &AppHandle) -> Result<(), String> {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: fields `app_path` and `app_name` are never read
+  --> src/autolaunch.rs:31:5
+   |
+30 | pub struct AutoLaunchManager {
+   |            ----------------- fields in this struct
+31 |     app_path: PathBuf,
+   |     ^^^^^^^^
+32 |     app_name: String,
+   |     ^^^^^^^^
+
+warning: enum `NotificationAction` is never used
+  --> src/notifications.rs:36:10
+   |
+36 | pub enum NotificationAction {
+   |          ^^^^^^^^^^^^^^^^^^
+
+warning: methods `get_all`, `get_unread`, `mark_read`, `mark_all_read`, and `remove` are never used
+   --> src/notifications.rs:75:12
+    |
+ 57 | impl NotificationStore {
+    | ---------------------- methods in this implementation
+...
+ 75 |     pub fn get_all(&self) -> Vec<Notification> {
+    |            ^^^^^^^
+...
+ 79 |     pub fn get_unread(&self) -> Vec<Notification> {
+    |            ^^^^^^^^^^
+...
+ 89 |     pub fn mark_read(&self, id: &str) -> Option<Notification> {
+    |            ^^^^^^^^^
+...
+100 |     pub fn mark_all_read(&self) {
+    |            ^^^^^^^^^^^^^
+...
+107 |     pub fn remove(&self, id: &str) -> Option<Notification> {
+    |            ^^^^^^
+
+warning: methods `store`, `handle_action`, and `open_url` are never used
+   --> src/notifications.rs:155:12
+    |
+148 | impl NotificationManager {
+    | ------------------------ methods in this implementation
+...
+155 |     pub fn store(&self) -> &NotificationStore {
+    |            ^^^^^
+...
+180 |     pub fn handle_action(
+    |            ^^^^^^^^^^^^^
+...
+248 |     fn open_url(&self, url: &str) -> Result<(), String> {
+    |        ^^^^^^^^
+
+warning: function `read_file_content` is never used
+  --> src/helpers.rs:22:8
+   |
+22 | pub fn read_file_content<P: AsRef<Path>>(path: P) -> Result<String, std::io::Error> {
+   |        ^^^^^^^^^^^^^^^^^
+
+warning: function `write_file_content` is never used
+  --> src/helpers.rs:35:8
+   |
+35 | pub fn write_file_content<P: AsRef<Path>>(path: P, content: &str) -> Result<(), std::io::Error> {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `file_exists` is never used
+  --> src/helpers.rs:46:8
+   |
+46 | pub fn file_exists<P: AsRef<Path>>(path: P) -> bool {
+   |        ^^^^^^^^^^^
+
+warning: function `delete_file` is never used
+  --> src/helpers.rs:58:8
+   |
+58 | pub fn delete_file<P: AsRef<Path>>(path: P) -> Result<(), std::io::Error> {
+   |        ^^^^^^^^^^^
+
+warning: function `create_directory` is never used
+  --> src/helpers.rs:70:8
+   |
+70 | pub fn create_directory<P: AsRef<Path>>(path: P) -> Result<(), std::io::Error> {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: function `get_file_extension` is never used
+  --> src/helpers.rs:82:8
+   |
+82 | pub fn get_file_extension<P: AsRef<Path>>(path: P) -> Option<String> {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `join_paths` is never used
+  --> src/helpers.rs:95:8
+   |
+95 | pub fn join_paths(segments: &[&str]) -> PathBuf {
+   |        ^^^^^^^^^^
+
+warning: function `normalize_path` is never used
+   --> src/helpers.rs:106:8
+    |
+106 | pub fn normalize_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    |        ^^^^^^^^^^^^^^
+
+warning: function `get_parent_directory` is never used
+   --> src/helpers.rs:118:8
+    |
+118 | pub fn get_parent_directory<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_file_name` is never used
+   --> src/helpers.rs:130:8
+    |
+130 | pub fn get_file_name<P: AsRef<Path>>(path: P) -> Option<String> {
+    |        ^^^^^^^^^^^^^
+
+warning: function `is_absolute_path` is never used
+   --> src/helpers.rs:143:8
+    |
+143 | pub fn is_absolute_path<P: AsRef<Path>>(path: P) -> bool {
+    |        ^^^^^^^^^^^^^^^^
+
+warning: function `is_macos` is never used
+   --> src/helpers.rs:151:8
+    |
+151 | pub fn is_macos() -> bool {
+    |        ^^^^^^^^
+
+warning: function `is_windows` is never used
+   --> src/helpers.rs:159:8
+    |
+159 | pub fn is_windows() -> bool {
+    |        ^^^^^^^^^^
+
+warning: function `is_linux` is never used
+   --> src/helpers.rs:167:8
+    |
+167 | pub fn is_linux() -> bool {
+    |        ^^^^^^^^
+
+warning: function `get_home_directory` is never used
+   --> src/helpers.rs:176:8
+    |
+176 | pub fn get_home_directory() -> Option<PathBuf> {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `truncate_string` is never used
+   --> src/helpers.rs:191:8
+    |
+191 | pub fn truncate_string(text: &str, max_length: usize) -> String {
+    |        ^^^^^^^^^^^^^^^
+
+warning: function `sanitize_filename` is never used
+   --> src/helpers.rs:206:8
+    |
+206 | pub fn sanitize_filename(filename: &str) -> String {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: function `generate_unique_id` is never used
+   --> src/helpers.rs:220:8
+    |
+220 | pub fn generate_unique_id() -> String {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `get_macos_app_support_path` is never used
+  --> src/platform_specific.rs:15:8
+   |
+15 | pub fn get_macos_app_support_path(app_name: &str) -> PathBuf {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_cache_path` is never used
+  --> src/platform_specific.rs:84:8
+   |
+84 | pub fn get_cache_path(app_name: &str) -> PathBuf {
+   |        ^^^^^^^^^^^^^^
+
+warning: function `get_log_path` is never used
+   --> src/platform_specific.rs:118:8
+    |
+118 | pub fn get_log_path(app_name: &str) -> PathBuf {
+    |        ^^^^^^^^^^^^
+
+warning: function `open_url` is never used
+   --> src/platform_specific.rs:154:8
+    |
+154 | pub fn open_url(url: &str) -> Result<(), std::io::Error> {
+    |        ^^^^^^^^
+
+warning: function `show_in_folder` is never used
+   --> src/platform_specific.rs:187:8
+    |
+187 | pub fn show_in_folder(path: &PathBuf) -> Result<(), std::io::Error> {
+    |        ^^^^^^^^^^^^^^
+
+warning: stripping debug info with `rust-objcopy` failed: signal: 6 (SIGABRT)
+  |
+  = note: dyld[77874]: Library not loaded: @rpath/libLLVM.dylib
+            Referenced from: <AC0D75A8-23BF-301F-B7CE-3E5CC0C1BC06> /Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/rust-objcopy
+            Reason: tried: '/Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/../lib/libLLVM.dylib' (no such file), '/Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/../lib/libLLVM.dylib' (no such file), '/private/tmp/root-menubar-baseline-1sl_vq91/cargo-target/debug/deps/libLLVM.dylib' (no such file), '/Users/rushiparikh/lib/libLLVM.dylib' (no such file), '/usr/local/lib/libLLVM.dylib' (no such file), '/usr/lib/libLLVM.dylib' (no such file, not in dyld cache)
+          
+
+warning: `atom-menubar` (bin "atom-menubar") generated 43 warnings (run `cargo fix --bin "atom-menubar" -p atom-menubar` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized] target(s) in 24.09s
