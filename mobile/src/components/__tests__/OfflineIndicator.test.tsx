@@ -23,7 +23,7 @@ import { OfflineIndicator } from '../offline/OfflineIndicator';
 import { offlineSyncService } from '../../services/offlineSyncService';
 
 // Mock dependencies
-// (react-native-vector-icons/Ionicons is mocked globally in jest.setup.js with
+// (@expo/vector-icons Ionicons is mocked globally in jest.setup.js with
 // testID `icon-${name}` — no local override needed)
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -46,6 +46,14 @@ jest.mock('../../services/offlineSyncService', () => ({
     triggerSync: jest.fn(),
   },
 }));
+
+function networkState(state: { isConnected: boolean | null; isInternetReachable: boolean | null }) {
+  (NetInfo.fetch as jest.Mock).mockResolvedValue(state);
+  (NetInfo.addEventListener as jest.Mock).mockImplementation(callback => {
+    callback(state);
+    return jest.fn();
+  });
+}
 
 describe('OfflineIndicator Component', () => {
   const mockOnViewPendingActions = jest.fn();
@@ -70,6 +78,7 @@ describe('OfflineIndicator Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    networkState({ isConnected: true, isInternetReachable: true });
 
     (offlineSyncService.subscribe as jest.Mock).mockImplementation((callback) => {
       // Immediately call with initial state
@@ -86,13 +95,13 @@ describe('OfflineIndicator Component', () => {
 
   describe('Authoritative network state', () => {
     test('disconnected idle work is offline rather than inferred online', async () => {
-      (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false, isInternetReachable: false });
+      networkState({ isConnected: false, isInternetReachable: false });
       const screen = renderWithNavigation(<OfflineIndicator />);
       await waitFor(() => expect(screen.getByText('Offline - Changes Saved Locally')).toBeTruthy());
     });
 
     test('connected active sync is syncing rather than inferred offline', async () => {
-      (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true, isInternetReachable: true });
+      networkState({ isConnected: true, isInternetReachable: true });
       const syncing = { ...mockSyncState, syncInProgress: true, syncProgress: 25 };
       (offlineSyncService.getSyncState as jest.Mock).mockResolvedValue(syncing);
       (offlineSyncService.subscribe as jest.Mock).mockImplementation(callback => {
@@ -215,9 +224,10 @@ describe('OfflineIndicator Component', () => {
 
   describe('Offline State', () => {
     test('should show offline message when offline', async () => {
+      networkState({ isConnected: false, isInternetReachable: false });
       (offlineSyncService.getSyncState as jest.Mock).mockResolvedValue({
         ...mockSyncState,
-        syncInProgress: true, // Simulating offline
+        syncInProgress: false,
       });
 
       const { getByText } = renderWithNavigation(
@@ -230,6 +240,7 @@ describe('OfflineIndicator Component', () => {
     });
 
     test('should show cloud offline icon when offline', async () => {
+      networkState({ isConnected: false, isInternetReachable: false });
       (offlineSyncService.getSyncState as jest.Mock).mockResolvedValue({
         ...mockSyncState,
         syncInProgress: true,
@@ -829,6 +840,7 @@ describe('OfflineIndicator Component', () => {
     });
 
     test('should show orange when offline', async () => {
+      networkState({ isConnected: false, isInternetReachable: false });
       (offlineSyncService.getSyncState as jest.Mock).mockResolvedValue({
         ...mockSyncState,
         syncInProgress: true,
@@ -898,31 +910,54 @@ describe('OfflineIndicator Component', () => {
     });
   });
 
-  describe('Periodic Online Check', () => {
-    test('should check online status every 10 seconds', () => {
-      const setIntervalSpy = jest.spyOn(global, 'setInterval');
-
-      renderWithNavigation(
-        <OfflineIndicator onViewPendingActions={mockOnViewPendingActions} />
-      );
-
-      expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 10000);
-
-      setIntervalSpy.mockRestore();
+  describe('Live Network Updates', () => {
+    test('should update online status from network events', async () => {
+      const screen = renderWithNavigation(<OfflineIndicator />);
+      const listener = (NetInfo.addEventListener as jest.Mock).mock.calls[0][0];
+      act(() => { listener({ isConnected: false, isInternetReachable: false }); });
+      await waitFor(() => expect(screen.getByText('Offline - Changes Saved Locally')).toBeTruthy());
+      act(() => { listener({ isConnected: true, isInternetReachable: true }); });
+      await waitFor(() => expect(screen.getByText('3 Pending Changes')).toBeTruthy());
     });
 
-    test('should clear interval on unmount', () => {
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
-      const { unmount } = renderWithNavigation(
-        <OfflineIndicator onViewPendingActions={mockOnViewPendingActions} />
-      );
-
+    test('should detach network updates on unmount', () => {
+      const detach = jest.fn();
+      (NetInfo.addEventListener as jest.Mock).mockReturnValue(detach);
+      const { unmount } = renderWithNavigation(<OfflineIndicator />);
       unmount();
+      expect(detach).toHaveBeenCalledTimes(1);
+    });
 
-      expect(clearIntervalSpy).toHaveBeenCalled();
+    test('unknown connectivity is displayed as unknown, without a sync action', async () => {
+      networkState({ isConnected: null, isInternetReachable: null });
+      const screen = renderWithNavigation(<OfflineIndicator />);
+      await waitFor(() => expect(screen.getByText('Checking connection')).toBeTruthy());
+      expect(screen.queryByText('Sync Now')).toBeNull();
+      expect(screen.queryByText('Offline - Changes Saved Locally')).toBeNull();
+    });
 
-      clearIntervalSpy.mockRestore();
+    test('loads initial sync state when the real subscription has not emitted', async () => {
+      (offlineSyncService.subscribe as jest.Mock).mockReturnValue(jest.fn());
+      const screen = renderWithNavigation(<OfflineIndicator />);
+      await waitFor(() => expect(screen.getByText('3 Pending Changes')).toBeTruthy());
+    });
+
+    test('initial state read failure is unavailable rather than all synced', async () => {
+      (offlineSyncService.subscribe as jest.Mock).mockReturnValue(jest.fn());
+      (offlineSyncService.getSyncState as jest.Mock).mockRejectedValue(new Error('controlled read failure'));
+      const screen = renderWithNavigation(<OfflineIndicator />);
+      await waitFor(() => expect(screen.getByText('Sync status unavailable')).toBeTruthy());
+      expect(screen.queryByText('All Synced')).toBeNull();
+    });
+
+    test('a stale initial network fetch cannot overwrite a newer event', async () => {
+      let resolve!: (value: { isConnected: boolean; isInternetReachable: boolean }) => void;
+      const pending = new Promise(done => { resolve = done; });
+      (NetInfo.fetch as jest.Mock).mockReturnValue(pending);
+      const screen = renderWithNavigation(<OfflineIndicator />);
+      await act(async () => { resolve({ isConnected: false, isInternetReachable: false }); });
+      expect(screen.getByText('3 Pending Changes')).toBeTruthy();
+      expect(screen.queryByText('Offline - Changes Saved Locally')).toBeNull();
     });
   });
 

@@ -26,7 +26,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { useTheme } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { offlineSyncService, SyncState } from '../../services/offlineSyncService';
 
 const { width } = Dimensions.get('window');
@@ -47,9 +48,13 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     pendingCount: 0,
     syncInProgress: false,
     consecutiveFailures: 0,
+    currentOperation: '',
+    syncProgress: 0,
+    cancelled: false,
   });
   const [isVisible, setIsVisible] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState<boolean | null>(null);
+  const [stateUnavailable, setStateUnavailable] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [hasError, setHasError] = useState(false);
@@ -62,8 +67,11 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   const isConnectingRef = useRef(false);
 
   useEffect(() => {
-    // Subscribe to sync state changes
-    const unsubscribe = offlineSyncService.subscribe((state) => {
+    let active = true;
+    let observedState = false;
+    const applySyncState = (state: SyncState) => {
+      if (!active) return;
+      setStateUnavailable(false);
       setSyncState(state);
       setSyncProgress(state.syncProgress);
       setHasError(state.consecutiveFailures > 2);
@@ -81,31 +89,45 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
         setIsConnecting(false);
         stopRotationAnimation();
       }
+    };
+    const unsubscribe = offlineSyncService.subscribe(state => {
+      observedState = true;
+      applySyncState(state);
     });
-
-    // Check initial online status
-    checkOnlineStatus();
-
-    // Periodic online check (every 10 seconds)
-    const interval = setInterval(checkOnlineStatus, 10000);
-
+    offlineSyncService.getSyncState().then(state => {
+      if (!observedState) applySyncState(state);
+    }).catch(() => {
+      if (active && !observedState) {
+        setStateUnavailable(true);
+        setIsVisible(!dismissed);
+      }
+    });
     return () => {
+      active = false;
       unsubscribe();
-      clearInterval(interval);
       stopRotationAnimation();
     };
-  }, [dismissed, isOnline]);
+  }, [dismissed]);
 
-  const checkOnlineStatus = async () => {
-    try {
-      // Simple ping to check connectivity
-      const state = await offlineSyncService.getSyncState();
-      const online = !state.syncInProgress; // Simplified check
-      setIsOnline(online);
-    } catch (error) {
-      setIsOnline(false);
-    }
-  };
+  useEffect(() => {
+    let active = true;
+    let observedEvent = false;
+    const applyNetwork = (state: NetInfoState) => {
+      if (!active) return;
+      setIsOnline(state.isConnected === false || state.isInternetReachable === false ? false :
+        state.isConnected === true && state.isInternetReachable === true ? true : null);
+    };
+    const unsubscribe = NetInfo.addEventListener(state => {
+      observedEvent = true;
+      applyNetwork(state);
+    });
+    NetInfo.fetch().then(state => {
+      if (!observedEvent) applyNetwork(state);
+    }).catch(() => {
+      if (active && !observedEvent) setIsOnline(null);
+    });
+    return () => { active = false; unsubscribe(); };
+  }, []);
 
   const startRotationAnimation = () => {
     Animated.loop(
@@ -151,10 +173,12 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   }
 
   const getStatusText = () => {
+    if (stateUnavailable) return 'Sync status unavailable';
     if (hasError) {
       return 'Sync Error - Tap to Retry';
     }
-    if (!isOnline) {
+    if (isOnline === null) return 'Checking connection';
+    if (isOnline === false) {
       return 'Offline - Changes Saved Locally';
     }
     if (syncState.syncInProgress) {
@@ -167,15 +191,17 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   };
 
   const getStatusColor = () => {
-    if (hasError) return '#FF3B30'; // Red
-    if (!isOnline) return '#FF9500'; // Orange
+    if (hasError || stateUnavailable) return '#FF3B30';
+    if (isOnline === null) return '#8E8E93'; // Red
+    if (isOnline === false) return '#FF9500'; // Orange
     if (syncState.syncInProgress) return '#007AFF'; // Blue
     return '#34C759'; // Green
   };
 
   const getStatusIcon = () => {
-    if (hasError) return 'alert-circle';
-    if (!isOnline) return 'cloud-offline';
+    if (hasError || stateUnavailable) return 'alert-circle';
+    if (isOnline === null) return 'help-circle';
+    if (isOnline === false) return 'cloud-offline';
     if (syncState.syncInProgress) return 'sync';
     return 'cloud-done';
   };

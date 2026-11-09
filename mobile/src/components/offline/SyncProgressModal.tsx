@@ -28,7 +28,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Ionicons as Icon } from '@expo/vector-icons';
 import { offlineSyncService, SyncState } from '../../services/offlineSyncService';
 
 interface SyncProgressModalProps {
