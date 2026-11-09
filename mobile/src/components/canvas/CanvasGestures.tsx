@@ -12,7 +12,6 @@ import {
   GestureResponderEvent,
   PanResponder,
   Dimensions,
-  NativeSyntheticEvent,
   NativeTouchEvent,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
@@ -154,7 +153,7 @@ export const CanvasGestures: React.FC<CanvasGesturesProps> = ({
   /**
    * Handle touch start
    */
-  const handleTouchStart = useCallback((event: NativeSyntheticEvent<any>) => {
+  const handleTouchStart = useCallback((event: GestureResponderEvent) => {
     if (disabled) return;
 
     const touch = event.nativeEvent.touches[0];
@@ -261,7 +260,7 @@ export const CanvasGestures: React.FC<CanvasGesturesProps> = ({
   /**
    * Handle touch move
    */
-  const handleTouchMove = useCallback((event: NativeSyntheticEvent<any>) => {
+  const handleTouchMove = useCallback((event: GestureResponderEvent) => {
     if (disabled) return;
 
     const touches = event.nativeEvent.touches;
@@ -305,7 +304,7 @@ export const CanvasGestures: React.FC<CanvasGesturesProps> = ({
   /**
    * Handle touch end
    */
-  const handleTouchEnd = useCallback((event: NativeSyntheticEvent<any>) => {
+  const handleTouchEnd = useCallback((event: GestureResponderEvent) => {
     if (disabled) return;
 
     const touches = event.nativeEvent.touches;
