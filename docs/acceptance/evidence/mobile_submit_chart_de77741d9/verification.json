@@ -1,0 +1,25 @@
+{
+  "executed_source": "de77741d9ca0c3991d32aa54267a52bdf265ff12",
+  "controlled_scope": "mobile JavaScript regression, simulated native transports; not native-device acceptance",
+  "suites_passed": 58,
+  "tests_passed": 2024,
+  "tests_failed": 0,
+  "tests_skipped": 2,
+  "skip_names": [
+    "testUtils skipOnPlatform / onlyOnPlatform Skipped on ios",
+    "testUtils skipOnPlatform / onlyOnPlatform Only on android"
+  ],
+  "strict_compiler_errors": 88,
+  "build_qualified": false,
+  "strict_all_assertions_passed": false,
+  "receipt_owner_uncertainty_capacity_tests": 93,
+  "chart_viewer_tests": 109,
+  "device_bridge_tests": 57,
+  "boundaries": [
+    "No physical device, signing, permissions or store operation",
+    "No real backend HTTP/restart receipt qualification",
+    "No secure owner-scoped offline canvas acceptance",
+    "Immediate+queued canvas service repaired; generic offlineSync/viewer producers remain open",
+    "No live account/model/provider execution; engineering CLI proposals independently verified"
+  ]
+}
