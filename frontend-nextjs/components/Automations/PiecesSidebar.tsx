@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { authFetch } from "@/lib/auth-headers";
 
 // Piece definition - each integration/service
 export interface Piece {
@@ -606,15 +607,20 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
     const [allPieces, setAllPieces] = useState<Piece[]>([...PIECES, ...MOCK_AGENT_SKILLS]);
 
     const [isLoading, setIsLoading] = useState(true);
+    const [skillsUnavailable, setSkillsUnavailable] = useState(false);
 
     // Fetch Agent Skills from Atom backend
     useEffect(() => {
+        let active = true;
+        const controller = new AbortController();
         const fetchAgentSkills = async () => {
             try {
-                const response = await fetch('/api/skills/list');
+                const response = await authFetch('/api/skills/list', { signal: controller.signal });
                 if (!response.ok) throw new Error("Failed to fetch agent skills");
 
                 const result = await response.json();
+                if (!active) return;
+                if (!Array.isArray(result?.data?.skills)) throw new Error('Invalid skills response');
 
                 if (result.data && result.data.skills) {
                     const agentSkills: Piece[] = result.data.skills.map((s: any): Piece => ({
@@ -637,11 +643,14 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                     setAllPieces(prev => [...prev, ...agentSkills]);
                 }
             } catch (err) {
-                console.error("Failed to load agent skills:", err);
+                if (!active) return;
+                setSkillsUnavailable(true);
+                console.warn("Agent skills unavailable");
             }
         };
 
         fetchAgentSkills();
+        return () => { active = false; controller.abort(); };
     }, []);
 
     // Fetched catalog logic restored - Source from Node.js Bridge
@@ -750,6 +759,9 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                 </p>
             </div>
 
+            {skillsUnavailable && <p role="status" className="p-3 text-sm text-amber-700 dark:text-amber-300">
+                Agent skills could not be loaded. Reload this page to try again.
+            </p>}
             {/* Pieces List */}
             <ScrollArea className="flex-1">
                 <div className="p-2">
