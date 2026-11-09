@@ -6,12 +6,10 @@
 // request is made, and the fixtures render static text only: no backend,
 // database, provider, runtime key, or credential is touched.
 //
-// Why --webpack: the fixtures live outside the project tree, and installed
-// Next 16.2.2 / Turbopack rejects a node_modules symlink that points outside
-// the fixture's filesystem root ("Symlink [project]/node_modules is invalid"),
-// even for the valid twin. --webpack is the same installed `next build` CLI
-// and runs the same production TypeScript validation stage before bundling;
-// it is not a type-check bypass.
+// Fixtures live below the project and tracing/bundler roots cover both the
+// fixture and installed modules. This avoids external-symlink rejection and
+// standalone ../ copies outside the owned output. Type settings remain the
+// actual project's settings; the actual default production bundler is used.
 //
 // Actual builds require >=4 GiB free temporary disk; bounded checks >=2 GiB.
 // The caller serializes heavy runs through the existing resource gate.
@@ -28,6 +26,14 @@ const root = path.resolve(__dirname, '../..');
 const nextBin = path.join(root, 'node_modules', 'next', 'dist', 'bin', 'next');
 const projectConfigPath = path.join(root, 'next.config.js');
 const projectNodeModules = fs.realpathSync(path.join(root, 'node_modules'));
+let fixtureTracingRoot = fs.realpathSync(root);
+while (path.relative(fixtureTracingRoot, projectNodeModules).startsWith('..') ||
+       path.isAbsolute(path.relative(fixtureTracingRoot, projectNodeModules))) {
+  const parent = path.dirname(fixtureTracingRoot);
+  if (parent === fixtureTracingRoot) throw new Error('fixture/modules must share a filesystem root');
+  fixtureTracingRoot = parent;
+}
+
 const tempRoot = os.tmpdir();
 const logDir = fs.mkdtempSync(path.join(tempRoot, 'atom-production-type-gate-logs-'));
 
@@ -98,7 +104,10 @@ function writeFixture(directory, pageSource) {
   fs.symlinkSync(projectNodeModules, path.join(directory, 'node_modules'), 'dir');
   fs.writeFileSync(
     path.join(directory, 'next.config.js'),
-    `module.exports = require(${JSON.stringify(projectConfigPath)});\n`,
+    `const config = require(${JSON.stringify(projectConfigPath)});
+` +
+      `module.exports = { ...config, outputFileTracingRoot: ${JSON.stringify(fixtureTracingRoot)}, ` +
+      `turbopack: { ...config.turbopack, root: ${JSON.stringify(fixtureTracingRoot)} } };\n`,
   );
   fs.writeFileSync(path.join(directory, 'tsconfig.json'), JSON.stringify(TSCONFIG, null, 2));
   fs.writeFileSync(path.join(directory, 'pages', 'index.tsx'), pageSource);
@@ -108,7 +117,7 @@ function runBuild(label, baseDir, pageSource) {
   const fixtureDir = path.join(baseDir, label);
   writeFixture(fixtureDir, pageSource);
   const logPath = path.join(logDir, `${label}.log`);
-  const result = spawnSync(process.execPath, [nextBin, 'build', '--webpack'], {
+  const result = spawnSync(process.execPath, [nextBin, 'build'], {
     cwd: fixtureDir,
     env: buildEnv(),
     encoding: 'utf8',
@@ -195,7 +204,7 @@ test('production config enforces type errors and omits the removed eslint option
 test('installed next build fails only on the injected type error; valid twin builds', () => {
   assertResourceGate('heavy');
   fs.mkdirSync(logDir, { recursive: true });
-  const baseDir = fs.mkdtempSync(path.join(tempRoot, 'atom-production-type-gate-'));
+  const baseDir = fs.mkdtempSync(path.join(root, '.production-type-gate-'));
 
   try {
     const negative = runBuild(
