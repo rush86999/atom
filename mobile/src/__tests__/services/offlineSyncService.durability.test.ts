@@ -200,4 +200,50 @@ describe('OfflineSync durable pending intent contract', () => {
     expect((await offlineSyncService.getSyncState()).pendingCount).toBe(1);
   });
 
+  test('a successful pass publishes its observed result and exact selected action identity', async () => {
+    await start(true);
+    jest.mocked(apiService.post).mockResolvedValueOnce({ success: true, data: {} });
+    const id = await add('observed completed work');
+    const result = await offlineSyncService.triggerSync();
+    expect(result.success).toBe(true);
+    expect(result.synced).toBe(1);
+    const state = await offlineSyncService.getSyncState();
+    expect(state).toEqual(expect.objectContaining({
+      cycle: expect.objectContaining({
+        actionIds: [id],
+        result: expect.objectContaining({ success: true, synced: 1, failed: 0, bytesTransferred: result.bytesTransferred }),
+      }),
+    }));
+  });
+
+  test('a pass with only retained failed work is unresolved without redispatch', async () => {
+    await start(true);
+    await add('requires owner review');
+    await storageService.setString('offline_queue', JSON.stringify(readQueue().map(action => ({ ...action, status: 'failed', syncAttempts: 5 }))));
+    jest.mocked(apiService.post).mockClear();
+    const result = await offlineSyncService.triggerSync();
+    expect(result.success).toBe(false);
+    expect(apiService.post).not.toHaveBeenCalled();
+    expect((await offlineSyncService.getSyncState()).pendingCount).toBe(1);
+  });
+
+  test('an in-flight pass exposes its selected identity without a terminal result', async () => {
+    await start(true);
+    let accept!: (value: ApiResponse<unknown>) => void;
+    jest.mocked(apiService.post).mockImplementationOnce(() => new Promise(resolve => { accept = resolve; }));
+    const id = await add('still waiting for controlled transport');
+    const running = offlineSyncService.triggerSync();
+    await jest.advanceTimersByTimeAsync(0);
+    try {
+      expect(apiService.post).toHaveBeenCalledTimes(1);
+      expect(await offlineSyncService.getSyncState()).toEqual(expect.objectContaining({
+        syncInProgress: true,
+        cycle: expect.objectContaining({ actionIds: [id], result: null }),
+      }));
+    } finally {
+      accept({ success: true, data: {} });
+      await running;
+    }
+  });
+
 });
