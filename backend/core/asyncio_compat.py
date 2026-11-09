@@ -2,15 +2,16 @@
 
 `get_event_loop()` lost its implicit loop creation in 3.14 — it now
 raises RuntimeError whenever no loop is set for the current thread, breaking
-every sync helper that used the old main-thread auto-create behavior. This
-module restores the pre-3.14 semantics:
+sync helpers that relied on the old main-thread auto-create behavior. This
+module provides a current-thread fallback (including callers in worker threads):
 
     running loop (async context) -> set loop -> create + set one
 
-`iscoroutinefunction` re-exports `inspect.iscoroutinefunction` —
-`asyncio.iscoroutinefunction` was removed in 3.14 and has been a thin alias
-for the inspect version since the @asyncio.coroutine decorator was removed
-in 3.11, so the swap is behavior-identical on 3.11+.
+`iscoroutinefunction` re-exports `inspect.iscoroutinefunction`, the recommended
+replacement for `asyncio.iscoroutinefunction` (deprecated in 3.14; scheduled
+for removal in 3.16). This helper does not promise identical handling of legacy
+private asyncio coroutine markers; consumers should use native async functions
+or the supported inspect coroutine-function marker.
 """
 import asyncio
 import atexit
@@ -29,12 +30,10 @@ __all__ = [
     "schedule_notification",
 ]
 
-# Strong refs: asyncio.set_event_loop stores only a WEAK ref, so a created
-# loop dropped by its caller can be GC'd — on 3.14 that surfaces as
-# BaseEventLoop.__del__ raising AttributeError ('_UnixSelectorEventLoop' has
-# no attribute '_closed') in sys.unraisablehook, which pytest treats as a
-# test failure. Holding the ref (and closing at exit) keeps semantics equal
-# to pre-3.14 implicit creation without GC noise.
+# Own the loops this helper creates so exit-time cleanup can close them even
+# after a thread exits or its current loop is replaced. The default asyncio
+# policy itself stores a strong thread-local reference; this registry supplies
+# explicit ownership and cleanup, not a workaround for a weak policy reference.
 _created_loops: dict = {}
 
 
