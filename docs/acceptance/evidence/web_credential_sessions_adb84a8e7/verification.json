@@ -1,0 +1,32 @@
+{
+  "executed_source": "adb84a8e73dcd19f2c6b00312df8154c447f84af",
+  "backend": {
+    "passed": 255,
+    "skipped": 2,
+    "failed": 0,
+    "errors": 0,
+    "testcases": 257,
+    "runtime": "Python3.11.16",
+    "storage": "scratch SQLite",
+    "transport": "captured SMTP; SSO uses local fixture IdP"
+  },
+  "frontend": {
+    "passed": 104,
+    "failed": 0,
+    "source": "identical code/test bytes before freeze",
+    "typescript_exit": 0
+  },
+  "native_contracts": 12,
+  "legacy_policy": "unbound tokens require fresh login; refresh cannot acquire authority from an invalid old credential binding",
+  "new_process": "SQLite snapshot persisted through SQLite backup and read by a new Python process with the same issuer key; not an OS server restart claim",
+  "remaining": [
+    "full credential-changing browser submission; user handoff required by CUA policy",
+    "already-open sockets and in-flight effects",
+    "restart-durable per-token logout denylist",
+    "PostgreSQL runtime/concurrency",
+    "whole-app completion"
+  ],
+  "no_live_accounts_or_provider": true,
+  "no_new_schema_or_store": true,
+  "privacy": "Raw pre-repair trace stays private because pytest assertion introspection contains a synthetic bearer. Only sanitized sequence and source-bound passed JUnit are included."
+}
