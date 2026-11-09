@@ -35,6 +35,19 @@ logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/auth", tags=["Authentication"])
 
+# Normal main mounts this router, while the existing recovery implementation
+# also serves the safe app. Reuse only those three handlers: mounting the
+# entire parallel router would duplicate login/refresh and change their policy.
+from core.auth_endpoints import (
+    forgot_password as _forgot_password,
+    verify_token as _verify_recovery_token,
+    reset_password as _reset_password,
+)
+
+router.add_api_route("/forgot-password", _forgot_password, methods=["POST"])
+router.add_api_route("/verify-token", _verify_recovery_token, methods=["POST"])
+router.add_api_route("/reset-password", _reset_password, methods=["POST"])
+
 # ============================================================================
 # Request/Response Models
 # ============================================================================

@@ -19,3 +19,14 @@ def recovery_client():
 def test_normal_mounted_auth_recovery_route_has_its_validation_boundary(recovery_client,path):
     response=recovery_client.post('/api/auth/'+path,json={})
     assert response.status_code==422,response.text
+
+
+def test_normal_recovery_mount_reuses_one_existing_handler_per_path():
+    from core.auth_endpoints import forgot_password,verify_token,reset_password
+    expected={'/api/auth/forgot-password':forgot_password,
+              '/api/auth/verify-token':verify_token,
+              '/api/auth/reset-password':reset_password}
+    for path,handler in expected.items():
+        matches=[route for route in router.routes if route.path==path and 'POST' in route.methods]
+        assert len(matches)==1
+        assert matches[0].endpoint is handler
