@@ -47,6 +47,7 @@ from core.models import (
     MiniApp,
     MiniAppInstallation,
     User,
+    Workspace,
 )
 from core.oracle import get_postcondition, validate
 from core.task_lifecycle import TaskLifecycle, _approval_payload_hash
@@ -81,6 +82,10 @@ def host(tmp_path, monkeypatch):
     monkeypatch.setattr("core.database.engine", engine)
 
     with Session() as db:
+        # A real-scoped principal must reference an authoritative workspace.
+        # The generic presentation consumer now claims this row before effect.
+        db.add(Workspace(id=WORKSPACE, tenant_id=TENANT,
+                         name="Host proof workspace", status="active"))
         db.add(User(
             id=USER, tenant_id=TENANT, workspace_id=WORKSPACE,
             email="host-proof@example.com", hashed_password="x",
