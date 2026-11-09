@@ -47,19 +47,20 @@ const nextConfig = {
     PYTHON_BACKEND_URL: nextPublicApiUrl,
   },
   // #11 fix: re-enable compression (the zlib issue was from an old Next.js
-  // version — 14+ handles this correctly). Keep TS/ESLint ignores for now
-  // (the codebase has ~100 type errors that would block CI) but flag them
-  // as a known tech-debt item.
+  // version — 14+ handles this correctly).
   compress: true,
   reactStrictMode: true,
-  eslint: {
-    // TODO: fix existing ESLint errors then set to false
-    ignoreDuringBuilds: true,
-  },
+  // Next.js fails a production build on TypeScript errors unless
+  // ignoreBuildErrors is true. Keep the default (false) explicit so no future
+  // edit can silently restore "Skipping validation of types". The full-app
+  // build/TSC is still the root worktree's acceptance gate; this config only
+  // makes the build stop skipping the check.
   typescript: {
-    // TODO: fix existing type errors then set to false
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
+  // Next.js 16 removed both `next lint` during `next build` and the `eslint`
+  // config option. Lint is NOT exercised or qualified by this config/build;
+  // run the repository's ESLint CLI separately.
   output: 'standalone',
   // The Next.js 16 dev-tools floating button (rendered as <nextjs-portal> in
   // the bottom-right corner) intercepts pointer events over the chat input's
