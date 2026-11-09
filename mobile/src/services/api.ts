@@ -7,13 +7,66 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 // #6 fix: removed dead `import { AsyncStorage } from 'react-native'`
 // (RN core dropped AsyncStorage in 0.59). The secureTokenStorage helpers
 // use @react-native-async-storage/async-storage internally.
-import { secureSet, secureGet, clearAuthSession, readAccessTokenSnapshot, invalidateAccessToken, AccessTokenSnapshot } from '../storage/secureTokenStorage';
+import {
+  secureSet,
+  secureGet,
+  clearAuthSession,
+  readAccessTokenSnapshot,
+  invalidateAccessToken,
+  isAccessTokenSnapshotCurrent,
+  AccessTokenSnapshot,
+} from '../storage/secureTokenStorage';
 import { ApiResponse } from '../types/common';
 
 // API base URL - configure for your environment
 const API_BASE_URL = __DEV__
   ? 'http://localhost:8000'
   : 'https://api.atom-platform.com';
+
+const EXPECTED_SNAPSHOT_KEY = 'expectedAccessTokenSnapshot';
+
+/**
+ * Opt-in request config for callers that must bind a request to the exact
+ * access-token generation they observed. The request interceptor removes this
+ * local-only property before the request reaches an adapter or transport.
+ */
+export interface ApiRequestConfig extends AxiosRequestConfig {
+  expectedAccessTokenSnapshot?: AccessTokenSnapshot;
+}
+
+type UnknownRecord = { [key: string]: unknown };
+
+function isUnknownRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isValidAccessTokenSnapshot(value: unknown): value is AccessTokenSnapshot {
+  if (!isUnknownRecord(value)) return false;
+  const token = value.token;
+  const generation = value.generation;
+  return (
+    typeof token === 'string' &&
+    token.length > 0 &&
+    typeof generation === 'number' &&
+    Number.isFinite(generation)
+  );
+}
+
+function getRequestErrorMessage(error: unknown): string {
+  if (isUnknownRecord(error)) {
+    const response = error.response;
+    if (isUnknownRecord(response)) {
+      const data = response.data;
+      if (isUnknownRecord(data)) {
+        const detail = data.detail;
+        if (typeof detail === 'string' && detail.length > 0) return detail;
+      }
+    }
+    const message = error.message;
+    if (typeof message === 'string' && message.length > 0) return message;
+  }
+  return 'Request failed';
+}
 
 class ApiService {
   private client: AxiosInstance;
@@ -32,6 +85,32 @@ class ApiService {
     this.client.interceptors.request.use(
       async (config) => {
         const session = await readAccessTokenSnapshot();
+        const expectedProvided = Object.prototype.hasOwnProperty.call(
+          config,
+          EXPECTED_SNAPSHOT_KEY
+        );
+
+        if (expectedProvided) {
+          const expected = isUnknownRecord(config)
+            ? config[EXPECTED_SNAPSHOT_KEY]
+            : undefined;
+
+          if (!isValidAccessTokenSnapshot(expected)) {
+            throw new Error('Access token snapshot for this request is invalid');
+          }
+          if (
+            expected.generation !== session.generation ||
+            expected.token !== session.token ||
+            !isAccessTokenSnapshotCurrent(session) ||
+            !isAccessTokenSnapshotCurrent(expected)
+          ) {
+            throw new Error('Access token snapshot for this request is not current');
+          }
+          if (!Reflect.deleteProperty(config, EXPECTED_SNAPSHOT_KEY)) {
+            throw new Error('Access token snapshot for this request could not be cleared');
+          }
+        }
+
         this.requestSessions.set(config, session);
         if (session.token) {
           config.headers.Authorization = `Bearer ${session.token}`;
@@ -83,14 +162,14 @@ class ApiService {
   /**
    * Generic GET request
    */
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async get<T>(url: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.get(url, config);
+      const response: AxiosResponse<T> = await this.client.get<T>(url, config);
       return { success: true, data: response.data };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Request failed',
+        error: getRequestErrorMessage(error),
       };
     }
   }
@@ -98,14 +177,14 @@ class ApiService {
   /**
    * Generic POST request
    */
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async post<T>(url: string, data?: unknown, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.post(url, data, config);
+      const response: AxiosResponse<T> = await this.client.post<T>(url, data, config);
       return { success: true, data: response.data };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Request failed',
+        error: getRequestErrorMessage(error),
       };
     }
   }
@@ -113,14 +192,14 @@ class ApiService {
   /**
    * Generic PUT request
    */
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async put<T>(url: string, data?: unknown, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.put(url, data, config);
+      const response: AxiosResponse<T> = await this.client.put<T>(url, data, config);
       return { success: true, data: response.data };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Request failed',
+        error: getRequestErrorMessage(error),
       };
     }
   }
@@ -128,14 +207,14 @@ class ApiService {
   /**
    * Generic DELETE request
    */
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async delete<T>(url: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.client.delete(url, config);
+      const response: AxiosResponse<T> = await this.client.delete<T>(url, config);
       return { success: true, data: response.data };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Request failed',
+        error: getRequestErrorMessage(error),
       };
     }
   }
