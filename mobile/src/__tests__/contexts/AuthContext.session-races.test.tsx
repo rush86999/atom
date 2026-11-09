@@ -19,6 +19,7 @@ function deferred<T>() {
 }
 const response = (token: string) => ({ ok: true, json: async () => ({
   access_token: token, refresh_token: `${token}-refresh`,
+  expires_at: new Date(Date.now() + 3600000).toISOString(),
   user: { id: 'controlled-user', email: 'controlled@example.test' },
 }) });
 
@@ -117,5 +118,55 @@ describe('AuthContext delayed session responses', () => {
     expect(store.get('atom_refresh_token')).toBe('new-login-refresh');
     expect(auth.isAuthenticated).toBe(true);
   });
+
+  test('login stores the authoritative server expiry rather than inventing a day', async () => {
+    await mount();
+    const expiry = new Date(Date.now() + 900000).toISOString();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({
+      access_token: 'short-session', refresh_token: 'short-refresh', expires_at: expiry,
+      user: { id: 'controlled-user' },
+    }) });
+    await act(async () => { expect((await auth.login(credentials)).success).toBe(true); });
+    expect(store.get('atom_token_expiry')).toBe(String(Date.parse(expiry)));
+  });
+
+  test('refresh uses the mobile device-bound endpoint and its server expiry', async () => {
+    await seed();
+    await mount();
+    const expiry = new Date(Date.now() + 1200000).toISOString();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({
+      access_token: 'refreshed', refresh_token: 'rotated', expires_at: expiry,
+    }) });
+    await act(async () => { expect(await auth.refreshToken()).toBe(true); });
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringMatching(/\/api\/auth\/mobile\/refresh$/),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ refresh_token: 'original-refresh' }) }));
+    expect(store.get('atom_token_expiry')).toBe(String(Date.parse(expiry)));
+  });
+
+  test('concurrent refresh callers share one dispatched request and result', async () => {
+    await seed();
+    await mount();
+    const delayed = deferred<ReturnType<typeof response>>();
+    (global.fetch as jest.Mock).mockReturnValue(delayed.promise);
+    let first!: Promise<boolean>;
+    let second!: Promise<boolean>;
+    act(() => { first = auth.refreshToken(); second = auth.refreshToken(); });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    let results: boolean[] = [];
+    await act(async () => { delayed.resolve(response('one-refresh')); results = await Promise.all([first, second]); });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(results).toEqual([true, true]);
+  });
+
+  test.each([undefined, '', 'not-a-date', '2020-01-01T00:00:00Z'])(
+    'login refuses missing or invalid server expiry %s without storing credentials', async expiry => {
+      await mount();
+      (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({
+        access_token: 'invalid-expiry-token', refresh_token: 'invalid-refresh', expires_at: expiry,
+      }) });
+      await act(async () => { expect((await auth.login(credentials)).success).toBe(false); });
+      expect(store.has('atom_access_token')).toBe(false);
+      expect(auth.isAuthenticated).toBe(false);
+    });
 
 });
