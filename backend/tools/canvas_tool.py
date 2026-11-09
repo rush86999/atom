@@ -547,11 +547,13 @@ async def present_form(
     """
     from core.database import get_db_session
     from core.models import Canvas
-    from tools.canvas_crud_tool import _claim_canvas_actor, active_canvas_actor
+    from tools.canvas_crud_tool import _claim_canvas_actor, active_canvas_actor, resolve_submit_agent
 
     agent = None
     agent_execution = None
     governance_check = None
+    commit_attempted = False
+    committed = False
 
     schema = form_schema if form_schema is not None else {}
     material = presentation_material(
@@ -595,7 +597,8 @@ async def present_form(
             if FeatureFlags.should_enforce_governance('canvas'):
                 resolver = AgentContextResolver(db)
                 from core.service_factory import ServiceFactory
-                governance = ServiceFactory.get_governance_service(db)
+                governance = ServiceFactory.get_governance_service(
+                    db, workspace_id=actor_workspace_id, tenant_id=actor_tenant_id)
 
                 agent, _ = await resolver.resolve_agent_for_request(
                     user_id=user_id,
@@ -604,6 +607,10 @@ async def present_form(
                 )
 
                 if agent:
+                    bound = resolve_submit_agent(db, actor, agent.id, None, canvas_id=canvas_id)
+                    if not bound.get("ok"):
+                        db.rollback()
+                        return {"success": False, "error": "Form agent scope could not be authorized"}
                     governance_check = governance.can_perform_action(
                         agent_id=agent.id,
                         action_type="present_form"
@@ -704,7 +711,9 @@ async def present_form(
 
             # Commit explicitly so a failed/unknown commit is observed here
             # (and never mistaken for a durable surface).
+            commit_attempted = True
             db.commit()
+            committed = True
 
         # The context manager has committed. Only an independent fresh-session
         # read-back of the exact Canvas + present audit can certify the form
@@ -782,8 +791,21 @@ async def present_form(
         }
 
     except Exception as e:
-        logger.error(f"Failed to present form: {e}")
-        return {"success": False, "error": str(e)}
+        # Raw DB errors may contain user data or bound parameters. Preserve
+        # durable operation identities without inventing a zero-effect claim.
+        logger.error(f"Form presentation failed at controlled boundary: {type(e).__name__}")
+        status = "committed_unverified" if committed else "effect_unknown" if commit_attempted else "refused"
+        return {
+            "success": False, "status": status,
+            "error": "Form presentation could not be confirmed",
+            "canvas_id": canvas_id, "audit_id": audit_id,
+            "operation_id": resolved_operation_id,
+            "verification": {
+                "status": "unavailable" if commit_attempted else "not_attempted",
+                "effect": "committed" if committed else "unknown" if commit_attempted else "none",
+                "replay": "do_not_repeat" if commit_attempted else "safe_to_retry",
+            },
+        }
 
 
 
