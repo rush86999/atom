@@ -42,7 +42,7 @@ const renderTerminal = (el: React.ReactElement) =>
     <Provider>{el}</Provider>
   );
 
-const output = [
+const output: React.ComponentProps<typeof CanvasTerminal>['output'] = [
   { type: 'stdout', content: 'hello world' },
   { type: 'stderr', content: 'oops' },
   { type: 'command', content: 'npm test' },

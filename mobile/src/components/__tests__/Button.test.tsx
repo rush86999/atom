@@ -11,9 +11,18 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import { Button } from '../Button';
+import { Button, ButtonSize } from '../Button';
+import { StyleSheet } from 'react-native';
 
 describe('Mobile Button Component', () => {
+  it.each<{ size: ButtonSize; fontSize: number }>([
+    { size: 'small', fontSize: 14 },
+    { size: 'medium', fontSize: 16 },
+    { size: 'large', fontSize: 18 },
+  ])('applies the existing $size text size', ({ size, fontSize }) => {
+    const view = render(<Button title="Sized label" onPress={jest.fn()} size={size} />);
+    expect(StyleSheet.flatten(view.getByText('Sized label').props.style).fontSize).toBe(fontSize);
+  });
   describe('Rendering Tests', () => {
     it('renders button with title', () => {
       render(<Button title="Click Me" onPress={jest.fn()} />);

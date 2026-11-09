@@ -320,31 +320,31 @@ export const CanvasTerminal: React.FC<CanvasTerminalProps> = ({
             icon="format-font-size-decrease"
             size={18}
             onPress={decreaseFontSize}
-            color={darkTheme ? '#e5e5e5' : '#000000'}
+            iconColor={darkTheme ? '#e5e5e5' : '#000000'}
           />
           <IconButton
             icon="format-font-size-increase"
             size={18}
             onPress={increaseFontSize}
-            color={darkTheme ? '#e5e5e5' : '#000000'}
+            iconColor={darkTheme ? '#e5e5e5' : '#000000'}
           />
           <IconButton
             icon="wrap-text"
             size={18}
             onPress={toggleWrap}
-            color={wrapText ? (darkTheme ? '#0dbc79' : '#388e3c') : (darkTheme ? '#666666' : '#999999')}
+            iconColor={wrapText ? (darkTheme ? '#0dbc79' : '#388e3c') : (darkTheme ? '#666666' : '#999999')}
           />
           <IconButton
             icon="content-copy"
             size={18}
             onPress={copyAll}
-            color={darkTheme ? '#e5e5e5' : '#000000'}
+            iconColor={darkTheme ? '#e5e5e5' : '#000000'}
           />
           <IconButton
             icon="dots-vertical"
             size={18}
             onPress={() => setMenuVisible(true)}
-            color={darkTheme ? '#e5e5e5' : '#000000'}
+            iconColor={darkTheme ? '#e5e5e5' : '#000000'}
           />
         </View>
       </View>
@@ -408,7 +408,7 @@ export const CanvasTerminal: React.FC<CanvasTerminalProps> = ({
             size={20}
             onPress={handleSubmit}
             disabled={!inputValue.trim()}
-            color={darkTheme ? '#0dbc79' : '#388e3c'}
+            iconColor={darkTheme ? '#0dbc79' : '#388e3c'}
           />
         </View>
       )}
