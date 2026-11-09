@@ -15,6 +15,32 @@ from core.models import AgentExecution, AgentRegistry, CanvasAudit
 from tools.canvas_tool import update_canvas
 
 
+@pytest.fixture(autouse=True)
+def verified_update_boundary(monkeypatch):
+    """Unit boundary only; real storage/authority twins live in the contract suite."""
+    import tools.canvas_tool as tool
+    import tools.canvas_crud_tool as crud
+    import core.canvas_write_service as writes
+    from core.chat_session_context import current_chat_session_id
+    monkeypatch.setattr(crud, 'active_canvas_actor', lambda *_: {
+        'ok': True, 'tenant_id': None, 'workspace_id': None})
+    monkeypatch.setattr(crud, 'read_canvas', AsyncMock(return_value={
+        'success': True, 'canvas_type': 'document', 'content': 'Existing',
+        'title': 'Draft', 'revision_audit_id': 'planned-revision'}))
+    async def verified(**kwargs):
+        for channel in tool._user_broadcast_channels(kwargs['user_id'], current_chat_session_id()):
+            await tool.ws_manager.broadcast(channel, {'type': 'canvas:update', 'data': {
+                'action': 'update', 'canvas_id': kwargs['canvas_id'],
+                'data': kwargs['content'], 'title': kwargs['title'],
+                'revision_audit_id': 'committed-revision'}})
+        return {'success': True, 'canvas_id': kwargs['canvas_id'],
+                'audit_id': 'committed-revision', 'operation_id': kwargs['operation_id'],
+                'verification': {'status': 'verified', 'effect': 'committed'}}
+    write = AsyncMock(side_effect=verified)
+    monkeypatch.setattr(writes, 'update_canvas_verified', write)
+    return write
+
+
 @pytest.fixture
 def mock_db():
     """Mock database session."""
@@ -104,6 +130,7 @@ class TestCanvasUpdateGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-123",
+                            expected_prior_audit_id="planned-revision",
                             updates=updates,
                             agent_id=intern_agent.id
                         )
@@ -119,7 +146,8 @@ class TestCanvasUpdateGovernance:
                         assert call_args[0][0] == "user:user-1"
                         assert call_args[0][1]["data"]["action"] == "update"
                         assert call_args[0][1]["data"]["canvas_id"] == "canvas-123"
-                        assert call_args[0][1]["data"]["updates"] == updates
+                        assert call_args[0][1]["data"]["data"] == updates["data"]
+                        assert call_args[0][1]["data"]["title"] == updates["title"]
 
     @pytest.mark.asyncio
     async def test_update_canvas_blocked_for_student_agent(self, mock_db, mock_ws_manager):
@@ -157,6 +185,7 @@ class TestCanvasUpdateGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-123",
+                            expected_prior_audit_id="planned-revision",
                             updates=updates,
                             agent_id=student_agent.id
                         )
@@ -174,6 +203,7 @@ class TestCanvasUpdateGovernance:
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="canvas-123",
+                    expected_prior_audit_id="planned-revision",
                     updates=updates
                 )
 
@@ -203,6 +233,7 @@ class TestCanvasUpdateFunctionality:
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="chart-123",
+                    expected_prior_audit_id="planned-revision",
                     updates=updates
                 )
 
@@ -220,6 +251,7 @@ class TestCanvasUpdateFunctionality:
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="canvas-123",
+                    expected_prior_audit_id="planned-revision",
                     updates=updates
                 )
 
@@ -232,7 +264,6 @@ class TestCanvasUpdateFunctionality:
         updates = {
             "title": "Sales Dashboard",
             "data": [{"x": 1, "y": 10}, {"x": 2, "y": 20}],
-            "color": "#FF5733"
         }
 
         with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
@@ -240,11 +271,12 @@ class TestCanvasUpdateFunctionality:
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="canvas-123",
+                    expected_prior_audit_id="planned-revision",
                     updates=updates
                 )
 
                 assert result["success"] is True
-                assert set(result["updated_fields"]) == {"title", "data", "color"}
+                assert set(result["updated_fields"]) == {"title", "data"}
 
     @pytest.mark.asyncio
     async def test_update_canvas_with_session_isolation(self, mock_ws_manager):
@@ -256,6 +288,7 @@ class TestCanvasUpdateFunctionality:
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="canvas-123",
+                    expected_prior_audit_id="planned-revision",
                     updates=updates,
                     session_id="session-abc"
                 )
@@ -263,10 +296,9 @@ class TestCanvasUpdateFunctionality:
                 assert result["success"] is True
                 assert result["session_id"] == "session-abc"
 
-                # Verify channel includes session
-                mock_ws_manager.broadcast.assert_called_once()
-                call_args = mock_ws_manager.broadcast.call_args
-                assert call_args[0][0] == "user:user-1:session:session-abc"
+                # Canonical delivery preserves both user and session subscribers.
+                assert [call.args[0] for call in mock_ws_manager.broadcast.await_args_list] == [
+                    "user:user-1", "user:user-1:session:session-abc"]
 
 
 class TestCanvasUpdateErrorHandling:
@@ -282,6 +314,7 @@ class TestCanvasUpdateErrorHandling:
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="canvas-123",
+                    expected_prior_audit_id="planned-revision",
                     updates={"title": "Test"}
                 )
 
@@ -298,12 +331,13 @@ class TestCanvasUpdateErrorHandling:
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="canvas-123",
+                    expected_prior_audit_id="planned-revision",
                     updates=updates
                 )
 
-                # Should still succeed, just with no fields updated
-                assert result["success"] is True
-                assert result["updated_fields"] == []
+                # Empty patches have no durable effect, not a fake success.
+                assert result["success"] is False
+                assert result["error_code"] == "INVALID_CANVAS_PATCH"
 
 
 class TestCanvasUpdateAuditTrail:
@@ -365,6 +399,7 @@ class TestCanvasUpdateAuditTrail:
                             result = await update_canvas(
                                 user_id="user-1",
                                 canvas_id="canvas-123",
+                                expected_prior_audit_id="planned-revision",
                                 updates=updates,
                                 agent_id=intern_agent.id
                             )
@@ -404,6 +439,7 @@ class TestCanvasUpdateAuditTrail:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-123",
+                            expected_prior_audit_id="planned-revision",
                             updates=updates,
                             agent_id=intern_agent.id,
                             session_id="session-xyz"

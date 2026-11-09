@@ -1,0 +1,38 @@
+{
+  "executed_source": "e7e8ad0a558219f2276afdf4991c6858a9efc844",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:de39a298037a7ea973224bf81e47780ec99fbf855dae91832811149947837690",
+    "backend/tools/canvas_tool.py": "sha256:c0b5ffbaee57d3140d3805a8096ee391210a78a6c97c903463e30aeb5f794d72",
+    "backend/tools/canvas_crud_tool.py": "sha256:84bf1528a2d0c37d32adf8c090dd3f50f5106d910efdb8bf4d225daa8eb405e0",
+    "backend/tools/registry.py": "sha256:1adc63c8e1d60885f3ed0f6d373f486825d08c4b4603426b494bb11114979db0",
+    "backend/core/canvas_write_service.py": "sha256:bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/core/oracle/postcondition_verifiers.py": "sha256:44c3c088a5bedb24f5c084823f8b2e65924a327d758606d289c85ae76b0dffb6",
+    "backend/core/agents/king_agent.py": "sha256:b2c130745bde4e4aea5b7eee843d834b7da204ad9e69383617e657500665b5fc",
+    "backend/core/deeplinks.py": "sha256:e53566f457a6b94b2af988405cedd9c0f36e17814bb8153ead1722463aa3e79f",
+    "backend/core/chat_session_context.py": "sha256:e936b536151be50aa45fdd3f50bc7230c699a8e3096278a0734120ba68fa11c4",
+    "backend/tests/test_canvas_legacy_update_contract.py": "sha256:39b07005350242a135b7a7665d53e2601c34561964a915cdce4b27dc8206df43",
+    "backend/tests/test_canvas_updates.py": "sha256:594e62020da48050c4e21cc4426aea02626c3a1d266472c97b14c4838a65d48f",
+    "backend/tests/unit/test_canvas_tool_governance.py": "sha256:72d5abb3346c9ce0b755caa941d506bf6b33065fb55b51af4645594527b06545",
+    "backend/tests/test_ci_backend_lane_contract.py": "sha256:3612a87519b7b57784e14a42fb18c6cf05c4481b634233d2293486baca518d8a",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "sha256:2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/tests/fixtures/ci_backend_additions.json": "sha256:b8f393e67b53ba0f9030c5864f9b7f24e5acb5d6527bc8201e329f90b73c4641",
+    "backend/tests/test_canvas_crud.py": "sha256:73d2900ec2e630626089b07c2ac57c023b2d51e8a28aa02291af221b1a915533",
+    "backend/tests/test_canvas_lifecycle_verified.py": "sha256:5dcc497495aa5b6b0b7f64b29a361e801617643de33bcda296885ec2c32eab4e",
+    "backend/tests/test_lead_canvas_lifecycle_authority.py": "sha256:58d4a2424e7167a17b10279a3eeb58601c9faa25b16110da20d88e4aa3bea99e",
+    "backend/tests/test_oracle_direct_canvas_writes.py": "sha256:7020810b7387d5bd0283a0a2f7dbca08e23e672a9e6c5112458ef40bd6974803",
+    "backend/tests/test_canvas_present_revision_contract.py": "sha256:501b29c9f912fad1d30c436416c359c1c15574a0b6bef3a9cf4842e84b35b7e0",
+    "backend/tests/test_covpush_w67c_deeplinks_guidance.py": "sha256:fcd0352b3bd7603dd305e6c97d826661a7a677a41a41f3dc2f51ef59ce3659b7",
+    "backend/tests/test_deeplinks.py": "sha256:bf678bfef1ffa0145e6032ada8231977812e85fbacf24f8963d46f1a13caebc9",
+    "docs/engineering/AGENT_GOAL_COMPLETION_DIRECTIVE_2026_11_06.md": "sha256:62940f510c1ecd1af7dc3d2f55656e00077e61e16db0910d2574291626862619"
+  },
+  "artifacts": {
+    "README.md": "sha256:c9d901c6d7fd72f9b6dfef4026ba174bbbd8449adc78c815bf24afd12a1e4514",
+    "baseline-412.log": "sha256:366e6d63413493614bfa3282c7253b9e46368cf61e0c9489ddd1076e11219072",
+    "baseline-412.xml": "sha256:7c772a6f47e98653bf5bed8ed7bb116ba87f9c6a3a1e173f82c7773aab5bd767",
+    "candidate-459.log": "sha256:20ba30d21fac956e9a768327a83af1bf8ffd85c342e77dc4a565dc303d2a3838",
+    "candidate-459.xml": "sha256:d2d2c8a2d865b64b2d644d894a72f16d116d5d8de51f87ef4201237cec1988e1",
+    "cli-review-disposition.md": "sha256:0d053bb2e54d37f00c2c9ffb5f15be39ef6d32ab31fabeceec0e0a58715fe342",
+    "initial-five-negative.log": "sha256:a58fa81ff0b423e032d187370cfea23cc884f7208171e668da73f4d20a2bd277",
+    "verification.json": "sha256:c13a74e5a6da687c2e296db5497b0fe7cc11c832e1204ab2ea351213415bdb1f"
+  }
+}

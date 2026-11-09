@@ -417,7 +417,9 @@ async def execute_canvas_deep_link(
         result = await update_canvas(
             user_id=user_id,
             canvas_id=canvas_id,
-            updates=params
+            updates=params,
+            expected_prior_audit_id=deeplink.parameters.get('expected_prior_audit_id'),
+            operation_id=deeplink.parameters.get('operation_id'),
         )
     else:
         result = {

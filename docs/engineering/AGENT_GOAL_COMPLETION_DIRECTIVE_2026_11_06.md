@@ -587,3 +587,11 @@ release gate on to turn this into a pass. The Tasks/Projects repair may be
 reviewed at its API/shared-component scope; the broader Tasks goal remains open.
 Next user-journey work prioritizes supported core surfaces on the real full-app
 backend/profile boundary. Reuse accepted journeys before starting another run.
+
+### November 9 — durable legacy canvas updates
+
+Web remains the critical path; mobile remains deferred. PR800 is qualifying its joined presentation repair on main with immutable CI commands preserved through additive gates. Do not inherit checks from earlier heads or merge on partial green.
+
+The next isolated canvas update slice replaces broadcast-only success with the existing verified writer. Planned updates require their observed revision; King carries each confirmed revision and stops projection after conflict; deep links without a revision receive a targeted refusal. An unverified committed write keeps its original receipt and is not business success. Exact title material, including empty titles, participates in replay and fresh readback verification. Shared user/session delivery and current actor claims remain in general mechanisms.
+
+Existing unit method identities are preserved while boundary fixtures carry explicit planned revisions; the separate scratch controls exercise real storage and public calls. Continue wider baseline comparison, evidence packaging and exact-head CI without replaying stable browser/model episodes. Full web goals, general employee judgment, PostgreSQL/soak and mobile are not inferred complete.
