@@ -19,7 +19,6 @@ import { useAuth } from '../contexts/AuthContext';
 
 // Screen Imports
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen, BiometricAuthScreen } from '../screens/auth';
-import { CanvasViewerScreen } from '../screens/canvas/CanvasViewerScreen';
 import { AppNavigator } from './AppNavigator';
 
 // Navigation Types
@@ -36,6 +35,13 @@ export type { AuthStackParamList, CanvasViewerParams, MainTabParamList };
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 const AuthenticatedAppNavigator = () => <AppNavigator embedded />;
+
+// Resolve the native viewer only when its authenticated route is rendered.
+// Unrelated auth/tab startup must not initialize a WebView host.
+const getCanvasViewerScreen = () => {
+  const screens: typeof import('../screens/canvas/CanvasViewerScreen') = require('../screens/canvas/CanvasViewerScreen');
+  return screens.CanvasViewerScreen;
+};
 
 /**
  * Loading Screen
@@ -258,7 +264,7 @@ export const AuthNavigator: React.FC = () => {
                 own navigation.push('CanvasViewer', { canvasId }) contract. */}
             <Stack.Screen
               name="CanvasViewer"
-              component={CanvasViewerScreen}
+              getComponent={getCanvasViewerScreen}
               options={{
                 headerShown: false,
               }}
