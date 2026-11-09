@@ -59,7 +59,7 @@ cancel the failing project-wide compiler or qualify the entire companion.
 The latest combined controlled selection at `867312c75` has 1,775 passes,
 zero failures and two intentional platform-registration sentinels skipped across
 47 files. The generic verification driver therefore remains false under its
-zero-skips rule; this is not 1,769 executed passes or a qualified mobile build.
+zero-skips rule; this is not 1,777 executed passes or a qualified mobile build.
 
 Source-bound packets:
 
