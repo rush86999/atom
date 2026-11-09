@@ -261,4 +261,44 @@ describe('AuthContext delayed session responses', () => {
     expect(auth.user).toBeNull();
   });
 
+  test('a leftover refresh token cannot revive a locally revoked session', async () => {
+    await seed();
+    await mount();
+    (SecureStore.deleteItemAsync as jest.Mock).mockImplementation(async key => {
+      if (key === 'atom_refresh_token') throw new Error('controlled refresh cleanup failure');
+      store.delete(key);
+    });
+    await act(async () => { await expect(auth.logout()).rejects.toThrow('controlled refresh cleanup failure'); });
+    expect(auth.isAuthenticated).toBe(false);
+    expect(store.has('atom_access_token')).toBe(false);
+    expect(store.get('atom_refresh_token')).toBe('original-refresh');
+    (global.fetch as jest.Mock).mockClear();
+    await act(async () => { expect(await auth.refreshToken()).toBe(false); });
+    expect(global.fetch).not.toHaveBeenCalled();
+    await expect(secureGet('atom_access_token')).resolves.toBeNull();
+  });
+
+  test('an old refresh cannot dispatch a replacement login refresh credential', async () => {
+    await seed();
+    await mount();
+    const delayed = deferred<string | null>();
+    let refreshRead = false;
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation(async key => {
+      if (key === 'atom_refresh_token' && !refreshRead) {
+        refreshRead = true;
+        return delayed.promise;
+      }
+      return store.get(key) ?? null;
+    });
+    let pending!: Promise<boolean>;
+    act(() => { pending = auth.refreshToken(); });
+    await waitFor(() => expect(refreshRead).toBe(true));
+    (global.fetch as jest.Mock).mockResolvedValueOnce(response('replacement'));
+    await act(async () => { expect((await auth.login(credentials)).success).toBe(true); });
+    await act(async () => { delayed.resolve('replacement-refresh'); await pending; });
+    const refreshCalls = (global.fetch as jest.Mock).mock.calls.filter(([url]) => String(url).endsWith('/mobile/refresh'));
+    expect(refreshCalls).toHaveLength(0);
+    expect(store.get('atom_access_token')).toBe('replacement');
+  });
+
 });
