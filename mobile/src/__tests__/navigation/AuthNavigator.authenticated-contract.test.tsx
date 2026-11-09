@@ -12,3 +12,11 @@ test('authenticated root mounts the real tab navigator under one navigation cont
   await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
   expect(view.queryByTestId('login-screen')).toBeNull();
 });
+
+
+test.each(['workflow/wf-123', 'agent/agent-123', 'execution/exec-123'])('real parser resolves %s to the registered authenticated tree', path => {
+  const {getStateFromPath} = jest.requireActual('@react-navigation/native');
+  const {linking} = require('../../navigation/AuthNavigator');
+  const state = getStateFromPath(path, linking.config);
+  expect(state.routes[0].name).toBe('Main');
+});

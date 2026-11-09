@@ -66,7 +66,7 @@ const LoadingScreen: React.FC = () => (
  *
  * Also supports HTTPS links: https://atom.ai/...
  */
-const linking = {
+export const linking = {
   prefixes: ['atom://', 'https://atom.ai'],
   config: {
     screens: {
