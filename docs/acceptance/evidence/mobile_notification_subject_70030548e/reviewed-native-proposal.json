@@ -1,0 +1,119 @@
+{
+  "changes": [
+    {
+      "old": "      // Cached acquisition is not a current permission grant. Check the OS first.\n      if (this.pushToken) {\n        console.log('NotificationService: Push token already registered');\n        return this.pushToken;\n      }",
+      "new": "      // Cached acquisition is not a current permission grant. Check the OS first.\n      // Reuse only a token acquired for this exact optional scope: undefined is a\n      // distinct scope from any provided identifier (no defaulting/normalization).\n      if (\n        this.pushToken &&\n        this.pushToken.userId === userId &&\n        this.pushToken.deviceId === deviceId\n      ) {\n        console.log('NotificationService: Push token already registered');\n        return this.pushToken;\n      }",
+      "reason": "The previous cache check returned any cached token regardless of the current call's optional userId and deviceId. That allowed an unscoped token to satisfy a scoped call, and allowed a token scoped to one user/device to satisfy a call for another user/device or an unscoped call. The new condition reuses the cache only when both optional identifiers match by strict identity: undefined matches only undefined, and provided strings must match exactly, including case, surrounding whitespace, and empty strings. The OS permission check remains immediately before the cache check. The method signature and return type are unchanged, and no casts, defaults, casefolding, or trimming are introduced."
+    }
+  ],
+  "test_cases": [
+    {
+      "id": "TC1",
+      "name": "Unscoped cache does not satisfy a scoped call",
+      "given": "Cached pushToken is { token: 't0', userId: undefined, deviceId: undefined }; Device.isDevice is true; getPermissionsAsync resolves to granted; getExpoPushTokenAsync resolves to 't1'.",
+      "when": "await registerForPushNotifications('user-1', 'device-1')",
+      "then": "getExpoPushTokenAsync is called; the returned token is { token: 't1', userId: 'user-1', deviceId: 'device-1' }; registerTokenWithBackend is called because both identifiers are provided."
+    },
+    {
+      "id": "TC2",
+      "name": "Scoped cache does not satisfy an unscoped call",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: 'device-1' }; permissions granted; getExpoPushTokenAsync resolves to 't2'.",
+      "when": "await registerForPushNotifications()",
+      "then": "getExpoPushTokenAsync is called; the returned token has userId undefined and deviceId undefined; registerTokenWithBackend is not called."
+    },
+    {
+      "id": "TC3",
+      "name": "Exact scoped cache match is reused",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: 'device-1' }; permissions granted; getExpoPushTokenAsync mock is reset.",
+      "when": "await registerForPushNotifications('user-1', 'device-1')",
+      "then": "The cached token is returned unchanged; getExpoPushTokenAsync is not called; registerTokenWithBackend is not called."
+    },
+    {
+      "id": "TC4",
+      "name": "Exact unscoped cache match is reused",
+      "given": "Cached pushToken is { token: 't0', userId: undefined, deviceId: undefined }; permissions granted; getExpoPushTokenAsync mock is reset.",
+      "when": "await registerForPushNotifications()",
+      "then": "The cached token is returned unchanged; getExpoPushTokenAsync is not called."
+    },
+    {
+      "id": "TC5",
+      "name": "Different userId with same deviceId re-acquires",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: 'device-1' }; permissions granted; getExpoPushTokenAsync resolves to 't2'.",
+      "when": "await registerForPushNotifications('user-2', 'device-1')",
+      "then": "getExpoPushTokenAsync is called; the new cached token has userId 'user-2' and deviceId 'device-1'."
+    },
+    {
+      "id": "TC6",
+      "name": "Same userId with different deviceId re-acquires",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: 'device-1' }; permissions granted; getExpoPushTokenAsync resolves to 't2'.",
+      "when": "await registerForPushNotifications('user-1', 'device-2')",
+      "then": "getExpoPushTokenAsync is called; the new cached token has userId 'user-1' and deviceId 'device-2'."
+    },
+    {
+      "id": "TC7",
+      "name": "Partial scope matches only the same partial scope",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: undefined }; permissions granted; getExpoPushTokenAsync mock is reset.",
+      "when": "await registerForPushNotifications('user-1')",
+      "then": "The cached token is returned unchanged; getExpoPushTokenAsync is not called."
+    },
+    {
+      "id": "TC8",
+      "name": "Partial scope does not satisfy a fuller scope",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: undefined }; permissions granted; getExpoPushTokenAsync resolves to 't2'.",
+      "when": "await registerForPushNotifications('user-1', 'device-1')",
+      "then": "getExpoPushTokenAsync is called; the new cached token has deviceId 'device-1'."
+    },
+    {
+      "id": "TC9",
+      "name": "Identifiers are not case-folded",
+      "given": "Cached pushToken is { token: 't0', userId: 'User-1', deviceId: 'Device-1' }; permissions granted; getExpoPushTokenAsync resolves to 't2'.",
+      "when": "await registerForPushNotifications('user-1', 'Device-1')",
+      "then": "getExpoPushTokenAsync is called; the new cached token stores userId 'user-1' exactly, with no case normalization."
+    },
+    {
+      "id": "TC10",
+      "name": "Identifiers are not trimmed",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: 'device-1' }; permissions granted; getExpoPushTokenAsync resolves to 't2'.",
+      "when": "await registerForPushNotifications(' user-1 ', 'device-1')",
+      "then": "getExpoPushTokenAsync is called; the new cached token stores userId ' user-1 ' exactly, including surrounding spaces."
+    },
+    {
+      "id": "TC11",
+      "name": "Empty strings and omitted identifiers are distinct",
+      "given": "Cached pushToken is { token: 't0', userId: '', deviceId: '' }; permissions granted; getExpoPushTokenAsync resolves to 't2'.",
+      "when": "await registerForPushNotifications()",
+      "then": "getExpoPushTokenAsync is called because '' is not undefined; the new cached token has userId undefined and deviceId undefined. The reverse case also does not match: cached undefined/undefined versus a call with ('', '')."
+    },
+    {
+      "id": "TC12",
+      "name": "Denied OS permission is checked before the cache",
+      "given": "Cached pushToken exactly matches { userId: 'user-1', deviceId: 'device-1' }; Device.isDevice is true; getPermissionsAsync resolves to status 'denied' with granted false.",
+      "when": "await registerForPushNotifications('user-1', 'device-1')",
+      "then": "The method returns null; the cached token is not returned; getExpoPushTokenAsync is not called."
+    },
+    {
+      "id": "TC13",
+      "name": "Undetermined OS permission is checked before the cache",
+      "given": "Cached pushToken exactly matches { userId: 'user-1', deviceId: 'device-1' }; Device.isDevice is true; getPermissionsAsync resolves to status 'undetermined' with granted false.",
+      "when": "await registerForPushNotifications('user-1', 'device-1')",
+      "then": "The method returns null; the cached token is not returned; getExpoPushTokenAsync is not called."
+    },
+    {
+      "id": "TC14",
+      "name": "Physical-device check remains first",
+      "given": "Device.isDevice is false; a matching cached pushToken exists; permissions are granted.",
+      "when": "await registerForPushNotifications('user-1', 'device-1')",
+      "then": "The method returns null; getExpoPushTokenAsync is not called; the cache is not returned."
+    },
+    {
+      "id": "TC15",
+      "name": "Scope change triggers acquisition and backend registration for the new scope",
+      "given": "Cached pushToken is { token: 't0', userId: 'user-1', deviceId: 'device-1' }; permissions granted; getExpoPushTokenAsync resolves to 't-new'.",
+      "when": "await registerForPushNotifications('user-2', 'device-2')",
+      "then": "getExpoPushTokenAsync is called; registerTokenWithBackend is called with the token scoped to 'user-2' and 'device-2'; getPushToken() returns that new token."
+    }
+  ],
+  "observations": [
+    "Out of scope for this patch: getExpoPushTokenAsync only acquires an Expo/SDK push token; it does not confirm backend registration. The log text 'Push token registered' / 'already registered' and the method name conflate acquisition with registration. In addition, this.pushToken is assigned before registerTokenWithBackend and backend failures are only logged, so a later matching cache hit skips retrying an unconfirmed backend registration. This patch intentionally does not change that behavior or its labels; it should be addressed separately by distinguishing acquired tokens from confirmed backend registrations."
+  ]
+}

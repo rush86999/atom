@@ -1,0 +1,62 @@
+{
+  "scope": "controlled mobile notification acquisition-cache consumer only",
+  "frozen_matching_source": "70030548ea7f84aa0af5b27a54cee14f25990186",
+  "actual_capture": {
+    "base_source": "36bc40352bf68b44e17cbf87f97dfd3de8fc7762",
+    "source_is_clean": false,
+    "qualification": "captured dirty working bytes independently match frozen source; not a clean-source rerun"
+  },
+  "all_captured_source_hashes_match_frozen_commit": true,
+  "captured_source_files": 242,
+  "before": {
+    "total": 169,
+    "passed": 163,
+    "failed": 6
+  },
+  "after": {
+    "total": 169,
+    "passed": 169,
+    "failed": 0,
+    "pending": 0
+  },
+  "case_results": [
+    {
+      "name": "NotificationService cache subject contract: user changes requires a new acquisition",
+      "status": "passed"
+    },
+    {
+      "name": "NotificationService cache subject contract: device changes requires a new acquisition",
+      "status": "passed"
+    },
+    {
+      "name": "NotificationService cache subject contract: unscoped becomes scoped requires a new acquisition",
+      "status": "passed"
+    },
+    {
+      "name": "NotificationService cache subject contract: scoped becomes unscoped requires a new acquisition",
+      "status": "passed"
+    },
+    {
+      "name": "NotificationService cache subject contract: opaque case differs requires a new acquisition",
+      "status": "passed"
+    },
+    {
+      "name": "NotificationService cache subject contract: missing differs from empty requires a new acquisition",
+      "status": "passed"
+    },
+    {
+      "name": "NotificationService cache subject contract: exact scoped identity reuses its acquisition",
+      "status": "passed"
+    }
+  ],
+  "negative_binding": {
+    "runtime": "36bc40352bf68b44e17cbf87f97dfd3de8fc7762",
+    "new_verifier_tests": "70030548ea7f84aa0af5b27a54cee14f25990186"
+  },
+  "limits": [
+    "No device, OS permission, app launch or live push dispatch",
+    "Backend registration confirmation remains open",
+    "Full mobile strict typecheck last measured 473 diagnostics at preceding36bc; this packet does not qualify a mobile build",
+    "Acquisition labels in existing API are not backend receipt evidence"
+  ]
+}

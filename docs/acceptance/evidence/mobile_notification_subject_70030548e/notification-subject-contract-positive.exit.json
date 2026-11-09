@@ -1,0 +1,20 @@
+{
+  "actual_exit": 0,
+  "started": 1794187602.164147,
+  "finished": 1794187604.801279,
+  "selected_kind": "notification",
+  "verification_pass": true,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/contexts/AuthContext.test.tsx",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/notificationService.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/contexts/__tests__/DeviceContext.test.tsx"
+  ],
+  "case_counts": {
+    "numTotalTests": 169,
+    "numPassedTests": 169,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

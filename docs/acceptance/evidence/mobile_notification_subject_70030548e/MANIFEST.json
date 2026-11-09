@@ -1,0 +1,23 @@
+{
+  "executed_source": "70030548ea7f84aa0af5b27a54cee14f25990186",
+  "source_files": {
+    "mobile/src/services/notificationService.ts": "49433a8194d0dab9d4a83e4396491c2a37b7dce058cc4304b7a739a5a0fc75cd",
+    "mobile/src/__tests__/services/notificationService.test.ts": "e3b0a2ac6350cc014649bc0feca8148268db0a99df94d7491a58aa85f5f1c619",
+    "mobile/src/__tests__/contexts/AuthContext.test.tsx": "1f0b19e657fda03f0b06654df13f92b48891e4384129a79bf6b6e50a4ed248e8",
+    "mobile/src/contexts/__tests__/DeviceContext.test.tsx": "55041f749c23b74639832212e301f385660c4d9f6b142ae0a17fa2e95f60e7bf",
+    "mobile/jest.setup.js": "b79175cfb5649b26f1bfc05c6cef46ca5eab3af762ec373d23ce2996ad30cea9",
+    "mobile/package-lock.json": "d065e26640e8328898c5a84bc343cb6fce944daddec93ab2a5c82f198240371f",
+    "mobile/jest.config.js": "3283ce8cefd68604a3f6aac4006e5ed40a0ab218b0763161b269a1cf1aed8577"
+  },
+  "artifacts": {
+    "README.md": "6cd7bbfe78a9780f8d9f3db3e9081ad99e6b84b45dae001a7b9b5c635a68c794",
+    "notification-subject-contract-negative.exit.json": "cd577305cc3a126389e24014c81be46bc79a1ef19a987f70c8681ae35f6251a1",
+    "notification-subject-contract-negative.log": "57718fc931a46472b8ab25a47171aaa0b023706ef52e5f8b133ab025deab043e",
+    "notification-subject-contract-negative.spec.json": "8965496fac8c0fbb9cd434b19838b5dbedf0bd0ae5b039e0228dcf503b795703",
+    "notification-subject-contract-positive.exit.json": "16adc018a16e2c4fc70a5988fd6cec98ef5730803a3bce34fb233f83ef56dd5d",
+    "notification-subject-contract-positive.log": "46d80e1ea975f74f121b2863a652107d2da0a747cb6d44c077539ab9d2b31d9e",
+    "notification-subject-contract-positive.spec.json": "f28ef6ca38fd22ad5ddef50346b19163393752de72da08c5b49edfc17fe68fbc",
+    "reviewed-native-proposal.json": "979c70db9a92800b02fed1e44e57b417557b3a337f9d9b0e1c803572a5045f43",
+    "verification.json": "35918392cd36835279d6b93b135235694042617315732897305d3da55fb5c649"
+  }
+}
