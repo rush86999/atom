@@ -1,0 +1,36 @@
+{
+  "status": "healthy",
+  "version": "8.0.0",
+  "deployed_sha": "unknown",
+  "timestamp": "2026-11-09T14:38:52.094990+00:00",
+  "identity": {
+    "pid": 41930,
+    "started_at": "2026-11-09T14:38:38.867994+00:00",
+    "cwd": "/private/tmp/atom-web-canvas-document-20261109/backend",
+    "git_commit": "cfacc753ccfb",
+    "source_id": "cfacc753ccfb",
+    "instance_id": "cfacc753ccfb.41930.1794235132",
+    "revision": "cfacc753ccfbe66add8e6c2e7432ca4ac0413446",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-11-09T14:38:52.096345+00:00",
+    "process_started_at": "2026-11-09T14:38:52.096344+00:00",
+    "port": 18133,
+    "repo_path": "/private/tmp/atom-web-canvas-document-20261109",
+    "backend_path": "/private/tmp/atom-web-canvas-document-20261109/backend",
+    "error": null,
+    "database": "/private/tmp/root-web-main-core-fixture-20261109/atom.db",
+    "byok_key_store": "/private/tmp/atom-web-canvas-document-20261109/backend/data/byok_keys.json"
+  },
+  "database": "operational",
+  "redis": "operational",
+  "vector_store": "operational",
+  "services": {
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational"
+  },
+  "memory_mb": 632.1
+}

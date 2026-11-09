@@ -1,0 +1,25 @@
+{
+  "executed_source": "7d40f3ce6b6d3a2fc1e37e4b5ff94ca3c3409b29",
+  "source_files": {
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "sha256:3e1916c4b699521839c5d02598a2079cb7bd2e1b6187369bc57d53086114f8b4",
+    "frontend-nextjs/components/canvas/__tests__/CanvasDocumentPersistence.test.tsx": "sha256:bfad5d609300fdc6b8f34691bfc389e873ada2d9ce7fe90b9e5ae9edf1312101",
+    "frontend-nextjs/components/canvas/__tests__/canvasType.test.ts": "sha256:59cd3a5ce55e7c4beff86ef76a83c1d20b300e31a60ce657fcc3b9570f4d46c1",
+    "frontend-nextjs/components/canvas/canvasType.ts": "sha256:9bd8e8b233be7a1d3bbae59c2c6a2645deb55ae65b924731c244c36971f62478",
+    "frontend-nextjs/components/chat/canvas-host.tsx": "sha256:31f64f4ba07e1e7ce4d5a76537583ff5b8b8a254831337479d96eb8d8265864c",
+    "frontend-nextjs/hooks/useCanvasAutosave.ts": "sha256:3a20ef00a7789529a5cecf06fff643f1eb40257f1f785aa8a1b5c26338e42d3f",
+    "frontend-nextjs/lib/canvasAuditSave.ts": "sha256:0bef73c605192ab6c1dd53eff5465781b2f9e16340b5a294deb0640caf6d2646",
+    "frontend-nextjs/tests/lib/canvas-audit-outcome.test.ts": "sha256:e353f0a569cc9a1c4b01380c50da53ac57fafbbd07a2957c9fd65624795c5d54",
+    ".github/workflows/ci.yml": "sha256:cc5f77a24420a0ed5f4c7d57545258eeacf8f7b05537710a4ad20b61285094fd",
+    "frontend-nextjs/lib/api.ts": "sha256:0bfa5a8eef267f48f0a0ccac9b5f62a6f70c850f900a3986083c47bc396d2db1",
+    "backend/api/canvas_routes.py": "sha256:15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/canvas_write_service.py": "sha256:33ab8d36af5d52ec0392de63444b969ca5af9b707807cc89a30e597325fe52de"
+  },
+  "artifacts": {
+    "wrong-receipt-negative.log": "sha256:79b288468759babb077bf413dd42269f8c27bfc6999aa3237357569ae1d1961b",
+    "README.md": "sha256:07fc6c533e6ad602310a3ddf108cbd13bb6633833e6cf1a5ac19867cce3cfacd",
+    "pending-edit-negative-5c0e5fe4f.log": "sha256:e9847e3a2a4c74db1b55287e1528b1b0671510883f4cbaea46ed85fd5414a165",
+    "verification.json": "sha256:e12bbc5807a7dd2e50ba464542c62e4c0e5e3cfcb06353874c60515b55268112",
+    "final-268.log": "sha256:3e4a4e98494fa1e5c0aec56fe9ba71dcee3f82e3f4d3c2ff475764adf9984981",
+    "cli-review.md": "sha256:ea0f05e6a893a76ac8dd2a658fe1b49a636c0d369d869dcdefe5725f2733bce5"
+  }
+}

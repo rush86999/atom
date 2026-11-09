@@ -1,0 +1,24 @@
+{
+  "executed_source": "7d40f3ce6b6d3a2fc1e37e4b5ff94ca3c3409b29",
+  "tests": {
+    "passed": 268,
+    "suites": 14,
+    "node": "20.20.2"
+  },
+  "typescript_exit": 0,
+  "original_wrong_receipt_negative": {
+    "failed": 2,
+    "scope": "development controls before type repair"
+  },
+  "pending_edit_negative": {
+    "source": "5c0e5fe4f",
+    "failed": 2,
+    "passed": 262
+  },
+  "cli_review": {
+    "model": "opencode-go/deepseek-v4.1-flash",
+    "scope": "public copy read-only, no app inference"
+  },
+  "browser_replay": false,
+  "cross_client_prior_audit_cas_qualified": false
+}

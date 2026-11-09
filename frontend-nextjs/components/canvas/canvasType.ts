@@ -148,7 +148,8 @@ function markdownToRows(text: string): any[][] | null {
 
 /** Best-effort plain text of the current canvas, whatever shape it holds. */
 function extractText(src: CanvasTypeSource): string {
-    if (src.component === "email") return src.text || "";
+    if (src.component === "email" || isTextBodyComponent(src.component)) return src.text;
+    if (src.component === "sheet" && Array.isArray(src.sheet)) return rowsToMarkdown(src.sheet);
     const data = src.data;
     if (typeof data === "string") return data;
     if (Array.isArray(data)) return rowsToMarkdown(data);
@@ -197,16 +198,17 @@ export function switchCanvasType(target: SwitchableCanvasType, src: CanvasTypeSo
     }
 }
 
-/** Persist a manual retype (best-effort — the canvas stays usable offline). */
+/** A type change uses the same exact-canvas verified receipt as other edits. */
 export async function persistCanvasTypeSwitch(
     canvasId: string,
     conversion: CanvasTypeConversion,
     title?: string,
 ): Promise<void> {
-    const { apiClient } = await import("@/lib/api");
-    const params = new URLSearchParams({ canvas_type: conversion.component, retype: "true" });
-    if (title) params.set("title", title);
-    await apiClient.put(`/api/canvas/${canvasId}?${params.toString()}`, conversion.payload);
+    const { saveCanvasAudit, CanvasAuditSaveError } = await import("@/lib/canvasAuditSave");
+    if (!await saveCanvasAudit(canvasId, conversion.component, title, conversion.payload, { retype: true })) {
+        // Type changes have no legacy-artifact fallback.
+        throw new CanvasAuditSaveError({ status: 404 });
+    }
 }
 
 /** Known editable text payloads, shared by standalone and chat canvas hosts.

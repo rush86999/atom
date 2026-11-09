@@ -1,0 +1,26 @@
+{
+  "executed_source": "cfacc753ccfbe66add8e6c2e7432ca4ac0413446",
+  "source_files": {
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "sha256:3e1916c4b699521839c5d02598a2079cb7bd2e1b6187369bc57d53086114f8b4",
+    "frontend-nextjs/components/canvas/CanvasTypeBadge.tsx": "sha256:7f59f1637542e2824da99d824717ccda805bb4424e5f0011ccefbc653fc18d10",
+    "frontend-nextjs/components/canvas/canvasType.ts": "sha256:9bd8e8b233be7a1d3bbae59c2c6a2645deb55ae65b924731c244c36971f62478",
+    "frontend-nextjs/hooks/useCanvasAutosave.ts": "sha256:3a20ef00a7789529a5cecf06fff643f1eb40257f1f785aa8a1b5c26338e42d3f",
+    "frontend-nextjs/lib/canvasAuditSave.ts": "sha256:0bef73c605192ab6c1dd53eff5465781b2f9e16340b5a294deb0640caf6d2646",
+    "frontend-nextjs/pages/canvas/[id].tsx": "sha256:0f862cc47ef6ac01e0322c88d524874e39086b37e92a7c35a8eed3d649115a8e",
+    "frontend-nextjs/next.config.js": "sha256:e3064054bd6d6b339c439df126f92d346b4f9c25976bb31324581e9b6d36271f",
+    "backend/main_api_app.py": "sha256:323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/api/canvas_routes.py": "sha256:15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/canvas_write_service.py": "sha256:33ab8d36af5d52ec0392de63444b969ca5af9b707807cc89a30e597325fe52de"
+  },
+  "artifacts": {
+    "type-changed.md": "sha256:9498f78fb803a297b5888ff243e6e66de519a76f5a8d0ffa278a5e31538cba8f",
+    "type-changed.jpg": "sha256:3005ab57d373da04b4326415e5d658ece533d0ad4da20c2cd46f5762e3fdbf51",
+    "type-before.md": "sha256:61dd46fc5507b7da34382569bcf15cda95741d85042d9c2d96221a497a002f6d",
+    "health.json": "sha256:102cd208cc04634051ac8928240bec5c7387778b47b3ce3724959d367f1c594b",
+    "README.md": "sha256:3a0b14c2a6c8c684c48a6a2be5b12d04f1834fb9297311ba1f7dd70c5c2625ac",
+    "type-after-reload.md": "sha256:2f805ce3cc663eeba94b8336aeddeb2fcaba1cf04dd1c01a230c03c681a8275a",
+    "database-after-reload.json": "sha256:43fb26ff751338ebbc29e90ecc26fba1f4e8869283ed894db01849735e1b023d",
+    "verification.json": "sha256:1b7e709a55c5cc8c87b8184beee4ef30def0b25e6deb722a6540e8c1de563331",
+    "type-after-reload.jpg": "sha256:3955d98f0ae75816fc1db3bf675ef132ab79c38dc82b5684e8cf39686d9fab90"
+  }
+}

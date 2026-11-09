@@ -62,6 +62,11 @@ interface CanvasHostProps {
 export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeSend }: CanvasHostProps) {
     const [state, setState] = useState<CanvasState | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const typeSwitchInFlightRef = useRef(false);
+    const typeSelectionRef = useRef(false);
+    const activePayloadEpochRef = useRef(0);
+    const currentStateRef = useRef(state);
+    currentStateRef.current = state;
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const localContentRef = useRef<string>("");
     // The detail page rebuilds its synthetic lastMessage object on every
@@ -232,6 +237,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     // Returns true on success / false on failure — the autosave hook keys
     // its retry + status logic off this result.
     const handleSave = async (): Promise<boolean> => {
+        if (typeSwitchInFlightRef.current) return false;
         if (!state) return false;
         setIsSaving(true);
 
@@ -324,6 +330,8 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
         schedule: scheduleAutosave,
         flush: flushAutosave,
         reset: resetAutosave,
+        block: blockAutosave,
+        revision: autosaveRevision,
     } = useCanvasAutosave({ save: handleSave });
 
     // Handed to the chat host: it awaits this BEFORE dispatching a co-editor
@@ -334,7 +342,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     // pasted seconds before "i added my signature, adjust" never reached the
     // agent). flush() self-gates: a no-op when nothing is pending.
     const flushBeforeSendRef = useRef<() => Promise<void>>(async () => {
-        if (!await flushAutosave()) {
+        if (typeSwitchInFlightRef.current || !await flushAutosave()) {
             throw new Error("The canvas save is not confirmed. Review the document before continuing.");
         }
     });
@@ -362,6 +370,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                 // Closing supersedes local edits — drop any pending autosave
                 // so its timer can't write afterwards.
                 resetAutosave();
+                activePayloadEpochRef.current += 1;
                 setState(null);
                 setEmailAttachments([]);
             } else if (action === "email_attachments") {
@@ -415,6 +424,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                 // re-write the superseded content.
                 resetAutosave();
 
+                activePayloadEpochRef.current += 1;
                 localContentRef.current = content;
 
                 setState({
@@ -586,35 +596,56 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     const handleTypeSwitch = async (target: SwitchableCanvasType) => {
         // A type change must not clear an uncertain-save block or race a
         // pending edit. The hook checks the current ref, not stale UI state.
-        if (autosaveBlocked || !await flushAutosave()) return;
-        if (!state) return;
-        const conversion = switchCanvasType(target, {
-            component: state.component,
-            data: state.data,
-            text: localContentRef.current,
-            email: emailMetadata,
-            sheet: sheetData,
-            title: state.title,
-        });
-
-        setState({ ...state, component: conversion.component, data: conversion.data });
-        localContentRef.current = conversion.text;
-        setEmailBody(conversion.component === "email" ? conversion.text : "");
-        setEmailMetadata({ to: conversion.email.to, cc: conversion.email.cc, subject: conversion.email.subject, thread_id: "" });
-        setSheetData(conversion.sheet);
-        setSignatureOpen(false);
-        setShowPreview(false);
-        setHasUnsavedChanges(!state.id);
-        // The switch persists itself (or intentionally stays unsaved until
-        // an id exists) — a pending autosave would only re-write what
-        // persistCanvasTypeSwitch just stored.
-        resetAutosave();
-
-        if (state.id) {
-            persistCanvasTypeSwitch(state.id, conversion, state.title).catch((e) => {
-                console.error("Failed to persist canvas type change:", e);
-                setHasUnsavedChanges(true);
+        if (autosaveBlocked || typeSelectionRef.current || !state) return;
+        typeSelectionRef.current = true;
+        const originalEpoch = activePayloadEpochRef.current;
+        try {
+            if (!await flushAutosave()) return;
+            if (currentStateRef.current !== state || activePayloadEpochRef.current !== originalEpoch) return;
+            const originalRevision = autosaveRevision();
+            typeSwitchInFlightRef.current = true;
+            setIsSaving(true);
+            const conversion = switchCanvasType(target, {
+                component: state.component,
+                data: state.data,
+                text: localContentRef.current,
+                email: emailMetadata,
+                sheet: sheetData,
+                title: state.title,
             });
+
+            if (state.id) {
+                await persistCanvasTypeSwitch(state.id, conversion, state.title);
+                if (currentStateRef.current !== state || activePayloadEpochRef.current !== originalEpoch) return;
+                // A late receipt cannot replace edits typed while the request ran.
+                if (autosaveRevision() !== originalRevision) {
+                    blockAutosave();
+                    return;
+                }
+            }
+
+            setState({ ...state, component: conversion.component, data: conversion.data });
+            localContentRef.current = conversion.text;
+            setEmailBody(conversion.component === "email" ? conversion.text : "");
+            setEmailMetadata({ to: conversion.email.to, cc: conversion.email.cc, subject: conversion.email.subject, thread_id: "" });
+            setSheetData(conversion.sheet);
+            setSignatureOpen(false);
+            setShowPreview(false);
+            setHasUnsavedChanges(!state.id);
+            // The switch persists itself (or intentionally stays unsaved until
+            // an id exists) — a pending autosave would only re-write what
+            // persistCanvasTypeSwitch just stored.
+            resetAutosave();
+
+        } catch {
+            if (currentStateRef.current === state && activePayloadEpochRef.current === originalEpoch) {
+                setHasUnsavedChanges(true);
+                blockAutosave();
+            }
+        } finally {
+            typeSwitchInFlightRef.current = false;
+            typeSelectionRef.current = false;
+            setIsSaving(false);
         }
     };
 
@@ -823,7 +854,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                         </button>
                     )}
                     <button
-                        onClick={() => setState(null)}
+                        onClick={() => { activePayloadEpochRef.current += 1; setState(null); }}
                         aria-label="Close canvas"
                         data-testid={CANVAS.CLOSE_BUTTON}
                         className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
@@ -843,7 +874,11 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
             >
                 <CanvasContent
                     component={state.component}
-                    data={state.data}
+                    data={hasUnsavedChanges && isTextBodyComponent(state.component)
+                        ? (isTextBodyEnvelope(state.data)
+                            ? { ...state.data, content: localContentRef.current }
+                            : localContentRef.current)
+                        : state.data}
                     canvasId={state.id}
                     canvasTitle={state.title}
                     emailMetadata={emailMetadata}

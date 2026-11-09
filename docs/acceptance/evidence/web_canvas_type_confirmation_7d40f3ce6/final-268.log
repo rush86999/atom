@@ -1,0 +1,4217 @@
+PASS components/canvas/__tests__/CanvasDocumentPersistence.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=document&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=markdown&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=code&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=markdown&title=Ordinary%20document&retype=true'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=document&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=document&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=markdown&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=code&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=markdown&title=Ordinary%20document&retype=true'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/ordinary-document?canvas_type=document&title=Ordinary%20document'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      Warning: An update to CanvasPanel inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at CanvasPanel (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/canvas/CanvasPanel.tsx:62:42)
+
+      106 |         const generation = generationRef.current;
+      107 |         const editRevision = editRevisionRef.current;
+    > 108 |         if (mountedRef.current) setStatus("saving");
+          |                                 ^
+      109 |
+      110 |         try {
+      111 |             const ok = await saveRef.current();
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useCanvasAutosave.ts:108:33
+      at step (hooks/useCanvasAutosave.ts:34:23)
+      at Object.next (hooks/useCanvasAutosave.ts:15:53)
+      at hooks/useCanvasAutosave.ts:9:71
+      at __awaiter (hooks/useCanvasAutosave.ts:5:12)
+      at hooks/useCanvasAutosave.ts:98:54
+      at hooks/useCanvasAutosave.ts:207:16
+      at step (hooks/useCanvasAutosave.ts:34:23)
+      at Object.next (hooks/useCanvasAutosave.ts:15:53)
+      at hooks/useCanvasAutosave.ts:9:71
+      at __awaiter (hooks/useCanvasAutosave.ts:5:12)
+      at hooks/useCanvasAutosave.ts:199:64
+      at components/canvas/CanvasPanel.tsx:345:53
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.next (components/canvas/CanvasPanel.tsx:59:53)
+      at components/canvas/CanvasPanel.tsx:53:71
+      at __awaiter (components/canvas/CanvasPanel.tsx:49:12)
+      at Object.current (components/canvas/CanvasPanel.tsx:344:60)
+      at Array.<anonymous> (components/canvas/CanvasPanel.tsx:350:60)
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:150:67
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:8:71
+      at __awaiter (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:4:12)
+      at Object.<anonymous> (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:145:85)
+
+    console.error
+      Warning: An update to CanvasPanel inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at CanvasPanel (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/canvas/CanvasPanel.tsx:62:42)
+
+      240 |         if (typeSwitchInFlightRef.current) return false;
+      241 |         if (!state) return false;
+    > 242 |         setIsSaving(true);
+          |         ^
+      243 |
+      244 |         // Canvas-audit persistence for every canvas whose content THIS panel
+      245 |         // owns end-to-end (email dict, sheet rows, string bodies) — not just
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/canvas/CanvasPanel.tsx:242:9
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.next (components/canvas/CanvasPanel.tsx:59:53)
+      at components/canvas/CanvasPanel.tsx:53:71
+      at __awaiter (components/canvas/CanvasPanel.tsx:49:12)
+      at Object.handleSave [as current] (components/canvas/CanvasPanel.tsx:239:24)
+      at hooks/useCanvasAutosave.ts:111:38
+      at step (hooks/useCanvasAutosave.ts:34:23)
+      at Object.next (hooks/useCanvasAutosave.ts:15:53)
+      at hooks/useCanvasAutosave.ts:9:71
+      at __awaiter (hooks/useCanvasAutosave.ts:5:12)
+      at hooks/useCanvasAutosave.ts:98:54
+      at hooks/useCanvasAutosave.ts:207:16
+      at step (hooks/useCanvasAutosave.ts:34:23)
+      at Object.next (hooks/useCanvasAutosave.ts:15:53)
+      at hooks/useCanvasAutosave.ts:9:71
+      at __awaiter (hooks/useCanvasAutosave.ts:5:12)
+      at hooks/useCanvasAutosave.ts:199:64
+      at components/canvas/CanvasPanel.tsx:345:53
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.next (components/canvas/CanvasPanel.tsx:59:53)
+      at components/canvas/CanvasPanel.tsx:53:71
+      at __awaiter (components/canvas/CanvasPanel.tsx:49:12)
+      at Object.current (components/canvas/CanvasPanel.tsx:344:60)
+      at Array.<anonymous> (components/canvas/CanvasPanel.tsx:350:60)
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:150:67
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:8:71
+      at __awaiter (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:4:12)
+      at Object.<anonymous> (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:145:85)
+
+    console.error
+      [API Error] {
+        code: 'ERR_BAD_RESPONSE',
+        status: 503,
+        message: 'Request failed with status code 503',
+        url: '/api/canvas/dependent-canvas?canvas_type=document&title='
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+    console.error
+      Warning: An update to CanvasPanel inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at CanvasPanel (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/canvas/CanvasPanel.tsx:62:42)
+
+      258 |                     ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+      259 |                 } finally {
+    > 260 |                     setIsSaving(false);
+          |                     ^
+      261 |                 }
+      262 |                 if (ok) {
+      263 |                     setHasUnsavedChanges(false);
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/canvas/CanvasPanel.tsx:260:21
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.throw (components/canvas/CanvasPanel.tsx:59:53)
+      at rejected (components/canvas/CanvasPanel.tsx:51:65)
+
+    console.error
+      Warning: An update to CanvasPanel inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at CanvasPanel (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/canvas/CanvasPanel.tsx:62:42)
+
+      136 |                 clearTimer();
+      137 |                 if (mountedRef.current) {
+    > 138 |                     setBlocked(true);
+          |                     ^
+      139 |                     setStatus("error");
+      140 |                 }
+      141 |                 return false;
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useCanvasAutosave.ts:138:21
+      at step (hooks/useCanvasAutosave.ts:34:23)
+      at Object.throw (hooks/useCanvasAutosave.ts:15:53)
+      at rejected (hooks/useCanvasAutosave.ts:7:65)
+
+    console.error
+      Warning: An update to CanvasPanel inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at CanvasPanel (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/canvas/CanvasPanel.tsx:62:42)
+
+      137 |                 if (mountedRef.current) {
+      138 |                     setBlocked(true);
+    > 139 |                     setStatus("error");
+          |                     ^
+      140 |                 }
+      141 |                 return false;
+      142 |             }
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useCanvasAutosave.ts:139:21
+      at step (hooks/useCanvasAutosave.ts:34:23)
+      at Object.throw (hooks/useCanvasAutosave.ts:15:53)
+      at rejected (hooks/useCanvasAutosave.ts:7:65)
+
+PASS components/canvas/__tests__/CanvasPanel.test.tsx (11.517 s)
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • PUT http://127.0.0.1:8000/api/canvas/mail-2
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • PUT http://127.0.0.1:8000/api/canvas/mail-3
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • PUT http://127.0.0.1:8000/api/canvas/mail-1
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • POST http://localhost/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost:8000/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.error
+      Error saving artifact: FetchError {
+        message: 'request to http://localhost:8000/api/artifacts failed, reason: ',
+        type: 'system',
+        errno: 'EPERM',
+        code: 'EPERM'
+      }
+
+      312 |             return false;
+      313 |         } catch (error) {
+    > 314 |             console.error("Error saving artifact:", error);
+          |                     ^
+      315 |             return false;
+      316 |         } finally {
+      317 |             setIsSaving(false);
+
+      at components/canvas/CanvasPanel.tsx:314:21
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.throw (components/canvas/CanvasPanel.tsx:59:53)
+      at rejected (components/canvas/CanvasPanel.tsx:51:65)
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • POST http://localhost/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost:8000/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.error
+      Error saving artifact: FetchError {
+        message: 'request to http://localhost:8000/api/artifacts failed, reason: ',
+        type: 'system',
+        errno: 'EPERM',
+        code: 'EPERM'
+      }
+
+      312 |             return false;
+      313 |         } catch (error) {
+    > 314 |             console.error("Error saving artifact:", error);
+          |                     ^
+      315 |             return false;
+      316 |         } finally {
+      317 |             setIsSaving(false);
+
+      at components/canvas/CanvasPanel.tsx:314:21
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.throw (components/canvas/CanvasPanel.tsx:59:53)
+      at rejected (components/canvas/CanvasPanel.tsx:51:65)
+
+PASS tests/pages/canvas-detail.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.error
+      Failed to load canvas: Error: 404
+          at /private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/pages/canvas-detail.test.tsx:209:31
+          at step (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/pages/canvas-detail.test.tsx:52:23)
+          at Object.next (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/pages/canvas-detail.test.tsx:33:53)
+          at /private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/pages/canvas-detail.test.tsx:27:71
+          at new Promise (<anonymous>)
+          at __awaiter (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/pages/canvas-detail.test.tsx:23:12)
+          at Object.<anonymous> (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/pages/canvas-detail.test.tsx:208:56)
+          at Promise.finally.completed (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+          at _callCircusTest (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+          at runNextTicks (node:internal/process/task_queues:60:5)
+          at listOnTimeout (node:internal/timers:545:9)
+          at processTimers (node:internal/timers:519:7)
+          at _runTest (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+          at /private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at run (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+          at jestAdapter (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:343:7)
+
+      487 |             }
+      488 |         } catch (e) {
+    > 489 |             console.error("Failed to load canvas:", e);
+          |                     ^
+      490 |         } finally {
+      491 |             setLoading(false);
+      492 |         }
+
+      at pages/canvas/[id].tsx:489:21
+      at step (pages/canvas/[id].tsx:78:23)
+      at Object.throw (pages/canvas/[id].tsx:59:53)
+      at rejected (pages/canvas/[id].tsx:51:65)
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.error
+      Warning: An update to CanvasDetailPage inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at CanvasDetailPage (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/pages/canvas/[id].tsx:77:43)
+
+      889 |             const data = (resp as any).data || resp;
+      890 |             if (data.session_id && data.session_id !== "new") {
+    > 891 |                 setChatSessionId(data.session_id);
+          |                 ^
+      892 |             }
+      893 |             if (typeof data.execution_id === "string" && data.execution_id) {
+      894 |                 turnExecIdRef.current = data.execution_id;
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/canvas/[id].tsx:891:17
+      at step (pages/canvas/[id].tsx:78:23)
+      at Object.next (pages/canvas/[id].tsx:59:53)
+      at fulfilled (pages/canvas/[id].tsx:50:58)
+
+    console.error
+      Warning: An update to CanvasDetailPage inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at CanvasDetailPage (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/pages/canvas/[id].tsx:77:43)
+
+      919 |                 // under the reply that produced it.
+      920 |                 const teaching = data.metadata?.teaching as TeachingNoticeData | undefined;
+    > 921 |                 setMessages(prev => {
+          |                 ^
+      922 |                     const streamed = prev.find(m => m.id === streamId && mine(m));
+      923 |                     if (streamed) {
+      924 |                         return prev.map(m => (m.id === streamed.id ? {
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/canvas/[id].tsx:921:17
+      at step (pages/canvas/[id].tsx:78:23)
+      at Object.next (pages/canvas/[id].tsx:59:53)
+      at fulfilled (pages/canvas/[id].tsx:50:58)
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= true delivered= true
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 0 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/agents
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://127.0.0.1:8000/api/canvas/cv1/capability
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+    console.log
+      MOCK-WS render; handlers= 1 last= false delivered= false
+
+      at tests/pages/canvas-detail.test.tsx:61:15
+
+PASS components/chat/__tests__/CanvasHost.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/chat/__tests__/ArtifactSidebar.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to ArtifactSidebar inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ArtifactSidebar (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/chat/ArtifactSidebar.tsx:68:44)
+          at QueryClientProvider (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at children (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/next-auth/react/index.js:364:24)
+          at Wrapper (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      79 |             const body = (response as any)?.data ?? response;
+      80 |             if (body && body.success !== false) {
+    > 81 |                 setArtifacts(Array.isArray(body.canvases) ? body.canvases : []);
+         |                 ^
+      82 |             }
+      83 |         } catch (error) {
+      84 |             console.error("Failed to fetch session artifacts:", error);
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/chat/ArtifactSidebar.tsx:81:17
+      at step (components/chat/ArtifactSidebar.tsx:67:23)
+      at Object.next (components/chat/ArtifactSidebar.tsx:48:53)
+      at fulfilled (components/chat/ArtifactSidebar.tsx:39:58)
+
+    console.error
+      Warning: An update to ArtifactSidebar inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ArtifactSidebar (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/chat/ArtifactSidebar.tsx:68:44)
+          at QueryClientProvider (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at children (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/next-auth/react/index.js:364:24)
+          at Wrapper (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      84 |             console.error("Failed to fetch session artifacts:", error);
+      85 |         } finally {
+    > 86 |             setIsLoading(false);
+         |             ^
+      87 |         }
+      88 |     }, [sessionId]);
+      89 |
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/chat/ArtifactSidebar.tsx:86:13
+      at step (components/chat/ArtifactSidebar.tsx:67:23)
+      at Object.next (components/chat/ArtifactSidebar.tsx:48:53)
+      at fulfilled (components/chat/ArtifactSidebar.tsx:39:58)
+
+    console.error
+      Warning: An update to ArtifactSidebar inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ArtifactSidebar (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/chat/ArtifactSidebar.tsx:68:44)
+          at QueryClientProvider (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at children (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/next-auth/react/index.js:364:24)
+          at Wrapper (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      79 |             const body = (response as any)?.data ?? response;
+      80 |             if (body && body.success !== false) {
+    > 81 |                 setArtifacts(Array.isArray(body.canvases) ? body.canvases : []);
+         |                 ^
+      82 |             }
+      83 |         } catch (error) {
+      84 |             console.error("Failed to fetch session artifacts:", error);
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/chat/ArtifactSidebar.tsx:81:17
+      at step (components/chat/ArtifactSidebar.tsx:67:23)
+      at Object.next (components/chat/ArtifactSidebar.tsx:48:53)
+      at fulfilled (components/chat/ArtifactSidebar.tsx:39:58)
+
+    console.error
+      Warning: An update to ArtifactSidebar inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ArtifactSidebar (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/components/chat/ArtifactSidebar.tsx:68:44)
+          at QueryClientProvider (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/@tanstack/react-query/src/QueryClientProvider.tsx:30:3)
+          at children (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/node_modules/next-auth/react/index.js:364:24)
+          at Wrapper (/private/tmp/atom-web-canvas-document-20261109/frontend-nextjs/tests/test-utils.tsx:62:30)
+
+      84 |             console.error("Failed to fetch session artifacts:", error);
+      85 |         } finally {
+    > 86 |             setIsLoading(false);
+         |             ^
+      87 |         }
+      88 |     }, [sessionId]);
+      89 |
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/chat/ArtifactSidebar.tsx:86:13
+      at step (components/chat/ArtifactSidebar.tsx:67:23)
+      at Object.next (components/chat/ArtifactSidebar.tsx:48:53)
+      at fulfilled (components/chat/ArtifactSidebar.tsx:39:58)
+
+PASS components/canvas/__tests__/CanvasVersionHistory.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/chat/__tests__/CanvasTypePicker.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS hooks/__tests__/useCanvasAutosave.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS hooks/__tests__/useCanvasStateRegistration.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS hooks/__tests__/useCanvasAutosaveUncertain.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/canvasSync.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/lib/canvas-audit-outcome.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/canvasFrame.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/canvas/__tests__/canvasType.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 14 passed, 14 total
+Tests:       268 passed, 268 total
+Snapshots:   0 total
+Time:        17.368 s, estimated 18 s
+Ran all test suites matching tests/pages/canvas-detail.test.tsx|tests/lib/canvas-audit-outcome.test.ts|hooks/__tests__/useCanvasAutosaveUncertain.test.ts|components/canvas/__tests__/CanvasDocumentPersistence.test.tsx|components/canvas/__tests__/CanvasPanel.test.tsx|components/chat/__tests__/CanvasHost.test.tsx|hooks/__tests__/useCanvasAutosave.test.ts|hooks/__tests__/useCanvasStateRegistration.test.ts|lib/__tests__/canvasFrame.test.ts|lib/__tests__/canvasSync.test.ts|components/canvas/__tests__/CanvasVersionHistory.test.tsx|components/canvas/__tests__/canvasType.test.ts|components/chat/__tests__/CanvasTypePicker.test.tsx|components/chat/__tests__/ArtifactSidebar.test.tsx.
