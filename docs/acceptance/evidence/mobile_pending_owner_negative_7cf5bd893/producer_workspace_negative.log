@@ -1,0 +1,26 @@
+test_authoritative_workspace_is_preserved (__main__.LoginWorkspaceProducer.test_authoritative_workspace_is_preserved) ... ERROR
+test_invalid_password_still_creates_no_token (__main__.LoginWorkspaceProducer.test_invalid_password_still_creates_no_token) ... ok
+test_missing_workspace_is_explicit_null_not_default (__main__.LoginWorkspaceProducer.test_missing_workspace_is_explicit_null_not_default) ... FAIL
+
+======================================================================
+ERROR: test_authoritative_workspace_is_preserved (__main__.LoginWorkspaceProducer.test_authoritative_workspace_is_preserved)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/root-mobile-login-workspace-probe-20261109.py", line 42, in test_authoritative_workspace_is_preserved
+    self.assertEqual(result['user']['workspace_id'], 'workspace-opaque-0001')
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+KeyError: 'workspace_id'
+
+======================================================================
+FAIL: test_missing_workspace_is_explicit_null_not_default (__main__.LoginWorkspaceProducer.test_missing_workspace_is_explicit_null_not_default)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/root-mobile-login-workspace-probe-20261109.py", line 46, in test_missing_workspace_is_explicit_null_not_default
+    self.assertIn('workspace_id', result['user'])
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'workspace_id' not found in {'id': 'owner-001', 'email': 'local@example.invalid', 'first_name': 'Local', 'last_name': 'Owner', 'role': 'member'}
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.008s
+
+FAILED (failures=1, errors=1)

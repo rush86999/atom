@@ -1,0 +1,7 @@
+{
+  "executed_source": "7cf5bd893",
+  "file": "backend/core/auth.py",
+  "source_sha256": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+  "scope": "actual authenticate_mobile_user AST body with controlled DB/password/token doubles; no module import, engine, server or live account",
+  "result": "3cases:1pass,1failure,1error;workspace key omitted;invalid password stillno token"
+}

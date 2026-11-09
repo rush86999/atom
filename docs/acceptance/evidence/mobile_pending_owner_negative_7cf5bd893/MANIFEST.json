@@ -1,0 +1,23 @@
+{
+  "executed_source": "7cf5bd89338269cdb2003665ed82beb634573acb",
+  "source_files": {
+    "mobile/src/services/workflowSyncService.ts": "b88588de79a7ee54e8b7dbee0a784237af45fb3ec0bfea86043a6f11394121d1",
+    "mobile/src/services/canvasSyncService.ts": "fcf34525f88817692966854e08009f0ddc2ccf56ef06992de2875ea552d82fab",
+    "mobile/src/services/api.ts": "dee2041d2d02eb826696492670f8fc759fa17d0d00b0f353542759f4466da9f8",
+    "mobile/src/storage/secureTokenStorage.ts": "c222b24dfe10e6b843ba467071b2c573b473a2362f919c59f0dfeb712a0d5fb6",
+    "mobile/src/__tests__/services/pendingWrites.uncertainty.test.ts": "0f61b930415943610291059b867468d545a5dca6d76cf3f0365725239c013b35",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/auth_endpoints.py": "bf7c344519f519a39d68656c7fe687dd8d8befbabb5c2b39959a416231e66105"
+  },
+  "artifacts": {
+    "producer_workspace_negative.log": "1fd7e4a9f35e08131feaa3a1fe189b0ab0d139c6162dfc165ef4322e5c185f55",
+    "producer_unit_scope.json": "ee6ccb409434f8075c2c76fab4636c343de4440367c4b3d3017e5d6edab6eaaf",
+    "pending-writes-owner-negative-results.json": "393cb1bc34c80617d85df747e686d69e8392cd9c77afe1c14b85b5c42d630f2d",
+    "NEXT_WORK_ORDER.txt": "b5dd305cac892f0552cbe3af105f902cca3f19c03d9f645ae255153a301d7902",
+    "README.md": "b878ffa9c2673f981ad3b1b822fe8b5d63458ddbe559bd650ab59227a3c7f10b",
+    "pending-writes-owner-negative.spec.json": "5fc3c39bc1079213fd6818723485678425c192d4a69d0ec55d5c50a2c38471bb",
+    "pending-writes-owner-negative.exit.json": "8a59aa7f4e7b31cbc4b80fdc777b7cdaaa99201dc4814604e66e44e0c619e5fb",
+    "pending-writes-owner-negative.log": "0bdbe12683d45839772e585a63fe1b29f8fb3c32a7392ee7be94ffa10caf0ffa",
+    "producer_workspace_probe.py": "a8ee5a57533bd007ce1a970b8b90fdd47e60c438d1e6a88274bfc6125f9b72f4"
+  }
+}
