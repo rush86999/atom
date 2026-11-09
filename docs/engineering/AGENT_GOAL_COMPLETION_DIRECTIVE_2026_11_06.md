@@ -10,15 +10,19 @@ Finite repaired routes or green CI never establish whole-app completion.
 - PR #798 is merged on main at `4a4a83089`: native document bodies save through
   their original audited record; uncertain saves block repeats and dependent
   chat. Its source-bound browser restart proof remains at `e4544dfa2`.
-- PR #799 is now main-targeted at `da9098836`, with exact-head CI running. Its
-  integrated tree equals the reviewed `671fabf0b`; duplicate squash hunks were
-  resolved using that proof, without re-running the stable browser episode.
-- PR #800 follows #799. Consolidate the loaded-revision and initial-presentation
-  repairs in this coherent family before dispatching its main-targeted CI.
+- PR #799 is merged on main at `d542b3862` after all 13 exact-head checks and
+  37 Git evidence checks passed. Its integrated tree equals the reviewed
+  `671fabf0b`; duplicate squash hunks were resolved by whole-tree identity,
+  without re-running the stable browser episode.
+- PR #800 is the next main-target candidate. Freeze the joined loaded-revision
+  and initial-presentation repairs before dispatching its main-targeted CI.
   Initial editable presentations must commit before publishing a revision;
   optional governance flags do not disable durability. Unknown confirmation
   retains the original receipt and must not be credited as model success/failure.
-  Review the successor's actual head and evidence, not its older checkpoint.
+  A real presentation-to-HTTP-edit twin exposed a missing Canvas row after the
+  audit-only checks passed. The successor creates Canvas and audit atomically,
+  reuses authoritative actor/workspace claims, and must pass that joined public
+  boundary. Review its actual head/evidence, not the older audit-only checkpoint.
 - CI support owns exact-head observation while engineering continues. Observation
   expiry is not job failure: inspect the same live run and renew observation,
   never restart merely because a timer expired. Merge only independently

@@ -104,6 +104,8 @@ async def _create_canvas_audit(
     metadata: Dict[str, Any] = None,
     tenant_id: str = "default",
     require_durable_receipt: bool = False,
+    expected_tenant_id: Optional[str] = None,
+    expected_workspace_id: Optional[str] = None,
 ) -> Optional[CanvasAudit]:
     """
     Create a canvas audit entry for tracking.
@@ -132,6 +134,59 @@ async def _create_canvas_audit(
     commit_attempted = False
     commit_confirmed = False
     try:
+        metadata = dict(metadata or {})
+        if require_durable_receipt:
+            if not isinstance(canvas_id, str) or not canvas_id:
+                return None
+            from core.models import Canvas
+            from tools.canvas_crud_tool import active_canvas_actor, _claim_canvas_actor
+            actor = active_canvas_actor(db, user_id)
+            if not actor.get("ok"):
+                return None
+            # Match the caller's known context to the authoritative principal;
+            # only the established Personal Edition aliases are equivalent.
+            for expected, actual in ((expected_tenant_id, actor.get("tenant_id")),
+                                     (expected_workspace_id, actor.get("workspace_id"))):
+                if expected is not None and not (isinstance(expected, str) and
+                    (expected == actual or expected in ("", "default") and actual in (None, "", "default"))):
+                    return None
+            if not _claim_canvas_actor(db, actor):
+                db.rollback()
+                return None
+            workspace_id = actor.get("workspace_id") or None
+            if workspace_id is not None:
+                from sqlalchemy import update
+                from core.models import Workspace
+                from tools.canvas_crud_tool import _raw_exact
+                workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+                if workspace is None or workspace.status != "active":
+                    db.rollback()
+                    return None
+                workspace_tenant = workspace.tenant_id
+                actor_tenant = actor.get("tenant_id")
+                if not (workspace_tenant == actor_tenant or workspace_tenant in (None, "", "default") and actor_tenant in (None, "", "default")):
+                    db.rollback()
+                    return None
+                claim = db.execute(update(Workspace).where(
+                    Workspace.id == workspace_id,
+                    _raw_exact(Workspace.tenant_id, workspace_tenant),
+                    Workspace.status == "active",
+                ).values(updated_at=Workspace.updated_at))
+                if claim.rowcount != 1:
+                    db.rollback()
+                    return None
+            if db.query(Canvas).filter(Canvas.id == canvas_id).first() is not None:
+                db.rollback()
+                return None
+            user_id = actor["id"]
+            tenant_id = actor.get("tenant_id") or "default"
+            metadata["tenant_id"] = tenant_id
+            metadata["workspace_id"] = actor.get("workspace_id")
+            db.add(Canvas(id=canvas_id, tenant_id=tenant_id,
+                          workspace_id=actor.get("workspace_id") or None, created_by=user_id,
+                          name=metadata.get("title") or component_name or canvas_type,
+                          canvas_type=canvas_type, content=metadata.get("content"),
+                          status="active", is_public=False))
         audit = CanvasAudit(
             id=audit_identity,
             tenant_id=tenant_id or "default",
@@ -145,12 +200,12 @@ async def _create_canvas_audit(
             session_id=audit_session_id(session_id),
             action_type=action,
             details_json={
+                **metadata,
                 "canvas_type": canvas_type,
                 "component_type": component_type,
                 "component_name": component_name,
                 "agent_execution_id": agent_execution_id,
                 "governance_check_passed": governance_check_passed,
-                **(metadata or {}),
             }
         )
         db.add(audit)
@@ -173,6 +228,10 @@ async def _create_canvas_audit(
                     except Exception:
                         raise CanvasPresentationReceiptError(audit_identity, str(canvas_id), False) from None
                     return None
+                try:
+                    db.rollback()
+                except Exception as cleanup_error:
+                    logger.warning("Presentation transaction cleanup unavailable", error_class=type(cleanup_error).__name__)
                 raise CanvasPresentationReceiptError(audit_identity, str(canvas_id), commit_confirmed) from None
             try:
                 db.rollback()
@@ -269,6 +328,8 @@ async def present_chart(
             audit = await _create_canvas_audit(
                 db=db,
                 require_durable_receipt=True,
+                expected_tenant_id=tenant_id,
+                expected_workspace_id=workspace_id,
                 agent_id=agent.id if agent else None,
                 agent_execution_id=agent_execution.id if agent_execution else None,
                 user_id=user_id,
@@ -296,6 +357,8 @@ async def present_chart(
                 }
             )
             audit_id = str(audit.id) if audit is not None else None
+            if audit is not None:
+                user_id = str(audit.user_id)
 
         if audit is None:
             logger.error("Chart presentation refused: canvas audit was not persisted")
@@ -537,6 +600,8 @@ async def present_markdown(
             audit = await _create_canvas_audit(
                 db=db,
                 require_durable_receipt=True,
+                expected_tenant_id=tenant_id,
+                expected_workspace_id=workspace_id,
                 agent_id=agent.id if agent else None,
                 agent_execution_id=agent_execution.id if agent_execution else None,
                 user_id=user_id,
@@ -563,6 +628,8 @@ async def present_markdown(
                 }
             )
             audit_id = str(audit.id) if audit is not None else None
+            if audit is not None:
+                user_id = str(audit.user_id)
 
         if audit is None:
             logger.error("Markdown presentation refused: canvas audit was not persisted")
@@ -1660,7 +1727,9 @@ async def present_specialized_canvas(
     title: str = None,
     agent_id: Optional[str] = None,
     session_id: Optional[str] = None,
-    layout: str = None
+    layout: str = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
 ):
     """
     Present a specialized canvas with type-specific components.
@@ -1812,6 +1881,8 @@ async def present_specialized_canvas(
             audit = await _create_canvas_audit(
                 db=db,
                 require_durable_receipt=True,
+                expected_tenant_id=tenant_id,
+                expected_workspace_id=workspace_id,
                 agent_id=agent.id if agent else None,
                 agent_execution_id=agent_execution.id if agent_execution else None,
                 user_id=user_id,
@@ -1825,14 +1896,14 @@ async def present_specialized_canvas(
                 metadata={
                     "title": title,
                     "layout": layout,
-                    **data,
-                    # Preserve the native, unflattened payload as well as the
-                    # backwards-compatible flattened keys.
+                    # Business fields remain in native content, not authority metadata.
                     "data": data,
                     "content": data,
                 }
             )
             audit_id = str(audit.id) if audit is not None else None
+            if audit is not None:
+                user_id = str(audit.user_id)
 
         if audit is None:
             logger.error(

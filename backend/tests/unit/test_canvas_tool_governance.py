@@ -107,7 +107,17 @@ def setup_db_mocks(mock_db):
     mock_exec = MagicMock()
     mock_exec.status = "running"
     mock_query.filter.return_value.first.return_value = mock_exec
-    mock_db.query.return_value = mock_query
+    # Governance-focused doubles must implement the authoritative User and
+    # Canvas lookup protocol, rather than return an execution as every model.
+    from core.models import User, Canvas
+    actor = User(id="user-1", email="actor@example.com", first_name="Test", last_name="Actor",
+                 role="member", status="active", is_active=True, tenant_id=None, workspace_id=None)
+    user_query = MagicMock()
+    user_query.filter.return_value.first.return_value = actor
+    canvas_query = MagicMock()
+    canvas_query.filter.return_value.first.return_value = None
+    mock_db.query.side_effect = lambda model: user_query if model is User else canvas_query if model is Canvas else mock_query
+    mock_db.execute.return_value.rowcount = 1
 
     call_count = [0]
     def get_db_side_effect(*args, **kwargs):
