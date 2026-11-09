@@ -139,6 +139,15 @@ const { BiometricAuthScreen } = require('../../../screens/auth/BiometricAuthScre
       });
     });
 
+    it('keeps exactly one automatic prompt across a pre-timer rerender', async () => {
+      mockAuthenticateWithBiometric.mockResolvedValue({ success: true });
+      const screen = render(<BiometricAuthScreen navigation={mockNavigation} route={{}} />);
+      await waitFor(() => expect(screen.getByText(/Face ID/)).toBeTruthy());
+      expect(mockAuthenticateWithBiometric).not.toHaveBeenCalled();
+      screen.rerender(<BiometricAuthScreen navigation={mockNavigation} route={{}} />);
+      await waitFor(() => expect(mockAuthenticateWithBiometric).toHaveBeenCalledTimes(1));
+    });
+
     it('should show prompt message', async () => {
       const { getByText } = render(
         <BiometricAuthScreen navigation={mockNavigation as any} route={{} as any} />

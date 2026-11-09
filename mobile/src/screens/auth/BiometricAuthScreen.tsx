@@ -93,20 +93,6 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
     initialize();
   }, []);
 
-  // Auto-trigger biometric once availability is known (a plain setTimeout
-  // inside initialize would close over the initial isAvailable=false)
-  const didAutoTriggerRef = useRef(false);
-  useEffect(() => {
-    if (!isAvailable || didAutoTriggerRef.current) return;
-    didAutoTriggerRef.current = true;
-
-    const timer = setTimeout(() => {
-      triggerBiometric();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [isAvailable, triggerBiometric]);
-
   /**
    * Animate screen elements in
    */
@@ -222,6 +208,17 @@ export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ naviga
       setIsLoading(false);
     }
   };
+
+  // Keep the one-time timer stable while using the latest callback/state.
+  const triggerBiometricRef = useRef(triggerBiometric);
+  useEffect(() => { triggerBiometricRef.current = triggerBiometric; }, [triggerBiometric]);
+  const didAutoTriggerRef = useRef(false);
+  useEffect(() => {
+    if (!isAvailable || didAutoTriggerRef.current) return;
+    didAutoTriggerRef.current = true;
+    const timer = setTimeout(() => { triggerBiometricRef.current(); }, 500);
+    return () => clearTimeout(timer);
+  }, [isAvailable]);
 
   /**
    * Retry biometric authentication
