@@ -1,5 +1,8 @@
 /** A lost POST confirmation is not authority for a second dispatch. */
 const mockPost = jest.fn();
+const mockGet = jest.fn();
+const mockReadAuthSessionSnapshot = jest.fn();
+let mockGeneration = 1;
 const mockGetObject = jest.fn();
 const mockSetObject = jest.fn();
 const durable = new Map<string, string>();
@@ -8,20 +11,20 @@ type PendingClient = { flush: () => Promise<void>; destroy: () => void };
 const families = [
   {
     name: 'workflow', key: 'workflow_cache',
-    cache: (deliveryStatus: string | null = 'pending') => ({ workflows: {}, executions: {}, lastSyncAt: null, pendingTriggers: [{ id: 'trigger-001', workflowId: 'workflow-001', input: { amount: 0 }, priority: 5, createdAt: '2026-11-09T10:00:00Z', retryCount: 0, status: 'pending', deliveryStatus: deliveryStatus ?? undefined, userId: 'owner-001', deviceId: 'device-001' }] }),
-    load: async (): Promise<PendingClient> => {
+    cache: (deliveryStatus: string | null = 'pending') => ({ workflows: {}, executions: {}, lastSyncAt: null, pendingTriggers: [{ id: 'trigger-001', workflowId: 'workflow-001', input: { amount: 0 }, priority: 5, createdAt: '2026-11-09T10:00:00Z', retryCount: 0, status: 'pending', deliveryStatus: deliveryStatus ?? undefined, userId: 'owner-001', deviceId: 'device-001', workspaceId: 'workspace-001' }] }),
+    load: async (userId = 'owner-001', deviceId = 'device-001'): Promise<PendingClient> => {
       const { workflowSyncService: service }: typeof import('../../services/workflowSyncService') = require('../../services/workflowSyncService');
       await service.initialize();
-      return { flush: () => service.syncExecutions('owner-001', 'device-001'), destroy: () => service.destroy() };
+      return { flush: () => service.syncExecutions(userId, deviceId), destroy: () => service.destroy() };
     },
   },
   {
     name: 'canvas', key: 'canvas_cache',
-    cache: (deliveryStatus: string | null = 'pending') => ({ canvases: {}, htmlCache: {}, cssCache: {}, lastSyncAt: null, favorites: [], pendingFormSubmissions: [{ canvasId: 'canvas-001', formData: { amount: 0 }, submittedAt: '2026-11-09T10:00:00Z', status: 'pending', deliveryStatus: deliveryStatus ?? undefined, userId: 'owner-001', deviceId: 'device-001' }] }),
-    load: async (): Promise<PendingClient> => {
+    cache: (deliveryStatus: string | null = 'pending') => ({ canvases: {}, htmlCache: {}, cssCache: {}, lastSyncAt: null, favorites: [], pendingFormSubmissions: [{ canvasId: 'canvas-001', formData: { amount: 0 }, submittedAt: '2026-11-09T10:00:00Z', status: 'pending', deliveryStatus: deliveryStatus ?? undefined, userId: 'owner-001', deviceId: 'device-001', workspaceId: 'workspace-001' }] }),
+    load: async (userId = 'owner-001', deviceId = 'device-001'): Promise<PendingClient> => {
       const { canvasSyncService: service }: typeof import('../../services/canvasSyncService') = require('../../services/canvasSyncService');
       await service.initialize();
-      return { flush: () => service.syncFormSubmissions('owner-001', 'device-001'), destroy: () => service.destroy() };
+      return { flush: () => service.syncFormSubmissions(userId, deviceId), destroy: () => service.destroy() };
     },
   },
 ];
@@ -31,14 +34,71 @@ describe('Pending writes require a durable pre-dispatch boundary', () => {
     jest.resetModules();
     jest.useFakeTimers();
     durable.clear();
+    mockGeneration = 1;
+    mockGet.mockReset().mockResolvedValue({ success: true, data: { id: 'owner-001', workspace_id: 'workspace-001', status: 'active' } });
+    mockReadAuthSessionSnapshot.mockReset().mockImplementation(async () => ({ token: 'controlled-session', generation: mockGeneration, userData: JSON.stringify({ id: 'owner-001', workspace_id: 'workspace-001' }), deviceId: 'device-001' }));
     mockPost.mockReset().mockResolvedValue({ success: true, data: { accepted: true } });
     mockGetObject.mockReset().mockImplementation(async (key: string) => JSON.parse(durable.get(key) ?? 'null'));
     mockSetObject.mockReset().mockImplementation(async (key: string, value: unknown) => { durable.set(key, JSON.stringify(value)); return true; });
-    jest.doMock('../../services/api', () => ({ apiService: { post: mockPost } }));
+    jest.doMock('../../services/api', () => ({ apiService: { post: mockPost, get: mockGet } }));
     jest.doMock('../../services/storageService', () => ({ storageService: { getObject: mockGetObject, setObject: mockSetObject } }));
+    jest.doMock('../../storage/secureTokenStorage', () => ({ readAuthSessionSnapshot: mockReadAuthSessionSnapshot, isAccessTokenSnapshotCurrent: (snapshot: { generation: number }) => snapshot.generation === mockGeneration }));
     jest.doMock('../../services/offlineSyncService', () => ({ offlineSyncService: { getSyncState: jest.fn() } }));
   });
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
+
+  test.each(families)('$name a different caller cannot execute stored work', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    const client = await family.load('different-owner', 'device-001');
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(mockSetObject).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
+  test.each(families)('$name a different device cannot execute stored work', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    const client = await family.load('owner-001', 'different-device');
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
+  test.each(families)('$name authenticated server identity must match the queued owner', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    mockGet.mockResolvedValue({ success: true, data: { id: 'different-owner', workspace_id: 'workspace-001', status: 'active' } });
+    const client = await family.load();
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
+  test.each(families)('$name authenticated server workspace must match the queued workspace', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    mockGet.mockResolvedValue({ success: true, data: { id: 'owner-001', workspace_id: 'different-workspace', status: 'active' } });
+    const client = await family.load();
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
+  test.each(families)('$name missing canonical session cannot execute stored work', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    mockReadAuthSessionSnapshot.mockResolvedValue({ token: null, generation: 1, userData: null, deviceId: null });
+    const client = await family.load();
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
+  test.each(families)('$name replacement during actor lookup cannot authorize old queued work', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    mockGet.mockImplementation(async () => { mockGeneration += 1; return { success: true, data: { id: 'owner-001', workspace_id: 'workspace-001', status: 'active' } }; });
+    const client = await family.load();
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
 
   test.each(families)('$name known pre-dispatch failure may safely retry once storage recovers', async family => {
     durable.set(family.key, JSON.stringify(family.cache()));
