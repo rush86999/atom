@@ -6,7 +6,7 @@ This checkpoint supersedes the older live-queue paragraphs, not their historical
 
 The current-principal repair has 33 real installed-NextAuth controls, 180 frontend controls, 40 recovery/logout controls and a clean TypeScript check; packet `web_current_principal_5248cebe0` states the transport and runtime limits. Every web session read now checks current backend authority; unavailable evidence grants nothing without destroying a recoverable cookie. No cached permission wildcard survives the projection. Actual main/PR/check identities must be refreshed before review or merge.
 
-Next owned finite work: remove public development auth defaults through the existing quickstart/configuration path, then qualify the real public HTTP cookie/logout/restart bridge. Main web goals come first; mobile-specific UI/packaging comes last. Keep all 143 historical claim records and all 18 goal-map rows. These overlapping regression counts do not prove whole-app completion, served multi-model breadth, live connectors or general judgment.
+Configuration successor `ecba0afe2` removes public development auth defaults through the existing quickstart path (native43/setup7/frontend180/TSC). Draft PR802 is being superseded by a clean-history submission following a synthetic test-token log finding; no acceptance or waiver. Next owned finite work is the real public HTTP cookie/logout/restart bridge. Main web goals come first; mobile-specific UI/packaging comes last. Keep all 143 historical claim records and all 18 goal-map rows. These overlapping regression counts do not prove whole-app completion, served multi-model breadth, live connectors or general judgment.
 
 ## Current operational checkpoint — 2026-11-08, main `b718a6f3f`
 

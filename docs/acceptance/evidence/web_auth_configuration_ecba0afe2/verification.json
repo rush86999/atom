@@ -1,0 +1,12 @@
+{
+  "executed_source": "ecba0afe2ffb638ed1dab10327a4b31a00dc1bd7",
+  "native_sdk_passed": 43,
+  "setup_passed": 7,
+  "frontend_passed": 180,
+  "typescript_exit": 0,
+  "shell_syntax_exit": 0,
+  "live_settings_changed": false,
+  "browser_replay": false,
+  "review_model": "opencode-go/deepseek-v4.1-flash",
+  "review_scope": "bounded public-code only; findings repaired, not independent acceptance"
+}
