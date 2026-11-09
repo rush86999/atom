@@ -47,7 +47,7 @@ export function AgentChatScreen() {
   const [showEpisodes, setShowEpisodes] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
-  const { isConnected, sendStreamingMessage, subscribeToStream } = useWebSocket();
+  const { isConnected, sendStreamingMessage } = useWebSocket();
 
   /**
    * Load agent data
@@ -169,12 +169,13 @@ export function AgentChatScreen() {
       if (isConnected) {
         // Use streaming
         setIsStreaming(true);
-        sendStreamingMessage(currentAgentId, inputMessage, currentSessionId || 'new');
-
-        // Subscribe to stream
-        const unsubscribe = subscribeToStream(
+        // The send call owns its stream callbacks and cleanup identity.
+        const unsubscribe = sendStreamingMessage(
+          currentAgentId,
+          inputMessage,
           currentSessionId || 'new',
-          (chunk) => {
+          {
+          onChunk: (chunk) => {
             setMessages((prev) => {
               const lastMessage = prev[prev.length - 1];
               if (lastMessage && lastMessage.role === 'assistant' && lastMessage.is_streaming) {
@@ -207,7 +208,7 @@ export function AgentChatScreen() {
               }
             });
           },
-          () => {
+          onComplete: () => {
             // Stream complete
             setIsStreaming(false);
             setIsSending(false);
@@ -220,10 +221,11 @@ export function AgentChatScreen() {
               return updated;
             });
           },
-          (error) => {
+          onError: (error) => {
             setIsStreaming(false);
             setIsSending(false);
             Alert.alert('Streaming Error', error);
+          },
           }
         );
 

@@ -156,6 +156,12 @@ describe('AgentChatScreen', () => {
     mockRouteParams.agentId = 'agent-123';
     mockRouteParams.sessionId = undefined;
     mockWebSocketContext.isConnected = true;
+    mockWebSocketContext.sendStreamingMessage.mockImplementation(
+      (_agentId: string, _message: string, sessionId: string, callbacks: any) => {
+        streamHandlers = { sessionId, ...callbacks };
+        return jest.fn();
+      }
+    );
     mockWebSocketContext.subscribeToStream.mockImplementation(
       (sessionId: string, onChunk: any, onComplete: any, onError: any) => {
         streamHandlers = { sessionId, onChunk, onComplete, onError };
@@ -406,14 +412,10 @@ describe('AgentChatScreen', () => {
       expect(mockWebSocketContext.sendStreamingMessage).toHaveBeenCalledWith(
         'agent-123',
         'Hi agent',
-        'new'
-      );
-      expect(mockWebSocketContext.subscribeToStream).toHaveBeenCalledWith(
         'new',
-        expect.any(Function),
-        expect.any(Function),
-        expect.any(Function)
+        expect.objectContaining({ onChunk: expect.any(Function), onComplete: expect.any(Function), onError: expect.any(Function) })
       );
+      expect(mockWebSocketContext.subscribeToStream).not.toHaveBeenCalled();
     });
 
     it('renders streaming chunks and appends them to the streaming message', async () => {
@@ -494,7 +496,12 @@ describe('AgentChatScreen', () => {
 
     it('unsubscribes from the stream after 30 seconds', async () => {
       const unsubscribe = jest.fn();
-      mockWebSocketContext.subscribeToStream.mockReturnValue(unsubscribe);
+      mockWebSocketContext.sendStreamingMessage.mockImplementation(
+        (_agentId: string, _message: string, sessionId: string, callbacks: any) => {
+          streamHandlers = { sessionId, ...callbacks };
+          return unsubscribe;
+        }
+      );
 
       renderChat();
 
