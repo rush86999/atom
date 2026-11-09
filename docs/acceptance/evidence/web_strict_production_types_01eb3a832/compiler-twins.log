@@ -1,0 +1,20 @@
+TAP version 13
+# Subtest: production config enforces type errors and omits the removed eslint option
+ok 1 - production config enforces type errors and omits the removed eslint option
+  ---
+  duration_ms: 2.64375
+  ...
+# Subtest: installed next build fails only on the injected type error; valid twin builds
+ok 2 - installed next build fails only on the injected type error; valid twin builds
+  ---
+  duration_ms: 3645.915625
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3686.51775
