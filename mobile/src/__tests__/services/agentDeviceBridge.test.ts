@@ -185,6 +185,14 @@ describe('agentDeviceBridge', () => {
 
   // Governance tests (8 tests)
   describe('Governance', () => {
+    test.each(['UNKNOWN', 'toString', null])('refuses malformed maturity %s before device dispatch', async maturityLevel => {
+      const request = JSON.parse(JSON.stringify({ ...mockRequest('INTERN', 'notification', 'sendNotification', {title: 'Test', body: 'No device effect'}), maturityLevel }));
+      const result = await agentDeviceBridge.requestCapability(request);
+      expect(result.success).toBe(false);
+      expect(mockNotificationService.sendLocalNotification).not.toHaveBeenCalled();
+      expect(mockAlert).not.toHaveBeenCalled();
+    });
+
     it('should block STUDENT agents from camera', async () => {
       const request = mockRequest('STUDENT', 'camera', 'pickImage');
       const result = await agentDeviceBridge.requestCapability(request);

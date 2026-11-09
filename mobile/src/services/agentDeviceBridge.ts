@@ -193,6 +193,14 @@ class AgentDeviceBridgeService {
         return this.createErrorResponse(request.requestId, error);
       }
 
+      // Runtime requests can bypass TypeScript's union. Unknown or inherited
+      // object keys must not turn an undefined/function comparison into a grant.
+      if (!Object.prototype.hasOwnProperty.call(MATURITY_HIERARCHY, request.maturityLevel)) {
+        const error = 'Unknown agent maturity level';
+        await this.logAudit(request, false, false, error);
+        return this.createErrorResponse(request.requestId, error);
+      }
+
       // Governance check: maturity level
       const agentMaturityLevel = MATURITY_HIERARCHY[request.maturityLevel];
       const requiredMaturityLevel = MATURITY_HIERARCHY[requirement.minMaturity];
