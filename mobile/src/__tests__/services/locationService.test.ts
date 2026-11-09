@@ -20,7 +20,6 @@ jest.mock('expo-location', () => ({
   getBackgroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
   watchPositionAsync: jest.fn(),
-  removeSubscriptionAsync: jest.fn(),
   reverseGeocodeAsync: jest.fn(),
   geocodeAsync: jest.fn(),
   Accuracy: {
@@ -48,6 +47,10 @@ jest.mock('react-native', () => ({
 const { locationService } = require('../../services/locationService');
 
 describe('LocationService', () => {
+  // Installed expo-location returns a subscription object with a synchronous
+  // remove(), not a numeric subscription ID.
+  let mockSubscription: { remove: jest.Mock };
+
   // Mock location data
   const mockLocation = {
     coords: {
@@ -105,11 +108,10 @@ describe('LocationService', () => {
 
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocation);
 
-    // Mock watchPositionAsync to return a subscription ID
-    (Location.watchPositionAsync as jest.Mock).mockResolvedValue(123);
-
-    // Mock removeSubscriptionAsync
-    (Location.removeSubscriptionAsync as jest.Mock).mockResolvedValue(undefined);
+    // Mock watchPositionAsync to return the installed SDK's subscription
+    // object, not a numeric subscription ID.
+    mockSubscription = { remove: jest.fn() };
+    (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
   });
 
   afterEach(async () => {
@@ -365,8 +367,12 @@ describe('LocationService', () => {
 
       await locationService.stopTracking();
 
-      expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);
+      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);
       expect(locationService.isActive()).toBe(false);
+
+      // Repeated stop must not remove the same subscription twice.
+      await locationService.stopTracking();
+      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);
     });
 
     test('should handle tracking start error', async () => {
@@ -385,11 +391,19 @@ describe('LocationService', () => {
       await locationService.requestPermissions();
       await locationService.startTracking();
 
-      (Location.removeSubscriptionAsync as jest.Mock).mockRejectedValue(
-        new Error('Stop failed')
-      );
+      mockSubscription.remove.mockImplementationOnce(() => {
+        throw new Error('Stop failed');
+      });
 
       await expect(locationService.stopTracking()).resolves.not.toThrow();
+
+      // A failed remove leaves the subscription live, so tracking must stay
+      // truthfully active and a later stop must be able to retry.
+      expect(locationService.isActive()).toBe(true);
+
+      await locationService.stopTracking();
+      expect(mockSubscription.remove).toHaveBeenCalledTimes(2);
+      expect(locationService.isActive()).toBe(false);
     });
   });
 
@@ -714,7 +728,7 @@ describe('LocationService', () => {
       await locationService.destroy();
 
       expect(locationService.isActive()).toBe(false);
-      expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);
+      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);
     });
 
     test('should clear geofence listeners on destroy', async () => {
@@ -1260,7 +1274,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(999);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request permissions
       await locationService.requestPermissions(true, false);
@@ -1289,7 +1303,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(888);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request permissions
       await locationService.requestPermissions(true, false);
@@ -1315,7 +1329,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(777);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request permissions
       await locationService.requestPermissions(true, false);
@@ -1341,7 +1355,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(666);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request permissions
       await locationService.requestPermissions(true, false);
@@ -1367,7 +1381,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(555);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request permissions
       await locationService.requestPermissions(true, false);
@@ -1393,7 +1407,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(444);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request permissions
       await locationService.requestPermissions(true, false);
@@ -1438,7 +1452,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(456);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request foreground permission first
       await locationService.requestPermissions(true, false);
@@ -1494,7 +1508,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(789);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request foreground permission
       await locationService.requestPermissions(true, false);
@@ -1524,7 +1538,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(999);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request foreground permission
       await locationService.requestPermissions(true, false);
@@ -1550,7 +1564,7 @@ describe('LocationService', () => {
       });
 
       // Mock watchPositionAsync
-      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(123);
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);
 
       // Request foreground permission
       await locationService.requestPermissions(true, false);
@@ -1564,7 +1578,7 @@ describe('LocationService', () => {
 
       // Verify tracking stopped and watchId cleared
       expect(locationService.isActive()).toBe(false);
-      expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);
+      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1581,7 +1595,7 @@ describe('LocationService', () => {
       (Location.watchPositionAsync as jest.Mock).mockImplementation(
         (_options: any, callback: (location: any) => void) => {
           watchCallback = callback;
-          return Promise.resolve(777);
+          return Promise.resolve(mockSubscription);
         }
       );
 
@@ -2013,7 +2027,7 @@ describe('LocationService', () => {
     test('should stop tracking gracefully when no subscription is active', async () => {
       await locationService.stopTracking();
 
-      expect(Location.removeSubscriptionAsync).not.toHaveBeenCalled();
+      expect(mockSubscription.remove).not.toHaveBeenCalled();
       expect(locationService.isActive()).toBe(false);
     });
 

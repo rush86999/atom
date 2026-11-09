@@ -82,7 +82,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
 // Mock all service dependencies
-jest.mock('../../services/cameraService');
+jest.mock('../../services/cameraService', () => ({ cameraService: {
+  isAvailable: jest.fn(),
+  pickImage: jest.fn(),
+  requestPermissions: jest.fn(),
+} }));
 jest.mock('../../services/locationService');
 jest.mock('../../services/notificationService');
 jest.mock('../../services/biometricService');
@@ -336,7 +340,8 @@ describe('agentDeviceBridge', () => {
         mockRequest('INTERN', 'location', 'stopTracking')
       );
       expect(mockLocationService.stopTracking).toHaveBeenCalled();
-      expect(result.data.tracking).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Location tracking is still active');
     });
 
     it('should execute notification sendNotification', async () => {

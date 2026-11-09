@@ -94,7 +94,7 @@ class LocationService {
   private currentLocation: LocationInfo | null = null;
   private isTracking: boolean = false;
   private isBackgroundTracking: boolean = false;
-  private watchId: number | null = null;
+  private watchId: Location.LocationSubscription | null = null;
   private currentAccuracy: LocationAccuracy = 'high';
   private locationHistory: LocationHistoryEntry[] = [];
   private geofences: GeofenceRegion[] = [];
@@ -324,23 +324,27 @@ class LocationService {
    * Stop location tracking
    */
   async stopTracking(): Promise<void> {
-    try {
-      if (this.watchId !== null) {
-        await Location.removeSubscriptionAsync(this.watchId);
+    if (this.watchId !== null) {
+      try {
+        this.watchId.remove();
         this.watchId = null;
+      } catch (error) {
+        // The subscription may still be live if remove() throws. Preserve the
+        // handle and tracking flags so callers see the truthful active state
+        // and a later stop can retry.
+        console.error('LocationService: Failed to stop tracking:', error);
+        return;
       }
-
-      if (this.updateTimer) {
-        clearTimeout(this.updateTimer);
-        this.updateTimer = null;
-      }
-
-      this.isTracking = false;
-      this.isBackgroundTracking = false;
-      console.log('LocationService: Stopped tracking');
-    } catch (error) {
-      console.error('LocationService: Failed to stop tracking:', error);
     }
+
+    if (this.updateTimer) {
+      clearTimeout(this.updateTimer);
+      this.updateTimer = null;
+    }
+
+    this.isTracking = false;
+    this.isBackgroundTracking = false;
+    console.log('LocationService: Stopped tracking');
   }
 
   /**
