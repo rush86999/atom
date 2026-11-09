@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { Audio } from 'expo-av';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MessageInput } from '../../../components/chat/MessageInput';
 
@@ -64,7 +65,7 @@ jest.mock('expo-av', () => ({
   Audio: {
     requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
     setAudioModeAsync: jest.fn(() => Promise.resolve()),
-    RECORDING_OPTIONS_PRESET_HIGH_QUALITY: {},
+    RecordingOptionsPresets: { HIGH_QUALITY: { isMeteringEnabled: true } },
     Recording: jest.fn(() => ({
       prepareToRecordAsync: jest.fn(() => Promise.resolve()),
       startAsync: jest.fn(() => Promise.resolve()),
@@ -359,6 +360,10 @@ describe('MessageInput', () => {
       await waitFor(() => {
         expect(getByTestId('stop-button')).toBeTruthy();
       });
+      const recording = jest.mocked(Audio.Recording).mock.results[0].value;
+      expect(recording.prepareToRecordAsync).toHaveBeenCalledWith(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
     });
 
     it('should stop recording when button is pressed again', async () => {
