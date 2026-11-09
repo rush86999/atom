@@ -9,6 +9,9 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ConversationListScreen } from '../../../screens/chat/ConversationListScreen';
 import { Swipeable } from 'react-native-gesture-handler';
+import type { chatService as ChatServiceInstance } from '../../../services/chatService';
+
+type ChatServiceApi = typeof ChatServiceInstance;
 
 // Mock @react-navigation/native
 const mockNavigation = {
@@ -98,56 +101,74 @@ jest.mock('react-native-paper', () => ({
 }));
 
 // Mock chatService
-const mockGetConversationList = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-    data: [
-      {
-        session_id: 'session-1',
-        agent_id: 'agent-1',
-        agent_name: 'Test Agent 1',
-        agent_maturity: 'AUTONOMOUS',
-        last_message: 'Hello from agent 1',
-        last_message_time: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        unread_count: 2,
-      },
-      {
-        session_id: 'session-2',
-        agent_id: 'agent-2',
-        agent_name: 'Test Agent 2',
-        agent_maturity: 'SUPERVISED',
-        last_message: 'Hello from agent 2',
-        last_message_time: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-        unread_count: 0,
-      },
-    ],
-  })
+const mockGetConversationList = jest.fn(
+  (
+    ..._args: Parameters<ChatServiceApi['getConversationList']>
+  ): ReturnType<ChatServiceApi['getConversationList']> =>
+    Promise.resolve({
+      success: true,
+      data: [
+        {
+          session_id: 'session-1',
+          agent_id: 'agent-1',
+          agent_name: 'Test Agent 1',
+          agent_maturity: 'AUTONOMOUS',
+          last_message: 'Hello from agent 1',
+          last_message_time: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+          unread_count: 2,
+          message_count: 0,
+        },
+        {
+          session_id: 'session-2',
+          agent_id: 'agent-2',
+          agent_name: 'Test Agent 2',
+          agent_maturity: 'SUPERVISED',
+          last_message: 'Hello from agent 2',
+          last_message_time: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+          unread_count: 0,
+          message_count: 0,
+        },
+      ],
+    })
 );
 
-const mockArchiveSession = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-  })
+const mockArchiveSession = jest.fn(
+  (
+    ..._args: Parameters<ChatServiceApi['archiveSession']>
+  ): ReturnType<ChatServiceApi['archiveSession']> =>
+    Promise.resolve({
+      success: true,
+    })
 );
 
-const mockDeleteSession = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-  })
+const mockDeleteSession = jest.fn(
+  (
+    ..._args: Parameters<ChatServiceApi['deleteSession']>
+  ): ReturnType<ChatServiceApi['deleteSession']> =>
+    Promise.resolve({
+      success: true,
+    })
 );
 
-const mockMarkAsRead = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-  })
+const mockMarkAsRead = jest.fn(
+  (
+    ..._args: Parameters<ChatServiceApi['markAsRead']>
+  ): ReturnType<ChatServiceApi['markAsRead']> =>
+    Promise.resolve({
+      success: true,
+    })
 );
 
 jest.mock('../../../services/chatService', () => ({
   chatService: {
-    getConversationList: (...args: any[]) => mockGetConversationList(...args),
-    archiveSession: (id: string) => mockArchiveSession(id),
-    deleteSession: (id: string) => mockDeleteSession(id),
-    markAsRead: (id: string) => mockMarkAsRead(id),
+    getConversationList: (...args: Parameters<ChatServiceApi['getConversationList']>) =>
+      mockGetConversationList(...args),
+    archiveSession: (...args: Parameters<ChatServiceApi['archiveSession']>) =>
+      mockArchiveSession(...args),
+    deleteSession: (...args: Parameters<ChatServiceApi['deleteSession']>) =>
+      mockDeleteSession(...args),
+    markAsRead: (...args: Parameters<ChatServiceApi['markAsRead']>) =>
+      mockMarkAsRead(...args),
   },
 }));
 
@@ -542,6 +563,7 @@ describe('ConversationListScreen', () => {
               last_message: 'Message',
               last_message_time: new Date().toISOString(),
               unread_count: 0,
+              message_count: 0,
             },
           ],
         })
@@ -1004,6 +1026,7 @@ describe('ConversationListScreen', () => {
               last_message: 'Hello',
               last_message_time: new Date().toISOString(),
               unread_count: 0,
+              message_count: 0,
             },
           ],
         })
@@ -1096,6 +1119,7 @@ describe('ConversationListScreen', () => {
           last_message: `Message ${i}`,
           last_message_time: new Date(Date.now() - i * 60000).toISOString(),
           unread_count: 0,
+          message_count: 0,
         }));
       const pageTwo = Array(20)
         .fill(null)
@@ -1109,6 +1133,7 @@ describe('ConversationListScreen', () => {
           // list (VirtualizedList only renders the first rows)
           last_message_time: new Date(Date.now() + (10 - i) * 60000).toISOString(),
           unread_count: 0,
+          message_count: 0,
         }));
 
       mockGetConversationList
