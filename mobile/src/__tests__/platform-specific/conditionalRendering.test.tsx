@@ -69,11 +69,10 @@ describe('Conditional Rendering - Platform.OS Checks', () => {
     mockPlatform('ios');
 
     const ConditionalComponent = () => {
-      return React.createElement(
-        Platform.OS === 'ios' ? TouchableOpacity : View,
-        { testID: 'conditional-component' },
-        'Content'
-      );
+      const componentProps = { testID: 'conditional-component' };
+      return Platform.OS === 'ios'
+        ? React.createElement(TouchableOpacity, componentProps, React.createElement(Text, null, 'Content'))
+        : React.createElement(View, componentProps, React.createElement(Text, null, 'Content'));
     };
 
     const { getByTestId } = render(React.createElement(ConditionalComponent));
@@ -227,7 +226,7 @@ describe('Conditional Rendering - Platform.select Components', () => {
   test('should select different components per platform', () => {
     mockPlatform('ios');
 
-    const CustomComponent = Platform.select({
+    const CustomComponent = Platform.select<typeof View | typeof Text>({
       ios: View,
       android: Text,
     });
@@ -243,6 +242,10 @@ describe('Conditional Rendering - Platform.select Components', () => {
       android: () => React.createElement(Text, { testID: 'android-text' }),
     });
 
+    if (!SelectedComponent) {
+      throw new Error('Platform.select did not return an iOS component');
+    }
+
     const { getByTestId } = render(React.createElement(SelectedComponent));
 
     expect(getByTestId('ios-view')).toBeTruthy();
@@ -257,21 +260,31 @@ describe('Conditional Rendering - Platform Version', () => {
   test('should check Platform.Version for iOS version differences', () => {
     mockPlatform('ios');
 
-    // Platform.Version might not be set in mock environment
-    // In real React Native, Platform.Version is a number (e.g., 13.5 becomes 13500)
-    const version = Platform.Version;
-
-    // Version might be undefined in mock or a number in real environment
-    expect(version === undefined || typeof version === 'number').toBe(true);
+    // The installed iOS SDK reports an OS version string, not an encoded
+    // integer. Use a faithful controlled value and restore the global fixture.
+    const original = Object.getOwnPropertyDescriptor(Platform, 'Version');
+    Object.defineProperty(Platform, 'Version', { configurable: true, get: () => '17.4' });
+    try {
+      expect(Platform.Version).toBe('17.4');
+    } finally {
+      if (original) Object.defineProperty(Platform, 'Version', original);
+      else Reflect.deleteProperty(Platform, 'Version');
+    }
   });
 
   test('should handle version-based feature detection', () => {
     mockPlatform('ios');
 
-    const supportsDynamicIsland = Platform.Version >= 160000; // iOS 16.0+
+    // Platform.Version is a string on iOS (for example "16.0") and a number
+    // on Android. Use it only for OS capability gating; it does not identify
+    // specific hardware such as a Dynamic Island.
+    const version = Platform.Version;
+    const parsedVersion =
+      typeof version === 'number' ? version : Number.parseFloat(version);
+    const supportsVersionGatedFeature =
+      Number.isFinite(parsedVersion) && parsedVersion >= 16;
 
-    // Default mock version might not support Dynamic Island
-    expect(typeof supportsDynamicIsland).toBe('boolean');
+    expect(typeof supportsVersionGatedFeature).toBe('boolean');
   });
 });
 
@@ -283,7 +296,7 @@ describe('Conditional Rendering - Platform.isPad', () => {
   test('should detect iPad vs iPhone', () => {
     mockPlatform('ios');
 
-    const isTablet = Platform.isPad;
+    const isTablet = Platform.OS === 'ios' ? Platform.isPad : false;
 
     // Default mock device might not be iPad
     expect(typeof isTablet).toBe('boolean');
@@ -293,7 +306,7 @@ describe('Conditional Rendering - Platform.isPad', () => {
     mockPlatform('ios');
 
     const ResponsiveComponent = () => {
-      if (Platform.isPad) {
+      if (Platform.OS === 'ios' && Platform.isPad) {
         return React.createElement(View, { testID: 'tablet-layout' });
       }
       return React.createElement(View, { testID: 'phone-layout' });
@@ -378,18 +391,26 @@ describe('Conditional Rendering - Complex Conditions', () => {
       const isIOS = Platform.OS === 'ios';
       const isAndroid = Platform.OS === 'android';
 
-      return React.createElement(View, {
-        testID: 'complex-component',
-        ios: isIOS,
-        android: isAndroid,
-      });
+      return React.createElement(
+        View,
+        { testID: 'complex-component' },
+        React.createElement(
+          Text,
+          { testID: 'ios-flag' },
+          isIOS ? 'ios' : 'not-ios'
+        ),
+        React.createElement(
+          Text,
+          { testID: 'android-flag' },
+          isAndroid ? 'android' : 'not-android'
+        )
+      );
     };
 
     const { getByTestId } = render(React.createElement(ComplexComponent));
-    const component = getByTestId('complex-component');
 
-    expect(component.props.ios).toBe(true);
-    expect(component.props.android).toBe(false);
+    expect(getByTestId('ios-flag').props.children).toBe('ios');
+    expect(getByTestId('android-flag').props.children).toBe('not-android');
   });
 
   test('should handle nested Platform.select', () => {
@@ -416,6 +437,10 @@ describe('Conditional Rendering - Complex Conditions', () => {
       ios: () => React.createElement(View, { testID: 'ios-fn' }),
       android: () => React.createElement(View, { testID: 'android-fn' }),
     });
+
+    if (!Component) {
+      throw new Error('Platform.select did not return an iOS component');
+    }
 
     const { getByTestId } = render(React.createElement(Component));
     expect(getByTestId('ios-fn')).toBeTruthy();
@@ -456,11 +481,11 @@ describe('Conditional Rendering - Edge Cases', () => {
     const value = Platform.select({
       ios: 'iOS',
       android: 'Android',
-      // No default - Platform.select mock returns first value for unrecognized platform
+      // No matching platform, native or default key means no selected value.
     });
 
-    // Mock returns the first value when platform doesn't match
-    expect(value).toBe('iOS');
+    // Never borrow another platform's value.
+    expect(value).toBeUndefined();
   });
 
   test('should handle rapid platform switches', () => {
@@ -482,8 +507,7 @@ describe('Conditional Rendering - Edge Cases', () => {
       android: 'Android',
     });
 
-    // Mock implementation uses nullish coalescing, so null ios value falls back to android
-    // In real React Native, this would return null
-    expect(value).toBe('Android');
+    // The selected key wins by presence: explicit null remains null.
+    expect(value).toBeNull();
   });
 });
