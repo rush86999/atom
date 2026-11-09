@@ -2096,4 +2096,21 @@ describe('LocationService', () => {
     });
   });
 
+  describe('late callback ownership', () => {
+    test('a stopped watch callback cannot repopulate location or history', async () => {
+      let callback: Location.LocationCallback | undefined;
+      const remove = jest.fn();
+      jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_options, update) => {
+        callback = update;
+        return { remove };
+      });
+      await locationService.requestPermissions();
+      expect(await locationService.startTracking()).toBe(true);
+      await locationService.stopTracking();
+      callback!(mockLocation);
+      expect(locationService.getLastKnownLocation()).toBeNull();
+      expect(await locationService.getLocationHistory()).toHaveLength(0);
+    });
+  });
+
 });
