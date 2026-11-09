@@ -1,0 +1,19 @@
+{
+  "executed_source": "e51546f1339e42cd8140b0d13e82b414dc521ccf",
+  "source_files": {
+    "backend/api/nav_stub_routes.py": "d308cb0faf3c731bf6bbcf0864b1b589d4d2237da8e0bbee47dc38b2ee19bf48",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/tests/test_web_projects_durable_boundary.py": "1bc0da3a3cbcc530ea49109f62c4ac66d1381c7418c97bdeb589de99c32145c1",
+    "backend/tests/test_nav_stub_task_crud.py": "7c0ad2c237afdcdd3348f78e211ffbcee5e4cfcdae6e8365b479a5997237d932",
+    "backend/tests/test_ci_backend_lane_contract.py": "3612a87519b7b57784e14a42fb18c6cf05c4481b634233d2293486baca518d8a"
+  },
+  "artifacts": {
+    "README.md": "d0733fca37f7b72f1b80b2dca5882c19f42de1ecec6bf67e5c81b78e5834ccd0",
+    "negative.log": "5012fe6b75158a7cf271214f559e4aa11e67773dc74efcc7f559bf8a203c468a",
+    "python311.log": "a6e86c7b41db59a604b9d5dbe540dfc329d80184cedda017ba481ee229931c98",
+    "python314.log": "642f1b4d4b8cf1f4910d9276389c9691dc3cacc4484fd5bf209c5ba08ecd5278",
+    "verification.json": "30700d390160dfa92b100c7e07a0d9d1d7e44bddbf308c1b987df46513f018bc"
+  }
+}

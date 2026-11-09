@@ -1,0 +1,163 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 07:48:41 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+backend/tests/test_web_projects_durable_boundary.py::test_project_create_edit_reload_uses_existing_durable_project 
+-------------------------------- live log setup --------------------------------
+2026-11-09 07:48:41 [    INFO] EscalationManager initialized
+2026-11-09 07:48:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 07:48:41 [    INFO] EscalationManager initialized
+2026-11-09 07:48:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 07:48:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 07:48:41 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:42 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:48:42 [    INFO] HTTP Request: PUT http://testserver/api/v1/projects/7172e93d-b3d3-4d36-bfc7-b7108aa78646 "HTTP/1.1 200 OK"
+2026-11-09 07:48:42 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+backend/tests/test_web_projects_durable_boundary.py::test_task_rejects_foreign_or_unknown_project_reference 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:42 [ WARNING] API Error: PROJECT_NOT_FOUND - Project not found in the current workspace
+2026-11-09 07:48:42 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 404 Not Found"
+2026-11-09 07:48:42 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+backend/tests/test_web_projects_durable_boundary.py::test_foreign_workspace_project_is_neither_listed_nor_editable 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:42 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:48:42 [ WARNING] API Error: NOT_FOUND - Project not found: foreign-project
+2026-11-09 07:48:42 [    INFO] HTTP Request: PUT http://testserver/api/v1/projects/foreign-project "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 15%]
+backend/tests/test_web_projects_durable_boundary.py::test_anonymous_backend_task_and_project_access_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:42 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 401 Unauthorized"
+2026-11-09 07:48:42 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 20%]
+backend/tests/test_web_projects_durable_boundary.py::test_project_identity_and_workspace_come_from_server_not_body 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:43 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+backend/tests/test_web_projects_durable_boundary.py::test_project_edit_preserves_existing_financial_status_and_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:43 [    INFO] HTTP Request: PUT http://testserver/api/v1/projects/preserved-project "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+backend/tests/test_web_projects_durable_boundary.py::test_task_links_real_project_and_can_explicitly_unlink 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:43 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:48:43 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:48:43 [    INFO] HTTP Request: PUT http://testserver/api/v1/tasks/cc00cb94-bbb8-4503-9bfb-8bf0ea741894 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload0] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:43 [ WARNING] API Error: VALIDATION_ERROR - name must be a non-empty string
+2026-11-09 07:48:43 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:48:43 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload1] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:43 [ WARNING] API Error: VALIDATION_ERROR - name must be a non-empty string
+2026-11-09 07:48:43 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:48:43 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload2] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:44 [ WARNING] API Error: VALIDATION_ERROR - color must be a bounded hex color such as #3182CE
+2026-11-09 07:48:44 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:48:44 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+backend/tests/test_web_projects_durable_boundary.py::test_invalid_project_material_has_no_created_row[payload3] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:44 [ WARNING] API Error: VALIDATION_ERROR - description must be a string or null
+2026-11-09 07:48:44 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 422 Unprocessable Entity"
+2026-11-09 07:48:44 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+backend/tests/test_web_projects_durable_boundary.py::test_database_failure_is_not_an_empty_success_or_raw_error 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:44 [ WARNING] Task list query failed
+2026-11-09 07:48:44 [ WARNING] API Error: DATABASE_ERROR - Unable to load tasks
+2026-11-09 07:48:44 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 500 Internal Server Error"
+2026-11-09 07:48:44 [ WARNING] Project list query failed
+2026-11-09 07:48:44 [ WARNING] API Error: DATABASE_ERROR - Unable to load projects
+2026-11-09 07:48:44 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 60%]
+backend/tests/test_web_projects_durable_boundary.py::test_real_tenant_cannot_borrow_another_tenants_default_workspace[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:44 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+FAILED                                                                   [ 65%]
+backend/tests/test_web_projects_durable_boundary.py::test_real_tenant_cannot_borrow_another_tenants_default_workspace[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:45 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+FAILED                                                                   [ 70%]
+backend/tests/test_web_projects_durable_boundary.py::test_missing_workspace_cannot_create_inside_foreign_default_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:45 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+FAILED                                                                   [ 75%]
+backend/tests/test_web_projects_durable_boundary.py::test_legacy_personal_null_scopes_still_resolve_to_matching_default[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:45 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:48:45 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+backend/tests/test_web_projects_durable_boundary.py::test_legacy_personal_null_scopes_still_resolve_to_matching_default[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:45 [    INFO] HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+2026-11-09 07:48:45 [    INFO] HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+backend/tests/test_nav_stub_task_crud.py::test_task_crud_round_trip 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:45 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:48:45 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:48:45 [    INFO] HTTP Request: PUT http://testserver/api/v1/tasks/fceb7917-18ba-42b3-baba-1c85d72bcf81 "HTTP/1.1 200 OK"
+2026-11-09 07:48:45 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+2026-11-09 07:48:45 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tasks/fceb7917-18ba-42b3-baba-1c85d72bcf81 "HTTP/1.1 200 OK"
+2026-11-09 07:48:45 [    INFO] HTTP Request: GET http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+backend/tests/test_nav_stub_task_crud.py::test_task_create_requires_title 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:46 [ WARNING] API Error: VALIDATION_ERROR - title is required
+2026-11-09 07:48:46 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 95%]
+backend/tests/test_nav_stub_task_crud.py::test_cannot_touch_another_users_task 
+-------------------------------- live log call ---------------------------------
+2026-11-09 07:48:46 [    INFO] HTTP Request: POST http://testserver/api/v1/tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+____ test_real_tenant_cannot_borrow_another_tenants_default_workspace[None] ____
+backend/tests/test_web_projects_durable_boundary.py:141: in test_real_tenant_cannot_borrow_another_tenants_default_workspace
+    assert listed.status_code in (403, 404), listed.text
+E   AssertionError: {"projects":[{"id":"default-private-project","name":"Other tenant private project","description":null,"color":"#3182CE","tasks":[],"progress":0}]}
+E   assert 200 in (403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+__ test_real_tenant_cannot_borrow_another_tenants_default_workspace[default] ___
+backend/tests/test_web_projects_durable_boundary.py:141: in test_real_tenant_cannot_borrow_another_tenants_default_workspace
+    assert listed.status_code in (403, 404), listed.text
+E   AssertionError: {"projects":[{"id":"default-private-project","name":"Other tenant private project","description":null,"color":"#3182CE","tasks":[],"progress":0}]}
+E   assert 200 in (403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+______ test_missing_workspace_cannot_create_inside_foreign_default_tenant ______
+backend/tests/test_web_projects_durable_boundary.py:152: in test_missing_workspace_cannot_create_inside_foreign_default_tenant
+    assert response.status_code in (403, 404), response.text
+E   AssertionError: {"success":true,"project":{"id":"0fc7a89b-c327-4746-a46e-1e4a6f47d4fa","name":"Must not appear","description":null,"color":"#3182CE","tasks":[],"progress":0}}
+E   assert 200 in (403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/projects "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_web_projects_durable_boundary.py::test_real_tenant_cannot_borrow_another_tenants_default_workspace[None]
+FAILED backend/tests/test_web_projects_durable_boundary.py::test_real_tenant_cannot_borrow_another_tenants_default_workspace[default]
+FAILED backend/tests/test_web_projects_durable_boundary.py::test_missing_workspace_cannot_create_inside_foreign_default_tenant
+=================== 3 failed, 17 passed, 2 warnings in 5.04s ===================
