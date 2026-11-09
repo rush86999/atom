@@ -823,8 +823,21 @@ export default function CanvasDetailPage() {
         try {
             await panelFlushRef.current?.();
         } catch {
-            // A failed flush must not eat the user's message — the autosave
-            // retry path still owns surfacing save problems.
+            // The agent reads durable content. A failed save cannot be
+            // ignored, or it would act on the older document. Keep the
+            // unsubmitted prompt available without dispatching a turn.
+            if (activeTurnRef.current === turnId) {
+                activeTurnRef.current = null;
+                setIsAgentResponding(false);
+                setChatInput(current => current || userMsg.content);
+                setMessages(prev => [...prev.filter(m => m.id !== userMsg.id), {
+                    id: `save_unconfirmed_${turnId}`,
+                    type: "system",
+                    content: "The document save is not confirmed. Your message has not been sent. Review or save your changes first.",
+                    timestamp: new Date(),
+                }]);
+            }
+            return;
         }
 
         try {

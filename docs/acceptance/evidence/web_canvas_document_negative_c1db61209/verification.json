@@ -1,0 +1,15 @@
+{
+  "status": "negative",
+  "component_source": "c1db61209eb6910309c853271321cb327d0edb86",
+  "component_failed": 3,
+  "component_passed": 0,
+  "browser_runtime_source": "bdd68b6eca4556fa2bd7cc67ca2d0a449d4c41ef",
+  "browser_actual_full_main_api_app": true,
+  "browser_actual_member": true,
+  "browser_capability_profile": "core",
+  "browser_save_failed": true,
+  "database_updated": false,
+  "successful_browser_save": false,
+  "model_inference": false,
+  "mobile_deferred": true
+}

@@ -1,0 +1,226 @@
+FAIL components/canvas/__tests__/CanvasPanel.test.tsx (13.755 s)
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • PUT http://127.0.0.1:8000/api/canvas/mail-2
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • PUT http://127.0.0.1:8000/api/canvas/mail-3
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • PUT http://127.0.0.1:8000/api/canvas/mail-1
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • POST http://localhost/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost:8000/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.error
+      Error saving artifact: FetchError {
+        message: 'request to http://localhost:8000/api/artifacts failed, reason: ',
+        type: 'system',
+        errno: 'EPERM',
+        code: 'EPERM'
+      }
+
+      278 |             return false;
+      279 |         } catch (error) {
+    > 280 |             console.error("Error saving artifact:", error);
+          |                     ^
+      281 |             return false;
+      282 |         } finally {
+      283 |             setIsSaving(false);
+
+      at components/canvas/CanvasPanel.tsx:280:21
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.throw (components/canvas/CanvasPanel.tsx:59:53)
+      at rejected (components/canvas/CanvasPanel.tsx:51:65)
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • POST http://localhost/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.warn
+      [MSW] Warning: captured a request without a matching request handler:
+      
+        • GET http://localhost:8000/api/artifacts
+      
+      If you still wish to intercept this unhandled request, please create a request handler for it.
+      Read more: https://mswjs.io/docs/getting-started/mocks
+
+      at Object.warn (node_modules/msw/src/utils/internal/devUtils.ts:17:11)
+      at warn (node_modules/msw/src/utils/request/onUnhandledRequest.ts:208:18)
+      at applyStrategy (node_modules/msw/src/utils/request/onUnhandledRequest.ts:233:3)
+      at onUnhandledRequest (node_modules/msw/src/utils/handleRequest.ts:80:5)
+      at node_modules/msw/src/node/SetupServerApi.ts:69:24
+
+    console.error
+      Error saving artifact: FetchError {
+        message: 'request to http://localhost:8000/api/artifacts failed, reason: ',
+        type: 'system',
+        errno: 'EPERM',
+        code: 'EPERM'
+      }
+
+      278 |             return false;
+      279 |         } catch (error) {
+    > 280 |             console.error("Error saving artifact:", error);
+          |                     ^
+      281 |             return false;
+      282 |         } finally {
+      283 |             setIsSaving(false);
+
+      at components/canvas/CanvasPanel.tsx:280:21
+      at step (components/canvas/CanvasPanel.tsx:78:23)
+      at Object.throw (components/canvas/CanvasPanel.tsx:59:53)
+      at rejected (components/canvas/CanvasPanel.tsx:51:65)
+
+  ● CanvasPanel › renders an email canvas with editable metadata and sends via the policy API
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Object {
+        "body": "Hi there",
+        "cc": "audit@corp.com",
+    +   "content": "Hi there",
+        "subject": "Q3 numbers v2",
+        "to": "boss@corp.com",
+      }
+
+      307 |     expect(savedCanvasPuts[0].url).toContain('/api/canvas/mail-1');
+      308 |     expect(savedCanvasPuts[0].url).toContain('canvas_type=email');
+    > 309 |     expect(savedCanvasPuts[0].body).toEqual({
+          |                                     ^
+      310 |       to: 'boss@corp.com',
+      311 |       cc: 'audit@corp.com',
+      312 |       subject: 'Q3 numbers v2',
+
+      at components/canvas/__tests__/CanvasPanel.test.tsx:309:37
+      at step (components/canvas/__tests__/CanvasPanel.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasPanel.test.tsx:14:53)
+      at fulfilled (components/canvas/__tests__/CanvasPanel.test.tsx:5:58)
+
+  ● CanvasPanel › saves edited To/Cc metadata through the canvas audit trail
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Object {
+        "body": "hi",
+        "cc": "audit@corp.com",
+    +   "content": "hi",
+        "subject": "Q3 numbers",
+        "to": "new@corp.com",
+      }
+
+      696 |
+      697 |     await waitFor(() => expect(savedCanvasPuts).toHaveLength(1));
+    > 698 |     expect(savedCanvasPuts[0].body).toEqual({
+          |                                     ^
+      699 |       to: 'new@corp.com',
+      700 |       cc: 'audit@corp.com',
+      701 |       subject: 'Q3 numbers',
+
+      at components/canvas/__tests__/CanvasPanel.test.tsx:698:37
+      at step (components/canvas/__tests__/CanvasPanel.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasPanel.test.tsx:14:53)
+      at fulfilled (components/canvas/__tests__/CanvasPanel.test.tsx:5:58)
+
+PASS components/chat/__tests__/CanvasHost.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS hooks/__tests__/useCanvasAutosave.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       2 failed, 78 passed, 80 total
+Snapshots:   0 total
+Time:        14.949 s
+Ran all test suites within paths "components/canvas/__tests__/CanvasPanel.test.tsx", "components/chat/__tests__/CanvasHost.test.tsx", "hooks/__tests__/useCanvasAutosave.test.ts".

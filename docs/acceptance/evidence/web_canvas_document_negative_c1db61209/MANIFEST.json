@@ -1,0 +1,26 @@
+{
+  "executed_source": "c1db61209eb6910309c853271321cb327d0edb86",
+  "provenance": {
+    "component_runtime": "c1db61209eb6910309c853271321cb327d0edb86",
+    "browser_runtime": "bdd68b6eca4556fa2bd7cc67ca2d0a449d4c41ef",
+    "scope": "separate browser negative and component negative; not one runtime relabelled"
+  },
+  "source_files": {
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "5e9d5eba8333014d7034abeb93f1cc51629afade45a0f08afbaeb09417c0384d",
+    "frontend-nextjs/lib/canvasAuditSave.ts": "4d0865dcede6b1dc3fcb5be986d1a3891fd957f126cc93f83407f2217605a8b5",
+    "frontend-nextjs/hooks/useCanvasAutosave.ts": "89d62e01a3c4f986cb2214e8cded2f964905756acea6217b59917b9222fb3632",
+    "frontend-nextjs/components/canvas/__tests__/CanvasDocumentPersistence.test.tsx": "f4f04d955c1b15aadde0e08f4f3a76b2391d763442d5986201961b7eeaa1fdb5",
+    "backend/api/canvas_routes.py": "15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/main_api_app.py": "323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/core/product_profile.py": "e441aa5957f3be845119b94c7ffc281a8379fe00bf81243a3427eebac4a8c5cb"
+  },
+  "artifacts": {
+    "full-backend-readiness.json": "5e0b85e2b0ef67dec562d1eae50e24f7fb9170d8642e66cbdde32079462475f3",
+    "README.md": "801d91884aa069251c594d7a3a0c848a413c198a2107c6a711eb8e126645bf2f",
+    "component-negative.log": "0ad0d731e6a33b1096c7007bacf9395a3a2810734dcf1b1e29fc9d5bc1d6b746",
+    "browser-save-failure.md": "e464c36e317a1eef17c37d6db17475578d296cad7afef1c4da7dd012c904ee62",
+    "verification.json": "a40c13538ccc487d70d33faeaa8282afabed0265971c99b74bd79b22dbc42c78",
+    "database-readback.json": "a5ac1b0cff1b6a0baf51c0e9c31318b1992c3d5ff4d00e9d99d8dac7877c6b13",
+    "browser-save-failure.jpg": "90b2be1f7cc1501af22612b064c6fd63f29fd5c3c766d46a5ae79fd07e8b0481"
+  }
+}

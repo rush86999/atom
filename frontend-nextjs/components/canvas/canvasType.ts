@@ -208,3 +208,23 @@ export async function persistCanvasTypeSwitch(
     if (title) params.set("title", title);
     await apiClient.put(`/api/canvas/${canvasId}?${params.toString()}`, conversion.payload);
 }
+
+/** Known editable text payloads, shared by standalone and chat canvas hosts.
+ * Registry aliases use the same existing component normalization as rendering.
+ * A legitimate empty body never means "serialize the storage envelope".
+ */
+export function isTextBodyComponent(component?: string | null): boolean {
+    const type = component === "eval" ? "code" : normalizeCanvasComponent(component);
+    return type === "document" || type === "markdown" || type === "code";
+}
+
+export function isTextBodyEnvelope(data: unknown): data is Record<string, unknown> & {content: string} {
+    return data !== null && typeof data === "object" && !Array.isArray(data)
+        && Object.prototype.hasOwnProperty.call(data, "content")
+        && typeof (data as Record<string, unknown>).content === "string";
+}
+
+export function extractTextBody(data: unknown): string | null {
+    if (typeof data === "string") return data;
+    return isTextBodyEnvelope(data) ? data.content : null;
+}

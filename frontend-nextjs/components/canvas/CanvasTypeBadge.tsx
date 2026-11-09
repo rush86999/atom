@@ -16,12 +16,18 @@ const BADGE_CLASS =
 export function CanvasTypeBadge({
     component,
     onSwitch,
+    disabled = false,
 }: {
     component: string;
     onSwitch: (target: SwitchableCanvasType) => void;
+    disabled?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (disabled) setOpen(false);
+    }, [disabled]);
 
     useEffect(() => {
         if (!open) return;
@@ -44,8 +50,9 @@ export function CanvasTypeBadge({
         <div className="relative" ref={rootRef}>
             <button
                 data-testid={`${CANVAS.TYPE_PREFIX}${component}`}
-                onClick={() => setOpen(!open)}
-                title="Change canvas type"
+                onClick={() => { if (!disabled) setOpen(!open); }}
+                disabled={disabled}
+                title={disabled ? "Review the unconfirmed save before changing type" : "Change canvas type"}
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 className={`${BADGE_CLASS} hover:border-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors cursor-pointer`}
@@ -55,7 +62,7 @@ export function CanvasTypeBadge({
                 <span>{component}</span>
                 <span aria-hidden="true">▾</span>
             </button>
-            {open && (
+            {open && !disabled && (
                 <div
                     role="listbox"
                     data-testid="canvas-type-menu"

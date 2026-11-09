@@ -1,0 +1,33 @@
+{
+  "canvas": {
+    "id": "8e1e7b1d-bcfe-4f12-bbb6-5c8937e85a23",
+    "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+    "workspace_id": "d39a0525-0e54-4e34-bc1a-60ea91d830bf",
+    "created_by": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+    "name": "Untitled canvas",
+    "canvas_type": "document",
+    "content": "{\"content\": \"\"}"
+  },
+  "audit": [
+    {
+      "id": "8a32b677-346f-4b33-a490-f6838d430534",
+      "canvas_id": "8e1e7b1d-bcfe-4f12-bbb6-5c8937e85a23",
+      "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+      "action_type": "create",
+      "user_id": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+      "canvas_type": "document",
+      "details_json": "{\"source\": \"blank_canvas\", \"title\": \"Untitled canvas\", \"content\": {\"content\": \"\"}}"
+    }
+  ],
+  "actor": {
+    "id": "8b13bf3a-ab52-4a61-877a-15e475a0f84a",
+    "email": "core-browser-20261109@example.com",
+    "role": "member",
+    "tenant_id": "b6944c76-c4e5-4954-8b96-59f3d438bc30",
+    "workspace_id": "d39a0525-0e54-4e34-bc1a-60ea91d830bf",
+    "onboarding_completed": 1
+  },
+  "source": "bdd68b6ec",
+  "mode": "fresh read-only SQLite session after ordinary browser edit/save failure",
+  "expected_new_body": "Core workspace persistence check 2026-11-09. Reviewed quantity remains 4."
+}

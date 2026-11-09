@@ -1,0 +1,20 @@
+{
+  "executed_source": "51ffd45cc4b8b32f6608033ee70ee34e929c93d4",
+  "negative": {
+    "failed": 2,
+    "filtered": 33,
+    "scope": "both hosts type-menu escape before guard"
+  },
+  "final": {
+    "passed": 248,
+    "suites": 14,
+    "node": "20.20.2"
+  },
+  "typescript": {
+    "exit_code": 0,
+    "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false"
+  },
+  "browser_rerun": false,
+  "prior_browser_source": "e4544dfa2648558039f82e1212809e44ce5a78bf",
+  "remaining": "optimistic type-write receipt verification remains open"
+}

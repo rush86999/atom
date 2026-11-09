@@ -1,0 +1,105 @@
+- region "Notifications alt+T"
+- complementary "Sidebar":
+  - generic: A
+  - generic: ATOM
+  - navigation "Main Navigation":
+    - heading "CORE" [level=3]
+    - link "Dashboard":
+      - /url: /
+      - generic: Dashboard
+    - link "Chat":
+      - /url: /chat
+      - generic: Chat
+    - link "Workspace":
+      - /url: /canvas
+      - generic: Workspace
+    - link "Data":
+      - /url: /documents
+      - generic: Data
+    - link "Agents":
+      - /url: /agents
+      - generic: Agents
+    - link "Learning":
+      - /url: /learning
+      - generic: Learning
+    - link "Assignments":
+      - /url: /assignments
+      - generic: Assignments
+    - link "Activity":
+      - /url: /goal-runs
+      - generic: Activity
+    - heading "PLATFORM" [level=3]
+    - link "Settings":
+      - /url: /settings
+      - generic: Settings
+  - paragraph: core-browser-20261109
+  - paragraph: core-browser-20261109@example.com
+  - button "Sign out":
+  - button:
+- button "Notifications":
+- status: No unread notifications
+- main:
+  - link "All Canvases":
+    - /url: /canvas
+    - button "All Canvases":
+      - text: All Canvases
+  - heading "Untitled canvas" [level=1]
+  - generic: document
+  - button "Add agent":
+    - text: Add agent
+  - button "Agent training — teach, score, graduate":
+  - button "Refresh":
+  - button "Version history":
+  - button "Delete":
+  - generic: Load data
+  - button "Upload file" [disabled]:
+    - text: Upload file
+  - generic: Attach an agent to load data.
+  - button "Data operations":
+    - text: Data operations
+  - button "Enable table operations"
+  - paragraph: This canvas has no agent yet
+  - paragraph: Add an agent to collaborate in chat, load data, and train it on this canvas.
+  - button "Add an agent":
+    - text: Add an agent
+  - heading "Untitled canvas" [level=3]
+  - generic: v1
+  - button "document":
+    - generic: document
+    - generic: ▾
+  - button "Close canvas":
+  - code:
+    - textbox "Editor content" [active]
+    - textbox
+    - generic: "1"
+    - generic: "2"
+    - generic: Core workspace persistence check 2026-11-09.
+    - generic: Reviewed quantity remains 4.
+  - button "History":
+    - text: History
+  - button "Preview Mode":
+    - text: Preview Mode
+  - text: Saved
+  - button "Mini-App Harness":
+    - text: Mini-App Harness
+  - separator "Resize canvas chat panel"
+  - tablist "Agent panel":
+    - tab "Chat" [selected]:
+      - text: Chat
+    - tab "Training":
+      - text: Training
+    - tab "Journey":
+      - text: Journey
+    - tab "Autonomy":
+      - text: Autonomy
+  - generic "Connected"
+  - generic: Agent Co-Editor
+  - paragraph: Chat with the agent while editing this canvas
+  - paragraph: 💬 Ask the agent to modify this canvas
+  - paragraph: e.g. "Add a new row to the spreadsheet" or "Change the chart to a bar chart"
+  - textbox "Ask the agent to edit…"
+  - button "Send message" [disabled]:
+- button "Open ATOM Assistant":
+- alert: Canvas | Atom
+- alert
+- alert

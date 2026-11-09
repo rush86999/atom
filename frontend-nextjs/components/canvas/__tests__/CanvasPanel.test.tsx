@@ -65,7 +65,7 @@ describe('CanvasPanel', () => {
       // reads) — not the legacy artifacts store.
       rest.put('*/api/canvas/:canvasId', async (req, res, ctx) => {
         savedCanvasPuts.push({ url: req.url.toString(), body: req.body });
-        return res(ctx.status(200), ctx.json({ success: true, canvas_id: req.params.canvasId }));
+        return res(ctx.status(200), ctx.json({ success: true, canvas_id: req.params.canvasId, verification: {status: 'verified', effect: 'committed'} }));
       }),
       // Address-book suggestions for the To/Cc autocomplete.
       rest.get('*/api/canvas/email/contacts', async (req, res, ctx) => {
@@ -167,8 +167,8 @@ describe('CanvasPanel', () => {
     });
 
     const editor = await screen.findByTestId('canvas-editor');
-    // no id → no "Synced to cloud" initially
-    expect(screen.queryByText('Synced to cloud')).not.toBeInTheDocument();
+    // no id → no "Saved" initially
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
     expect(screen.queryByText('Save Changes')).not.toBeInTheDocument();
 
     fireEvent.change(editor, { target: { value: 'updated content' } });
@@ -187,7 +187,7 @@ describe('CanvasPanel', () => {
     });
 
     // save success → synced indicator with new version
-    expect(await screen.findByText('Synced to cloud')).toBeInTheDocument();
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
     expect(screen.getByText('v1')).toBeInTheDocument();
   });
 
@@ -205,7 +205,7 @@ describe('CanvasPanel', () => {
     });
 
     // id present + no changes → synced indicator
-    expect(await screen.findByText('Synced to cloud')).toBeInTheDocument();
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
 
     fireEvent.change(await screen.findByTestId('canvas-editor'), {
       target: { value: 'v2 content' },
@@ -218,7 +218,7 @@ describe('CanvasPanel', () => {
     await waitFor(() => expect(savedCanvasPuts).toHaveLength(1));
     expect(savedCanvasPuts[0].url).toContain('/api/canvas/art-1?canvas_type=markdown');
     expect(savedCanvasPuts[0].body).toBe('v2 content');
-    expect(await screen.findByText('Synced to cloud')).toBeInTheDocument();
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
   });
 
   it('falls back to the legacy artifacts store when the audit PUT 404s', async () => {
@@ -311,6 +311,7 @@ describe('CanvasPanel', () => {
       cc: 'audit@corp.com',
       subject: 'Q3 numbers v2',
       body: 'Hi there',
+      content: 'Hi there',
     });
   });
 
@@ -700,6 +701,7 @@ describe('CanvasPanel', () => {
       cc: 'audit@corp.com',
       subject: 'Q3 numbers',
       body: 'hi',
+      content: 'hi',
     });
   });
 
@@ -718,7 +720,7 @@ describe('CanvasPanel', () => {
     fireEvent.click(await screen.findByText('Save Changes'));
 
     await waitFor(() => expect(errorSpy).toHaveBeenCalled());
-    expect(screen.queryByText('Synced to cloud')).not.toBeInTheDocument();
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
     expect(screen.getByText('Save Changes').closest('button')).not.toBeDisabled();
 
     errorSpy.mockRestore();
@@ -765,7 +767,7 @@ describe('CanvasPanel', () => {
 
     await waitFor(() => expect(savedArtifacts).toHaveLength(0));
     expect(screen.getByText('Doc')).toBeInTheDocument();
-    expect(screen.queryByText('Synced to cloud')).not.toBeInTheDocument();
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
     // save button re-enabled after the rejected request
     await waitFor(() =>
       expect(screen.getByText('Save Changes').closest('button')).not.toBeDisabled()
@@ -972,7 +974,7 @@ describe('CanvasPanel', () => {
     await waitFor(() => expect(savedCanvasPuts).toHaveLength(1), { timeout: 6000 });
     expect(savedCanvasPuts[0].url).toContain('/api/canvas/art-42');
     expect(savedCanvasPuts[0].body).toBe('typed more');
-    expect(await screen.findByText('Synced to cloud')).toBeInTheDocument();
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
   });
 
   it('ignores the WS echo of its own email save and keeps newer edits', async () => {
@@ -994,9 +996,9 @@ describe('CanvasPanel', () => {
     });
     await waitFor(() => expect(savedCanvasPuts).toHaveLength(1), { timeout: 6000 });
     expect(savedCanvasPuts[0].body.body).toBe('body v2');
-    // "Synced to cloud" renders only after handleSave completed — i.e.
+    // "Saved" renders only after handleSave completed — i.e.
     // the echo-signature is recorded.
-    await screen.findByText('Synced to cloud');
+    await screen.findByText('Saved');
 
     // The user keeps typing past the save…
     fireEvent.input(screen.getByTestId('canvas-email-body-editor'), {
