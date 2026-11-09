@@ -1,0 +1,19 @@
+{
+  "actual_exit": 0,
+  "started": 1794199823.103138,
+  "finished": 1794199825.277022,
+  "selected_kind": "locationcallers",
+  "verification_pass": true,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/screens/device/LocationScreen.test.tsx",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/agentDeviceBridge.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 67,
+    "numPassedTests": 67,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

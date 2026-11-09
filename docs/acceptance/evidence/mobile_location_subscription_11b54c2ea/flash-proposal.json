@@ -1,0 +1,70 @@
+{
+  "changes": [
+    {
+      "path": "mobile/src/services/locationService.ts",
+      "old": "  private watchId: number | null = null;",
+      "new": "  private watchId: Location.LocationSubscription | null = null;"
+    },
+    {
+      "path": "mobile/src/services/locationService.ts",
+      "old": "  async stopTracking(): Promise<void> {\n    try {\n      if (this.watchId !== null) {\n        await Location.removeSubscriptionAsync(this.watchId);\n        this.watchId = null;\n      }\n\n      if (this.updateTimer) {\n        clearTimeout(this.updateTimer);\n        this.updateTimer = null;\n      }\n\n      this.isTracking = false;\n      this.isBackgroundTracking = false;\n      console.log('LocationService: Stopped tracking');\n    } catch (error) {\n      console.error('LocationService: Failed to stop tracking:', error);\n    }\n  }",
+      "new": "  async stopTracking(): Promise<void> {\n    if (this.watchId !== null) {\n      try {\n        this.watchId.remove();\n        this.watchId = null;\n      } catch (error) {\n        // The subscription may still be live if remove() throws. Preserve the\n        // handle and tracking flags so callers see the truthful active state\n        // and a later stop can retry.\n        console.error('LocationService: Failed to stop tracking:', error);\n        return;\n      }\n    }\n\n    if (this.updateTimer) {\n      clearTimeout(this.updateTimer);\n      this.updateTimer = null;\n    }\n\n    this.isTracking = false;\n    this.isBackgroundTracking = false;\n    console.log('LocationService: Stopped tracking');\n  }"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "  watchPositionAsync: jest.fn(),\n  removeSubscriptionAsync: jest.fn(),\n  reverseGeocodeAsync: jest.fn(),",
+      "new": "  watchPositionAsync: jest.fn(),\n  reverseGeocodeAsync: jest.fn(),"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "describe('LocationService', () => {\n  // Mock location data",
+      "new": "describe('LocationService', () => {\n  // Installed expo-location returns a subscription object with a synchronous\n  // remove(), not a numeric subscription ID.\n  let mockSubscription: { remove: jest.Mock };\n\n  // Mock location data"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "    // Mock watchPositionAsync to return a subscription ID\n    (Location.watchPositionAsync as jest.Mock).mockResolvedValue(123);\n\n    // Mock removeSubscriptionAsync\n    (Location.removeSubscriptionAsync as jest.Mock).mockResolvedValue(undefined);",
+      "new": "    // Mock watchPositionAsync to return the installed SDK's subscription\n    // object, not a numeric subscription ID.\n    mockSubscription = { remove: jest.fn() };\n    (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "    test('should stop location tracking', async () => {\n      await locationService.requestPermissions();\n      await locationService.startTracking();\n\n      await locationService.stopTracking();\n\n      expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);\n      expect(locationService.isActive()).toBe(false);\n    });",
+      "new": "    test('should stop location tracking', async () => {\n      await locationService.requestPermissions();\n      await locationService.startTracking();\n\n      await locationService.stopTracking();\n\n      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);\n      expect(locationService.isActive()).toBe(false);\n\n      // Repeated stop must not remove the same subscription twice.\n      await locationService.stopTracking();\n      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);\n    });"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "    test('should handle stop error gracefully', async () => {\n      await locationService.requestPermissions();\n      await locationService.startTracking();\n\n      (Location.removeSubscriptionAsync as jest.Mock).mockRejectedValue(\n        new Error('Stop failed')\n      );\n\n      await expect(locationService.stopTracking()).resolves.not.toThrow();\n    });",
+      "new": "    test('should handle stop error gracefully', async () => {\n      await locationService.requestPermissions();\n      await locationService.startTracking();\n\n      mockSubscription.remove.mockImplementationOnce(() => {\n        throw new Error('Stop failed');\n      });\n\n      await expect(locationService.stopTracking()).resolves.not.toThrow();\n\n      // A failed remove leaves the subscription live, so tracking must stay\n      // truthfully active and a later stop must be able to retry.\n      expect(locationService.isActive()).toBe(true);\n\n      await locationService.stopTracking();\n      expect(mockSubscription.remove).toHaveBeenCalledTimes(2);\n      expect(locationService.isActive()).toBe(false);\n    });"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "      expect(locationService.isActive()).toBe(false);\n      expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);\n    });\n\n    test('should clear geofence listeners on destroy', async () => {",
+      "new": "      expect(locationService.isActive()).toBe(false);\n      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);\n    });\n\n    test('should clear geofence listeners on destroy', async () => {"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "      // Mock watchPositionAsync\n      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(123);\n\n      // Request foreground permission",
+      "new": "      // Mock watchPositionAsync\n      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(mockSubscription);\n\n      // Request foreground permission"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "      // Verify tracking stopped and watchId cleared\n      expect(locationService.isActive()).toBe(false);\n      expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);\n    });",
+      "new": "      // Verify tracking stopped and watchId cleared\n      expect(locationService.isActive()).toBe(false);\n      expect(mockSubscription.remove).toHaveBeenCalledTimes(1);\n    });"
+    },
+    {
+      "path": "mobile/src/__tests__/services/locationService.test.ts",
+      "old": "    test('should stop tracking gracefully when no subscription is active', async () => {\n      await locationService.stopTracking();\n\n      expect(Location.removeSubscriptionAsync).not.toHaveBeenCalled();\n      expect(locationService.isActive()).toBe(false);\n    });",
+      "new": "    test('should stop tracking gracefully when no subscription is active', async () => {\n      await locationService.stopTracking();\n\n      expect(mockSubscription.remove).not.toHaveBeenCalled();\n      expect(locationService.isActive()).toBe(false);\n    });"
+    }
+  ],
+  "reason": "Installed expo-location resolves watchPositionAsync to a LocationSubscription object with a synchronous remove(): void, but the service stored an old numeric subscription id and called the removed removeSubscriptionAsync API. The service now stores the subscription object, calls remove() synchronously, and clears the handle and tracking flags only after remove() succeeds. If remove() throws, the handle and active flags are preserved so callers see the truthful still-active state and a later stop can retry; once removal succeeds the handle is nulled, so repeated stops do not remove twice. The test double now returns mockSubscription = { remove: jest.fn() } instead of 123, obsolete removeSubscriptionAsync mocking and assertions are replaced, the error case throws from remove() and asserts the service remains active and can retry, and the successful-stop case asserts that a second stop does not call remove again. No test cases were deleted. No new casts, any, suppressions, dependency, config, or native permission changes were introduced. Tests were not executed.",
+  "separate_finding": {
+    "title": "Pending start/stop race",
+    "status": "not solved",
+    "detail": "startTracking awaits watchPositionAsync before assigning this.watchId and setting isTracking = true. If stopTracking runs while that await is pending, it sees watchId === null, marks the service stopped, and returns. When the pending start resolves it assigns the subscription and sets isTracking = true, resurrecting tracking after stop. Fixing this here would require coordinating in-flight starts, for example with a generation token or pending-start handle, which is outside this contract fix.",
+    "suggested_test": "Call startTracking without awaiting, immediately await stopTracking, then await the start promise and assert the service is not active and any created subscription was removed."
+  },
+  "tests_to_run": [
+    "cd mobile && npx jest src/__tests__/services/locationService.test.ts --runInBand"
+  ],
+  "tests_run": false
+}
