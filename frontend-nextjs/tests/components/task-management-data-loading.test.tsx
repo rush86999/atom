@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import TaskManagementWrapper from '@/components/TaskManagement';
 
 const mockFetch = jest.fn();
@@ -42,4 +42,30 @@ describe('ordinary Tasks page collection boundary', () => {
     await waitFor(() => expect(screen.getByTestId('visible-task-total')).toHaveTextContent('0'));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+  test('a failed later page never publishes the first page as complete', async () => {
+    mockFetch.mockImplementation(async (input: string) => {
+      if (input.includes('/projects')) return response({ projects: [] });
+      return input.includes('offset=0') ? response({ tasks: rows.slice(0, 100) }) : response({}, false);
+    });
+    render(<TaskManagementWrapper />);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeVisible());
+    expect(screen.queryByTestId('visible-task-total')).not.toBeInTheDocument();
+  });
+  test('a server repeating the same page is refused rather than looping or duplicating tasks', async () => {
+    mockFetch.mockImplementation(async (input: string) => response(input.includes('/projects') ? { projects: [] } : { tasks: rows.slice(0, 100) }));
+    render(<TaskManagementWrapper />);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeVisible());
+    expect(screen.queryByTestId('visible-task-total')).not.toBeInTheDocument();
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+  test('Try again recovers through a fresh successful collection read', async () => {
+    mockFetch.mockImplementation(async () => response({}, false));
+    render(<TaskManagementWrapper />);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeVisible());
+    mockFetch.mockImplementation(async (input: string) => response(input.includes('/projects') ? { projects: [] } : { tasks: [] }));
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    await waitFor(() => expect(screen.getByTestId('visible-task-total')).toHaveTextContent('0'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
 });

@@ -7,18 +7,44 @@ const TaskManagementWrapper: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
-      const [tasksRes, projectsRes] = await Promise.all([
-        authFetch("/api/v1/tasks"),
+      const allTasks = async () => {
+        const tasks = [];
+        const seen = new Set<string>();
+        const pageSize = 100;
+        // Bound resource use without ever presenting a partial population as complete.
+        for (let page = 0; page < 1000; page++) {
+          const response = await authFetch(`/api/v1/tasks?limit=${pageSize}&offset=${page * pageSize}`);
+          if (!response.ok) throw new Error("Unable to load tasks");
+          const payload = await response.json();
+          if (!Array.isArray(payload?.tasks) || payload.tasks.length > pageSize) {
+            throw new Error("Invalid task collection");
+          }
+          for (const task of payload.tasks) {
+            if (!task || typeof task.id !== "string" || !task.id || seen.has(task.id)) {
+              throw new Error("Task collection changed while loading");
+            }
+            seen.add(task.id);
+            tasks.push(task);
+          }
+          if (payload.tasks.length < pageSize) return { tasks };
+        }
+        throw new Error("Task collection exceeds this view's loading limit");
+      };
+      const [tasksData, projectsRes] = await Promise.all([
+        allTasks(),
         authFetch("/api/v1/projects")
       ]);
 
-      if (tasksRes.ok && projectsRes.ok) {
-        const tasksData = await tasksRes.json();
+      if (projectsRes.ok) {
         const projectsData = await projectsRes.json();
+        if (!Array.isArray(projectsData?.projects)) throw new Error("Invalid project collection");
 
         const parsedTasks = tasksData.tasks.map((t: any) => ({
           ...t,
@@ -38,7 +64,8 @@ const TaskManagementWrapper: React.FC = () => {
         throw new Error("Failed to fetch data");
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching task/project data");
+      setLoadError("Unable to load tasks and projects. Please try again.");
       toast({
         title: "Error fetching data",
         variant: "error",
@@ -56,6 +83,15 @@ const TaskManagementWrapper: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-8">
         <p className="mt-4 text-sm text-muted-foreground">Loading tasks...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div role="alert" className="p-6">
+        <p>{loadError}</p>
+        <button type="button" onClick={() => void fetchData()} className="mt-3 underline">Try again</button>
       </div>
     );
   }

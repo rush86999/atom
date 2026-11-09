@@ -291,7 +291,8 @@ describe('TaskManagement', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Error fetching data' }));
     });
-    expect(screen.getByText('Task Management')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to load tasks and projects');
+    expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
   });
 
   it('edits a task via the dialog and PUTs the update', async () => {
