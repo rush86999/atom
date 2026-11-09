@@ -192,3 +192,52 @@ def test_form_agent_disabled_after_resolution_is_not_authority(app_client, broad
     with app_client.Session() as db:
         assert db.query(Canvas).count() == 0
         assert db.get(AgentRegistry, agent_id).enabled is False
+
+
+def test_form_explicit_missing_agent_has_no_fallback_side_effect(app_client, broadcast_spy, monkeypatch):
+    from tools.canvas_tool import present_form
+    from core.models import AgentRegistry
+    actor = _actor(app_client)
+    monkeypatch.setattr('tools.canvas_tool.FeatureFlags.should_enforce_governance', lambda *_: True)
+    result = asyncio.run(present_form(user_id=actor.id, form_schema={'fields': []}, agent_id='missing-explicit-agent'))
+    assert result['success'] is False
+    assert broadcast_spy == []
+    with app_client.Session() as db:
+        assert db.query(AgentRegistry).count() == 0, 'A refused explicit agent must not create a replacement agent'
+        assert db.query(Canvas).count() == 0
+
+
+def test_form_same_operation_replays_one_surface(app_client, broadcast_spy, monkeypatch):
+    from tools.canvas_tool import present_form
+    from core.models import CanvasAudit
+    actor = _actor(app_client)
+    monkeypatch.setattr('tools.canvas_tool.FeatureFlags.should_enforce_governance', lambda *_: False)
+    args = dict(user_id=actor.id, form_schema={'fields': []}, title='Stable form', operation_id='stable-form-operation')
+    first = asyncio.run(present_form(**args))
+    delivered = len(broadcast_spy)
+    second = asyncio.run(present_form(**args))
+    assert first['success'] is True and second['success'] is True
+    assert second.get('already_applied') is True
+    assert second['canvas_id'] == first['canvas_id']
+    assert second['audit_id'] == first['audit_id']
+    assert len(broadcast_spy) == delivered
+    with app_client.Session() as db:
+        assert db.query(Canvas).count() == 1
+        assert db.query(CanvasAudit).count() == 1
+
+
+def test_form_changed_material_cannot_reuse_operation(app_client, broadcast_spy, monkeypatch):
+    from tools.canvas_tool import present_form
+    actor = _actor(app_client)
+    monkeypatch.setattr('tools.canvas_tool.FeatureFlags.should_enforce_governance', lambda *_: False)
+    args = dict(user_id=actor.id, form_schema={'fields': []}, title='Stable form', operation_id='stable-form-operation')
+    first = asyncio.run(present_form(**args))
+    delivered = len(broadcast_spy)
+    second = asyncio.run(present_form(**{**args, 'title': 'Changed form'}))
+    assert first['success'] is True
+    assert second['success'] is False
+    assert second.get('status') == 'conflict'
+    assert len(broadcast_spy) == delivered
+    with app_client.Session() as db:
+        assert db.query(Canvas).count() == 1
+        assert db.get(Canvas, first['canvas_id']).name == 'Stable form'
