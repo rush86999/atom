@@ -68,3 +68,33 @@ test.each([true, false])('canvas initial link is protected when signedIn=%s', as
     }
   } finally { initialUrl.mockRestore(); }
 });
+
+
+test.each([
+  {url: 'atom://canvas/canvas-return', expectedId: 'canvas-return'},
+  {url: 'https://atom.ai/canvas/canvas-return', expectedId: 'canvas-return'},
+  {url: 'https://atom.ai.evil.invalid/canvas/canvas-return', expectedId: null},
+  {url: 'atom://canvas/', expectedId: null},
+])('protected return after login: $url', async ({url, expectedId}) => {
+  mockSignedIn = false;
+  const {Linking} = require('react-native');
+  const initialUrl = jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(url);
+  try {
+    const view = render(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+    expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+    mockSignedIn = true;
+    view.rerender(<AuthNavigator />);
+    if (expectedId) await waitFor(() => expect(view.getByTestId('linked-canvas-viewer').props.children).toBe(expectedId));
+    else {
+      await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
+      expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+    }
+    // A consumed return must not revive after a later logout/login.
+    mockSignedIn = false; view.rerender(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+    mockSignedIn = true; view.rerender(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
+    expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+  } finally { initialUrl.mockRestore(); }
+});
