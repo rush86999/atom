@@ -1,5 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { createBackendSignOutEvent } from "@/lib/backend-session-logout";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 
@@ -64,6 +65,9 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  events: {
+    signOut: createBackendSignOutEvent(() => process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"),
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       // Handle OAuth provider sign-ins (Google, GitHub)

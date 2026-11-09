@@ -62,7 +62,8 @@ class AuditService:
         metadata: Optional[Dict[str, Any]] = None,
         success: bool = True,
         error_message: Optional[str] = None,
-        request: Optional[Request] = None
+        request: Optional[Request] = None,
+        tenant_id: Optional[str] = None,
     ) -> str:
         """
         Log a generic audit event to the database.
@@ -79,6 +80,7 @@ class AuditService:
                 "description": description,
                 "user_id": user_id,
                 "user_email": user_email,
+                **({"tenant_id": tenant_id} if tenant_id is not None else {}),
                 "workspace_id": workspace_id,
                 "security_level": security_level,
                 "threat_level": threat_level,
@@ -403,6 +405,7 @@ class AuditService:
             timestamp=datetime.now(timezone.utc),
             user_id=data.get("user_id"),
             user_email=data.get("user_email"),
+            **({"tenant_id": data["tenant_id"]} if "tenant_id" in data else {}),
             workspace_id=data.get("workspace_id", "default"),
             ip_address=ip_address,
             user_agent=user_agent,

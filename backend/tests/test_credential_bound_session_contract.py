@@ -113,15 +113,15 @@ def test_credential_proof_is_private_subject_bound_and_ignores_profile_edits(rec
     from types import SimpleNamespace
     user=known_recovery_user(recovery_client)
     proof=credential_session_binding(user)
-    payload={'sub':user.id,'auth_binding':proof}
+    payload={'sub':user.id,'auth_binding':proof,'jti':'binding-only-fixture'}
     raw_not_disclosed=user.hashed_password not in proof
     assert raw_not_disclosed
     user.first_name='Edited profile'
-    assert credential_session_matches(payload,user)
+    assert credential_session_matches(payload,user,db=recovery_client.recovery_db)
     other=SimpleNamespace(id=user.id+'-other',hashed_password=user.hashed_password)
-    assert credential_session_matches(payload,other) is False
+    assert credential_session_matches(payload,other,db=recovery_client.recovery_db) is False
     missing=SimpleNamespace(id=user.id,hashed_password=None)
-    assert credential_session_matches(payload,missing) is False
+    assert credential_session_matches(payload,missing,db=recovery_client.recovery_db) is False
 
 
 def test_refresh_tokens_are_not_access_authority(recovery_client):
@@ -141,10 +141,10 @@ def test_missing_password_sso_binding_is_explicit_and_changes_when_password_adde
     from core.auth import credential_session_binding,credential_session_matches
     from types import SimpleNamespace
     user=SimpleNamespace(id='sso-subject',hashed_password=None)
-    payload={'sub':user.id,'auth_binding':credential_session_binding(user)}
-    assert credential_session_matches(payload,user)
+    payload={'sub':user.id,'auth_binding':credential_session_binding(user),'jti':'explicit-sso-fixture'}
+    assert credential_session_matches(payload,user,db=recovery_client.recovery_db)
     user.hashed_password='new-durable-password-material'
-    assert credential_session_matches(payload,user) is False
+    assert credential_session_matches(payload,user,db=recovery_client.recovery_db) is False
 
 
 def test_authenticated_password_change_also_requires_a_fresh_session(recovery_client):

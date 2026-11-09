@@ -286,7 +286,7 @@ async def websocket_device_endpoint(
 
             user = db.query(User).filter(User.id == user_id).populate_existing().first()
             from core.auth import credential_session_matches
-            if not user or not credential_session_matches(payload, user):
+            if not user or not credential_session_matches(payload, user, db=db):
                 await websocket.close(code=1008, reason="User session is invalid")
                 return
 

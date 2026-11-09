@@ -607,3 +607,31 @@ Engineering reference: Django's documented session invalidation on password chan
 Canvas PR800 is merged at5944700f4 (tree-identical to verified2f17476be), all13 checks green. PR801 now targets main at a11333eaa; duplicate squash-history conflicts were resolved with a proven unchanged child tree. New hosted results must be checked on that head; no inherited green.
 
 Session continuation gate: alternate-auth valid twins94 passed/2 pre-existing skipped; frontend104 passed; TypeScript exit0; final credential-CAS/native/route/CI gate73 passed. Authenticated password changes now claim the exact current credential/authority snapshot too, so an in-flight request cannot overwrite a peer reset. The source is being frozen for one combined qualification; no full security or browser acceptance is declared.
+
+
+November 9 — durable web sign-out successor
+
+Canvas PR801 is merged at89527616e after all13 exact-head checks passed.
+The next confirmed web security defect was per-session sign-out: the old
+process-local denylist rejected a token only until a fresh process loaded it.
+The current successor uses the existing RevokedToken ledger for every principal
+reader, with the in-memory list only as an optimization. Missing database
+authority refuses; it never certifies a session from a pure crypto check.
+Core/mobile/enterprise issuers and HTTP/WebSocket/refresh readers share this
+contract; coordinating those callers does not start mobile-app delivery.
+
+Both existing NextAuth configurations notify the canonical backend on sign-out
+through one bounded event consumer. Local cookie clearing remains possible on
+backend failure, but no server-termination success receipt is invented. Revocation
+and existing generic audit services retain their existing commit boundaries;
+independent readback binds actor, scope, session, operation and expiry. Confirmed
+rollback, committed-unverified and lost confirmation remain distinct. No new
+session store, audit engine or schema is introduced.
+
+Keep the new-process, peer-session, bearer/cookie/query precedence, exact-audit,
+missing-database and NextAuth timeout controls in normal regression. Native
+credential/reset checks do not certify termination of already-open connections,
+in-flight work, live SSO, PostgreSQL concurrency or complete browser recovery.
+The real socket test app must mount both existing HTTP and WebSocket routers;
+its previous absent-router failures were a fixture gap, not proof that a new
+principal guard broke sockets. Main web goals remain first, mobile UI last.

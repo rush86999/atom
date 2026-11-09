@@ -272,7 +272,7 @@ class EnterpriseAuthService:
             if db is not None:
                 from core.auth import credential_session_matches
                 user = db.query(User).filter(User.id == claims.get("user_id")).populate_existing().first()
-                if user is None or user.status != UserStatus.ACTIVE or not credential_session_matches(claims, user, allow_refresh=allow_refresh):
+                if user is None or user.status != UserStatus.ACTIVE or not credential_session_matches(claims, user, allow_refresh=allow_refresh, db=db):
                     return None
             return claims
 

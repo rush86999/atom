@@ -389,7 +389,7 @@ async def refresh_mobile_token(
             )
 
         from core.auth import credential_session_matches
-        if not credential_session_matches(payload, user, allow_refresh=True):
+        if not credential_session_matches(payload, user, allow_refresh=True, db=db):
             raise router.unauthorized_error("Sign in again to renew your session")
 
         # Verify device exists and is active

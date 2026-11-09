@@ -1,4 +1,5 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
+import { createBackendSignOutEvent } from './backend-session-logout';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { query } from './db';
 import { USE_BACKEND_API, adminAPI, tenantAPI } from './api';
@@ -247,6 +248,9 @@ export const authOptions: NextAuthOptions = {
   },
   jwt: {
     secret: process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET,
+  },
+  events: {
+    signOut: createBackendSignOutEvent(() => process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL || process.env.PYTHON_BACKEND_URL || ""),
   },
   callbacks: {
     async jwt({ token, user }: { token: any, user?: any }) {

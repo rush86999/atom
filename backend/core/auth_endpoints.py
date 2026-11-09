@@ -582,38 +582,89 @@ async def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Logout the current user and revoke their token server-side."""
-    # Revoke the JWT so it can't be reused after logout (previously the token
-    # stayed valid for 24h — a stolen token survived logout).
-    from core.auth import oauth2_scheme, revoke_token
+    """Terminate the exact authenticated session using the existing ledger."""
+    import json
     import jwt as _jwt
-    from core.auth import SECRET_KEY, ALGORITHM
+    from fastapi.responses import JSONResponse
+    from sqlalchemy.exc import IntegrityError
+    from core.auth import SECRET_KEY, ALGORITHM, oauth2_scheme, resolve_request_access_token, revoke_token
+    from core.auth_helpers import revoke_token as persist_revocation
+    from core.models import RevokedToken, AuditLog
+    from core.personal_scope import resolve_tenant_id
+    actor_id, email = current_user.id, current_user.email
+    workspace, raw_tenant = current_user.workspace_id, current_user.tenant_id
+    tenant = resolve_tenant_id(current_user)
+    operation_id = audit_id = None
+    attempted = committed = False
+    stage = "credential"
+    readback_status = "unavailable"
     try:
-        # NOTE: oauth2_scheme is async (OAuth2PasswordBearer.__call__) — the
-        # missing `await` made `raw_token` a truthy coroutine, so decode always
-        # failed and the bare except swallowed it: logout NEVER revoked the
-        # token (24h reuse window). Wave-75 security bug.
-        raw_token = await oauth2_scheme(request)
-        if raw_token:
-            payload = _jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
-            jti = payload.get("jti")
-            exp = payload.get("exp", 0)
-            if jti:
-                revoke_token(jti, exp)
-    except Exception:
-        pass  # Best-effort revocation; logout shouldn't fail
-
-    audit_service.log_event(
-        db,
-        event_type=AuditEventType.LOGOUT.value,
-        action="logout",
-        description=f"User logged out: {current_user.email}",
-        user_id=current_user.id,
-        user_email=current_user.email,
-        security_level=SecurityLevel.LOW.value,
-        request=request
-    )
-    return {"success": True, "message": "Logged out successfully"}
+        raw = resolve_request_access_token(request, await oauth2_scheme(request))
+        payload = _jwt.decode(raw, SECRET_KEY, algorithms=[ALGORITHM])
+        subject = payload.get("sub") or payload.get("id") or payload.get("user_id")
+        jti, exp = payload.get("jti"), payload.get("exp")
+        if subject != actor_id or not isinstance(jti, str) or not jti or type(exp) not in (int, float):
+            raise ValueError("Session identity is unavailable")
+        operation_id = "logout:" + jti
+        stage = "revocation_commit"
+        attempted = True
+        inserted = persist_revocation(jti, datetime.fromtimestamp(exp, timezone.utc), db,
+            user_id=actor_id, revocation_reason="logout")
+        committed = True
+        # Memory is an optimization only; a fresh process checks the ledger.
+        revoke_token(jti, exp)
+        stage = "audit"
+        audit_id = audit_service.log_event(db, event_type=AuditEventType.LOGOUT.value,
+            action="logout", description="User session terminated", user_id=actor_id,
+            user_email=email, workspace_id=workspace, tenant_id=tenant, security_level=SecurityLevel.LOW.value,
+            resource="session:" + jti,
+            metadata={"operation_id": operation_id, "session_jti": jti, "tenant_id": tenant, "raw_tenant_id": raw_tenant},
+            request=request)
+        stage = "readback"
+        with Session(bind=db.get_bind()) as fresh:
+            receipt = fresh.get(RevokedToken, jti)
+            audit = fresh.get(AuditLog, audit_id) if isinstance(audit_id, str) and audit_id else None
+            try:
+                metadata = json.loads(audit.metadata_json) if audit and isinstance(audit.metadata_json, str) else None
+            except ValueError:
+                readback_status = "refuted"
+                raise
+            expiry = receipt.expires_at.replace(tzinfo=timezone.utc) if receipt and receipt.expires_at.tzinfo is None else receipt.expires_at if receipt else None
+            verified = bool(receipt and receipt.user_id == actor_id and expiry == datetime.fromtimestamp(exp, timezone.utc)
+                and audit and audit.user_id == actor_id and audit.user_email == email
+                and audit.workspace_id == workspace and audit.tenant_id == tenant and audit.action == "logout"
+                and audit.event_type == AuditEventType.LOGOUT.value and audit.success is True
+                and audit.resource == "session:" + jti
+                and metadata == {"operation_id": operation_id, "session_jti": jti, "tenant_id": tenant, "raw_tenant_id": raw_tenant, "audit_subtype": "generic"})
+        if not verified:
+            if receipt and audit and metadata is not None:
+                required = {"operation_id", "session_jti", "tenant_id", "raw_tenant_id", "audit_subtype"}
+                expected_fields = {"user_id": actor_id, "user_email": email, "workspace_id": workspace,
+                    "tenant_id": tenant, "action": "logout", "event_type": AuditEventType.LOGOUT.value,
+                    "resource": "session:" + jti}
+                missing = any(expected is not None and getattr(audit, key) is None for key, expected in expected_fields.items())
+                missing = missing or (isinstance(metadata, dict) and not required.issubset(metadata))
+                readback_status = "unavailable" if missing else "refuted"
+            raise ValueError("Logout evidence is unavailable")
+        return {"success": True, "message": "Logged out successfully", "operation_id": operation_id,
+            "audit_id": audit_id, "already_applied": not inserted,
+            "verification": {"status": "verified", "effect": "committed" if inserted else "none"}}
+    except Exception as error:
+        rolled_back = False
+        try:
+            db.rollback()
+            rolled_back = True
+        except Exception:
+            pass
+        known_none = not committed and rolled_back and (not attempted or isinstance(error, IntegrityError) or isinstance(error.__cause__, IntegrityError))
+        logger.warning("Logout unavailable stage=%s error_class=%s", stage, type(error).__name__)
+        return JSONResponse(status_code=409 if attempted and known_none else 503 if attempted else 401, content={
+            "success": False, "detail": "Server sign-out could not be confirmed. Clear this session and sign in again if needed.",
+            "operation_id": operation_id, "audit_id": audit_id if isinstance(audit_id, str) else None,
+            "replay": "do_not_repeat",
+            "verification": {"status": "refused" if known_none else readback_status,
+                             "effect": "none" if known_none else "committed" if committed else "unknown"},
+        })
 
 @router.post("/change-password")
 async def change_password(

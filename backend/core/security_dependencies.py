@@ -45,7 +45,7 @@ async def get_current_user_websocket(
         if db:
             from core.models import User
             user = db.query(User).filter(User.id == user_id).populate_existing().first()
-            return user if user and credential_session_matches(payload, user) else None
+            return user if user and credential_session_matches(payload, user, db=db) else None
 
         return None
 

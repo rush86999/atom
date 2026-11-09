@@ -429,28 +429,34 @@ class TestRefresh:
 
 
 class TestLogout:
-    def test_logout_revokes_token(self, current_user, patches, _audit):
+    def test_logout_revokes_token(self, current_user, patches, _audit, db_session):
+        # Real durable rows/readback replace the old memory-only success double.
+        from core.audit_service import AuditService
+        from core.models import RevokedToken
+        db_session.add(current_user)
+        db_session.commit()
         with patch("core.auth.SECRET_KEY", SECRET), \
              patch("core.auth.ALGORITHM", "HS256"), \
-             patch("core.auth.revoke_token") as revoke:
-            client = make_app(MagicMock(), current_user)
+             patch("core.auth_endpoints.audit_service.log_event", side_effect=AuditService().log_event):
+            client = make_app(db_session, current_user)
             token = pyjwt.encode(
                 {"sub": "user-1", "jti": "jti-123", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
                 SECRET, algorithm="HS256")
             resp = client.post("/api/auth/logout", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
-        revoke.assert_called_once_with("jti-123", pytest.approx(datetime.now(timezone.utc).timestamp(), abs=4000))
-        _audit.assert_called_once()
+        assert resp.json()["verification"]["status"] == "verified"
+        assert db_session.get(RevokedToken, "jti-123").user_id == current_user.id
 
     def test_logout_bad_token_best_effort(self, current_user, patches, _audit):
+        # A dependency double cannot turn malformed credential material into a
+        # verified server logout. Historical case identity retained.
         with patch("core.auth.SECRET_KEY", SECRET), \
-             patch("core.auth.ALGORITHM", "HS256"), \
-             patch("core.auth.revoke_token") as revoke:
+             patch("core.auth.ALGORITHM", "HS256"):
             client = make_app(MagicMock(), current_user)
             resp = client.post("/api/auth/logout", headers={"Authorization": "Bearer garbage.token.zzz"})
-        assert resp.status_code == 200
-        revoke.assert_not_called()
-        _audit.assert_called_once()
+        assert resp.status_code == 401
+        assert resp.json()["verification"]["effect"] == "none"
+        _audit.assert_not_called()
 
 
 @pytest.mark.usefixtures("enforced_recovery_limits")

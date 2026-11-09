@@ -242,7 +242,7 @@ class TestJWTVerifierRevocation:
         assert is_revoked is True
 
     def test_verify_token_without_db(self, db_session: Session):
-        """Test that verification works without db session (graceful degradation)"""
+        """Test that requested revocation check refuses without its database"""
         verifier = JWTVerifier(secret_key="test-secret", debug_mode=True)
 
         payload = {
@@ -251,9 +251,9 @@ class TestJWTVerifierRevocation:
             "exp": int((datetime.now() + timedelta(hours=1)).timestamp())
         }
 
-        # Without db, should return False (not revoked)
+        # Without a database, revocation evidence is unavailable.
         is_revoked = verifier._is_token_revoked(payload, db=None)
-        assert is_revoked is False
+        assert is_revoked is True
 
     def test_verify_token_without_jti(self, db_session: Session):
         """Test that tokens without JTI cannot be checked for revocation"""
@@ -265,9 +265,9 @@ class TestJWTVerifierRevocation:
             "exp": int((datetime.now() + timedelta(hours=1)).timestamp())
         }
 
-        # Should return False (cannot check revocation)
+        # Missing identity cannot prove a session unrevoked.
         is_revoked = verifier._is_token_revoked(payload, db_session)
-        assert is_revoked is False
+        assert is_revoked is True
 
 
 class TestCreateTokenWithJTI:

@@ -525,14 +525,10 @@ class TestTokenRevocation:
             credentials=valid_token
         )
 
-        # Should pass even without db (graceful degradation)
-        payload = jwt_verifier.verify_token(
-            credentials,
-            check_revocation=True,
-            db=None
-        )
-
-        assert payload["sub"] == "test-user-123"
+        # Historical identity retained; requested checks need their storage.
+        with pytest.raises(HTTPException) as exc_info:
+            jwt_verifier.verify_token(credentials, check_revocation=True, db=None)
+        assert exc_info.value.status_code == 401
 
     @patch('core.jwt_verifier.logger')
     def test_verify_revocation_check_no_jti(self, mock_logger, jwt_verifier, test_secret):
@@ -549,23 +545,19 @@ class TestTokenRevocation:
             credentials=token
         )
 
-        # Should pass with warning
-        result = jwt_verifier.verify_token(
-            credentials,
-            check_revocation=True,
-            db=None
-        )
-
-        assert result["sub"] == "user"
+        # Unknown revocation evidence must refuse.
+        with pytest.raises(HTTPException) as exc_info:
+            jwt_verifier.verify_token(credentials, check_revocation=True, db=None)
+        assert exc_info.value.status_code == 401
 
     def test_is_token_revoked_without_db(self, jwt_verifier):
         """Test _is_token_revoked without database"""
         payload = {"sub": "user", "jti": "test-jti"}
 
-        # Should return False (allow token) when no db
+        # A missing database cannot prove a session unrevoked.
         result = jwt_verifier._is_token_revoked(payload, db=None)
 
-        assert result is False
+        assert result is True
 
     def test_is_token_revoked_without_jti(self, jwt_verifier):
         """Test _is_token_revoked without JTI in payload"""
@@ -573,7 +565,7 @@ class TestTokenRevocation:
 
         result = jwt_verifier._is_token_revoked(payload, db=None)
 
-        assert result is False
+        assert result is True
 
 
 class TestDebugMode:
