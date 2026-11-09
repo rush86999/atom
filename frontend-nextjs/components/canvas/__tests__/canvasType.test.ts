@@ -103,3 +103,13 @@ describe('normalizeCanvasComponent', () => {
         }
     });
 });
+
+describe('current editor content owns conversion',()=>{
+ it.each(['document','markdown','code'])('uses latest %s text over a stale durable snapshot',(component)=>{
+  expect(switchCanvasType('markdown',{component,data:{content:'Old snapshot'},text:'Current edit'}).text).toBe('Current edit');
+  expect(switchCanvasType('markdown',{component,data:{content:'Old snapshot'},text:''}).text).toBe('');
+ });
+ it('uses current sheet rows instead of an older payload',()=>{
+  expect(switchCanvasType('document',{component:'sheet',data:[['old']],sheet:[['new']],text:''}).text).toContain('new');
+ });
+});

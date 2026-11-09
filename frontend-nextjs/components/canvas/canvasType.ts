@@ -148,7 +148,8 @@ function markdownToRows(text: string): any[][] | null {
 
 /** Best-effort plain text of the current canvas, whatever shape it holds. */
 function extractText(src: CanvasTypeSource): string {
-    if (src.component === "email") return src.text || "";
+    if (src.component === "email" || isTextBodyComponent(src.component)) return src.text;
+    if (src.component === "sheet" && Array.isArray(src.sheet)) return rowsToMarkdown(src.sheet);
     const data = src.data;
     if (typeof data === "string") return data;
     if (Array.isArray(data)) return rowsToMarkdown(data);
