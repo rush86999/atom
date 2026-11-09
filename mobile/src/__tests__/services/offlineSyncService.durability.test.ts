@@ -176,4 +176,28 @@ describe('OfflineSync durable pending intent contract', () => {
     expect((await offlineSyncService.getStorageQuota()).usedBytes).toBeGreaterThan(0);
   });
 
+  test('sync state cannot hide retained pending work behind a stale zero projection', async () => {
+    await start();
+    await add('retained work is authoritative');
+    const state = await offlineSyncService.getSyncState();
+    await storageService.setObject('sync_state', { ...state, pendingCount: 0 });
+    expect((await offlineSyncService.getSyncState()).pendingCount).toBe(1);
+  });
+
+  test('sync state refuses unreadable queue authority rather than reporting all synced', async () => {
+    await start();
+    await storageService.setString('offline_queue', '{controlled-unreadable');
+    await expect(offlineSyncService.getSyncState()).rejects.toThrow();
+  });
+
+  test('sync state keeps exhausted failed work visible in the unresolved count', async () => {
+    await start();
+    await add('failed work is still unresolved');
+    const queue = readQueue().map(action => ({ ...action, status: 'failed', syncAttempts: 5 }));
+    await storageService.setString('offline_queue', JSON.stringify(queue));
+    const state = await offlineSyncService.getSyncState();
+    await storageService.setObject('sync_state', { ...state, pendingCount: 0 });
+    expect((await offlineSyncService.getSyncState()).pendingCount).toBe(1);
+  });
+
 });
