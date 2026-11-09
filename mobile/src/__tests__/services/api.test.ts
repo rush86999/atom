@@ -73,6 +73,43 @@ describe('apiService', () => {
     mockClient.delete.mockResolvedValue({ data: { ok: true } });
   });
 
+  describe('Current-session request ownership', () => {
+    test('restored secure token authorizes the first request without a cache warmup', async () => {
+      mockSecureGet.mockResolvedValue('restored-session');
+      const config = await requestHandler({ headers: {} });
+      expect(config.headers.Authorization).toBe('Bearer restored-session');
+    });
+
+    test('a cleared canonical session cannot be resurrected by the API cache', async () => {
+      await apiService.setToken('previous-session');
+      mockSecureGet.mockResolvedValue(null);
+      const config = await requestHandler({ headers: {} });
+      expect(config.headers.Authorization).toBeUndefined();
+    });
+
+    test('an old request 401 cannot delete a replacement session', async () => {
+      await apiService.setToken('previous-session');
+      mockSecureGet.mockResolvedValue('previous-session');
+      const oldConfig = await requestHandler({ headers: {} });
+      await apiService.setToken('replacement-session');
+      mockSecureGet.mockResolvedValue('replacement-session');
+      mockSecureDelete.mockClear();
+      const error = { response: { status: 401 }, config: oldConfig };
+      await expect(responseErrorHandler(error)).rejects.toBe(error);
+      expect(mockSecureDelete).not.toHaveBeenCalled();
+      expect(await apiService.getToken()).toBe('replacement-session');
+    });
+
+    test('a current request 401 invalidates its own rejected session', async () => {
+      await apiService.setToken('current-session');
+      mockSecureGet.mockResolvedValue('current-session');
+      const config = await requestHandler({ headers: {} });
+      const error = { response: { status: 401 }, config };
+      await expect(responseErrorHandler(error)).rejects.toBe(error);
+      expect(mockSecureDelete).toHaveBeenCalledWith('atom_access_token');
+    });
+  });
+
   // ========================================================================
   // Token Lifecycle Tests
   // ========================================================================
