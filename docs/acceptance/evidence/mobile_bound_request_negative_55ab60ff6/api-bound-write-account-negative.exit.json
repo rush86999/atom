@@ -1,0 +1,19 @@
+{
+  "actual_exit": 1,
+  "started": 1794205737.05686,
+  "finished": 1794205739.126902,
+  "selected_kind": "apiboundary",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/api.session-adapter.test.ts",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/services/api.test.ts"
+  ],
+  "case_counts": {
+    "numTotalTests": 36,
+    "numPassedTests": 33,
+    "numFailedTests": 3,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

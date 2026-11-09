@@ -1,0 +1,21 @@
+{
+  "executed_source": "55ab60ff66942bc2d42d8c8077889b472da7cb54",
+  "source_files": {
+    "mobile/src/services/api.ts": "88e516391316c88ea5f69a7a6572e70f18405f9b2cda7e586bd8f983860dbf64",
+    "mobile/src/storage/secureTokenStorage.ts": "c222b24dfe10e6b843ba467071b2c573b473a2362f919c59f0dfeb712a0d5fb6",
+    "mobile/src/__tests__/services/api.session-adapter.test.ts": "0887ad7f1b7e46c8720a3d3c4a39f4476cfa21b4c64399ee5e9ec3f3782bb499",
+    "mobile/src/__tests__/services/api.test.ts": "eef25689c80d4eb455872e6316e130d6f587c36c1e7a4718cf758a2df597f467"
+  },
+  "artifacts": {
+    "api-bound-write-malformed-negative-results.json": "74b72d5355405e7f1025d138aae400496a92eb698d016388b3c6938ae7231fa0",
+    "api-bound-write-malformed-negative.log": "bbb31ec333f0867e062f717f0a3ba5d0263daefec7ff7a0bc400e49dd4c8955b",
+    "api-bound-write-malformed-negative.exit.json": "6763dd77d5394aa62547e6d1418f2a5e6467b0a61eb7140cd634b51747c49440",
+    "api-bound-write-malformed-negative.spec.json": "07816497313606b08918150cdd6fcce4e95c94df474259d9b4e96e461125e1fb",
+    "api-bound-write-account-negative.spec.json": "7b30e14789ef370fcdf48f09db6ebb63382ac282143e682407d7d32dc1f04d13",
+    "api-bound-write-account-negative.exit.json": "439088a7fb01d75b1942674b0acddff287d71c571af1eee5607e20c1502bb341",
+    "NEXT_WORK_ORDER.txt": "2b7ff1e07643217ecc53f61b1f8c7b8081e10e3e8bd3f547a94738156c8ae619",
+    "README.md": "1d4c9f194c16a69757942467c6c04bc809f5bdb671adb3dd51c94907d29f2933",
+    "api-bound-write-account-negative.log": "fa06ed3ee5a7c9deb31ad520333bd3b39d4ac1084ae0f65de0102e9b642c6c40",
+    "api-bound-write-account-negative-results.json": "ec0fe887a21c4863d93bfd6c6063bad417e625d35b450d05fd751866fd06161a"
+  }
+}
