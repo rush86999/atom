@@ -231,6 +231,12 @@ export const AuthNavigator: React.FC = () => {
   const requestSequenceRef = useRef(0);
   const initialUrlRequestedRef = useRef(false);
 
+  // Logout is an intent-generation boundary. A native read started in the
+  // previous authenticated session cannot become the next login's return.
+  if (isAuthenticatedRef.current && !isAuthenticated) {
+    latestSequenceRef.current = ++requestSequenceRef.current;
+    pendingIntentRef.current = null;
+  }
   isAuthenticatedRef.current = isAuthenticated;
 
   // Wait for navigation to be ready
@@ -345,9 +351,11 @@ export const AuthNavigator: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!isAuthenticated || !navigationReady || pendingIntent === null) {
+    if (!isAuthenticated) {
+      if (pendingIntentRef.current === null) setPendingIntent(null);
       return;
     }
+    if (!navigationReady || pendingIntent === null) return;
     consumePendingIntent();
   }, [consumePendingIntent, isAuthenticated, navigationReady, pendingIntent]);
 

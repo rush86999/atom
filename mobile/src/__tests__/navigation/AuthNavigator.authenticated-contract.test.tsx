@@ -159,3 +159,23 @@ test('newer foreground intent wins over a delayed launch URL', async () => {
     initialUrl.mockRestore(); subscription.mockRestore();
   }
 });
+
+
+test('a launch URL read started before logout cannot become a later session return', async () => {
+  mockSignedIn = true;
+  const {Linking} = require('react-native');
+  let finish: ((url: string | null) => void) | undefined;
+  const initial = new Promise<string | null>(resolve => {finish = resolve;});
+  const initialUrl = jest.spyOn(Linking, 'getInitialURL').mockReturnValue(initial);
+  try {
+    const view = render(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
+    mockSignedIn = false; view.rerender(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+    await act(async () => {finish?.('atom://canvas/old-session-canvas'); await Promise.resolve();});
+    expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+    mockSignedIn = true; view.rerender(<AuthNavigator />);
+    await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
+    expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+  } finally {finish?.(null); initialUrl.mockRestore();}
+});
