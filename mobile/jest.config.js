@@ -19,6 +19,10 @@ module.exports = {
   // Setup files to run after test environment is installed
   setupFilesAfterEnv: ['./jest.setup.js'],
 
+  // Shared sources live beside mobile; resolve their runtime helpers from
+  // this project's installed dependencies as well as normal ancestor lookup.
+  modulePaths: ['<rootDir>/node_modules'],
+
   // TransformIgnorePatterns for node_modules that need transformation
   transformIgnorePatterns: [
     'node_modules/(?!(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?|@expo-google-fonts|react-navigation|@react-navigation|@unimodules|expo-modules|sentry-expo|native-base|react-native-webview|@react-native-clipboard|@react-native-community|@react-native-cookies|react-native-firebase|@react-native-async-storage|axios|@expo/config)/'

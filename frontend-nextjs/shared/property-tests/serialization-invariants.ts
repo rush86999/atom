@@ -39,7 +39,8 @@ export function deepEquals(a: unknown, b: unknown): boolean {
   }
 
   if (b === null || b === undefined) {
-    return a === b;
+    // a was already proven non-nullish above.
+    return false;
   }
 
   // Handle primitives
