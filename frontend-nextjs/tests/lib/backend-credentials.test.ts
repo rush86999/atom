@@ -36,3 +36,15 @@ it('does not adopt a login body arriving after the single deadline',async()=>{
  await jest.advanceTimersByTimeAsync(10000);resolveBody({access_token:'fixture-bearer'});
  expect(await pending).toBeNull();expect(fetch).toHaveBeenCalledTimes(1);expect(jest.getTimerCount()).toBe(0);
 });
+
+it('forbids credential and bearer forwarding through redirects',async()=>{
+ (fetch as jest.Mock).mockResolvedValueOnce(response({access_token:'fixture-bearer'})).mockResolvedValueOnce(response({id:'canonical',email:'canonical@example.invalid',status:'active'}));
+ await createBackendCredentialsAuthorize(()=>'/backend')(credentials);
+ expect((fetch as jest.Mock).mock.calls).toHaveLength(2);
+ for(const call of (fetch as jest.Mock).mock.calls) expect(call[1].redirect).toBe('error');
+});
+it('cancels the refused identity response without leaving an unbounded body',async()=>{
+ (fetch as jest.Mock).mockResolvedValueOnce(response({access_token:'fixture-bearer'})).mockResolvedValueOnce({ok:false,status:403,json:jest.fn()});
+ expect(await createBackendCredentialsAuthorize(()=>'/backend')(credentials)).toBeNull();
+ expect((fetch as jest.Mock).mock.calls[1][1].signal.aborted).toBe(true);
+});

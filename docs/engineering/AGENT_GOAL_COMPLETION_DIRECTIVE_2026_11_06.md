@@ -678,3 +678,25 @@ names remain and unsafe fallback expectations now assert refusal. No permission
 wildcard is inferred from an email or role label; backend routes still enforce
 current principal authority. Cached UI identity and already-open connections
 remain separate acceptance work. Main web first, mobile UI last.
+
+Shared credentials follow-through: the economy Flash critique's credential
+redirect and unread-body concerns were confirmed by two new consumer negatives.
+Both login and /me now use redirect=error, and final cleanup aborts any unread
+response body.108 frontend controls pass. The suggested truthy 2FA normalization
+was not adopted: the actual backend contract is200 + literal boolean, and strict
+challenge/error parsing preserves that contract without accepting malformed
+provider claims. Network failures retain the existing NextAuth null contract;
+the separate API-first UI already has its friendly connection-error path.
+
+Ordinary UI login/sidebar-logout ran once on source403a39173 in a fresh isolated
+normal app. Dashboard then /auth/signin were observed; SQL readback shows one
+revocation and one matching logout audit, with an independent peer session200.
+This is the API-first UI path, not served NextAuth credentials qualification.
+The app's late-captured health identity is truthfully dirty only from generated
+Next type/build metadata; do not relabel it clean. Both owned servers stopped,
+192751767 disposable build bytes removed, scratch data retained. A browser bearer
+was not exported, so this episode does not claim its own exact-token HTTP replay.
+Native fresh-process checks remain separate at their recorded sources. Main web
+first; mobile UI last. The API-first Sidebar's unbounded logout fetch is the
+next source-diagnosed interruption boundary; no outage-safe UI claim follows
+from a healthy-server browser pass.

@@ -18,7 +18,7 @@ export function createBackendCredentialsAuthorize(resolveBackend: () => string) 
     try {
       const backend = resolveBackend().replace(/\/$/, '');
       const login = await fetch(`${backend}/api/auth/login`, {
-        method: 'POST',
+        method: 'POST', redirect: 'error',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ username: credentials.email, password: credentials.password, totp_code: credentials.totp_code }),
         signal: controller.signal,
@@ -30,7 +30,7 @@ export function createBackendCredentialsAuthorize(resolveBackend: () => string) 
       if (!login.ok || typeof data?.access_token !== 'string' || !data.access_token) return null;
       const me = await fetch(`${backend}/api/auth/me`, {
         headers: { Authorization: `Bearer ${data.access_token}`, Accept: 'application/json' },
-        cache: 'no-store', signal: controller.signal,
+        cache: 'no-store', redirect: 'error', signal: controller.signal,
       });
       if (!me.ok) return null;
       const identity = await me.json();
@@ -51,6 +51,8 @@ export function createBackendCredentialsAuthorize(resolveBackend: () => string) 
       console.warn('Backend sign-in identity unavailable', { code: 'backend_identity_unavailable' });
       return null;
     } finally {
+      // Also cancel an unread refused response body, not just its timer.
+      controller.abort();
       clearTimeout(timer);
     }
   };
