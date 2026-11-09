@@ -47,6 +47,39 @@ describe('Pending writes require a durable pre-dispatch boundary', () => {
   });
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
 
+  test.each(families.flatMap(family => ['userId', 'workspaceId', 'deviceId'].map(field => ({ name: family.name, family, field }))))('$name missing queued $field never inherits the current actor', async ({ family, field }) => {
+    const cache = family.cache();
+    const row = 'pendingTriggers' in cache ? cache.pendingTriggers[0] : cache.pendingFormSubmissions[0];
+    Reflect.deleteProperty(row, field);
+    durable.set(family.key, JSON.stringify(cache));
+    const before = durable.get(family.key);
+    const client = await family.load();
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(durable.get(family.key)).toBe(before);
+    client.destroy();
+  });
+
+  test.each(families)('$name inactive server actor cannot execute pending work', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    mockGet.mockResolvedValue({ success: true, data: { id: 'owner-001', workspace_id: 'workspace-001', status: 'suspended' } });
+    const client = await family.load();
+    await client.flush();
+    expect(mockPost).not.toHaveBeenCalled();
+    client.destroy();
+  });
+
+  test.each(families)('$name dispatch uses exact bound session without persisting token/profile', async family => {
+    durable.set(family.key, JSON.stringify(family.cache()));
+    const client = await family.load();
+    await client.flush();
+    expect(mockGet).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({ expectedAccessTokenSnapshot: expect.objectContaining({ generation: 1, token: 'controlled-session' }) }));
+    expect(mockPost).toHaveBeenCalledWith(expect.any(String), expect.anything(), expect.objectContaining({ expectedAccessTokenSnapshot: expect.objectContaining({ generation: 1, token: 'controlled-session' }) }));
+    expect(Array.from(durable.values()).join('')).not.toContain('controlled-session');
+    expect(Array.from(durable.values()).join('')).not.toContain('userData');
+    client.destroy();
+  });
+
   test.each(families)('$name replacement during marker persistence cannot dispatch', async family => {
     durable.set(family.key, JSON.stringify(family.cache()));
     const client = await family.load();

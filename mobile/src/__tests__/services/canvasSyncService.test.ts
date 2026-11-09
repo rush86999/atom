@@ -11,6 +11,15 @@
 import { canvasSyncService } from '../../services/canvasSyncService';
 
 // Mock apiService
+// These unit cases isolate existing service behavior; canonical owner/server
+// helper is exercised with controlled session/server doubles in
+// pendingWrites.uncertainty.test.ts.
+jest.mock('../../services/pendingWriteOwner', () => ({
+  readPendingWriteOwner: jest.fn(async (userId: string, deviceId: string) => ({ owner: { userId, deviceId, workspaceId: 'controlled-workspace' }, session: { token: 'controlled-session', generation: 0, userData: null, deviceId } })),
+  authorizePendingWriteOwner: jest.fn(async (owner: { userId: string; deviceId: string }, userId: string, deviceId: string) => owner.userId === userId && owner.deviceId === deviceId ? { token: 'controlled-session', generation: 0 } : null),
+}));
+jest.mock('../../storage/secureTokenStorage', () => ({ isAccessTokenSnapshotCurrent: jest.fn(() => true) }));
+
 jest.mock('../../services/api', () => ({
   apiService: {
     get: jest.fn(),
@@ -264,7 +273,8 @@ describe('canvasSyncService', () => {
         '/api/canvas/canvas_1/submit',
         expect.objectContaining({
           form_data: { field1: 'value1', field2: 'value2' },
-        })
+        }),
+        { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } }
       );
     });
 
@@ -878,7 +888,8 @@ describe('canvasSyncService', () => {
 
       expect(apiService.post).toHaveBeenCalledWith(
         '/api/canvas/canvas_1/submit',
-        expect.objectContaining({ form_data: { field1: 'value1' } })
+        expect.objectContaining({ form_data: { field1: 'value1' } }),
+        { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } }
       );
 
       // Pending queue is now empty — a second flush makes no calls

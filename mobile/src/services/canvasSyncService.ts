@@ -573,12 +573,9 @@ class CanvasSyncService {
       // No POST occurred, so restoring the known-safe pending state is safe.
       if (!isAccessTokenSnapshotCurrent(session)) {
         submission.deliveryStatus = 'pending';
-        try {
-          await this.saveCache();
-        } catch {
-          // Keep the row in memory; the durable marker still blocks an
-          // unowned automatic dispatch after a restart.
-        }
+        // A failed restoration remains a failed checkpoint, even though the
+        // durable dispatch marker safely prevents automatic replay.
+        await this.saveCache();
         continue;
       }
 

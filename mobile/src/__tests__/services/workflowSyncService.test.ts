@@ -15,6 +15,15 @@ import { apiService } from '../../services/api';
 import { storageService } from '../../services/storageService';
 import { offlineSyncService } from '../../services/offlineSyncService';
 
+// These unit cases isolate existing service behavior; canonical owner/server
+// helper is exercised with controlled session/server doubles in
+// pendingWrites.uncertainty.test.ts.
+jest.mock('../../services/pendingWriteOwner', () => ({
+  readPendingWriteOwner: jest.fn(async (userId: string, deviceId: string) => ({ owner: { userId, deviceId, workspaceId: 'controlled-workspace' }, session: { token: 'controlled-session', generation: 0, userData: null, deviceId } })),
+  authorizePendingWriteOwner: jest.fn(async (owner: { userId: string; deviceId: string }, userId: string, deviceId: string) => owner.userId === userId && owner.deviceId === deviceId ? { token: 'controlled-session', generation: 0 } : null),
+}));
+jest.mock('../../storage/secureTokenStorage', () => ({ isAccessTokenSnapshotCurrent: jest.fn(() => true) }));
+
 // Mock service dependencies
 jest.mock('../../services/api');
 jest.mock('../../services/storageService');
@@ -450,7 +459,7 @@ describe('workflowSyncService', () => {
 
       expect(executionId).toBeDefined();
       expect(executionId).toMatch(/^exec_/);
-      expect(mockApiService.post).toHaveBeenCalledWith('/api/workflows/wf-1/trigger', { test: 'input' });
+      expect(mockApiService.post).toHaveBeenCalledWith('/api/workflows/wf-1/trigger', { test: 'input' }, { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } });
     });
 
     it('should handle trigger failure', async () => {
@@ -475,7 +484,7 @@ describe('workflowSyncService', () => {
       );
 
       expect(executionId).toBeNull();
-      expect(mockApiService.post).toHaveBeenCalledWith('/api/workflows/wf-nonexistent/trigger', { test: 'input' });
+      expect(mockApiService.post).toHaveBeenCalledWith('/api/workflows/wf-nonexistent/trigger', { test: 'input' }, { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } });
     });
   });
 
@@ -508,7 +517,7 @@ describe('workflowSyncService', () => {
       const result = await workflowSyncService.replayExecution('exec-1', 'user-123', 'device-123');
 
       expect(result).toBe(true);
-      expect(mockApiService.post).toHaveBeenCalledWith('/api/workflows/wf-1/trigger', execution.input);
+      expect(mockApiService.post).toHaveBeenCalledWith('/api/workflows/wf-1/trigger', execution.input, { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } });
     });
   });
 
@@ -630,6 +639,7 @@ describe('workflowSyncService', () => {
       createdAt: new Date(),
       retryCount,
       deliveryStatus: 'pending',
+      userId: 'u', workspaceId: 'controlled-workspace', deviceId: 'd',
     });
 
     it('should remove triggers that sync successfully', async () => {
@@ -644,7 +654,8 @@ describe('workflowSyncService', () => {
       expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(0);
       expect(mockApiService.post).toHaveBeenCalledWith(
         '/api/workflows/wf-1/trigger',
-        { x: 1 }
+        { x: 1 },
+        { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } }
       );
     });
 
