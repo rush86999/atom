@@ -4,6 +4,19 @@
  * Central type definitions for all navigation structures
  */
 
+import type { LinkingOptions, NavigatorScreenParams } from '@react-navigation/native';
+import type { CanvasType } from '../types/canvas';
+
+/**
+ * Canvas Viewer Navigation Types
+ */
+export type CanvasViewerParams = {
+  canvasId: string;
+  canvasType?: CanvasType;
+  sessionId?: string;
+  agentId?: string;
+};
+
 /**
  * Auth Stack Navigation Types
  */
@@ -12,17 +25,18 @@ export type AuthStackParamList = {
   Register: undefined;
   ForgotPassword: undefined;
   BiometricAuth: { onSuccessNavigate?: string };
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
+  CanvasViewer: CanvasViewerParams;
 };
 
 /**
  * Main Tab Navigation Types
  */
 export type MainTabParamList = {
-  WorkflowsTab: undefined;
-  AnalyticsTab: undefined;
-  AgentsTab: undefined;
-  ChatTab: undefined;
+  WorkflowsTab: NavigatorScreenParams<WorkflowStackParamList> | undefined;
+  AnalyticsTab: NavigatorScreenParams<AnalyticsStackParamList> | undefined;
+  AgentsTab: NavigatorScreenParams<AgentStackParamList> | undefined;
+  ChatTab: NavigatorScreenParams<ChatStackParamList> | undefined;
   SettingsTab: undefined;
 };
 
@@ -82,6 +96,15 @@ export type DeepLinkParams = {
   screen: string;
   params?: Record<string, string | number | boolean>;
 };
+
+/**
+ * Root Linking Configuration Type
+ *
+ * The root navigator is the authentication stack, so its linking config is
+ * typed against AuthStackParamList. Nested navigators are represented with
+ * NavigatorScreenParams in the param lists above.
+ */
+export type AuthLinkingOptions = LinkingOptions<AuthStackParamList>;
 
 /**
  * Navigation State Types

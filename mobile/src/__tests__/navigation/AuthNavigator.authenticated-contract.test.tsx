@@ -4,6 +4,13 @@ import { mockAllScreens, SCREEN_TEST_IDS } from '../helpers/navigationMocks';
 
 // Screen content is controlled; both navigator implementations are real.
 mockAllScreens();
+// Only canvas content is doubled: registration, linking and parent navigators
+// remain real. Its WebView native host is qualified in the component lane.
+jest.mock('../../screens/canvas/CanvasViewerScreen', () => ({CanvasViewerScreen: ({route}: {route: {params: {canvasId: string}}}) => {
+  const React = require('react'); const {Text} = require('react-native');
+  return React.createElement(Text, {testID: 'linked-canvas-viewer'}, route.params.canvasId);
+}}));
+
 let mockSignedIn = true;
 beforeEach(() => { mockSignedIn = true; });
 jest.mock('../../contexts/AuthContext', () => ({useAuth: () => ({isAuthenticated: mockSignedIn, isLoading: false})}));
@@ -45,4 +52,19 @@ test('logout and login switch the real root without retaining protected tabs', a
   view.rerender(<AuthNavigator />);
   await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
   expect(view.queryByTestId('login-screen')).toBeNull();
+});
+
+
+test.each([true, false])('canvas initial link is protected when signedIn=%s', async signedIn => {
+  mockSignedIn = signedIn;
+  const {Linking} = require('react-native');
+  const initialUrl = jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('atom://canvas/canvas-123');
+  try {
+    const view = render(<AuthNavigator />);
+    if (signedIn) await waitFor(() => expect(view.getByTestId('linked-canvas-viewer').props.children).toBe('canvas-123'));
+    else {
+      await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+      expect(view.queryByTestId('linked-canvas-viewer')).toBeNull();
+    }
+  } finally { initialUrl.mockRestore(); }
 });

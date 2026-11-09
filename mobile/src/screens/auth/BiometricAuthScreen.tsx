@@ -25,22 +25,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../contexts/AuthContext';
-import { AuthScreenNavigationProp } from '../../navigation/types';
+import type { AuthStackParamList } from '../../navigation/types';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Constants
 const MAX_ATTEMPTS = 3;
 
-interface BiometricAuthScreenProps {
-  navigation: AuthScreenNavigationProp;
-  route: {
-    params?: {
-      onSuccessNavigate?: string;
-    };
-  };
-}
+type BiometricAuthScreenProps = NativeStackScreenProps<AuthStackParamList, 'BiometricAuth'>;
 
 export const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({ navigation, route }) => {
   const { authenticateWithBiometric, login } = useAuth();

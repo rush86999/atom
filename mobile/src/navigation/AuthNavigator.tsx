@@ -19,30 +19,23 @@ import { useAuth } from '../contexts/AuthContext';
 
 // Screen Imports
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen, BiometricAuthScreen } from '../screens/auth';
+import { CanvasViewerScreen } from '../screens/canvas/CanvasViewerScreen';
 import { AppNavigator } from './AppNavigator';
 
-const Stack = createNativeStackNavigator();
+// Navigation Types
+import type {
+  AuthLinkingOptions,
+  AuthStackParamList,
+  CanvasViewerParams,
+  MainTabParamList,
+} from './types';
+
+// Preserve the public aliases that callers already import from this module.
+export type { AuthStackParamList, CanvasViewerParams, MainTabParamList };
+
+const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 const AuthenticatedAppNavigator = () => <AppNavigator embedded />;
-
-/**
- * Navigation Types
- */
-export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-  BiometricAuth: { onSuccessNavigate?: string };
-  Main: undefined;
-};
-
-export type MainTabParamList = {
-  WorkflowsTab: undefined;
-  AnalyticsTab: undefined;
-  AgentsTab: undefined;
-  ChatTab: undefined;
-  SettingsTab: undefined;
-};
 
 /**
  * Loading Screen
@@ -66,7 +59,7 @@ const LoadingScreen: React.FC = () => (
  *
  * Also supports HTTPS links: https://atom.ai/...
  */
-export const linking = {
+export const linking: AuthLinkingOptions = {
   prefixes: ['atom://', 'https://atom.ai'],
   config: {
     screens: {
@@ -82,6 +75,11 @@ export const linking = {
       },
       BiometricAuth: {
         path: 'auth/biometric',
+      },
+
+      // Canvas viewer is registered in the authenticated branch of this stack.
+      CanvasViewer: {
+        path: 'canvas/:canvasId',
       },
 
       // Main app screens with nested navigation
@@ -143,12 +141,30 @@ export const linking = {
           },
         },
       },
+    },
+  },
+};
 
-      // Direct resource deep links (convenience shortcuts)
-      Agent: 'agent/:agentId',
-      Workflow: 'workflow/:workflowId',
-      Canvas: 'canvas/:canvasId',
-      Execution: 'execution/:executionId',
+/**
+ * Unauthenticated links must not resolve protected routes such as CanvasViewer.
+ * The authenticated tree uses the full linking configuration above.
+ */
+const unauthenticatedLinking: AuthLinkingOptions = {
+  prefixes: linking.prefixes,
+  config: {
+    screens: {
+      Login: {
+        path: 'auth/login',
+      },
+      Register: {
+        path: 'auth/register',
+      },
+      ForgotPassword: {
+        path: 'auth/reset',
+      },
+      BiometricAuth: {
+        path: 'auth/biometric',
+      },
     },
   },
 };
@@ -176,7 +192,7 @@ export const AuthNavigator: React.FC = () => {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer linking={isAuthenticated ? linking : unauthenticatedLinking}>
       <Stack.Navigator
         initialRouteName={isAuthenticated ? 'Main' : 'Login'}
         screenOptions={{
@@ -234,6 +250,15 @@ export const AuthNavigator: React.FC = () => {
             <Stack.Screen
               name="Main"
               component={AuthenticatedAppNavigator}
+              options={{
+                headerShown: false,
+              }}
+            />
+            {/* Authenticated resource destination, matching CanvasViewerScreen's
+                own navigation.push('CanvasViewer', { canvasId }) contract. */}
+            <Stack.Screen
+              name="CanvasViewer"
+              component={CanvasViewerScreen}
               options={{
                 headerShown: false,
               }}
