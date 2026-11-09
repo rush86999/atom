@@ -355,6 +355,9 @@ class AgentDeviceBridgeService {
 
       case 'stopTracking': {
         await locationService.stopTracking();
+        if (locationService.isActive()) {
+          throw new Error('Location tracking is still active');
+        }
         return { tracking: false };
       }
 

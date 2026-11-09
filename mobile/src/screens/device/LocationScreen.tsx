@@ -74,8 +74,12 @@ export const LocationScreen: React.FC<LocationScreenProps> = ({ navigation }) =>
     try {
       if (isTracking) {
         await locationService.stopTracking();
-        setIsTracking(false);
-        setIsBackgroundTracking(false);
+        const stillTracking = locationService.isActive();
+        setIsTracking(stillTracking);
+        setIsBackgroundTracking(locationService.isBackgroundTrackingActive());
+        if (stillTracking) {
+          Alert.alert('Error', 'Location tracking is still active');
+        }
       } else {
         const success = await locationService.startTracking();
         if (success) {
