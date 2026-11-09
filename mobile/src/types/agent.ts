@@ -3,7 +3,6 @@
  * Type definitions for agents, chat messages, and agent interactions
  */
 
-import { DateTime } from 'luxon';
 
 // Agent maturity levels
 export enum AgentMaturity {

@@ -1,8 +1,8 @@
 /**
  * mockHandlers Unit Tests
  *
- * msw is not installed in this repo, so the module is exercised with a
- * lightweight in-test mock of `msw`/`msw/node`. Every registered handler
+ * This unit suite uses lightweight in-test doubles of `msw`/`msw/node`.
+ * The adjacent transport suite exercises real interception. Every registered handler
  * (URL + resolver) is captured and its resolver invoked with mock
  * req/res/ctx to verify response wiring and both success/404 branches.
  */
@@ -35,7 +35,7 @@ jest.mock('msw', () => {
     },
     __capturedHandlers: captured,
   };
-}, { virtual: true });
+});
 
 jest.mock('msw/node', () => {
   const server = {
@@ -53,7 +53,7 @@ jest.mock('msw/node', () => {
     return server;
   });
   return { setupServer, __mockServer: server, __setupArgs: () => server.setupArgs };
-}, { virtual: true });
+});
 
 import * as mockHandlers from '../mockHandlers';
 
@@ -154,13 +154,11 @@ describe('mockHandlers', () => {
     expect(server.resetHandlers).toHaveBeenCalled();
   });
 
-  it('overrideHandlers resets with all + overrides', () => {
+  it('overrideHandlers prepends explicit handlers through the real server API', () => {
     const override = { method: 'GET', url: '/override', resolver: () => {} };
     mockHandlers.overrideHandlers(override as any);
-    expect(server.resetHandlers).toHaveBeenLastCalledWith(
-      ...mockHandlers.allHandlers,
-      override
-    );
+    expect(server.use).toHaveBeenLastCalledWith(override);
+    expect(server.resetHandlers).not.toHaveBeenCalled();
   });
 
   it('default export bundles every named export', () => {
