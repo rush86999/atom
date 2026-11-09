@@ -237,6 +237,16 @@ describe('PiecesSidebar', () => {
     });
   });
 
+  it('uses the current browser bearer for the same-origin skills request',async()=>{
+    window.localStorage.setItem('auth_token','controlled-browser-generation');
+    try {
+      render(<PiecesSidebar onSelectPiece={onSelectPiece} />);
+      await screen.findByText('Lead Qualifier');
+      const call=fetchSpy.mock.calls.find(args=>String(args[0])==='/api/skills/list');
+      expect(new Headers((call?.[1] as RequestInit)?.headers).get('Authorization')).toBe('Bearer controlled-browser-generation');
+    } finally { window.localStorage.removeItem('auth_token'); }
+  });
+
   it('survives failures of the skills, external-pieces and health fetches', async () => {
     fetchSpy.mockImplementation(async (url: unknown) => {
       if (String(url).startsWith('/api/integrations/')) {
@@ -246,7 +256,8 @@ describe('PiecesSidebar', () => {
     });
     render(<PiecesSidebar onSelectPiece={onSelectPiece} />);
 
-    // Built-in pieces still render; Agent Skills category is absent
+    await screen.findByText('Agent skills could not be loaded. Reload this page to try again.');
+    // Built-in pieces still render; unavailable imported skills are not a successful empty list
     expect(screen.getByText('Core Pieces')).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText('Lead Qualifier')).not.toBeInTheDocument();
