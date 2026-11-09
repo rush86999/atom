@@ -1,0 +1,24 @@
+{
+  "source": "5a287e755cdd0efcdede207a8ec3ea7351ed7777",
+  "compared_base": "dd261050274604895343cca74bc80a290b4c432a",
+  "executable_ast_unchanged": true,
+  "workflow_definitions_changed": false,
+  "reviewed_facts": [
+    "two YAML workflow files",
+    "nine CI jobs",
+    "three exact needs edges",
+    "supported install interpreter matrix",
+    "best-effort UI/type-check distinctions",
+    "local image build push:false",
+    "Docker cleanup is success-path, not always",
+    "asyncio default policy owns strong thread-local loop",
+    "asyncio.iscoroutinefunction deprecated3.14/removal3.16"
+  ],
+  "visual_review": "Both PNGs inspected: all9CI labels and3needs arrows readable; Docker five-step path readable, push:false and success-only cleanup explicit.",
+  "renderer_version": "12.2.0",
+  "native_model": "opencode-go/deepseek-v4.1-flash",
+  "proposal_disposition": "Root independently drafted final reference from actual YAML, corroborated relevant Flash findings; no blanket scratch-isolation or whole-app success inferred.",
+  "whole_reference_audit_complete": false,
+  "diagram_svg_render_results": "2/2 success",
+  "diagram_png_render_results": "2/2 success"
+}

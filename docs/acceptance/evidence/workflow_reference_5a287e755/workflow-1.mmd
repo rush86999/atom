@@ -1,0 +1,13 @@
+flowchart TB
+  syntax["syntax-gate"]
+  boot["full-app-boots"]
+  install["quickstart-install: Python 3.11 / 3.12 / 3.13"]
+  quick["quickstart"]
+  core["backend-core"]
+  oracle["backend-oracle"]
+  backend["backend-tests"]
+  journey["e2e-journey"]
+  frontend["frontend-typecheck"]
+  install --> quick
+  core --> backend
+  oracle --> backend

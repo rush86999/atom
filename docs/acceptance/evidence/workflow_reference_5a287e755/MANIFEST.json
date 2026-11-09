@@ -1,0 +1,28 @@
+{
+  "executed_source": "5a287e755cdd0efcdede207a8ec3ea7351ed7777",
+  "source_files": {
+    ".github/workflows/README.md": "63f2b0710afb6495080ac626e430f52bde1eb044cddbb1448f1c3a8086677e31",
+    ".github/workflows/ci.yml": "46842257ceaf487bf7942ee1db123ff43e6e138116c9db6db1b74c56101a299d",
+    ".github/workflows/docker.yml": "641aa10abda9447ae452e7e7f948df2f0c7f7341c1794d53f7818c5d88ac4989",
+    "backend/core/asyncio_compat.py": "65965c6b94a6f76edfedc65e20a77bce51b15190d34ae74503f31f2eef7c3109"
+  },
+  "artifacts": {
+    "diagram-semantics.json": "c0c0e3c8ae90da62baa3b2ef1761cba4088e070f58a7508fe29749d0aef963d7",
+    "flash-client-exit.json": "1538b6b3ebfea14af786a21182c70ecdec68a9626b9693b3e66d6cc051182214",
+    "png-native-results.json": "71e1b5ea54f39867f38583e850735cf36c5dcf8f50178dda71217dc8bb57f618",
+    "README.md": "28eb715118c185cca34d94b1846fe85bcc8143dfe09c2d16996b4b712d4956c6",
+    "workflow-1.svg": "868c97cce80b22c6ba80fb6a40359dd035747712c9c245832e590933a40bd901",
+    "workflow-2.mmd": "73c7b5ff2055c783c85522ba05c6070ba4ece797a519d1850419e0914639ea0f",
+    "workflow-2.svg": "5b7b42d904a3b73f33c01582daba2e21e847fb21119b53f7c105685addc7ee55",
+    "workflow-1.mmd": "01a53452790b9bab683f8d99c39e52ae3cd35415c81ab57226de4a1b3ed0fd94",
+    "render-results.json": "a5f1b6e0d125394cf2b5099482daa1957287cd00709661072b4e636241220664",
+    "asyncio-primary-source.json": "1db7e67fbe222ef1e461b94d786d541ca28313c7f5d274a86f9adf9e01bf09c0",
+    "verification.json": "eb704b710d83a7a5f82ca371d5e1388fa7b38ec206a7d12933f52bd6c16354f9",
+    "version.txt": "7b501d453d109af74aaabeeebe2d2d833937c168d695e4c80332f48f7a2999e9",
+    "workflow-2.png": "a7fde3a5b4bce980869cd04de7133c29af3587f65f732ff5c35357a36e9fb8fb",
+    "workflow-source-map.json": "b2f640699e56754e889d1de7a01b19c3ddddd787a65eef4dba6d26ae451a82f0",
+    "workflow-1.png": "3add2b5d2d4f72e14945175a33a94666949fb63748f1e924c89fefc8786fb6ac",
+    "flash-public-source-review.json": "0322801b4b3ecfc7fd763fa9ef0cab076967c64b8b7a676daa11b8aaafd39fa1"
+  },
+  "scope": "reference and diagram accuracy only"
+}

@@ -1,0 +1,5 @@
+flowchart LR
+  checkout["Check out source"] --> buildx["Set up Buildx"]
+  buildx --> image["Build and load atom:test; push=false"]
+  image --> smoke["Start runner-local container; check backend /alive and frontend /"]
+  smoke --> cleanup["Print log tail and remove container on this success path"]
