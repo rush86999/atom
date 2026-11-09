@@ -549,3 +549,15 @@ release gate on to turn this into a pass. The Tasks/Projects repair may be
 reviewed at its API/shared-component scope; the broader Tasks goal remains open.
 Next user-journey work prioritizes supported core surfaces on the real full-app
 backend/profile boundary. Reuse accepted journeys before starting another run.
+
+### November9 — canonical web account recovery qualification
+
+Web first; mobile remains deferred. PR800's presentation workspace test setup is localized (205 consumer/CI controls; source89e40d321, evidence2f17476be). PR801 remains stacked and needs its own main-based hosted checks after the parent lands. Never inherit green from a changed head.
+
+Account recovery is the next independent web slice. Correction to the initial trace: normal main already loads core auth through core.lazy_integration_registry. Mobile-router-only404 probes did not establish a missing production route. Redundant remounts were removed; preserve registry ownership and one handler per path. Four actual shared-handler defects were then reproduced: wrong reset-page link, missing-mail false availability, stale token overwrite and foreign token scope acceptance.
+
+The candidate reuses the existing User/PasswordResetToken/SMTP mechanisms, with token+credential CAS, fresh credential readback, exact current scope and truthful refusal/uncertainty. Frontend requests use the canonical backend, never a second JS/Postgres credential writer; UI completion needs the verified receipt and request acceptance does not claim delivery. Validation messages omit submitted credential values. Existing method identities are retained in boundary-test migrations; no production guard is relaxed for a mock. Research: OWASP Forgot Password Cheat Sheet (https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html), retrieved2026-11-09.
+
+Continue frozen-source gates, actual ordinary-page qualification and evidence packaging before acceptance. Existing bearer-session invalidation/restart behavior remains a separate unqualified requirement; a one-use reset token does not prove it. No real email/account/provider/credential/deployment action is authorized by these scratch controls. Full app completion remains open.
+
+Recovery continuation: a successful reset also invalidates other outstanding links in the same transaction. Issuance claims the current account snapshot first, so a prior concurrent credential/scope change refuses without issuing a link. The focused real-registry API gate passes20 controls; broader qualification and ordinary browser recovery remain pending. Mobile-specific work remains last.

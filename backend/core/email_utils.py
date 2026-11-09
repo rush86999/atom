@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 # newline) can never be used to smuggle extra headers past validation.
 _EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
+def smtp_delivery_configured() -> bool:
+    """Readiness for the existing SMTP transport, without sending or logging secrets."""
+    return all(os.getenv(name) for name in ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD"))
+
+
 def send_smtp_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None):
     """
     Send an email using SMTP settings from environment variables.

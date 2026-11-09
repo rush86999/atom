@@ -20,6 +20,12 @@ export function extractApiErrorMessage(
     for (const candidate of candidates) {
       if (typeof candidate === "string") {
         if (candidate.trim()) return candidate;
+      } else if (Array.isArray(candidate) && candidate.length && candidate.every(
+        item => item && typeof item === "object" && typeof item.msg === "string"
+      )) {
+        // FastAPI validation entries also carry raw `input` and `ctx`. A
+        // password form must display the message, never that submitted value.
+        return candidate.map(item => item.msg).join("; ");
       } else if (candidate != null) {
         return JSON.stringify(candidate);
       }

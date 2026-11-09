@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import { extractApiErrorMessage } from "@/lib/api-error";
 
 export default function ResetPassword() {
     const [password, setPassword] = useState("");
@@ -9,8 +10,13 @@ export default function ResetPassword() {
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+    const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const router = useRouter();
     const { token } = router.query;
+
+    useEffect(() => () => {
+        if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    }, [token]);
 
     useEffect(() => {
         if (token) {
@@ -29,8 +35,10 @@ export default function ResetPassword() {
             });
 
             const data = await response.json();
-            setTokenValid(data.valid);
-            if (!data.valid) {
+            setTokenValid(response.ok && data.valid === true);
+            if (!response.ok) {
+                setError(extractApiErrorMessage(data, "Reset link could not be verified. Please try again later.", response.status));
+            } else if (!data.valid) {
                 setError("This reset link is invalid or has expired.");
             }
         } catch (err) {
@@ -41,6 +49,7 @@ export default function ResetPassword() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (redirectTimer.current) clearTimeout(redirectTimer.current);
 
         if (password !== confirmPassword) {
             setError("Passwords do not match");
@@ -70,13 +79,13 @@ export default function ResetPassword() {
 
             const data = await response.json();
 
-            if (response.ok) {
+            if (response.ok && data.success === true && data.verification?.status === "verified") {
                 setMessage("Password reset successful! Redirecting to sign in...");
-                setTimeout(() => {
+                redirectTimer.current = setTimeout(() => {
                     router.push("/auth/signin");
                 }, 2000);
             } else {
-                setError(data.detail || "Failed to reset password");
+                setError(extractApiErrorMessage(data, "Password change could not be confirmed. Try signing in before requesting another reset.", response.status));
             }
         } catch (err) {
             setError("An error occurred. Please try again.");

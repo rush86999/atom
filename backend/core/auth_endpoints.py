@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
 from core.audit_service import audit_service
@@ -26,7 +26,7 @@ from core.security.auth_rate_limit import (
     login_rate_limit,
     register_rate_limit,
 )
-from core.email_utils import send_smtp_email
+from core.email_utils import send_smtp_email, smtp_delivery_configured
 from core.models import (
     AuditEventType,
     PasswordResetToken,
@@ -128,7 +128,7 @@ class UserCreate(BaseModel):
         return (v or "").strip()
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 class ResetPasswordRequest(BaseModel):
     token: str
@@ -378,6 +378,16 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 # For now, I'll comment out the old SQLite logic to avoid conflicts and focus on the new Auth.
 # In a real scenario, we'd migrate the password reset tokens to SQLAlchemy too.
 
+def _recovery_user_allowed(user, reset_token=None) -> bool:
+    if user is None or not user.is_active:
+        return False
+    if getattr(user.status, "value", user.status) != UserStatus.ACTIVE.value:
+        return False
+    if not isinstance(user.hashed_password, str) or not user.hashed_password:
+        return False
+    return reset_token is None or reset_token.tenant_id == (user.tenant_id or PERSONAL_TENANT_ID)
+
+
 @router.post("/forgot-password")
 async def forgot_password(
     request: ForgotPasswordRequest,
@@ -385,17 +395,31 @@ async def forgot_password(
     db: Session = Depends(get_db),
     _rl=Depends(forgot_password_rate_limit),
 ):
-    """Generate a password reset token and send an email to the user."""
+    """Accept a recovery request using the existing SMTP transport."""
+    # Global readiness precedes account lookup, so missing configuration cannot
+    # distinguish an existing address or mint an unusable recovery credential.
+    if not smtp_delivery_configured():
+        raise HTTPException(status_code=503, detail="Password recovery email is unavailable. Ask the app administrator to configure delivery.")
     user = db.query(User).filter(User.email == request.email).first()
     
     # We return success even if user not found to prevent user enumeration
-    success_msg = {"success": True, "message": "If your email is in our system, you will receive a reset link shortly."}
+    success_msg = {"success": True, "message": "If the account is eligible, its recovery request has been accepted. Check your email for the next step."}
     
-    if not user:
+    if not _recovery_user_allowed(user):
         return success_msg
     
-    # Generate token
+    # Serialize issuance with credential recovery. Freeze the current authority
+    # before generating the credential; a peer reset/scope change must win.
+    snapshot = {name: getattr(user, name) for name in (
+        "id", "hashed_password", "tenant_id", "workspace_id", "email", "role", "status")}
     token = secrets.token_urlsafe(32)
+    claim = db.execute(update(User).where(
+        *(getattr(User, name) == value for name, value in snapshot.items()),
+        User.is_active.is_(True),
+    ).values(updated_at=User.updated_at).execution_options(synchronize_session=False))
+    if claim.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Recovery authorization changed. Request a new reset link.")
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     
@@ -411,7 +435,8 @@ async def forgot_password(
     
     # Send email asynchronously
     config = get_config()
-    reset_link = f"{config.server.app_url}/reset-password?token={token}"
+    app_url = config.server.app_url.rstrip("/")
+    reset_link = f"{app_url}/auth/reset-password?token={token}"
     subject = "Password Reset Request"
     # Escape user-controlled input to prevent stored XSS (CWE-79)
     import html as html_module
@@ -439,7 +464,8 @@ async def verify_token(
         PasswordResetToken.expires_at > datetime.now(timezone.utc)
     ).first()
     
-    if not reset_token:
+    user = db.query(User).filter(User.id == reset_token.user_id).first() if reset_token else None
+    if not reset_token or not _recovery_user_allowed(user, reset_token):
         return {"valid": False, "message": "Invalid or expired token"}
     
     return {"valid": True, "message": "Token is valid"}
@@ -450,28 +476,96 @@ async def reset_password(
     db: Session = Depends(get_db),
     _rl=Depends(reset_password_rate_limit),
 ):
-    """Reset the user's password using a valid token."""
+    """Consume one exact recovery token and update its current account atomically."""
+    from fastapi.responses import JSONResponse
+    from sqlalchemy.exc import IntegrityError
     token_hash = hashlib.sha256(request.token.encode()).hexdigest()
     reset_token = db.query(PasswordResetToken).filter(
         PasswordResetToken.token == token_hash,
-        PasswordResetToken.used == False,
-        PasswordResetToken.expires_at > datetime.now(timezone.utc)
+        PasswordResetToken.used.is_(False),
+        PasswordResetToken.expires_at > datetime.now(timezone.utc),
     ).first()
-    
-    if not reset_token:
+    user = db.query(User).filter(User.id == reset_token.user_id).first() if reset_token else None
+    if not reset_token or not _recovery_user_allowed(user, reset_token):
         raise HTTPException(status_code=400, detail="Invalid or expired token")
-    
-    user = db.query(User).filter(User.id == reset_token.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Update password
-    user.hashed_password = get_password_hash(request.password)
-    reset_token.mark_as_used()
-    db.commit()
-    
-    logger.info(f"Password reset successful for user {user.id}")
-    return {"success": True, "message": "Password reset successfully"}
+
+    # Freeze scalar material BEFORE hashing. ORM instances may expire/reload
+    # while a peer commits; they must never silently refresh our expectation.
+    reset_id, user_id = reset_token.id, user.id
+    expiry, token_tenant = reset_token.expires_at, reset_token.tenant_id
+    old_hash, tenant, workspace = user.hashed_password, user.tenant_id, user.workspace_id
+    email, role, user_status = user.email, user.role, user.status
+    operation_id = "password-reset:" + str(reset_id)
+    commit_attempted = commit_confirmed = False
+    stage = "hash"
+    try:
+        new_hash = get_password_hash(request.password)
+        if not verify_password(request.password, new_hash):
+            raise ValueError("credential proof failed")
+        stage = "claim"
+        actor = db.execute(update(User).where(
+            User.id == user_id, User.hashed_password == old_hash,
+            User.tenant_id == tenant, User.workspace_id == workspace,
+            User.email == email, User.role == role, User.status == user_status,
+            User.is_active.is_(True),
+        ).values(hashed_password=new_hash).execution_options(synchronize_session=False))
+        if actor.rowcount != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Recovery authorization changed. Request a new reset link.")
+        token = db.execute(update(PasswordResetToken).where(
+            PasswordResetToken.id == reset_id, PasswordResetToken.user_id == user_id,
+            PasswordResetToken.token == token_hash, PasswordResetToken.tenant_id == token_tenant,
+            PasswordResetToken.used.is_(False), PasswordResetToken.expires_at == expiry,
+            PasswordResetToken.expires_at > datetime.now(timezone.utc),
+        ).values(used=True, used_at=datetime.now(timezone.utc)).execution_options(synchronize_session=False))
+        if token.rowcount != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Reset link has changed or was already used. Request a new link.")
+        # A successful recovery invalidates every other outstanding link.
+        # Issuance claims this same account first, serializing concurrent writers.
+        db.execute(update(PasswordResetToken).where(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.used.is_(False),
+        ).values(used=True, used_at=datetime.now(timezone.utc))
+          .execution_options(synchronize_session=False))
+        # No dirty ORM assignment may issue an unconditional credential update.
+        db.expire_all()
+        stage = "commit"
+        commit_attempted = True
+        db.commit()
+        commit_confirmed = True
+        stage = "readback"
+        with Session(bind=db.get_bind()) as fresh:
+            current = fresh.get(User, user_id)
+            receipt = fresh.get(PasswordResetToken, reset_id)
+            verified = bool(current and receipt and receipt.used
+                and receipt.user_id == user_id and receipt.tenant_id == token_tenant
+                and _recovery_user_allowed(current, receipt)
+                and current.tenant_id == tenant and current.workspace_id == workspace
+                and current.email == email and current.role == role
+                and current.hashed_password == new_hash
+                and verify_password(request.password, current.hashed_password))
+        if not verified:
+            raise ValueError("credential readback mismatch")
+        return {"success": True, "message": "Password reset successfully. Sign in with your new password.",
+                "operation_id": operation_id, "verification": {"status": "verified", "effect": "committed"}}
+    except HTTPException:
+        raise
+    except Exception as error:
+        rolled_back = False
+        try:
+            db.rollback()
+            rolled_back = True
+        except Exception:
+            pass
+        logger.warning("Password recovery failed stage=%s error_class=%s", stage, type(error).__name__)
+        no_effect = not commit_confirmed and rolled_back and (not commit_attempted or isinstance(error, IntegrityError))
+        effect = "none" if no_effect else "committed" if commit_confirmed else "unknown"
+        return JSONResponse(status_code=409 if no_effect else 503, content={
+            "success": False, "detail": "Password change could not be confirmed. Try signing in before requesting another reset.",
+            "operation_id": operation_id, "replay": "do_not_repeat",
+            "verification": {"status": "refused" if no_effect else "unavailable", "effect": effect},
+        })
 
 @router.post("/refresh")
 async def refresh_token(current_user: User = Depends(get_current_user)):

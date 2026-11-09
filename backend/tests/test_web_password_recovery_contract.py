@@ -1,4 +1,4 @@
-"""Recovery must be available at the exact auth router mounted by normal main."""
+"""Recovery uses normal main's registry-loaded auth plus its mobile router."""
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -7,9 +7,11 @@ from api.auth_routes import router
 
 @pytest.fixture
 def recovery_client(db_session, monkeypatch):
-    # This is the same router main_api_app mounts. It does not mount the
-    # unrelated safe-app core auth router or perform a mail/provider action.
+    # Main eagerly loads core auth through its existing plugin registry before
+    # adding the mobile router. Mobile alone was an incomplete reproduction.
+    from core.lazy_integration_registry import load_integration
     app=FastAPI()
+    app.include_router(load_integration('auth', registry='api_routers'))
     app.include_router(router)
     from core.database import get_db
     import core.auth_endpoints as recovery
@@ -37,19 +39,19 @@ def test_normal_mounted_auth_recovery_route_has_its_validation_boundary(recovery
     assert response.status_code==422,response.text
 
 
-def test_normal_recovery_mount_reuses_one_existing_handler_per_path():
+def test_normal_recovery_mount_reuses_one_existing_handler_per_path(recovery_client):
     from core.auth_endpoints import forgot_password,verify_token,reset_password
     expected={'/api/auth/forgot-password':forgot_password,
               '/api/auth/verify-token':verify_token,
               '/api/auth/reset-password':reset_password}
     for path,handler in expected.items():
-        matches=[route for route in router.routes if route.path==path and 'POST' in route.methods]
+        matches=[route for route in recovery_client.app.routes if route.path==path and 'POST' in route.methods]
         assert len(matches)==1
         assert matches[0].endpoint is handler
 
 
 def known_recovery_user(client):
-    from core.models import Tenant
+    from core.models import Tenant,Workspace
     from tests.test_covpush_canvasroutes import _make_user
     from core.auth import get_password_hash
     db=client.recovery_db
@@ -57,7 +59,11 @@ def known_recovery_user(client):
         if db.get(Tenant,identity) is None:
             db.add(Tenant(id=identity,name=identity,subdomain='recovery-'+identity))
     db.commit()
+    if db.get(Workspace,'recovery-workspace') is None:
+        db.add(Workspace(id='recovery-workspace',name='Recovery workspace',tenant_id='t1',status='active'))
+        db.commit()
     user=_make_user(db)
+    user.workspace_id='recovery-workspace'
     user.hashed_password=get_password_hash('InitialPassword1!')
     db.commit()
     return user
@@ -91,7 +97,7 @@ def test_unavailable_mail_is_global_non_enumerating_and_mints_no_token(recovery_
     user=known_recovery_user(recovery_client)
     for name in ['SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASSWORD']:monkeypatch.delenv(name,raising=False)
     known=recovery_client.post('/api/auth/forgot-password',json={'email':user.email})
-    unknown=recovery_client.post('/api/auth/forgot-password',json={'email':'absent@example.test'})
+    unknown=recovery_client.post('/api/auth/forgot-password',json={'email':'absent@example.com'})
     assert known.status_code==unknown.status_code==503
     assert known.json()==unknown.json()
     assert recovery_client.recovery_db.query(PasswordResetToken).count()==0
@@ -140,3 +146,132 @@ def test_foreign_token_scope_cannot_change_the_current_account(recovery_client):
     assert response.status_code in (400,403,409),response.text
     db.expire_all()
     assert verify_password('InitialPassword1!',db.get(User,user_id).hashed_password)
+
+
+def test_valid_recovery_is_one_use_and_normal_login_uses_the_new_credential(recovery_client):
+    from core.models import PasswordResetToken
+    client=recovery_client;user=known_recovery_user(client)
+    email=user.email
+    _,_,token=request_captured_recovery(client,user)
+    assert client.post('/api/auth/verify-token',json={'token':token}).json()['valid'] is True
+    response=client.post('/api/auth/reset-password',json={'token':token,'password':'ChangedPassword1!'})
+    assert response.status_code==200,response.text
+    assert response.json()['verification']['status']=='verified'
+    assert 'access_token' not in response.json()
+    assert client.recovery_db.query(PasswordResetToken).one().used is True
+    assert client.post('/api/auth/reset-password',json={'token':token,'password':'SecondPassword1!'}).status_code==400
+    assert client.post('/api/auth/login',json={'username':email,'password':'InitialPassword1!'}).status_code==401
+    signed_in=client.post('/api/auth/login',json={'username':email,'password':'ChangedPassword1!'})
+    assert signed_in.status_code==200
+    assert 'access_token' in signed_in.json()
+
+
+@pytest.mark.parametrize('condition',['used','expired','inactive'])
+def test_unusable_recovery_keeps_the_account_unchanged(recovery_client,condition):
+    from core.models import PasswordResetToken,User
+    from core.auth import verify_password
+    from datetime import datetime,timedelta,timezone
+    client=recovery_client;user=known_recovery_user(client)
+    _,_,token=request_captured_recovery(client,user)
+    db=client.recovery_db;row=db.query(PasswordResetToken).one();user_id=user.id
+    if condition=='used':row.used=True
+    if condition=='expired':row.expires_at=datetime.now(timezone.utc)-timedelta(minutes=1)
+    if condition=='inactive':user.is_active=False
+    db.commit()
+    assert client.post('/api/auth/verify-token',json={'token':token}).json()['valid'] is False
+    response=client.post('/api/auth/reset-password',json={'token':token,'password':'DeniedPassword1!'})
+    assert response.status_code==400,response.text
+    db.expire_all();assert verify_password('InitialPassword1!',db.get(User,user_id).hashed_password)
+
+
+@pytest.mark.parametrize('raw_tenant',[None,'','default'])
+def test_personal_scope_aliases_remain_supported(recovery_client,raw_tenant):
+    client=recovery_client;user=known_recovery_user(client)
+    user.tenant_id=raw_tenant;user.workspace_id=None;client.recovery_db.commit()
+    _,_,token=request_captured_recovery(client,user)
+    response=client.post('/api/auth/reset-password',json={'token':token,'password':'PersonalPassword1!'})
+    assert response.status_code==200,response.text
+    assert response.json()['verification']['status']=='verified'
+
+
+@pytest.mark.parametrize('fault',['lost_commit','readback'])
+def test_uncertain_reset_keeps_original_identity_without_authentication_grant(recovery_client,monkeypatch,fault):
+    import core.auth_endpoints as recovery
+    from core.models import PasswordResetToken,User
+    from core.auth import verify_password
+    client=recovery_client;user=known_recovery_user(client)
+    _,_,token=request_captured_recovery(client,user)
+    db=client.recovery_db;reset_id=db.query(PasswordResetToken).one().id;user_id=user.id
+    if fault=='lost_commit':
+        native=db.commit
+        def lost():
+            native();raise RuntimeError('confirmation unavailable')
+        monkeypatch.setattr(db,'commit',lost)
+    else:
+        def unavailable(*args,**kwargs):raise RuntimeError('readback unavailable')
+        monkeypatch.setattr(recovery,'Session',unavailable)
+    response=client.post('/api/auth/reset-password',json={'token':token,'password':'CommittedPassword1!'})
+    assert response.status_code==503,response.text
+    body=response.json()
+    assert body['operation_id']=='password-reset:'+reset_id
+    assert body['replay']=='do_not_repeat' and 'access_token' not in body
+    assert body['verification']['effect']==('unknown' if fault=='lost_commit' else 'committed')
+    db.expire_all()
+    assert db.get(PasswordResetToken,reset_id).used is True
+    assert verify_password('CommittedPassword1!',db.get(User,user_id).hashed_password)
+
+
+def test_confirmed_integrity_rollback_is_no_effect_and_does_not_log_material(recovery_client,monkeypatch,caplog):
+    from sqlalchemy.exc import IntegrityError
+    from core.models import PasswordResetToken,User
+    from core.auth import verify_password
+    import secrets
+    client=recovery_client;user=known_recovery_user(client)
+    _,_,token=request_captured_recovery(client,user)
+    db=client.recovery_db;user_id=user.id;marker=secrets.token_urlsafe(24)
+    def failed():raise IntegrityError('credential update',{'private_value':marker},Exception('rejected'))
+    monkeypatch.setattr(db,'commit',failed)
+    response=client.post('/api/auth/reset-password',json={'token':token,'password':'RolledBackPassword1!'})
+    assert response.status_code==409,response.text
+    assert response.json()['verification']['effect']=='none'
+    assert marker not in response.text and marker not in caplog.text
+    db.expire_all()
+    assert db.query(PasswordResetToken).one().used is False
+    assert verify_password('InitialPassword1!',db.get(User,user_id).hashed_password)
+
+
+def test_successful_recovery_invalidates_other_outstanding_links(recovery_client):
+    user=known_recovery_user(recovery_client)
+    _,_,first=request_captured_recovery(recovery_client,user)
+    recovery_client.captured_recovery_mail.clear()
+    _,_,second=request_captured_recovery(recovery_client,user)
+    assert first != second
+    result=recovery_client.post('/api/auth/reset-password',json={'token':first,'password':'RecoveredPassword1!'})
+    assert result.status_code==200,result.text
+    assert result.json()['verification']['status']=='verified'
+    assert recovery_client.post('/api/auth/verify-token',json={'token':second}).json()['valid'] is False
+    assert recovery_client.post('/api/auth/reset-password',json={'token':second,'password':'OldLinkPassword1!'}).status_code==400
+
+
+def test_recovery_issuance_cannot_outlive_a_peer_credential_change(recovery_client,monkeypatch):
+    from sqlalchemy import update
+    from sqlalchemy.orm import Session
+    from core.models import User,PasswordResetToken
+    import core.auth_endpoints as recovery
+    user=known_recovery_user(recovery_client)
+    user_id,email=user.id,user.email
+    native=recovery.secrets.token_urlsafe
+    winner=recovery.get_password_hash('PeerWinnerPassword1!')
+    def interleave(size):
+        with Session(bind=recovery_client.recovery_db.get_bind()) as peer:
+            peer.execute(update(User).where(User.id==user_id).values(hashed_password=winner))
+            peer.commit()
+        return native(size)
+    monkeypatch.setattr(recovery.secrets,'token_urlsafe',interleave)
+    result=recovery_client.post('/api/auth/forgot-password',json={'email':email})
+    assert result.status_code==409,result.text
+    db=recovery_client.recovery_db
+    db.expire_all()
+    assert db.get(User,user_id).hashed_password==winner
+    assert db.query(PasswordResetToken).count()==0
+    assert recovery_client.captured_recovery_mail==[]

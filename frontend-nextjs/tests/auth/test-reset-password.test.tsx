@@ -23,10 +23,12 @@ describe('ResetPassword Component', () => {
       query: { token: mockToken },
       pathname: '/auth/reset-password',
     });
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = jest.fn().mockImplementation(async (url) => ({
       ok: true,
-      json: async () => ({ valid: true }),
-    }) as jest.Mock;
+      json: async () => url === '/api/auth/verify-token'
+        ? { valid: true }
+        : { success: true, verification: { status: 'verified', effect: 'committed' } },
+    })) as jest.Mock;
   });
 
   afterEach(() => {
@@ -407,4 +409,42 @@ describe('ResetPassword Component', () => {
       });
     });
   });
+  describe('Recovery receipt finality', () => {
+    it('does not show success or redirect for an unverified committed response', async () => {
+      (global.fetch as jest.Mock).mockImplementation(async (url) => ({
+        ok: true,
+        json: async () => url === '/api/auth/verify-token' ? { valid: true } : {
+          success: true, status: 'committed_unverified',
+          verification: { status: 'unavailable', effect: 'committed' },
+        },
+      }));
+      render(<ResetPassword />);
+      await screen.findByPlaceholderText(/new password/i);
+      await userEvent.type(screen.getByPlaceholderText(/new password/i), 'CurrentPassword1!');
+      await userEvent.type(screen.getByPlaceholderText(/confirm password/i), 'CurrentPassword1!');
+      fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+      await screen.findByText(/password change could not be confirmed/i);
+      expect(screen.queryByText(/password reset successful/i)).not.toBeInTheDocument();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it('cancels the scheduled sign-in redirect when the user leaves the page', async () => {
+      jest.useFakeTimers();
+      try {
+        const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+        const view = render(<ResetPassword />);
+        await screen.findByPlaceholderText(/new password/i);
+        await user.type(screen.getByPlaceholderText(/new password/i), 'CurrentPassword1!');
+        await user.type(screen.getByPlaceholderText(/confirm password/i), 'CurrentPassword1!');
+        fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+        await screen.findByText(/password reset successful/i);
+        view.unmount();
+        jest.advanceTimersByTime(3000);
+        expect(mockPush).not.toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  });
+
 });
