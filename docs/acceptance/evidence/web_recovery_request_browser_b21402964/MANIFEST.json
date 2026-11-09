@@ -1,0 +1,17 @@
+{
+  "executed_source": "b21402964e11403bfe3a8dde7beea150af192e15",
+  "source_files": {
+    "backend/main_api_app.py": "sha256:323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/core/lazy_integration_registry.py": "sha256:98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698",
+    "backend/core/auth_endpoints.py": "sha256:39cc003e77fec0b72f617fbf73dc6b02ab9e496a27ce5633be6ca71cda39e063",
+    "frontend-nextjs/pages/auth/forgot-password.tsx": "sha256:0d25988863a624508252e5c57eb1cd66a2b5083ae87fe8f05d01503d56eb74f7",
+    "frontend-nextjs/pages/auth/reset-password.tsx": "sha256:ae770cb1dd5d0272c0c5e9b26ced27b155674fbd1ee524ff8df305d308bfde43",
+    "frontend-nextjs/pages/api/auth/forgot-password.ts": "sha256:4e82271086fd5c4d9e28a4e339498f5a66f2d8aaba0ea9bee94ac2d947c0ee7b",
+    "frontend-nextjs/pages/api/auth/reset-password.ts": "sha256:fca7a8a9a14891def14b317dbd3ba895dad1af71a19f57e2a76fa430191da4f6",
+    "frontend-nextjs/next.config.js": "sha256:e3064054bd6d6b339c439df126f92d346b4f9c25976bb31324581e9b6d36271f"
+  },
+  "artifacts": {
+    "checkpoint.json": "sha256:594023508ffc2dc877219be08aed7b876fe1d1407da34717fb8c9f831d75071c",
+    "README.md": "sha256:b16c9bfb0f5831a8e63e6bc33376b85457529dbca90751a275444e4df2039357"
+  }
+}
