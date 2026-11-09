@@ -1,0 +1,31 @@
+{
+  "executed_source": "8b3ca2671",
+  "source_files": {
+    "frontend-nextjs/next.config.js": "e3064054bd6d6b339c439df126f92d346b4f9c25976bb31324581e9b6d36271f",
+    "frontend-nextjs/lib/backend-api-proxy.ts": "17a1d2bf951c26bf1965605de184908c26930594167f5106821fa700fb32c7b1",
+    "frontend-nextjs/pages/api/v1/tasks.ts": "dd466ea274225ae136503f57b8b1ca0a5e143e3af9d3e4e24ea99a1f510e4c0a",
+    "frontend-nextjs/pages/api/v1/tasks/[id].ts": "b9cf03b53173e45a5b3c43f9ff44711976f32b313214fe9c060513a7ab1349df",
+    "frontend-nextjs/pages/api/v1/projects.ts": "7fc8b6e8c5f47f65574329667afa069a4662e929229ef638eb9c4849102664d2",
+    "frontend-nextjs/pages/api/v1/projects/[id].ts": "77d35ec682d28f5bfec550e2d3d17217bc22c4d2761972325265150a39fce8de",
+    "backend/api/nav_stub_routes.py": "db14cf39d16ef9a13dc66cb6d7bdfda9fe7de2e03dfed01a27d17cc9298eca70",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/auth_endpoints.py": "bf7c344519f519a39d68656c7fe687dd8d8befbabb5c2b39959a416231e66105",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/service_delivery/models.py": "64586d8c576bda0b658acd46c18433b147ad2ba358653da286c0f2eef0b04a69",
+    "backend/sales/models.py": "902a3897c59e580993d7b25c130ecadf4cb8be43208d9eb2f8f17212ec284e80",
+    "backend/accounting/models.py": "f208b14f61529f078bb48b449bfdf187576df7cff0ed0a96b766c74221a55efb"
+  },
+  "artifacts": {
+    "backend-phase1.log": "4d18fdb90d7df4a5251c4a139054bf8700fddf090b43956d333f9f7363490538",
+    "README.md": "8412768a6057e7435b1ece0c3e9fb554aab71d87195e43d3f5a66ef55acd05f4",
+    "controlled-http-app.py": "6b5445222efe467270d70c23214bd63315a8feaa6f055967de6531244022d6ba",
+    "anonymous-after.json": "3a2c83ab2e19aeb426c63f1e865e9dac524e6e82f08abf0ef47824f883ee9b72",
+    "restart.json": "f40b8c252aadff732f341ebddfa4abe40f73461d2c24942e27ef1d71ed459987",
+    "verification.json": "1502f16534dcb5b703734b5798437b454a5e761c01eaf8e1e3173aa2d93e5682",
+    "anonymous-before.json": "54b23f922f676905dbac63f784765575a567aca3be914010196b6ca8e5537244",
+    "backend-restart.log": "15a88805212f4ac7a2271435ea06029676e9b3c92a16767744a126679675aa46",
+    "phase1.json": "a3f49b20980ce34ba09f7f8431dcc99dfce21e0766974d9a0be3a2a89aee827b"
+  }
+}

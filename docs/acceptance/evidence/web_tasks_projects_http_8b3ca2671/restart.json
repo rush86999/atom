@@ -1,0 +1,10 @@
+{
+  "source": "8b3ca2671",
+  "scope": "actual Next HTTP + real auth and tasks/projects routers, same scratch DB across separate backend processes; not full main_api_app or browser",
+  "same_task_id": true,
+  "same_project_id": true,
+  "task_status_retained": true,
+  "project_edit_retained": true,
+  "checks": 4,
+  "passed": 4
+}
