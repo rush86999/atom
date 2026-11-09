@@ -14,7 +14,7 @@
  * - Good for less critical data
  */
 
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Types
@@ -55,7 +55,7 @@ export interface StorageBreakdown {
 }
 
 // Initialize MMKV
-const mmkv = new MMKV({
+const mmkv = createMMKV({
   id: 'atom-storage',
   encryptionKey: 'atom-encryption-key', // In production, get from secure storage
 });
@@ -88,7 +88,7 @@ const COMPRESSION_THRESHOLD = 1024; // Compress items > 1KB
  * Storage Service Class
  */
 class StorageService {
-  private quota: StorageQuota;
+  private quota: StorageQuota | null = null;
   private compressionEnabled: boolean = true;
   /**
    * Store a string value
@@ -114,7 +114,7 @@ class StorageService {
   getString(key: StorageKey): string | null {
     try {
       if (MMKV_KEYS.has(key)) {
-        return mmkv.getString(key);
+        return mmkv.getString(key) ?? null;
       } else {
         // AsyncStorage is async, but we need sync here
         // Return null and use getStringAsync for async storage keys
@@ -133,7 +133,7 @@ class StorageService {
   async getStringAsync(key: StorageKey): Promise<string | null> {
     try {
       if (MMKV_KEYS.has(key)) {
-        return mmkv.getString(key);
+        return mmkv.getString(key) ?? null;
       } else {
         return await AsyncStorage.getItem(key);
       }
@@ -192,7 +192,7 @@ class StorageService {
   async getNumber(key: StorageKey): Promise<number | null> {
     try {
       if (MMKV_KEYS.has(key)) {
-        return mmkv.getNumber(key);
+        return mmkv.getNumber(key) ?? null;
       } else {
         const str = await this.getStringAsync(key);
         return str !== null ? parseFloat(str) : null;
@@ -226,7 +226,7 @@ class StorageService {
   async getBoolean(key: StorageKey): Promise<boolean | null> {
     try {
       if (MMKV_KEYS.has(key)) {
-        return mmkv.getBoolean(key);
+        return mmkv.getBoolean(key) ?? null;
       } else {
         const str = await this.getStringAsync(key);
         return str !== null ? str === 'true' : null;
@@ -243,7 +243,7 @@ class StorageService {
   async delete(key: StorageKey): Promise<boolean> {
     try {
       if (MMKV_KEYS.has(key)) {
-        mmkv.delete(key);
+        mmkv.remove(key);
         return true;
       } else {
         await AsyncStorage.removeItem(key);
@@ -278,8 +278,7 @@ class StorageService {
   async clear(): Promise<boolean> {
     try {
       // Clear MMKV
-      const keys = mmkv.getAllKeys();
-      keys.forEach((key) => mmkv.delete(key));
+      mmkv.clearAll();
 
       // Clear AsyncStorage
       await AsyncStorage.clear();
@@ -314,7 +313,7 @@ class StorageService {
    */
   async getStats(): Promise<StorageStats> {
     try {
-      const mmkvSize = mmkv.getSizeInBytes();
+      const mmkvSize = mmkv.size;
       const asyncKeys = await AsyncStorage.getAllKeys();
       let asyncStorageSize = 0;
 
@@ -344,10 +343,7 @@ class StorageService {
    * Get storage quota information
    */
   async getStorageQuota(): Promise<StorageQuota> {
-    if (!this.quota) {
-      await this.initializeQuota();
-    }
-    return this.quota;
+    return this.quota ?? await this.initializeQuota();
   }
 
   /**
@@ -411,8 +407,8 @@ class StorageService {
 
     try {
       // Get all cache keys with their sizes
-      const breakdown = await this.getStorageBreakdown();
-      const entries = Object.entries(breakdown).sort(([, a], [, b]) => a - b); // Sort by size (smallest first)
+      const quota = await this.getStorageQuota();
+      const entries = Object.entries(quota.breakdown).sort(([, a], [, b]) => a - b); // Sort by size (smallest first)
 
       let freedBytes = 0;
 
@@ -432,7 +428,7 @@ class StorageService {
       }
 
       // Update quota
-      this.quota.usedBytes -= freedBytes;
+      quota.usedBytes -= freedBytes;
 
       return freedBytes;
     } catch (error) {
@@ -498,10 +494,10 @@ class StorageService {
 
   // Private helper methods
 
-  private async initializeQuota(): Promise<void> {
+  private async initializeQuota(): Promise<StorageQuota> {
     const stats = await this.getStats();
 
-    this.quota = {
+    const quota: StorageQuota = {
       usedBytes: stats.mmkvSize + stats.asyncStorageSize,
       maxBytes: DEFAULT_MAX_BYTES,
       warningThreshold: WARNING_THRESHOLD,
@@ -516,7 +512,11 @@ class StorageService {
     };
 
     // Save quota to storage
-    await this.setObject('storage_quota' as StorageKey, this.quota);
+    if (!(await this.setObject('storage_quota' as StorageKey, quota))) {
+      throw new Error('Failed to persist storage quota');
+    }
+    this.quota = quota;
+    return quota;
   }
 
   /**

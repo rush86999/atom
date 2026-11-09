@@ -17,23 +17,23 @@ import { storageService, StorageKey } from '../../services/storageService';
 
 // Mock MMKV
 jest.mock('react-native-mmkv', () => ({
-  MMKV: jest.fn().mockImplementation(() => ({
+  createMMKV: jest.fn().mockImplementation(() => ({
     set: jest.fn(),
     getString: jest.fn(),
     getNumber: jest.fn(),
     getBoolean: jest.fn(),
-    delete: jest.fn(),
+    remove: jest.fn(),
     clearAll: jest.fn(),
     getAllKeys: jest.fn(() => []),
-    getSizeInBytes: jest.fn(() => 0),
+    size: 0,
   })),
 }));
 
 /** The MMKV instance storageService created at module load (jest.clearAllMocks
  *  in beforeEach wipes mock.results, so capture it once at module scope). */
 const mmkvInstance = (() => {
-  const { MMKV } = require('react-native-mmkv');
-  return (MMKV as jest.Mock).mock.results[0].value;
+  const { createMMKV } = jest.requireMock<typeof import('react-native-mmkv')>('react-native-mmkv');
+  return jest.mocked(createMMKV).mock.results[0].value;
 })();
 
 // Mock AsyncStorage

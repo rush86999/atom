@@ -66,7 +66,7 @@ describe('StorageService', () => {
     });
 
     test('should return null for non-existent MMKV key', () => {
-      const value = storageService.getString('non_existent_key');
+      const value = storageService.getString('auth_token');
 
       expect(value).toBeNull();
     });
@@ -144,7 +144,7 @@ describe('StorageService', () => {
     });
 
     test('should return null for non-existent number key', async () => {
-      const retrieved = await storageService.getNumber('non_existent_key');
+      const retrieved = await storageService.getNumber('user_id');
 
       expect(retrieved).toBeNull();
     });
@@ -206,7 +206,7 @@ describe('StorageService', () => {
     });
 
     test('should return null for non-existent boolean key', async () => {
-      const retrieved = await storageService.getBoolean('non_existent_key');
+      const retrieved = await storageService.getBoolean('biometric_enabled');
 
       expect(retrieved).toBeNull();
     });
@@ -386,7 +386,7 @@ describe('StorageService', () => {
     });
 
     test('should return null for non-existent object key', async () => {
-      const retrieved = await storageService.getObject<any>('non_existent_key');
+      const retrieved = await storageService.getObject<any>('episode_cache');
 
       expect(retrieved).toBeNull();
     });
@@ -609,7 +609,7 @@ describe('StorageService', () => {
     test('should handle cleanup errors gracefully', async () => {
       // Mock delete to throw error
       const mockMMKV = (global as any).__mmkvGlobalInstance;
-      mockMMKV.delete.mockImplementationOnce(() => {
+      mockMMKV.remove.mockImplementationOnce(() => {
         throw new Error('Delete failed');
       });
 
@@ -617,7 +617,7 @@ describe('StorageService', () => {
       // MMKV delete-once above must be consumed explicitly (otherwise it
       // leaks into later tests and breaks their deletes)
       try {
-        mockMMKV.delete('sync_state');
+        mockMMKV.remove('sync_state');
       } catch (e) {
         // expected
       }
@@ -953,7 +953,7 @@ describe('StorageService', () => {
 
     test('should return false on delete error', async () => {
       const mockMMKV = (global as any).__mmkvGlobalInstance;
-      mockMMKV.delete.mockImplementationOnce(() => {
+      mockMMKV.remove.mockImplementationOnce(() => {
         throw new Error('Delete failed');
       });
 

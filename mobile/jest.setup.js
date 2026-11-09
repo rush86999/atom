@@ -605,61 +605,47 @@ jest.mock('react-native-mmkv', () => {
     set: jest.fn((key, value) => {
       mockMmkvStorage.set(key, value);
     }),
-    get: jest.fn((key) => {
-      return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : undefined;
-    }),
     getString: jest.fn((key) => {
-      // This is the critical fix - return string or null
-      return mockMmkvStorage.has(key) ? String(mockMmkvStorage.get(key)) : null;
+      const value = mockMmkvStorage.get(key);
+      return typeof value === 'string' ? value : undefined;
     }),
     getNumber: jest.fn((key) => {
       const val = mockMmkvStorage.get(key);
-      return typeof val === 'number' ? val : null;
+      return typeof val === 'number' ? val : undefined;
     }),
     getBoolean: jest.fn((key) => {
       const val = mockMmkvStorage.get(key);
-      return typeof val === 'boolean' ? val : null;
+      return typeof val === 'boolean' ? val : undefined;
     }),
-    delete: jest.fn((key) => {
-      mockMmkvStorage.delete(key);
-    }),
+    remove: jest.fn((key) => mockMmkvStorage.delete(key)),
     contains: jest.fn((key) => {
       return mockMmkvStorage.has(key);
     }),
     getAllKeys: jest.fn(() => {
       return Array.from(mockMmkvStorage.keys());
     }),
-    removeAll: jest.fn(() => {
+    clearAll: jest.fn(() => {
       mockMmkvStorage.clear();
     }),
-    getSizeInBytes: jest.fn(() => {
+    get size() {
       return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
         return acc + key.length + String(value).length;
       }, 0);
-    }),
+    },
   });
 
   // Create a single global MMKV instance that will be used by all tests
   const globalMMKVInstance = createMMKVMock();
 
-  // Support both MMKV() constructor and direct module usage
-  const MMKVConstructor = jest.fn(() => globalMMKVInstance);
-
   const mockModule = {
-    MMKV: MMKVConstructor,
     createMMKV: jest.fn(() => globalMMKVInstance),
   };
 
   // Store instance globally for reset access
   global.__mmkvGlobalInstance = globalMMKVInstance;
 
-  // Default export
-  Object.defineProperty(mockModule, 'default', {
-    value: mockModule,
-    enumerable: false,
-  });
   return mockModule;
-}, { virtual: true });
+});
 
 // Components also import react-native-vector-icons/Ionicons directly
 // (jest-expo maps it to @expo/vector-icons/Ionicons, but the registry check
@@ -690,15 +676,13 @@ global.__resetMmkvMock = () => {
   // Clear all mock call history
   if (global.__mmkvGlobalInstance) {
     global.__mmkvGlobalInstance.set.mockClear();
-    global.__mmkvGlobalInstance.get.mockClear();
     global.__mmkvGlobalInstance.getString.mockClear();
     global.__mmkvGlobalInstance.getNumber.mockClear();
     global.__mmkvGlobalInstance.getBoolean.mockClear();
-    global.__mmkvGlobalInstance.delete.mockClear();
+    global.__mmkvGlobalInstance.remove.mockClear();
     global.__mmkvGlobalInstance.contains.mockClear();
     global.__mmkvGlobalInstance.getAllKeys.mockClear();
-    global.__mmkvGlobalInstance.removeAll.mockClear();
-    global.__mmkvGlobalInstance.getSizeInBytes.mockClear();
+    global.__mmkvGlobalInstance.clearAll.mockClear();
   }
 };
 
