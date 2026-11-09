@@ -1,0 +1,13 @@
+{
+  "executed_source": "74f017752cf0d5467f653a0aa3005c71a00a4b82",
+  "worker_passed": 12,
+  "independent_passed": 12,
+  "new_unique_controls": 4,
+  "existing_controls_preserved": 8,
+  "runtime_files_changed": 0,
+  "physical_soak": false,
+  "model_transport": "scripted existing fixture",
+  "public_route": "real Generic information wait/job answer",
+  "authentication": "seeded dependency fixture; current SQL authority independently checked",
+  "same_effect": "real registered Oracle-verified BoardTask, count1; duplicate inert"
+}
