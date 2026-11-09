@@ -1,0 +1,22 @@
+{
+  "executed_source": "cfacc753ccfbe66add8e6c2e7432ca4ac0413446",
+  "checks": {
+    "clean_source": true,
+    "same_scratch_database": true,
+    "core_profile_configuration": true,
+    "same_original_canvas": true,
+    "ordinary_member": true,
+    "original_history_unchanged": true,
+    "two_intentional_new_writes": true,
+    "same_exact_latest_text": true,
+    "manual_type_pinned": true,
+    "distinct_logical_operation": true,
+    "reload_shows_type_and_text": true
+  },
+  "passed": 11,
+  "frontend_node": "20.20.2",
+  "backend_python": "3.11.16",
+  "browser_save_kind": "ordinary edit autosaved before type selection; one manual type change",
+  "backend_restarted_during_this_episode": false,
+  "servers_stopped": true
+}
