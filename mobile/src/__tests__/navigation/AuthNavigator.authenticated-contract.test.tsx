@@ -4,7 +4,9 @@ import { mockAllScreens, SCREEN_TEST_IDS } from '../helpers/navigationMocks';
 
 // Screen content is controlled; both navigator implementations are real.
 mockAllScreens();
-jest.mock('../../contexts/AuthContext', () => ({useAuth: () => ({isAuthenticated: true, isLoading: false})}));
+let mockSignedIn = true;
+beforeEach(() => { mockSignedIn = true; });
+jest.mock('../../contexts/AuthContext', () => ({useAuth: () => ({isAuthenticated: mockSignedIn, isLoading: false})}));
 const {AuthNavigator}: typeof import('../../navigation/AuthNavigator') = require('../../navigation/AuthNavigator');
 
 test('authenticated root mounts the real tab navigator under one navigation container', async () => {
@@ -14,9 +16,33 @@ test('authenticated root mounts the real tab navigator under one navigation cont
 });
 
 
-test.each(['workflow/wf-123', 'agent/agent-123', 'execution/exec-123'])('real parser resolves %s to the registered authenticated tree', path => {
+test.each([
+  {path: 'workflow/wf-123', tab: 'WorkflowsTab', screen: 'WorkflowDetail', params: {workflowId: 'wf-123'}},
+  {path: 'agent/agent-123', tab: 'AgentsTab', screen: 'AgentChat', params: {agentId: 'agent-123'}},
+  {path: 'execution/exec-123', tab: 'WorkflowsTab', screen: 'ExecutionProgress', params: {executionId: 'exec-123'}},
+  {path: 'workflow/PO%2F0007?source=review', tab: 'WorkflowsTab', screen: 'WorkflowDetail', params: {workflowId: 'PO/0007', source: 'review'}},
+])('real parser resolves $path with exact leaf identity', ({path, tab, screen, params}) => {
   const {getStateFromPath} = jest.requireActual('@react-navigation/native');
   const {linking} = require('../../navigation/AuthNavigator');
   const state = getStateFromPath(path, linking.config);
-  expect(state.routes[0].name).toBe('Main');
+  expect(state).toMatchObject({routes: [{name: 'Main', state: {routes: [{name: tab, state: {routes: [{name: screen, params}]}}]}}]});
+});
+
+test('canvas deep link targets the actual registered viewer name', () => {
+  const {getStateFromPath} = jest.requireActual('@react-navigation/native');
+  const {linking} = require('../../navigation/AuthNavigator');
+  expect(getStateFromPath('canvas/canvas-123', linking.config)).toMatchObject({routes: [{name: 'CanvasViewer', params: {canvasId: 'canvas-123'}}]});
+});
+
+test('logout and login switch the real root without retaining protected tabs', async () => {
+  const view = render(<AuthNavigator />);
+  await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
+  mockSignedIn = false;
+  view.rerender(<AuthNavigator />);
+  await waitFor(() => expect(view.getByTestId('login-screen')).toBeTruthy());
+  expect(view.queryByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeNull();
+  mockSignedIn = true;
+  view.rerender(<AuthNavigator />);
+  await waitFor(() => expect(view.getByTestId(SCREEN_TEST_IDS.WORKFLOWS_LIST)).toBeTruthy());
+  expect(view.queryByTestId('login-screen')).toBeNull();
 });
