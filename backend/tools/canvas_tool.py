@@ -521,10 +521,19 @@ async def present_form(
     form_schema: Dict[str, Any],
     title: str = None,
     agent_id: Optional[str] = None,
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None
 ):
     """
     Present a form to the user with governance integration.
+
+    The form is a durable Canvas surface: the authoritative actor-scoped
+    Canvas row and its present audit are committed BEFORE the event is
+    broadcast, and success is returned only after an independent read-back
+    confirms the exact schema/title/scope. Chart/markdown presentation is
+    unchanged and remains audit-only.
 
     Args:
         user_id: User ID to present the form to
@@ -537,15 +546,53 @@ async def present_form(
         Dict with success status and canvas_id for tracking submissions
     """
     from core.database import get_db_session
+    from core.models import Canvas
+    from tools.canvas_crud_tool import _claim_canvas_actor, active_canvas_actor
 
     agent = None
     agent_execution = None
     governance_check = None
 
+    schema = form_schema if form_schema is not None else {}
+    material = presentation_material(
+        "canvas.present_form", {"form_schema": schema})
+    if material is None:
+        return {"success": False, "error": "form_schema is required"}
+
+    canvas_id = str(uuid.uuid4())
+    audit_id = str(uuid.uuid4())
+    resolved_operation_id = (
+        str(operation_id).strip() if operation_id is not None else ""
+    ) or f"canvas-present-form:{uuid.uuid4().hex}"
+    display_title = title if title is not None else "Untitled form"
+    material_digest = material_sha256(material)
+
     try:
-        # Governance: Resolve agent and check permissions (INTERN+ required)
-        if FeatureFlags.should_enforce_governance('canvas'):
-            with get_db_session() as db:
+        # Persist the authoritative surface and its present audit in ONE
+        # transaction, regardless of the governance flag. `tenant_id` and
+        # `workspace_id` arguments are retained only for caller
+        # compatibility: the CURRENT active User row is the scope authority.
+        with get_db_session() as db:
+            actor = active_canvas_actor(db, user_id)
+            if not actor.get("ok"):
+                return {
+                    "success": False,
+                    "error": (
+                        actor.get("error")
+                        or "Acting user is not active"),
+                }
+            actor_id = str(actor.get("id") or "")
+            actor_tenant_id = actor.get("tenant_id")
+            actor_workspace_id = actor.get("workspace_id")
+            if not str(actor_tenant_id or "").strip():
+                return {
+                    "success": False,
+                    "error": "Acting user has no tenant scope",
+                }
+
+            # Governance: resolve the agent and check permissions. A policy
+            # that requires human approval is NOT waived by a presentation.
+            if FeatureFlags.should_enforce_governance('canvas'):
                 resolver = AgentContextResolver(db)
                 from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
@@ -561,30 +608,153 @@ async def present_form(
                         agent_id=agent.id,
                         action_type="present_form"
                     )
-
-                    if not governance_check["allowed"]:
-                        logger.warning(f"Governance blocked form presentation: {governance_check['reason']}")
+                    if not isinstance(governance_check, dict):
                         return {
                             "success": False,
-                            "error": f"Agent not permitted to present form: {governance_check['reason']}"
+                            "error": (
+                                "Agent form presentation could not be "
+                                "authorized"),
+                        }
+                    if (not governance_check.get("allowed")
+                            or governance_check.get(
+                                "requires_human_approval")):
+                        logger.warning(
+                            "Governance blocked form presentation: %s",
+                            governance_check.get("reason"))
+                        return {
+                            "success": False,
+                            "error": (
+                                "Agent not permitted to present form: "
+                                f"{governance_check.get('reason')}"),
                         }
 
-                    # Create execution record
                     agent_execution = AgentExecution(
                         agent_id=agent.id,
-                        workspace_id="default",
+                        tenant_id=actor_tenant_id,
+                        workspace_id=actor_workspace_id,
                         status="running",
-                        input_summary=f"Present form: {title or 'Untitled'}",
+                        input_summary=(
+                            f"Present form: {display_title}"),
                         triggered_by="canvas"
                     )
                     db.add(agent_execution)
-                    db.commit()
-                    db.refresh(agent_execution)
+                    db.flush()
 
-        # Present the form
+            db.add(Canvas(
+                id=canvas_id,
+                tenant_id=actor_tenant_id,
+                workspace_id=actor_workspace_id,
+                created_by=actor_id,
+                name=str(display_title),
+                canvas_type="form",
+                content={"schema": schema, "title": display_title},
+                status="active",
+                last_edited_by=actor_id,
+            ))
+            db.add(CanvasAudit(
+                id=audit_id,
+                canvas_id=canvas_id,
+                tenant_id=actor_tenant_id,
+                session_id=session_id,
+                action_type="present",
+                canvas_type="form",
+                user_id=actor_id,
+                agent_id=agent.id if agent else None,
+                details_json={
+                    "canvas_type": "form",
+                    "component_type": "form",
+                    "component_name": None,
+                    "agent_execution_id": (
+                        agent_execution.id if agent_execution else None),
+                    "governance_check_passed": (
+                        governance_check.get("allowed")
+                        if isinstance(governance_check, dict) else None),
+                    "title": display_title,
+                    "field_count": (
+                        len(schema.get("fields", []))
+                        if isinstance(schema, dict) else 0),
+                    "schema": schema,
+                    "form_schema": schema,
+                    "material": material,
+                    "material_sha256": material_digest,
+                    "operation_id": resolved_operation_id,
+                    "workspace_id": actor_workspace_id,
+                    "tenant_id": actor_tenant_id,
+                    "session_id": session_id,
+                    "actor_id": actor_id,
+                },
+            ))
+
+            if agent_execution:
+                agent_execution.status = "completed"
+                agent_execution.output_summary = (
+                    f"Presented form with "
+                    f"{len(schema.get('fields', []))} fields"
+                    if isinstance(schema, dict) else "Presented form")
+                agent_execution.completed_at = datetime.now()
+
+            # The actor claim is the transaction's linearization point: a
+            # move/deactivation committed before this point refuses the form.
+            if not _claim_canvas_actor(db, actor):
+                db.rollback()
+                return {
+                    "success": False,
+                    "error": (
+                        "Acting user changed while presenting the form; "
+                        "refused"),
+                }
+
+            # Commit explicitly so a failed/unknown commit is observed here
+            # (and never mistaken for a durable surface).
+            db.commit()
+
+        # The context manager has committed. Only an independent fresh-session
+        # read-back of the exact Canvas + present audit can certify the form
+        # surface, so an unknown/failed commit never becomes success or a
+        # broadcast.
+        from core.oracle import validate
+
+        verification_ctx = {
+            "canvas_id": canvas_id,
+            "audit_id": audit_id,
+            "_oracle_action": "canvas.present_form",
+            "_oracle_expected_canvas_id": canvas_id,
+            "_oracle_expected_operation_id": resolved_operation_id,
+            "_oracle_expected_material": material,
+            "_oracle_expected_material_sha256": material_digest,
+            "_oracle_expected_actor_id": actor_id,
+            "_oracle_expected_tenant_id": actor_tenant_id,
+            "_oracle_expected_workspace_id": actor_workspace_id,
+            "_oracle_expected_title": display_title,
+        }
+        oracle = await validate("canvas.present_form", verification_ctx)
+        verified = bool(oracle is not None and oracle.verified)
+        evidence = str(getattr(oracle, "evidence", "") or "")
+        if not verified:
+            logger.error(
+                "Form presentation committed but could not be verified: %s",
+                evidence or "no oracle verdict")
+            return {
+                "success": False,
+                "status": "committed_unverified",
+                "canvas_id": canvas_id,
+                "audit_id": audit_id,
+                "operation_id": resolved_operation_id,
+                "verification": {
+                    "status": (
+                        "unavailable" if oracle is None else "refuted"),
+                    "effect": "committed",
+                    "replay": "do_not_repeat",
+                    "evidence": evidence,
+                },
+                "error": (
+                    "Form presentation committed but its durable surface "
+                    "could not be verified"),
+            }
+
+        # Broadcast only AFTER the durable surface is verified.
         user_channels = _user_broadcast_channels(user_id, session_id)
 
-        canvas_id = str(uuid.uuid4())
         for _user_channel in user_channels:
             await ws_manager.broadcast(
                 _user_channel,
@@ -600,48 +770,25 @@ async def present_form(
             }
         )
 
-        # Create audit entry
-        if FeatureFlags.should_enforce_governance('canvas'):
-            with get_db_session() as db:
-                await _create_canvas_audit(
-                    db=db,
-                    agent_id=agent.id if agent else None,
-                    agent_execution_id=agent_execution.id if agent_execution else None,
-                    user_id=user_id,
-                    canvas_id=canvas_id,
-                    session_id=session_id,  # NEW: Session isolation
-                    component_type="form",
-                    component_name=None,
-                    action="present",
-                    governance_check_passed=governance_check["allowed"] if governance_check else None,
-                    metadata={"title": title, "field_count": len(form_schema.get("fields", [])), "session_id": session_id}
-                )
-
-                if agent_execution:
-                    execution = db.query(AgentExecution).filter(
-                        AgentExecution.id == agent_execution.id
-                    ).first()
-                    if execution:
-                        execution.status = "completed"
-                        execution.output_summary = f"Presented form with {len(form_schema.get('fields', []))} fields"
-                        execution.completed_at = datetime.now()
-                        db.commit()
-
-                        from core.service_factory import ServiceFactory
-                        governance_service = ServiceFactory.get_governance_service(db)
-                        await governance_service.record_outcome(agent.id, success=True)
-
         logger.info(f"Presented form to user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
         return {
             "success": True,
             "canvas_id": canvas_id,
+            "audit_id": audit_id,
+            "operation_id": resolved_operation_id,
             "agent_execution_id": agent_execution.id if agent_execution else None,
-            "agent_id": agent.id if agent else None
+            "agent_id": agent.id if agent else None,
+            "verification": {
+                "status": "verified",
+                "effect": "committed",
+                "evidence": evidence,
+            },
         }
 
     except Exception as e:
         logger.error(f"Failed to present form: {e}")
         return {"success": False, "error": str(e)}
+
 
 
 async def update_canvas(

@@ -1486,6 +1486,84 @@ def _canvas_present_postcondition(component_type: str):
             if expected_tenant and observed_tenant != expected_tenant:
                 reasons.append(
                     f"tenant={observed_tenant!r}, expected {expected_tenant!r}")
+            if component_type == "form":
+                # A form is a durable SURFACE, not only a presentation event.
+                # The authoritative Canvas row must still carry the exact
+                # schema/title and actor scope that this presentation claims.
+                # Chart/markdown keep their existing audit-only semantics.
+                expected_actor = str(
+                    ctx.get("_oracle_expected_actor_id") or "").strip()
+                form_actor = expected_actor or str(
+                    details.get("actor_id") or "").strip()
+                title_declared = (
+                    "_oracle_expected_title" in ctx or "title" in details)
+                expected_title = (
+                    ctx.get("_oracle_expected_title")
+                    if "_oracle_expected_title" in ctx
+                    else details.get("title"))
+                form_tenant = expected_tenant or observed_tenant
+                form_workspace = expected_workspace or observed_workspace
+                expected_material = ctx.get("_oracle_expected_material")
+                if not isinstance(expected_material, dict):
+                    expected_material = (
+                        observed_material
+                        if isinstance(observed_material, dict) else None)
+                expected_schema_declared = (
+                    isinstance(expected_material, dict)
+                    and "schema" in expected_material)
+                expected_schema = (
+                    expected_material.get("schema")
+                    if expected_schema_declared else None)
+
+                def _read_form_canvas(session):
+                    from core.models import Canvas
+                    return (
+                        session.query(Canvas)
+                        .filter(Canvas.id == canvas_id)
+                        .first()
+                    )
+
+                canvas = _read_with_db(ctx, _read_form_canvas)
+                if canvas is None:
+                    reasons.append(
+                        f"authoritative form canvas {canvas_id} absent")
+                else:
+                    if str(canvas.canvas_type or "").lower() != "form":
+                        reasons.append(
+                            f"canvas_type={canvas.canvas_type!r}")
+                    if str(canvas.status or "").lower() != "active":
+                        reasons.append(f"canvas status={canvas.status!r}")
+                    if form_actor and str(
+                            canvas.created_by or "") != form_actor:
+                        reasons.append(
+                            f"canvas owner={canvas.created_by!r}, expected "
+                            f"{form_actor!r}")
+                    if form_actor and str(row.user_id or "") != form_actor:
+                        reasons.append(
+                            f"audit actor={row.user_id!r}, expected "
+                            f"{form_actor!r}")
+                    if form_tenant and str(
+                            canvas.tenant_id or "") != form_tenant:
+                        reasons.append(
+                            f"canvas tenant={canvas.tenant_id!r}, expected "
+                            f"{form_tenant!r}")
+                    if form_workspace and str(
+                            canvas.workspace_id or "") != form_workspace:
+                        reasons.append(
+                            f"canvas workspace={canvas.workspace_id!r}, "
+                            f"expected {form_workspace!r}")
+                    if title_declared and str(
+                            canvas.name or "") != str(expected_title or ""):
+                        reasons.append(
+                            f"canvas title={canvas.name!r}, expected "
+                            f"{expected_title!r}")
+                    content = (
+                        canvas.content
+                        if isinstance(canvas.content, dict) else {})
+                    if (expected_schema_declared
+                            and content.get("schema") != expected_schema):
+                        reasons.append(
+                            "canvas schema does not match the authorized form")
             verified = not reasons
             return OracleResult(
                 action, verified,
@@ -2582,6 +2660,8 @@ register_postcondition("canvas.present_markdown")(
     _canvas_present_postcondition("markdown"))
 register_postcondition("canvas.present_chart")(
     _canvas_present_postcondition("chart"))
+register_postcondition("canvas.present_form")(
+    _canvas_present_postcondition("form"))
 register_postcondition("canvas.update")(
     _canvas_write_postcondition(restore=False))
 register_postcondition("canvas.restore_version")(
