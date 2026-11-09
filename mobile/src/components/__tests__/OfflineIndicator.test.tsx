@@ -16,6 +16,7 @@
  */
 
 import React from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { OfflineIndicator } from '../offline/OfflineIndicator';
@@ -82,6 +83,28 @@ describe('OfflineIndicator Component', () => {
   afterEach(() => {
     jest.useRealTimers();
   });
+
+  describe('Authoritative network state', () => {
+    test('disconnected idle work is offline rather than inferred online', async () => {
+      (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false, isInternetReachable: false });
+      const screen = renderWithNavigation(<OfflineIndicator />);
+      await waitFor(() => expect(screen.getByText('Offline - Changes Saved Locally')).toBeTruthy());
+    });
+
+    test('connected active sync is syncing rather than inferred offline', async () => {
+      (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true, isInternetReachable: true });
+      const syncing = { ...mockSyncState, syncInProgress: true, syncProgress: 25 };
+      (offlineSyncService.getSyncState as jest.Mock).mockResolvedValue(syncing);
+      (offlineSyncService.subscribe as jest.Mock).mockImplementation(callback => {
+        callback(syncing);
+        return jest.fn();
+      });
+      const screen = renderWithNavigation(<OfflineIndicator />);
+      await waitFor(() => expect(screen.getByText('Syncing... 25%')).toBeTruthy());
+      expect(screen.queryByText('Offline - Changes Saved Locally')).toBeNull();
+    });
+  });
+
 
   describe('Rendering', () => {
     test('should render correctly when offline', () => {
