@@ -895,4 +895,33 @@ describe('SyncProgressModal Component', () => {
       }).not.toThrow();
     });
   });
+  describe('Truthful result boundary', () => {
+    test('idle unresolved work cannot be labeled complete', () => {
+      const screen = render(<SyncProgressModal visible={true} />);
+      emitSync({ ...baseSyncState, syncInProgress: false, pendingCount: 1 });
+      expect(screen.queryByText('Sync Complete')).toBeNull();
+    });
+
+    test('processed failed work at one hundred percent cannot be labeled complete', () => {
+      const screen = render(<SyncProgressModal visible={true} />);
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100, pendingCount: 1, consecutiveFailures: 1 });
+      expect(screen.queryByText('Sync Complete')).toBeNull();
+    });
+
+    test('overall progress cannot invent entity totals or successful item counts', () => {
+      const screen = render(<SyncProgressModal visible={true} />);
+      emitSync({ ...baseSyncState, syncProgress: 50 });
+      expect(screen.queryByText('Agents')).toBeNull();
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      expect(screen.queryByText('24 items synced')).toBeNull();
+    });
+
+    test('requesting cancellation cannot certify completion', async () => {
+      const screen = render(<SyncProgressModal visible={true} />);
+      await act(async () => { fireEvent.press(screen.getByText('Cancel Sync')); });
+      expect(offlineSyncService.cancelSync).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('Sync Complete')).toBeNull();
+    });
+  });
+
 });
