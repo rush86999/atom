@@ -79,7 +79,7 @@ jest.mock("@/components/canvas/CanvasPanel", () => ({
     ReactRuntime.useEffect(() => {
       registerFlushBeforeSend?.(() => mockPanelFlush());
     }, [registerFlushBeforeSend]);
-    return <div data-testid="canvas-panel" data-last-type={(lastMessage?.data as any)?.component}>Panel</div>;
+    return <div data-testid="canvas-panel" data-last-type={(lastMessage?.data as any)?.component} data-revision={(lastMessage?.data as any)?.revision_audit_id}>Panel</div>;
   },
 }));
 
@@ -173,6 +173,15 @@ describe("CanvasDetailPage", () => {
       data: { success: true, message: "I added a row." },
     });
     mockDelete.mockResolvedValue({});
+  });
+
+  test("carries the exact read revision into the real panel frame", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.endsWith("/history")) return {data:{count:3}};
+      return {data:{...CANVAS,revision_audit_id:"opaque-latest-revision"}};
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(()=>expect(screen.getByTestId("canvas-panel")).toHaveAttribute("data-revision","opaque-latest-revision"));
   });
 
   test("shows loading state then renders canvas", async () => {

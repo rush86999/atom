@@ -54,6 +54,14 @@ export class CanvasAuditSaveError extends Error {
     }
 }
 
+/** A confirmed receipt from a stricter canvas audit save. */
+export interface CanvasAuditReceipt {
+    /** Server-issued canvas audit id: an exact, non-empty string. */
+    auditId: string;
+    /** Server-issued operation id when the receipt carries one. */
+    operationId?: string;
+}
+
 type JsonRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): JsonRecord | undefined {
@@ -101,13 +109,32 @@ function unconfirmedError(data: unknown, status?: number): CanvasAuditSaveError 
     return new CanvasAuditSaveError({ status, operationId, auditId });
 }
 
-export async function saveCanvasAudit(
+interface CanvasAuditTransportOptions {
+    retype?: boolean;
+    expectedPriorAuditId?: string;
+}
+
+interface CanvasAuditTransportResult {
+    data: unknown;
+    status?: number;
+    verified: boolean;
+}
+
+/**
+ * Single transport for canvas audit saves. Returns null only for the
+ * genuine legacy-artifact 404; every other unconfirmed outcome throws.
+ */
+async function putCanvasAudit(
     canvasId: string,
     canvasType: string,
     title: string | undefined,
     content: unknown,
-    options: { retype?: boolean } = {}
-): Promise<boolean> {
+    options: CanvasAuditTransportOptions = {}
+): Promise<CanvasAuditTransportResult | null> {
+    if (options.expectedPriorAuditId !== undefined
+        && (typeof options.expectedPriorAuditId !== "string" || options.expectedPriorAuditId.length === 0)) {
+        throw new CanvasAuditSaveError();
+    }
     try {
         const { apiClient } = await import("@/lib/api");
         // JSON-encode EXPLICITLY: axios passes bare strings/arrays through
@@ -117,7 +144,12 @@ export async function saveCanvasAudit(
             `/api/canvas/${encodeURIComponent(canvasId)}` +
             `?canvas_type=${encodeURIComponent(canvasType)}` +
             `&title=${encodeURIComponent(title || "")}` +
-            (options.retype ? "&retype=true" : ""),
+            (options.retype ? "&retype=true" : "") +
+            // Bind only an explicitly provided prior audit id; never infer
+            // it from counters or normalize its value.
+            (options.expectedPriorAuditId !== undefined
+                ? `&expected_prior_audit_id=${encodeURIComponent(options.expectedPriorAuditId)}`
+                : ""),
             JSON.stringify(content),
             {
                 headers: { "Content-Type": "application/json" },
@@ -129,26 +161,80 @@ export async function saveCanvasAudit(
         );
 
         // Legacy artifact ids are not canvas ids; keep the historical
-        // false result so the caller can use its legacy fallback.
-        if (isLegacyNotFound(response?.status, response?.data)) return false;
+        // legacy-fallback outcome for the caller.
+        if (isLegacyNotFound(response?.status, response?.data)) return null;
 
         const status = typeof response?.status === "number" ? response.status : undefined;
         if (status !== undefined && (status < 200 || status >= 300)) {
             throw unconfirmedError(response?.data, status);
         }
 
-        if (isVerifiedResponse(response?.data, canvasId)) return true;
-
-        throw unconfirmedError(response?.data, status);
+        return {
+            data: response?.data,
+            status,
+            verified: isVerifiedResponse(response?.data, canvasId),
+        };
     } catch (error) {
         if (error instanceof CanvasAuditSaveError) throw error;
 
         const status = errorStatus(error);
-        if (isLegacyNotFound(status, (error as {response?: {data?: unknown}})?.response?.data)) return false;
+        if (isLegacyNotFound(status, (error as {response?: {data?: unknown}})?.response?.data)) return null;
 
         throw unconfirmedError(
             (error as { response?: { data?: unknown } })?.response?.data,
             status
         );
     }
+}
+
+export async function saveCanvasAudit(
+    canvasId: string,
+    canvasType: string,
+    title: string | undefined,
+    content: unknown,
+    options: { retype?: boolean } = {}
+): Promise<boolean> {
+    const result = await putCanvasAudit(canvasId, canvasType, title, content, options);
+    if (result === null) return false;
+    if (result.verified) return true;
+
+    // Legacy bool contract: an exact-canvas verified response is enough;
+    // no audit receipt (audit_id) is required on this path.
+    throw unconfirmedError(result.data, result.status);
+}
+
+/**
+ * Stricter canvas audit save that returns the server's canonical receipt.
+ * Returns null only for the genuine legacy-artifact 404; a verified
+ * response without an exact, non-empty audit_id is unconfirmed.
+ */
+export async function saveCanvasAuditReceipt(
+    canvasId: string,
+    canvasType: string,
+    title: string | undefined,
+    content: unknown,
+    options: {
+        retype?: boolean;
+        expectedPriorAuditId?: string;
+    } = {}
+): Promise<CanvasAuditReceipt | null> {
+    const result = await putCanvasAudit(canvasId, canvasType, title, content, options);
+    if (result === null) return null;
+
+    if (!result.verified) {
+        throw unconfirmedError(result.data, result.status);
+    }
+
+    const body = asRecord(result.data);
+    const auditId = opaqueIdentity(body?.audit_id);
+    if (auditId === undefined) {
+        // Stricter receipt path: a verified response without an exact,
+        // non-empty audit_id is unconfirmed.
+        throw unconfirmedError(result.data, result.status);
+    }
+
+    const operationId = opaqueIdentity(body?.operation_id);
+    return operationId === undefined
+        ? { auditId }
+        : { auditId, operationId };
 }

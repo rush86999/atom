@@ -203,12 +203,19 @@ export async function persistCanvasTypeSwitch(
     canvasId: string,
     conversion: CanvasTypeConversion,
     title?: string,
-): Promise<void> {
-    const { saveCanvasAudit, CanvasAuditSaveError } = await import("@/lib/canvasAuditSave");
+    options: {expectedPriorAuditId?: string} = {},
+): Promise<import("@/lib/canvasAuditSave").CanvasAuditReceipt | null> {
+    const { saveCanvasAudit, saveCanvasAuditReceipt, CanvasAuditSaveError } = await import("@/lib/canvasAuditSave");
+    if (options.expectedPriorAuditId !== undefined) {
+        const receipt = await saveCanvasAuditReceipt(canvasId, conversion.component, title, conversion.payload, {...options,retype:true});
+        if (!receipt) throw new CanvasAuditSaveError({status:404});
+        return receipt;
+    }
     if (!await saveCanvasAudit(canvasId, conversion.component, title, conversion.payload, { retype: true })) {
         // Type changes have no legacy-artifact fallback.
         throw new CanvasAuditSaveError({ status: 404 });
     }
+    return null;
 }
 
 /** Known editable text payloads, shared by standalone and chat canvas hosts.

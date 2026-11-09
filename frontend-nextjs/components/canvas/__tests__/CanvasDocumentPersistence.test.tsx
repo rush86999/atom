@@ -109,6 +109,31 @@ describe.each([['standalone page',CanvasPanel],['chat host',CanvasHost]] as cons
   expect(writes[1].body).toBe('Latest edit before conversion');
   expect(new URL(writes[1].url).searchParams.get('retype')).toBe('true');
  });
+ it('never downgrades a guarded canvas when a new content frame omits its revision',async()=>{
+  let attempts=0;server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{attempts++;return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'unexpected',verification:{status:'verified'}}));}));
+  const view=openDocument({content:'Initial'},'document','known-revision');
+  view.rerender(<Surface lastMessage={{type:'canvas:update',data:{action:'present',id:'ordinary-document',component:'document',data:{content:'New unbound content'},version:2}}}/>);
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Cannot save unbound replacement'}});fireEvent.click(screen.getByText('Save Changes'));
+  await screen.findByText('Save not confirmed. Check version history before retrying.');expect(attempts).toBe(0);
+ });
+ it('refuses an edit planned on an older revision without overwriting the peer',async()=>{
+  let current='Peer content';let writes=0;
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{writes++;if(req.url.searchParams.has('expected_prior_audit_id') && req.url.searchParams.get('expected_prior_audit_id')!=='peer-current')return res(ctx.status(409),ctx.json({detail:'stale revision'}));current='Wrong overwrite';return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'bad',verification:{status:'verified'}}));}));
+  openDocument({content:'Older content'},'document','loaded-old');
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'Local stale edit'}});
+  fireEvent.click(screen.getByText('Save Changes'));
+  await screen.findByText('Save not confirmed. Check version history before retrying.');
+  expect(current).toBe('Peer content');expect(writes).toBe(1);expect(artifacts).toHaveLength(0);
+ });
+ it('uses the confirmed type receipt as the prior for the next edit',async()=>{
+  const priors:(string|null)[]=[];
+  server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{priors.push(req.url.searchParams.get('expected_prior_audit_id'));return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'accepted-'+priors.length,verification:{status:'verified'}}));}));
+  openDocument({content:'Initial'},'document','loaded-exact');
+  fireEvent.click(screen.getByRole('button',{name:'document',exact:true}));fireEvent.click(screen.getByRole('option',{name:'Markdown',exact:true}));
+  await screen.findByRole('button',{name:'markdown',exact:true});
+  fireEvent.change(screen.getByRole('textbox',{name:'Document editor'}),{target:{value:'After type change'}});fireEvent.click(screen.getByText('Save Changes'));
+  await waitFor(()=>expect(priors).toHaveLength(2));expect(priors).toEqual(['loaded-exact','accepted-1']);
+ });
  it('binds consecutive native edits to the exact loaded and confirmed audit identities',async()=>{
   const priors:(string|null)[]=[];
   server.use(rest.put('*/api/canvas/:id',async(req,res,ctx)=>{priors.push(req.url.searchParams.get('expected_prior_audit_id'));return res(ctx.json({success:true,canvas_id:req.params.id,audit_id:'accepted-'+priors.length,verification:{status:'verified'}}));}));

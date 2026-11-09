@@ -46,6 +46,7 @@ describe("syncCanvasFromStore", () => {
             data: {
                 success: true,
                 canvas_id: "c-1",
+                revision_audit_id: "latest-server-revision",
                 canvas_type: "email",
                 title: "Draft",
                 content: { to: "a@b.c", cc: "", subject: "S", body: "B" },
@@ -65,6 +66,7 @@ describe("syncCanvasFromStore", () => {
             action: "update",
             canvas_id: "c-1",
             component: "email",
+            revision_audit_id: "latest-server-revision",
             data: { to: "a@b.c", subject: "S", body: "B" },
             metadata: { to: "a@b.c", cc: "", subject: "S" },
         });
