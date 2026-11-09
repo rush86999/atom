@@ -314,13 +314,12 @@ export const AuthNavigator: React.FC = () => {
         // Preserve React Navigation 6's native 150ms launch-URL fallback.
         // The underlying read may still deliver a validated intent later; it
         // must not hold the login UI hostage or replace a newer valid event.
-        let timer: ReturnType<typeof setTimeout> | undefined;
+        let cancelTimer = () => {};
         const fallback = new Promise<undefined>(resolve => {
-          timer = setTimeout(resolve, 150);
+          const timer = setTimeout(resolve, 150);
+          cancelTimer = () => clearTimeout(timer);
         });
-        return Promise.race([initialUrl, fallback]).finally(() => {
-          if (timer !== undefined) clearTimeout(timer);
-        });
+        return Promise.race([initialUrl, fallback]).finally(cancelTimer);
       },
       subscribe(listener) {
         let active = true;
