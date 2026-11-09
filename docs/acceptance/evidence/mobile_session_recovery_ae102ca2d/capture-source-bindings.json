@@ -1,0 +1,44 @@
+[
+  {
+    "capture": "api-session-ownership-negative",
+    "source": "11ce6f237ffea1cd63034a36d0b971d7c22ba128",
+    "source_count": 247,
+    "mismatches": []
+  },
+  {
+    "capture": "auth-delayed-session-response-negative",
+    "source": "bacdd81c69598149836d6759b219b6de951dff1c",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "auth-server-expiry-and-refresh-negative",
+    "source": "800210eb91b42380f789e6f16b2d61039bdfa361",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "auth-startup-and-revocation-ui-negative",
+    "source": "e0179a538aaaf5aeb83fe9b41d2baa54ef898634",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "auth-partial-save-mounted-identity-negative",
+    "source": "12a430487aa628c3d9f8c69868672f58767539c1",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "mobile-partial-save-session-regression",
+    "source": "ae102ca2db27526bc9a927f8d07bdddb4cca4d9f",
+    "source_count": 249,
+    "mismatches": []
+  },
+  {
+    "capture": "mobile-partial-save-final-typecheck",
+    "source": "ae102ca2db27526bc9a927f8d07bdddb4cca4d9f",
+    "source_count": 249,
+    "mismatches": []
+  }
+]

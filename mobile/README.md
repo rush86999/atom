@@ -2,7 +2,7 @@
 
 Atom's React Native companion is under repair. The web application's accepted
 workflows do not establish mobile build readiness or device support. This
-reference describes the checked-in companion at source `11be7eb1c`; later changes
+reference describes the checked-in companion at source `ae102ca2d`; later changes
 must be reviewed against their own source and evidence.
 
 ## Dependencies and local checks
@@ -22,7 +22,7 @@ npm run typecheck
 
 Skipping install scripts was intentional for these controlled checks. It does
 not prepare native modules or demonstrate an iOS/Android build. The strict
-project-wide type check currently fails. Keep its complete source/test scope;
+project-wide type check currently fails with 408 diagnostics at this source. Keep its complete source/test scope;
 do not hide errors with exclusions, ambient module shims or weaker settings.
 
 One reproducible controlled camera selection is:
@@ -35,7 +35,7 @@ npm test -- src/__tests__/services/cameraService.test.ts \
   --runInBand --watch=false --watchman=false
 ```
 
-The frozen source's four-file selection passes 124 cases. These SDK-shaped
+The video packet's frozen four-file selection passes 124 cases. These SDK-shaped
 doubles exercise consumer behavior, not a physical camera, permission prompt,
 photo-library write or native preview. Exact source and capture limitations are
 in the evidence linked below. A successful narrow Jest selection does not
@@ -50,8 +50,11 @@ cancel the failing project-wide compiler or qualify the entire companion.
 | Forms and chat | Focused controls for numeric/length validation, installed picker APIs and swipe actions are being retained during repair. | Complete compiler/build, integrated mobile journeys, native access and end-to-end task completion. |
 | Storage and offline work | Installed MMKV4 wrapper; serialized existing queue writes, retained failed/unsent work, persisted UI retry/priority/delete and truthful incomplete outcomes; 743 selected controls at `11be7eb1c`. Fourteen-day retention is simulated time. | Native MMKV/encrypted migration, current-session binding, safe automatic startup, interrupted/uncertain effects and real elapsed soak. Controlled storage/UI tests do not establish those behaviors. |
 
+| Session recovery | Request-owned generation, conditional login/refresh commits, server expiry, single-flight refresh, startup and mounted revocation controls; 808 combined controls at `ae102ca2d`. | Native restart/migration, full application bootstrap, live account/backend/device ownership and unknown-effect reconciliation. |
+
 Source-bound packets:
 
+- [Session recovery controls](../docs/acceptance/evidence/mobile_session_recovery_ae102ca2d/README.md)
 - [Camera/gallery SDK controls](../docs/acceptance/evidence/mobile_camera_sdk_8ef724ee0/README.md)
 - [Offline queue preservation controls](../docs/acceptance/evidence/mobile_offline_queue_11be7eb1c/README.md)
 - [Storage SDK controls](../docs/acceptance/evidence/mobile_storage_sdk_7441ef81d/README.md)

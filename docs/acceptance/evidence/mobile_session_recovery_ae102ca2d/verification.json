@@ -1,0 +1,66 @@
+{
+  "runtime_source": "ae102ca2db27526bc9a927f8d07bdddb4cca4d9f",
+  "scope": "controlled React provider, real Axios interceptors with doubled transport and keychain; not native or live account acceptance",
+  "final_cases": 808,
+  "final_passed": 808,
+  "final_pending": 0,
+  "selected_files": 21,
+  "full_typecheck_exit": 2,
+  "full_typecheck_diagnostics": 408,
+  "native_restart_qualified": false,
+  "application_startup_qualified": false,
+  "model_judgment_qualified": false,
+  "review": "Initial bounded configured Flash review exit0 retained privately; successor review still live and not an acceptance gate in this packet.",
+  "negative_captures": [
+    {
+      "capture": "api-session-ownership-negative",
+      "source": "11ce6f237ffea1cd63034a36d0b971d7c22ba128",
+      "counts": {
+        "numTotalTests": 27,
+        "numPassedTests": 24,
+        "numFailedTests": 3,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "capture": "auth-delayed-session-response-negative",
+      "source": "bacdd81c69598149836d6759b219b6de951dff1c",
+      "counts": {
+        "numTotalTests": 3,
+        "numPassedTests": 0,
+        "numFailedTests": 3,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "capture": "auth-server-expiry-and-refresh-negative",
+      "source": "800210eb91b42380f789e6f16b2d61039bdfa361",
+      "counts": {
+        "numTotalTests": 11,
+        "numPassedTests": 4,
+        "numFailedTests": 7,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "capture": "auth-startup-and-revocation-ui-negative",
+      "source": "e0179a538aaaf5aeb83fe9b41d2baa54ef898634",
+      "counts": {
+        "numTotalTests": 13,
+        "numPassedTests": 11,
+        "numFailedTests": 2,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "capture": "auth-partial-save-mounted-identity-negative",
+      "source": "12a430487aa628c3d9f8c69868672f58767539c1",
+      "counts": {
+        "numTotalTests": 18,
+        "numPassedTests": 16,
+        "numFailedTests": 2,
+        "numPendingTests": 0
+      }
+    }
+  ]
+}

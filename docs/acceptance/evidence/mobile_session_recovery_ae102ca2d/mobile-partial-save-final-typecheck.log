@@ -1,0 +1,545 @@
+
+> atom-mobile@1.0.0 typecheck
+> tsc --noEmit
+
+../frontend-nextjs/shared/test-utils/async-utils.ts(79,36): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+src/__mocks__/react-native.mock.ts(283,3): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/__tests__/components/chat/MessageInput.test.tsx(365,28): error TS2339: Property 'waitForElementToBeRemoved' does not exist on type '{ update: (component: ReactElement<any, string | JSXElementConstructor<any>>) => void; unmount: () => void; rerender: (component: ReactElement<any, string | JSXElementConstructor<...>>) => void; ... 89 more ...; findAllByText: FindAllByQuery<...>; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(175,25): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(200,25): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(218,25): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(234,25): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(252,25): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(307,24): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(329,24): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/contexts/AuthContext.biometric.test.ts(350,24): error TS2339: Property 'error' does not exist on type '{ success: boolean; }'.
+src/__tests__/helpers/__tests__/navigationMocks.test.tsx(257,12): error TS18047: 'ctx.user' is possibly 'null'.
+src/__tests__/helpers/__tests__/storageTestHelpers.test.ts(229,35): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/__tests__/helpers/__tests__/storageTestHelpers.test.ts(231,35): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/__tests__/helpers/__tests__/storageTestHelpers.test.ts(264,31): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/__tests__/helpers/__tests__/testUtils.test.ts(238,24): error TS2345: Argument of type '"ios" | "android" | "windows" | "macos" | "web"' is not assignable to parameter of type '"ios" | "android"'.
+  Type '"windows"' is not assignable to type '"ios" | "android"'.
+src/__tests__/helpers/__tests__/testUtils.test.ts(251,35): error TS2345: Argument of type '(x: number) => number' is not assignable to parameter of type '(...args: unknown[]) => unknown'.
+  Types of parameters 'x' and 'args' are incompatible.
+    Type 'unknown' is not assignable to type 'number'.
+src/__tests__/helpers/__tests__/testUtils.test.ts(259,45): error TS2345: Argument of type '(id: number) => Promise<{ id: number; name: string; }>' is not assignable to parameter of type '(...args: unknown[]) => Promise<unknown>'.
+  Types of parameters 'id' and 'args' are incompatible.
+    Type 'unknown' is not assignable to type 'number'.
+src/__tests__/helpers/mockExpoModules.ts(19,27): error TS2724: '"expo-camera"' has no exported member named 'CameraPermissionStatus'. Did you mean 'PermissionStatus'?
+src/__tests__/helpers/navigationMocks.tsx(96,29): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/navigationMocks.tsx(110,20): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/navigationTestUtils.ts(350,20): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ readonly WorkflowsList: {}; readonly WorkflowDetail: { readonly workflowId: { readonly type: "string"; readonly required: true; }; }; readonly WorkflowTrigger: { readonly workflowId: { readonly type: "string"; readonly required: true; }; readonly workflowName: { ...; }; }; readonly ExecutionProgress: { ...; }; rea...'.
+  No index signature with a parameter of type 'string' was found on type '{ readonly WorkflowsList: {}; readonly WorkflowDetail: { readonly workflowId: { readonly type: "string"; readonly required: true; }; }; readonly WorkflowTrigger: { readonly workflowId: { readonly type: "string"; readonly required: true; }; readonly workflowName: { ...; }; }; readonly ExecutionProgress: { ...; }; rea...'.
+src/__tests__/helpers/navigationTestUtils.ts(352,28): error TS18046: 'spec' is of type 'unknown'.
+src/__tests__/helpers/storageTestHelpers.ts(81,28): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ atom_access_token: string | null; atom_refresh_token: string | null; atom_token_expiry: string | null; atom_biometric_enabled: string | null; }'.
+  No index signature with a parameter of type 'string' was found on type '{ atom_access_token: string | null; atom_refresh_token: string | null; atom_token_expiry: string | null; atom_biometric_enabled: string | null; }'.
+src/__tests__/helpers/storageTestHelpers.ts(133,31): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(179,31): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(202,31): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(208,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(209,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(211,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(212,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(214,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/storageTestHelpers.ts(215,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(58,63): error TS2339: Property 'default' does not exist on type '{ ios?: unknown; android?: unknown; windows?: unknown; macos?: unknown; web?: unknown; native?: unknown; }'.
+src/__tests__/helpers/testUtils.ts(335,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(336,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(338,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(339,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(341,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(342,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/helpers/testUtils.ts(505,10): error TS2352: Conversion of type 'Mock<unknown, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' to type 'MockedFunction<T>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Mock<unknown, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' is not comparable to type 'MockInstance<ReturnType<T>, ArgsType<T>, T extends (this: infer C, ...args: any[]) => any ? C : never>'.
+    Types of property 'mock' are incompatible.
+      Type 'MockContext<unknown, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' is not comparable to type 'MockContext<ReturnType<T>, ArgsType<T>, T extends (this: infer C, ...args: any[]) => any ? C : never>'.
+        Type 'unknown[]' is not comparable to type 'ArgsType<T>'.
+src/__tests__/helpers/testUtils.ts(522,10): error TS2352: Conversion of type 'Mock<Promise<unknown>, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' to type 'MockedFunction<T>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Mock<Promise<unknown>, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' is not comparable to type 'MockInstance<ReturnType<T>, ArgsType<T>, T extends (this: infer C, ...args: any[]) => any ? C : never>'.
+    Types of property 'mock' are incompatible.
+      Type 'MockContext<Promise<unknown>, unknown[], T extends (this: infer C, ...args: any[]) => any ? C : never>' is not comparable to type 'MockContext<ReturnType<T>, ArgsType<T>, T extends (this: infer C, ...args: any[]) => any ? C : never>'.
+        Type 'Promise<unknown>' is not comparable to type 'ReturnType<T>'.
+src/__tests__/integration/appLifecycle.test.tsx(61,57): error TS7051: Parameter has a name but no type. Did you mean 'arg0: AppStateStatus'?
+src/__tests__/integration/appLifecycle.test.tsx(73,48): error TS7051: Parameter has a name but no type. Did you mean 'arg0: AppStateStatus'?
+src/__tests__/integration/appLifecycle.test.tsx(95,48): error TS7051: Parameter has a name but no type. Did you mean 'arg0: AppStateStatus'?
+src/__tests__/integration/devicePermissions.integration.test.ts(28,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/integration/devicePermissions.integration.test.ts(42,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(58,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(74,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(89,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(104,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(108,9): error TS2739: Type '{ allowsAlert: true; allowsBadge: true; allowsSound: true; }' is missing the following properties from type '{ status: IosAuthorizationStatus; allowsDisplayInNotificationCenter: boolean | null; allowsDisplayOnLockScreen: boolean | null; allowsDisplayInCarPlay: boolean | null; ... 7 more ...; allowsAnnouncements?: boolean | ... 1 more ... | undefined; }': status, allowsDisplayInNotificationCenter, allowsDisplayOnLockScreen, allowsDisplayInCarPlay, alertStyle
+src/__tests__/integration/devicePermissions.integration.test.ts(113,9): error TS2741: Property 'importance' is missing in type '{}' but required in type '{ importance: number; interruptionFilter?: number | undefined; }'.
+src/__tests__/integration/devicePermissions.integration.test.ts(147,11): error TS2322: Type '"notAsked"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(153,11): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(160,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(183,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(190,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(211,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(222,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(238,11): error TS2322: Type '"notAsked"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(244,11): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(263,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(275,39): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/__tests__/integration/devicePermissions.integration.test.ts(290,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(297,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(304,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(308,9): error TS2739: Type '{ allowsAlert: true; allowsBadge: true; allowsSound: true; }' is missing the following properties from type '{ status: IosAuthorizationStatus; allowsDisplayInNotificationCenter: boolean | null; allowsDisplayOnLockScreen: boolean | null; allowsDisplayInCarPlay: boolean | null; ... 7 more ...; allowsAnnouncements?: boolean | ... 1 more ... | undefined; }': status, allowsDisplayInNotificationCenter, allowsDisplayOnLockScreen, allowsDisplayInCarPlay, alertStyle
+src/__tests__/integration/devicePermissions.integration.test.ts(309,9): error TS2741: Property 'importance' is missing in type '{}' but required in type '{ importance: number; interruptionFilter?: number | undefined; }'.
+src/__tests__/integration/devicePermissions.integration.test.ts(329,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(337,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(345,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(349,9): error TS2739: Type '{ allowsAlert: true; allowsBadge: true; allowsSound: true; }' is missing the following properties from type '{ status: IosAuthorizationStatus; allowsDisplayInNotificationCenter: boolean | null; allowsDisplayOnLockScreen: boolean | null; allowsDisplayInCarPlay: boolean | null; ... 7 more ...; allowsAnnouncements?: boolean | ... 1 more ... | undefined; }': status, allowsDisplayInNotificationCenter, allowsDisplayOnLockScreen, allowsDisplayInCarPlay, alertStyle
+src/__tests__/integration/devicePermissions.integration.test.ts(350,9): error TS2741: Property 'importance' is missing in type '{}' but required in type '{ importance: number; interruptionFilter?: number | undefined; }'.
+src/__tests__/integration/devicePermissions.integration.test.ts(379,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(392,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(419,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(426,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(456,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(472,9): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(496,11): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(502,11): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(522,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(554,9): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(613,11): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(619,11): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(668,11): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(674,11): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(682,11): error TS2322: Type '"denied"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/devicePermissions.integration.test.ts(688,11): error TS2322: Type '"granted"' is not assignable to type 'PermissionStatus'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(33,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(51,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(51,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(67,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(67,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(95,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(111,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(116,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(116,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(178,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(196,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(228,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(248,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(302,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(390,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(422,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(422,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(479,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(485,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(485,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(524,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(524,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(538,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(538,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(636,47): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(659,47): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(690,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(721,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(739,51): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(780,46): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(804,51): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(830,47): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(846,47): error TS2341: Property 'getQueue' is private and only accessible within class 'OfflineSyncService'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(852,35): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/integration/offlineSyncNetwork.integration.test.ts(852,53): error TS2339: Property 'default' does not exist on type '{ configure: (configuration: Partial<NetInfoConfiguration>) => void; fetch: (requestedInterface?: string | undefined) => Promise<NetInfoState>; refresh: () => Promise<...>; addEventListener: (listener: NetInfoChangeHandler) => NetInfoSubscription; useNetInfo: (configuration?: Partial<...> | undefined) => NetInfoStat...'.
+src/__tests__/journeys/AuthJourneyRound82.test.tsx(191,12): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+src/__tests__/navigation/AppNavigator.test.tsx(23,49): error TS5097: An import path can only end with a '.tsx' extension when 'allowImportingTsExtensions' is enabled.
+src/__tests__/navigation/NavigationErrors.test.tsx(134,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(140,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(146,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(152,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(158,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(164,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(170,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(176,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(182,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(190,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(196,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(202,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(208,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(214,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(220,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(226,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(232,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(339,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(345,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(351,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(359,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(367,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(373,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(381,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(387,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(393,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(399,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(405,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(411,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(417,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(423,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(460,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(482,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(533,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(547,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(553,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationErrors.test.tsx(559,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ComponentType<unknown>'.
+src/__tests__/navigation/NavigationState.test.tsx(49,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/__tests__/navigation/RouteParameters.test.tsx(1009,33): error TS2345: Argument of type '"NonExistentParamList"' is not assignable to parameter of type '"WorkflowStackParamList" | "AgentStackParamList" | "ChatStackParamList" | "AuthStackParamList" | "MainTabParamList" | "AnalyticsStackParamList" | "SettingsStackParamList"'.
+src/__tests__/platform-specific/android/notificationChannels.test.tsx(314,7): error TS2353: Object literal may only specify known properties, and 'channelId' does not exist in type 'NotificationContentInput'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(73,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'typeof View | typeof TouchableOpacity' is not assignable to parameter of type 'string | ComponentClass<ViewProps, any> | FunctionComponent<ViewProps>'.
+      Type 'typeof TouchableOpacity' is not assignable to type 'string | ComponentClass<ViewProps, any> | FunctionComponent<ViewProps>'.
+        Type 'typeof TouchableOpacity' is not assignable to type 'ComponentClass<ViewProps, any>'.
+          Construct signature return types 'TouchableOpacity' and 'Component<ViewProps, any, any>' are incompatible.
+            The types of 'props.hitSlop' are incompatible between these types.
+              Type 'number | Insets | null | undefined' is not assignable to type 'Insets | undefined'.
+                Type 'null' is not assignable to type 'Insets | undefined'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(232,7): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(specifics: ({ ios?: typeof View | undefined; android?: typeof View | undefined; windows?: typeof View | undefined; macos?: typeof View | undefined; web?: typeof View | undefined; native?: typeof View | undefined; } & { ...; }) | { ...; }): typeof View', gave the following error.
+    Property 'forceTouchAvailable' is missing in type 'typeof Text' but required in type 'typeof View'.
+  Overload 2 of 2, '(specifics: { ios?: typeof View | undefined; android?: typeof View | undefined; windows?: typeof View | undefined; macos?: typeof View | undefined; web?: typeof View | undefined; native?: typeof View | undefined; }): typeof View | undefined', gave the following error.
+    Property 'forceTouchAvailable' is missing in type 'typeof Text' but required in type 'typeof View'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(246,56): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(() => CElement<ViewProps, View>) | undefined' is not assignable to parameter of type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+      Type 'undefined' is not assignable to type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(271,35): error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(286,31): error TS2339: Property 'isPad' does not exist on type 'Platform'.
+  Property 'isPad' does not exist on type 'PlatformAndroidStatic'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(296,20): error TS2339: Property 'isPad' does not exist on type 'Platform'.
+  Property 'isPad' does not exist on type 'PlatformAndroidStatic'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(383,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Object literal may only specify known properties, and 'ios' does not exist in type 'Attributes & ViewProps'.
+src/__tests__/platform-specific/conditionalRendering.test.tsx(420,56): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(() => CElement<ViewProps, View>) | undefined' is not assignable to parameter of type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+      Type 'undefined' is not assignable to type 'string | FunctionComponent<{}> | ComponentClass<{}, any>'.
+src/__tests__/platform-specific/ios/faceId.test.tsx(120,19): error TS2339: Property 'error' does not exist on type 'LocalAuthenticationResult'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/__tests__/platform-specific/ios/faceId.test.tsx(134,19): error TS2339: Property 'error' does not exist on type 'LocalAuthenticationResult'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/__tests__/platform-specific/ios/faceId.test.tsx(147,19): error TS2339: Property 'error' does not exist on type 'LocalAuthenticationResult'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/__tests__/platform-specific/ios/faceId.test.tsx(160,19): error TS2339: Property 'error' does not exist on type 'LocalAuthenticationResult'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/__tests__/platform-specific/ios/faceId.test.tsx(208,19): error TS2339: Property 'error' does not exist on type 'LocalAuthenticationResult'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/__tests__/platform-specific/ios/faceId.test.tsx(221,19): error TS2339: Property 'error' does not exist on type 'LocalAuthenticationResult'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/__tests__/platform-specific/ios/faceId.test.tsx(234,19): error TS2339: Property 'error' does not exist on type 'LocalAuthenticationResult'.
+  Property 'error' does not exist on type '{ success: true; }'.
+src/__tests__/platform-specific/platformErrors.test.tsx(110,15): error TS2339: Property 'isAvailableAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-camera/build/index")'.
+src/__tests__/platform-specific/platformErrors.test.tsx(112,40): error TS2339: Property 'isAvailableAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-camera/build/index")'.
+src/__tests__/platform-specific/platformErrors.test.tsx(150,31): error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+src/__tests__/platform-specific/platformErrors.test.tsx(168,27): error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+src/__tests__/property/device-state-invariants.test.ts(506,51): error TS2367: This comparison appears to be unintentional because the types '"granted"' and '"denied"' have no overlap.
+src/__tests__/property/shared-invariants.test.ts(50,8): error TS2307: Cannot find module '../../shared/property-tests' or its corresponding type declarations.
+src/__tests__/property/shared-invariants.test.ts(51,38): error TS2307: Cannot find module '../../shared/property-tests' or its corresponding type declarations.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(115,49): error TS2554: Expected 0 arguments, but got 1.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(118,23): error TS2554: Expected 0 arguments, but got 3.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(119,63): error TS2554: Expected 0 arguments, but got 1.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(121,29): error TS2554: Expected 0 arguments, but got 3.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(231,60): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: boolean; data: { id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; }; } | Promise<{ success: boolean; data: { ...; }; }>'.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(545,63): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: boolean; data: { message: { id: string; role: string; content: string; timestamp: string; }; session_id: string; }; } | Promise<{ success: boolean; data: { message: { id: string; role: string; content: string; timestamp: string; }; session_id: string; }; }>'.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(579,11): error TS2322: Type '{ id: string; title: string; summary: string; created_at: string; relevance_score: number; }' is not assignable to type 'never'.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(608,11): error TS2322: Type '{ id: string; title: string; summary: string; created_at: string; relevance_score: number; }' is not assignable to type 'never'.
+src/__tests__/screens/agent/AgentChatScreen.test.tsx(638,11): error TS2322: Type '{ id: string; title: string; summary: string; created_at: string; relevance_score: number; }' is not assignable to type 'never'.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(77,48): error TS2554: Expected 0 arguments, but got 1.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(704,9): error TS2322: Type 'Promise<{ success: false; error: string; }>' is not assignable to type 'Promise<{ success: boolean; data: { id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { ...; }[]; }[]; }>'.
+  Property 'data' is missing in type '{ success: false; error: string; }' but required in type '{ success: boolean; data: { id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { ...; }[]; }[]; }'.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(747,88): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(748,16): error TS18048: 'lastCall' is possibly 'undefined'.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(749,16): error TS18048: 'lastCall' is possibly 'undefined'.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(750,16): error TS18048: 'lastCall' is possibly 'undefined'.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(952,23): error TS2345: Argument of type 'ReactTestInstance | undefined' is not assignable to parameter of type 'ReactTestInstance'.
+  Type 'undefined' is not assignable to type 'ReactTestInstance'.
+src/__tests__/screens/agent/AgentListScreen.test.tsx(1110,9): error TS2322: Type 'Promise<{ success: true; data: { id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; }[]; }>' is not assignable to type 'Promise<{ success: boolean; data: { id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { ...; }[]; }[]; }>'.
+  Type '{ success: true; data: { id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; }[]; }' is not assignable to type '{ success: boolean; data: { id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { ...; }[]; }[]; }'.
+    Types of property 'data' are incompatible.
+      Type '{ id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; }[]' is not assignable to type '{ id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { name: string; enabled: boolean; }[]; }[]'.
+        Type '{ id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; }' is missing the following properties from type '{ id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { name: string; enabled: boolean; }[]; }': confidence_score, last_execution_at
+src/__tests__/screens/agent/AgentListScreen.test.tsx(1162,9): error TS2322: Type 'Promise<{ success: true; data: ({ id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; last_execution_at?: undefined; } | { id: string; ... 6 more ...; capabilities: never[]; })[]; }>' is not assignable to type 'Promise<{ success: boolean; data: { id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { ...; }[]; }[]; }>'.
+  Type '{ success: true; data: ({ id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; last_execution_at?: undefined; } | { id: string; ... 6 more ...; capabilities: never[]; })[]; }' is not assignable to type '{ success: boolean; data: { id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { ...; }[]; }[]; }'.
+    Types of property 'data' are incompatible.
+      Type '({ id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; last_execution_at?: undefined; } | { id: string; name: string; description: string; ... 4 more ...; capabilities: never[]; })[]' is not assignable to type '{ id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { name: string; enabled: boolean; }[]; }[]'.
+        Type '{ id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; last_execution_at?: undefined; } | { id: string; name: string; description: string; ... 4 more ...; capabilities: never[]; }' is not assignable to type '{ id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { name: string; enabled: boolean; }[]; }'.
+          Property 'confidence_score' is missing in type '{ id: string; name: string; description: string; maturity_level: string; status: string; created_at: string; capabilities: never[]; last_execution_at?: undefined; }' but required in type '{ id: string; name: string; description: string; maturity_level: string; status: string; confidence_score: number; created_at: string; last_execution_at: string; capabilities: { name: string; enabled: boolean; }[]; }'.
+src/__tests__/screens/auth/RegisterScreen.test.tsx(515,36): error TS2322: Type '(value: Response | PromiseLike<Response>) => void' is not assignable to type '(value: unknown) => void'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'Response | PromiseLike<Response>'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(286,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: boolean; data: { id: string; type: string; components: ({ id: string; type: string; data: { content: string; type?: undefined; data?: undefined; show_legend?: undefined; }; } | { id: string; type: string; data: { ...; }; })[]; }; } | Promise<...>'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(549,51): error TS2322: Type '{ type: string; }' is not assignable to type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+  Type '{ type: string; }' is missing the following properties from type '{ type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }': data, show_legend
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(566,51): error TS2322: Type '{}' is not assignable to type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(583,51): error TS2322: Type '{}' is not assignable to type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(600,62): error TS2353: Object literal may only specify known properties, and 'output' does not exist in type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(621,23): error TS2353: Object literal may only specify known properties, and 'title' does not exist in type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(656,23): error TS2353: Object literal may only specify known properties, and 'title' does not exist in type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(794,59): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: boolean; data: {}; } | Promise<{ success: boolean; data: {}; }>'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(877,9): error TS2741: Property 'components' is missing in type '{ id: string; type: string; }' but required in type '{ id: string; type: string; components: ({ id: string; type: string; data: { content: string; type?: undefined; data?: undefined; show_legend?: undefined; }; } | { id: string; type: string; data: { type: string; data: { ...; }; show_legend: boolean; content?: undefined; }; })[]; }'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(895,39): error TS2322: Type '{}' is not assignable to type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+src/__tests__/screens/canvas/CanvasViewerScreen.test.tsx(896,41): error TS2322: Type '{}' is not assignable to type '{ content: string; type?: undefined; data?: undefined; show_legend?: undefined; } | { type: string; data: { labels: string[]; datasets: { label: string; data: number[]; }[]; }; show_legend: boolean; content?: undefined; }'.
+src/__tests__/screens/chat/ConversationListScreen.test.tsx(147,70): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/__tests__/screens/chat/ConversationListScreen.test.tsx(148,56): error TS2554: Expected 0 arguments, but got 1.
+src/__tests__/screens/chat/ConversationListScreen.test.tsx(149,54): error TS2554: Expected 0 arguments, but got 1.
+src/__tests__/screens/chat/ConversationListScreen.test.tsx(150,48): error TS2554: Expected 0 arguments, but got 1.
+src/__tests__/screens/chat/ConversationListScreen.test.tsx(703,9): error TS2322: Type 'Promise<{ success: false; error: string; }>' is not assignable to type 'Promise<{ success: boolean; data: { session_id: string; agent_id: string; agent_name: string; agent_maturity: string; last_message: string; last_message_time: string; unread_count: number; }[]; }>'.
+  Property 'data' is missing in type '{ success: false; error: string; }' but required in type '{ success: boolean; data: { session_id: string; agent_id: string; agent_name: string; agent_maturity: string; last_message: string; last_message_time: string; unread_count: number; }[]; }'.
+src/__tests__/screens/settings/SettingsScreen.test.tsx(514,9): error TS2322: Type 'null' is not assignable to type 'string'.
+src/__tests__/services/agentDeviceBridge.test.ts(114,60): error TS2345: Argument of type 'true' is not assignable to parameter of type 'CameraPermission | Promise<CameraPermission>'.
+src/__tests__/services/agentDeviceBridge.test.ts(116,7): error TS2741: Property 'type' is missing in type '{ uri: string; width: number; height: number; }' but required in type 'CapturedMedia'.
+src/__tests__/services/agentDeviceBridge.test.ts(119,62): error TS2345: Argument of type 'true' is not assignable to parameter of type 'LocationPermissionStatus | Promise<LocationPermissionStatus>'.
+src/__tests__/services/agentDeviceBridge.test.ts(133,7): error TS2353: Object literal may only specify known properties, and 'street' does not exist in type 'Promise<string | null>'.
+src/__tests__/services/agentDeviceBridge.test.ts(146,61): error TS2345: Argument of type '"face"' is not assignable to parameter of type 'BiometricType | Promise<BiometricType>'.
+src/__tests__/services/agentDeviceBridge.test.ts(147,74): error TS2353: Object literal may only specify known properties, and 'warning' does not exist in type 'BiometricResult | Promise<BiometricResult>'.
+src/__tests__/services/agentService.test.ts(66,53): error TS2322: Type '"AUTONOMOUS"' is not assignable to type 'AgentMaturity | "ALL" | undefined'.
+src/__tests__/services/agentService.test.ts(80,38): error TS2322: Type '"ACTIVE"' is not assignable to type 'AgentStatus | "ALL" | undefined'.
+src/__tests__/services/agentService.test.ts(136,9): error TS2322: Type '"AUTONOMOUS"' is not assignable to type 'AgentMaturity | "ALL" | undefined'.
+src/__tests__/services/agentService.test.ts(137,9): error TS2322: Type '"ACTIVE"' is not assignable to type 'AgentStatus | "ALL" | undefined'.
+src/__tests__/services/agentSyncService.test.ts(86,52): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'boolean | Promise<boolean>'.
+src/__tests__/services/agentSyncService.test.ts(544,13): error TS2454: Variable 'fresh' is used before being assigned.
+src/__tests__/services/agentSyncService.test.ts(546,14): error TS2454: Variable 'fresh' is used before being assigned.
+src/__tests__/services/agentSyncService.test.ts(547,14): error TS2454: Variable 'fresh' is used before being assigned.
+src/__tests__/services/agentSyncService.test.ts(549,14): error TS2454: Variable 'fresh' is used before being assigned.
+src/__tests__/services/agentSyncService.test.ts(550,14): error TS2454: Variable 'fresh' is used before being assigned.
+src/__tests__/services/agentSyncService.test.ts(551,14): error TS2454: Variable 'fresh' is used before being assigned.
+src/__tests__/services/agentSyncService.test.ts(553,7): error TS2454: Variable 'fresh' is used before being assigned.
+src/__tests__/services/biometricService.test.ts(153,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: true; } | Promise<LocalAuthenticationResult>'.
+src/__tests__/services/biometricService.test.ts(172,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: true; } | Promise<LocalAuthenticationResult>'.
+src/__tests__/services/biometricService.test.ts(187,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(205,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(223,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(242,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(262,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: true; } | Promise<LocalAuthenticationResult>'.
+src/__tests__/services/biometricService.test.ts(291,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: true; } | Promise<LocalAuthenticationResult>'.
+src/__tests__/services/biometricService.test.ts(354,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(376,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(400,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(424,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(448,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(460,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: true; } | Promise<LocalAuthenticationResult>'.
+src/__tests__/services/biometricService.test.ts(483,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: true; } | Promise<LocalAuthenticationResult>'.
+src/__tests__/services/biometricService.test.ts(775,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(853,80): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/biometricService.test.ts(899,9): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ success: true; } | Promise<LocalAuthenticationResult>'.
+src/__tests__/services/biometricService.test.ts(930,78): error TS2345: Argument of type '{ success: false; error: { code: string; message: string; }; warning: undefined; }' is not assignable to parameter of type 'LocalAuthenticationResult | Promise<LocalAuthenticationResult>'.
+  Types of property 'error' are incompatible.
+    Type '{ code: string; message: string; }' is not assignable to type 'string'.
+src/__tests__/services/canvasService.test.ts(13,10): error TS2614: Module '"@react-native-community/netinfo"' has no exported member 'NetInfo'. Did you mean to use 'import NetInfo from "@react-native-community/netinfo"' instead?
+src/__tests__/services/canvasSyncService.test.ts(579,42): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/__tests__/services/locationService.test.ts(112,15): error TS2339: Property 'removeSubscriptionAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-location/build/Location")'.
+src/__tests__/services/locationService.test.ts(368,23): error TS2339: Property 'removeSubscriptionAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-location/build/Location")'.
+src/__tests__/services/locationService.test.ts(388,17): error TS2339: Property 'removeSubscriptionAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-location/build/Location")'.
+src/__tests__/services/locationService.test.ts(717,23): error TS2339: Property 'removeSubscriptionAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-location/build/Location")'.
+src/__tests__/services/locationService.test.ts(1567,23): error TS2339: Property 'removeSubscriptionAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-location/build/Location")'.
+src/__tests__/services/locationService.test.ts(2016,23): error TS2339: Property 'removeSubscriptionAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-location/build/Location")'.
+src/__tests__/services/notificationService.test.ts(826,52): error TS2559: Type '"id"' has no properties in common with type 'NotificationContentInput'.
+src/__tests__/services/workflowService.test.ts(80,9): error TS2322: Type '"updated_at"' is not assignable to type '"name" | "created_at" | "execution_count" | "success_rate" | undefined'.
+src/__tests__/services/workflowService.test.ts(154,48): error TS2353: Object literal may only specify known properties, and 'input' does not exist in type 'WorkflowTriggerRequest'.
+src/__tests__/services/workflowSyncService.test.ts(35,52): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'boolean | Promise<boolean>'.
+src/__tests__/services/workflowSyncService.test.ts(39,7): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(213,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(236,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(278,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(289,13): error TS2367: This comparison appears to be unintentional because the types 'StorageKey' and '"workflow_cache"' have no overlap.
+src/__tests__/services/workflowSyncService.test.ts(336,13): error TS2367: This comparison appears to be unintentional because the types 'StorageKey' and '"workflow_cache"' have no overlap.
+src/__tests__/services/workflowSyncService.test.ts(388,44): error TS2345: Argument of type '() => Promise<never>' is not assignable to parameter of type 'ApiResponse<unknown> | Promise<ApiResponse<unknown>>'.
+src/__tests__/services/workflowSyncService.test.ts(458,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(484,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(523,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(600,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/__tests__/services/workflowSyncService.test.ts(626,9): error TS2353: Object literal may only specify known properties, and 'pendingActions' does not exist in type 'SyncState | Promise<SyncState>'.
+src/components/__tests__/CanvasChart.test.tsx(442,42): error TS2322: Type '{ data: ChartData; showLegend: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'showLegend' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/CanvasChart.test.tsx(458,42): error TS2322: Type '{ data: ChartData; showLegend: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'showLegend' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/CanvasChart.test.tsx(466,42): error TS2322: Type '{ data: ChartData; showLegend: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'showLegend' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/CanvasChart.test.tsx(483,42): error TS2322: Type '{ data: ChartData; showLegend: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'showLegend' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/CanvasChart.test.tsx(579,42): error TS2322: Type '{ data: ChartData; animationEnabled: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'animationEnabled' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/CanvasChart.test.tsx(673,11): error TS2322: Type '{ data: ChartData; enableZoom: true; enableExport: true; showLegend: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'showLegend' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/CanvasChart.test.tsx(692,41): error TS2322: Type '{ data: ChartData; showLegend: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'showLegend' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/CanvasChart.test.tsx(713,42): error TS2322: Type '{ data: ChartData; showLegend: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasChartProps'.
+  Property 'showLegend' does not exist on type 'IntrinsicAttributes & CanvasChartProps'.
+src/components/__tests__/Location.test.tsx(304,22): error TS7053: Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{}'.
+  Property '1' does not exist on type '{}'.
+src/components/__tests__/Location.test.tsx(304,36): error TS7053: Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{}'.
+  Property '1' does not exist on type '{}'.
+src/components/__tests__/Location.test.tsx(305,9): error TS7053: Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{}'.
+  Property '1' does not exist on type '{}'.
+src/components/__tests__/OfflineIndicator.test.tsx(526,23): error TS2345: Argument of type 'ReactTestInstance | null' is not assignable to parameter of type 'ReactTestInstance'.
+  Type 'null' is not assignable to type 'ReactTestInstance'.
+src/components/__tests__/OfflineIndicator.test.tsx(545,23): error TS2345: Argument of type 'ReactTestInstance | null' is not assignable to parameter of type 'ReactTestInstance'.
+  Type 'null' is not assignable to type 'ReactTestInstance'.
+src/components/canvas/CanvasChart.tsx(249,13): error TS2322: Type 'Dispatch<SetStateAction<{ x: [number, number]; y: [number, number]; } | undefined>>' is not assignable to type '(domain: { x: DomainTuple; y: DomainTuple; }, props: VictoryZoomContainerProps) => void'.
+  Types of parameters 'value' and 'domain' are incompatible.
+    Type '{ x: DomainTuple; y: DomainTuple; }' is not assignable to type 'SetStateAction<{ x: [number, number]; y: [number, number]; } | undefined>'.
+      Type '{ x: DomainTuple; y: DomainTuple; }' is not assignable to type '{ x: [number, number]; y: [number, number]; }'.
+        Types of property 'x' are incompatible.
+          Type 'DomainTuple' is not assignable to type '[number, number]'.
+            Type 'Tuple<Date>' is not assignable to type '[number, number]'.
+              Type at position 0 in source is not compatible with type at position 0 in target.
+                Type 'Date' is not assignable to type 'number'.
+src/components/canvas/CanvasChart.tsx(264,13): error TS2559: Type '{ onChildPress: (point: any, props: any) => void; }[]' has no properties in common with type 'DOMAttributes<any>'.
+src/components/canvas/CanvasChart.tsx(319,11): error TS2559: Type '{ onChildPress: (point: any, props: any) => void; }[]' has no properties in common with type 'DOMAttributes<any>'.
+src/components/canvas/CanvasChart.tsx(344,46): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/canvas/CanvasChart.tsx(344,46): error TS18048: 'index' is possibly 'undefined'.
+src/components/canvas/CanvasChart.tsx(378,9): error TS2353: Object literal may only specify known properties, and 'onChildPress' does not exist in type 'EventPropTypeInterface<VictorySliceTTargetType, string[] | number[] | StringOrNumberOrCallback>'.
+src/components/canvas/CanvasChart.tsx(484,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ScrollViewProps): ScrollView', gave the following error.
+    Type '{ children: Element; horizontal: boolean; showsHorizontalScrollIndicator: true; onLongPress: (event: GestureResponderEvent) => void; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<ScrollView> & Readonly<ScrollViewProps>'.
+      Property 'onLongPress' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<ScrollView> & Readonly<ScrollViewProps>'.
+  Overload 2 of 2, '(props: ScrollViewProps, context: any): ScrollView', gave the following error.
+    Type '{ children: Element; horizontal: boolean; showsHorizontalScrollIndicator: true; onLongPress: (event: GestureResponderEvent) => void; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<ScrollView> & Readonly<ScrollViewProps>'.
+      Property 'onLongPress' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<ScrollView> & Readonly<ScrollViewProps>'.
+src/components/canvas/CanvasGestures.tsx(167,12): error TS18046: 't' is of type 'unknown'.
+src/components/canvas/CanvasGestures.tsx(168,12): error TS18046: 't' is of type 'unknown'.
+src/components/canvas/CanvasWebView.tsx(341,64): error TS2532: Object is possibly 'undefined'.
+src/components/canvas/CanvasWebView.tsx(825,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: IOSWebViewProps & AndroidWebViewProps & WindowsWebViewProps): WebView<{}>', gave the following error.
+    Type '() => null' is not assignable to type '() => ReactElement<any, string | JSXElementConstructor<any>>'.
+      Type 'null' is not assignable to type 'ReactElement<any, string | JSXElementConstructor<any>>'.
+  Overload 2 of 2, '(props: IOSWebViewProps & AndroidWebViewProps & WindowsWebViewProps, context: any): WebView<{}>', gave the following error.
+    Type '() => null' is not assignable to type '() => ReactElement<any, string | JSXElementConstructor<any>>'.
+      Type 'null' is not assignable to type 'ReactElement<any, string | JSXElementConstructor<any>>'.
+src/components/chat/MessageInput.tsx(265,50): error TS2339: Property 'RECORDING_OPTIONS_PRESET_HIGH_QUALITY' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-av/build/Audio")'.
+src/components/chat/StreamingText.tsx(20,26): error TS2307: Cannot find module 'react-native-markdown-display' or its corresponding type declarations.
+src/components/chat/StreamingText.tsx(21,23): error TS2307: Cannot find module 'react-native-syntax-highlighter' or its corresponding type declarations.
+src/components/chat/StreamingText.tsx(22,29): error TS2307: Cannot find module 'react-syntax-highlighter/dist/esm/styles/prism' or its corresponding type declarations.
+src/components/offline/OfflineIndicator.tsx(29,18): error TS2307: Cannot find module 'react-native-vector-icons/Ionicons' or its corresponding type declarations.
+src/components/offline/OfflineIndicator.tsx(44,57): error TS2345: Argument of type '{ lastSyncAt: null; lastSuccessfulSyncAt: null; pendingCount: number; syncInProgress: false; consecutiveFailures: number; }' is not assignable to parameter of type 'SyncState | (() => SyncState)'.
+  Type '{ lastSyncAt: null; lastSuccessfulSyncAt: null; pendingCount: number; syncInProgress: false; consecutiveFailures: number; }' is missing the following properties from type 'SyncState': currentOperation, syncProgress, cancelled
+src/components/offline/SyncProgressModal.tsx(31,18): error TS2307: Cannot find module 'react-native-vector-icons/Ionicons' or its corresponding type declarations.
+src/contexts/__tests__/DeviceContext.test.tsx(246,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(270,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(373,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(407,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(434,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(474,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(503,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(535,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(560,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(592,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(624,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(649,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(680,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(712,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(744,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(773,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(809,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(834,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(859,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(884,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(910,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(933,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(964,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1006,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1030,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1065,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1104,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1142,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1187,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1217,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1256,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/DeviceContext.test.tsx(1309,9): error TS2304: Cannot find name 'authValue'.
+src/contexts/__tests__/WebSocketContext.test.tsx(1533,30): error TS2339: Property 'socket' does not exist on type '{ messages: any[]; isStreaming: boolean; sendMessage: (content: string) => void; }'.
+src/contexts/__tests__/WebSocketContext.test.tsx(2305,30): error TS2339: Property 'connect' does not exist on type '{ messages: any[]; isStreaming: boolean; sendMessage: (content: string) => void; }'.
+src/contexts/__tests__/WebSocketContext.test.tsx(2345,30): error TS2339: Property 'connect' does not exist on type '{ messages: any[]; isStreaming: boolean; sendMessage: (content: string) => void; }'.
+src/navigation/AuthNavigator.tsx(177,26): error TS2322: Type '{ prefixes: string[]; config: { screens: { Login: { path: string; }; Register: { path: string; }; ForgotPassword: { path: string; }; BiometricAuth: { path: string; }; Main: { screens: { WorkflowsTab: { screens: { WorkflowsList: { ...; }; WorkflowDetail: { ...; }; WorkflowTrigger: { ...; }; ExecutionProgress: { ...; ...' is not assignable to type 'LinkingOptions<{ Login: unknown; Register: unknown; ForgotPassword: unknown; BiometricAuth: unknown; Main: unknown; Agent: unknown; Workflow: unknown; Canvas: unknown; Execution: unknown; }>'.
+  The types of 'config.screens.Main' are incompatible between these types.
+    Type '{ screens: { WorkflowsTab: { screens: { WorkflowsList: { path: string; }; WorkflowDetail: { path: string; }; WorkflowTrigger: { path: string; }; ExecutionProgress: { path: string; }; WorkflowLogs: { path: string; }; }; }; AnalyticsTab: { ...; }; AgentsTab: { ...; }; ChatTab: { ...; }; SettingsTab: { ...; }; }; }' is not assignable to type 'string | Omit<PathConfig<{}>, "initialRouteName" | "screens"> | undefined'.
+src/navigation/AuthNavigator.tsx(221,15): error TS2322: Type 'FC<BiometricAuthScreenProps>' is not assignable to type 'ScreenComponentType<ParamListBase, "BiometricAuth"> | undefined'.
+  Type 'FunctionComponent<BiometricAuthScreenProps>' is not assignable to type 'FunctionComponent<{}>'.
+    Types of parameters 'props' and 'props' are incompatible.
+      Type '{}' is missing the following properties from type 'BiometricAuthScreenProps': navigation, route
+src/screens/agent/AgentChatScreen.tsx(172,9): error TS2554: Expected 4 arguments, but got 3.
+src/screens/agent/AgentListScreen.tsx(62,9): error TS2322: Type '"offline" | "online" | undefined' is not assignable to type 'AgentStatus | "ALL" | undefined'.
+  Type '"offline"' is not assignable to type 'AgentStatus | "ALL" | undefined'.
+src/screens/agent/AgentListScreen.tsx(269,55): error TS2322: Type '{ source: string; size: number; color: string; style: { marginRight: number; }; }' is not assignable to type 'IntrinsicAttributes & IconProps & { source: any; color?: string | undefined; testID?: string | undefined; theme?: ThemeProp | undefined; }'.
+  Property 'style' does not exist on type 'IntrinsicAttributes & IconProps & { source: any; color?: string | undefined; testID?: string | undefined; theme?: ThemeProp | undefined; }'.
+src/screens/auth/BiometricAuthScreen.tsx(108,20): error TS2448: Block-scoped variable 'triggerBiometric' used before its declaration.
+src/screens/auth/BiometricAuthScreen.tsx(108,20): error TS2454: Variable 'triggerBiometric' is used before being assigned.
+src/screens/auth/RegisterScreen.tsx(203,7): error TS2353: Object literal may only specify known properties, and 'terms' does not exist in type 'SetStateAction<{ fullName?: boolean | undefined; email?: boolean | undefined; password?: boolean | undefined; confirmPassword?: boolean | undefined; }>'.
+src/screens/auth/RegisterScreen.tsx(270,9): error TS2353: Object literal may only specify known properties, and 'prefersEphemeralWebBrowserSession' does not exist in type 'WebBrowserOpenOptions'.
+src/screens/auth/RegisterScreen.tsx(470,22): error TS2339: Property 'terms' does not exist on type '{ fullName?: boolean | undefined; email?: boolean | undefined; password?: boolean | undefined; confirmPassword?: boolean | undefined; }'.
+src/screens/canvas/CanvasViewerScreen.tsx(110,32): error TS2339: Property 'data' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(111,36): error TS2339: Property 'metadata' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(141,30): error TS2339: Property 'data' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(142,34): error TS2339: Property 'metadata' does not exist on type 'never'.
+src/screens/canvas/CanvasViewerScreen.tsx(240,20): error TS2339: Property 'remove' does not exist on type 'NetInfoSubscription'.
+src/screens/canvas/CanvasViewerScreen.tsx(364,16): error TS2339: Property 'push' does not exist on type 'Omit<NavigationProp<RootParamList>, "getState"> & { getState(): Readonly<{ key: string; index: number; routeNames: string[]; history?: unknown[] | undefined; routes: NavigationRoute<...>[]; type: string; stale: false; }> | undefined; }'.
+src/screens/debugging/BreakpointsScreen.tsx(19,40): error TS2307: Cannot find module 'lucide-react-native' or its corresponding type declarations.
+src/screens/debugging/DebugSessionScreen.tsx(17,65): error TS2307: Cannot find module 'lucide-react-native' or its corresponding type declarations.
+src/screens/debugging/TracesScreen.tsx(17,80): error TS2307: Cannot find module 'lucide-react-native' or its corresponding type declarations.
+src/screens/workflows/ExecutionProgressScreen.tsx(288,21): error TS2322: Type 'string' is not assignable to type '"wifi" | "key" | "image" | "document" | "text" | "push" | "map" | "filter" | "at" | "search" | "repeat" | "link" | "body" | "code" | "menu" | "time" | "ellipse" | "stop" | "scale" | ... 1319 more ... | undefined'.
+src/services/agentSyncService.ts(82,11): error TS2564: Property 'cache' has no initializer and is not definitely assigned in the constructor.
+src/services/agentSyncService.ts(132,45): error TS2339: Property 'agents' does not exist on type '{}'.
+src/services/agentSyncService.ts(201,15): error TS2740: Type '{}' is missing the following properties from type 'Agent': id, name, description, maturityLevel, and 4 more.
+src/services/biometricService.ts(231,51): error TS2724: '"/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-local-authentication/build/LocalAuthentication"' has no exported member named 'LocalAuthenticationError'. Did you mean 'LocalAuthenticationResult'?
+src/services/canvasService.ts(9,10): error TS2614: Module '"@react-native-community/netinfo"' has no exported member 'NetInfo'. Did you mean to use 'import NetInfo from "@react-native-community/netinfo"' instead?
+src/services/canvasSyncService.ts(74,11): error TS2564: Property 'cache' has no initializer and is not definitely assigned in the constructor.
+src/services/canvasSyncService.ts(124,48): error TS2339: Property 'canvases' does not exist on type '{}'.
+src/services/canvasSyncService.ts(202,15): error TS2740: Type '{}' is missing the following properties from type 'Canvas': id, title, type, data, and 2 more.
+src/services/chatService.ts(348,7): error TS2322: Type 'ApiResponse<{ message: ChatMessage; session_id: string; }>' is not assignable to type 'ApiResponse<void>'.
+  Type '{ message: ChatMessage; session_id: string; }' is not assignable to type 'void'.
+src/services/deviceSocket.ts(362,35): error TS2339: Property 'takePictureAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-camera/build/index")'.
+src/services/locationService.ts(269,7): error TS2322: Type 'LocationSubscription' is not assignable to type 'number'.
+src/services/locationService.ts(329,24): error TS2339: Property 'removeSubscriptionAsync' does not exist on type 'typeof import("/private/tmp/atom-mobile-build-20261109/mobile/node_modules/expo-location/build/Location")'.
+src/services/offlineSyncService.ts(146,11): error TS2564: Property 'qualityMetrics' has no initializer and is not definitely assigned in the constructor.
+src/services/offlineSyncService.ts(620,56): error TS2339: Property 'updated_at' does not exist on type '{}'.
+src/services/offlineSyncService.ts(692,56): error TS2339: Property 'updated_at' does not exist on type '{}'.
+src/services/workflowSyncService.ts(100,11): error TS2564: Property 'cache' has no initializer and is not definitely assigned in the constructor.
+src/services/workflowSyncService.ts(103,11): error TS2564: Property 'metrics' has no initializer and is not definitely assigned in the constructor.
+src/services/workflowSyncService.ts(154,51): error TS2339: Property 'workflows' does not exist on type '{}'.
+src/services/workflowSyncService.ts(223,15): error TS2740: Type '{}' is missing the following properties from type 'Workflow': id, name, description, definition, and 4 more.
+src/services/workflowSyncService.ts(315,15): error TS2740: Type '{}' is missing the following properties from type 'WorkflowExecution': id, workflowId, status, input, and 2 more.
+src/shared/test-utils/async-utils.ts(79,36): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
+src/test-utils/__tests__/mockData.test.ts(136,29): error TS2551: Property 'osName' does not exist on type '{ id: string; name: string; platform: "ios"; osVersion: string; appVersion: string; model: string; manufacturer: string; totalMemory: number; supportedCpuArchitectures: string[]; deviceYearClass: number; }'. Did you mean 'name'?
+src/test-utils/__tests__/mockData.test.ts(137,29): error TS2339: Property 'modelName' does not exist on type '{ id: string; name: string; platform: "ios"; osVersion: string; appVersion: string; model: string; manufacturer: string; totalMemory: number; supportedCpuArchitectures: string[]; deviceYearClass: number; }'.
+src/test-utils/mockStorage.ts(23,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(24,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(48,19): error TS7031: Binding element 'key' implicitly has an 'any' type.
+src/test-utils/mockStorage.ts(48,24): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/test-utils/mockStorage.ts(77,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(78,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(89,27): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(98,30): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(112,14): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/mockStorage.ts(113,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/test-utils/testRender.tsx(136,21): error TS2322: Type '{ children: Element; value: any; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.
+  Property 'value' does not exist on type 'IntrinsicAttributes & { children: ReactNode; }'.
+src/test-utils/testRender.tsx(137,28): error TS2322: Type '{ children: Element; value: any; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.
+  Property 'value' does not exist on type 'IntrinsicAttributes & { children: ReactNode; }'.
+src/test-utils/testRender.tsx(138,27): error TS2322: Type '{ children: ReactNode; value: any; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.
+  Property 'value' does not exist on type 'IntrinsicAttributes & { children: ReactNode; }'.
