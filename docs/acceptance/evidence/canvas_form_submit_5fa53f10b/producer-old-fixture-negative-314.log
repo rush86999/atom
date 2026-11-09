@@ -1,0 +1,105 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 03:27:27 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 03:27:27 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-09 03:27:27 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-09 03:27:27 [    INFO] EscalationManager initialized
+2026-11-09 03:27:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:27:27 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-09 03:27:27 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-09 03:27:27 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-09 03:27:27 [    INFO] EscalationManager initialized
+2026-11-09 03:27:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:27:27 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-09 03:27:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 03:27:27 [    INFO] MCP Service initialized
+
+tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_success 
+-------------------------------- live log setup --------------------------------
+2026-11-09 03:27:28 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 33%]
+tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_with_agent FAILED [ 66%]
+tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_complex_fields FAILED [100%]
+
+=================================== FAILURES ===================================
+E   assert False is True
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_tool_integration.py:300: assert False is True
+E   assert False is True
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_tool_integration.py:322: assert False is True
+E   assert False is True
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_tool_integration.py:345: assert False is True
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852
+  /usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25
+  /usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.fields import FieldInfo as FieldInfoV1
+
+tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_success
+tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_with_agent
+tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_complex_fields
+  /private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_with_agent
+  /private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_tool_integration.py:28: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_success
+FAILED tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_with_agent
+FAILED tests/test_canvas_tool_integration.py::TestCanvasFormPresentation::test_present_form_complex_fields
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 3 failed, 10 warnings in 16.04s ========================

@@ -1,0 +1,29 @@
+{
+  "executed_source": "3644c792af34161b74cea7203ab4412a6bc3ff19",
+  "runtime_source": "5fa53f10bf1c2dc42a8f6f223e69e91ba26137aa",
+  "source_files": {
+    ".github/workflows/ci.yml": "357d98913444b78049aa29b93607fb99c1fe2000068a2f838509bc0e185eca8d",
+    "backend/api/canvas_routes.py": "15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/canvas_write_service.py": "33ab8d36af5d52ec0392de63444b969ca5af9b707807cc89a30e597325fe52de",
+    "backend/tools/canvas_crud_tool.py": "48ae6d9c5401bb8462daa18666ae487af712fe3bb79ad4c77efb08aa3bd38938",
+    "backend/tools/canvas_tool.py": "8dd854f846dce7073629569dbd3934f24182d4d6ca659c31be2310b6f14a3c9b",
+    "backend/core/presentation_material.py": "04593834fb79625b0284a6326ae2d3dcb44022967fcfa2e006ee7b885a49d8d7",
+    "backend/core/oracle/postcondition_verifiers.py": "d4e9fbb4bb43ea4820dd05fe6a9ce385cf75bf9ffcdb07f449e3b44646207831",
+    "backend/tests/test_canvas_submit_receipt_contract.py": "34d1c1335a6e5a9a6710fce3ab44cd47717fb8242ee52128dc6f9eb109956084",
+    "backend/tests/test_canvas_form_producer_submit_join.py": "1a525aef5521b0996b12b86a6ce083580ba8ffbb73b68c71e4dba4eb8282c084",
+    "backend/tests/test_canvas_tool_integration.py": "45cbf7be1cae76f65b15624a3f4cb5d70a8d11c616e3c28cb1e663a53882f66d",
+    "backend/tests/test_covpush_canvasroutes.py": "ff09184c153979a47cd05c8145c39fbbbd57974ae6fafe9dd5b44efeb9b03f20"
+  },
+  "artifacts": {
+    "native-retry-input.json": "24d89996d87c0713f13729515080d4520db63a50ea1cf2df5a14494aa8190fed",
+    "native-retry-policy.json": "d86f95ae4376e4fd1f6a9f57f4eb90a879629acb8ec056c4a839be28a532177d",
+    "native-producer-policy.json": "73502f58efff40d8dd2094d9e612c52c0d3ef11c0d80c3ab118785069da9b9d7",
+    "producer-base-old-fixture-314.log": "0f45b297f16535b6262494866e9cdbe5f3e9ae4c9ff6d94e7089350568b5c53b",
+    "native-partial-retry-negative-314.log": "9366df2151847103c3e5c966d048e467e82a9dc5a04b09dc9bf887df79ddc0a8",
+    "README.md": "0103d61db02647d79419687742451e4ab59f6c7d79eaa73250c754da14f77437",
+    "producer-old-fixture-negative-314.log": "4674f5c82b6fa56e06d4321dff23590bcba30cfe720303e3ee66adbd51926978",
+    "verification.json": "3a92746232b4bf1e76278ce409798e793f5571d8ea6b53bccb46606e34cffa20",
+    "focused54-314.log": "f938e50a3a556412493d55cac42aebe9848b451a22f2a45d096e8ccc32c351af",
+    "focused54-311.log": "db11cbcf07e536a5de565b3370e08d9db60838414394aacc270e4817e2d68b88"
+  }
+}

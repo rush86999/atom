@@ -1,0 +1,10 @@
+{
+  "runtime_source": "ba93e8545",
+  "files": {
+    "backend/tools/canvas_tool.py": "c7d5318cd4d0f58cea59b58f4c6acc972b7e66831f7c01758a00a7f168f8f440",
+    "backend/tools/canvas_crud_tool.py": "48ae6d9c5401bb8462daa18666ae487af712fe3bb79ad4c77efb08aa3bd38938",
+    "backend/core/presentation_material.py": "ce369427d9a303976602bd23cc63e293ddb5ad71d7702028db8763195b277822",
+    "backend/core/oracle/postcondition_verifiers.py": "d4e9fbb4bb43ea4820dd05fe6a9ce385cf75bf9ffcdb07f449e3b44646207831",
+    "backend/tests/test_canvas_form_producer_submit_join.py": "1a525aef5521b0996b12b86a6ce083580ba8ffbb73b68c71e4dba4eb8282c084"
+  }
+}

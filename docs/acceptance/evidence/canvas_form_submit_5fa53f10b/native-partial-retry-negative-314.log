@@ -1,0 +1,302 @@
+
+tests/test_canvas_form_producer_submit_join.py::test_ordinary_present_form_then_submit_has_durable_scope 
+-------------------------------- live log setup --------------------------------
+2026-11-09 03:24:15 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 03:24:15 [    INFO] EscalationManager initialized
+2026-11-09 03:24:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:24:15 [    INFO] EscalationManager initialized
+2026-11-09 03:24:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 03:24:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 03:24:15 [    INFO] AgentTaskRegistry initialized
+2026-11-09 03:24:16 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:16 [    INFO] Presented form to user form-actor
+2026-11-09 03:24:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_canvas_form_producer_submit_join.py::test_form_producer_does_not_broadcast_unpersisted_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:17 [   ERROR] Form presentation failed at controlled boundary: RuntimeError
+PASSED                                                                   [  3%]
+tests/test_canvas_form_producer_submit_join.py::test_form_missing_frozen_identity_never_broadcasts[_oracle_expected_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:17 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [  5%]
+tests/test_canvas_form_producer_submit_join.py::test_form_missing_frozen_identity_never_broadcasts[_oracle_expected_title] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:18 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [  7%]
+tests/test_canvas_form_producer_submit_join.py::test_form_missing_frozen_identity_never_broadcasts[_oracle_expected_material] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:19 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [  9%]
+tests/test_canvas_form_producer_submit_join.py::test_form_governance_uses_current_actor_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:19 [    INFO] Resolved agent via explicit agent_id: Form Agent
+2026-11-09 03:24:19 [    INFO] Presented form to user form-actor (agent: Form Agent)
+PASSED                                                                   [ 11%]
+tests/test_canvas_form_producer_submit_join.py::test_form_foreign_agent_is_not_presentation_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:20 [    INFO] Resolved agent via explicit agent_id: Form Agent
+PASSED                                                                   [ 13%]
+tests/test_canvas_form_producer_submit_join.py::test_form_lost_commit_confirmation_preserves_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:21 [   ERROR] Form presentation failed at controlled boundary: RuntimeError
+PASSED                                                                   [ 15%]
+tests/test_canvas_form_producer_submit_join.py::test_form_disabled_oracle_cannot_certify 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:21 [   ERROR] Form presentation committed but could not be verified
+PASSED                                                                   [ 17%]
+tests/test_canvas_form_producer_submit_join.py::test_form_incomplete_policy_cannot_waive_review 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:22 [    INFO] Resolved agent via explicit agent_id: Form Agent
+2026-11-09 03:24:22 [ WARNING] Governance blocked form presentation
+PASSED                                                                   [ 19%]
+tests/test_canvas_form_producer_submit_join.py::test_form_agent_disabled_after_resolution_is_not_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:23 [    INFO] Resolved agent via explicit agent_id: Form Agent
+PASSED                                                                   [ 21%]
+tests/test_canvas_form_producer_submit_join.py::test_form_explicit_missing_agent_has_no_fallback_side_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:24 [ WARNING] Requested agent_id missing-explicit-agent not found
+2026-11-09 03:24:24 [    INFO] Creating system default Chat Assistant agent
+2026-11-09 03:24:24 [    INFO] Created system default agent: 990f1d00-fef2-4594-ba40-82733839bd81
+2026-11-09 03:24:24 [    INFO] Resolved agent via system default: Chat Assistant
+FAILED                                                                   [ 23%]
+tests/test_canvas_form_producer_submit_join.py::test_form_same_operation_replays_one_surface 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:24 [    INFO] Presented form to user form-actor
+2026-11-09 03:24:24 [    INFO] Presented form to user form-actor
+FAILED                                                                   [ 25%]
+tests/test_canvas_form_producer_submit_join.py::test_form_changed_material_cannot_reuse_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:25 [    INFO] Presented form to user form-actor
+2026-11-09 03:24:25 [    INFO] Presented form to user form-actor
+FAILED                                                                   [ 27%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_commit_failure_is_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:26 [ WARNING] canvas submit commit outcome unknown: RuntimeError
+2026-11-09 03:24:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 29%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_success_requires_exact_durable_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_foreign_scope_refuses_before_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 33%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_same_scope_shared_form_remains_supported 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_explicit_operation_replay_appends_once 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+2026-11-09 03:24:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_reused_operation_cannot_change_material 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:29 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+2026-11-09 03:24:29 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 39%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_stale_request_actor_cannot_bypass_deactivation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 41%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_operation_namespace_preserves_opaque_components PASSED [ 43%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_distinct_canvas_and_operation_components_do_not_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+2026-11-09 03:24:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_writer_cannot_rebind_frozen_request_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:31 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 47%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_raw_scope_move_after_commit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 49%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_canvas_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_operation_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:33 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 52%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_material_sha256] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:34 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 54%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:34 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 56%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_actor_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:35 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 58%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_actor_workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_canvas_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 62%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_canvas_workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:37 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 64%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_agent_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 66%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_missing_frozen_binding_never_certifies[_oracle_expected_agent_execution_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 68%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_guard_preserves_peer_authority_or_scope_winner[actor-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:39 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 70%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_guard_preserves_peer_authority_or_scope_winner[actor-disable] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 72%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_guard_preserves_peer_authority_or_scope_winner[canvas-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:41 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 74%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_competing_actor_cannot_append_second_logical_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:41 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 76%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_readback_failure_keeps_committed_identity[disabled] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 78%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_readback_failure_keeps_committed_identity[unavailable] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 80%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_lost_commit_confirmation_replays_original_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:43 [ WARNING] canvas submit commit outcome unknown: RuntimeError
+2026-11-09 03:24:43 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+2026-11-09 03:24:43 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_valid_scoped_autonomous_agent_is_supported 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_policy_review_required_is_not_waived 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:45 [ WARNING] API Error: GOVERNANCE_DENIED - Existing policy requires review
+2026-11-09 03:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 86%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_agent_move_before_actor_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 88%]
+tests/test_canvas_submit_receipt_contract.py::test_agent_scope_compatibility_preserves_only_personal_aliases PASSED [ 90%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_without_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_denied_agent_returns_403 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:45 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t1: Tenant t1 not found
+2026-11-09 03:24:45 [ WARNING] API Error: GOVERNANCE_DENIED - Maturity check failed. Required: supervised
+2026-11-09 03:24:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 94%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_allowed_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:46 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t1: Tenant t1 not found
+2026-11-09 03:24:46 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_persists_audit_row_with_form_data 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:46 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_persistence_failure_cannot_certify_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 03:24:46 [ WARNING] canvas submit scope preflight failed: RuntimeError
+2026-11-09 03:24:46 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: A refused explicit agent must not create a replacement agent
+    assert 1 == 0
+     +  where 1 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x178862e00>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x178862e00> = query(<class 'core.models.AgentRegistry'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x17aa37c50>.query
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_context_resolver:agent_context_resolver.py:75 Requested agent_id missing-explicit-agent not found
+INFO     core.agent_context_resolver:agent_context_resolver.py:191 Creating system default Chat Assistant agent
+INFO     core.agent_context_resolver:agent_context_resolver.py:223 Created system default agent: 990f1d00-fef2-4594-ba40-82733839bd81
+INFO     core.agent_context_resolver:agent_context_resolver.py:91 Resolved agent via system default: Chat Assistant
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_form_producer_submit_join.py:206: AssertionError: A refused explicit agent must not create a replacement agent
+E   AssertionError: assert None is True
+     +  where None = <built-in method get of dict object at 0x17abd7140>('already_applied')
+     +    where <built-in method get of dict object at 0x17abd7140> = {'agent_execution_id': None, 'agent_id': None, 'audit_id': '5c6a7553-156d-4b4c-b517-c68866f1949b', 'canvas_id': '14c486a6-fbfb-4a09-8154-cf75bac91a1c', ...}.get
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:24:24.711821+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:24:24.714753+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_form_producer_submit_join.py:220: AssertionError: assert None is True
+E   assert True is False
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:24:25.397880+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+{"level": "INFO", "message": "Presented form to user form-actor", "timestamp": "2026-11-09T08:24:25.400575+00:00", "logger": "tools.canvas_tool", "module": "structured_logger", "function": "_log", "line": 118}
+------------------------------ Captured log call -------------------------------
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+INFO     tools.canvas_tool:structured_logger.py:118 Presented form to user form-actor
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_form_producer_submit_join.py:238: assert True is False
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852
+  /usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25
+  /usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.fields import FieldInfo as FieldInfoV1
+
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_without_agent_success
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_denied_agent_returns_403
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_allowed_agent_success
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_persists_audit_row_with_form_data
+tests/test_covpush_canvasroutes.py::TestSubmitCanvas::test_submit_persistence_failure_cannot_certify_success
+  /private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_form_producer_submit_join.py::test_form_explicit_missing_agent_has_no_fallback_side_effect
+FAILED tests/test_canvas_form_producer_submit_join.py::test_form_same_operation_replays_one_surface
+FAILED tests/test_canvas_form_producer_submit_join.py::test_form_changed_material_cannot_reuse_operation
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 3 failed, 48 passed, 11 warnings in 46.64s ==================
