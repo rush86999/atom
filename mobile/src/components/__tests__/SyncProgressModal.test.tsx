@@ -18,7 +18,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { SyncProgressModal } from '../offline/SyncProgressModal';
-import { offlineSyncService } from '../../services/offlineSyncService';
+import { offlineSyncService, SyncResult, SyncCycleSnapshot, SyncState } from '../../services/offlineSyncService';
 
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({
@@ -38,6 +38,7 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../../services/offlineSyncService', () => ({
   offlineSyncService: {
     subscribe: jest.fn(),
+    getSyncState: jest.fn(),
     subscribeToProgress: jest.fn(),
     cancelSync: jest.fn(),
   },
@@ -57,7 +58,20 @@ describe('SyncProgressModal Component', () => {
     });
   };
 
+  const baseCycle: SyncCycleSnapshot = {
+    id: 'controlled-cycle', startedAt: Date.now(),
+    actionIds: Array.from({ length: 50 }, (_, i) => `controlled-action-${i}`),
+    entityProgress: [
+      { type: 'agents', total: 10, synced: 5, failed: 0, conflicts: 0, skipped: 0 },
+      { type: 'workflows', total: 20, synced: 10, failed: 0, conflicts: 0, skipped: 0 },
+      { type: 'canvases', total: 15, synced: 7, failed: 0, conflicts: 0, skipped: 0 },
+      { type: 'episodes', total: 5, synced: 2, failed: 0, conflicts: 0, skipped: 0 },
+    ],
+    result: null,
+  };
+
   const baseSyncState = {
+    cycle: baseCycle,
     lastSyncAt: null,
     lastSuccessfulSyncAt: null,
     pendingCount: 0,
@@ -68,8 +82,27 @@ describe('SyncProgressModal Component', () => {
     cancelled: false,
   };
 
+  // Explicit observed fixture; never derive a result from syncProgress.
+  const emitCompletedSync = (result: Partial<SyncResult> = {}, cycle: SyncCycleSnapshot = baseCycle, state: Partial<SyncState> = {}) => {
+    const rows = result.success === false ? cycle.entityProgress : cycle.entityProgress.map(row => ({ ...row, synced: row.total, failed: 0, conflicts: 0, skipped: 0 }));
+    const entities = { agents: 0, workflows: 0, canvases: 0, episodes: 0 };
+    for (const row of rows) if (row.type !== 'other') entities[row.type] = row.synced;
+    emitSync({ ...baseSyncState, cycle });
+    emitSync({ ...baseSyncState, ...state, syncInProgress: false, syncProgress: 100,
+      cycle: { ...cycle,
+        entityProgress: rows,
+        result: {
+        cycleId: cycle.id, success: true, synced: 50, failed: 0, conflicts: 0,
+        duration: 250, entities,
+        bytesTransferred: 3177, ...result,
+      } },
+    });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    baseCycle.startedAt = Date.now();
+    (offlineSyncService.getSyncState as jest.Mock).mockResolvedValue({ ...baseSyncState, cycle: undefined, syncInProgress: false, syncProgress: 0 });
 
     (offlineSyncService.subscribe as jest.Mock).mockImplementation((callback) => {
       syncCallback = callback;
@@ -190,7 +223,7 @@ describe('SyncProgressModal Component', () => {
       emitSync({ ...baseSyncState, syncProgress: 100 });
 
       expect(getByText('100%')).toBeTruthy();
-      expect(getByText('Sync Complete')).toBeTruthy();
+      expect(getByText('Syncing Data')).toBeTruthy();
     });
   });
 
@@ -221,7 +254,7 @@ describe('SyncProgressModal Component', () => {
       );
 
       // Sync finished -> modal switches to the completion view
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       expect(getByText('Sync Complete')).toBeTruthy();
     });
@@ -231,7 +264,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       expect(getByText('Sync Complete')).toBeTruthy();
     });
@@ -262,7 +295,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       expect(queryByText('Cancel Sync')).toBeNull();
     });
@@ -273,7 +306,7 @@ describe('SyncProgressModal Component', () => {
       );
 
       // The cancel button only hides once the sync completes
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       expect(queryByText('Cancel Sync')).toBeNull();
     });
@@ -301,7 +334,7 @@ describe('SyncProgressModal Component', () => {
 
       expect(offlineSyncService.cancelSync).toHaveBeenCalledTimes(1);
       await waitFor(() => {
-        expect(getByText('Sync Complete')).toBeTruthy();
+        expect(getByText('Cancellation requested')).toBeTruthy();
       });
     });
 
@@ -328,10 +361,10 @@ describe('SyncProgressModal Component', () => {
       // Cancelling surfaces a warning entry in the verbose sync log
       fireEvent.press(getByText('Cancel Sync'));
       await waitFor(() => {
-        expect(getByText('Sync Complete')).toBeTruthy();
+        expect(getByText('Cancellation requested')).toBeTruthy();
       });
       fireEvent.press(getByText('Show Log'));
-      expect(getByText('Sync cancelled by user')).toBeTruthy();
+      expect(getByText('Cancellation requested; current action may still be running')).toBeTruthy();
     });
 
     test('should show retry button when error', () => {
@@ -340,7 +373,7 @@ describe('SyncProgressModal Component', () => {
       );
 
       // Completion view exposes the log toggle instead of a retry button
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       expect(getByText('Show Log')).toBeTruthy();
     });
@@ -353,11 +386,11 @@ describe('SyncProgressModal Component', () => {
       // "Show Log" toggles the verbose log; entries render beneath it
       fireEvent.press(getByText('Cancel Sync'));
       await waitFor(() => {
-        expect(getByText('Sync Complete')).toBeTruthy();
+        expect(getByText('Cancellation requested')).toBeTruthy();
       });
       fireEvent.press(getByText('Show Log'));
 
-      expect(getByText('Sync cancelled by user')).toBeTruthy();
+      expect(getByText('Cancellation requested; current action may still be running')).toBeTruthy();
       expect(getByText(/Hide/)).toBeTruthy();
     });
 
@@ -369,7 +402,7 @@ describe('SyncProgressModal Component', () => {
       // Log rows carry level icons — the cancelled-sync entry is a warning
       fireEvent.press(getByText('Cancel Sync'));
       await waitFor(() => {
-        expect(getByText('Sync Complete')).toBeTruthy();
+        expect(getByText('Cancellation requested')).toBeTruthy();
       });
       fireEvent.press(getByText('Show Log'));
 
@@ -383,7 +416,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       expect(getByText('Sync Complete')).toBeTruthy();
     });
@@ -394,7 +427,7 @@ describe('SyncProgressModal Component', () => {
       );
 
       // The completed progress bar turns green
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       const { StyleSheet } = require('react-native');
       const progressBar = getByTestId('progress-bar-fill');
@@ -408,7 +441,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       expect(getByText('Done')).toBeTruthy();
     });
@@ -423,7 +456,7 @@ describe('SyncProgressModal Component', () => {
       );
 
       // The real component never auto-closes; it waits for user action
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       act(() => {
         jest.advanceTimersByTime(5000);
@@ -443,7 +476,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       act(() => {
         jest.advanceTimersByTime(5000);
@@ -526,7 +559,7 @@ describe('SyncProgressModal Component', () => {
       );
 
       // Completion flips the progress bar to the success color
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       const { StyleSheet } = require('react-native');
       const progressBar = getByTestId('progress-bar-fill');
@@ -541,10 +574,12 @@ describe('SyncProgressModal Component', () => {
       );
 
       // Cancelling switches to the completion actions
+      emitSync(baseSyncState);
       fireEvent.press(getByText('Cancel Sync'));
 
       await waitFor(() => {
-        expect(getByText('Done')).toBeTruthy();
+        expect(getByText('Cancellation requested')).toBeTruthy();
+        expect(() => getByText('Sync Complete')).toThrow();
       });
     });
   });
@@ -557,7 +592,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
       const doneButton = getByText('Done');
       fireEvent.press(doneButton);
@@ -590,11 +625,11 @@ describe('SyncProgressModal Component', () => {
       // In-progress emission first so the completion summary has data
       emitSync({ ...baseSyncState, syncProgress: 50 });
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
-      // Summary derives from the entity progress snapshot (50% -> 24 items)
+      // Summary comes from the explicit observed terminal result (50 selected items).
       expect(getByText('Sync Summary')).toBeTruthy();
-      expect(getByText('24 items synced')).toBeTruthy();
+      expect(getByText('50 items synced')).toBeTruthy();
       // No failures or conflicts were reported
       expect(queryByText(/items failed/)).toBeNull();
       expect(queryByText(/conflicts/)).toBeNull();
@@ -605,6 +640,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
+      emitSync(baseSyncState);
       expect(getByText(/Time: 0s/)).toBeTruthy();
     });
 
@@ -729,7 +765,7 @@ describe('SyncProgressModal Component', () => {
       });
 
       // Complete the sync, then open the verbose log
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
       fireEvent.press(getByText('Show Log'));
 
       expect(getByText('[42%] agents')).toBeTruthy();
@@ -748,7 +784,7 @@ describe('SyncProgressModal Component', () => {
       expect(mockClose).toHaveBeenCalled();
 
       // The modal is still in the syncing state (not complete)
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
       expect(queryByText('Done')).toBeTruthy();
     });
 
@@ -770,15 +806,17 @@ describe('SyncProgressModal Component', () => {
     });
   });
 
-  describe('Completion Summary (derived from entity progress)', () => {
-    test('shows synced counts derived from the entity progress snapshot', () => {
+  describe('Completion Summary (observed pass result)', () => {
+    test('shows synced counts from a different observed pass size', () => {
       const { getByText } = render(
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      // 75% progress -> 7 agents + 15 workflows + 11 canvases + 3 episodes
-      emitSync({ ...baseSyncState, syncProgress: 75 });
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      const cycle: SyncCycleSnapshot = { ...baseCycle, id: 'controlled-cycle-36',
+        actionIds: Array.from({ length: 36 }, (_, i) => `observed-${i}`),
+        entityProgress: [{ type: 'other', total: 36, synced: 36, failed: 0, conflicts: 0, skipped: 0 }],
+      };
+      emitCompletedSync({ synced: 36, entities: { agents: 0, workflows: 0, canvases: 0, episodes: 0 } }, cycle);
 
       expect(getByText('36 items synced')).toBeTruthy();
     });
@@ -788,23 +826,23 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync({ synced: 0, bytesTransferred: 0 }, { ...baseCycle, id: 'controlled-empty', actionIds: [], entityProgress: [] });
 
       expect(getByText('0 items synced')).toBeTruthy();
       // Zero transferred bytes means the stat row stays hidden
       expect(queryByText(/Transferred:/)).toBeNull();
     });
 
-    test('shows transferred bytes derived from the synced count', () => {
+    test('shows the observed byte count independently of item count', () => {
       const { getByText } = render(
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      // 50% -> 24 items -> 24KB at the placeholder rate
+      // The observed terminal result supplies 3177 bytes, independently of item count.
       emitSync({ ...baseSyncState, syncProgress: 50 });
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
 
-      expect(getByText('Transferred: 24.0KB')).toBeTruthy();
+      expect(getByText('Transferred: 3.1KB')).toBeTruthy();
     });
 
     test('logs an error-level entry when the sync finishes with failures', () => {
@@ -812,12 +850,11 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({
-        ...baseSyncState,
-        syncInProgress: false,
-        syncProgress: 100,
-        consecutiveFailures: 2,
-      });
+      const cycle: SyncCycleSnapshot = { ...baseCycle, id: 'controlled-failure', actionIds: ['one', 'two'],
+        entityProgress: [{ type: 'other', total: 2, synced: 0, failed: 2, conflicts: 0, skipped: 0 }],
+      };
+      emitCompletedSync({ success: false, synced: 0, failed: 2 }, cycle, { consecutiveFailures: 2 });
+
       fireEvent.press(getByText('Show Log'));
 
       expect(getByText('Sync finished with errors')).toBeTruthy();
@@ -829,7 +866,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
       fireEvent.press(getByText('Show Log'));
 
       expect(queryByText('Sync finished with errors')).toBeNull();
@@ -837,22 +874,22 @@ describe('SyncProgressModal Component', () => {
   });
 
   describe('onComplete contract', () => {
-    test('calls onComplete with the derived result when Done is pressed', () => {
+    test('calls onComplete with the observed result when Done is pressed', () => {
       const onComplete = jest.fn();
       const { getByText } = render(
         <SyncProgressModal visible={true} onClose={mockOnClose} onComplete={onComplete} />
       );
 
       emitSync({ ...baseSyncState, syncProgress: 50 });
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
       fireEvent.press(getByText('Done'));
 
       expect(onComplete).toHaveBeenCalledWith(
         expect.objectContaining({
-          synced: 24,
+          synced: 50,
           failed: 0,
           conflicts: 0,
-          bytesTransferred: 24 * 1024,
+          bytesTransferred: 3177,
         })
       );
     });
@@ -881,7 +918,7 @@ describe('SyncProgressModal Component', () => {
         <SyncProgressModal visible={true} onComplete={onComplete} />
       );
 
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitCompletedSync();
       fireEvent.press(getByText('Done'));
 
       expect(onComplete).toHaveBeenCalled();
@@ -910,9 +947,9 @@ describe('SyncProgressModal Component', () => {
 
     test('overall progress cannot invent entity totals or successful item counts', () => {
       const screen = render(<SyncProgressModal visible={true} />);
-      emitSync({ ...baseSyncState, syncProgress: 50 });
+      emitSync({ ...baseSyncState, cycle: undefined, syncProgress: 50 });
       expect(screen.queryByText('Agents')).toBeNull();
-      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      emitSync({ ...baseSyncState, cycle: undefined, syncInProgress: false, syncProgress: 100 });
       expect(screen.queryByText('24 items synced')).toBeNull();
     });
 
@@ -922,6 +959,76 @@ describe('SyncProgressModal Component', () => {
       expect(offlineSyncService.cancelSync).toHaveBeenCalledTimes(1);
       expect(screen.queryByText('Sync Complete')).toBeNull();
     });
+  });
+
+  describe('Observed cycle binding', () => {
+    test('a mismatched result cycle refuses completion', () => {
+      const screen = render(<SyncProgressModal visible />);
+      emitCompletedSync({ cycleId: 'wrong-cycle' });
+      expect(screen.getByText('Sync result unavailable')).toBeTruthy();
+      expect(screen.queryByText('Sync Complete')).toBeNull();
+    });
+
+    test('the selected identities cannot change within the same cycle', () => {
+      const screen = render(<SyncProgressModal visible />);
+      emitSync(baseSyncState);
+      emitCompletedSync({}, { ...baseCycle, actionIds: baseCycle.actionIds.map((id, index) => index === 0 ? 'replaced-subject' : id) });
+      expect(screen.getByText('Sync result unavailable')).toBeTruthy();
+      expect(screen.queryByText('Sync Complete')).toBeNull();
+    });
+
+    test('a previously observed cycle cannot replace a newer running cycle', () => {
+      const screen = render(<SyncProgressModal visible />);
+      emitCompletedSync();
+      const next: SyncCycleSnapshot = { ...baseCycle, id: 'next-cycle', actionIds: ['next-work'],
+        entityProgress: [{ type: 'other', total: 1, synced: 0, failed: 0, conflicts: 0, skipped: 0 }],
+      };
+      emitSync({ ...baseSyncState, cycle: next });
+      emitCompletedSync(); // stale replay of the previous pass
+      expect(screen.getByText('Syncing Data')).toBeTruthy();
+      expect(screen.getByText('0/1')).toBeTruthy();
+      expect(screen.queryByText('50 items synced')).toBeNull();
+    });
+
+    test('unconfirmed cancellation stays pending without a completion callback', async () => {
+      const completed = jest.fn();
+      (offlineSyncService.cancelSync as jest.Mock).mockRejectedValueOnce(new Error('controlled cancellation uncertainty'));
+      const screen = render(<SyncProgressModal visible onComplete={completed} />);
+      await act(async () => { fireEvent.press(screen.getByText('Cancel Sync')); });
+      expect(screen.getByText('Cancellation requested')).toBeTruthy();
+      fireEvent.press(screen.getByText('Show Log'));
+      expect(screen.getByText('Cancellation confirmation unavailable; current action may still be running')).toBeTruthy();
+      expect(completed).not.toHaveBeenCalled();
+    });
+
+    test('opening an already finished result does not announce a new completion', async () => {
+      const completed = jest.fn();
+      (offlineSyncService.getSyncState as jest.Mock).mockResolvedValueOnce({ ...baseSyncState, syncInProgress: false,
+        cycle: { ...baseCycle,
+          entityProgress: baseCycle.entityProgress.map(row => ({ ...row, synced: row.total })),
+          result: { cycleId: baseCycle.id, success: true, synced: 50, failed: 0, conflicts: 0, duration: 250,
+            entities: { agents: 10, workflows: 20, canvases: 15, episodes: 5 }, bytesTransferred: 3177 },
+        },
+      });
+      const screen = render(<SyncProgressModal visible onComplete={completed} />);
+      await waitFor(() => expect(screen.getByText('Sync Complete')).toBeTruthy());
+      fireEvent.press(screen.getByText('Done'));
+      expect(completed).not.toHaveBeenCalled();
+    });
+
+    test('a failed initial state read never becomes an empty completed result', async () => {
+      (offlineSyncService.getSyncState as jest.Mock).mockRejectedValueOnce(new Error('controlled read failure'));
+      const screen = render(<SyncProgressModal visible />);
+      await waitFor(() => expect(screen.getByText('Sync result unavailable')).toBeTruthy());
+      expect(screen.queryByText('Sync Complete')).toBeNull();
+    });
+  });
+
+  test('contradictory entity totals cannot certify completion', () => {
+    const screen = render(<SyncProgressModal visible />);
+    emitCompletedSync({ entities: { agents: 999, workflows: 20, canvases: 15, episodes: 5 } });
+    expect(screen.getByText('Sync result unavailable')).toBeTruthy();
+    expect(screen.queryByText('Sync Complete')).toBeNull();
   });
 
 });

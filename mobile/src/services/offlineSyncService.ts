@@ -164,6 +164,7 @@ class OfflineSyncService {
   private progressListeners: Set<(progress: number, operation: string) => void> = new Set();
   private conflictListeners: Set<(conflict: OfflineAction) => void> = new Set();
   private cycleSequence = 0;
+  private notificationVersion = 0;
   private qualityMetrics: SyncQualityMetrics = {
     totalSyncs: 0, successfulSyncs: 0, failedSyncs: 0, conflictRate: 0,
     avgSyncDuration: 0, avgBytesTransferred: 0, lastQualityCheck: new Date(),
@@ -1048,6 +1049,7 @@ class OfflineSyncService {
       throw new Error('Offline queue write was not confirmed.');
     }
     await this.reconcileQueueMetadata(queue);
+    this.notifyListeners();
   }
 
   private async claimAction(expected: OfflineAction): Promise<boolean> {
@@ -1116,7 +1118,9 @@ class OfflineSyncService {
   }
 
   private notifyListeners(): void {
+    const version = ++this.notificationVersion;
     this.getSyncState().then((state) => {
+      if (version !== this.notificationVersion) return;
       this.listeners.forEach((callback) => callback(state));
     }).catch(() => {
       // An unreadable authoritative queue is never published as an empty one.
@@ -1299,6 +1303,7 @@ class OfflineSyncService {
    * Cleanup
    */
   destroy(): void {
+    this.notificationVersion += 1;
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;

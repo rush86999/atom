@@ -29,12 +29,12 @@ import {
 } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons as Icon } from '@expo/vector-icons';
-import { offlineSyncService, SyncState } from '../../services/offlineSyncService';
+import { offlineSyncService, SyncState, SyncResult } from '../../services/offlineSyncService';
 
 interface SyncProgressModalProps {
   visible: boolean;
   onClose?: () => void;
-  onComplete?: (result: any) => void;
+  onComplete?: (result: SyncResult) => void;
 }
 
 interface EntityProgress {
@@ -69,116 +69,117 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
   const [entityProgress, setEntityProgress] = useState<EntityProgress[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
   const [verboseMode, setVerboseMode] = useState(false);
-  const [syncResult, setSyncResult] = useState<any>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [cancellationRequested, setCancellationRequested] = useState(false);
+  const [readUnavailable, setReadUnavailable] = useState(false);
   const [startTime] = useState(Date.now());
   const [bytesTransferred, setBytesTransferred] = useState(0);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0);
 
-  // Mirrors entityProgress so the subscribe callback (which closes over the
-  // initial state) can read the latest snapshot when the sync completes.
-  const entityProgressRef = useRef<EntityProgress[]>([]);
+  const boundCycle = useRef<string | null>(null);
+  const boundActions = useRef<string | null>(null);
+  const seenCycles = useRef(new Set<string>());
+  const observedRunning = useRef<string | null>(null);
+  const completedCallbacks = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
-
-    // Reset state when modal opens
+    if (!visible) return;
+    let active = true;
+    let observedEvent = false;
+    boundCycle.current = null;
+    boundActions.current = null;
+    seenCycles.current.clear();
+    observedRunning.current = null;
     setIsComplete(false);
     setSyncResult(null);
     setSyncLogs([]);
     setEntityProgress([]);
+    setCancellationRequested(false);
+    setReadUnavailable(false);
 
-    // Subscribe to sync state changes
-    const unsubscribe = offlineSyncService.subscribe((state) => {
+    const applyState = (state: SyncState) => {
+      if (!active) return;
+      const cycle = state.cycle;
+      const names = { agents: 'Agents', workflows: 'Workflows', canvases: 'Canvases', episodes: 'Episodes', other: 'Other' };
+      const validCycle = !cycle || (typeof cycle.id === 'string' && cycle.id.length > 0 &&
+        Number.isFinite(cycle.startedAt) && Array.isArray(cycle.actionIds) &&
+        cycle.actionIds.every(id => typeof id === 'string' && id.length > 0) &&
+        new Set(cycle.actionIds).size === cycle.actionIds.length && Array.isArray(cycle.entityProgress) &&
+        new Set(cycle.entityProgress.map(row => row?.type)).size === cycle.entityProgress.length &&
+        cycle.entityProgress.every(row => row && typeof names[row.type] === 'string' &&
+          [row.total, row.synced, row.failed, row.conflicts, row.skipped].every(n => Number.isSafeInteger(n) && n >= 0) &&
+          row.synced + row.failed + row.conflicts + row.skipped <= row.total) &&
+        cycle.entityProgress.reduce((sum, row) => sum + row.total, 0) === cycle.actionIds.length);
+      if (!validCycle) {
+        setReadUnavailable(true); setIsComplete(false); setSyncResult(null); setEntityProgress([]);
+        return;
+      }
+      if (cycle && boundCycle.current !== cycle.id) {
+        if (seenCycles.current.has(cycle.id)) return;
+        seenCycles.current.add(cycle.id);
+        if (boundCycle.current !== null) setSyncLogs([]);
+        boundCycle.current = cycle.id;
+        boundActions.current = JSON.stringify(cycle.actionIds);
+        observedRunning.current = null;
+        setSyncResult(null);
+        setCancellationRequested(false);
+      }
+      if (cycle && boundActions.current !== JSON.stringify(cycle.actionIds)) {
+        setReadUnavailable(true);
+        setIsComplete(false);
+        setSyncResult(null);
+        setEntityProgress([]);
+        return;
+      }
+      setReadUnavailable(false);
       setSyncState(state);
-
-      if (state.syncProgress === 100 || !state.syncInProgress) {
-        setIsComplete(true);
-
-        if (state.consecutiveFailures > 0) {
-          addSyncLog('Sync finished with errors', 'error');
-        }
-
-        // Derive the completion summary from the last entity-progress
-        // snapshot. This is a mock layer today (real app would source the
-        // result from the sync service), but it keeps the summary + onComplete
-        // contract functional instead of permanently dead.
-        const synced = entityProgressRef.current.reduce((sum, e) => sum + e.synced, 0);
-        const failed = entityProgressRef.current.reduce((sum, e) => sum + e.failed, 0);
-        const result = {
-          synced,
-          failed,
-          conflicts: 0,
-          bytesTransferred: synced * 1024,
-        };
-        setSyncResult(result);
-        setBytesTransferred(result.bytesTransferred);
-      }
-
-      // Update entity progress (mock for now)
-      if (state.syncInProgress) {
-        updateEntityProgress(state);
-        addSyncLog(state.currentOperation, 'info');
-      }
-
-      // Calculate estimated time remaining
-      const elapsed = Date.now() - startTime;
+      if (cycle && state.syncInProgress) observedRunning.current = cycle.id;
+      setEntityProgress(cycle?.entityProgress.map(row => ({ ...row, type: names[row.type] })) || []);
+      const result = cycle?.result;
+      const counts = result ? [result.synced, result.failed, result.conflicts, result.skipped || 0] : [];
+      const valid = !!cycle && !!result && result.cycleId === cycle.id &&
+        new Set(cycle.actionIds).size === cycle.actionIds.length &&
+        counts.every(count => Number.isSafeInteger(count) && count >= 0) &&
+        counts.reduce((sum, count) => sum + count, 0) <= cycle.actionIds.length &&
+        typeof result.success === 'boolean' && Number.isFinite(result.duration) && result.duration >= 0 &&
+        Number.isFinite(result.bytesTransferred) && result.bytesTransferred >= 0 &&
+        cycle.entityProgress.reduce((sum, row) => sum + row.synced, 0) === result.synced &&
+        cycle.entityProgress.reduce((sum, row) => sum + row.failed, 0) === result.failed &&
+        cycle.entityProgress.reduce((sum, row) => sum + row.conflicts, 0) === result.conflicts &&
+        cycle.entityProgress.reduce((sum, row) => sum + row.skipped, 0) === (result.skipped || 0) &&
+        !!result.entities && (['agents', 'workflows', 'canvases', 'episodes'] as const).every(kind =>
+          result.entities[kind] === (cycle.entityProgress.find(row => row.type === kind)?.synced ?? 0));
+      const terminal = !state.syncInProgress && valid;
+      if (!state.syncInProgress && result && !valid) setReadUnavailable(true);
+      setSyncResult(terminal ? result! : null);
+      setBytesTransferred(terminal ? result!.bytesTransferred : 0);
+      setIsComplete(terminal && result!.success && !result!.cancelled && !state.cancelled &&
+        state.pendingCount === 0 && result!.synced === cycle!.actionIds.length && cycle!.actionIds.length > 0);
+      if (terminal && (!result!.success || result!.failed > 0)) addSyncLog('Sync finished with errors', 'error');
+      if (state.syncInProgress && state.currentOperation) addSyncLog(state.currentOperation, 'info');
+      const elapsed = Math.max(0, Date.now() - (cycle?.startedAt ?? startTime));
       const progress = state.syncProgress;
-      if (progress > 0 && progress < 100) {
-        const totalEstimated = (elapsed / progress) * 100;
-        setEstimatedTimeRemaining(totalEstimated - elapsed);
-      }
-    });
-
-    // Subscribe to progress updates
-    const unsubscribeProgress = offlineSyncService.subscribeToProgress(
-      (progress, operation) => {
-        addSyncLog(`[${progress}%] ${operation}`, 'info');
-      }
-    );
-
-    return () => {
-      unsubscribe();
-      unsubscribeProgress();
+      setEstimatedTimeRemaining(state.syncInProgress && progress > 0 && progress < 100 ?
+        (elapsed / progress) * 100 - elapsed : 0);
     };
+    const unsubscribe = offlineSyncService.subscribe(state => { observedEvent = true; applyState(state); });
+    offlineSyncService.getSyncState().then(state => {
+      if (!observedEvent) applyState(state);
+    }).catch(() => { if (active && !observedEvent) setReadUnavailable(true); });
+    const unsubscribeProgress = offlineSyncService.subscribeToProgress((progress, operation) => {
+      if (active) addSyncLog(`[${progress}%] ${operation}`, 'info');
+    });
+    return () => { active = false; unsubscribe(); unsubscribeProgress(); };
   }, [visible, startTime]);
 
-  const updateEntityProgress = (state: SyncState) => {
-    // Mock entity progress - scaled from the overall sync progress so the
-    // per-entity rows stay consistent with the progress bar. In the real
-    // app this would come from the sync service.
-    const ratio = Math.min(state.syncProgress, 100) / 100;
-    const entities: EntityProgress[] = [
-      {
-        type: 'Agents',
-        total: 10,
-        synced: Math.floor(10 * ratio),
-        failed: 0,
-      },
-      {
-        type: 'Workflows',
-        total: 20,
-        synced: Math.floor(20 * ratio),
-        failed: 0,
-      },
-      {
-        type: 'Canvases',
-        total: 15,
-        synced: Math.floor(15 * ratio),
-        failed: 0,
-      },
-      {
-        type: 'Episodes',
-        total: 5,
-        synced: Math.floor(5 * ratio),
-        failed: 0,
-      },
-    ];
-    entityProgressRef.current = entities;
-    setEntityProgress(entities);
-  };
+  const isFinished = !!syncResult && !syncState.syncInProgress;
+  const elapsedTime = syncResult ? syncResult.duration : syncState.cycle ? Math.max(0, Date.now() - syncState.cycle.startedAt) : null;
+  const statusTitle = readUnavailable ? 'Sync result unavailable' : isComplete ? 'Sync Complete' :
+    isFinished ? syncResult!.cancelled ? 'Sync Cancelled' : syncState.cycle?.actionIds.length === 0 ? 'Nothing to sync' : 'Sync Incomplete' :
+    cancellationRequested || syncState.cancelled ? 'Cancellation requested' :
+    syncState.syncInProgress ? 'Syncing Data' : syncState.pendingCount > 0 ?
+    `${syncState.pendingCount} Pending Changes` : 'No active sync';
 
   const addSyncLog = (message: string, level: 'info' | 'warn' | 'error') => {
     setSyncLogs(prev => [
@@ -192,16 +193,22 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
   };
 
   const handleCancelSync = async () => {
-    await offlineSyncService.cancelSync();
-    addSyncLog('Sync cancelled by user', 'warn');
-    setIsComplete(true);
+    setCancellationRequested(true);
+    try {
+      await offlineSyncService.cancelSync();
+      addSyncLog('Cancellation requested; current action may still be running', 'warn');
+    } catch {
+      addSyncLog('Cancellation confirmation unavailable; current action may still be running', 'error');
+    }
   };
 
   const handleClose = () => {
     if (onClose) {
       onClose();
     }
-    if (onComplete && syncResult) {
+    const id = syncResult?.cycleId;
+    if (onComplete && syncResult && isComplete && id && observedRunning.current === id && !completedCallbacks.current.has(id)) {
+      completedCallbacks.current.add(id);
       onComplete(syncResult);
     }
   };
@@ -264,7 +271,7 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>
-              {isComplete ? 'Sync Complete' : 'Syncing Data'}
+              {statusTitle}
             </Text>
             {!isComplete && (
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
@@ -341,7 +348,7 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
               <View style={styles.statItem}>
                 <Icon name="time" size={20} color="#007AFF" />
                 <Text style={[styles.statLabel, { color: colors.text }]}>
-                  Time: {formatTime(Date.now() - startTime)}
+                  Time: {elapsedTime === null ? 'Unavailable' : formatTime(elapsedTime)}
                 </Text>
               </View>
               {!isComplete && estimatedTimeRemaining > 0 && (
@@ -364,7 +371,7 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
           </View>
 
           {/* Sync Summary (on completion) */}
-          {isComplete && syncResult && (
+          {isFinished && syncResult && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Sync Summary
@@ -372,14 +379,14 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
               <View style={styles.summaryRow}>
                 <Icon name="checkmark-circle" size={20} color="#34C759" />
                 <Text style={[styles.summaryText, { color: colors.text }]}>
-                  {syncResult.synced} items synced
+                  {syncResult.synced} item{syncResult.synced === 1 ? '' : 's'} synced
                 </Text>
               </View>
               {syncResult.failed > 0 && (
                 <View style={styles.summaryRow}>
                   <Icon name="close-circle" size={20} color="#FF3B30" />
                   <Text style={[styles.summaryText, { color: colors.text }]}>
-                    {syncResult.failed} items failed
+                    {syncResult.failed} item{syncResult.failed === 1 ? '' : 's'} failed
                   </Text>
                 </View>
               )}
@@ -419,11 +426,25 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
 
           {/* Actions */}
           <View style={styles.actions}>
-            {!isComplete ? (
+                <TouchableOpacity
+                  style={[styles.button, styles.verboseButton]}
+                  onPress={() => setVerboseMode(!verboseMode)}
+                >
+                  <Icon
+                    name={verboseMode ? 'eye-off' : 'eye'}
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.buttonText}>
+                    {verboseMode ? 'Hide' : 'Show'} Log
+                  </Text>
+                </TouchableOpacity>
+            {!isFinished ? (
               <>
                 <TouchableOpacity
                   style={[styles.button, styles.cancelButton]}
                   onPress={handleCancelSync}
+                  disabled={cancellationRequested}
                 >
                   <Icon name="close" size={20} color="#FFFFFF" />
                   <Text style={styles.buttonText}>Cancel Sync</Text>
@@ -438,19 +459,6 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
               </>
             ) : (
               <>
-                <TouchableOpacity
-                  style={[styles.button, styles.verboseButton]}
-                  onPress={() => setVerboseMode(!verboseMode)}
-                >
-                  <Icon
-                    name={verboseMode ? 'eye-off' : 'eye'}
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                  <Text style={styles.buttonText}>
-                    {verboseMode ? 'Hide' : 'Show'} Log
-                  </Text>
-                </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, styles.doneButton]}
                   onPress={handleClose}
