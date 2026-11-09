@@ -328,8 +328,13 @@ class OfflineSyncService {
     const finalize = async (result: SyncResult): Promise<SyncResult> => {
       const bound = { ...result, cycleId: cycle.id };
       cycle = { ...cycle, result: bound };
-      await this.updateSyncState({ cycle, syncInProgress: false, cancelled: !!result.cancelled });
-      return bound;
+      try {
+        await this.updateSyncState({ cycle, syncInProgress: false, cancelled: !!result.cancelled });
+        return bound;
+      } catch {
+        console.warn('OfflineSync: Observed result could not be recorded; no completion certified.');
+        return { ...bound, success: false };
+      }
     };
 
     try {
@@ -348,7 +353,8 @@ class OfflineSyncService {
       if (pendingActions.length === 0) {
         console.log('OfflineSync: No pending actions to sync');
         return await finalize({
-          success: queue.every(action => action.status === 'completed'),
+          success: !this.cancelRequested && queue.every(action => action.status === 'completed'),
+          cancelled: this.cancelRequested,
           synced: 0,
           failed: 0,
           conflicts: 0,
@@ -384,6 +390,7 @@ class OfflineSyncService {
           }
 
           const row = cycle.entityProgress.find(item => item.type === (action.entityType || 'other'));
+          let attemptRecorded = false;
           try {
             const result = await this.syncAction(action);
             if (result.skipped) { skipped++; if (row) row.skipped++; continue; }
@@ -400,14 +407,13 @@ class OfflineSyncService {
               }
 
             } else if (result.conflict) {
+              await this.updateActionStatus(action.id, 'pending');
               conflicts++;
               if (row) row.conflicts++;
-              await this.updateActionStatus(action.id, 'pending');
               this.notifyConflictListeners(action);
             } else {
-              failed++;
-              if (row) row.failed++;
               await this.incrementSyncAttempts(action.id);
+              attemptRecorded = true;
               // Retry below the limit; retain exhausted intent as failed for
               // an explicit owner retry/removal instead of silently dropping it.
               if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
@@ -415,12 +421,14 @@ class OfflineSyncService {
               } else {
                 await this.updateActionStatus(action.id, 'pending');
               }
+              failed++;
+              if (row) row.failed++;
             }
           } catch (error) {
             console.error(`OfflineSync: Failed to sync action ${action.id}:`, error);
             failed++;
             if (row) row.failed++;
-            await this.incrementSyncAttempts(action.id);
+            if (!attemptRecorded) await this.incrementSyncAttempts(action.id);
             if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
               await this.updateActionStatus(action.id, 'failed');
             } else {
@@ -1097,7 +1105,9 @@ class OfflineSyncService {
   private async updateSyncState(updates: Partial<SyncState>): Promise<void> {
     const currentState = await this.getSyncState();
     const newState = { ...currentState, ...updates };
-    await mmkvStorage.setObject('sync_state' as StorageKey, newState);
+    if (!(await mmkvStorage.setObject('sync_state' as StorageKey, newState))) {
+      throw new Error('Sync state write was not confirmed.');
+    }
   }
 
   private async loadSyncState(): Promise<void> {
