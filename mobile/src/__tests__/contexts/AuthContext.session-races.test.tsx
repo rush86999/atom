@@ -7,7 +7,7 @@ import { render, act, waitFor } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
-import { secureSet, readAccessTokenSnapshot, invalidateAccessToken } from '../../storage/secureTokenStorage';
+import { secureSet, secureGet, readAccessTokenSnapshot, invalidateAccessToken } from '../../storage/secureTokenStorage';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn(),
@@ -237,6 +237,28 @@ describe('AuthContext delayed session responses', () => {
     expect(auth.isAuthenticated).toBe(true);
     expect(store.get('atom_access_token')).toBe('ordinary');
     expect(auth.user?.id).toBe('controlled-user');
+  });
+
+  test('a failed login profile save revokes the previously mounted identity', async () => {
+    await seed();
+    await mount();
+    expect(auth.isAuthenticated).toBe(true);
+    (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('controlled profile save failure'));
+    await act(async () => { expect((await auth.login(credentials)).success).toBe(false); });
+    await expect(secureGet('atom_access_token')).resolves.toBeNull();
+    expect(auth.isAuthenticated).toBe(false);
+    expect(auth.user).toBeNull();
+  });
+
+  test('a failed refresh token write revokes the previously mounted identity', async () => {
+    await seed();
+    await mount();
+    expect(auth.isAuthenticated).toBe(true);
+    (SecureStore.setItemAsync as jest.Mock).mockRejectedValueOnce(new Error('controlled token save failure'));
+    await act(async () => { expect(await auth.refreshToken()).toBe(false); });
+    await expect(secureGet('atom_access_token')).resolves.toBeNull();
+    expect(auth.isAuthenticated).toBe(false);
+    expect(auth.user).toBeNull();
   });
 
 });
