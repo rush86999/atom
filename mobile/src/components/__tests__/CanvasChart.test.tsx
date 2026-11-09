@@ -252,10 +252,10 @@ describe('CanvasChart Component', () => {
       );
 
       const voronoiContainer = getByTestId('victory-voronoi-container');
-      const events = voronoiContainer.props.events;
+      const events = voronoiContainer.props.onActivated;
 
       expect(events).toBeDefined();
-      expect(events[0].onChildPress).toBeDefined();
+      expect(voronoiContainer.props.onActivated).toBeDefined();
     });
 
     test('should show tooltip on point press', () => {
@@ -268,10 +268,10 @@ describe('CanvasChart Component', () => {
 
       // Simulate point press
       const voronoiContainer = getByTestId('victory-voronoi-container');
-      const onChildPress = voronoiContainer.props.events[0].onChildPress;
+      const onActivated = voronoiContainer.props.onActivated;
 
       act(() => {
-        onChildPress({ x: 'Jan', y: 100 }, { x: 'Jan', y: 100, label: 'January' });
+        onActivated([{ x: 'Jan', y: 100, label: 'January' }]);
       });
 
       // Tooltip should now be visible
@@ -285,10 +285,10 @@ describe('CanvasChart Component', () => {
       );
 
       const voronoiContainer = getByTestId('victory-voronoi-container');
-      const onChildPress = voronoiContainer.props.events[0].onChildPress;
+      const onActivated = voronoiContainer.props.onActivated;
 
       act(() => {
-        onChildPress({ x: 'Jan', y: 100 }, { x: 'Jan', y: 100, label: 'January' });
+        onActivated([{ x: 'Jan', y: 100, label: 'January' }]);
       });
 
       expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
@@ -698,11 +698,8 @@ describe('CanvasChart Component', () => {
   describe('Extended Interactions', () => {
     test('should fire haptic feedback on long press', () => {
       const Haptics = require('expo-haptics');
-      const { ScrollView } = require('react-native');
-      const { UNSAFE_getAllByType } = renderWithTheme(<CanvasChart data={mockLineData} />);
-
-      const scrollView = UNSAFE_getAllByType(ScrollView)[0];
-      fireEvent(scrollView, 'longPress', { nativeEvent: {} });
+      const { getByTestId } = renderWithTheme(<CanvasChart data={mockLineData} />);
+      fireEvent(getByTestId('chart-long-press'), 'longPress', { nativeEvent: {} });
 
       expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
     });
@@ -789,7 +786,7 @@ describe('CanvasChart Component', () => {
 describe('native chart point-event contract', () => {
   test.each(['line', 'bar', 'pie'] as const)('%s exposes a native-supported point callback', (type) => {
     const onPointPress = jest.fn();
-    const datum = { x: 'Jan', y: 100, label: 'January' };
+    const datum = { x: 'Jan', y: 0, label: '' };
     const view = render(<ThemeProvider theme={{ colors: { primary: '#2196F3', onSurface: '#000', surfaceVariant: '#f5f5f5', surface: '#fff', outline: '#ccc', error: '#F44336' } }}><CanvasChart data={{type, data: [datum]}} enableZoom={false} enablePan={false} onPointPress={onPointPress} /></ThemeProvider>);
     const series = view.getByTestId(`victory-${type}`);
     const container = view.queryByTestId('victory-voronoi-container');
@@ -803,4 +800,14 @@ describe('native chart point-event contract', () => {
     });
     expect(onPointPress).toHaveBeenCalledWith(datum);
   });
+});
+
+
+test('native date zoom domains retain dates internally and expose numeric callback', () => {
+  const onZoomChange = jest.fn();
+  const view = render(<ThemeProvider><CanvasChart data={{type: 'line', data: [{x: 0, y: 0}]}} onZoomChange={onZoomChange} /></ThemeProvider>);
+  const domain = {x: [new Date(0), new Date(1000)], y: [0, 10]};
+  act(() => view.getByTestId('victory-zoom-container').props.onZoomDomainChange(domain, {}));
+  expect(onZoomChange).toHaveBeenCalledWith({x: [0, 1000], y: [0, 10]});
+  expect(view.getByTestId('victory-zoom-container').props.zoomDomain).toEqual(domain);
 });

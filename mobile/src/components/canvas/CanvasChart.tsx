@@ -15,6 +15,7 @@ import {
   ScrollView,
   Dimensions,
   GestureResponderEvent,
+  Pressable,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
@@ -60,6 +61,56 @@ export interface ChartData {
   animationEnabled?: boolean;
 }
 
+type NumericDomain = [number, number];
+type DateDomain = [Date, Date];
+type ChartZoomDomain = {
+  x: NumericDomain | DateDomain;
+  y: NumericDomain | DateDomain;
+};
+
+interface VictoryPoint {
+  x?: string | number;
+  y?: number;
+  label?: string | number;
+  datum?: VictoryPoint;
+  index?: number | string;
+  _x?: string | number;
+  _y?: number;
+}
+
+interface PointPressEvent {
+  target: 'data';
+  eventHandlers: {
+    onPressIn: (event: unknown, props?: VictoryPoint) => void;
+  };
+}
+
+const toNumericDomain = (
+  domain: NumericDomain | DateDomain,
+): NumericDomain => [Number(domain[0]), Number(domain[1])];
+
+const isVictoryPoint = (value: unknown): value is VictoryPoint =>
+  typeof value === 'object' &&
+  value !== null &&
+  ('x' in value || 'datum' in value || '_x' in value);
+
+const getPointFromProps = (props?: VictoryPoint): ChartDataPoint | null => {
+  const source = props?.datum ?? props;
+  const x = source?.x ?? source?._x ?? props?.x ?? props?._x;
+  const y = source?.y ?? source?._y ?? props?.y ?? props?._y;
+
+  if (x === undefined || y === undefined) {
+    return null;
+  }
+
+  const label = source?.label ?? props?.label;
+  return {
+    x,
+    y,
+    label: label !== undefined ? String(label) : String(x),
+  };
+};
+
 interface CanvasChartProps {
   data: ChartData;
   style?: any;
@@ -97,7 +148,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
 
   const [showLegend, setShowLegend] = useState(data.showLegend !== false);
   const [tooltipData, setTooltipData] = useState<ChartDataPoint | null>(null);
-  const [zoomDomain, setZoomDomain] = useState<{ x: [number, number]; y: [number, number] } | undefined>();
+  const [zoomDomain, setZoomDomain] = useState<ChartZoomDomain | undefined>();
   const [isExporting, setIsExporting] = useState(false);
 
   const chartColors = data.colors || [
@@ -111,26 +162,58 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
   /**
    * Handle tap on chart point
    */
-  const handlePointPress = useCallback((point: any, props: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handlePointPress = useCallback((props?: VictoryPoint) => {
+    const dataPoint = getPointFromProps(props);
+    if (!dataPoint) return;
 
-    const dataPoint: ChartDataPoint = {
-      x: props.x,
-      y: props.y,
-      label: props.label || String(props.x),
-    };
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     setTooltipData(dataPoint);
     onPointPress?.(dataPoint);
   }, [onPointPress]);
 
   /**
-   * Handle long-press for context menu
+   * Native data-point event handler. React Native SVG exposes press events
+   * directly on the data primitive, so Victory passes the touched point as the
+   * second argument to an event handler declared in the `events` contract.
+   */
+  const handlePointEvent = useCallback((eventOrProps: unknown, props?: VictoryPoint) => {
+    if (props) {
+      handlePointPress(props);
+    } else if (isVictoryPoint(eventOrProps)) {
+      handlePointPress(eventOrProps);
+    }
+  }, [handlePointPress]);
+
+  /**
+   * Native Voronoi activation callback. Victory's native Voronoi consumer
+   * reports the active data point(s) here after a touch starts or moves.
+   */
+  const handlePointsActivated = useCallback((points: VictoryPoint[]) => {
+    if (points.length > 0) {
+      handlePointPress(points[0]);
+    }
+  }, [handlePointPress]);
+
+  /**
+   * Long-press for context menu
    */
   const handleLongPress = useCallback((event: GestureResponderEvent) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Could show context menu here
   }, []);
+
+  /**
+   * Apply a zoom domain from Victory. Victory domains may contain Dates for
+   * time-series charts, while the public CanvasChart callback stays numeric.
+   */
+  const handleZoomDomainChange = useCallback((domain: ChartZoomDomain) => {
+    setZoomDomain(domain);
+    onZoomChange?.({
+      x: toNumericDomain(domain.x),
+      y: toNumericDomain(domain.y),
+    });
+  }, [onZoomChange]);
 
   /**
    * Reset zoom
@@ -140,6 +223,15 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
     setZoomDomain(undefined);
     onZoomChange?.({ x: [0, 1], y: [0, 1] });
   }, [onZoomChange]);
+
+  const pointPressEvents: PointPressEvent[] = [
+    {
+      target: 'data',
+      eventHandlers: {
+        onPressIn: handlePointEvent,
+      },
+    },
+  ];
 
   /**
    * Export chart data as CSV
@@ -246,7 +338,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
           <VictoryZoomContainer
             zoomDimension="x"
             zoomDomain={zoomDomain}
-            onZoomDomainChange={setZoomDomain}
+            onZoomDomainChange={handleZoomDomainChange}
           />
         ) : (
           <VictoryVoronoiContainer
@@ -261,9 +353,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
                 style={{ fill: theme.colors.onSurface, fontSize: 12 }}
               />
             }
-            events={[{
-              onChildPress: handlePointPress,
-            }]}
+            onActivated={handlePointsActivated}
           />
         )
       }
@@ -316,9 +406,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
               style={{ fill: theme.colors.onSurface, fontSize: 12 }}
             />
           }
-          events={[{
-            onChildPress: handlePointPress,
-          }]}
+          onActivated={handlePointsActivated}
         />
       }
     >
@@ -341,7 +429,14 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
         data={data.data}
         style={{
           data: {
-            fill: ({ index }) => chartColors[index % chartColors.length],
+            fill: ({ index }) => {
+              const numericIndex =
+                typeof index === 'number' ? index : Number(index);
+              const colorIndex = Number.isFinite(numericIndex)
+                ? Math.abs(numericIndex) % chartColors.length
+                : 0;
+              return chartColors[colorIndex];
+            },
           },
           labels: { fontSize: 10 },
         }}
@@ -374,9 +469,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
           fill: theme.colors.onSurface,
         },
       }}
-      events={[{
-        onChildPress: handlePointPress,
-      }]}
+      events={pointPressEvents}
       animate={data.animationEnabled !== false ? { duration: 500 } : false}
     />
   );
@@ -393,7 +486,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
           <TouchableOpacity
             key={index}
             style={styles.legendItem}
-            onPress={() => handlePointPress(point, point)}
+            onPress={() => handlePointPress(point)}
           >
             <View
               style={[
@@ -478,13 +571,14 @@ export const CanvasChart: React.FC<CanvasChartProps> = ({
       </View>
 
       {/* Chart */}
-      <ScrollView
-        horizontal={data.type !== 'pie'}
-        showsHorizontalScrollIndicator={true}
-        onLongPress={handleLongPress}
-      >
-        {renderChart()}
-      </ScrollView>
+      <Pressable testID="chart-long-press" onLongPress={handleLongPress}>
+        <ScrollView
+          horizontal={data.type !== 'pie'}
+          showsHorizontalScrollIndicator={true}
+        >
+          {renderChart()}
+        </ScrollView>
+      </Pressable>
 
       {/* Legend */}
       {renderLegend()}
