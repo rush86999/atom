@@ -37,6 +37,10 @@ import { Text, View, Pressable } from 'react-native';
 // Mock fetch
 global.fetch = jest.fn();
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn(),
+  WHEN_UNLOCKED: 'WHEN_UNLOCKED',
+}));
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -146,7 +150,8 @@ describe('Login Flow', () => {
     // Verify tokens were stored
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       'atom_access_token',
-      mockAccessToken
+      mockAccessToken,
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
     );
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       'atom_refresh_token',
@@ -302,7 +307,8 @@ describe('Token Storage', () => {
     await waitFor(() => {
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         'atom_access_token',
-        mockAccessToken
+        mockAccessToken,
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
       );
     });
   });
@@ -721,7 +727,8 @@ describe('Token Refresh', () => {
 
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       'atom_access_token',
-      newAccessToken
+      newAccessToken,
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
     );
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       'atom_refresh_token',
@@ -997,7 +1004,8 @@ describe('Authentication State Persistence', () => {
     );
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       'atom_access_token',
-      newAccessToken
+      newAccessToken,
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
     );
   });
 });

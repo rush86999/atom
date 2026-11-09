@@ -7,7 +7,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 // #6 fix: removed dead `import { AsyncStorage } from 'react-native'`
 // (RN core dropped AsyncStorage in 0.59). The secureTokenStorage helpers
 // use @react-native-async-storage/async-storage internally.
-import { secureSet, secureGet, secureDelete } from '../storage/secureTokenStorage';
+import { secureSet, secureGet, secureDelete, readAccessTokenSnapshot, invalidateAccessToken, AccessTokenSnapshot } from '../storage/secureTokenStorage';
 import { ApiResponse } from '../types/common';
 
 // API base URL - configure for your environment
@@ -17,7 +17,7 @@ const API_BASE_URL = __DEV__
 
 class ApiService {
   private client: AxiosInstance;
-  private token: string | null = null;
+  private readonly requestSessions = new WeakMap<object, AccessTokenSnapshot>();
 
   constructor() {
     this.client = axios.create({
@@ -31,8 +31,12 @@ class ApiService {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
       async (config) => {
-        if (this.token) {
-          config.headers.Authorization = `Bearer ${this.token}`;
+        const session = await readAccessTokenSnapshot();
+        this.requestSessions.set(config, session);
+        if (session.token) {
+          config.headers.Authorization = `Bearer ${session.token}`;
+        } else {
+          delete config.headers.Authorization;
         }
         return config;
       },
@@ -44,9 +48,9 @@ class ApiService {
       (response) => response,
       async (error) => {
         if (error.response?.status === 401) {
-          // Token expired - clear token and redirect to login
-          await this.clearToken();
-          // TODO: Navigate to login screen
+          const session = error.config && this.requestSessions.get(error.config);
+          // Only the exact request that used this session may invalidate it.
+          if (session) await invalidateAccessToken(session);
         }
         return Promise.reject(error);
       }
@@ -57,7 +61,6 @@ class ApiService {
    * Set authentication token
    */
   async setToken(token: string): Promise<void> {
-    this.token = token;
     // #6 fix: use the same key AuthContext uses ('atom_access_token'),
     // not 'auth_token' which was never written by anything.
     await secureSet('atom_access_token', token);
@@ -67,17 +70,13 @@ class ApiService {
    * Get authentication token
    */
   async getToken(): Promise<string | null> {
-    if (!this.token) {
-      this.token = await secureGet('atom_access_token');
-    }
-    return this.token;
+    return secureGet('atom_access_token');
   }
 
   /**
    * Clear authentication token
    */
   async clearToken(): Promise<void> {
-    this.token = null;
     // #6 fix: setToken/getToken use 'atom_access_token' — clear the SAME key,
     // plus the legacy 'auth_token' key so old stores are cleaned too.
     await secureDelete('atom_access_token');

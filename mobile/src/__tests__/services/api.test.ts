@@ -10,16 +10,15 @@
  */
 
 import { apiService } from '../../services/api';
-import {
-  secureSet,
-  secureGet,
-  secureDelete,
-} from '../../storage/secureTokenStorage';
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-jest.mock('../../storage/secureTokenStorage', () => ({
-  secureSet: jest.fn(),
-  secureGet: jest.fn(),
-  secureDelete: jest.fn(),
+jest.mock('expo-secure-store', () => ({
+  setItemAsync: jest.fn(), getItemAsync: jest.fn(), deleteItemAsync: jest.fn(),
+  WHEN_UNLOCKED: 'WHEN_UNLOCKED',
+}));
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(), removeItem: jest.fn(),
 }));
 
 jest.mock('axios', () => {
@@ -44,9 +43,9 @@ jest.mock('axios', () => {
   };
 });
 
-const mockSecureSet = secureSet as jest.Mock;
-const mockSecureGet = secureGet as jest.Mock;
-const mockSecureDelete = secureDelete as jest.Mock;
+const mockSecureSet = SecureStore.setItemAsync as jest.Mock;
+const mockSecureGet = SecureStore.getItemAsync as jest.Mock;
+const mockSecureDelete = SecureStore.deleteItemAsync as jest.Mock;
 
 const mockedAxios = jest.requireMock('axios');
 const mockClient = mockedAxios.create.mock.results[0].value;
@@ -62,10 +61,12 @@ const responseErrorHandler = mockClient.interceptors.response.use.mock.calls[0][
 describe('apiService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (apiService as any).token = null;
-    mockSecureGet.mockResolvedValue(null);
-    mockSecureSet.mockResolvedValue(undefined);
-    mockSecureDelete.mockResolvedValue(undefined);
+    const store = new Map<string, string>();
+    mockSecureGet.mockImplementation(async (key: string) => store.get(key) ?? null);
+    mockSecureSet.mockImplementation(async (key: string, value: string) => { store.set(key, value); });
+    mockSecureDelete.mockImplementation(async (key: string) => { store.delete(key); });
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
     // Default: successful responses
     mockClient.get.mockResolvedValue({ data: { ok: true } });
     mockClient.post.mockResolvedValue({ data: { ok: true } });
@@ -102,7 +103,6 @@ describe('apiService', () => {
 
     test('a current request 401 invalidates its own rejected session', async () => {
       await apiService.setToken('current-session');
-      mockSecureGet.mockResolvedValue('current-session');
       const config = await requestHandler({ headers: {} });
       const error = { response: { status: 401 }, config };
       await expect(responseErrorHandler(error)).rejects.toBe(error);
@@ -118,7 +118,7 @@ describe('apiService', () => {
     test('should persist the token in memory and secure storage', async () => {
       await apiService.setToken('token-123');
 
-      expect(mockSecureSet).toHaveBeenCalledWith('atom_access_token', 'token-123');
+      expect(mockSecureSet).toHaveBeenCalledWith('atom_access_token', 'token-123', expect.objectContaining({ keychainAccessible: 'WHEN_UNLOCKED' }));
       expect(await apiService.getToken()).toBe('token-123');
     });
 
@@ -131,14 +131,14 @@ describe('apiService', () => {
       expect(token).toBe('stored-token');
     });
 
-    test('should not re-read secure storage once token is cached', async () => {
+    test('should re-read canonical storage rather than trust an obsolete cache', async () => {
       await apiService.setToken('cached-token');
       mockSecureGet.mockClear();
 
       const token = await apiService.getToken();
 
       expect(token).toBe('cached-token');
-      expect(mockSecureGet).not.toHaveBeenCalled();
+      expect(mockSecureGet).toHaveBeenCalledWith('atom_access_token');
     });
 
     test('should clear the token and remove it from secure storage', async () => {
@@ -196,8 +196,9 @@ describe('apiService', () => {
     test('should clear the token on a 401 response', async () => {
       await apiService.setToken('expired');
 
+      const config = await requestHandler({ headers: {} });
       await expect(
-        responseErrorHandler({ response: { status: 401 } })
+        responseErrorHandler({ response: { status: 401 }, config })
       ).rejects.toBeTruthy();
 
       expect(mockSecureDelete).toHaveBeenCalled();

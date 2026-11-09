@@ -14,7 +14,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { secureGet, secureSet } from '../storage/secureTokenStorage';
+import { secureGet, secureSet, secureDelete } from '../storage/secureTokenStorage';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(true);
 
       // Check for stored tokens
-      const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      const accessToken = await secureGet(ACCESS_TOKEN_KEY);
       const tokenExpiry = await SecureStore.getItemAsync(TOKEN_EXPIRY_KEY);
       const userData = await AsyncStorage.getItem(USER_DATA_KEY);
 
@@ -232,7 +232,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await response.json();
 
       // Store tokens
-      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.access_token);
+      await secureSet(ACCESS_TOKEN_KEY, data.access_token);
       if (data.refresh_token) {
         await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refresh_token);
       }
@@ -276,7 +276,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       // Call backend logout endpoint if available
-      const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      const accessToken = await secureGet(ACCESS_TOKEN_KEY);
       if (accessToken) {
         try {
           await fetch(`${API_BASE_URL}/api/auth/mobile/logout`, {
@@ -311,7 +311,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const clearTokens = async () => {
     try {
-      await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+      await secureDelete(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
       await SecureStore.deleteItemAsync(TOKEN_EXPIRY_KEY);
       await AsyncStorage.removeItem(USER_DATA_KEY);
@@ -346,7 +346,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await response.json();
 
       // Store new tokens
-      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.access_token);
+      await secureSet(ACCESS_TOKEN_KEY, data.access_token);
       if (data.refresh_token) {
         await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refresh_token);
       }
@@ -381,7 +381,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const registerBiometric = async (publicKey: string): Promise<BiometricResult> => {
     try {
-      const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      const accessToken = await secureGet(ACCESS_TOKEN_KEY);
       if (!accessToken) {
         return { success: false, error: 'Not authenticated' };
       }
@@ -445,7 +445,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const registerDevice = async (deviceToken: string): Promise<{ success: boolean; deviceId?: string; error?: string }> => {
     try {
-      const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      const accessToken = await secureGet(ACCESS_TOKEN_KEY);
       if (!accessToken) {
         return { success: false, error: 'Not authenticated' };
       }
