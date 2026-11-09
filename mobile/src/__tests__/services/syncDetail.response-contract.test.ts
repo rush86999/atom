@@ -63,4 +63,16 @@ describe('Sync detail response evidence', () => {
     expect(apiService.get).toHaveBeenCalledTimes(2);
   });
 
+  test.each(cases)('$resource overlapping reads retain both verified records', async ({ get }) => {
+    const firstId = `overlap-first-${++sequence}`;
+    const secondId = `overlap-second-${++sequence}`;
+    jest.mocked(apiService.get).mockImplementation(async (url: string) => ({ success: true, data: record(url.split('/').pop() || '') }));
+    const [first, second] = await Promise.all([get(firstId), get(secondId)]);
+    expect(first).toEqual(expect.objectContaining({ id: firstId }));
+    expect(second).toEqual(expect.objectContaining({ id: secondId }));
+    jest.mocked(apiService.get).mockResolvedValue({ success: false, error: 'Controlled offline after both completions' });
+    expect(await get(firstId)).toEqual(expect.objectContaining({ id: firstId }));
+    expect(await get(secondId)).toEqual(expect.objectContaining({ id: secondId }));
+  });
+
 });
