@@ -21,7 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
-import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
+import { decodeDate, decodeDetailResponse, decodeListResponse, isRecord } from './syncResponse';
 import {
   authorizePendingWriteOwner,
   readPendingWriteOwner,
@@ -148,6 +148,130 @@ function decodeWorkflow(value: unknown): Workflow | null {
   return workflow;
 }
 
+function isWorkflowExecutionStatus(value: unknown): value is WorkflowExecution['status'] {
+  return (
+    value === 'pending' ||
+    value === 'running' ||
+    value === 'completed' ||
+    value === 'failed'
+  );
+}
+
+function isWorkflowLogLevel(value: unknown): value is WorkflowLog['level'] {
+  return value === 'info' || value === 'warn' || value === 'error' || value === 'debug';
+}
+
+function decodeWorkflowLog(value: unknown): WorkflowLog | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const { timestamp, level, message, stepId } = value;
+
+  const decodedTimestamp = decodeDate(timestamp);
+  if (decodedTimestamp === null) {
+    return null;
+  }
+  if (!isWorkflowLogLevel(level)) {
+    return null;
+  }
+  if (typeof message !== 'string') {
+    return null;
+  }
+  if (stepId !== undefined && typeof stepId !== 'string') {
+    return null;
+  }
+
+  const log: WorkflowLog = {
+    ...value,
+    timestamp: decodedTimestamp,
+    level,
+    message,
+  };
+
+  if (stepId !== undefined) {
+    log.stepId = stepId;
+  }
+
+  return log;
+}
+
+function decodeWorkflowExecution(value: unknown): WorkflowExecution | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const { id, workflowId, status, input, error, duration, logs } = value;
+
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  if (typeof workflowId !== 'string' || workflowId.length === 0) {
+    return null;
+  }
+  if (!isWorkflowExecutionStatus(status)) {
+    return null;
+  }
+  if (input === undefined) {
+    return null;
+  }
+
+  const startedAt = decodeDate(value.startedAt);
+  if (startedAt === null) {
+    return null;
+  }
+
+  let completedAt: Date | undefined;
+  if (value.completedAt !== undefined) {
+    const decodedCompletedAt = decodeDate(value.completedAt);
+    if (decodedCompletedAt === null) {
+      return null;
+    }
+    completedAt = decodedCompletedAt;
+  }
+
+  if (error !== undefined && typeof error !== 'string') {
+    return null;
+  }
+  if (duration !== undefined && (typeof duration !== 'number' || !Number.isFinite(duration))) {
+    return null;
+  }
+  if (!Array.isArray(logs)) {
+    return null;
+  }
+
+  const decodedLogs: WorkflowLog[] = [];
+  for (const rawLog of logs) {
+    const log = decodeWorkflowLog(rawLog);
+    if (log === null) {
+      return null;
+    }
+    decodedLogs.push(log);
+  }
+
+  const execution: WorkflowExecution = {
+    ...value,
+    id,
+    workflowId,
+    status,
+    input,
+    startedAt,
+    logs: decodedLogs,
+  };
+
+  if (error !== undefined) {
+    execution.error = error;
+  }
+  if (completedAt !== undefined) {
+    execution.completedAt = completedAt;
+  }
+  if (duration !== undefined) {
+    execution.duration = duration;
+  }
+
+  return execution;
+}
+
 function getTriggerOwner(trigger: WorkflowTrigger): PendingWriteOwner | null {
   const { userId, workspaceId, deviceId } = trigger;
   if (typeof userId !== 'string' || userId.length === 0) {
@@ -172,10 +296,21 @@ const MAX_PENDING_TRIGGERS = 100;
  * Workflow Sync Service
  */
 class WorkflowSyncService {
-  private cache: WorkflowCache;
+  private cache: WorkflowCache = {
+    workflows: {},
+    executions: {},
+    lastSyncAt: null,
+    pendingTriggers: [],
+  };
   private initialized: boolean = false;
   private monitoringTimer: NodeJS.Timeout | null = null;
-  private metrics: WorkflowMetrics;
+  private metrics: WorkflowMetrics = {
+    totalExecutions: 0,
+    successfulExecutions: 0,
+    failedExecutions: 0,
+    avgDuration: 0,
+    lastExecutionAt: null,
+  };
   private flushInFlight: Promise<void> | null = null;
 
   /**
@@ -295,12 +430,16 @@ class WorkflowSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/workflows/${workflowId}`);
-      if (response.success && response.data) {
-        const workflow: Workflow = response.data;
-        this.cache.workflows[workflowId] = workflow;
-        await this.saveCache();
-        return workflow;
+      const response = await apiService.get<unknown>(`/api/workflows/${workflowId}`);
+      const decoded = decodeDetailResponse(response, 'workflow', workflowId, decodeWorkflow);
+      if (decoded.ok) {
+        const nextCache: WorkflowCache = {
+          ...this.cache,
+          workflows: { ...this.cache.workflows, [workflowId]: decoded.item },
+        };
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
+        return decoded.item;
       }
     } catch (error) {
       console.error(`WorkflowSync: Failed to fetch workflow ${workflowId}:`, error);
@@ -413,12 +552,16 @@ class WorkflowSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/workflows/executions/${executionId}`);
-      if (response.success && response.data) {
-        const execution: WorkflowExecution = response.data;
-        this.cache.executions[executionId] = execution;
-        await this.saveCache();
-        return execution;
+      const response = await apiService.get<unknown>(`/api/workflows/executions/${executionId}`);
+      const decoded = decodeDetailResponse(response, 'execution', executionId, decodeWorkflowExecution);
+      if (decoded.ok) {
+        const nextCache: WorkflowCache = {
+          ...this.cache,
+          executions: { ...this.cache.executions, [executionId]: decoded.item },
+        };
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
+        return decoded.item;
       }
     } catch (error) {
       console.error(`WorkflowSync: Failed to fetch execution ${executionId}:`, error);
@@ -653,28 +796,28 @@ class WorkflowSyncService {
     }
   }
 
-  private async saveCache(): Promise<void> {
+  private async saveCache(cache: WorkflowCache = this.cache): Promise<void> {
     // Enforce cache size limits
-    const workflowIds = Object.keys(this.cache.workflows);
+    const workflowIds = Object.keys(cache.workflows);
     if (workflowIds.length > MAX_CACHE_SIZE) {
       const sorted = workflowIds.sort((a, b) => {
-        const dateA = new Date(this.cache.workflows[a].updatedAt).getTime();
-        const dateB = new Date(this.cache.workflows[b].updatedAt).getTime();
+        const dateA = new Date(cache.workflows[a].updatedAt).getTime();
+        const dateB = new Date(cache.workflows[b].updatedAt).getTime();
         return dateA - dateB;
       });
 
       const toRemove = sorted.slice(0, workflowIds.length - MAX_CACHE_SIZE);
       for (const id of toRemove) {
-        delete this.cache.workflows[id];
+        delete cache.workflows[id];
       }
     }
 
     // Limit executions per workflow
     const executionWorkflowIds = [
-      ...new Set(Object.values(this.cache.executions).map((exec) => exec.workflowId)),
+      ...new Set(Object.values(cache.executions).map((exec) => exec.workflowId)),
     ];
     for (const workflowId of executionWorkflowIds) {
-      const executions = Object.values(this.cache.executions)
+      const executions = Object.values(cache.executions)
         .filter(exec => exec.workflowId === workflowId);
 
       if (executions.length > MAX_EXECUTIONS_PER_WORKFLOW) {
@@ -684,12 +827,12 @@ class WorkflowSyncService {
 
         const toRemove = sorted.slice(0, executions.length - MAX_EXECUTIONS_PER_WORKFLOW);
         for (const exec of toRemove) {
-          delete this.cache.executions[exec.id];
+          delete cache.executions[exec.id];
         }
       }
     }
 
-    if (!(await storageService.setObject('workflow_cache' as StorageKey, this.cache))) {
+    if (!(await storageService.setObject('workflow_cache' as StorageKey, cache))) {
       throw new Error('Workflow cache persistence refused');
     }
   }

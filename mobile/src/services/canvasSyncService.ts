@@ -21,7 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
-import { decodeDate, decodeListResponse, isRecord } from './syncResponse';
+import { decodeDate, decodeDetailResponse, decodeListResponse, isRecord } from './syncResponse';
 import {
   authorizePendingWriteOwner,
   readPendingWriteOwner,
@@ -182,7 +182,14 @@ const MAX_PENDING_SUBMISSIONS = 50;
  * Canvas Sync Service
  */
 class CanvasSyncService {
-  private cache: CanvasCache;
+  private cache: CanvasCache = {
+    canvases: {},
+    htmlCache: {},
+    cssCache: {},
+    lastSyncAt: null,
+    pendingFormSubmissions: [],
+    favorites: new Set(),
+  };
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
   private flushInFlight: Promise<void> | null = null;
@@ -310,20 +317,27 @@ class CanvasSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/canvas/${canvasId}`);
-      if (response.success && response.data) {
-        const canvas: Canvas = response.data;
-        this.cache.canvases[canvasId] = canvas;
+      const response = await apiService.get<unknown>(`/api/canvas/${canvasId}`);
+      const decoded = decodeDetailResponse(response, 'canvas', canvasId, decodeCanvas);
+      if (decoded.ok) {
+        const canvas = decoded.item;
+        const nextCache: CanvasCache = {
+          ...this.cache,
+          canvases: { ...this.cache.canvases, [canvasId]: canvas },
+          htmlCache: { ...this.cache.htmlCache },
+          cssCache: { ...this.cache.cssCache },
+        };
 
         // Cache HTML/CSS
         if (canvas.html) {
-          this.cache.htmlCache[canvasId] = canvas.html;
+          nextCache.htmlCache[canvasId] = canvas.html;
         }
         if (canvas.css) {
-          this.cache.cssCache[canvasId] = canvas.css;
+          nextCache.cssCache[canvasId] = canvas.css;
         }
 
-        await this.saveCache();
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
         return canvas;
       }
     } catch (error) {
@@ -709,26 +723,26 @@ class CanvasSyncService {
     }
   }
 
-  private async saveCache(): Promise<void> {
+  private async saveCache(cache: CanvasCache = this.cache): Promise<void> {
     // Enforce cache size limit
-    const canvasIds = Object.keys(this.cache.canvases);
+    const canvasIds = Object.keys(cache.canvases);
     if (canvasIds.length > MAX_CACHE_SIZE) {
       // Remove oldest canvases
       const sorted = canvasIds.sort((a, b) => {
-        const dateA = new Date(this.cache.canvases[a].updatedAt).getTime();
-        const dateB = new Date(this.cache.canvases[b].updatedAt).getTime();
+        const dateA = new Date(cache.canvases[a].updatedAt).getTime();
+        const dateB = new Date(cache.canvases[b].updatedAt).getTime();
         return dateA - dateB;
       });
 
       const toRemove = sorted.slice(0, canvasIds.length - MAX_CACHE_SIZE);
       for (const id of toRemove) {
-        delete this.cache.canvases[id];
-        delete this.cache.htmlCache[id];
-        delete this.cache.cssCache[id];
+        delete cache.canvases[id];
+        delete cache.htmlCache[id];
+        delete cache.cssCache[id];
       }
     }
 
-    if (!(await storageService.setObject('canvas_cache' as StorageKey, this.cache))) {
+    if (!(await storageService.setObject('canvas_cache' as StorageKey, cache))) {
       throw new Error('Canvas cache persistence refused');
     }
   }

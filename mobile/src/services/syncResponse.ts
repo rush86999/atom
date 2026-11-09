@@ -12,10 +12,13 @@ import { isValid, parseISO } from 'date-fns';
 
 type ListFailure = { ok: false; error: string };
 type ListSuccess<T> = { ok: true; items: T[] };
+type DetailSuccess<T> = { ok: true; item: T };
 type ExtractedList = { ok: true; value: unknown[] } | ListFailure;
+type ExtractedDetail = { ok: true; value: unknown } | ListFailure;
 type SuccessCheck = { ok: true } | ListFailure;
 
 export type ListDecodeResult<T> = ListSuccess<T> | ListFailure;
+export type DetailDecodeResult<T> = DetailSuccess<T> | ListFailure;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -140,4 +143,114 @@ export function decodeListResponse<T extends { id: string }>(
   }
 
   return { ok: true, items };
+}
+
+function detailResourceAliases(resourceKey: string): string[] {
+  const aliases = [resourceKey];
+  if (resourceKey === 'canvas') {
+    aliases.push('canvases');
+  } else if (resourceKey === 'canvases') {
+    aliases.push('canvas');
+  } else if (resourceKey.endsWith('s')) {
+    aliases.push(resourceKey.slice(0, -1));
+  } else {
+    aliases.push(`${resourceKey}s`);
+  }
+  return aliases;
+}
+
+function extractDetail(
+  body: Record<string, unknown>,
+  resourceKey: string,
+  depth: number
+): ExtractedDetail {
+  if (depth > 3) {
+    return fail(`Response body nests too deeply before providing the ${resourceKey} record`);
+  }
+
+  const bodySuccess = checkSuccessFlag(body, 'Response body');
+  if (!bodySuccess.ok) {
+    return bodySuccess;
+  }
+
+  const aliases = detailResourceAliases(resourceKey);
+  const presentResources = aliases.filter((key) =>
+    Object.prototype.hasOwnProperty.call(body, key)
+  );
+  const hasId = Object.prototype.hasOwnProperty.call(body, 'id');
+  const hasData = Object.prototype.hasOwnProperty.call(body, 'data');
+
+  // A direct record is identified by its own id. A canvas legitimately carries
+  // a `data` field, so id presence takes precedence over envelope fields.
+  if (hasId) {
+    if (presentResources.length > 0) {
+      return fail(`Response body ambiguously provides both a direct ${resourceKey} record and ${resourceKey}`);
+    }
+    return { ok: true, value: body };
+  }
+
+  if (presentResources.length > 1) {
+    return fail(`Response body ambiguously provides multiple ${resourceKey} branches`);
+  }
+
+  if (presentResources.length === 1 && hasData) {
+    return fail(`Response body ambiguously provides both ${resourceKey} and data`);
+  }
+
+  if (presentResources.length === 1) {
+    const resource = body[presentResources[0]];
+    if (isRecord(resource)) {
+      return extractDetail(resource, resourceKey, depth + 1);
+    }
+    return { ok: true, value: resource };
+  }
+
+  if (hasData) {
+    const data = body.data;
+    if (!isRecord(data)) {
+      return fail(`Response body data is not a ${resourceKey} record`);
+    }
+    return extractDetail(data, resourceKey, depth + 1);
+  }
+
+  return fail(`Response body is missing the ${resourceKey} record`);
+}
+
+/**
+ * Decode a complete detail response before any cache mutation.
+ *
+ * Supports a direct record body, the legacy resource-object envelope
+ * (`{ agent: {...} }`), and the standard success/data envelope
+ * (`{ success: true, data: {...} }`, including nested wrappers). The decoded
+ * identity must exactly match the requested opaque id.
+ */
+export function decodeDetailResponse<T extends { id: string }>(
+  response: ApiResponse<unknown>,
+  resourceKey: string,
+  expectedId: string,
+  decodeItem: (value: unknown) => T | null
+): DetailDecodeResult<T> {
+  if (typeof response.success !== 'boolean' || !response.success) {
+    return fail(response.error || 'Transport request failed');
+  }
+
+  const body = response.data;
+  if (!isRecord(body)) {
+    return fail(`Response body is missing the ${resourceKey} record`);
+  }
+
+  const extracted = extractDetail(body, resourceKey, 0);
+  if (!extracted.ok) {
+    return extracted;
+  }
+
+  const item = decodeItem(extracted.value);
+  if (item === null) {
+    return fail(`Malformed ${resourceKey} record`);
+  }
+  if (item.id !== expectedId) {
+    return fail(`Response ${resourceKey} identity does not match the requested id`);
+  }
+
+  return { ok: true, item };
 }

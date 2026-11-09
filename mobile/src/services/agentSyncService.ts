@@ -21,7 +21,7 @@
 import { apiService } from './api';
 import { storageService, StorageKey } from './storageService';
 import { offlineSyncService } from './offlineSyncService';
-import { decodeDate, decodeListResponse, isRecord, isStringArray } from './syncResponse';
+import { decodeDate, decodeDetailResponse, decodeListResponse, isRecord, isStringArray } from './syncResponse';
 
 // Types
 export interface Agent {
@@ -161,7 +161,12 @@ const MAX_EXECUTION_HISTORY = 50; // Max executions to keep
  * Agent Sync Service
  */
 class AgentSyncService {
-  private cache: AgentCache;
+  private cache: AgentCache = {
+    agents: {},
+    lastSyncAt: null,
+    pendingExecutions: [],
+    favorites: new Set(),
+  };
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
 
@@ -279,12 +284,16 @@ class AgentSyncService {
 
     // Fetch from server
     try {
-      const response = await apiService.get(`/api/agents/${agentId}`);
-      if (response.success && response.data) {
-        const agent: Agent = response.data;
-        this.cache.agents[agentId] = agent;
-        await this.saveCache();
-        return agent;
+      const response = await apiService.get<unknown>(`/api/agents/${agentId}`);
+      const decoded = decodeDetailResponse(response, 'agent', agentId, decodeAgent);
+      if (decoded.ok) {
+        const nextCache: AgentCache = {
+          ...this.cache,
+          agents: { ...this.cache.agents, [agentId]: decoded.item },
+        };
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
+        return decoded.item;
       }
     } catch (error) {
       console.error(`AgentSync: Failed to fetch agent ${agentId}:`, error);
@@ -509,24 +518,24 @@ class AgentSyncService {
     }
   }
 
-  private async saveCache(): Promise<void> {
+  private async saveCache(cache: AgentCache = this.cache): Promise<void> {
     // Enforce cache size limit
-    const agentIds = Object.keys(this.cache.agents);
+    const agentIds = Object.keys(cache.agents);
     if (agentIds.length > MAX_CACHE_SIZE) {
       // Remove oldest agents
       const sorted = agentIds.sort((a, b) => {
-        const dateA = new Date(this.cache.agents[a].updatedAt).getTime();
-        const dateB = new Date(this.cache.agents[b].updatedAt).getTime();
+        const dateA = new Date(cache.agents[a].updatedAt).getTime();
+        const dateB = new Date(cache.agents[b].updatedAt).getTime();
         return dateA - dateB;
       });
 
       const toRemove = sorted.slice(0, agentIds.length - MAX_CACHE_SIZE);
       for (const id of toRemove) {
-        delete this.cache.agents[id];
+        delete cache.agents[id];
       }
     }
 
-    if (!(await storageService.setObject('agent_cache' as StorageKey, this.cache))) {
+    if (!(await storageService.setObject('agent_cache' as StorageKey, cache))) {
       throw new Error('Agent cache persistence refused');
     }
   }
