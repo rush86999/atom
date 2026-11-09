@@ -1133,43 +1133,16 @@ async def update_canvas(
     tenant_id: Optional[str] = None,
     workspace_id: Optional[str] = None,
 ):
-    """
-    Update existing canvas with new data without re-presenting entire component.
+    """Apply a planned content/data/title patch through the verified writer.
 
-    Enables bidirectional canvas updates for dynamic dashboards and real-time data updates.
-    Similar to OpenClaw's surfaceUpdate and dataModelUpdate commands.
-
-    Args:
-        user_id: User ID to send the update to
-        canvas_id: Canvas ID to update (must exist from prior present_chart/form/markdown call)
-        updates: Dictionary containing update data (e.g., {"data": [...], "title": "Updated"})
-        agent_id: Agent ID performing the update (for governance)
-        session_id: Optional session ID for session isolation
-
-    Returns:
-        Dict with success status and update details
-
-    Example:
-        # Update chart data
-        await update_canvas(
-            user_id="user-1",
-            canvas_id="canvas-123",
-            updates={"data": [{"x": 1, "y": 5}, {"x": 2, "y": 10}]},
-            agent_id="agent-1"
-        )
-
-        # Update title
-        await update_canvas(
-            user_id="user-1",
-            canvas_id="canvas-123",
-            updates={"title": "Updated Sales Data"}
-        )
+    Read the canvas first and pass its exact revision_audit_id. Missing/stale
+    revisions refuse rather than refreshing the plan or broadcasting unsaved
+    changes. The existing writer owns the audit, native frame and receipt.
     """
     from core.database import get_db_session
+    from tools.canvas_crud_tool import read_canvas, active_canvas_actor
+    from core.canvas_write_service import update_canvas_verified
 
-    # A plan must carry the revision it observed; reading here cannot invent
-    # that authority after a concurrent user edit. Old callers get an action,
-    # never a fake WebSocket-only success.
     if not isinstance(updates, dict) or not updates or set(updates) - {"content", "data", "title"}:
         return {"success": False, "error_code": "INVALID_CANVAS_PATCH", "error": "Supply content/data or title only"}
     if "content" in updates and "data" in updates:
@@ -1178,56 +1151,14 @@ async def update_canvas(
         return {"success": False, "error_code": "INVALID_CANVAS_PATCH", "error": "Title must be text"}
     if not isinstance(expected_prior_audit_id, str) or not expected_prior_audit_id.strip():
         return {"success": False, "error_code": "CANVAS_REVISION_REQUIRED", "error": "Read the canvas and supply its exact revision before updating", "canvas_id": canvas_id}
-
-    agent = None
-    agent_execution = None
-    governance_check = None
-
+    if operation_id is not None and (not isinstance(operation_id, str) or not operation_id.strip()):
+        return {"success": False, "error_code": "INVALID_OPERATION_ID", "error": "Operation identity must be non-empty text"}
+    operation_id = operation_id or "canvas-tool-update:" + str(uuid.uuid4())
+    execution_id = None
+    result = None
+    dispatch_started = False
+    resolved_agent_id = None
     try:
-        # Governance: Resolve agent and check permissions
-        if FeatureFlags.should_enforce_governance('canvas'):
-            with get_db_session() as db:
-                resolver = AgentContextResolver(db)
-                from core.service_factory import ServiceFactory
-                governance = ServiceFactory.get_governance_service(db)
-
-                # Resolve agent
-                agent, resolution_context = await resolver.resolve_agent_for_request(
-                    user_id=user_id,
-                    requested_agent_id=agent_id,
-                    action_type="update_canvas"
-                )
-
-                # Check governance (INTERN+ required for updates)
-                if agent:
-                    governance_check = governance.can_perform_action(
-                        agent_id=agent.id,
-                        action_type="update_canvas"
-                    )
-
-                    if not governance_check["allowed"]:
-                        logger.warning(f"Governance blocked canvas update: {governance_check['reason']}")
-                        return {
-                            "success": False,
-                            "error": f"Agent not permitted to update canvas: {governance_check['reason']}"
-                        }
-
-                    # Create agent execution record
-                    agent_execution = AgentExecution(
-                        agent_id=agent.id,
-                        workspace_id="default",
-                        status="running",
-                        input_summary=f"Update canvas {canvas_id}",
-                        triggered_by="canvas"
-                    )
-                    db.add(agent_execution)
-                    db.commit()
-                    db.refresh(agent_execution)
-
-                    logger.info(f"Agent execution {agent_execution.id} for canvas update")
-
-        from tools.canvas_crud_tool import read_canvas, active_canvas_actor
-        from core.canvas_write_service import update_canvas_verified
         with get_db_session() as db:
             actor = active_canvas_actor(db, user_id)
             if not actor.get("ok"):
@@ -1239,59 +1170,72 @@ async def update_canvas(
         current = await read_canvas(user_id, canvas_id)
         if not current.get("success"):
             return current
+
+        if FeatureFlags.should_enforce_governance('canvas'):
+            with get_db_session() as db:
+                from core.service_factory import ServiceFactory
+                agent, _ = await AgentContextResolver(db).resolve_agent_for_request(
+                    user_id=user_id, requested_agent_id=agent_id, action_type="update_canvas")
+                if agent_id and agent is None:
+                    return {"success": False, "error": "Requested agent is unavailable"}
+                if agent:
+                    check = ServiceFactory.get_governance_service(db).can_perform_action(
+                        agent_id=agent.id, action_type="update_canvas")
+                    if not check["allowed"]:
+                        return {"success": False, "error": "Agent not permitted to update canvas"}
+                    resolved_agent_id = agent.id
+                    execution = AgentExecution(
+                        agent_id=agent.id, workspace_id=workspace_id,
+                        tenant_id=tenant_id, status="running",
+                        input_summary=f"Update canvas {canvas_id}", triggered_by="canvas")
+                    db.add(execution)
+                    db.commit()
+                    db.refresh(execution)
+                    execution_id = execution.id
+
         body = current.get("content")
         body_key = "content" if "content" in updates else "data" if "data" in updates else None
         if body_key is not None:
             replacement = updates[body_key]
-            # Specialized documents carry a native envelope. A body-only
-            # patch updates that field while retaining its other fields.
-            if isinstance(body, dict) and body_key in body and not isinstance(replacement, dict):
-                body = {**body, body_key: replacement}
-            else:
-                body = replacement
-        result = await update_canvas_verified(
-            user_id=user_id, canvas_id=canvas_id, content=body,
-            canvas_type=current["canvas_type"],
-            title=updates["title"] if "title" in updates else current.get("title"),
-            expected_prior_audit_id=expected_prior_audit_id, operation_id=operation_id,
-            tenant_id=tenant_id, workspace_id=workspace_id,
-        )
-        # The existing writer owns commit, receipt, canonical broadcast and
-        # uncertainty. Never add another audit or broadcast from this adapter.
-        if agent_execution:
+            # A legacy body patch retains its native document envelope.
+            body = {**body, body_key: replacement} if isinstance(body, dict) and body_key in body else replacement
+        dispatch_started = True
+        from core.chat_session_context import set_chat_context, reset_chat_context
+        tokens = set_chat_context(audit_session_id(session_id), audit_agent_id(resolved_agent_id))
+        try:
+            result = await update_canvas_verified(
+                user_id=user_id, canvas_id=canvas_id, content=body,
+                canvas_type=current["canvas_type"],
+                title=updates["title"] if "title" in updates else current.get("title"),
+                expected_prior_audit_id=expected_prior_audit_id, operation_id=operation_id,
+                tenant_id=tenant_id, workspace_id=workspace_id)
+        finally:
+            reset_chat_context(tokens)
+        # The verified service keeps transport success on committed-unverified
+        # envelopes. A tool/business success requires the independent receipt.
+        result = {**result, "success": bool(result.get("success") and
+                  result.get("verification", {}).get("status") == "verified")}
+        if execution_id:
             with get_db_session() as db:
-                execution = db.query(AgentExecution).filter(AgentExecution.id == agent_execution.id).first()
+                execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
                 if execution:
                     execution.status = "completed" if result.get("success") else "blocked"
                     if result.get("success"):
                         execution.completed_at = datetime.now()
                     db.commit()
-        return {**result, "updated_fields": list(updates), "agent_id": agent.id if agent else None, "session_id": session_id}
-
-    except Exception as e:
-        logger.error(f"Failed to update canvas: {e}")
-
-        # Mark execution as failed
-        if agent_execution and FeatureFlags.should_enforce_governance('canvas'):
-            try:
-                with get_db_session() as db:
-                    execution = db.query(AgentExecution).filter(
-                        AgentExecution.id == agent_execution.id
-                    ).first()
-                    if execution:
-                        execution.status = "failed"
-                        execution.error_message = "CANVAS_ADAPTER_ERROR"
-                        execution.completed_at = datetime.now()
-                        db.commit()
-
-                        if agent:
-                            from core.service_factory import ServiceFactory
-                            governance_service = ServiceFactory.get_governance_service(db)
-                            await governance_service.record_outcome(agent.id, success=False)
-            except Exception as inner_e:
-                logger.error(f"Failed to record execution failure: {inner_e}")
-
-        return {"success": False, "error": "Canvas update could not be confirmed", "error_code": "CANVAS_ADAPTER_ERROR", "operation_id": operation_id, "replay": "do_not_repeat"}
+        return {**result, "updated_fields": list(updates), "agent_id": resolved_agent_id, "session_id": session_id}
+    except Exception as error:
+        logger.error("Canvas adapter failed", error_class=type(error).__name__)
+        if result is not None:
+            # A tracking failure cannot erase the already returned durable
+            # receipt or turn it into a reason to dispatch the write again.
+            return {**result, "execution_state": "unavailable", "agent_execution_id": execution_id,
+                    "updated_fields": list(updates), "session_id": session_id}
+        failure = {"success": False, "status": "effect_unknown" if dispatch_started else "not_applied",
+                   "error": "Canvas update could not be confirmed", "error_code": "CANVAS_ADAPTER_ERROR",
+                   "canvas_id": canvas_id, "operation_id": operation_id, "replay": "do_not_repeat",
+                   "verification": {"status": "unavailable", "effect": "unknown" if dispatch_started else "none"}}
+        return await _presentation_failure_result(failure, execution_id)
 
 
 async def present_to_canvas(

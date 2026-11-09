@@ -92,3 +92,113 @@ async def test_king_threads_revision_and_stops_projection_on_conflict(monkeypatc
         assert len(updates)==2
         assert updates[1]["expected_prior_audit_id"]=="revision-1"
         assert result["canvas_projection_error"] is None
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('patch',[{'color':'red'},{'content':'x','data':[]},{'user_id':'other','content':'x'}])
+async def test_invalid_patch_never_partially_writes(present_world,monkeypatch,patch):
+    tool,user,db=present_world
+    frames=AsyncMock();monkeypatch.setattr(tool.ws_manager,'broadcast',frames)
+    created=await invoke(tool,'markdown',user.id);frames.reset_mock()
+    before=db.query(CanvasAudit).count()
+    result=await tool.update_canvas(user.id,created['canvas_id'],patch,expected_prior_audit_id=created['audit_id'])
+    assert result['success'] is False and result['error_code']=='INVALID_CANVAS_PATCH'
+    assert db.query(CanvasAudit).count()==before
+    frames.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_stale_planned_revision_retains_current_user_edit(present_world,monkeypatch):
+    tool,user,db=present_world
+    frames=AsyncMock();monkeypatch.setattr(tool.ws_manager,'broadcast',frames)
+    created=await invoke(tool,'markdown',user.id)
+    first=await tool.update_canvas(user.id,created['canvas_id'],{'content':'User current'},expected_prior_audit_id=created['audit_id'])
+    assert first['success'],first
+    frames.reset_mock();before=db.query(CanvasAudit).count()
+    stale=await tool.update_canvas(user.id,created['canvas_id'],{'content':'Stale plan'},expected_prior_audit_id=created['audit_id'])
+    assert stale['success'] is False and stale.get('conflict'),stale
+    from tools.canvas_crud_tool import read_canvas
+    assert (await read_canvas(user.id,created['canvas_id']))['content']=='User current'
+    assert db.query(CanvasAudit).count()==before
+    frames.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_foreign_owner_never_receives_or_writes_a_frame(present_world,monkeypatch):
+    from tests.test_covpush_canvasroutes import _make_user
+    tool,user,db=present_world
+    frames=AsyncMock();monkeypatch.setattr(tool.ws_manager,'broadcast',frames)
+    created=await invoke(tool,'markdown',user.id);frames.reset_mock()
+    peer=_make_user(db);before=db.query(CanvasAudit).count()
+    result=await tool.update_canvas(peer.id,created['canvas_id'],{'content':'Foreign'},expected_prior_audit_id=created['audit_id'])
+    assert result['success'] is False,result
+    assert db.query(CanvasAudit).count()==before
+    frames.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_unverified_commit_is_not_tool_success_and_keeps_receipt(present_world,monkeypatch):
+    import core.canvas_write_service as service
+    tool,user,db=present_world
+    monkeypatch.setattr(tool.ws_manager,'broadcast',AsyncMock())
+    created=await invoke(tool,'markdown',user.id)
+    monkeypatch.setattr(service,'validate',AsyncMock(return_value=None))
+    result=await tool.update_canvas(user.id,created['canvas_id'],{'content':'Committed'},expected_prior_audit_id=created['audit_id'],operation_id='uncertain-operation')
+    assert result['success'] is False,result
+    assert result['status']=='committed_unverified'
+    assert result['operation_id']=='uncertain-operation' and result['audit_id']
+    assert result['verification']['effect']=='committed'
+    assert result['verification']['replay']=='do_not_repeat'
+    assert db.query(CanvasAudit).filter_by(id=result['audit_id']).one().details_json['content']=='Committed'
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('has_revision',[True,False])
+async def test_real_deep_link_update_threads_explicit_plan_revision(present_world,monkeypatch,has_revision):
+    from core.deeplinks import DeepLink,execute_canvas_deep_link
+    tool,user,db=present_world
+    monkeypatch.setattr(tool.ws_manager,'broadcast',AsyncMock())
+    created=await invoke(tool,'markdown',user.id)
+    params={'action':'update','params':{'content':'Linked body'},'operation_id':'deep-link-operation'}
+    if has_revision:params['expected_prior_audit_id']=created['audit_id']
+    link=DeepLink('atom','canvas',created['canvas_id'],params,'atom://canvas/'+created['canvas_id'])
+    result=await execute_canvas_deep_link(link,user.id,db)
+    assert result['success'] is has_revision,result
+    from tools.canvas_crud_tool import read_canvas
+    assert (await read_canvas(user.id,created['canvas_id']))['content']==('Linked body' if has_revision else 'Current body')
+
+@pytest.mark.asyncio
+async def test_empty_title_is_an_exact_supported_edit(present_world,monkeypatch):
+    tool,user,db=present_world
+    monkeypatch.setattr(tool.ws_manager,'broadcast',AsyncMock())
+    created=await invoke(tool,'markdown',user.id)
+    result=await tool.update_canvas(user.id,created['canvas_id'],{'title':''},expected_prior_audit_id=created['audit_id'])
+    assert result['success'] is True,result
+    from tools.canvas_crud_tool import read_canvas
+    current=await read_canvas(user.id,created['canvas_id'])
+    assert current['title']=='' and current['content']=='Current body'
+
+@pytest.mark.asyncio
+async def test_same_operation_cannot_change_only_title(present_world,monkeypatch):
+    tool,user,db=present_world
+    monkeypatch.setattr(tool.ws_manager,'broadcast',AsyncMock())
+    created=await invoke(tool,'markdown',user.id)
+    first=await tool.update_canvas(user.id,created['canvas_id'],{'title':'First'},expected_prior_audit_id=created['audit_id'],operation_id='title-operation')
+    assert first['success'] is True,first
+    before=db.query(CanvasAudit).count()
+    changed=await tool.update_canvas(user.id,created['canvas_id'],{'title':'Different'},expected_prior_audit_id=created['audit_id'],operation_id='title-operation')
+    assert changed['success'] is False,changed
+    assert db.query(CanvasAudit).count()==before
+
+@pytest.mark.asyncio
+async def test_correct_body_but_wrong_title_cannot_verify(present_world,monkeypatch):
+    import core.canvas_write_service as service
+    from core.models import Canvas
+    tool,user,db=present_world
+    monkeypatch.setattr(tool.ws_manager,'broadcast',AsyncMock())
+    created=await invoke(tool,'markdown',user.id)
+    write=service.update_canvas_content
+    async def wrong_title(**kwargs):
+        result=await write(**kwargs)
+        db.query(Canvas).filter_by(id=created['canvas_id']).update({'name':'Wrong title'})
+        db.commit()
+        return result
+    monkeypatch.setattr(service,'update_canvas_content',wrong_title)
+    result=await tool.update_canvas(user.id,created['canvas_id'],{'title':'Authorized'},expected_prior_audit_id=created['audit_id'])
+    assert result['success'] is False and result['status']=='committed_unverified',result
+    assert result['verification']['effect']=='committed'

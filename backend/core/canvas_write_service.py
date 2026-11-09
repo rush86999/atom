@@ -176,6 +176,7 @@ def _operation_material_error(
     canvas_id: str,
     operation_id: str,
     expected_digest: str,
+    expected_title: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Refuse a supplied operation id that already names different material.
 
@@ -194,7 +195,8 @@ def _operation_material_error(
             status = str(details.get("review_status") or "unknown")
             content = details.get("content", details.get("data"))
             if (status != "accepted" or content is None
-                    or canvas_content_digest(content) != expected_digest):
+                    or canvas_content_digest(content) != expected_digest
+                    or (expected_title is not None and details.get("title") != expected_title)):
                 return _refusal(
                     canvas_id,
                     "operation_id already used with different material or "
@@ -242,6 +244,7 @@ async def _envelope(
     tenant_id: Optional[str],
     workspace_id: Optional[str],
     actor_id: Optional[str],
+    expected_title: Optional[str] = None,
 ) -> Dict[str, Any]:
     identity = _identity(
         canvas_id, result, operation_id, restore_audit_id or None)
@@ -304,6 +307,8 @@ async def _envelope(
         # registered-action callers keep their existing conditional checks.
         "_oracle_require_scope_match": True,
     }
+    if expected_title is not None:
+        ctx["_oracle_expected_canvas_title"] = expected_title
     try:
         oracle = await validate(action, ctx)
         verified = bool(oracle is not None and oracle.verified)
@@ -371,7 +376,7 @@ async def update_canvas_verified(
         canvas_id, canvas_type, content, manual_retype)
     expected_digest = canvas_content_digest(resolved_content)
     material_error = _operation_material_error(
-        canvas_id, operation_id, expected_digest)
+        canvas_id, operation_id, expected_digest, title)
     if material_error:
         return material_error
 
@@ -400,6 +405,7 @@ async def update_canvas_verified(
         tenant_id=tenant_id,
         workspace_id=workspace_id,
         actor_id=user_id,
+        expected_title=title,
     )
 
 
