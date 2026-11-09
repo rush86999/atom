@@ -188,6 +188,10 @@ function getSubmissionOwner(submission: CanvasFormData): PendingWriteOwner | nul
   return { userId, workspaceId, deviceId };
 }
 
+function createSubmissionOperationId(): string {
+  return `canvas_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
 // Configuration
 const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours (shorter for dynamic canvas data)
 const MAX_CACHE_SIZE = 30; // Max canvases to cache
@@ -208,6 +212,8 @@ class CanvasSyncService {
   private initialized: boolean = false;
   private refreshTimer: NodeJS.Timeout | null = null;
   private flushInFlight: Promise<void> | null = null;
+  private flushCoveredSubmissions: Set<CanvasFormData> | null = null;
+  private flushRemovedSubmissions: Set<CanvasFormData> | null = null;
   private readonly cacheTransaction = createCacheTransactionQueue();
   private cacheGeneration = 0;
   private readonly invalidatedCanvases = new Map<string, number>();
@@ -524,6 +530,10 @@ class CanvasSyncService {
     deviceId: string
   ): Promise<boolean> {
     try {
+      // Own the wire material before the first await. Caller-owned objects
+      // must not mutate a durable intent after its dispatch marker is saved.
+      const frozenFormData: unknown = JSON.parse(JSON.stringify(formData));
+      if (!isRecord(frozenFormData)) return false;
       const generation = this.cacheGeneration;
 
       // Capture the canonical owner before creating any queued work. This is a
@@ -534,8 +544,9 @@ class CanvasSyncService {
       }
 
       const submission: CanvasFormData = {
+        operationId: createSubmissionOperationId(),
         canvasId,
-        formData,
+        formData: frozenFormData,
         submittedAt: new Date(),
         status: 'pending',
         deliveryStatus: 'pending',
@@ -547,64 +558,50 @@ class CanvasSyncService {
       // Check if offline
       const isOffline = !(await this.isOnline());
 
-      if (isOffline) {
-        // The network-state read above is an await: the captured session must
-        // still be current before the row can be enqueued.
+      // Every new submission crosses the same durable boundary as offline work:
+      // the exact owner, material, operation and pending row are persisted
+      // before any transport attempt. The generation and captured session are
+      // checked inside the serialized mutation so an await cannot smuggle in a
+      // replaced cache or auth generation.
+      const queued = await this.cacheTransaction(async () => {
+        if (generation !== this.cacheGeneration) {
+          return false;
+        }
         if (!isAccessTokenSnapshotCurrent(local.session)) {
           return false;
         }
-
-        // Queue for offline submission
-        const queued = await this.cacheTransaction(async () => {
-          if (generation !== this.cacheGeneration) {
-            return false;
-          }
-
-          if (this.cache.pendingFormSubmissions.length >= MAX_PENDING_SUBMISSIONS) {
-            console.warn('CanvasSync: Pending queue is full; existing intent retained');
-            return false;
-          }
-          const pendingFormSubmissions = [...this.cache.pendingFormSubmissions, submission];
-
-          const nextCache: CanvasCache = {
-            ...this.cache,
-            pendingFormSubmissions,
-          };
-          await this.saveCache(nextCache);
-          this.cache = nextCache;
-          return true;
-        });
-
-        if (!queued) {
+        if (this.cache.pendingFormSubmissions.length >= MAX_PENDING_SUBMISSIONS) {
+          console.warn('CanvasSync: Pending queue is full; existing intent retained');
           return false;
         }
+        const pendingFormSubmissions = [...this.cache.pendingFormSubmissions, submission];
+
+        const nextCache: CanvasCache = {
+          ...this.cache,
+          pendingFormSubmissions,
+        };
+        await this.saveCache(nextCache);
+        this.cache = nextCache;
+        return true;
+      });
+
+      if (!queued) {
+        return false;
+      }
+
+      if (isOffline) {
         console.log(`CanvasSync: Queued form submission for canvas ${canvasId}`);
         return true;
       }
 
-      // Submit immediately only against the exact owner the server confirms.
-      const session = await authorizePendingWriteOwner(local.owner, userId, deviceId);
-      if (!session) {
-        return false;
-      }
-
-      const response = await apiService.post(
-        `/api/canvas/${canvasId}/submit`,
-        {
-          form_data: formData,
-          submitted_at: submission.submittedAt,
-        },
-        { expectedAccessTokenSnapshot: session }
-      );
-
-      if (response.success) {
+      // Immediate submission is only a request to flush the exact durable row
+      // just enqueued. Success means that row's own verified receipt removed
+      // it; other rows flushed alongside it cannot certify this submission.
+      const removed = await this.flushFormSubmissions(userId, deviceId, submission);
+      if (removed) {
         console.log(`CanvasSync: Submitted form for canvas ${canvasId}`);
-        return true;
       }
-
-      submission.status = 'failed';
-      submission.error = response.error || 'Unknown error';
-      return false;
+      return removed;
     } catch (error) {
       console.error(`CanvasSync: Failed to submit form for canvas ${canvasId}:`, error);
       return false;
@@ -615,23 +612,139 @@ class CanvasSyncService {
    * Sync pending form submissions
    */
   async syncFormSubmissions(userId: string, deviceId: string): Promise<void> {
-    if (this.flushInFlight) {
-      return this.flushInFlight;
-    }
+    await this.flushFormSubmissions(userId, deviceId);
+  }
 
-    const flush = this.flushPendingFormSubmissions(userId, deviceId);
-    this.flushInFlight = flush;
+  /**
+   * Serialize flushes and, when a target row is supplied, report whether that
+   * exact row was covered by a flush and removed by its own verified receipt.
+   */
+  private async flushFormSubmissions(
+    userId: string,
+    deviceId: string,
+    target?: CanvasFormData
+  ): Promise<boolean> {
+    for (;;) {
+      if (this.flushInFlight) {
+        const inFlight = this.flushInFlight;
+        const covered = this.flushCoveredSubmissions;
+        const removed = this.flushRemovedSubmissions;
+        await inFlight;
 
-    try {
-      await flush;
-    } finally {
-      if (this.flushInFlight === flush) {
-        this.flushInFlight = null;
+        if (!target) {
+          return false;
+        }
+        if (covered && covered.has(target)) {
+          return removed !== null && removed.has(target);
+        }
+        if (this.cache.pendingFormSubmissions.indexOf(target) < 0) {
+          return false;
+        }
+        // The completed snapshot predates this row; a new flush is required so
+        // an enqueue racing an existing flush is not silently starved.
+        continue;
       }
+
+      const covered = new Set<CanvasFormData>(this.cache.pendingFormSubmissions);
+      const removed = new Set<CanvasFormData>();
+      const flush = this.flushPendingFormSubmissions(userId, deviceId, removed);
+      this.flushCoveredSubmissions = covered;
+      this.flushRemovedSubmissions = removed;
+      this.flushInFlight = flush;
+
+      try {
+        await flush;
+      } finally {
+        if (this.flushInFlight === flush) {
+          this.flushInFlight = null;
+          this.flushCoveredSubmissions = null;
+          this.flushRemovedSubmissions = null;
+        }
+      }
+
+      if (!target) {
+        return false;
+      }
+      if (covered.has(target)) {
+        return removed.has(target);
+      }
+      if (this.cache.pendingFormSubmissions.indexOf(target) < 0) {
+        return false;
+      }
+      // The row was enqueued after the snapshot; loop and flush it now.
     }
   }
 
-  private async flushPendingFormSubmissions(userId: string, deviceId: string): Promise<void> {
+  /** Persist the dispatch boundary before any transport attempt. */
+  private async markSubmissionDispatching(submission: CanvasFormData): Promise<boolean> {
+    return this.cacheTransaction(async () => {
+      if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
+        return false;
+      }
+      // Legacy rows known never dispatched may receive an identity here; it is
+      // persisted with the marker before any request can leave.
+      submission.operationId ||= createSubmissionOperationId();
+      submission.deliveryStatus = 'dispatching';
+      try {
+        await this.saveCache();
+      } catch (error) {
+        // No POST occurred, so this in-memory row is still known undispatched.
+        submission.deliveryStatus = 'pending';
+        throw error;
+      }
+      return true;
+    });
+  }
+
+  /**
+   * The POST may have reached the server. Keep the exact queued input and
+   * identifiers, but never automatically repeat an uncertain dispatch.
+   */
+  private async retainUncertainSubmission(submission: CanvasFormData): Promise<void> {
+    await this.cacheTransaction(async () => {
+      if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
+        return;
+      }
+      submission.deliveryStatus = 'effect_unknown';
+      await this.saveCache();
+    });
+  }
+
+  /**
+   * Transport acceptance is not business completion. Remove only the exact
+   * object that was dispatched; concurrent additions are preserved.
+   */
+  private async removeSubmittedSubmission(submission: CanvasFormData): Promise<boolean> {
+    return this.cacheTransaction(async () => {
+      if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
+        return false;
+      }
+
+      const nextCache: CanvasCache = {
+        ...this.cache,
+        pendingFormSubmissions: this.cache.pendingFormSubmissions.filter(
+          (row) => row !== submission
+        ),
+      };
+
+      try {
+        await this.saveCache(nextCache);
+      } catch (error) {
+        // The durable row still says dispatching. Keep the uncertainty visible
+        // in memory so this process cannot dispatch it again either.
+        submission.deliveryStatus = 'effect_unknown';
+        throw error;
+      }
+      this.cache = nextCache;
+      return true;
+    });
+  }
+
+  private async flushPendingFormSubmissions(
+    userId: string,
+    deviceId: string,
+    removedSubmissions?: Set<CanvasFormData>
+  ): Promise<void> {
     if (this.cache.pendingFormSubmissions.length === 0) {
       return;
     }
@@ -661,23 +774,7 @@ class CanvasSyncService {
       }
 
       // Persist the dispatch boundary before any transport attempt.
-      const marked = await this.cacheTransaction(async () => {
-        if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
-          return false;
-        }
-        // Legacy rows known never dispatched may receive an identity here;
-        // it is persisted with the marker before any request can leave.
-        submission.operationId ||= `canvas_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        submission.deliveryStatus = 'dispatching';
-        try {
-          await this.saveCache();
-        } catch (error) {
-          // No POST occurred, so this in-memory row is still known undispatched.
-          submission.deliveryStatus = 'pending';
-          throw error;
-        }
-        return true;
-      });
+      const marked = await this.markSubmissionDispatching(submission);
       if (!marked) {
         continue;
       }
@@ -714,42 +811,14 @@ class CanvasSyncService {
       }
 
       if (!accepted) {
-        // The POST may have reached the server. Keep the exact queued input and
-        // identifiers, but never automatically repeat an uncertain dispatch.
-        await this.cacheTransaction(async () => {
-          if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
-            return;
-          }
-          submission.deliveryStatus = 'effect_unknown';
-          await this.saveCache();
-        });
+        await this.retainUncertainSubmission(submission);
         continue;
       }
 
-      // Transport acceptance is not business completion. Remove only the exact
-      // object that was dispatched; concurrent additions are preserved.
-      await this.cacheTransaction(async () => {
-        if (this.cache.pendingFormSubmissions.indexOf(submission) < 0) {
-          return;
-        }
-
-        const nextCache: CanvasCache = {
-          ...this.cache,
-          pendingFormSubmissions: this.cache.pendingFormSubmissions.filter(
-            (row) => row !== submission
-          ),
-        };
-
-        try {
-          await this.saveCache(nextCache);
-        } catch (error) {
-          // The durable row still says dispatching. Keep the uncertainty visible
-          // in memory so this process cannot dispatch it again either.
-          submission.deliveryStatus = 'effect_unknown';
-          throw error;
-        }
-        this.cache = nextCache;
-      });
+      const removed = await this.removeSubmittedSubmission(submission);
+      if (removed) {
+        removedSubmissions?.add(submission);
+      }
 
       console.log(`CanvasSync: Synced form submission for canvas ${submission.canvasId}`);
     }

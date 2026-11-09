@@ -29,21 +29,24 @@ describe('canvas queued submission receipt boundary', () => {
 describe('immediate canvas submit uses the durable queue boundary', () => {
   beforeEach(() => { jest.resetModules(); jest.useFakeTimers(); });
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
-  test.each(['verified', 'missing', 'storage-refused'] as const)('%s immediate submission', async mode => {
+  test.each(['verified', 'missing', 'storage-refused', 'reset-during-dispatch', 'caller-mutates-after-save'] as const)('%s immediate submission', async mode => {
+    const formData = {quantity: 0};
     let snapshot: unknown = {canvases: {}, htmlCache: {}, cssCache: {}, favorites: [], lastSyncAt: null, pendingFormSubmissions: []};
-    const post = jest.fn(async (_url: string, request: {canvas_id: string; operation_id: string}) => {
+    const post = jest.fn(async (_url: string, request: {canvas_id: string; operation_id: string; form_data: unknown}) => {
+      expect(request.form_data).toEqual({quantity: 0});
       expect(snapshot).toMatchObject({pendingFormSubmissions: [expect.objectContaining({operationId: request.operation_id, deliveryStatus: 'dispatching'})]});
+      if (mode === 'reset-during-dispatch') await service.clearCache();
       return {success: true, data: mode === 'missing' ? {accepted: true} : {success: true, action_type: 'submit', canvas_id: request.canvas_id, operation_id: request.operation_id, audit_id: 'audit-immediate', verification: {status: 'verified', effect: 'committed'}, data: {canvas_id: request.canvas_id, submitted: true}}};
     });
     jest.doMock('../../services/api', () => ({apiService: {post, get: jest.fn()}}));
     jest.doMock('../../services/storageService', () => ({storageService: {getObject: async () => snapshot, setObject: async (_key: string, value: unknown) => {if (mode === 'storage-refused') throw new Error('controlled unavailable store'); snapshot = JSON.parse(JSON.stringify(value)); return true;}}}));
-    jest.doMock('../../services/pendingWriteOwner', () => ({readPendingWriteOwner: async () => ({owner: {userId: 'owner-001', workspaceId: 'workspace-001', deviceId: 'device-001'}, session: {token: 'controlled', generation: 0}}), authorizePendingWriteOwner: async () => ({token: 'controlled', generation: 0})}));
+    jest.doMock('../../services/pendingWriteOwner', () => ({readPendingWriteOwner: async () => ({owner: {userId: 'owner-001', workspaceId: 'workspace-001', deviceId: 'device-001'}, session: {token: 'controlled', generation: 0}}), authorizePendingWriteOwner: async () => {if (mode === 'caller-mutates-after-save') formData.quantity = 99; return {token: 'controlled', generation: 0};}}));
     jest.doMock('../../storage/secureTokenStorage', () => ({isAccessTokenSnapshotCurrent: () => true}));
     jest.doMock('../../services/offlineSyncService', () => ({offlineSyncService: {getSyncState: async () => ({syncInProgress: false})}}));
     const {canvasSyncService: service}: typeof import('../../services/canvasSyncService') = require('../../services/canvasSyncService');
     await service.initialize();
-    const result = await service.submitForm('canvas-001', {quantity: 0}, 'owner-001', 'device-001');
-    expect(result).toBe(mode === 'verified');
+    const result = await service.submitForm('canvas-001', formData, 'owner-001', 'device-001');
+    expect(result).toBe(mode === 'verified' || mode === 'caller-mutates-after-save');
     if (mode === 'storage-refused') expect(post).not.toHaveBeenCalled();
     else expect(post).toHaveBeenCalledWith('/api/canvas/submit', {canvas_id: 'canvas-001', operation_id: expect.any(String), form_data: {quantity: 0}}, expect.anything());
     if (mode === 'missing') {

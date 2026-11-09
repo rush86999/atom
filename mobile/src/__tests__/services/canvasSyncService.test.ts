@@ -257,9 +257,18 @@ describe('canvasSyncService', () => {
     test('should sync form submissions', async () => {
       const { apiService } = require('../../services/api');
 
-      apiService.post.mockResolvedValue({
+      apiService.post.mockImplementation(async (_url: string, request: {canvas_id: string; operation_id: string}) => ({
         success: true,
-      });
+        data: {
+          success: true,
+          action_type: 'submit',
+          canvas_id: request.canvas_id,
+          operation_id: request.operation_id,
+          audit_id: 'controlled-audit',
+          verification: { status: 'verified', effect: 'committed' },
+          data: { canvas_id: request.canvas_id, submitted: true },
+        },
+      }));
 
       const result = await canvasSyncService.submitForm(
         'canvas_1',
@@ -270,10 +279,12 @@ describe('canvasSyncService', () => {
 
       expect(result).toBe(true);
       expect(apiService.post).toHaveBeenCalledWith(
-        '/api/canvas/canvas_1/submit',
-        expect.objectContaining({
+        '/api/canvas/submit',
+        {
+          canvas_id: 'canvas_1',
+          operation_id: expect.any(String),
           form_data: { field1: 'value1', field2: 'value2' },
-        }),
+        },
         { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } }
       );
     });
@@ -316,9 +327,18 @@ describe('canvasSyncService', () => {
     test('should track form submit status', async () => {
       const { apiService } = require('../../services/api');
 
-      apiService.post.mockResolvedValue({
+      apiService.post.mockImplementation(async (_url: string, request: {canvas_id: string; operation_id: string}) => ({
         success: true,
-      });
+        data: {
+          success: true,
+          action_type: 'submit',
+          canvas_id: request.canvas_id,
+          operation_id: request.operation_id,
+          audit_id: 'controlled-audit',
+          verification: { status: 'verified', effect: 'committed' },
+          data: { canvas_id: request.canvas_id, submitted: true },
+        },
+      }));
 
       await canvasSyncService.submitForm(
         'canvas_1',
@@ -327,8 +347,16 @@ describe('canvasSyncService', () => {
         'device_1'
       );
 
-      // Verify submission was tracked
-      expect(apiService.post).toHaveBeenCalled();
+      // Verify submission was tracked through the durable queue boundary
+      expect(apiService.post).toHaveBeenCalledWith(
+        '/api/canvas/submit',
+        {
+          canvas_id: 'canvas_1',
+          operation_id: expect.any(String),
+          form_data: { field1: 'value1' },
+        },
+        { expectedAccessTokenSnapshot: { token: 'controlled-session', generation: 0 } }
+      );
     });
   });
 
