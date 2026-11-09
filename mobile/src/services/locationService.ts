@@ -371,6 +371,7 @@ class LocationService {
    * Start background location tracking
    */
   async startBackgroundTracking(): Promise<boolean> {
+    const intentGeneration = this.trackingGeneration;
     try {
       if (this.permissionStatus !== 'granted') {
         console.warn('LocationService: Location permission not granted');
@@ -385,6 +386,12 @@ class LocationService {
           return false;
         }
         this.backgroundPermissionStatus = 'granted';
+      }
+
+      // Permission may settle after an explicit stop or a different start.
+      // Its grant does not authorize resurrecting the cancelled intent.
+      if (this.trackingGeneration !== intentGeneration) {
+        return false;
       }
 
       // Start foreground tracking (background is automatic on iOS with Always permission)
