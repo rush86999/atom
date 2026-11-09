@@ -1,0 +1,61 @@
+- region "Notifications alt+T"
+- complementary "Sidebar":
+  - generic: A
+  - generic: ATOM
+  - navigation "Main Navigation":
+    - heading "CORE" [level=3]
+    - link "Dashboard":
+      - /url: /
+      - generic: Dashboard
+    - link "Chat":
+      - /url: /chat
+      - generic: Chat
+    - link "Workspace":
+      - /url: /canvas
+      - generic: Workspace
+    - link "Data":
+      - /url: /documents
+      - generic: Data
+    - link "Agents":
+      - /url: /agents
+      - generic: Agents
+    - link "Learning":
+      - /url: /learning
+      - generic: Learning
+    - link "Assignments":
+      - /url: /assignments
+      - generic: Assignments
+    - link "Activity":
+      - /url: /goal-runs
+      - generic: Activity
+    - heading "PLATFORM" [level=3]
+    - link "Settings":
+      - /url: /settings
+      - generic: Settings
+  - paragraph: web-journey
+  - paragraph: web-journey@example.invalid
+  - button "Sign out":
+  - button:
+- button "Notifications":
+- status: No unread notifications
+- main:
+  - heading "This page is not part of this release" [level=1]
+  - paragraph: This installation is the company data + trained agent workspace.
+  - paragraph: This surface is deferred until its promised job is verified. The code and any existing data remain in the installation; they are simply not exposed here.
+  - link "Chat":
+    - /url: /chat
+  - link "Data":
+    - /url: /documents
+  - link "Workspace":
+    - /url: /canvas
+  - link "Agents":
+    - /url: /agents
+  - link "Activity":
+    - /url: /goal-runs
+  - link "Settings":
+    - /url: /settings
+  - paragraph:
+    - text: "Requested path:"
+    - code: /tasks
+- button "Open ATOM Assistant":
+- alert: This page is not part of this release

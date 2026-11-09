@@ -538,3 +538,14 @@ requirements after reconciling their current accepted evidence; do not reopen
 closed lanes or shrink completion to Tasks/Projects. Organization-specific
 semantic learning remains a requested, unqualified successor, not marketing
 proof or authority to self-label model outputs as correct.
+
+### Web-first queue correction after the ordinary browser check
+
+The Tasks browser pass at `c042b2b87` reached the safe core fallback, not an
+editable Tasks page. The narrow auth/task/project backend fixture did not mount
+the profile endpoint (404), so this proves fallback safety only. It does not
+qualify Tasks CRUD in the browser or a loaded full-app profile. Do not force a
+release gate on to turn this into a pass. The Tasks/Projects repair may be
+reviewed at its API/shared-component scope; the broader Tasks goal remains open.
+Next user-journey work prioritizes supported core surfaces on the real full-app
+backend/profile boundary. Reuse accepted journeys before starting another run.
