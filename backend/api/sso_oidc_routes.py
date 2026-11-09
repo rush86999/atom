@@ -324,9 +324,11 @@ def _resolve_verified_identity(
     if not isinstance(claims, dict):
         return None
     subject = claims.get("sub")
+    # ``sub`` is an opaque identifier. Validate that it is a non-blank string,
+    # then keep every codepoint exactly as issued: no trim, casefold or other
+    # normalization before exact UserInfo subject comparison.
     if not isinstance(subject, str) or not subject.strip():
         return None
-    subject = subject.strip()
 
     trusted_profile: Dict[str, Any] = {}
     if isinstance(userinfo, dict):

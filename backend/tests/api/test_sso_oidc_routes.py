@@ -238,6 +238,34 @@ _MARKERS = [
 ]
 
 
+def _canonical_me_id(db, token):
+    """Resolve a session through the canonical reader, without an override."""
+    reader_app = FastAPI()
+
+    @reader_app.get("/me")
+    async def me(current_user: User = Depends(get_current_user)):
+        return {"id": current_user.id}
+
+    ReaderSession = sessionmaker(bind=db.get_bind())
+
+    def _fresh_db():
+        session = ReaderSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    reader_app.dependency_overrides[get_db] = _fresh_db
+    reader = TestClient(reader_app, base_url="http://testserver")
+    try:
+        resp = reader.get(
+            "/me", headers={"Authorization": f"Bearer {token}"})
+    finally:
+        reader.close()
+    assert resp.status_code == 200
+    return resp.json()["id"]
+
+
 def _existing_user(db, **overrides):
     values = dict(
         id=f"u-{uuid.uuid4().hex[:8]}",
@@ -1046,3 +1074,65 @@ def test_signed_identity_claims_require_string_types(
     assert resp.status_code == 401
     assert db.query(User).filter(
         User.email == "sso.user@example.com").count() == 0
+
+
+_OPAQUE_SUBJECT_MISMATCHES = [
+    ("whitespace", " subject ", "subject"),
+    ("case", "Subject", "subject"),
+    ("punctuation", "subject.", "subject"),
+    ("profile-type", " subject ", 123),
+]
+
+
+@pytest.mark.parametrize(
+    "signed_subject,profile_subject",
+    [case[1:] for case in _OPAQUE_SUBJECT_MISMATCHES],
+    ids=[case[0] for case in _OPAQUE_SUBJECT_MISMATCHES])
+def test_opaque_subject_mismatch_cannot_supply_profile_email(
+        client, provider, db, monkeypatch, signed_subject, profile_subject):
+    _save_config(client, provider)
+
+    def mutate_claims(claims):
+        _drop_signed_email(claims)
+        claims["sub"] = signed_subject
+
+    _rewrite_id_token(monkeypatch, provider, mutate_claims)
+    _rewrite_userinfo(
+        monkeypatch, provider,
+        lambda profile: profile.__setitem__("sub", profile_subject))
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+
+
+def test_exact_opaque_subject_pair_admits_profile_identity(
+        client, provider, db, monkeypatch):
+    _save_config(client, provider)
+    opaque_subject = " subject "
+
+    def mutate_claims(claims):
+        _drop_signed_email(claims)
+        claims["sub"] = opaque_subject
+
+    _rewrite_id_token(monkeypatch, provider, mutate_claims)
+    _rewrite_userinfo(
+        monkeypatch, provider,
+        lambda profile: profile.__setitem__("sub", opaque_subject))
+
+    callback = _provider_redirect(_start_login(client))
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 200
+    user = (
+        db.query(User)
+        .filter(User.email == "sso.user@example.com")
+        .populate_existing()
+        .one()
+    )
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 1
+    assert _canonical_me_id(db, _callback_token(resp)) == user.id
