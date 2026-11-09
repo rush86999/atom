@@ -1,9 +1,9 @@
 /** Real Axios interceptor/config ownership, with controlled transport and keychain. */
-import { AxiosError, AxiosAdapter } from 'axios';
+import { AxiosError, AxiosAdapter, AxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService } from '../../services/api';
-import { secureSet, secureDelete } from '../../storage/secureTokenStorage';
+import { secureSet, secureDelete, readAccessTokenSnapshot } from '../../storage/secureTokenStorage';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn(),
@@ -26,6 +26,35 @@ describe('real Axios session request binding', () => {
     await secureSet('atom_access_token', 'controlled-fixture-generation');
     store.clear();
     jest.clearAllMocks();
+  });
+
+  test.each(['different-account', 'same-token-replacement', 'logout'])('bound POST refuses %s before controlled transport', async change => {
+    await secureSet('atom_access_token', 'bound-owner');
+    const expected = await readAccessTokenSnapshot();
+    if (change === 'logout') await secureDelete('atom_access_token');
+    else await secureSet('atom_access_token', change === 'same-token-replacement' ? 'bound-owner' : 'replacement-owner');
+    let dispatched = 0;
+    const adapter: AxiosAdapter = async config => {
+      dispatched += 1;
+      return { config, status: 200, statusText: 'OK', headers: {}, data: { accepted: true } };
+    };
+    const config: AxiosRequestConfig & { expectedAccessTokenSnapshot: typeof expected } = { adapter, expectedAccessTokenSnapshot: expected };
+    expect((await apiService.post('/controlled/bound-write', { observed: 0 }, config)).success).toBe(false);
+    expect(dispatched).toBe(0);
+  });
+
+  test('bound POST on the exact current session keeps ordinary success behavior', async () => {
+    await secureSet('atom_access_token', 'bound-owner');
+    const expected = await readAccessTokenSnapshot();
+    let dispatched = 0;
+    const adapter: AxiosAdapter = async config => {
+      dispatched += 1;
+      expect(config.headers.Authorization).toBe('Bearer bound-owner');
+      return { config, status: 200, statusText: 'OK', headers: {}, data: { accepted: true } };
+    };
+    const config: AxiosRequestConfig & { expectedAccessTokenSnapshot: typeof expected } = { adapter, expectedAccessTokenSnapshot: expected };
+    expect((await apiService.post('/controlled/bound-write', { observed: 0 }, config)).success).toBe(true);
+    expect(dispatched).toBe(1);
   });
 
   test('first real request reads the stored token without warming the API cache', async () => {
