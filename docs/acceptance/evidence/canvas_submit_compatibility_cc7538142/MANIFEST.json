@@ -1,0 +1,20 @@
+{
+  "executed_source": "cc7538142d0223039d03d7cbec6f2c4d55b6dbfd",
+  "source_files": {
+    "backend/api/canvas_routes.py": "15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/canvas_write_service.py": "33ab8d36af5d52ec0392de63444b969ca5af9b707807cc89a30e597325fe52de",
+    "backend/tools/canvas_crud_tool.py": "48ae6d9c5401bb8462daa18666ae487af712fe3bb79ad4c77efb08aa3bd38938",
+    "backend/core/oracle/postcondition_verifiers.py": "a1ea45afe4739dbf8f0be75eeb4917b8e85d6e7e2b52c37192c24fab6857cbf4",
+    "backend/tests/test_canvas_submit_receipt_contract.py": "34d1c1335a6e5a9a6710fce3ab44cd47717fb8242ee52128dc6f9eb109956084",
+    "backend/tests/test_covpush_canvasroutes.py": "ff09184c153979a47cd05c8145c39fbbbd57974ae6fafe9dd5b44efeb9b03f20",
+    "backend/tests/test_canvas_form_producer_submit_join.py": "acb8a77eb82aa6527aef6558750fabdaa05300a75f977dfe5ae53e0fa544cf80"
+  },
+  "artifacts": {
+    "compatibility-311.log": "2dee70fcbe7c14179007d59dc70d00e1658212978fefb6fd4eb9809b2710f2f4",
+    "pytest-plugin-startup-311.log": "6e687c0cb87ef3c10f9e0e9e03fe4c42f5f6ed60e99007550b6ce1e265ce7b06",
+    "compatibility-314.log": "a896ea98a6a7634f2a625cb8bd9573990e74be67b79b91916bf54ae4269470f0",
+    "README.md": "fd7dcdd2c81f806b564b4f5695aa1e525b390f411f103ec6b7c4af627c7b33a4",
+    "legacy-negative-314.log": "5ecf9d7741c47a24a6df4c2080c7d1b8fef6778f3ec9dd9dfc020869e03fab31",
+    "normal-producer-negative-314.log": "8a59215304629eeef01a4329a3785885a670cf6946b02dede9069199f6f9303f"
+  }
+}
