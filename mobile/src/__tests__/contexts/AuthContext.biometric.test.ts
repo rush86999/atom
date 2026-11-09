@@ -27,8 +27,10 @@ jest.mock('expo-constants', () => ({
 }));
 
 import * as LocalAuthentication from 'expo-local-authentication';
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
+
+type BiometricResult = Awaited<ReturnType<ReturnType<typeof useAuth>['authenticateWithBiometric']>>;
 
 // Mock expo-secure-store
 jest.mock('expo-secure-store', () => ({
@@ -166,7 +168,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: BiometricResult = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -191,7 +193,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: BiometricResult = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -209,7 +211,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: BiometricResult = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -225,7 +227,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: BiometricResult = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -243,7 +245,7 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let authResult = { success: false };
+      let authResult: BiometricResult = { success: false };
       await act(async () => {
         authResult = await result.current.authenticateWithBiometric();
       });
@@ -261,7 +263,11 @@ describe('Biometric Authentication (AuthContext)', () => {
     test('should register biometric successfully', async () => {
       // Mock secure store to have auth token
       const SecureStore = require('expo-secure-store');
-      SecureStore.getItemAsync.mockResolvedValue('mock-auth-token');
+      SecureStore.getItemAsync.mockImplementation(async (key: string) => {
+        if (key === 'atom_access_token') return 'controlled-biometric-access';
+        if (key === 'atom_token_expiry') return String(Date.now() + 60 * 60 * 1000);
+        return null;
+      });
 
       (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
         ok: true,
@@ -274,7 +280,8 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      let regResult: BiometricResult = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });
@@ -298,7 +305,8 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      let regResult: BiometricResult = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });
@@ -309,7 +317,11 @@ describe('Biometric Authentication (AuthContext)', () => {
 
     test('should handle registration failure', async () => {
       const SecureStore = require('expo-secure-store');
-      SecureStore.getItemAsync.mockResolvedValue('mock-auth-token');
+      SecureStore.getItemAsync.mockImplementation(async (key: string) => {
+        if (key === 'atom_access_token') return 'controlled-biometric-access';
+        if (key === 'atom_token_expiry') return String(Date.now() + 60 * 60 * 1000);
+        return null;
+      });
 
       (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
         ok: false,
@@ -320,7 +332,8 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      let regResult: BiometricResult = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });
@@ -331,7 +344,11 @@ describe('Biometric Authentication (AuthContext)', () => {
 
     test('should handle registration network error', async () => {
       const SecureStore = require('expo-secure-store');
-      SecureStore.getItemAsync.mockResolvedValue('mock-auth-token');
+      SecureStore.getItemAsync.mockImplementation(async (key: string) => {
+        if (key === 'atom_access_token') return 'controlled-biometric-access';
+        if (key === 'atom_token_expiry') return String(Date.now() + 60 * 60 * 1000);
+        return null;
+      });
 
       (global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
         new Error('Network error')
@@ -341,7 +358,8 @@ describe('Biometric Authentication (AuthContext)', () => {
         wrapper: AuthProvider,
       });
 
-      let regResult = { success: false };
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      let regResult: BiometricResult = { success: false };
       await act(async () => {
         regResult = await result.current.registerBiometric('public-key-123');
       });
