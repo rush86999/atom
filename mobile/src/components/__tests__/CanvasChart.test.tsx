@@ -439,7 +439,7 @@ describe('CanvasChart Component', () => {
   describe('Legend', () => {
     test('should show legend by default for line and bar charts', () => {
       const { getByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} showLegend={true} />
+        <CanvasChart data={{ ...mockLineData, showLegend: true }} />
       );
 
       expect(getByTestId('legend-container')).toBeTruthy();
@@ -455,7 +455,7 @@ describe('CanvasChart Component', () => {
 
     test('should show legend toggle button', () => {
       const { getByText } = renderWithTheme(
-        <CanvasChart data={mockLineData} showLegend={true} />
+        <CanvasChart data={{ ...mockLineData, showLegend: true }} />
       );
 
       expect(getByText('Legend')).toBeTruthy();
@@ -463,7 +463,7 @@ describe('CanvasChart Component', () => {
 
     test('should toggle legend visibility', () => {
       const { getByText, getByTestId, queryByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} showLegend={true} />
+        <CanvasChart data={{ ...mockLineData, showLegend: true }} />
       );
 
       // Legend should be visible
@@ -480,7 +480,7 @@ describe('CanvasChart Component', () => {
     test('should trigger haptic feedback on legend toggle', () => {
       const Haptics = require('expo-haptics');
       const { getByText } = renderWithTheme(
-        <CanvasChart data={mockLineData} showLegend={true} />
+        <CanvasChart data={{ ...mockLineData, showLegend: true }} />
       );
 
       const toggleButton = getByText('Legend');
@@ -576,7 +576,7 @@ describe('CanvasChart Component', () => {
   describe('Animation', () => {
     test('should enable animation by default', () => {
       const { getByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} animationEnabled={true} />
+        <CanvasChart data={{ ...mockLineData, animationEnabled: true }} />
       );
 
       const lineChart = getByTestId('victory-line');
@@ -667,10 +667,9 @@ describe('CanvasChart Component', () => {
     test('should render toolbar with all buttons', () => {
       const { getByText } = renderWithTheme(
         <CanvasChart
-          data={mockLineData}
+          data={{ ...mockLineData, showLegend: true }}
           enableZoom={true}
           enableExport={true}
-          showLegend={true}
         />
       );
 
@@ -689,7 +688,7 @@ describe('CanvasChart Component', () => {
 
     test('should hide legend button for pie chart', () => {
       const { queryByText } = renderWithTheme(
-        <CanvasChart data={mockPieData} showLegend={true} />
+        <CanvasChart data={{ ...mockPieData, showLegend: true }} />
       );
 
       expect(queryByText('Legend')).toBeNull();
@@ -710,7 +709,7 @@ describe('CanvasChart Component', () => {
 
     test('should show a tooltip when a legend item is pressed', () => {
       const { getByText, getByTestId } = renderWithTheme(
-        <CanvasChart data={mockLineData} showLegend={true} />
+        <CanvasChart data={{ ...mockLineData, showLegend: true }} />
       );
 
       expect(() => getByTestId('tooltip')).toThrow();

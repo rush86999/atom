@@ -8,6 +8,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert, Share, StatusBar } from 'react-native';
+import type { apiService } from '../../../services/api';
 import { mockPlatform, restorePlatform } from '../../helpers/testUtils';
 
 // Mock React Navigation (route params are mutable so per-test canvas types work)
@@ -84,8 +85,13 @@ jest.mock('../../../components/canvas/CanvasTerminal', () => {
   return { CanvasTerminal: (props: any) => React.createElement(View, { testID: 'mock-canvas-terminal' }) };
 });
 
-// Mock apiService
-const mockApiGet = jest.fn(() =>
+// Mock apiService. The mock keeps the service method's response envelope
+// (ApiResponse<unknown>) so malformed/partial transport payloads stay observable
+// at runtime instead of being narrowed to the first successful fixture.
+const mockApiGet = jest.fn<
+  ReturnType<typeof apiService.get>,
+  Parameters<typeof apiService.get>
+>(() =>
   Promise.resolve({
     success: true,
     data: {
@@ -121,7 +127,10 @@ const mockApiGet = jest.fn(() =>
   })
 );
 
-const mockApiPost = jest.fn(() =>
+const mockApiPost = jest.fn<
+  ReturnType<typeof apiService.post>,
+  Parameters<typeof apiService.post>
+>(() =>
   Promise.resolve({
     success: true,
     data: {},
