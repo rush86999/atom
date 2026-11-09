@@ -375,3 +375,13 @@ def test_submit_agent_move_before_actor_claim_refuses(app_client, monkeypatch):
     with app_client.Session() as db:
         assert db.get(AgentRegistry, agent_id).workspace_id == 'peer-workspace'
         assert db.query(CanvasAudit).filter_by(canvas_id=canvas_id, action_type='submit').count() == 0
+
+
+def test_agent_scope_compatibility_preserves_only_personal_aliases():
+    from tools.canvas_crud_tool import _compatible_agent_workspace, _compatible_tenant
+    assert _compatible_agent_workspace("default", None)
+    assert _compatible_agent_workspace(None, "default")
+    assert not _compatible_agent_workspace("foreign", None)
+    assert not _compatible_agent_workspace(None, "real-workspace")
+    assert not _compatible_tenant("foreign-tenant", None)
+    assert _compatible_tenant("real-tenant", "real-tenant")

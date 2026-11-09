@@ -596,16 +596,15 @@ def _same_scope_value(actual: Any, expected: Any) -> bool:
 
 
 def _compatible_tenant(actual: Any, expected: Any) -> bool:
-    """Tenant compatibility for optional agent rows.
+    """Preserve existing legacy scope admission without granting foreign scope."""
+    return _scope_allows(actual, expected)
 
-    A real tenant mismatch is always refused. A legacy NULL/empty agent tenant
-    is treated as unscoped, matching the existing Personal scope policy.
-    """
-    observed = str(actual or "").strip()
-    wanted = str(expected or "").strip()
-    if not observed or not wanted:
-        return True
-    return observed == wanted
+
+def _compatible_agent_workspace(actual: Any, expected: Any) -> bool:
+    """Registry Personal aliases match the existing governance query policy."""
+    if expected in (None, "default"):
+        return actual in (None, "default")
+    return actual == expected
 
 
 def resolve_submit_agent(
@@ -723,7 +722,7 @@ def resolve_submit_agent(
         }
     if getattr(agent, "enabled", None) is not True:
         return {"ok": False, "http_status": 403, "error": "Agent is disabled"}
-    if not _same_scope_value(
+    if not _compatible_agent_workspace(
             getattr(agent, "workspace_id", None),
             actor.get("workspace_id")):
         return {
@@ -772,6 +771,7 @@ def _submit_governance_error(db, actor: Dict[str, Any], agent_id: str) -> Option
         return {
             "http_status": 403,
             "error": str(reason or "Agent governance denied"),
+            "error_code": "GOVERNANCE_DENIED",
         }
     return None
 

@@ -1391,6 +1391,11 @@ async def submit_canvas(
         },
     }
     body.pop("http_status", None)
+    if result.get("error_code") == "GOVERNANCE_DENIED":
+        refusal = router.error_response(
+            error_code="GOVERNANCE_DENIED",
+            message=result.get("error"), status_code=status)
+        body["detail"] = refusal.detail
     return JSONResponse(status_code=status, content=jsonable_encoder(body))
 
 
