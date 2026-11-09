@@ -441,6 +441,14 @@ describe('agentSyncService', () => {
       expect(history[1].id).toBe('e1');
     });
 
+    test('completed execution history is never resubmitted as new agent work', async () => {
+      const execution = mockExecution('history-exact-001', 'a1', new Date('2026-11-09T12:00:00Z'));
+      await agentSyncService.recordExecution(execution);
+      await agentSyncService.syncExecutions('user-1', 'device-1');
+      expect(mockOfflineSyncService.queueAction).not.toHaveBeenCalled();
+      expect(agentSyncService.getExecutionHistory('a1')).toEqual([execution]);
+    });
+
     test('should queue executions to offline sync and clear the queue', async () => {
       await agentSyncService.recordExecution(mockExecution('e1', 'a1', new Date()));
       await agentSyncService.recordExecution(mockExecution('e2', 'a1', new Date()));
