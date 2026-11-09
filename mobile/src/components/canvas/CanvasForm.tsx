@@ -20,8 +20,9 @@ import {
 } from 'react-native';
 import { useTheme, Checkbox, Switch } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { FormField, FormData } from '../../types/canvas';
 
@@ -58,6 +59,9 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [draftSaving, setDraftSaving] = useState(false);
+  const [activePicker, setActivePicker] = useState<{ name: string; mode: 'date' | 'time' } | null>(
+    null
+  );
 
   // Stable reference: when `data?.fields` is undefined/null (edge payloads),
   // a bare `data?.fields ?? []` re-created the array on every render, which
@@ -321,25 +325,81 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
   };
 
   /**
-   * Render date picker
+   * Open a native date/time picker.
+   *
+   * Android exposes an imperative API; iOS uses the cross-platform component
+   * rendered inline below. Test doubles must implement the real SDK exports.
    */
-  const renderDatePicker = (field: FormField) => {
-    const showDatePicker = () => {
-      DateTimePickerAndroid.open({
-        value: values[field.name] ? new Date(values[field.name]) : new Date(),
-        onChange: (event, selectedDate) => {
-          if (selectedDate) {
-            handleChange(field.name, selectedDate.toISOString());
-          }
-        },
-        mode: 'date',
-      });
-    };
+  const openPicker = useCallback(
+    (field: FormField, mode: 'date' | 'time') => {
+      const currentValue = values[field.name] ? new Date(values[field.name]) : new Date();
+
+      if (Platform.OS === 'android') {
+        DateTimePickerAndroid.open({
+          value: currentValue,
+          mode,
+          onChange: (event, selectedDate) => {
+            if (event.type === 'set' && selectedDate) {
+              handleChange(field.name, selectedDate.toISOString());
+            }
+          },
+        });
+        return;
+      }
+
+      if (Platform.OS === 'ios') {
+        setActivePicker({ name: field.name, mode });
+        return;
+      }
+      setTouched(previous => ({ ...previous, [field.name]: true }));
+      setErrors(previous => ({ ...previous, [field.name]: 'Date/time picking is unavailable on this platform' }));
+    },
+    [values, handleChange]
+  );
+
+  /**
+   * Render the cross-platform picker inline (iOS).
+   */
+  const renderInlinePicker = (field: FormField, mode: 'date' | 'time') => {
+    if (
+      !activePicker ||
+      activePicker.name !== field.name ||
+      activePicker.mode !== mode ||
+      Platform.OS !== 'ios'
+    ) {
+      return null;
+    }
 
     return (
+      <View>
+        <DateTimePicker
+          value={values[field.name] ? new Date(values[field.name]) : new Date()}
+          mode={mode}
+          display="spinner"
+          onChange={(event, selectedDate) => {
+            if (event.type === 'set' && selectedDate) {
+              handleChange(field.name, selectedDate.toISOString());
+            }
+          }}
+        />
+        <TouchableOpacity
+          style={[styles.datePicker, { borderColor: theme.colors.outline, marginTop: 8 }]}
+          onPress={() => setActivePicker(null)}
+        >
+          <Text style={{ color: theme.colors.primary }}>Done</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  /**
+   * Render date picker
+   */
+  const renderDatePicker = (field: FormField) => (
+    <View>
       <TouchableOpacity
         style={[styles.datePicker, { borderColor: theme.colors.outline }]}
-        onPress={showDatePicker}
+        onPress={() => openPicker(field, 'date')}
       >
         <Text style={{ color: values[field.name] ? theme.colors.onSurface : theme.colors.onSurfaceVariant }}>
           {values[field.name]
@@ -347,29 +407,18 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
             : field.placeholder || `Select ${field.label}`}
         </Text>
       </TouchableOpacity>
-    );
-  };
+      {renderInlinePicker(field, 'date')}
+    </View>
+  );
 
   /**
    * Render time picker
    */
-  const renderTimePicker = (field: FormField) => {
-    const showTimePicker = () => {
-      DateTimePickerAndroid.open({
-        value: values[field.name] ? new Date(values[field.name]) : new Date(),
-        onChange: (event, selectedDate) => {
-          if (selectedDate) {
-            handleChange(field.name, selectedDate.toISOString());
-          }
-        },
-        mode: 'time',
-      });
-    };
-
-    return (
+  const renderTimePicker = (field: FormField) => (
+    <View>
       <TouchableOpacity
         style={[styles.datePicker, { borderColor: theme.colors.outline }]}
-        onPress={showTimePicker}
+        onPress={() => openPicker(field, 'time')}
       >
         <Text style={{ color: values[field.name] ? theme.colors.onSurface : theme.colors.onSurfaceVariant }}>
           {values[field.name]
@@ -377,8 +426,9 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
             : field.placeholder || `Select ${field.label}`}
         </Text>
       </TouchableOpacity>
-    );
-  };
+      {renderInlinePicker(field, 'time')}
+    </View>
+  );
 
   /**
    * Render toggle switch
@@ -437,13 +487,13 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
   const renderFileUpload = (field: FormField) => {
     const handlePickFile = async () => {
       try {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.All,
-          allowsEditing: true,
-          quality: 1,
+        const result = await DocumentPicker.getDocumentAsync({
+          type: field.accept ?? '*/*',
+          copyToCacheDirectory: true,
+          multiple: false,
         });
 
-        if (!result.canceled) {
+        if (!result.canceled && result.assets.length > 0) {
           handleChange(field.name, result.assets[0].uri);
         }
       } catch (error) {

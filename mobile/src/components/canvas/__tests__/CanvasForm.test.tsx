@@ -9,7 +9,10 @@ import React from 'react';
 import { render, fireEvent, waitFor, act, screen } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { CanvasForm } from '../CanvasForm';
-import { FormField, FormData } from '../../types/canvas';
+import { Platform } from 'react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import * as DocumentPicker from 'expo-document-picker';
+import { FormField, FormData } from '../../../types/canvas';
 
 // Mock dependencies
 jest.mock('react-native-paper', () => {
@@ -59,8 +62,15 @@ jest.mock('expo-haptics', () => ({
   triggerImpactAsync: jest.fn(),
 }));
 
-// The module is not installed — virtual mock so the import resolves in Jest
-jest.mock('@react-native-community/datetimepicker', () => ({
+// Mirror both SDK exports. forwardRef is an object, not a typeof-function shim.
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef((props: Record<string, unknown>, ref: unknown) =>
+      React.createElement(View, { ...props, ref, testID: 'native-date-picker' })
+    ),
   DateTimePickerAndroid: {
     open: jest.fn(({ value, onChange }) => {
       if (onChange) {
@@ -69,7 +79,12 @@ jest.mock('@react-native-community/datetimepicker', () => ({
       return Promise.resolve({ action: 'set', year: 2024, month: 1, day: 1 });
     }),
   },
-}), { virtual: true });
+  };
+});
+
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(() => Promise.resolve({ canceled: true, assets: null })),
+}));
 
 jest.mock('expo-image-picker', () => ({
   MediaTypeOptions: { All: 'All', Images: 'Images', Videos: 'Videos' },
@@ -80,6 +95,58 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 describe('CanvasForm Component', () => {
+  test('SDK contract: Android dismissal preserves the existing date', async () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'android');
+    try {
+      const previous = '2024-01-01T12:00:00.000Z';
+      const onSubmit = jest.fn();
+      jest.mocked(DateTimePickerAndroid.open).mockImplementationOnce(({ onChange }) => {
+        onChange?.({ type: 'dismissed', nativeEvent: { timestamp: 1738411200000, utcOffset: 0 } }, new Date('2025-02-01T12:00:00.000Z'));
+      });
+      const data: FormData = { title: 'Date', fields: [{ name: 'when', label: 'When', type: 'date', required: true }] };
+      const view = render(<CanvasForm data={data} initialValues={{ when: previous }} onSubmit={onSubmit} enableAutoSave={false} />);
+      fireEvent.press(view.getByText(new Date(previous).toLocaleDateString()));
+      expect(DateTimePickerAndroid.open).toHaveBeenCalledWith(expect.objectContaining({ mode: 'date' }));
+      expect(view.queryByTestId('native-date-picker')).toBeNull();
+      fireEvent.press(view.getByText('Submit'));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ when: previous }));
+    } finally {
+      platform.restore();
+    }
+  });
+
+  test('SDK contract: the document picker receives the MIME filter and preserves its URI', async () => {
+    const onSubmit = jest.fn();
+    jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: 'file:///fixture/document.pdf', name: 'document.pdf', mimeType: 'application/pdf', size: 64 }],
+    });
+    const data: FormData = { title: 'Document', fields: [{ name: 'file', label: 'File', type: 'file', required: true, accept: ['application/pdf'] }] };
+    const view = render(<CanvasForm data={data} onSubmit={onSubmit} enableAutoSave={false} />);
+    fireEvent.press(view.getByText('Choose File'));
+    await view.findByText('File selected');
+    expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledWith({ type: ['application/pdf'], copyToCacheDirectory: true, multiple: false });
+    fireEvent.press(view.getByText('Submit'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ file: 'file:///fixture/document.pdf' }));
+  });
+
+  test('SDK contract: an unsupported platform cannot invoke the Android picker', async () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'web');
+    try {
+      const onSubmit = jest.fn();
+      const data: FormData = { title: 'Unsupported picker', fields: [{ name: 'when', label: 'When', type: 'date', required: true }] };
+      const view = render(<CanvasForm data={data} onSubmit={onSubmit} enableAutoSave={false} />);
+      fireEvent.press(view.getByText('Select When'));
+      expect(view.getByText('Date/time picking is unavailable on this platform')).toBeTruthy();
+      expect(DateTimePickerAndroid.open).not.toHaveBeenCalled();
+      expect(view.queryByTestId('native-date-picker')).toBeNull();
+      fireEvent.press(view.getByText('Submit'));
+      await waitFor(() => expect(onSubmit).not.toHaveBeenCalled());
+    } finally {
+      platform.restore();
+    }
+  });
+
   it.each<{ kind: 'number' | 'text'; value: string; min: number; max: number }>([
     { kind: 'number', value: '25', min: 18, max: 100 },
     { kind: 'text', value: '1234', min: 4, max: 6 },
@@ -583,7 +650,7 @@ describe('CanvasForm Component', () => {
 
     test('should update value after date selection', async () => {
       const onChange = jest.fn();
-      const { getAllByText } = render(
+      const { getAllByText, getByTestId } = render(
         <CanvasForm
           data={mockFormData}
           onChange={onChange}
@@ -592,6 +659,10 @@ describe('CanvasForm Component', () => {
 
       const dateField = getAllByText(/Birth\ Date/)[1];
       fireEvent.press(dateField);
+      fireEvent(getByTestId('native-date-picker'), 'onChange',
+        { type: 'set', nativeEvent: { timestamp: 1706745600000, utcOffset: 0 } },
+        new Date('2024-02-01T00:00:00.000Z'));
+      expect(DateTimePickerAndroid.open).not.toHaveBeenCalled();
 
       // onChange fires via the auto-save draft timer
       await act(async () => {
@@ -879,9 +950,13 @@ describe('CanvasForm Component', () => {
         ],
       };
 
-      const { getByText } = render(<CanvasForm data={form} onChange={onChange} />);
+      const { getByText, getByTestId } = render(<CanvasForm data={form} onChange={onChange} />);
 
       fireEvent.press(getByText('Select Meeting Time'));
+      fireEvent(getByTestId('native-date-picker'), 'onChange',
+        { type: 'set', nativeEvent: { timestamp: 1706745600000, utcOffset: 0 } },
+        new Date('2024-02-01T00:00:00.000Z'));
+      expect(DateTimePickerAndroid.open).not.toHaveBeenCalled();
 
       await act(async () => {
         jest.advanceTimersByTime(1000);
@@ -983,10 +1058,10 @@ describe('CanvasForm Component', () => {
     };
 
     test('should show the preview after choosing a file', async () => {
-      const ImagePicker = require('expo-image-picker');
-      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+      const DocumentPicker = require('expo-document-picker');
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValueOnce({
         canceled: false,
-        assets: [{ uri: 'file:///tmp/doc.pdf' }],
+        assets: [{ uri: 'file:///tmp/doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
       });
 
       const { getByText, getByPlaceholderText } = render(<CanvasForm data={fileForm} />);
@@ -1012,8 +1087,8 @@ describe('CanvasForm Component', () => {
 
     test('should log an error when the picker throws', async () => {
       const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const ImagePicker = require('expo-image-picker');
-      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockRejectedValueOnce(new Error('no access'));
+      const DocumentPicker = require('expo-document-picker');
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockRejectedValueOnce(new Error('no access'));
 
       const { getByText } = render(<CanvasForm data={fileForm} />);
 
@@ -1057,10 +1132,10 @@ describe('CanvasForm Component', () => {
     });
 
     test('should remove the selected file', async () => {
-      const ImagePicker = require('expo-image-picker');
-      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+      const DocumentPicker = require('expo-document-picker');
+      (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValueOnce({
         canceled: false,
-        assets: [{ uri: 'file:///tmp/doc.pdf' }],
+        assets: [{ uri: 'file:///tmp/doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
       });
 
       const { getByText, queryByText } = render(<CanvasForm data={fileForm} />);
