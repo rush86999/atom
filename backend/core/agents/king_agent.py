@@ -49,6 +49,8 @@ class KingAgent(AtomMetaAgent):
         
         # Prepare initial Canvas visualization
         canvas_id = None
+        canvas_revision = None
+        canvas_projection_error = None
         node_statuses = {n["id"]: "pending" for n in nodes}
         
         if context.get("user_id") and context.get("tenant_id"):
@@ -59,7 +61,27 @@ class KingAgent(AtomMetaAgent):
                 content=f"```mermaid\n{mermaid}\n```",
                 agent_id=getattr(self, "agent_id", None)
             )
-            canvas_id = canvas_res.get("canvas_id")
+            if canvas_res.get("success"):
+                canvas_id = canvas_res.get("canvas_id")
+                canvas_revision = canvas_res.get("audit_id")
+            else:
+                canvas_projection_error = canvas_res.get("error_code", "CANVAS_PRESENTATION_UNRESOLVED")
+
+        async def update_plan_canvas(updates):
+            nonlocal canvas_id, canvas_revision, canvas_projection_error
+            if not canvas_id or not canvas_revision:
+                return
+            result = await update_canvas(
+                user_id=context["user_id"], canvas_id=canvas_id, updates=updates,
+                expected_prior_audit_id=canvas_revision,
+                tenant_id=context.get("tenant_id"), workspace_id=context.get("workspace_id"),
+            )
+            if result.get("success") and result.get("audit_id"):
+                canvas_revision = result["audit_id"]
+            else:
+                canvas_projection_error = result.get("error_code", "CANVAS_UPDATE_UNRESOLVED")
+                canvas_id = None
+
 
         results = []
         retry_count = 0
@@ -82,10 +104,7 @@ class KingAgent(AtomMetaAgent):
                 if canvas_id:
                     node_statuses[node["id"]] = "in_progress"
                     new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
-                    await update_canvas(
-                        user_id=context["user_id"],
-                        canvas_id=canvas_id,
-                        updates={"content": f"```mermaid\n{new_mermaid}\n```"}
+                    await update_plan_canvas({"content": f"```mermaid\n{new_mermaid}\n```"}
                     )
 
                 try:
@@ -109,10 +128,7 @@ class KingAgent(AtomMetaAgent):
                     # Update Canvas with completion
                     if canvas_id:
                         new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
-                        await update_canvas(
-                            user_id=context["user_id"],
-                            canvas_id=canvas_id,
-                            updates={"content": f"```mermaid\n{new_mermaid}\n```"}
+                        await update_plan_canvas({"content": f"```mermaid\n{new_mermaid}\n```"}
                         )
 
                 except Exception as e:
@@ -122,10 +138,7 @@ class KingAgent(AtomMetaAgent):
                     # Update Canvas with failure
                     if canvas_id:
                         new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
-                        await update_canvas(
-                            user_id=context["user_id"],
-                            canvas_id=canvas_id,
-                            updates={"content": f"```mermaid\n{new_mermaid}\n```"}
+                        await update_plan_canvas({"content": f"```mermaid\n{new_mermaid}\n```"}
                         )
 
                     # TRIGGER SELF-HEALING
@@ -181,10 +194,7 @@ class KingAgent(AtomMetaAgent):
                         # Update Canvas with new blueprint
                         if canvas_id:
                             new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
-                            await update_canvas(
-                                user_id=context["user_id"],
-                                canvas_id=canvas_id,
-                                updates={
+                            await update_plan_canvas({
                                     "title": f"Healed Plan ({retry_count}): {blueprint.get('architecture_name')}",
                                     "content": f"```mermaid\n{new_mermaid}\n```"
                                 }
@@ -202,6 +212,7 @@ class KingAgent(AtomMetaAgent):
             "status": "success",
             "blueprint_id": blueprint.get("blueprint_id"),
             "execution_results": results,
+            "canvas_projection_error": canvas_projection_error,
             "final_summary": f"Blueprint '{blueprint.get('architecture_name')}' executed successfully with {retry_count} heal events."
         }
 

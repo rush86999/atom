@@ -1510,6 +1510,11 @@ async def update_canvas_content(
                 str(canvas_row.workspace_id or "")
                 if canvas_row is not None else "")
             if scope_required:
+                actor = active_canvas_actor(db, user_id)
+                if not actor.get("ok"):
+                    return {"success": False, "write_outcome": write_outcome, "http_status": actor["http_status"], "error": actor["error"]}
+                if not _scope_allows(actor["tenant_id"], tenant_id) or not _scope_allows(actor["workspace_id"], workspace_id):
+                    return {"success": False, "write_outcome": write_outcome, "http_status": 403, "error": "Caller scope does not match current actor"}
                 # Authoritative scope gate in the SAME transaction as the
                 # append. The conditional write below is the linearization
                 # point; this check rejects a move already visible here.
@@ -1526,6 +1531,10 @@ async def update_canvas_content(
                 # IDOR guard: only the owner may update this canvas.
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
+
+            if scope_required and not _claim_canvas_actor(db, actor):
+                db.rollback()
+                return {"success": False, "write_outcome": WRITE_NOT_ATTEMPTED, "http_status": 409, "error": "Actor authority changed before canvas write", "error_code": "AUTHORITY_CHANGED"}
 
             # Read the latest audit row for this canvas.
             latest = db.query(CanvasAudit).filter(

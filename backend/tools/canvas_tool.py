@@ -1126,7 +1126,12 @@ async def update_canvas(
     canvas_id: str,
     updates: Dict[str, Any],
     agent_id: Optional[str] = None,
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None,
+    *,
+    expected_prior_audit_id: Optional[str] = None,
+    operation_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
 ):
     """
     Update existing canvas with new data without re-presenting entire component.
@@ -1161,6 +1166,18 @@ async def update_canvas(
         )
     """
     from core.database import get_db_session
+
+    # A plan must carry the revision it observed; reading here cannot invent
+    # that authority after a concurrent user edit. Old callers get an action,
+    # never a fake WebSocket-only success.
+    if not isinstance(updates, dict) or not updates or set(updates) - {"content", "data", "title"}:
+        return {"success": False, "error_code": "INVALID_CANVAS_PATCH", "error": "Supply content/data or title only"}
+    if "content" in updates and "data" in updates:
+        return {"success": False, "error_code": "INVALID_CANVAS_PATCH", "error": "Supply one body field"}
+    if "title" in updates and not isinstance(updates["title"], str):
+        return {"success": False, "error_code": "INVALID_CANVAS_PATCH", "error": "Title must be text"}
+    if not isinstance(expected_prior_audit_id, str) or not expected_prior_audit_id.strip():
+        return {"success": False, "error_code": "CANVAS_REVISION_REQUIRED", "error": "Read the canvas and supply its exact revision before updating", "canvas_id": canvas_id}
 
     agent = None
     agent_execution = None
@@ -1209,66 +1226,47 @@ async def update_canvas(
 
                     logger.info(f"Agent execution {agent_execution.id} for canvas update")
 
-        # Send update via WebSocket
-        user_channels = _user_broadcast_channels(user_id, session_id)
-
-        for _user_channel in user_channels:
-            await ws_manager.broadcast(
-                _user_channel,
-            {
-                "type": "canvas:update",
-                "data": {
-                    "action": "update",
-                    "canvas_id": canvas_id,
-                    "updates": updates
-                }
-            }
+        from tools.canvas_crud_tool import read_canvas, active_canvas_actor
+        from core.canvas_write_service import update_canvas_verified
+        with get_db_session() as db:
+            actor = active_canvas_actor(db, user_id)
+            if not actor.get("ok"):
+                return {"success": False, "error": actor["error"], "http_status": actor["http_status"]}
+            for supplied, actual in ((tenant_id, actor["tenant_id"]), (workspace_id, actor["workspace_id"])):
+                if supplied is not None and supplied != actual and not (supplied in ("", "default") and actual in (None, "", "default")):
+                    return {"success": False, "error": "Caller scope does not match current actor", "http_status": 403}
+            tenant_id, workspace_id = actor["tenant_id"], actor["workspace_id"]
+        current = await read_canvas(user_id, canvas_id)
+        if not current.get("success"):
+            return current
+        body = current.get("content")
+        body_key = "content" if "content" in updates else "data" if "data" in updates else None
+        if body_key is not None:
+            replacement = updates[body_key]
+            # Specialized documents carry a native envelope. A body-only
+            # patch updates that field while retaining its other fields.
+            if isinstance(body, dict) and body_key in body and not isinstance(replacement, dict):
+                body = {**body, body_key: replacement}
+            else:
+                body = replacement
+        result = await update_canvas_verified(
+            user_id=user_id, canvas_id=canvas_id, content=body,
+            canvas_type=current["canvas_type"],
+            title=updates["title"] if "title" in updates else current.get("title"),
+            expected_prior_audit_id=expected_prior_audit_id, operation_id=operation_id,
+            tenant_id=tenant_id, workspace_id=workspace_id,
         )
-
-        # Create audit entry
-        if FeatureFlags.should_enforce_governance('canvas'):
+        # The existing writer owns commit, receipt, canonical broadcast and
+        # uncertainty. Never add another audit or broadcast from this adapter.
+        if agent_execution:
             with get_db_session() as db:
-                await _create_canvas_audit(
-                    db=db,
-                    agent_id=agent.id if agent else None,
-                    agent_execution_id=agent_execution.id if agent_execution else None,
-                    user_id=user_id,
-                    canvas_id=canvas_id,
-                    session_id=session_id,  # NEW: Session isolation
-                    component_type="canvas_update",
-                    component_name=None,
-                    action="update",
-                    governance_check_passed=governance_check["allowed"] if governance_check else None,
-                    metadata={
-                        "update_keys": list(updates.keys()),
-                        "session_id": session_id
-                    }
-                )
-
-                # Mark execution as completed
-                if agent_execution:
-                    execution = db.query(AgentExecution).filter(
-                        AgentExecution.id == agent_execution.id
-                    ).first()
-                    if execution:
-                        execution.status = "completed"
-                        execution.output_summary = f"Updated canvas {canvas_id} with {len(updates)} fields"
+                execution = db.query(AgentExecution).filter(AgentExecution.id == agent_execution.id).first()
+                if execution:
+                    execution.status = "completed" if result.get("success") else "blocked"
+                    if result.get("success"):
                         execution.completed_at = datetime.now()
-                        db.commit()
-
-                        # Record outcome for confidence
-                        from core.service_factory import ServiceFactory
-                        governance_service = ServiceFactory.get_governance_service(db)
-                        await governance_service.record_outcome(agent.id, success=True)
-
-        logger.info(f"Updated canvas {canvas_id} for user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
-        return {
-            "success": True,
-            "canvas_id": canvas_id,
-            "updated_fields": list(updates.keys()),
-            "agent_id": agent.id if agent else None,
-            "session_id": session_id
-        }
+                    db.commit()
+        return {**result, "updated_fields": list(updates), "agent_id": agent.id if agent else None, "session_id": session_id}
 
     except Exception as e:
         logger.error(f"Failed to update canvas: {e}")
@@ -1282,7 +1280,7 @@ async def update_canvas(
                     ).first()
                     if execution:
                         execution.status = "failed"
-                        execution.error_message = str(e)
+                        execution.error_message = "CANVAS_ADAPTER_ERROR"
                         execution.completed_at = datetime.now()
                         db.commit()
 
@@ -1293,7 +1291,7 @@ async def update_canvas(
             except Exception as inner_e:
                 logger.error(f"Failed to record execution failure: {inner_e}")
 
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Canvas update could not be confirmed", "error_code": "CANVAS_ADAPTER_ERROR", "operation_id": operation_id, "replay": "do_not_repeat"}
 
 
 async def present_to_canvas(
