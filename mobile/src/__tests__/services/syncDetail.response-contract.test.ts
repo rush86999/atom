@@ -10,10 +10,10 @@ jest.mock('../../services/storageService', () => ({ storageService: { getObject:
 jest.mock('../../services/offlineSyncService', () => ({ offlineSyncService: { queueAction: jest.fn() } }));
 
 const cases = [
-  { resource: 'agent', get: (id: string) => agentSyncService.getAgent(id) },
-  { resource: 'canvas', get: (id: string) => canvasSyncService.getCanvas(id) },
-  { resource: 'workflow', get: (id: string) => workflowSyncService.getWorkflow(id) },
-  { resource: 'execution', get: (id: string) => workflowSyncService.getExecution(id) },
+  { resource: 'agent', clear: () => agentSyncService.clearCache(), get: (id: string) => agentSyncService.getAgent(id) },
+  { resource: 'canvas', clear: () => canvasSyncService.clearCache(), get: (id: string) => canvasSyncService.getCanvas(id) },
+  { resource: 'workflow', clear: () => workflowSyncService.clearCache(), get: (id: string) => workflowSyncService.getWorkflow(id) },
+  { resource: 'execution', clear: () => workflowSyncService.clearCache(), get: (id: string) => workflowSyncService.getExecution(id) },
 ] as const;
 let sequence = 0;
 function record(id: string) {
@@ -73,6 +73,20 @@ describe('Sync detail response evidence', () => {
     jest.mocked(apiService.get).mockResolvedValue({ success: false, error: 'Controlled offline after both completions' });
     expect(await get(firstId)).toEqual(expect.objectContaining({ id: firstId }));
     expect(await get(secondId)).toEqual(expect.objectContaining({ id: secondId }));
+  });
+
+  test.each(cases)('$resource reset refuses a response started before the reset', async ({ get, clear }) => {
+    const id = `reset-old-${++sequence}`;
+    let deliver: ((value: { success: boolean; data: ReturnType<typeof record> }) => void) | undefined;
+    jest.mocked(apiService.get).mockImplementationOnce(() => new Promise(resolve => { deliver = resolve; }));
+    const pending = get(id);
+    await Promise.resolve();
+    await clear();
+    if (!deliver) throw new Error('Controlled transport was not dispatched');
+    deliver({ success: true, data: record(id) });
+    expect(await pending).toBeNull();
+    jest.mocked(apiService.get).mockResolvedValue({ success: false, error: 'Controlled offline after reset' });
+    expect(await get(id)).toBeNull();
   });
 
 });
