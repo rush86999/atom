@@ -1,0 +1,24 @@
+{
+  "executed_source": "403a391738a4ee8401ffa5cfe4b30609bac7e778",
+  "runtime_identity": "403a391738a4-dirty.a4658160ddd1",
+  "source_files": {
+    "backend/main_api_app.py": "sha256:323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/core/auth.py": "sha256:af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/auth_endpoints.py": "sha256:47d6c4b033367171c4dabae5d9946cac92d959d8df292a572c57ad12f63a70c7",
+    "backend/core/auth_helpers.py": "sha256:f40492498f356c00e9400deb7702cb88696ccc7b1df69d3bd08383d6682055fe",
+    "backend/core/audit_service.py": "sha256:3a2b8543282a14ac6be931331a40b6a23ae469f45e6124fcdecb0c8023d46799",
+    "backend/core/models.py": "sha256:9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/runtime_identity.py": "sha256:29310fe56c85ed5fec3e623caedac9165d6adcd4dcf144dad30e0425f60080f3",
+    "frontend-nextjs/pages/auth/signin.tsx": "sha256:ed6639ab5f9dbd6b7e71d2afe14a83061ccdbd47d975838fec917894f3ed9027",
+    "frontend-nextjs/lib/backendAuth.ts": "sha256:e8ae8a6cb4cf0ece5e1c64df633d6eb972187fbbb2b537fe717b2b41a30616f9",
+    "frontend-nextjs/components/layout/Sidebar.tsx": "sha256:4da7f9a089b2da6e2bc554ad56ea4abad7aa2082f1a5eea80c3fb1281b93fcac",
+    "frontend-nextjs/pages/api/auth/[...nextauth].ts": "sha256:53c4252fc904e3199a8764b8f0b4defe23b564ae7d7c48d7f83e0f3cf88b2fd9",
+    "frontend-nextjs/lib/backend-credentials.ts": "sha256:baedbe1f6672dd033fa3e2a4652ac41723247a04dee1970735eca4042caa7c45",
+    "frontend-nextjs/lib/backend-session-logout.ts": "sha256:08babdf9a1cec788c7cffb3f4659a1b06ccbe57afb73fc8cb16d6247ba464781"
+  },
+  "artifacts": {
+    "README.md": "sha256:ce81e8dce53c96b8bbe4e9c27d086c02b1c950149c42a8ad15bdb5d2f3ad7d6b",
+    "checkpoints.json": "sha256:ec517d63d0f90c93397d8e72d3fff4e05a92a7aa5c406912b5cacfe0de1e190a",
+    "signed-in.jpg": "sha256:5a57855d606c680f29587677ce023a7d66b813411852d8ea9a076cca9ae67d5c"
+  }
+}
