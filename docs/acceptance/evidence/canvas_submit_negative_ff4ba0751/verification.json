@@ -1,0 +1,14 @@
+{
+  "runtime_source": "b550fd728e6992f06d0793e6e5f54a636c66f0db",
+  "test_source": "ff4ba0751",
+  "actual_exit": 1,
+  "python": "3.14.7",
+  "result": "3failed1passed",
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/root-canvas-submit-import-20261109.db"
+  },
+  "command": "run_bounded_test_gate.py --cwd backend --profile bounded -- python3.14 -m pytest tests/test_canvas_submit_receipt_contract.py -q -p no:randomly",
+  "scope": "real mounted FastAPI router, real models and fresh scratch SQLite sessions, commit fault injected",
+  "initial_non_evidence_attempt": "wrong creation cwd left filename missing; exit4, not counted as defect evidence"
+}

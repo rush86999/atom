@@ -1,0 +1,94 @@
+
+tests/test_canvas_submit_receipt_contract.py::test_submit_commit_failure_is_not_success 
+-------------------------------- live log setup --------------------------------
+2026-11-09 02:07:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-09 02:07:22 [    INFO] EscalationManager initialized
+2026-11-09 02:07:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 02:07:22 [    INFO] EscalationManager initialized
+2026-11-09 02:07:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 02:07:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 02:07:22 [    INFO] AgentTaskRegistry initialized
+2026-11-09 02:07:23 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 02:07:23 [ WARNING] Canvas submit persistence failed (non-fatal): Controlled audit persistence unavailable
+2026-11-09 02:07:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+FAILED                                                                   [ 25%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_success_requires_exact_durable_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-09 02:07:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+FAILED                                                                   [ 50%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_foreign_scope_refuses_before_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 02:07:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+FAILED                                                                   [ 75%]
+tests/test_canvas_submit_receipt_contract.py::test_submit_same_scope_shared_form_remains_supported 
+-------------------------------- live log call ---------------------------------
+2026-11-09 02:07:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: {"success":true,"data":{"canvas_id":"submit-canvas","submitted":true,"timestamp":"2026-11-09T07:07:23.538446+00:00"},"timestamp":"2026-11-09T07:07:23.538451+00:00"}
+    assert 200 == 503
+     +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log setup ------------------------------
+INFO     core.auth:auth.py:56 Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+INFO     integrations.mcp_service:mcp_service.py:123 MCP Service initialized
+------------------------------ Captured log call -------------------------------
+WARNING  api.canvas_routes:canvas_routes.py:1403 Canvas submit persistence failed (non-fatal): Controlled audit persistence unavailable
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_submit_receipt_contract.py:30: AssertionError: {"success":true,"data":{"canvas_id":"submit-canvas","submitted":true,"timestamp":"2026-11-09T07:07:23.538446+00:00"},"timestamp":"2026-11-09T07:07:23.538451+00:00"}
+E   KeyError: 'verification'
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_submit_receipt_contract.py:41: KeyError: 'verification'
+E   AssertionError: {"success":true,"data":{"canvas_id":"submit-canvas","submitted":true,"timestamp":"2026-11-09T07:07:24.833386+00:00"},"timestamp":"2026-11-09T07:07:24.833390+00:00"}
+    assert 200 in (403, 404)
+     +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+/private/tmp/atom-canvas-submit-integrity-20261109/backend/tests/test_canvas_submit_receipt_contract.py:55: AssertionError: {"success":true,"data":{"canvas_id":"submit-canvas","submitted":true,"timestamp":"2026-11-09T07:07:24.833386+00:00"},"timestamp":"2026-11-09T07:07:24.833390+00:00"}
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852
+  /usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25
+  /usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.fields import FieldInfo as FieldInfoV1
+
+tests/test_canvas_submit_receipt_contract.py::test_submit_commit_failure_is_not_success
+  /private/tmp/atom-canvas-submit-integrity-20261109/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_canvas_submit_receipt_contract.py::test_submit_commit_failure_is_not_success
+FAILED tests/test_canvas_submit_receipt_contract.py::test_submit_success_requires_exact_durable_receipt
+FAILED tests/test_canvas_submit_receipt_contract.py::test_submit_foreign_scope_refuses_before_audit
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 3 failed, 1 passed, 7 warnings in 18.76s ===================
