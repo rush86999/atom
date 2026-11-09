@@ -10,7 +10,7 @@
  * - Front/back camera switching
  * - Flash control (auto/on/off/torch)
  * - Image gallery access
- * - Document capture with edge detection
+ * - Document capture; automatic edge detection is currently a placeholder
  * - Barcode/QR code scanning
  * - Multiple photo capture
  * - EXIF data preservation
