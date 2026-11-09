@@ -1,0 +1,129 @@
+{
+  "generated_at": "2026-11-09T22:16:16.313642+00:00",
+  "main": "89527616e881",
+  "finish_line": "All original app goals retained; main web first, mobile last; single-tenant; no new SaaS enrollment or live-provider authority.",
+  "historical_claim_count": 143,
+  "historical_claims_unchanged": true,
+  "goal_map_rows": 18,
+  "remote_merge_readbacks": [
+    {
+      "mergedAt": "2026-11-08T03:20:33Z",
+      "number": 756,
+      "state": "MERGED",
+      "title": "Export stored document text with exact provenance and scope checks",
+      "headRefPrefix": "adbf2c386dae",
+      "mergeCommitPrefix": "343594621684"
+    },
+    {
+      "mergedAt": "2026-11-08T01:44:36Z",
+      "number": 759,
+      "state": "MERGED",
+      "title": "Integrate durable source answers and verified Goal utility UI journeys",
+      "headRefPrefix": "855208860d0d",
+      "mergeCommitPrefix": "f21bcecf1f5b"
+    },
+    {
+      "mergedAt": "2026-11-08T01:50:56Z",
+      "number": 760,
+      "state": "MERGED",
+      "title": "Verify isolated backup/restore with immutable history and real restart readback",
+      "headRefPrefix": "27a1830a27e7",
+      "mergeCommitPrefix": "6a5d759613f2"
+    },
+    {
+      "mergedAt": "2026-11-08T14:33:29Z",
+      "number": 782,
+      "state": "MERGED",
+      "title": "fix(graduation): bind current supervisor and reviewed agent across readiness",
+      "headRefPrefix": "36174220d6dd",
+      "mergeCommitPrefix": "56da05345dbf"
+    },
+    {
+      "mergedAt": "2026-11-08T16:03:27Z",
+      "number": 783,
+      "state": "MERGED",
+      "title": "fix(graduation): scope audit targets and episode evidence",
+      "headRefPrefix": "131f9e7ee8be",
+      "mergeCommitPrefix": "b718a6f3f15c"
+    },
+    {
+      "mergedAt": "2026-11-08T17:18:29Z",
+      "number": 784,
+      "state": "MERGED",
+      "title": "fix(graduation): scope historical exams and refuse empty or partial failures",
+      "headRefPrefix": "5be597bd26ef",
+      "mergeCommitPrefix": "34ccf09e4203"
+    },
+    {
+      "mergedAt": "2026-11-08T17:22:48Z",
+      "number": 785,
+      "state": "MERGED",
+      "title": "fix(autonomy): re-earn capability maturity from the current verified epoch",
+      "headRefPrefix": "513ddcb46fc0",
+      "mergeCommitPrefix": "d9a45f559033"
+    },
+    {
+      "mergedAt": "2026-11-09T15:07:58Z",
+      "number": 798,
+      "state": "MERGED",
+      "title": "fix(canvas): save native document bodies and block unconfirmed continuations",
+      "headRefPrefix": "ff883fa20538",
+      "mergeCommitPrefix": "4a4a830894b5"
+    },
+    {
+      "mergedAt": "2026-11-09T15:53:16Z",
+      "number": 799,
+      "state": "MERGED",
+      "title": "fix(canvas): confirm manual type changes and preserve latest edits",
+      "headRefPrefix": "da9098836c83",
+      "mergeCommitPrefix": "d542b3862e82"
+    },
+    {
+      "mergedAt": "2026-11-09T18:35:43Z",
+      "number": 800,
+      "state": "MERGED",
+      "title": "fix(canvas): carry committed revisions through presentation and saves",
+      "headRefPrefix": "2f17476bef33",
+      "mergeCommitPrefix": "5944700f4a92"
+    },
+    {
+      "mergedAt": "2026-11-09T19:27:02Z",
+      "number": 801,
+      "state": "MERGED",
+      "title": "fix(canvas): persist legacy updates with verified revisions and receipts",
+      "headRefPrefix": "a11333eaad2c",
+      "mergeCommitPrefix": "89527616e881"
+    }
+  ],
+  "current_open_prs": [
+    {
+      "baseRefName": "main",
+      "isDraft": true,
+      "number": 804,
+      "title": "fix(web): preserve authenticated skills catalogue failures",
+      "headRefPrefix": "9cb8d9b044b5"
+    },
+    {
+      "baseRefName": "main",
+      "isDraft": true,
+      "number": 803,
+      "title": "fix(web): bind recovery and sessions to current backend authority",
+      "headRefPrefix": "42be6ae1a4bd"
+    }
+  ],
+  "remaining_not_waived": [
+    "Full ordinary account recovery/OAuth/SSO journeys",
+    "Supported data/search/output breadth at ordinary boundary",
+    "General multi-day cross-surface automatic task continuation and result verification",
+    "All exposed web primary actions and whole-app mutation guarantees",
+    "Configured model-quality breadth and exact outcome feedback qualification",
+    "Operations, compatibility, performance/marketing evidence, and remaining original claims"
+  ],
+  "new_bounded_scope_not_whole_app": [
+    "PR803 canonical recovery/logout/current-principal and actual public HTTP restart proof; awaiting checks/review",
+    "PR804 shared truthful skills proxy; depends on803; original9 negatives preserved",
+    "Source74f017752: configured Flash test-only extension independently12passed;4new controls beyond retained8; controlled7/30day late status/answer/currentauthority, not realsoak or browser/modelquality."
+  ],
+  "obsolete_queue_correction": "Only803/804 currently open. Historical756/759/760/782/783/784/785/798/799/800/801 all MERGED at recorded remote refs; merge state does not broaden their tested scope.",
+  "multiday_correction": "Existing main already includes3/14-day and repeatedtwo-week controls in test_generic_information_multiday_contract.py. New work only extends fresh-session status/no-polling,7/30-day same-job trigger and current-authority negatives; it is not a newfeature or generalsoak."
+}
