@@ -43,6 +43,18 @@ describe('real Axios session request binding', () => {
     expect(dispatched).toBe(0);
   });
 
+  test.each([null, undefined, {}, { token: null, generation: 0 }, { token: '', generation: 0 }, { token: 'bound-owner', generation: '0' }, { token: 'bound-owner', generation: NaN }, { token: 'bound-owner', generation: Infinity }])('malformed explicit session binding %p cannot fall back to ordinary dispatch', async expected => {
+    await secureSet('atom_access_token', 'bound-owner');
+    let dispatched = 0;
+    const adapter: AxiosAdapter = async config => {
+      dispatched += 1;
+      return { config, status: 200, statusText: 'OK', headers: {}, data: {} };
+    };
+    const config: AxiosRequestConfig & { expectedAccessTokenSnapshot: unknown } = { adapter, expectedAccessTokenSnapshot: expected };
+    expect((await apiService.post('/controlled/bound-write', {}, config)).success).toBe(false);
+    expect(dispatched).toBe(0);
+  });
+
   test('bound POST on the exact current session keeps ordinary success behavior', async () => {
     await secureSet('atom_access_token', 'bound-owner');
     const expected = await readAccessTokenSnapshot();
@@ -50,6 +62,7 @@ describe('real Axios session request binding', () => {
     const adapter: AxiosAdapter = async config => {
       dispatched += 1;
       expect(config.headers.Authorization).toBe('Bearer bound-owner');
+      expect('expectedAccessTokenSnapshot' in config).toBe(false);
       return { config, status: 200, statusText: 'OK', headers: {}, data: { accepted: true } };
     };
     const config: AxiosRequestConfig & { expectedAccessTokenSnapshot: typeof expected } = { adapter, expectedAccessTokenSnapshot: expected };
