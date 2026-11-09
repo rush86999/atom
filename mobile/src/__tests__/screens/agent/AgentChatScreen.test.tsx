@@ -9,6 +9,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert, StyleSheet } from 'react-native';
 import { mockPlatform, restorePlatform } from '../../helpers/testUtils';
+import { AgentMaturity, AgentStatus } from '../../../types/agent';
+import type { agentService as AgentServiceInstance } from '../../../services/agentService';
+
+type AgentServiceApi = typeof AgentServiceInstance;
 
 // Mock React Navigation (params are mutable so per-test agent/session ids work)
 const mockNavigation = {
@@ -31,83 +35,114 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Mock agentService
-const mockGetAgent = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-    data: {
-      id: 'agent-123',
-      name: 'Test Agent',
-      description: 'A test agent for automation',
-      maturity_level: 'AUTONOMOUS',
-      status: 'online',
-      confidence_score: 0.95,
-      created_at: '2024-01-01T00:00:00Z',
-    },
-  })
-);
-
-const mockGetAvailableAgents = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-    data: [
-      {
+const mockGetAgent = jest.fn(
+  (
+    ..._args: Parameters<AgentServiceApi['getAgent']>
+  ): ReturnType<AgentServiceApi['getAgent']> =>
+    Promise.resolve({
+      success: true,
+      data: {
         id: 'agent-123',
         name: 'Test Agent',
-        maturity_level: 'AUTONOMOUS',
-        status: 'online',
+        description: 'A test agent for automation',
+        maturity_level: AgentMaturity.AUTONOMOUS,
+        status: AgentStatus.ONLINE,
+        system_prompt: 'You are a test agent.',
+        capabilities: [],
+        confidence_score: 0.95,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        version: 1,
       },
-    ],
-  })
+    })
 );
 
-const mockSendMessage = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-    data: {
-      message: {
-        id: 'msg-1',
-        role: 'assistant',
-        content: 'Hello! How can I help you?',
-        timestamp: '2024-01-01T00:00:00Z',
-      },
-      session_id: 'session-123',
-    },
-  })
-);
-
-const mockGetChatSession = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-    data: {
-      messages: [
+const mockGetAvailableAgents = jest.fn(
+  (
+    ..._args: Parameters<AgentServiceApi['getAvailableAgents']>
+  ): ReturnType<AgentServiceApi['getAvailableAgents']> =>
+    Promise.resolve({
+      success: true,
+      data: [
         {
-          id: 'msg-0',
-          role: 'user',
-          content: 'Hello',
-          timestamp: '2024-01-01T00:00:00Z',
-        },
-        {
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'Hi there!',
-          agent_name: 'Test Agent',
-          timestamp: '2024-01-01T00:00:01Z',
-          governance_badge: {
-            maturity: 'AUTONOMOUS',
-            confidence: 0.95,
-            requires_supervision: false,
-          },
+          id: 'agent-123',
+          name: 'Test Agent',
+          description: 'A test agent for automation',
+          maturity_level: AgentMaturity.AUTONOMOUS,
+          status: AgentStatus.ONLINE,
+          system_prompt: 'You are a test agent.',
+          capabilities: [],
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          version: 1,
         },
       ],
-    },
-  })
+    })
 );
 
-const mockGetEpisodeContext = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-    data: [],
-  })
+const mockSendMessage = jest.fn(
+  (
+    ..._args: Parameters<AgentServiceApi['sendMessage']>
+  ): ReturnType<AgentServiceApi['sendMessage']> =>
+    Promise.resolve({
+      success: true,
+      data: {
+        message: {
+          id: 'msg-1',
+          role: 'assistant',
+          content: 'Hello! How can I help you?',
+          timestamp: '2024-01-01T00:00:00Z',
+        },
+        session_id: 'session-123',
+      },
+    })
+);
+
+const mockGetChatSession = jest.fn(
+  (
+    ..._args: Parameters<AgentServiceApi['getChatSession']>
+  ): ReturnType<AgentServiceApi['getChatSession']> =>
+    Promise.resolve({
+      success: true,
+      data: {
+        id: 'session-123',
+        agent_id: 'agent-123',
+        agent_name: 'Test Agent',
+        messages: [
+          {
+            id: 'msg-0',
+            role: 'user',
+            content: 'Hello',
+            timestamp: '2024-01-01T00:00:00Z',
+          },
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: 'Hi there!',
+            agent_name: 'Test Agent',
+            timestamp: '2024-01-01T00:00:01Z',
+            governance_badge: {
+              maturity: AgentMaturity.AUTONOMOUS,
+              confidence: 0.95,
+              requires_supervision: false,
+            },
+          },
+        ],
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:01Z',
+        is_active: true,
+      },
+    })
+);
+
+const mockGetEpisodeContext = jest.fn(
+  (
+    ..._args: Parameters<AgentServiceApi['getEpisodeContext']>
+  ): ReturnType<AgentServiceApi['getEpisodeContext']> =>
+    Promise.resolve({
+      success: true,
+      data: [],
+    })
 );
 
 jest.mock('../../../services/agentService', () => ({
@@ -745,10 +780,14 @@ describe('AgentChatScreen', () => {
           id: 'agent-123',
           name: 'Intern Agent',
           description: 'Learning',
-          maturity_level: 'INTERN',
-          status: 'offline',
+          maturity_level: AgentMaturity.INTERN,
+          status: AgentStatus.OFFLINE,
+          system_prompt: 'You are an intern agent.',
+          capabilities: [],
           confidence_score: 0.6,
           created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          version: 1,
         },
       });
 
@@ -773,10 +812,14 @@ describe('AgentChatScreen', () => {
           id: 'agent-123',
           name: 'Student Agent',
           description: 'Training',
-          maturity_level: 'STUDENT',
-          status: 'maintenance',
+          maturity_level: AgentMaturity.STUDENT,
+          status: AgentStatus.MAINTENANCE,
+          system_prompt: 'You are a student agent.',
+          capabilities: [],
           confidence_score: 0.4,
           created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          version: 1,
         },
       });
 
@@ -798,10 +841,14 @@ describe('AgentChatScreen', () => {
           id: 'agent-123',
           name: 'Supervised Agent',
           description: 'Supervised',
-          maturity_level: 'SUPERVISED',
-          status: 'busy',
+          maturity_level: AgentMaturity.SUPERVISED,
+          status: AgentStatus.BUSY,
+          system_prompt: 'You are a supervised agent.',
+          capabilities: [],
           confidence_score: 0.75,
           created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          version: 1,
         },
       });
 
@@ -826,8 +873,12 @@ describe('AgentChatScreen', () => {
           description: 'Unknown',
           maturity_level: 'WEIRD' as any,
           status: 'unknown-status' as any,
+          system_prompt: 'You are an unknown agent.',
+          capabilities: [],
           confidence_score: 0.5,
           created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          version: 1,
         },
       });
 

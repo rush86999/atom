@@ -8,6 +8,10 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { AgentListScreen } from '../../../screens/agent/AgentListScreen';
+import { AgentMaturity, AgentStatus } from '../../../types/agent';
+import type { agentService as AgentServiceInstance } from '../../../services/agentService';
+
+type AgentServiceApi = typeof AgentServiceInstance;
 
 // Mock @react-navigation/native
 const mockNavigation = {
@@ -22,54 +26,66 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Mock agentService
-const mockGetAgents = jest.fn(() =>
-  Promise.resolve({
-    success: true,
-    data: [
-      {
-        id: 'agent-1',
-        name: 'Test Agent 1',
-        description: 'A test automation agent',
-        maturity_level: 'AUTONOMOUS',
-        status: 'online',
-        confidence_score: 0.95,
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
-        last_execution_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        capabilities: [
-          { name: 'web_automation', enabled: true },
-          { name: 'data_extraction', enabled: true },
-          { name: 'api_integration', enabled: false },
-        ],
-      },
-      {
-        id: 'agent-2',
-        name: 'Test Agent 2',
-        description: 'A data processing agent',
-        maturity_level: 'SUPERVISED',
-        status: 'online',
-        confidence_score: 0.85,
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-        last_execution_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-        capabilities: [
-          { name: 'data_processing', enabled: true },
-          { name: 'reporting', enabled: true },
-        ],
-      },
-      {
-        id: 'agent-3',
-        name: 'Test Agent 3',
-        description: 'An intern-level agent',
-        maturity_level: 'INTERN',
-        status: 'offline',
-        confidence_score: 0.65,
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        last_execution_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        capabilities: [
-          { name: 'basic_tasks', enabled: true },
-        ],
-      },
-    ],
-  })
+const mockGetAgents = jest.fn(
+  (
+    ..._args: Parameters<AgentServiceApi['getAgents']>
+  ): ReturnType<AgentServiceApi['getAgents']> =>
+    Promise.resolve({
+      success: true,
+      data: [
+        {
+          id: 'agent-1',
+          name: 'Test Agent 1',
+          description: 'A test automation agent',
+          maturity_level: AgentMaturity.AUTONOMOUS,
+          status: AgentStatus.ONLINE,
+          system_prompt: 'You are agent 1.',
+          confidence_score: 0.95,
+          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+          updated_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+          last_execution_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+          version: 1,
+          capabilities: [
+            { name: 'web_automation', description: 'Web automation', enabled: true },
+            { name: 'data_extraction', description: 'Data extraction', enabled: true },
+            { name: 'api_integration', description: 'API integration', enabled: false },
+          ],
+        },
+        {
+          id: 'agent-2',
+          name: 'Test Agent 2',
+          description: 'A data processing agent',
+          maturity_level: AgentMaturity.SUPERVISED,
+          status: AgentStatus.ONLINE,
+          system_prompt: 'You are agent 2.',
+          confidence_score: 0.85,
+          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+          updated_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+          last_execution_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+          version: 1,
+          capabilities: [
+            { name: 'data_processing', description: 'Data processing', enabled: true },
+            { name: 'reporting', description: 'Reporting', enabled: true },
+          ],
+        },
+        {
+          id: 'agent-3',
+          name: 'Test Agent 3',
+          description: 'An intern-level agent',
+          maturity_level: AgentMaturity.INTERN,
+          status: AgentStatus.OFFLINE,
+          system_prompt: 'You are agent 3.',
+          confidence_score: 0.65,
+          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+          updated_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+          last_execution_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+          version: 1,
+          capabilities: [
+            { name: 'basic_tasks', description: 'Basic tasks', enabled: true },
+          ],
+        },
+      ],
+    })
 );
 
 jest.mock('../../../services/agentService', () => ({
@@ -266,17 +282,20 @@ describe('AgentListScreen', () => {
               id: 'agent-1',
               name: 'Test Agent',
               description: 'Test',
-              maturity_level: 'AUTONOMOUS',
-              status: 'online',
+              maturity_level: AgentMaturity.AUTONOMOUS,
+              status: AgentStatus.ONLINE,
+              system_prompt: 'You are a test agent.',
               confidence_score: 0.95,
               created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
               last_execution_at: new Date().toISOString(),
+              version: 1,
               capabilities: [
-                { name: 'cap1', enabled: true },
-                { name: 'cap2', enabled: true },
-                { name: 'cap3', enabled: true },
-                { name: 'cap4', enabled: true },
-                { name: 'cap5', enabled: true },
+                { name: 'cap1', description: 'Capability 1', enabled: true },
+                { name: 'cap2', description: 'Capability 2', enabled: true },
+                { name: 'cap3', description: 'Capability 3', enabled: true },
+                { name: 'cap4', description: 'Capability 4', enabled: true },
+                { name: 'cap5', description: 'Capability 5', enabled: true },
               ],
             },
           ],
@@ -745,6 +764,9 @@ describe('AgentListScreen', () => {
 
       await waitFor(() => {
         const lastCall = mockGetAgents.mock.calls[mockGetAgents.mock.calls.length - 1][0];
+        if (!lastCall) {
+          throw new Error('Expected getAgents to be called with filters');
+        }
         expect(lastCall.maturity).toBe('AUTONOMOUS');
         expect(lastCall.sort_by).toBe('name');
         expect(lastCall.sort_order).toBe('asc');
@@ -806,11 +828,14 @@ describe('AgentListScreen', () => {
               id: 'agent-student',
               name: 'Student Agent',
               description: 'A student-level agent',
-              maturity_level: 'STUDENT',
-              status: 'busy',
+              maturity_level: AgentMaturity.STUDENT,
+              status: AgentStatus.BUSY,
+              system_prompt: 'You are a student agent.',
               confidence_score: 0.3,
               created_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              updated_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
               last_execution_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              version: 1,
               capabilities: [],
             },
           ],
@@ -834,11 +859,14 @@ describe('AgentListScreen', () => {
               id: 'agent-maint',
               name: 'Maintenance Agent',
               description: 'In maintenance',
-              maturity_level: 'SUPERVISED',
-              status: 'maintenance',
+              maturity_level: AgentMaturity.SUPERVISED,
+              status: AgentStatus.MAINTENANCE,
+              system_prompt: 'You are a maintenance agent.',
               confidence_score: 0.5,
               created_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              updated_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
               last_execution_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              version: 1,
               capabilities: [],
             },
             {
@@ -846,10 +874,13 @@ describe('AgentListScreen', () => {
               name: 'Odd Status Agent',
               description: 'Odd status',
               maturity_level: 'UNKNOWN_LEVEL' as any,
-              status: 'weird',
+              status: 'weird' as AgentStatus,
+              system_prompt: 'You are an odd-status agent.',
               confidence_score: 0.5,
               created_at: new Date(MOCK_NOW).toISOString(),
+              updated_at: new Date(MOCK_NOW).toISOString(),
               last_execution_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              version: 1,
               capabilities: [],
             },
           ],
@@ -949,6 +980,9 @@ describe('AgentListScreen', () => {
       const closeIcon = screen.UNSAFE_getAllByType('Icon' as any).find(
         (el: any) => el.props.source === 'close'
       );
+      if (!closeIcon) {
+        throw new Error('Expected close icon to be rendered');
+      }
       fireEvent.press(closeIcon);
 
       await waitFor(() => {
@@ -1114,18 +1148,24 @@ describe('AgentListScreen', () => {
               id: 'zebra',
               name: 'Zebra Agent',
               description: 'Z',
-              maturity_level: 'INTERN',
-              status: 'offline',
+              maturity_level: AgentMaturity.INTERN,
+              status: AgentStatus.OFFLINE,
+              system_prompt: 'You are the zebra agent.',
               created_at: new Date(MOCK_NOW - 1000).toISOString(),
+              updated_at: new Date(MOCK_NOW - 1000).toISOString(),
+              version: 1,
               capabilities: [],
             },
             {
               id: 'alpha',
               name: 'Alpha Agent',
               description: 'A',
-              maturity_level: 'INTERN',
-              status: 'offline',
+              maturity_level: AgentMaturity.INTERN,
+              status: AgentStatus.OFFLINE,
+              system_prompt: 'You are the alpha agent.',
               created_at: new Date(MOCK_NOW - 2000).toISOString(),
+              updated_at: new Date(MOCK_NOW - 2000).toISOString(),
+              version: 1,
               capabilities: [],
             },
           ],
@@ -1166,28 +1206,37 @@ describe('AgentListScreen', () => {
               id: 'never-ran-1',
               name: 'Never Ran 1',
               description: 'N1',
-              maturity_level: 'INTERN',
-              status: 'online',
+              maturity_level: AgentMaturity.INTERN,
+              status: AgentStatus.ONLINE,
+              system_prompt: 'You are never-ran agent 1.',
               created_at: new Date(MOCK_NOW - 1000).toISOString(),
+              updated_at: new Date(MOCK_NOW - 1000).toISOString(),
+              version: 1,
               capabilities: [],
             },
             {
               id: 'ran-recently',
               name: 'Ran Recently',
               description: 'RR',
-              maturity_level: 'INTERN',
-              status: 'online',
+              maturity_level: AgentMaturity.INTERN,
+              status: AgentStatus.ONLINE,
+              system_prompt: 'You are the recently-run agent.',
               created_at: new Date(MOCK_NOW - 2000).toISOString(),
+              updated_at: new Date(MOCK_NOW - 2000).toISOString(),
               last_execution_at: new Date(MOCK_NOW - 1000 * 60).toISOString(),
+              version: 1,
               capabilities: [],
             },
             {
               id: 'never-ran-2',
               name: 'Never Ran 2',
               description: 'N2',
-              maturity_level: 'INTERN',
-              status: 'online',
+              maturity_level: AgentMaturity.INTERN,
+              status: AgentStatus.ONLINE,
+              system_prompt: 'You are never-ran agent 2.',
               created_at: new Date(MOCK_NOW - 3000).toISOString(),
+              updated_at: new Date(MOCK_NOW - 3000).toISOString(),
+              version: 1,
               capabilities: [],
             },
           ],
