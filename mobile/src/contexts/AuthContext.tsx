@@ -342,8 +342,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const performTokenRefresh = async (startingSession: AccessTokenSnapshot): Promise<boolean> => {
     try {
+      if (!isAccessTokenSnapshotCurrent(startingSession)) return false;
       const refreshTokenValue = await secureGet(REFRESH_TOKEN_KEY);
 
+      // No await may separate this generation check from dispatch. An already
+      // dispatched request still cannot commit across a later session change.
+      if (!isAccessTokenSnapshotCurrent(startingSession)) return false;
       if (!refreshTokenValue) {
         return false;
       }
