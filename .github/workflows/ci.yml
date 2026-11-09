@@ -698,7 +698,7 @@ jobs:
           npx jest tests/components/task-mutation-confirmation.test.tsx components/shared/__tests__/TaskManagement.test.tsx components/__tests__/TaskManagement.test.tsx tests/components/task-management-data-loading.test.tsx tests/lib/auth-headers.test.ts tests/pages/api/__tests__/v1-tasks-id.test.ts tests/pages/api/__tests__/v1-financial-workflow.test.ts --runInBand --no-coverage --watchman=false
           node --test tests/contracts/task-project-public-boundary.cjs
       - name: Password recovery receipt and proxy controls
-        run: 'npx jest tests/lib/backend-credentials.test.ts tests/lib/backend-signin-identity.test.ts tests/lib/backend-session-logout.test.ts tests/pages/api/__tests__/auth-forgot-password.test.ts tests/pages/api/__tests__/auth-reset-password.test.ts tests/auth/test-forgot-password.test.tsx tests/auth/test-reset-password.test.tsx tests/lib/api-error-message.test.ts tests/pages/__tests__/settings-account.test.tsx --runInBand --no-coverage --watchman=false
+        run: 'npx jest tests/auth/signin-logout-return-contract.test.tsx tests/components/sidebar-logout-contract.test.tsx components/layout/__tests__/Sidebar.gating.test.tsx tests/lib/backend-credentials.test.ts tests/lib/backend-signin-identity.test.ts tests/lib/backend-session-logout.test.ts tests/pages/api/__tests__/auth-forgot-password.test.ts tests/pages/api/__tests__/auth-reset-password.test.ts tests/auth/test-forgot-password.test.tsx tests/auth/test-reset-password.test.tsx tests/lib/api-error-message.test.ts tests/pages/__tests__/settings-account.test.tsx --runInBand --no-coverage --watchman=false
 
           '
       - name: Auth redirect regression tests

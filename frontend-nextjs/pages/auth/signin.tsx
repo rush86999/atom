@@ -27,14 +27,22 @@ export default function SignIn() {
     : "/dashboard";
 
   useEffect(() => {
-      const checkSession = async () => {
+    let cancelled = false;
+    const checkSession = async () => {
+      // A cookie-clear request may be unavailable or still in flight. Never
+      // revive cached UI identity after the user explicitly signed out.
+      if (localStorage.getItem('atom_explicit_logout') === '1') return;
+      try {
         const session = await getSession();
-        if (session) {
-          localStorage.removeItem('atom_explicit_logout');
+        if (!cancelled && localStorage.getItem('atom_explicit_logout') !== '1' && session) {
           router.push(safeDest);
         }
-      };
-    checkSession();
+      } catch {
+        // An unavailable session read leaves the ordinary sign-in form usable.
+      }
+    };
+    void checkSession();
+    return () => { cancelled = true; };
   }, [router, safeDest]);
 
   const handleSubmit = async (e: React.FormEvent) => {

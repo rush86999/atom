@@ -700,3 +700,34 @@ Native fresh-process checks remain separate at their recorded sources. Main web
 first; mobile UI last. The API-first Sidebar's unbounded logout fetch is the
 next source-diagnosed interruption boundary; no outage-safe UI claim follows
 from a healthy-server browser pass.
+
+November9 — interruption-safe local web logout
+
+Three actual Sidebar DOM negatives on a75dd85e0 established unbounded backend
+notification, duplicate dispatch and late-response deletion of a newer local
+session. The Sidebar now shares the existing five-second notification consumer
+with NextAuth, disables repeated submission, and binds local clearing to its
+original token/current backend-session generation and mounted owner. Unavailable
+or unverified notification still permits local clearing without inventing a
+server termination receipt. No new revocation store or lifecycle was introduced.
+
+Three actual sign-in DOM negatives also proved cached/late session reads could
+revive a locally signed-out UI or navigate after unmount. Explicit local logout
+is now preserved through those reads; fresh successful backend sign-in remains
+the existing operation that clears the marker. A pending framework signOut
+request does not hold navigation, and redirect:false prevents its late client
+redirect. The framework still owns CSRF and server-cookie clearing; local
+navigation is not proof that an unavailable server cleared its cookie. The
+installed SDK and official v4 contract both support this option:
+https://next-auth.js.org/getting-started/client#using-the-redirect-false-option-1
+Use the existing APIs, not a parallel cookie/approval engine.
+
+Combined auth/layout/role gate180 passed; TypeScript verification is recorded
+with the frozen successor. The6 older role-test failures reproduce on unchanged
+a75dd85e0. Their fixture now explicitly requests full-profile role assertions;
+unknown-role expectations are strengthened to current fail-closed behavior,
+and the existing /goal-runs route is asserted by its current Activity label.
+All7 historical case names remain; a core-profile admin negative twin prevents
+release-scope broadening. Production navigation and authority gates are unchanged.
+New ordinary outage-browser qualification remains pending. Earlier healthy UI
+evidence stays403a39173 and is not relabelled. Main web first; mobile UI last.

@@ -12,6 +12,11 @@ import { screen } from "@testing-library/react";
 import { renderWithProviders as render } from "../../../tests/test-utils";
 import "@testing-library/jest-dom";
 
+// Role-only assertions use the explicit full profile; production defaults core.
+const mockCapabilityEnabled = jest.fn();
+jest.mock("../../../lib/product-profile", () => ({
+    useProductProfile: () => ({ isCapabilityEnabled: mockCapabilityEnabled }),
+}));
 const mockUseUserRole = jest.fn();
 const mockUseActionProposals = jest.fn();
 jest.mock("../../../hooks/useActionProposals", () => ({
@@ -41,6 +46,7 @@ jest.mock("next-auth/react", () => ({
 import Sidebar from "../Sidebar";
 
 beforeEach(() => {
+    mockCapabilityEnabled.mockReturnValue(true);
     mockUseActionProposals.mockReturnValue({
         pendingCount: null,
         isPending: true,
@@ -65,8 +71,10 @@ describe("Sidebar role gating", () => {
             role: null, level: 0, isSupervisor: false, isAdmin: false, loading: true,
         });
         render(<Sidebar />);
-        expect(screen.getByText("User Management")).toBeInTheDocument();
-        expect(screen.getByText("Approvals")).toBeInTheDocument();
+        // Historical case identity retained; current loading policy is closed.
+        expect(screen.queryByText("User Management")).not.toBeInTheDocument();
+        expect(screen.queryByText("Approvals")).not.toBeInTheDocument();
+        expect(screen.getByText("Dashboard")).toBeInTheDocument();
     });
 
     it("member: hides Approvals and the admin band, keeps member surfaces", () => {
@@ -150,9 +158,21 @@ describe("Sidebar role gating", () => {
                 loading: false,
             });
             const { unmount } = render(<Sidebar />);
-            const link = screen.getByText("Goal Runs").closest("a");
+            const link = screen.getByText("Activity").closest("a");
             expect(link).toHaveAttribute("href", "/goal-runs");
             unmount();
         }
+    });
+    it("core profile keeps deferred navigation hidden even for an administrator", () => {
+        const enabled = new Set(["chat", "documents", "canvas", "agents", "learning", "activity", "settings", "approvals"]);
+        mockCapabilityEnabled.mockImplementation((capability: string) => enabled.has(capability));
+        mockUseUserRole.mockReturnValue({ role: "super_admin", level: 8, isSupervisor: true, isAdmin: true, loading: false });
+        render(<Sidebar />);
+        expect(screen.getByText("Activity").closest("a")).toHaveAttribute("href", "/goal-runs");
+        expect(screen.getByText("Approvals")).toBeInTheDocument();
+        expect(screen.queryByText("User Management")).not.toBeInTheDocument();
+        expect(screen.queryByText("Dev Studio")).not.toBeInTheDocument();
+        expect(screen.queryByText("Search")).not.toBeInTheDocument();
+        expect(screen.queryByText("Marketplace")).not.toBeInTheDocument();
     });
 });
