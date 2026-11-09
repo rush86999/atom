@@ -685,8 +685,8 @@ class ToolRegistry:
         self.register(
             name="update_canvas",
             function=self._get_function("tools.canvas_tool", "update_canvas"),
-            version="1.0.0",
-            description="Update existing canvas without re-presenting (bidirectional updates)",
+            version="2.0.0",
+            description="Durably update canvas content/data/title. Read it first and supply its exact revision_audit_id as expected_prior_audit_id; missing or stale revisions refuse. Preserve operation_id for retries; unverified writes are not business success.",
             category="canvas",
             complexity=2,  # MODERATE - canvas update
             maturity_required="INTERN",
@@ -694,14 +694,16 @@ class ToolRegistry:
             parameters={
                 "user_id": {"type": "str", "description": "User to update"},
                 "canvas_id": {"type": "str", "description": "Canvas ID to update"},
-                "updates": {"type": "Dict", "description": "Update data (e.g., {'data': [...], 'title': 'New'})"},
+                "updates": {"type": "Dict", "description": "Only content/data and title patches; one body field. Native envelopes and falsy content are preserved."},
+                "expected_prior_audit_id": {"type": "str", "description": "Required exact revision_audit_id returned by read_canvas before planning the patch"},
+                "operation_id": {"type": "str", "optional": True, "description": "Stable logical operation identity for an exact retry; never change its material"},
                 "agent_id": {"type": "str", "optional": True, "description": "Agent ID for governance"},
                 "session_id": {"type": "str", "optional": True, "description": "Session ID for isolation"}
             },
             examples=[
                 {
                     "description": "Update chart data dynamically",
-                    "code": "await update_canvas(user_id='user-1', canvas_id='canvas-123', updates={'data': [{'x': 1, 'y': 20}]})"
+                    "code": "current = await read_canvas(user_id='user-1', canvas_id='canvas-123'); await update_canvas(user_id='user-1', canvas_id='canvas-123', updates={'data': [{'x': 1, 'y': 20}]}, expected_prior_audit_id=current['revision_audit_id'])"
                 }
             ],
             author="Atom Team",

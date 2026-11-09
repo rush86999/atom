@@ -653,3 +653,12 @@ The bounded Flash review's first finding was caused by a truncated review excerp
 that omitted the callbacks wrapper; actual consumers and TypeScript prove the
 wrapper exists. Its cache-revalidation and browser-bearer hardening suggestions
 are distinct future boundaries, not evidence of a missing wrapper in product.
+### November 9 — durable legacy canvas updates
+
+Web remains the critical path; mobile remains deferred. PR800 is qualifying its joined presentation repair on main with immutable CI commands preserved through additive gates. Do not inherit checks from earlier heads or merge on partial green.
+
+The next isolated canvas update slice replaces broadcast-only success with the existing verified writer. Planned updates require their observed revision; King carries each confirmed revision and stops projection after conflict; deep links without a revision receive a targeted refusal. An unverified committed write keeps its original receipt and is not business success. Exact title material, including empty titles, participates in replay and fresh readback verification. Shared user/session delivery and current actor claims remain in general mechanisms.
+
+Existing unit method identities are preserved while boundary fixtures carry explicit planned revisions; the separate scratch controls exercise real storage and public calls. Continue wider baseline comparison, evidence packaging and exact-head CI without replaying stable browser/model episodes. Full web goals, general employee judgment, PostgreSQL/soak and mobile are not inferred complete.
+
+November9 integration status: the preceding dated source records are preserved. PR800 is merged5944700f4 and PR801 is merged89527616e after all13 required checks passed on each exact candidate. DraftPR802 now integrates that current main; account recovery/session/logout remain controlled-scope submissions, not full web acceptance. Frozen auth sourcee173791ef records101 backend and93 frontend passes with TypeScript clean; packet34source+5artifact Git checks pass. The main integration preserves both additive CI ledgers and both guidance sections; new exact-head CI is required.

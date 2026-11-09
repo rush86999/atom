@@ -1,0 +1,55 @@
+{
+  "executed_source": "e7e8ad0a558219f2276afdf4991c6858a9efc844",
+  "runtime": "Python3.11 scratch SQLite; no browser/provider/sandbox campaign",
+  "candidate": {
+    "total": 459,
+    "passed": 444,
+    "failures": [
+      "tests.test_deeplinks.TestExecuteCanvasDeepLink::test_execute_canvas_update_failed",
+      "tests.test_deeplinks.TestExecuteCanvasDeepLink::test_execute_canvas_update_success",
+      "tests.test_deeplinks.TestExecuteDeepLink::test_execute_canvas_link",
+      "tests.test_deeplinks.TestExecuteDeepLink::test_execute_tool_link",
+      "tests.test_deeplinks.TestExecuteDeepLink::test_execute_workflow_link",
+      "tests.test_deeplinks.TestExecuteToolDeepLink::test_execute_tool_not_found",
+      "tests.test_deeplinks.TestExecuteToolDeepLink::test_execute_tool_success",
+      "tests.test_deeplinks.TestParseDeepLink::test_parse_invalid_path_format",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_autonomous_allowed",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_canvas_audit_created",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_creates_agent_execution",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_intern_allowed",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_outcome_recorded_success",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_student_blocked",
+      "tests.unit.test_canvas_tool_governance.TestPresentFormGovernance::test_present_form_supervised_allowed"
+    ]
+  },
+  "baseline": {
+    "source": "4a637363ab0c558f75d13f602cca6f4998e2105d",
+    "total": 412,
+    "passed": 396,
+    "failed": 16
+  },
+  "new_failure_ids": [],
+  "removed_failure_ids": [
+    "tests.test_canvas_updates.TestCanvasUpdateFunctionality::test_update_canvas_with_session_isolation"
+  ],
+  "additive_ci_cases_within_wider_run": {
+    "total": 85,
+    "passed": 85
+  },
+  "ci_preservation_cases_within_wider_run": {
+    "total": 27,
+    "passed": 27
+  },
+  "preserved_original_method_identities": 39,
+  "frontend_tree_unchanged_from": "c32da81853ccfb403db2a563e6295cb6a936d34a",
+  "limits": [
+    "no PostgreSQL/multi-worker qualification",
+    "no new browser or served-model claim",
+    "not whole-app completion"
+  ],
+  "contract_case_scope": {
+    "scratch_storage_public_join": 17,
+    "controlled_king_caller": 2,
+    "real_registry_discovery": 1
+  }
+}

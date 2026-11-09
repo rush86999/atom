@@ -733,7 +733,8 @@ class TestPresentFormGovernance:
                         )
 
                         assert result["success"] is True
-                        # Audit created via _create_canvas_audit (tested indirectly through success)
+                        assert result["audit_id"] == "committed-revision"
+                        # The existing verified writer owns the single receipt. (tested indirectly through success)
 
 
 # ============================================================================
@@ -954,6 +955,22 @@ class TestPresentMarkdownGovernance:
 class TestUpdateCanvasGovernance:
     """Tests for update_canvas governance enforcement."""
 
+    @pytest.fixture(autouse=True)
+    def verified_update_boundary(self, monkeypatch):
+        """Isolate governance; real receipt/storage tests use scratch DB rows."""
+        import tools.canvas_crud_tool as crud
+        import core.canvas_write_service as writes
+        monkeypatch.setattr(crud, 'active_canvas_actor', lambda *_: {
+            'ok': True, 'tenant_id': None, 'workspace_id': None})
+        monkeypatch.setattr(crud, 'read_canvas', AsyncMock(return_value={
+            'success': True, 'canvas_type': 'document', 'content': 'Existing',
+            'title': 'Draft', 'revision_audit_id': 'planned-revision'}))
+        write = AsyncMock(return_value={'success': True, 'canvas_id': 'canvas-123',
+            'audit_id': 'committed-revision',
+            'verification': {'status': 'verified', 'effect': 'committed'}})
+        monkeypatch.setattr(writes, 'update_canvas_verified', write)
+        return write
+
     @pytest.mark.asyncio
     async def test_update_canvas_student_blocked(self, mock_ws, mock_agent_student, mock_db):
         """Test STUDENT agent blocked from update_canvas (INTERN+ required)."""
@@ -984,6 +1001,7 @@ class TestUpdateCanvasGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-123",
+                            expected_prior_audit_id="planned-revision",
                             updates={"data": [{"x": 1, "y": 10}]},
                             agent_id="agent-student-123"
                         )
@@ -1018,6 +1036,7 @@ class TestUpdateCanvasGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-123",
+                            expected_prior_audit_id="planned-revision",
                             updates={"title": "Updated"},
                             agent_id="agent-intern-123"
                         )
@@ -1052,6 +1071,7 @@ class TestUpdateCanvasGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-456",
+                            expected_prior_audit_id="planned-revision",
                             updates={"data": [{"x": 1, "y": 5}]},
                             agent_id="agent-supervised-123"
                         )
@@ -1085,6 +1105,7 @@ class TestUpdateCanvasGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-789",
+                            expected_prior_audit_id="planned-revision",
                             updates={"title": "Autonomous Update"},
                             agent_id="agent-autonomous-123"
                         )
@@ -1118,6 +1139,7 @@ class TestUpdateCanvasGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-123",
+                            expected_prior_audit_id="planned-revision",
                             updates={"data": []},
                             agent_id="agent-intern-123"
                         )
@@ -1153,12 +1175,14 @@ class TestUpdateCanvasGovernance:
                         result = await update_canvas(
                             user_id="user-1",
                             canvas_id="canvas-123",
+                            expected_prior_audit_id="planned-revision",
                             updates=updates,
                             agent_id="agent-intern-123"
                         )
 
                         assert result["success"] is True
-                        # Audit created via _create_canvas_audit
+                        assert result["audit_id"] == "committed-revision"
+                        # The existing verified writer owns the single receipt.
 
 
 if __name__ == "__main__":

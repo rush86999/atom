@@ -1,0 +1,2071 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-09 11:42:59 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[markdown-patch0-Changed] 
+-------------------------------- live log setup --------------------------------
+2026-11-09 11:42:59 [    INFO] EscalationManager initialized
+2026-11-09 11:42:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 11:42:59 [    INFO] EscalationManager initialized
+2026-11-09 11:42:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-09 11:42:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-09 11:42:59 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-f5adcdef
+2026-11-09 11:42:59 [    INFO] Updated canvas 141dd828-c637-41c7-8062-c2ab653658e5 (markdown)
+PASSED                                                                   [  0%]
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[chart-patch1-expected1] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented bar_chart to user u-60a335c4
+2026-11-09 11:42:59 [    INFO] Updated canvas 55646675-c07c-46e5-9d6b-a818cc1d6f3e (bar_chart)
+PASSED                                                                   [  0%]
+tests/test_canvas_legacy_update_contract.py::test_update_is_durable_and_revision_guarded[specialized-patch2-expected2] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented docs canvas (rich_editor) to user u-715bbd75
+2026-11-09 11:42:59 [    INFO] Updated canvas d21dd932-46f9-4307-9174-142d3168a67e (docs)
+PASSED                                                                   [  0%]
+tests/test_canvas_legacy_update_contract.py::test_missing_revision_refuses_without_frame_or_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-4ccc43a2
+PASSED                                                                   [  0%]
+tests/test_canvas_legacy_update_contract.py::test_unknown_target_has_no_update_frame PASSED [  1%]
+tests/test_canvas_legacy_update_contract.py::test_authority_change_after_writer_read_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-eaec5e16
+PASSED                                                                   [  1%]
+tests/test_canvas_legacy_update_contract.py::test_king_threads_revision_and_stops_projection_on_conflict[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] MCP Service initialized
+2026-11-09 11:42:59 [    INFO] King: Executing blueprint: Plan
+2026-11-09 11:42:59 [    INFO] King: Processing node: A (agent)
+PASSED                                                                   [  1%]
+tests/test_canvas_legacy_update_contract.py::test_king_threads_revision_and_stops_projection_on_conflict[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] King: Executing blueprint: Plan
+2026-11-09 11:42:59 [    INFO] King: Processing node: A (agent)
+PASSED                                                                   [  1%]
+tests/test_canvas_legacy_update_contract.py::test_invalid_patch_never_partially_writes[patch0] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-7ef48e71
+PASSED                                                                   [  1%]
+tests/test_canvas_legacy_update_contract.py::test_invalid_patch_never_partially_writes[patch1] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-c5c7c65c
+PASSED                                                                   [  2%]
+tests/test_canvas_legacy_update_contract.py::test_invalid_patch_never_partially_writes[patch2] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-4ab4c33f
+PASSED                                                                   [  2%]
+tests/test_canvas_legacy_update_contract.py::test_stale_planned_revision_retains_current_user_edit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-3d25cc37
+2026-11-09 11:42:59 [    INFO] Updated canvas 33c13d6f-d5fb-49dc-95d2-b6febcf780df (markdown)
+PASSED                                                                   [  2%]
+tests/test_canvas_legacy_update_contract.py::test_foreign_owner_never_receives_or_writes_a_frame 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-b4cd8e1d
+PASSED                                                                   [  2%]
+tests/test_canvas_legacy_update_contract.py::test_unverified_commit_is_not_tool_success_and_keeps_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-cd3d9d2c
+2026-11-09 11:42:59 [    INFO] Updated canvas 2d66a322-91e6-4a99-acd2-b0b0efe4e4e2 (markdown)
+PASSED                                                                   [  3%]
+tests/test_canvas_legacy_update_contract.py::test_real_deep_link_update_threads_explicit_plan_revision[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-23b67d1f
+2026-11-09 11:42:59 [    INFO] Updated canvas 0e7d4a0d-d340-45fc-b1cc-f69c6652af05 (markdown)
+2026-11-09 11:42:59 [    INFO] Executed canvas deep link: canvas=0e7d4a0d-d340-45fc-b1cc-f69c6652af05, action=update, user=u-23b67d1f, source=external, success=True
+PASSED                                                                   [  3%]
+tests/test_canvas_legacy_update_contract.py::test_real_deep_link_update_threads_explicit_plan_revision[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-dca3deef
+2026-11-09 11:42:59 [    INFO] Executed canvas deep link: canvas=ebab7d9f-662b-4e7c-9f24-87c881456fc8, action=update, user=u-dca3deef, source=external, success=False
+PASSED                                                                   [  3%]
+tests/test_canvas_legacy_update_contract.py::test_empty_title_is_an_exact_supported_edit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:42:59 [    INFO] Presented markdown content to user u-28e2c78e
+2026-11-09 11:42:59 [    INFO] Updated canvas d71c11bf-972e-42af-8714-16d397176a1a (markdown)
+PASSED                                                                   [  3%]
+tests/test_canvas_legacy_update_contract.py::test_same_operation_cannot_change_only_title 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:00 [    INFO] Presented markdown content to user u-6eda5955
+2026-11-09 11:43:00 [    INFO] Updated canvas 1ebaa30d-4ebd-4d55-b7df-15086cc7b050 (markdown)
+PASSED                                                                   [  3%]
+tests/test_canvas_legacy_update_contract.py::test_correct_body_but_wrong_title_cannot_verify 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:00 [    INFO] Presented markdown content to user u-acc2ba47
+2026-11-09 11:43:00 [    INFO] Updated canvas 965bd0fb-a19f-466a-84ac-8cff823a170d (markdown)
+PASSED                                                                   [  4%]
+tests/test_canvas_legacy_update_contract.py::test_real_registry_exposes_planned_revision_and_safe_usage 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:00 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-09 11:43:00 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-09 11:43:00 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-09 11:43:00 [    INFO] Registered tool: update_canvas v2.0.0 (canvas)
+2026-11-09 11:43:00 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-09 11:43:00 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-09 11:43:00 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-09 11:43:00 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+PASSED                                                                   [  4%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_read_canvas_tool_exists PASSED [  4%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_update_canvas_tool_exists PASSED [  4%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_delete_canvas_tool_exists PASSED [  5%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_list_canvases_tool_exists PASSED [  5%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_read_canvas_not_found PASSED [  5%]
+tests/test_canvas_crud.py::TestCanvasCrudTools::test_delete_canvas_not_found PASSED [  5%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_read_endpoint_exists PASSED [  5%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_delete_endpoint_exists PASSED [  6%]
+tests/test_canvas_crud.py::TestCanvasHttpEndpoints::test_list_endpoint_exists PASSED [  6%]
+tests/test_canvas_crud.py::TestCanvasAwareLearning::test_routing_feedback_has_canvas_type PASSED [  6%]
+tests/test_canvas_crud.py::TestCanvasAwareLearning::test_routing_feedback_canvas_type_default_none PASSED [  6%]
+tests/test_canvas_crud.py::TestEpisodeCanvasCapture::test_episode_has_canvas_snapshots_in_metadata PASSED [  6%]
+tests/test_canvas_crud.py::TestEpisodeCanvasCapture::test_episode_captures_canvas_by_session PASSED [  7%]
+tests/test_canvas_crud.py::TestReadCanvasAfterEventRows::test_read_skips_trailing_send_event_row PASSED [  7%]
+tests/test_canvas_crud.py::TestReadCanvasAfterEventRows::test_read_still_falls_back_for_legacy_canvas PASSED [  7%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_appends_row_and_makes_canvas_listed_again 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:01 [    INFO] Restored deleted canvas cv-86908e98
+PASSED                                                                   [  7%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_carries_pre_delete_content 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:01 [    INFO] Restored deleted canvas cv-19b5e545
+PASSED                                                                   [  8%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_rejects_non_deleted_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:01 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='canvas:update'
+2026-11-09 11:43:01 [    INFO] Restored deleted canvas cv-1d1ba0a7
+PASSED                                                                   [  8%]
+tests/test_canvas_crud.py::TestRestoreDeletedCanvas::test_restore_is_owner_only PASSED [  8%]
+tests/test_canvas_crud.py::TestSameSecondStrictRecency::test_restore_beats_same_second_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:01 [    INFO] Restored deleted canvas cv-8a3e0750
+PASSED                                                                   [  8%]
+tests/test_canvas_crud.py::TestSameSecondStrictRecency::test_delete_beats_same_second_restore 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:01 [    INFO] Restored deleted canvas cv-54746eed
+2026-11-09 11:43:01 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='canvas:update'
+2026-11-09 11:43:01 [    INFO] Deleted canvas cv-54746eed
+PASSED                                                                   [  8%]
+tests/test_canvas_lifecycle_verified.py::test_owner_delete_has_verified_receipt_and_fresh_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:02 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:02 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_binds_exact_tombstone_source_and_content 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:03 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:03 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:03 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 11:43:03 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_canvas_lifecycle_verified.py::test_same_scope_coeditor_still_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:03 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:coeditor'. type='canvas:update'
+2026-11-09 11:43:03 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:03 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_canvas_lifecycle_verified.py::test_null_default_single_tenant_compatible 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-null'. type='canvas:update'
+2026-11-09 11:43:04 [    INFO] Deleted canvas probe-legacy
+2026-11-09 11:43:04 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-legacy "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_canvas_lifecycle_verified.py::test_audit_only_canvas_uses_latest_audit_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-09 11:43:05 [    INFO] Deleted canvas probe-audit-only
+2026-11-09 11:43:05 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-audit-only "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_canvas_lifecycle_verified.py::test_audit_only_canvas_undelete_binds_source_without_mirror 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-09 11:43:05 [    INFO] Deleted canvas probe-audit-only
+2026-11-09 11:43:05 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-audit-only "HTTP/1.1 200 OK"
+2026-11-09 11:43:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-09 11:43:05 [    INFO] Restored deleted canvas probe-audit-only
+2026-11-09 11:43:05 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-audit-only/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_canvas_lifecycle_verified.py::test_stranger_gets_404_and_zero_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:06 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+tests/test_canvas_lifecycle_verified.py::test_stranger_cannot_replay_another_users_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:07 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:07 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-owner "HTTP/1.1 200 OK"
+2026-11-09 11:43:07 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-owner "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_tenant_coeditor_refuses_before_effect[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:07 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 10%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_tenant_coeditor_refuses_before_effect[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:08 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:08 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:08 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 11%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_workspace_coeditor_refuses_before_effect[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:09 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 11%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_workspace_coeditor_refuses_before_effect[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:10 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:10 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:10 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:10 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 11%]
+tests/test_canvas_lifecycle_verified.py::test_delete_same_operation_replays_one_tombstone_no_second_broadcast 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:11 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:11 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-delete-1 "HTTP/1.1 200 OK"
+2026-11-09 11:43:11 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-delete-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_canvas_lifecycle_verified.py::test_delete_different_operation_is_idempotent_with_original_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:12 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:12 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-a "HTTP/1.1 200 OK"
+2026-11-09 11:43:12 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_same_operation_replays_one_restore 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:12 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:12 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:12 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 11:43:12 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+2026-11-09 11:43:12 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_non_deleted_canvas_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:13 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_without_content_source_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-empty/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_canvas_lifecycle_verified.py::test_delete_expected_prior_mismatch_is_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:15 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?expected_prior_audit_id=not-the-latest "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_canvas_lifecycle_verified.py::test_same_operation_different_material_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:16 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:16 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-reused "HTTP/1.1 200 OK"
+2026-11-09 11:43:16 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:16 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 11:43:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+2026-11-09 11:43:16 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-reused "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_canvas_lifecycle_verified.py::test_ambiguous_operation_identity_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:16 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-duplicate "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_canvas_lifecycle_verified.py::test_scope_move_before_effect_refuses_and_preserves_winner 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:17 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_canvas_lifecycle_verified.py::test_scope_move_after_commit_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:18 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:18 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:18 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[workspace-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:18 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[workspace-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:19 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:19 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[inactive-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:20 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 14%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[inactive-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:21 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:21 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 14%]
+tests/test_canvas_lifecycle_verified.py::test_unchanged_active_actor_valid_twin[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:21 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:21 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_canvas_lifecycle_verified.py::test_unchanged_active_actor_valid_twin[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:22 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:22 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:22 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 11:43:22 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_ignores_model_user_id_and_uses_context_actor 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:23 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'victim', 'canvas_id': 'probe-canvas'}
+PASSED                                                                   [ 15%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_context_actor_wins_over_model_supplied_victim 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:24 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'victim', 'canvas_id': 'probe-canvas'}
+2026-11-09 11:43:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:24 [    INFO] Deleted canvas probe-canvas
+PASSED                                                                   [ 15%]
+tests/test_canvas_lifecycle_verified.py::test_standard_call_tool_entry_resolves_the_verified_lifecycle 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:24 [    INFO] Deleted canvas probe-canvas
+PASSED                                                                   [ 15%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_without_trusted_context_actor_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:25 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'owner', 'canvas_id': 'probe-canvas'}
+PASSED                                                                   [ 15%]
+tests/test_canvas_lifecycle_verified.py::test_missing_audit_readback_is_committed_unverified_and_no_second_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:26 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_canvas_lifecycle_verified.py::test_unknown_commit_outcome_keeps_identity_and_never_claims_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:27 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_wrong_actor_scope_operation_and_digest 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:28 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:28 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_a_later_lifecycle_row 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-09 11:43:28 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:28 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_missing_audit PASSED [ 16%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:30 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 17%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:31 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 17%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:32 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:32 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:32 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 17%]
+tests/test_lead_canvas_lifecycle_authority.py::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:33 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:33 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:33 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 17%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[delete-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:33 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:33 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[delete-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:34 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:34 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[undelete-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:35 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:35 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:35 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 11:43:35 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_lead_canvas_lifecycle_authority.py::test_supported_owner_and_same_scope_coeditor_still_work[undelete-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:36 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:36 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:36 [    INFO] Restored deleted canvas probe-canvas
+2026-11-09 11:43:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_lead_canvas_lifecycle_authority.py::test_stranger_without_authorship_is_still_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:37 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 18%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[tenant-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:38 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[tenant-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:38 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:38 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[workspace-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:39 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[workspace-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:40 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:40 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:40 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[status-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:41 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[status-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:41 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:41 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:42 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[inactive-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:43 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_lead_canvas_lifecycle_authority.py::test_actor_change_during_guard_has_no_effect[inactive-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:43 [    INFO] Deleted canvas probe-canvas
+2026-11-09 11:43:43 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-09 11:43:43 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_is_verified_against_durable_material 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5ba10300'. type='canvas:update'
+2026-11-09 11:43:43 [    INFO] Updated canvas c-bfb1c3223b7f (generic)
+2026-11-09 11:43:43 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-bfb1c3223b7f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_same_title_and_length_still_checks_exact_content 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-e4bce8e7'. type='canvas:update'
+2026-11-09 11:43:43 [    INFO] Updated canvas c-8643fc575933 (generic)
+2026-11-09 11:43:43 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-8643fc575933?title=same%20title "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5da4a37f'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-6c9c5fcd5b9c (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6c9c5fcd5b9c?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6c9c5fcd5b9c?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_byte_identical_without_operation_is_a_distinct_edit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1edd354d'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-b0ed85068327 (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b0ed85068327 "HTTP/1.1 200 OK"
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1edd354d'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-b0ed85068327 (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-b0ed85068327 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_is_verified_and_append_only 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-192630da'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Restored canvas c-cbce33eae6f0 to version d1ca3ee2-22de-486c-880b-934c99dc677d (email) — appended as a new version
+2026-11-09 11:43:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-cbce33eae6f0/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_is_truthful_and_adds_no_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-222bec9ada9b/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-33c8f04fb6f1 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_stale_prior_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-28d4c046'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-7badcd7b2c07 (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7badcd7b2c07 "HTTP/1.1 200 OK"
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7badcd7b2c07?expected_prior_audit_id=dd8165ea-2961-4994-bbe5-e4dcefac1904 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_canvas_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1f4c99b5019d/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_unavailable_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4149be52'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-c42ed9f6725b (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c42ed9f6725b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_refuted_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4a11869d'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-8b0aa9deafb4 (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-8b0aa9deafb4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_kill_switch_never_fabricates_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-12e493d6'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-701288ea1795 (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-701288ea1795 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_verifier_gets_no_request_session 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-7fd530b2'. type='canvas:update'
+2026-11-09 11:43:44 [    INFO] Updated canvas c-7e8dc2d6f796 (generic)
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7e8dc2d6f796 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:44 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-25f816272f96 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_exception_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-2135829c'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-4374e54e312b (generic)
+2026-11-09 11:43:45 [ WARNING] direct canvas canvas.update oracle unavailable: oracle crashed
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-4374e54e312b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_wrong_canvas_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-14d4c7bc8a67/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_old_identical_material_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1e70df737129/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_operation_mismatch PASSED [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_absent_audit PASSED [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_stale_mirror PASSED [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_restore_target_mismatch PASSED [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_after_later_edit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-3b96b0e1'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-f193e3c5dc2e (generic)
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f193e3c5dc2e?operation_id=op-late-1 "HTTP/1.1 200 OK"
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-3b96b0e1'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-f193e3c5dc2e (generic)
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f193e3c5dc2e "HTTP/1.1 200 OK"
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f193e3c5dc2e?operation_id=op-late-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_effect_unknown_keeps_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-856bf4500ba9?operation_id=op-unknown-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_kill_switch_is_unverified_no_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-65fc51627b71/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-a7df00d6a9ac/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 26%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-0d6631e87ac0/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 26%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_stale_mirror_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-89d433daa058/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_old_identical_audit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-35a7ebeefd28 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_manual_save_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-fe60a692'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-da012191ad97 (generic)
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-da012191ad97 "HTTP/1.1 200 OK"
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-fe60a692'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-da012191ad97 (generic)
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-da012191ad97 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_operation_id_different_material_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-9ba90e3f'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-2b139eedc835 (generic)
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-2b139eedc835?operation_id=op-bound-1 "HTTP/1.1 200 OK"
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-2b139eedc835?operation_id=op-bound-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 27%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4dbbbae5'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Restored canvas c-68baf6e21470 to version 390f01a5-6bea-4484-bfda-d94770af1b2f (generic) — appended as a new version
+2026-11-09 11:43:45 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-68baf6e21470/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_oracle_direct_canvas_writes.py::test_writer_rechecks_scope_after_service_preflight 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f3197787986a "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 27%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_stale_mirror_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-9c01c678'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-6ac824754416 (generic)
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6ac824754416 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_oracle_direct_canvas_writes.py::test_same_scope_coeditor_can_save_without_creator_ownership 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-f3e9f599'. type='canvas:update'
+2026-11-09 11:43:45 [    INFO] Updated canvas c-4860a8216aa6 (generic)
+2026-11-09 11:43:45 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-4860a8216aa6 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_commits_across_real_sessions 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-multisession'. type='canvas:update'
+2026-11-09 11:43:46 [    INFO] Updated canvas c-multisession (generic)
+2026-11-09 11:43:46 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-multisession "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_target_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-fa5d14e827e8/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_null_workspace_cannot_edit_scoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-23a60b2f26a2 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_workspace_principal_can_edit_legacy_unscoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-0d2821f4'. type='canvas:update'
+2026-11-09 11:43:46 [    INFO] Updated canvas c-ab99220e8f5c (generic)
+2026-11-09 11:43:46 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ab99220e8f5c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_scope_change_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-dae9e2d4'. type='canvas:update'
+2026-11-09 11:43:46 [    INFO] Updated canvas c-78b47053e65c (generic)
+2026-11-09 11:43:46 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-78b47053e65c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_scope_move_after_writer_check_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-fcfa7c621b6f "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_scope_move_after_writer_check_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-a86165a99866/restore "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_scope_move_refuses_mirror_refresh 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:46 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-8dcdc4f5'. type='canvas:update'
+2026-11-09 11:43:46 [    INFO] Updated canvas c-7f90aa31137f (generic)
+2026-11-09 11:43:46 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7f90aa31137f?operation_id=op-scope-dup "HTTP/1.1 200 OK"
+2026-11-09 11:43:46 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7f90aa31137f?operation_id=op-scope-dup "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_workspace_scoped_unchanged_still_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-552ba9bf'. type='canvas:update'
+2026-11-09 11:43:47 [    INFO] Updated canvas c-f9b45e0c37bc (generic)
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f9b45e0c37bc "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_workspace_scoped_unchanged_still_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-a24dab09'. type='canvas:update'
+2026-11-09 11:43:47 [    INFO] Restored canvas c-1170b43ea4a2 to version 645fbf1f-f786-47e1-b761-179a6f7573e4 (generic) — appended as a new version
+2026-11-09 11:43:47 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1170b43ea4a2/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_null_to_default_scope_move_refuses_before_commit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-9769ce36c132 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_oracle_direct_canvas_writes.py::test_read_revision_is_latest_event_not_older_content_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-df4c8575d26d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_oracle_direct_canvas_writes.py::test_loaded_prior_revision_refuses_after_peer_commits 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-c063409387e7 "HTTP/1.1 200 OK"
+2026-11-09 11:43:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-eb96e11c'. type='canvas:update'
+2026-11-09 11:43:47 [    INFO] Updated canvas c-c063409387e7 (document)
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c063409387e7?canvas_type=document&expected_prior_audit_id=a633fee5-0481-4f8d-a339-18cf09d3e1af "HTTP/1.1 200 OK"
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-c063409387e7?canvas_type=markdown&retype=true&expected_prior_audit_id=a633fee5-0481-4f8d-a339-18cf09d3e1af "HTTP/1.1 409 Conflict"
+2026-11-09 11:43:47 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-c063409387e7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_oracle_direct_canvas_writes.py::test_verified_update_broadcast_carries_its_exact_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Updated canvas c-d89305335c23 (document)
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-d89305335c23?canvas_type=document "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Presented markdown content to user u-20302b48
+PASSED                                                                   [ 31%]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Presented bar_chart to user u-80022619
+PASSED                                                                   [ 31%]
+tests/test_canvas_present_revision_contract.py::test_present_publishes_only_a_committed_exact_revision[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Presented docs canvas (rich_editor) to user u-18aa3d8b
+PASSED                                                                   [ 31%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 32%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 32%]
+tests/test_canvas_present_revision_contract.py::test_no_presentation_or_success_when_audit_cannot_be_persisted[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 32%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 32%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 32%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[refresh-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_committed_or_unknown_presentation_keeps_original_identity[commit_confirmation-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Canvas presentation persistence unavailable
+PASSED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_broadcast_failure_never_loses_a_committed_receipt[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Committed presentation follow-through unavailable
+PASSED                                                                   [ 33%]
+tests/test_canvas_present_revision_contract.py::test_broadcast_failure_never_loses_a_committed_receipt[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Committed presentation follow-through unavailable
+PASSED                                                                   [ 34%]
+tests/test_canvas_present_revision_contract.py::test_broadcast_failure_never_loses_a_committed_receipt[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [ WARNING] Committed presentation follow-through unavailable
+PASSED                                                                   [ 34%]
+tests/test_canvas_present_revision_contract.py::test_definite_no_effect_finishes_attempt_without_crediting_model_failure[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Resolved agent via explicit agent_id: Agent
+2026-11-09 11:43:47 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:47 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 34%]
+tests/test_canvas_present_revision_contract.py::test_definite_no_effect_finishes_attempt_without_crediting_model_failure[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Resolved agent via explicit agent_id: Agent
+2026-11-09 11:43:47 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:47 [    INFO] Agent execution 973f8347-2cda-4be5-b063-53cdeb442d11 for chart presentation
+2026-11-09 11:43:47 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 34%]
+tests/test_canvas_present_revision_contract.py::test_definite_no_effect_finishes_attempt_without_crediting_model_failure[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Resolved agent via explicit agent_id: Agent
+2026-11-09 11:43:47 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:47 [    INFO] Agent execution 22df0ed8-e4f2-4947-8791-ea9be468f687 for docs canvas
+2026-11-09 11:43:47 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 35%]
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Presented markdown content to user u-1180606a
+2026-11-09 11:43:47 [    INFO] Updated canvas 87b8b0f8-db38-44d0-848d-4bd9094bca4d (markdown)
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/87b8b0f8-db38-44d0-848d-4bd9094bca4d?canvas_type=markdown&expected_prior_audit_id=356a5db9-d58c-4c37-8b39-e4a5d09fe4b4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Presented bar_chart to user u-de200b9e
+2026-11-09 11:43:47 [    INFO] Updated canvas 2c026b3e-d8be-429e-92c8-2404fb34d9cb (bar_chart)
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/2c026b3e-d8be-429e-92c8-2404fb34d9cb?canvas_type=bar_chart&expected_prior_audit_id=de94d7c0-869d-42f8-8633-1ad8926503ec "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_canvas_present_revision_contract.py::test_initial_presentation_supports_normal_verified_http_edit[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [    INFO] Presented docs canvas (rich_editor) to user u-e783d310
+2026-11-09 11:43:47 [    INFO] Updated canvas 41748605-e3fc-4a5a-b056-8ee0b229ddaa (docs)
+2026-11-09 11:43:47 [    INFO] HTTP Request: PUT http://testserver/api/canvas/41748605-e3fc-4a5a-b056-8ee0b229ddaa?canvas_type=docs&expected_prior_audit_id=e4e14e93-ee94-45cd-9bd2-39a6842f8376 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_canvas_present_revision_contract.py::test_inactive_actor_creates_no_canvas_audit_or_frame[is_active-False-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 35%]
+tests/test_canvas_present_revision_contract.py::test_inactive_actor_creates_no_canvas_audit_or_frame[is_active-False-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 36%]
+tests/test_canvas_present_revision_contract.py::test_inactive_actor_creates_no_canvas_audit_or_frame[is_active-False-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 36%]
+tests/test_canvas_present_revision_contract.py::test_inactive_actor_creates_no_canvas_audit_or_frame[status-suspended-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 36%]
+tests/test_canvas_present_revision_contract.py::test_inactive_actor_creates_no_canvas_audit_or_frame[status-suspended-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 36%]
+tests/test_canvas_present_revision_contract.py::test_inactive_actor_creates_no_canvas_audit_or_frame[status-suspended-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:47 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 37%]
+tests/test_canvas_present_revision_contract.py::test_foreign_context_cannot_relabel_authoritative_creation[context0-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 37%]
+tests/test_canvas_present_revision_contract.py::test_foreign_context_cannot_relabel_authoritative_creation[context0-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 37%]
+tests/test_canvas_present_revision_contract.py::test_foreign_context_cannot_relabel_authoritative_creation[context0-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 37%]
+tests/test_canvas_present_revision_contract.py::test_foreign_context_cannot_relabel_authoritative_creation[context1-markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 37%]
+tests/test_canvas_present_revision_contract.py::test_foreign_context_cannot_relabel_authoritative_creation[context1-chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 38%]
+tests/test_canvas_present_revision_contract.py::test_foreign_context_cannot_relabel_authoritative_creation[context1-specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 38%]
+tests/test_canvas_present_revision_contract.py::test_business_metadata_stays_data_not_audit_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Presented docs canvas (rich_editor) to user u-ba0f52e4
+PASSED                                                                   [ 38%]
+tests/test_canvas_present_revision_contract.py::test_personal_null_principal_accepts_existing_default_context[None-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Presented markdown content to user u-d4981889
+2026-11-09 11:43:48 [    INFO] Updated canvas dc8ac0cc-496e-46f5-83a8-bd12764a17c1 (markdown)
+2026-11-09 11:43:48 [    INFO] HTTP Request: PUT http://testserver/api/canvas/dc8ac0cc-496e-46f5-83a8-bd12764a17c1?canvas_type=markdown&expected_prior_audit_id=593a2371-babf-4fdd-8006-bba9465faba1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_canvas_present_revision_contract.py::test_personal_null_principal_accepts_existing_default_context[-] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Presented markdown content to user u-6f7390d0
+2026-11-09 11:43:48 [    INFO] Updated canvas 5f7a8a76-1612-4bfc-b668-d1bb6dc900db (markdown)
+2026-11-09 11:43:48 [    INFO] HTTP Request: PUT http://testserver/api/canvas/5f7a8a76-1612-4bfc-b668-d1bb6dc900db?canvas_type=markdown&expected_prior_audit_id=8e17ede7-c8b0-4b93-8974-592e8e7bc297 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_canvas_present_revision_contract.py::test_personal_null_principal_accepts_existing_default_context[default-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Presented markdown content to user u-fee40bb3
+2026-11-09 11:43:48 [    INFO] Updated canvas 6999cdba-4867-4b7e-962f-56ddee7a8010 (markdown)
+2026-11-09 11:43:48 [    INFO] HTTP Request: PUT http://testserver/api/canvas/6999cdba-4867-4b7e-962f-56ddee7a8010?canvas_type=markdown&expected_prior_audit_id=00793747-d7bf-4d93-a203-131728a5bafd "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_canvas_present_revision_contract.py::test_actor_change_winner_survives_losing_create_claim[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 39%]
+tests/test_canvas_present_revision_contract.py::test_actor_change_winner_survives_losing_create_claim[chart] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Chart presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 39%]
+tests/test_canvas_present_revision_contract.py::test_actor_change_winner_survives_losing_create_claim[specialized] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] docs presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 39%]
+tests/test_canvas_present_revision_contract.py::test_current_workspace_must_be_active_and_match_authoritative_tenant[t1-active-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Presented markdown content to user u-c60170df
+2026-11-09 11:43:48 [    INFO] Updated canvas dfba0c5e-e641-4459-8a7b-dafd4c452b57 (markdown)
+2026-11-09 11:43:48 [    INFO] HTTP Request: PUT http://testserver/api/canvas/dfba0c5e-e641-4459-8a7b-dafd4c452b57?canvas_type=markdown&expected_prior_audit_id=8dd3211a-a915-4089-95ad-4f9520f11305 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_canvas_present_revision_contract.py::test_current_workspace_must_be_active_and_match_authoritative_tenant[foreign-active-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 40%]
+tests/test_canvas_present_revision_contract.py::test_current_workspace_must_be_active_and_match_authoritative_tenant[t1-inactive-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Markdown presentation refused: canvas audit was not persisted
+PASSED                                                                   [ 40%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_parse_exception_str_with_and_without_url PASSED [ 40%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_security_exception_str_combinations PASSED [ 40%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_deeplink_repr PASSED [ 41%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_disabled_flag_raises_security_exception PASSED [ 41%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_non_string_url_rejected PASSED [ 41%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_urlparse_failure_reported PASSED [ 41%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_invalid_scheme_rejected PASSED [ 42%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_invalid_resource_type_rejected PASSED [ 42%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_invalid_resource_id_security PASSED [ 42%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_short_path_rejected PASSED [ 42%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_empty_resource_id_rejected PASSED [ 42%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_invalid_json_params_rejected PASSED [ 43%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_parse_qs_failure_reported PASSED [ 43%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestDeepLinkParseExtras::test_multi_value_params_and_blank_values PASSED [ 43%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteAgentDeepLink::test_wrong_resource_type_raises PASSED [ 43%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteAgentDeepLink::test_agent_not_found PASSED [ 44%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteAgentDeepLink::test_agent_inactive PASSED [ 44%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteAgentDeepLink::test_governance_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] Governance blocked deep link execution for agent a1
+PASSED                                                                   [ 44%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteAgentDeepLink::test_success_with_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed agent deep link: agent=a1, user=u1, source=browser, execution=2680691e-7b87-49b3-a6d6-72bc3d7dafef
+PASSED                                                                   [ 44%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteAgentDeepLink::test_success_without_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed agent deep link: agent=a1, user=u1, source=external, execution=436149c0-069f-48b9-be48-dc7a7d046229
+PASSED                                                                   [ 44%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteAgentDeepLink::test_commit_failure_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to execute agent deep link: db down
+PASSED                                                                   [ 45%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteWorkflowDeepLink::test_wrong_resource_type_raises PASSED [ 45%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteWorkflowDeepLink::test_not_found PASSED [ 45%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteWorkflowDeepLink::test_success_with_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed workflow deep link: workflow=wf-1, action=start, user=u1, source=slack
+PASSED                                                                   [ 45%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteCanvasDeepLink::test_wrong_resource_type_raises PASSED [ 45%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteCanvasDeepLink::test_update_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed canvas deep link: canvas=c1, action=update, user=u1, source=external, success=True
+PASSED                                                                   [ 46%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteCanvasDeepLink::test_update_failure_audits_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed canvas deep link: canvas=c1, action=update, user=u1, source=external, success=False
+PASSED                                                                   [ 46%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteCanvasDeepLink::test_unsupported_action 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed canvas deep link: canvas=c1, action=present, user=u1, source=external, success=False
+PASSED                                                                   [ 46%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteToolDeepLink::test_wrong_resource_type_raises PASSED [ 46%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteToolDeepLink::test_tool_not_found PASSED [ 47%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteToolDeepLink::test_success_with_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed tool deep link: tool=present_chart, user=u1, source=browser
+PASSED                                                                   [ 47%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteDeepLinkRouter::test_routes_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed agent deep link: agent=a1, user=u1, source=external, execution=1c9e9699-ac1b-4223-a8ed-2a36b9183ca3
+PASSED                                                                   [ 47%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteDeepLinkRouter::test_routes_workflow 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed workflow deep link: workflow=wf-1, action=start, user=u1, source=external
+PASSED                                                                   [ 47%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteDeepLinkRouter::test_routes_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed canvas deep link: canvas=c1, action=update, user=u1, source=external, success=True
+PASSED                                                                   [ 47%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteDeepLinkRouter::test_routes_tool 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Executed tool deep link: tool=present_chart, user=u1, source=external
+PASSED                                                                   [ 48%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteDeepLinkRouter::test_parse_exception_returns_invalid_url_error 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Deep link execution failed: Invalid scheme: 'http'. Expected 'atom://'
+PASSED                                                                   [ 48%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteDeepLinkRouter::test_unsupported_resource_type_after_parse PASSED [ 48%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExecuteDeepLinkRouter::test_unexpected_error_returns_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Unexpected error executing deep link: kaboom
+PASSED                                                                   [ 48%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_invalid_resource_type PASSED [ 49%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_invalid_resource_id[] PASSED [ 49%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_invalid_resource_id[has space] PASSED [ 49%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_invalid_resource_id[a/b] PASSED [ 49%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_invalid_resource_id[123] PASSED [ 49%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_invalid_resource_id[None] PASSED [ 50%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_params_dict_serialized_to_json PASSED [ 50%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGenerateDeepLinkGaps::test_no_params_no_query_string PASSED [ 50%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_literals_and_arithmetic PASSED [ 50%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_json_aliases PASSED [ 50%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_unary_operators PASSED [ 51%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_binary_operators PASSED [ 51%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_comparisons PASSED [ 51%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_boolean_ops_and_ternary PASSED [ 51%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_containers PASSED [ 52%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_context_variables PASSED [ 52%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[obj.__class__-Attribute access] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Attribute access (obj.attr) is not allowed
+PASSED                                                                   [ 52%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[lambda: 1-Lambda] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Lambda expressions are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: arguments
+PASSED                                                                   [ 52%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[[x for x in [1]]-List comprehensions] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: List comprehensions are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: comprehension
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: Store
+PASSED                                                                   [ 52%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[{k: v for k, v in [('a', 1)]}-Dict comprehensions] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Dict comprehensions are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: comprehension
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: Store
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: Store
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: Store
+PASSED                                                                   [ 53%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[{x for x in [1]}-Set comprehensions] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Set comprehensions are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: comprehension
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: Store
+PASSED                                                                   [ 53%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[(x for x in [1])-Generator expressions] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Generator expressions are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: comprehension
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: Store
+PASSED                                                                   [ 53%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[[*[1]]-Unpacking] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Unpacking operations are not allowed
+PASSED                                                                   [ 53%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_dangerous_nodes_rejected[(x := 1)-NamedExpr] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: NamedExpr
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: Store
+PASSED                                                                   [ 54%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_function_calls_blocked_without_math 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Function calls are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Function calls are not allowed
+PASSED                                                                   [ 54%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_visit_rejects_import_node_directly 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Import statements are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: alias
+PASSED                                                                   [ 54%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_visit_rejects_import_from_node_directly 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Import statements are not allowed
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Disallowed operation: alias
+PASSED                                                                   [ 54%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_syntax_error_and_empty_expression PASSED [ 54%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_validation_error_when_ast_parse_raises PASSED [ 55%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_validate_returns_true_for_safe PASSED [ 55%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorBlocked::test_validate_resets_state_between_calls 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Attribute access (obj.attr) is not allowed
+PASSED                                                                   [ 55%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_whitelisted_functions PASSED [ 55%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_conversions_and_aliases PASSED [ 55%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_inputs_context PASSED [ 56%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_call_with_keyword_arg PASSED [ 56%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_call_with_subscript_arg PASSED [ 56%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_dangerous_calls_rejected[obj.method()] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Method calls are not allowed
+PASSED                                                                   [ 56%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_dangerous_calls_rejected[s.upper()] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Method calls are not allowed
+PASSED                                                                   [ 57%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_dangerous_calls_rejected[f[0]()] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Function call through subscript/expression is not allowed
+PASSED                                                                   [ 57%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_dangerous_calls_rejected[d['k']()] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Function call through subscript/expression is not allowed
+PASSED                                                                   [ 57%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorWithMath::test_dangerous_calls_rejected[open('/etc/passwd')] 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Function 'open' is not whitelisted
+PASSED                                                                   [ 57%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_constant_huge_pow_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Exponent too large
+PASSED                                                                   [ 57%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_folded_mult_huge_pow_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Exponent too large
+PASSED                                                                   [ 58%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_negative_huge_pow_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Exponent too large
+PASSED                                                                   [ 58%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_math_pow_huge_exponent_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: pow() exponent too large
+PASSED                                                                   [ 58%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_math_pow_three_arg_modular_allowed PASSED [ 58%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_just_under_cap_allowed PASSED [ 59%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_fold_failure_on_nested_non_constant_exponent PASSED [ 59%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_fold_division_operator_returns_unknown PASSED [ 59%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_nested_fold_guard_prevents_unbounded_computation 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [ WARNING] SafeEval blocked: Exponent too large
+PASSED                                                                   [ 59%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_non_constant_huge_exponent_rejected_at_runtime PASSED [ 59%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_negative_int_exponent_returns_float PASSED [ 60%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_float_base_pow_overflow_rejected PASSED [ 60%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_float_base_small_pow PASSED [ 60%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_reasonable_non_constant_exponent_works PASSED [ 60%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorDoS::test_pow_call_small PASSED [ 61%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorFoldBranches::test_fold_add_sub_and_negate PASSED [ 61%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorErrors::test_eval_value_error_surfaces PASSED [ 61%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorErrors::test_eval_generic_exception_surfaces PASSED [ 61%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorErrors::test_math_eval_value_error_surfaces PASSED [ 61%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorErrors::test_math_eval_generic_exception_surfaces PASSED [ 62%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[401-token has expired-auth_expired] PASSED [ 62%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[401-unauthorized-permission_denied] PASSED [ 62%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[403-forbidden-permission_denied] PASSED [ 62%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[429-rate limit hit-rate_limit] PASSED [ 62%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[404-missing-resource_not_found] PASSED [ 63%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[400-bad input-invalid_input] PASSED [ 63%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[500-server error-unknown] PASSED [ 63%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_code_first[None-no code-unknown] PASSED [ 63%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[permission denied-permission_denied] PASSED [ 64%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[unauthorized access-permission_denied] PASSED [ 64%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[token expired-auth_expired] PASSED [ 64%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[rate limit exceeded-rate_limit] PASSED [ 64%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[too many requests-rate_limit] PASSED [ 64%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[network unreachable-network_error] PASSED [ 65%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[connection refused-network_error] PASSED [ 65%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[request timeout-network_error] PASSED [ 65%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[resource not found-resource_not_found] PASSED [ 65%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[invalid payload-invalid_input] PASSED [ 66%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[malformed request-invalid_input] PASSED [ 66%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestCategorizeError::test_message_based[something else-unknown] PASSED [ 66%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGetSuggestedResolution::test_unknown_type_defaults_zero PASSED [ 66%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGetSuggestedResolution::test_no_history_defaults_zero PASSED [ 66%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGetSuggestedResolution::test_most_successful_maps_to_template_index PASSED [ 67%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGetSuggestedResolution::test_historical_title_missing_from_template_falls_back PASSED [ 67%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestTrackResolution::test_disabled_flag_does_nothing PASSED [ 67%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestTrackResolution::test_success_records_row 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Tracked resolution 'Reconnect' for error auth_expired: SUCCESS
+PASSED                                                                   [ 67%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestTrackResolution::test_failure_rolls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to track resolution: boom
+PASSED                                                                   [ 67%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_get_historical PASSED [ 68%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_get_historical_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to get historical resolutions: boom
+PASSED                                                                   [ 68%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_success_rate_none PASSED [ 68%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_success_rate_mixed PASSED [ 68%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_success_rate_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to get resolution success rate: boom
+PASSED                                                                   [ 69%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_statistics_empty PASSED [ 69%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_statistics_grouped PASSED [ 69%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_statistics_filtered_by_type PASSED [ 69%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestHistorical::test_statistics_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to get resolution statistics: boom
+PASSED                                                                   [ 69%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSuggestFixesFromHistory::test_template_fallback_for_known_type PASSED [ 70%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSuggestFixesFromHistory::test_unknown_type_without_history_returns_empty PASSED [ 70%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSuggestFixesFromHistory::test_historical_suggestions PASSED [ 70%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSuggestFixesFromHistory::test_exception_returns_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to suggest fixes from history: boom
+PASSED                                                                   [ 70%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGetErrorFixSuggestions::test_full PASSED [ 71%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGetErrorFixSuggestions::test_include_historical_false PASSED [ 71%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestGetErrorFixSuggestions::test_exception_returns_error_dict 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to get error fix suggestions: boom
+PASSED                                                                   [ 71%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExplainHelpers::test_what_happened_known_and_unknown PASSED [ 71%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExplainHelpers::test_why_known_and_unknown PASSED [ 71%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestExplainHelpers::test_impact_known_and_unknown PASSED [ 72%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestPresentError::test_broadcasts_with_guidance 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [    INFO] Presented error permission_denied for operation op-1
+PASSED                                                                   [ 72%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestPresentError::test_disabled_flag_returns_early PASSED [ 72%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestPresentError::test_broadcast_failure_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to present error: ws down
+PASSED                                                                   [ 72%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestPresentError::test_create_audit_failure_rolls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:48 [   ERROR] Failed to create audit: boom
+PASSED                                                                   [ 72%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestModuleHelper::test_get_error_guidance_engine PASSED [ 73%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringStructlog::test_add_log_level PASSED [ 73%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringStructlog::test_add_logger_name PASSED [ 73%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringStructlog::test_configure_structlog PASSED [ 73%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringStructlog::test_get_logger PASSED [ 74%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringStructlog::test_request_context_binds_and_restores PASSED [ 74%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringTrackers::test_track_http_request PASSED [ 74%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringTrackers::test_track_agent_execution PASSED [ 74%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringTrackers::test_track_skill_execution PASSED [ 74%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringTrackers::test_track_db_query PASSED [ 75%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringTrackers::test_set_active_agents PASSED [ 75%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringTrackers::test_set_db_connections PASSED [ 75%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_track_deployment_success PASSED [ 75%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_track_deployment_failure PASSED [ 76%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_track_smoke_test_success_and_failure PASSED [ 76%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_record_rollback PASSED [ 76%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_update_canary_traffic PASSED [ 76%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_record_prometheus_query PASSED [ 76%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_initialize_metrics_success PASSED [ 77%]
+tests/test_covpush_w67c_deeplinks_guidance.py::TestMonitoringDeployment::test_initialize_metrics_oserror PASSED [ 77%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_agent_deep_link PASSED [ 77%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_workflow_deep_link PASSED [ 77%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_canvas_deep_link PASSED [ 77%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_tool_deep_link PASSED [ 78%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_with_json_params PASSED [ 78%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_with_url_encoding PASSED [ 78%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_invalid_scheme PASSED [ 78%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_invalid_path_format FAILED [ 79%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_invalid_resource_type PASSED [ 79%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_invalid_resource_id PASSED [ 79%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_empty_url PASSED  [ 79%]
+tests/test_deeplinks.py::TestParseDeepLink::test_parse_none_url PASSED   [ 79%]
+tests/test_deeplinks.py::TestExecuteAgentDeepLink::test_execute_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:49 [    INFO] Executed agent deep link: agent=test-agent-5c9e39e4-aa37-41be-b82f-60f184595957, user=user-1, source=external, execution=26346bcd-aa32-405b-9997-475aa3d935f2
+PASSED                                                                   [ 80%]
+tests/test_deeplinks.py::TestExecuteAgentDeepLink::test_execute_agent_not_found PASSED [ 80%]
+tests/test_deeplinks.py::TestExecuteAgentDeepLink::test_execute_agent_inactive PASSED [ 80%]
+tests/test_deeplinks.py::TestExecuteAgentDeepLink::test_execute_agent_governance_check 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] Governance blocked deep link execution for agent student-agent-bb7a2538-154e-4592-bce5-1302fec7ef4d
+PASSED                                                                   [ 80%]
+tests/test_deeplinks.py::TestExecuteAgentDeepLink::test_execute_agent_with_session_id 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:49 [    INFO] Executed agent deep link: agent=test-agent-383d7418-7bdc-4f3d-890d-b464411ca8c7, user=user-1, source=external, execution=42b6eca5-9483-4a70-a219-9e5c4cf9e7f6
+PASSED                                                                   [ 81%]
+tests/test_deeplinks.py::TestExecuteWorkflowDeepLink::test_execute_workflow_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Executed workflow deep link: workflow=workflow-82ef0d33, action=start, user=user-1, source=external
+PASSED                                                                   [ 81%]
+tests/test_deeplinks.py::TestExecuteWorkflowDeepLink::test_execute_workflow_with_params 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Executed workflow deep link: workflow=workflow-98559764, action=run, user=user-1, source=external
+PASSED                                                                   [ 81%]
+tests/test_deeplinks.py::TestExecuteCanvasDeepLink::test_execute_canvas_update_success FAILED [ 81%]
+tests/test_deeplinks.py::TestExecuteCanvasDeepLink::test_execute_canvas_unsupported_action 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Executed canvas deep link: canvas=canvas-123, action=delete, user=user-1, source=external, success=False
+PASSED                                                                   [ 81%]
+tests/test_deeplinks.py::TestExecuteCanvasDeepLink::test_execute_canvas_update_failed FAILED [ 82%]
+tests/test_deeplinks.py::TestExecuteToolDeepLink::test_execute_tool_success FAILED [ 82%]
+tests/test_deeplinks.py::TestExecuteToolDeepLink::test_execute_tool_not_found FAILED [ 82%]
+tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_agent_link 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:49 [    INFO] Executed agent deep link: agent=test-agent-cd13f5e7-4317-478c-bf84-8af234e3f9d5, user=user-1, source=external, execution=eaf80870-4d8c-44fc-9257-de1e6fd9d2d5
+PASSED                                                                   [ 82%]
+tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_workflow_link FAILED [ 83%]
+tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_canvas_link FAILED [ 83%]
+tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_tool_link FAILED [ 83%]
+tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_invalid_url 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [   ERROR] Deep link execution failed: Invalid resource type: 'invalid'. Must be one of ['agent', 'workflow', 'canvas', 'tool']
+PASSED                                                                   [ 83%]
+tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_with_source_parameter 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:49 [    INFO] Executed agent deep link: agent=test-agent-d9b8dbb0-3b73-4c27-8802-d37ab9fe3024, user=user-1, source=mobile_app, execution=b56dcf1d-cd01-4a2a-985c-325142a24a30
+PASSED                                                                   [ 83%]
+tests/test_deeplinks.py::TestGenerateDeepLink::test_generate_agent_link PASSED [ 84%]
+tests/test_deeplinks.py::TestGenerateDeepLink::test_generate_workflow_link PASSED [ 84%]
+tests/test_deeplinks.py::TestGenerateDeepLink::test_generate_canvas_link_with_json_params PASSED [ 84%]
+tests/test_deeplinks.py::TestGenerateDeepLink::test_generate_tool_link PASSED [ 84%]
+tests/test_deeplinks.py::TestGenerateDeepLink::test_generate_invalid_resource_type PASSED [ 84%]
+tests/test_deeplinks.py::TestDeepLinkAudit::test_audit_entry_created 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:49 [    INFO] Executed agent deep link: agent=test-agent-7350483b-038a-4711-93ff-b9964b3eb6e1, user=user-1, source=external, execution=02ca5326-ccad-4c49-994c-d41f1f37043b
+PASSED                                                                   [ 85%]
+tests/test_deeplinks.py::TestDeepLinkAudit::test_audit_with_custom_source 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:49 [    INFO] Executed agent deep link: agent=test-agent-3dcc3f00-0573-4ec2-80c2-cc574a810ad5, user=user-1, source=mobile_app, execution=4cbff973-fe2d-46d3-9f86-be835399eb1d
+PASSED                                                                   [ 85%]
+tests/test_deeplinks.py::TestDeepLinkIntegration::test_full_lifecycle_agent_deep_link 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-09 11:43:49 [    INFO] Executed agent deep link: agent=test-agent-fbc64db8-35a2-4345-9be5-91cb379d4bb4, user=user-1, source=external, execution=4c25718f-c31b-4863-a504-28ae803228a6
+PASSED                                                                   [ 85%]
+tests/test_canvas_updates.py::TestCanvasUpdateGovernance::test_update_canvas_with_intern_agent PASSED [ 85%]
+tests/test_canvas_updates.py::TestCanvasUpdateGovernance::test_update_canvas_blocked_for_student_agent PASSED [ 86%]
+tests/test_canvas_updates.py::TestCanvasUpdateGovernance::test_update_canvas_without_agent PASSED [ 86%]
+tests/test_canvas_updates.py::TestCanvasUpdateFunctionality::test_update_canvas_chart_data PASSED [ 86%]
+tests/test_canvas_updates.py::TestCanvasUpdateFunctionality::test_update_canvas_title PASSED [ 86%]
+tests/test_canvas_updates.py::TestCanvasUpdateFunctionality::test_update_canvas_multiple_fields PASSED [ 86%]
+tests/test_canvas_updates.py::TestCanvasUpdateFunctionality::test_update_canvas_with_session_isolation PASSED [ 87%]
+tests/test_canvas_updates.py::TestCanvasUpdateErrorHandling::test_update_canvas_error_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [   ERROR] Canvas adapter failed
+PASSED                                                                   [ 87%]
+tests/test_canvas_updates.py::TestCanvasUpdateErrorHandling::test_update_canvas_empty_updates PASSED [ 87%]
+tests/test_canvas_updates.py::TestCanvasUpdateAuditTrail::test_update_canvas_creates_audit_entry PASSED [ 87%]
+tests/test_canvas_updates.py::TestCanvasUpdateAuditTrail::test_update_canvas_includes_metadata PASSED [ 88%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_student_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] Governance blocked chart presentation: Agent maturity level insufficient
+PASSED                                                                   [ 88%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_intern_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Agent execution None for chart presentation
+2026-11-09 11:43:49 [    INFO] Presented line_chart to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 88%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_supervised_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Agent execution None for chart presentation
+2026-11-09 11:43:49 [    INFO] Presented bar_chart to user user-1 (agent: SupervisedAgent)
+PASSED                                                                   [ 88%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Agent execution None for chart presentation
+2026-11-09 11:43:49 [    INFO] Presented pie_chart to user user-1 (agent: AutonomousAgent)
+PASSED                                                                   [ 88%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_creates_agent_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Agent execution None for chart presentation
+2026-11-09 11:43:49 [    INFO] Presented line_chart to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 89%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_execution_failed_on_block 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [ WARNING] Governance blocked chart presentation: Insufficient maturity
+PASSED                                                                   [ 89%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_outcome_recorded_success 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Agent execution None for chart presentation
+2026-11-09 11:43:49 [    INFO] Presented line_chart to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 89%]
+tests/unit/test_canvas_tool_governance.py::TestPresentChartGovernance::test_present_chart_outcome_recorded_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:49 [    INFO] Agent execution None for chart presentation
+2026-11-09 11:43:49 [ WARNING] Committed presentation follow-through unavailable
+PASSED                                                                   [ 89%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_student_blocked FAILED [ 89%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_intern_allowed FAILED [ 90%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_supervised_allowed FAILED [ 90%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_autonomous_allowed FAILED [ 90%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_creates_agent_execution FAILED [ 90%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_execution_failed_on_block PASSED [ 91%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_outcome_recorded_success FAILED [ 91%]
+tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_canvas_audit_created FAILED [ 91%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_student_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:50 [ WARNING] Governance blocked markdown: Agent maturity level insufficient
+PASSED                                                                   [ 91%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_intern_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:50 [    INFO] Presented markdown content to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 91%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_supervised_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:50 [    INFO] Presented markdown content to user user-1 (agent: SupervisedAgent)
+PASSED                                                                   [ 92%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:50 [    INFO] Presented markdown content to user user-1 (agent: AutonomousAgent)
+PASSED                                                                   [ 92%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_creates_agent_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:50 [    INFO] Presented markdown content to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 92%]
+tests/unit/test_canvas_tool_governance.py::TestPresentMarkdownGovernance::test_present_markdown_canvas_audit_created 
+-------------------------------- live log call ---------------------------------
+2026-11-09 11:43:50 [    INFO] Presented markdown content to user user-1 (agent: InternAgent)
+PASSED                                                                   [ 92%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_student_blocked PASSED [ 93%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_intern_allowed PASSED [ 93%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_supervised_allowed PASSED [ 93%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_autonomous_allowed PASSED [ 93%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_creates_agent_execution PASSED [ 93%]
+tests/unit/test_canvas_tool_governance.py::TestUpdateCanvasGovernance::test_update_canvas_audit_entry_created PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=================================== FAILURES ===================================
+_______________ TestParseDeepLink.test_parse_invalid_path_format _______________
+
+self = <backend.tests.test_deeplinks.TestParseDeepLink object at 0x156e67190>
+
+    def test_parse_invalid_path_format(self):
+        """Test parsing invalid path format raises exception."""
+        url = "atom://agent"
+    
+        with pytest.raises(DeepLinkParseException) as exc:
+            parse_deep_link(url)
+    
+>       assert "Invalid path format" in str(exc.value)
+E       AssertionError: assert 'Invalid path format' in 'Resource ID cannot be empty'
+E        +  where 'Resource ID cannot be empty' = str(DeepLinkParseException('Resource ID cannot be empty'))
+E        +    where DeepLinkParseException('Resource ID cannot be empty') = <ExceptionInfo DeepLinkParseException('Resource ID cannot be empty') tblen=2>.value
+
+tests/test_deeplinks.py:172: AssertionError
+_________ TestExecuteCanvasDeepLink.test_execute_canvas_update_success _________
+
+self = <backend.tests.test_deeplinks.TestExecuteCanvasDeepLink object at 0x156d9b590>
+db = <sqlalchemy.orm.session.Session object at 0x16453ff50>
+
+    @pytest.mark.asyncio
+    async def test_execute_canvas_update_success(self, db):
+        """Test successful canvas update deep link execution."""
+        # Mock the update_canvas function
+>       with patch('core.deeplinks.update_canvas') as mock_update:
+
+tests/test_deeplinks.py:402: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1446: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x164535090>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core.deeplinks' from '/private/tmp/atom-web-canvas-document-20261109/backend/core/deeplinks.py'> does not have the attribute 'update_canvas'
+
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1419: AttributeError
+_________ TestExecuteCanvasDeepLink.test_execute_canvas_update_failed __________
+
+self = <backend.tests.test_deeplinks.TestExecuteCanvasDeepLink object at 0x156d9a990>
+db = <sqlalchemy.orm.session.Session object at 0x1641bc910>
+
+    @pytest.mark.asyncio
+    async def test_execute_canvas_update_failed(self, db):
+        """Test canvas update failure."""
+        # Mock the update_canvas function to return failure
+>       with patch('core.deeplinks.update_canvas') as mock_update:
+
+tests/test_deeplinks.py:432: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1446: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x1641bd550>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core.deeplinks' from '/private/tmp/atom-web-canvas-document-20261109/backend/core/deeplinks.py'> does not have the attribute 'update_canvas'
+
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1419: AttributeError
+______________ TestExecuteToolDeepLink.test_execute_tool_success _______________
+
+self = <backend.tests.test_deeplinks.TestExecuteToolDeepLink object at 0x156d9a150>
+db = <sqlalchemy.orm.session.Session object at 0x16408bb90>
+
+    @pytest.mark.asyncio
+    async def test_execute_tool_success(self, db):
+        """Test successful tool deep link execution."""
+        # Mock tool registry
+        mock_tool = Mock()
+        mock_tool.to_dict.return_value = {"name": "present_chart", "description": "Chart"}
+    
+>       with patch('core.deeplinks.get_tool_registry') as mock_registry:
+
+tests/test_deeplinks.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1446: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x164089610>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core.deeplinks' from '/private/tmp/atom-web-canvas-document-20261109/backend/core/deeplinks.py'> does not have the attribute 'get_tool_registry'
+
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1419: AttributeError
+_____________ TestExecuteToolDeepLink.test_execute_tool_not_found ______________
+
+self = <backend.tests.test_deeplinks.TestExecuteToolDeepLink object at 0x156d99d10>
+db = <sqlalchemy.orm.session.Session object at 0x163c8dd50>
+
+    @pytest.mark.asyncio
+    async def test_execute_tool_not_found(self, db):
+        """Test tool not found error."""
+>       with patch('core.deeplinks.get_tool_registry') as mock_registry:
+
+tests/test_deeplinks.py:486: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1446: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x163c8d190>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core.deeplinks' from '/private/tmp/atom-web-canvas-document-20261109/backend/core/deeplinks.py'> does not have the attribute 'get_tool_registry'
+
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1419: AttributeError
+________________ TestExecuteDeepLink.test_execute_workflow_link ________________
+
+self = <backend.tests.test_deeplinks.TestExecuteDeepLink object at 0x156e65990>
+db = <sqlalchemy.orm.session.Session object at 0x1645e3c10>
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_link(self, db):
+        """Test executing workflow deep link."""
+        url = "atom://workflow/workflow-1?action=start"
+        result = await execute_deep_link(url, "user-1", db)
+    
+>       assert result["success"] is True
+E       assert False is True
+
+tests/test_deeplinks.py:520: AssertionError
+_________________ TestExecuteDeepLink.test_execute_canvas_link _________________
+
+self = <backend.tests.test_deeplinks.TestExecuteDeepLink object at 0x156d9ae10>
+db = <sqlalchemy.orm.session.Session object at 0x16433d6d0>
+
+    @pytest.mark.asyncio
+    async def test_execute_canvas_link(self, db):
+        """Test executing canvas deep link."""
+>       with patch('core.deeplinks.update_canvas') as mock_update:
+
+tests/test_deeplinks.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1446: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x16433f050>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core.deeplinks' from '/private/tmp/atom-web-canvas-document-20261109/backend/core/deeplinks.py'> does not have the attribute 'update_canvas'
+
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1419: AttributeError
+__________________ TestExecuteDeepLink.test_execute_tool_link __________________
+
+self = <backend.tests.test_deeplinks.TestExecuteDeepLink object at 0x156d98d10>
+db = <sqlalchemy.orm.session.Session object at 0x164473810>
+
+    @pytest.mark.asyncio
+    async def test_execute_tool_link(self, db):
+        """Test executing tool deep link."""
+        mock_tool = Mock()
+        mock_tool.to_dict.return_value = {"name": "test_tool"}
+    
+>       with patch('core.deeplinks.get_tool_registry') as mock_registry:
+
+tests/test_deeplinks.py:540: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1446: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x164470290>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'core.deeplinks' from '/private/tmp/atom-web-canvas-document-20261109/backend/core/deeplinks.py'> does not have the attribute 'get_tool_registry'
+
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:1419: AttributeError
+_________ TestPresentFormGovernance.test_present_form_student_blocked __________
+
+self = <backend.tests.unit.test_canvas_tool_governance.TestPresentFormGovernance object at 0x156b5cb10>
+mock_ws = <MagicMock name='ws_manager' id='5975090000'>
+mock_agent_student = <Mock id='5971670096'>
+mock_db = <MagicMock id='5971670416'>
+
+    @pytest.mark.asyncio
+    async def test_present_form_student_blocked(self, mock_ws, mock_agent_student, mock_db):
+        """Test STUDENT agent blocked from present_form (INTERN+ required)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+    
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent_student, {})
+                )
+                mock_resolver_class.return_value = mock_resolver
+    
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action = Mock(
+                        return_value=create_governance_check_response(
+                            allowed=False,
+                            reason="Agent maturity level insufficient"
+                        )
+                    )
+                    mock_governance.record_outcome = AsyncMock()
+                    mock_factory.get_governance_service.return_value = mock_governance
+    
+                    mock_db_session_ctx = setup_db_mocks(mock_db)
+    
+                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                        form_schema = {"fields": [{"name": "email", "type": "email"}]}
+    
+                        result = await present_form(
+                            user_id="user-1",
+                            form_schema=form_schema,
+                            title="Blocked Form",
+                            agent_id="agent-student-123"
+                        )
+    
+                        assert result["success"] is False
+>                       assert "not permitted" in result["error"]
+E                       AssertionError: assert 'not permitted' in 'Acting user has no tenant scope'
+
+tests/unit/test_canvas_tool_governance.py:480: AssertionError
+__________ TestPresentFormGovernance.test_present_form_intern_allowed __________
+
+self = <backend.tests.unit.test_canvas_tool_governance.TestPresentFormGovernance object at 0x156b5c690>
+mock_ws = <MagicMock name='ws_manager' id='5973109328'>
+mock_agent_intern = <Mock id='5970912144'>
+mock_db = <MagicMock id='5970915408'>
+
+    @pytest.mark.asyncio
+    async def test_present_form_intern_allowed(self, mock_ws, mock_agent_intern, mock_db):
+        """Test INTERN agent allowed for present_form."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+    
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent_intern, {})
+                )
+                mock_resolver_class.return_value = mock_resolver
+    
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action = Mock(
+                        return_value=create_governance_check_response(allowed=True)
+                    )
+                    mock_governance.record_outcome = AsyncMock()
+                    mock_factory.get_governance_service.return_value = mock_governance
+    
+                    mock_db_session_ctx = setup_db_mocks(mock_db)
+    
+                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                        form_schema = {"fields": [{"name": "email", "type": "email"}]}
+    
+                        result = await present_form(
+                            user_id="user-1",
+                            form_schema=form_schema,
+                            title="Contact Form",
+                            agent_id="agent-intern-123"
+                        )
+    
+>                       assert result["success"] is True
+E                       assert False is True
+
+tests/unit/test_canvas_tool_governance.py:515: AssertionError
+________ TestPresentFormGovernance.test_present_form_supervised_allowed ________
+
+self = <backend.tests.unit.test_canvas_tool_governance.TestPresentFormGovernance object at 0x156b59350>
+mock_ws = <MagicMock name='ws_manager' id='5973110800'>
+mock_agent_supervised = <Mock id='5972204304'>
+mock_db = <MagicMock id='5972203472'>
+
+    @pytest.mark.asyncio
+    async def test_present_form_supervised_allowed(self, mock_ws, mock_agent_supervised, mock_db):
+        """Test SUPERVISED agent allowed for present_form."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+    
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent_supervised, {})
+                )
+                mock_resolver_class.return_value = mock_resolver
+    
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action = Mock(
+                        return_value=create_governance_check_response(allowed=True)
+                    )
+                    mock_governance.record_outcome = AsyncMock()
+                    mock_factory.get_governance_service.return_value = mock_governance
+    
+                    mock_db_session_ctx = setup_db_mocks(mock_db)
+    
+                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                        form_schema = {"fields": [{"name": "message", "type": "text"}]}
+    
+                        result = await present_form(
+                            user_id="user-1",
+                            form_schema=form_schema,
+                            agent_id="agent-supervised-123"
+                        )
+    
+>                       assert result["success"] is True
+E                       assert False is True
+
+tests/unit/test_canvas_tool_governance.py:550: AssertionError
+________ TestPresentFormGovernance.test_present_form_autonomous_allowed ________
+
+self = <backend.tests.unit.test_canvas_tool_governance.TestPresentFormGovernance object at 0x156b5b2d0>
+mock_ws = <MagicMock name='ws_manager' id='5975904976'>
+mock_agent_autonomous = <Mock id='5975915536'>
+mock_db = <MagicMock id='5975907280'>
+
+    @pytest.mark.asyncio
+    async def test_present_form_autonomous_allowed(self, mock_ws, mock_agent_autonomous, mock_db):
+        """Test AUTONOMOUS agent allowed for present_form."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+    
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent_autonomous, {})
+                )
+                mock_resolver_class.return_value = mock_resolver
+    
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action = Mock(
+                        return_value=create_governance_check_response(allowed=True)
+                    )
+                    mock_governance.record_outcome = AsyncMock()
+                    mock_factory.get_governance_service.return_value = mock_governance
+    
+                    mock_db_session_ctx = setup_db_mocks(mock_db)
+    
+                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                        form_schema = {"fields": []}
+    
+                        result = await present_form(
+                            user_id="user-1",
+                            form_schema=form_schema,
+                            agent_id="agent-autonomous-123"
+                        )
+    
+>                       assert result["success"] is True
+E                       assert False is True
+
+tests/unit/test_canvas_tool_governance.py:584: AssertionError
+_____ TestPresentFormGovernance.test_present_form_creates_agent_execution ______
+
+self = <backend.tests.unit.test_canvas_tool_governance.TestPresentFormGovernance object at 0x156b58490>
+mock_ws = <MagicMock name='ws_manager' id='5966704464'>
+mock_agent_intern = <Mock id='5968126544'>
+mock_db = <MagicMock id='5968132112'>
+
+    @pytest.mark.asyncio
+    async def test_present_form_creates_agent_execution(self, mock_ws, mock_agent_intern, mock_db):
+        """Test agent execution record created for form presentation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+    
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent_intern, {})
+                )
+                mock_resolver_class.return_value = mock_resolver
+    
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action = Mock(
+                        return_value=create_governance_check_response(allowed=True)
+                    )
+                    mock_governance.record_outcome = AsyncMock()
+                    mock_factory.get_governance_service.return_value = mock_governance
+    
+                    mock_db_session_ctx = setup_db_mocks(mock_db)
+    
+                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                        form_schema = {"fields": [{"name": "test", "type": "text"}]}
+    
+                        result = await present_form(
+                            user_id="user-1",
+                            form_schema=form_schema,
+                            agent_id="agent-intern-123"
+                        )
+    
+>                       assert result["success"] is True
+E                       assert False is True
+
+tests/unit/test_canvas_tool_governance.py:618: AssertionError
+_____ TestPresentFormGovernance.test_present_form_outcome_recorded_success _____
+
+self = <backend.tests.unit.test_canvas_tool_governance.TestPresentFormGovernance object at 0x156b58b90>
+mock_ws = <MagicMock name='ws_manager' id='5971898512'>
+mock_agent_intern = <Mock id='5971182224'>
+mock_db = <MagicMock id='5971188112'>
+
+    @pytest.mark.asyncio
+    async def test_present_form_outcome_recorded_success(self, mock_ws, mock_agent_intern, mock_db):
+        """Test outcome recording for successful form presentation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+    
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent_intern, {})
+                )
+                mock_resolver_class.return_value = mock_resolver
+    
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action = Mock(
+                        return_value=create_governance_check_response(allowed=True)
+                    )
+                    mock_governance.record_outcome = AsyncMock()
+                    mock_factory.get_governance_service.return_value = mock_governance
+    
+                    mock_db_session_ctx = setup_db_mocks(mock_db)
+    
+                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                        form_schema = {"fields": []}
+    
+                        result = await present_form(
+                            user_id="user-1",
+                            form_schema=form_schema,
+                            agent_id="agent-intern-123"
+                        )
+    
+>                       assert result["success"] is True
+E                       assert False is True
+
+tests/unit/test_canvas_tool_governance.py:690: AssertionError
+_______ TestPresentFormGovernance.test_present_form_canvas_audit_created _______
+
+self = <backend.tests.unit.test_canvas_tool_governance.TestPresentFormGovernance object at 0x156b5a890>
+mock_ws = <MagicMock name='ws_manager' id='5973493520'>
+mock_agent_intern = <Mock id='5968546896'>
+mock_db = <MagicMock id='5968544720'>
+
+    @pytest.mark.asyncio
+    async def test_present_form_canvas_audit_created(self, mock_ws, mock_agent_intern, mock_db):
+        """Test canvas audit entry created with form metadata."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+    
+            with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent_intern, {})
+                )
+                mock_resolver_class.return_value = mock_resolver
+    
+                with patch('core.service_factory.ServiceFactory') as mock_factory:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action = Mock(
+                        return_value=create_governance_check_response(allowed=True)
+                    )
+                    mock_governance.record_outcome = AsyncMock()
+                    mock_factory.get_governance_service.return_value = mock_governance
+    
+                    mock_db_session_ctx = setup_db_mocks(mock_db)
+    
+                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                        form_schema = {
+                            "fields": [
+                                {"name": "email", "type": "email"},
+                                {"name": "message", "type": "text"}
+                            ]
+                        }
+    
+                        result = await present_form(
+                            user_id="user-1",
+                            form_schema=form_schema,
+                            title="Contact Form",
+                            agent_id="agent-intern-123"
+                        )
+    
+>                       assert result["success"] is True
+E                       assert False is True
+
+tests/unit/test_canvas_tool_governance.py:735: AssertionError
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_canvas_legacy_update_contract.py: 17 warnings
+tests/test_canvas_crud.py: 8 warnings
+tests/test_oracle_direct_canvas_writes.py: 47 warnings
+tests/test_canvas_present_revision_contract.py: 43 warnings
+  /private/tmp/atom-web-canvas-document-20261109/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_comparisons
+  <safe_eval>:1: SyntaxWarning: "is" with a literal. Did you mean "=="?
+
+tests/test_covpush_w67c_deeplinks_guidance.py::TestSafeEvaluatorExpressions::test_comparisons
+  <safe_eval>:1: SyntaxWarning: "is not" with a literal. Did you mean "!="?
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/root-legacy-update-e7e8-final-20261109.xml --
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_deeplinks.py::TestParseDeepLink::test_parse_invalid_path_format
+FAILED tests/test_deeplinks.py::TestExecuteCanvasDeepLink::test_execute_canvas_update_success
+FAILED tests/test_deeplinks.py::TestExecuteCanvasDeepLink::test_execute_canvas_update_failed
+FAILED tests/test_deeplinks.py::TestExecuteToolDeepLink::test_execute_tool_success
+FAILED tests/test_deeplinks.py::TestExecuteToolDeepLink::test_execute_tool_not_found
+FAILED tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_workflow_link
+FAILED tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_canvas_link
+FAILED tests/test_deeplinks.py::TestExecuteDeepLink::test_execute_tool_link
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_student_blocked
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_intern_allowed
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_supervised_allowed
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_autonomous_allowed
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_creates_agent_execution
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_outcome_recorded_success
+FAILED tests/unit/test_canvas_tool_governance.py::TestPresentFormGovernance::test_present_form_canvas_audit_created
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 15 failed, 444 passed, 122 warnings in 69.07s (0:01:09) ============

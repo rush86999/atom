@@ -1892,6 +1892,12 @@ def _canvas_write_postcondition(restore: bool):
                             action, False,
                             "audit review_status does not match the authorized "
                             "request")
+            if "_oracle_expected_canvas_title" in ctx:
+                expected_title = ctx["_oracle_expected_canvas_title"]
+                if details.get("title") != expected_title:
+                    return OracleResult(action, False, "persisted canvas title does not match the authorized title")
+                if canvas is None or canvas.name != expected_title:
+                    return OracleResult(action, False, "canvas mirror title does not match the authorized title")
             observed_digest = _content_digest(observed_content)
             if observed_digest != expected_digest:
                 return OracleResult(

@@ -1352,7 +1352,7 @@ def _mirror_accepted_canvas_cas(
     }
     if canvas_type:
         values["canvas_type"] = canvas_type
-    if title:
+    if title is not None:
         values["name"] = title
     statement = (
         update(Canvas)
@@ -1410,7 +1410,7 @@ def _mirror_accepted_canvas(
     row.content = content
     if canvas_type:
         row.canvas_type = canvas_type
-    if title:
+    if title is not None:
         row.name = title
     row.last_edited_by = user_id
     row.last_edited_at = datetime.now(timezone.utc)
@@ -1510,6 +1510,11 @@ async def update_canvas_content(
                 str(canvas_row.workspace_id or "")
                 if canvas_row is not None else "")
             if scope_required:
+                actor = active_canvas_actor(db, user_id)
+                if not actor.get("ok"):
+                    return {"success": False, "write_outcome": write_outcome, "http_status": actor["http_status"], "error": actor["error"]}
+                if not all(_scope_allows(actual, supplied) and _scope_allows(supplied, actual) for actual, supplied in ((actor["tenant_id"], tenant_id), (actor["workspace_id"], workspace_id))):
+                    return {"success": False, "write_outcome": write_outcome, "http_status": 403, "error": "Caller scope does not match current actor"}
                 # Authoritative scope gate in the SAME transaction as the
                 # append. The conditional write below is the linearization
                 # point; this check rejects a move already visible here.
@@ -1526,6 +1531,10 @@ async def update_canvas_content(
                 # IDOR guard: only the owner may update this canvas.
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
+
+            if scope_required and not _claim_canvas_actor(db, actor):
+                db.rollback()
+                return {"success": False, "write_outcome": WRITE_NOT_ATTEMPTED, "http_status": 409, "error": "Actor authority changed before canvas write", "error_code": "AUTHORITY_CHANGED"}
 
             # Read the latest audit row for this canvas.
             latest = db.query(CanvasAudit).filter(
@@ -1568,7 +1577,8 @@ async def update_canvas_content(
                         if (existing_status != "accepted"
                                 or existing_content is None
                                 or canvas_content_digest(existing_content)
-                                != canvas_content_digest(content)):
+                                != canvas_content_digest(content)
+                                or (title is not None and existing_details.get("title") != title)):
                             return {
                                 "success": False,
                                 "conflict": True,
@@ -1659,7 +1669,7 @@ async def update_canvas_content(
                 details["evidence_refs"] = list(dict.fromkeys(evidence_refs))[:50]
             if postconditions:
                 details["postconditions"] = list(postconditions)[:50]
-            if title:
+            if title is not None:
                 details["title"] = title
             if manual_retype:
                 details["type_pinned"] = True
@@ -1726,7 +1736,7 @@ async def update_canvas_content(
             db.refresh(new_audit)
 
         # Broadcast the update via WebSocket.
-        await _broadcast_canvas_update(user_id, canvas_id, canvas_type, content, title or details.get("title"), revision_audit_id=str(new_audit.id))
+        await _broadcast_canvas_update(user_id, canvas_id, canvas_type, content, title if title is not None else details.get("title"), revision_audit_id=str(new_audit.id))
 
         logger.info(f"Updated canvas {canvas_id} ({canvas_type})")
         return {
@@ -1772,10 +1782,12 @@ async def _broadcast_canvas_update(
                 "cc": content.get("cc", ""),
                 "subject": content.get("subject", ""),
             }
-        await ws_manager.broadcast(f"user:{user_id}", {
-            "type": "canvas:update",
-            "data": broadcast_data,
-        })
+        from tools.canvas_tool import _user_broadcast_channels
+        for channel in _user_broadcast_channels(user_id, audit_session_id(None)):
+            await ws_manager.broadcast(channel, {
+                "type": "canvas:update",
+                "data": broadcast_data,
+            })
     except Exception as ws_err:
         logger.debug(f"Canvas update WS broadcast skipped: {ws_err}")
 
