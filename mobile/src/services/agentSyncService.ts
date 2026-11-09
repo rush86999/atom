@@ -63,6 +63,11 @@ export interface AgentSyncResult {
   duration: number;
 }
 
+/** History is an observation, never authority to dispatch a new command. */
+export type AgentHistorySyncResult =
+  | { success: true; synced: 0; retained: 0 }
+  | { success: false; synced: 0; retained: number; error: 'HISTORY_UPLOAD_UNAVAILABLE' };
+
 export interface AgentSyncHealth {
   isHealthy: boolean;
   lastSyncAt: Date | null;
@@ -431,34 +436,17 @@ class AgentSyncService {
   /**
    * Sync execution history to server
    */
-  async syncExecutions(userId: string, deviceId: string): Promise<void> {
-    if (this.cache.pendingExecutions.length === 0) {
-      return;
+  async syncExecutions(_userId: string, _deviceId: string): Promise<AgentHistorySyncResult> {
+    const retained = this.cache.pendingExecutions.length;
+    if (retained === 0) {
+      return { success: true, synced: 0, retained: 0 };
     }
 
-    console.log(`AgentSync: Syncing ${this.cache.pendingExecutions.length} executions`);
-
-    for (const execution of this.cache.pendingExecutions) {
-      try {
-        await offlineSyncService.queueAction(
-          'agent_message',
-          {
-            agentId: execution.agentId,
-            message: execution.message,
-            sessionId: execution.id,
-          },
-          'low',
-          userId,
-          deviceId
-        );
-      } catch (error) {
-        console.error(`AgentSync: Failed to queue execution ${execution.id}:`, error);
-      }
-    }
-
-    // Clear synced executions
-    this.cache.pendingExecutions = [];
-    await this.saveCache();
+    // These records already contain execution outcomes. Enqueuing their
+    // messages as agent_message would execute completed work a second time.
+    // There is no verified history-ingestion contract; retain the observations
+    // locally rather than treating a new chat request as a history receipt.
+    return { success: false, synced: 0, retained, error: 'HISTORY_UPLOAD_UNAVAILABLE' };
   }
 
   /**

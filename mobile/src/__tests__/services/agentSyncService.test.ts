@@ -449,26 +449,31 @@ describe('agentSyncService', () => {
       expect(agentSyncService.getExecutionHistory('a1')).toEqual([execution]);
     });
 
-    test('should queue executions to offline sync and clear the queue', async () => {
+    test('retains completed history and reports unavailable upload without new work', async () => {
       await agentSyncService.recordExecution(mockExecution('e1', 'a1', new Date()));
       await agentSyncService.recordExecution(mockExecution('e2', 'a1', new Date()));
+      mockStorageService.setObject.mockClear();
+      expect(await agentSyncService.syncExecutions('user-1', 'device-1')).toEqual({
+        success: false, synced: 0, retained: 2, error: 'HISTORY_UPLOAD_UNAVAILABLE',
+      });
+      expect(mockOfflineSyncService.queueAction).not.toHaveBeenCalled();
+      expect(mockStorageService.setObject).not.toHaveBeenCalled();
+      expect(agentSyncService.getExecutionHistory('a1')).toHaveLength(2);
+    });
 
-      await agentSyncService.syncExecutions('user-1', 'device-1');
-
-      expect(mockOfflineSyncService.queueAction).toHaveBeenCalledTimes(2);
-      expect(mockOfflineSyncService.queueAction).toHaveBeenCalledWith(
-        'agent_message',
-        { agentId: 'a1', message: 'msg e1', sessionId: 'e1' },
-        'low',
-        'user-1',
-        'device-1'
-      );
-      // Queue cleared after sync
-      expect(agentSyncService.getExecutionHistory('a1')).toHaveLength(0);
+    test('repeated history sync retains both successful and failed observations', async () => {
+      const success = mockExecution('e1', 'a1', new Date());
+      const failure = { ...mockExecution('e2', 'a1', new Date()), success: false, error: 'Observed execution failure' };
+      await agentSyncService.recordExecution(success);
+      await agentSyncService.recordExecution(failure);
+      const first = await agentSyncService.syncExecutions('user-1', 'device-1');
+      expect(await agentSyncService.syncExecutions('user-1', 'device-1')).toEqual(first);
+      expect(agentSyncService.getExecutionHistory('a1')).toEqual(expect.arrayContaining([success, failure]));
+      expect(mockOfflineSyncService.queueAction).not.toHaveBeenCalled();
     });
 
     test('should no-op syncExecutions when queue is empty', async () => {
-      await agentSyncService.syncExecutions('user-1', 'device-1');
+      expect(await agentSyncService.syncExecutions('user-1', 'device-1')).toEqual({ success: true, synced: 0, retained: 0 });
       expect(mockOfflineSyncService.queueAction).not.toHaveBeenCalled();
     });
   });
