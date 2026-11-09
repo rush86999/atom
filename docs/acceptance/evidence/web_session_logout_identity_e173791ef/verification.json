@@ -1,0 +1,27 @@
+{
+  "executed_source": "e173791efbb4e35021ff6d90ebde037a680e6ec6",
+  "backend": {
+    "passed": 101,
+    "failed": 0,
+    "ci_lane_subset": 27,
+    "artifact": "backend-101.xml"
+  },
+  "frontend": {
+    "passed": 93,
+    "failed": 0,
+    "artifact": "frontend-93.json"
+  },
+  "typescript": {
+    "exit_code": 0,
+    "output_bytes": 0
+  },
+  "inference": "one bounded configured opencode-go/deepseek-v4.1-flash read-only public-code critique; final verdict by root",
+  "limits": [
+    "scratch SQLite and doubled frontend transport",
+    "no ordinary browser credential submission",
+    "no already-open socket termination",
+    "no PostgreSQL concurrency",
+    "legacy shared credential enrichment and OAuth paths remain unqualified"
+  ],
+  "acceptance": "submitted controlled scope; full app remains open"
+}
