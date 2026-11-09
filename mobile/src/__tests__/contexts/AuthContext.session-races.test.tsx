@@ -5,7 +5,7 @@ import { render, act, waitFor } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
-import { secureSet } from '../../storage/secureTokenStorage';
+import { secureSet, readAccessTokenSnapshot, invalidateAccessToken } from '../../storage/secureTokenStorage';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn(),
@@ -168,5 +168,31 @@ describe('AuthContext delayed session responses', () => {
       expect(store.has('atom_access_token')).toBe(false);
       expect(auth.isAuthenticated).toBe(false);
     });
+
+  test('current-session invalidation removes the mounted authenticated UI state', async () => {
+    await seed();
+    await mount();
+    expect(auth.isAuthenticated).toBe(true);
+    const current = await readAccessTokenSnapshot();
+    await act(async () => { expect(await invalidateAccessToken(current)).toBe(true); });
+    expect(store.has('atom_access_token')).toBe(false);
+    expect(auth.isAuthenticated).toBe(false);
+    expect(auth.user).toBeNull();
+  });
+
+  test('a delayed startup profile cannot restore authentication after logout', async () => {
+    await seed();
+    const delayed = deferred<string | null>();
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(async key =>
+      key === 'atom_user_data' ? delayed.promise : store.get(key) ?? null);
+    render(<AuthProvider><Capture /></AuthProvider>);
+    await waitFor(() => expect(AsyncStorage.getItem).toHaveBeenCalledWith('atom_user_data'));
+    await act(async () => { await auth.logout(); });
+    await act(async () => { delayed.resolve(JSON.stringify({ id: 'controlled-user' })); });
+    await waitFor(() => expect(auth.isLoading).toBe(false));
+    expect(store.has('atom_access_token')).toBe(false);
+    expect(auth.isAuthenticated).toBe(false);
+    expect(auth.user).toBeNull();
+  });
 
 });
