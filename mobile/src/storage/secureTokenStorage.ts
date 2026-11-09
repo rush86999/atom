@@ -39,7 +39,7 @@ export function isSecureKey(key: string): key is SecureKey {
  * Store a sensitive value in the OS keychain/keystore.
  * Requires an authentication-free SecureStore (not requiring biometric).
  */
-export async function secureSet(key: string, value: string): Promise<void> {
+async function writeSecureValue(key: string, value: string): Promise<void> {
   await SecureStore.setItemAsync(key, value, {
     keychainAccessible: SecureStore.WHEN_UNLOCKED,
     // No requireAuthentication — the app already gates behind biometric login
@@ -52,7 +52,7 @@ export async function secureSet(key: string, value: string): Promise<void> {
  * Read a sensitive value. If the value is not yet in SecureStore but exists
  * in AsyncStorage (pre-migration), migrate it transparently.
  */
-export async function secureGet(key: string): Promise<string | null> {
+async function readSecureValue(key: string): Promise<string | null> {
   // Try SecureStore first. A read failure (e.g. keychain unavailable /
   // keystore corruption on Android) must NOT fail closed — fall through to
   // the legacy AsyncStorage copy so the user is not locked out of their
@@ -87,7 +87,7 @@ export async function secureGet(key: string): Promise<string | null> {
 }
 
 /** Delete a sensitive value from both stores. */
-export async function secureDelete(key: string): Promise<void> {
+async function deleteSecureValue(key: string): Promise<void> {
   await SecureStore.deleteItemAsync(key);
   // Also clean up any lingering legacy copy
   try {
@@ -95,4 +95,62 @@ export async function secureDelete(key: string): Promise<void> {
   } catch {
     // ignore — best-effort cleanup
   }
+}
+
+// One JS-runtime ordering boundary for every participating access-token writer.
+// Native cross-process atomicity is not provided by SecureStore.
+let accessTokenTail: Promise<void> = Promise.resolve();
+let accessTokenGeneration = 0;
+const ACCESS_TOKEN_KEY = 'atom_access_token';
+
+function withAccessToken<T>(operation: () => Promise<T>): Promise<T> {
+  const result = accessTokenTail.then(operation);
+  accessTokenTail = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+export interface AccessTokenSnapshot {
+  readonly token: string | null;
+  readonly generation: number;
+}
+
+export function secureSet(key: string, value: string): Promise<void> {
+  if (key !== ACCESS_TOKEN_KEY) return writeSecureValue(key, value);
+  return withAccessToken(async () => {
+    // Invalidate old request ownership even if a native write is uncertain.
+    accessTokenGeneration += 1;
+    await writeSecureValue(key, value);
+  });
+}
+
+export function secureGet(key: string): Promise<string | null> {
+  if (key !== ACCESS_TOKEN_KEY) return readSecureValue(key);
+  return withAccessToken(() => readSecureValue(key));
+}
+
+export function secureDelete(key: string): Promise<void> {
+  if (key !== ACCESS_TOKEN_KEY) return deleteSecureValue(key);
+  return withAccessToken(async () => {
+    accessTokenGeneration += 1;
+    await deleteSecureValue(key);
+  });
+}
+
+export function readAccessTokenSnapshot(): Promise<AccessTokenSnapshot> {
+  return withAccessToken(async () => ({
+    token: await readSecureValue(ACCESS_TOKEN_KEY),
+    generation: accessTokenGeneration,
+  }));
+}
+
+export function invalidateAccessToken(snapshot: AccessTokenSnapshot): Promise<boolean> {
+  return withAccessToken(async () => {
+    if (!snapshot.token || snapshot.generation !== accessTokenGeneration) return false;
+    const current = await readSecureValue(ACCESS_TOKEN_KEY);
+    if (current !== snapshot.token) return false;
+    accessTokenGeneration += 1;
+    await deleteSecureValue(ACCESS_TOKEN_KEY);
+    await deleteSecureValue('auth_token');
+    return true;
+  });
 }

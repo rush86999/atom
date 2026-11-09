@@ -12,7 +12,7 @@
  */
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { secureGet, secureSet, secureDelete, isSecureKey } from '../secureTokenStorage';
+import { secureGet, secureSet, secureDelete, isSecureKey, readAccessTokenSnapshot, invalidateAccessToken } from '../secureTokenStorage';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
@@ -120,5 +120,58 @@ describe('secureTokenStorage', () => {
 
     expect(mockedSecureStore.deleteItemAsync).toHaveBeenCalledWith('auth_token');
     expect(mockedAsync.removeItem).toHaveBeenCalledWith('auth_token');
+  });
+});
+
+
+describe('access-token request ownership', () => {
+  let stored: string | null;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    stored = null;
+    mockedSecureStore.getItemAsync.mockImplementation(async () => stored);
+    mockedSecureStore.setItemAsync.mockImplementation(async (_key, value) => { stored = value; });
+    mockedSecureStore.deleteItemAsync.mockImplementation(async () => { stored = null; });
+    mockedAsync.getItem.mockResolvedValue(null);
+    mockedAsync.removeItem.mockResolvedValue();
+  });
+
+  it('does not invalidate a replacement login even if the token bytes repeat', async () => {
+    await secureSet('atom_access_token', 'same-value');
+    const old = await readAccessTokenSnapshot();
+    await secureSet('atom_access_token', 'same-value');
+    await expect(invalidateAccessToken(old)).resolves.toBe(false);
+    expect(stored).toBe('same-value');
+    expect(mockedSecureStore.deleteItemAsync).not.toHaveBeenCalled();
+  });
+
+  it('invalidates only the current rejected request once', async () => {
+    await secureSet('atom_access_token', 'current');
+    const current = await readAccessTokenSnapshot();
+    await expect(invalidateAccessToken(current)).resolves.toBe(true);
+    await expect(invalidateAccessToken(current)).resolves.toBe(false);
+    expect(stored).toBeNull();
+    expect(mockedSecureStore.deleteItemAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('orders a new login after an in-flight invalidation without deleting it', async () => {
+    await secureSet('atom_access_token', 'old');
+    const old = await readAccessTokenSnapshot();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    mockedSecureStore.deleteItemAsync.mockImplementationOnce(async () => { await gate; stored = null; });
+    const invalidation = invalidateAccessToken(old);
+    const login = secureSet('atom_access_token', 'new');
+    release();
+    await expect(invalidation).resolves.toBe(true);
+    await login;
+    expect(stored).toBe('new');
+  });
+
+  it('releases serialization after a failed native write', async () => {
+    mockedSecureStore.setItemAsync.mockRejectedValueOnce(new Error('controlled write failure'));
+    await expect(secureSet('atom_access_token', 'failed')).rejects.toThrow('controlled write failure');
+    await secureSet('atom_access_token', 'next');
+    expect((await readAccessTokenSnapshot()).token).toBe('next');
   });
 });
