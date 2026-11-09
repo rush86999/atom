@@ -128,6 +128,21 @@ export class CanvasService {
 
       const cached: CachedCanvas = JSON.parse(data);
 
+      // Persisted bytes are untrusted observations. A missing timestamp must
+      // never turn a record into an immortal cache entry, and a storage key
+      // cannot certify the identity of the payload stored beneath it.
+      if (
+        !cached || typeof cached !== 'object' ||
+        cached.canvasId !== canvasId ||
+        !cached.data || typeof cached.data !== 'object' ||
+        cached.data.id !== canvasId ||
+        !Number.isFinite(cached.cachedAt) ||
+        !Number.isFinite(cached.expiresAt) ||
+        cached.expiresAt <= cached.cachedAt
+      ) {
+        return null;
+      }
+
       // Check expiration
       if (Date.now() > cached.expiresAt) {
         await this.removeCachedCanvas(canvasId);
