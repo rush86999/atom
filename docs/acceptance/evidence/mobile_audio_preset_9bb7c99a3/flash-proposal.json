@@ -1,0 +1,34 @@
+{
+  "changes": [
+    {
+      "path": "mobile/src/components/chat/MessageInput.tsx",
+      "old": "      await recording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);",
+      "new": "      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);"
+    },
+    {
+      "path": "mobile/src/__tests__/components/chat/MessageInput.test.tsx",
+      "old": "    setAudioModeAsync: jest.fn(() => Promise.resolve()),\n    RECORDING_OPTIONS_PRESET_HIGH_QUALITY: {},",
+      "new": "    setAudioModeAsync: jest.fn(() => Promise.resolve()),\n    RecordingOptionsPresets: {\n      HIGH_QUALITY: {},\n    },"
+    },
+    {
+      "path": "mobile/src/__tests__/components/chat/MessageInput.test.tsx",
+      "old": "      // Recording state shows the stop button with the live duration\n      await waitFor(() => {\n        expect(getByTestId('stop-button')).toBeTruthy();\n      });\n    });\n\n    it('should stop recording when button is pressed again', async () => {",
+      "new": "      // Recording state shows the stop button with the live duration\n      await waitFor(() => {\n        expect(getByTestId('stop-button')).toBeTruthy();\n      });\n\n      const ExpoAudio = require('expo-av').Audio;\n      const recording = ExpoAudio.Recording.mock.results[0].value;\n      expect(recording.prepareToRecordAsync).toHaveBeenCalledWith(\n        ExpoAudio.RecordingOptionsPresets.HIGH_QUALITY\n      );\n    });\n\n    it('should stop recording when button is pressed again', async () => {"
+    },
+    {
+      "path": "mobile/src/__tests__/components/chat/MessageInput.test.tsx",
+      "old": "      const { getByTestId, waitForElementToBeRemoved } = render(\n        <MessageInput onSend={mockOnSend} />\n      );\n\n      const micButton = getByTestId('voice-button');\n      fireEvent(micButton, 'onLongPress');",
+      "new": "      const { getByTestId } = render(\n        <MessageInput onSend={mockOnSend} />\n      );\n\n      const micButton = getByTestId('voice-button');\n      fireEvent(micButton, 'onLongPress');"
+    },
+    {
+      "path": "mobile/src/components/__tests__/MessageInput.test.tsx",
+      "old": "    setAudioEnabledAsync: jest.fn(),\n    Recording: jest.fn(),",
+      "new": "    setAudioEnabledAsync: jest.fn(),\n    RecordingOptionsPresets: {\n      HIGH_QUALITY: {},\n    },\n    Recording: jest.fn(),"
+    }
+  ],
+  "reason": "Installed expo-av exposes Audio.RecordingOptionsPresets.HIGH_QUALITY and documents that omitting the argument defaults to LOW_QUALITY, so the component now passes the real HIGH_QUALITY preset instead of the nonexistent RECORDING_OPTIONS_PRESET_HIGH_QUALITY export. Both existing expo-av test doubles now provide the RecordingOptionsPresets namespace, and the start-recording test asserts prepareToRecordAsync received that exact preset rather than undefined. The unused waitForElementToBeRemoved binding was removed only after confirming it is not referenced in that test body. No UI, permission, audio lifecycle, dependency, or config behavior changed.",
+  "tests_to_run": [
+    "cd mobile && npx jest src/__tests__/components/chat/MessageInput.test.tsx --runInBand",
+    "cd mobile && npx jest src/components/__tests__/MessageInput.test.tsx --runInBand"
+  ]
+}

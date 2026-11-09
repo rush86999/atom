@@ -1,0 +1,19 @@
+{
+  "actual_exit": 1,
+  "started": 1794199452.818304,
+  "finished": 1794199455.395424,
+  "selected_kind": "audioinput",
+  "verification_pass": false,
+  "test_files_exact": true,
+  "actual_test_files": [
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/__tests__/components/chat/MessageInput.test.tsx",
+    "/private/tmp/atom-mobile-build-20261109/mobile/src/components/__tests__/MessageInput.test.tsx"
+  ],
+  "case_counts": {
+    "numTotalTests": 72,
+    "numPassedTests": 71,
+    "numFailedTests": 1,
+    "numPendingTests": 0
+  },
+  "scope": "full selected file set"
+}

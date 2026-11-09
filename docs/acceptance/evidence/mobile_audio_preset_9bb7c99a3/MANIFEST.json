@@ -1,0 +1,26 @@
+{
+  "executed_source": "9bb7c99a392f4d8cf80b2dc8390d399121c07ed2",
+  "source_files": {
+    "mobile/src/components/chat/MessageInput.tsx": "74c4b644da5d16b6d66e71a647b268ce899caef95d3584ea234474b7f0092eb4",
+    "mobile/src/__tests__/components/chat/MessageInput.test.tsx": "bbe20315a42b2d86ea0c20eda8b1f374c8b0788f359198bcedf1b2f5b0ed7de5",
+    "mobile/src/components/__tests__/MessageInput.test.tsx": "28245be8c304848345f60bfcba1c2dc16462450ba5cd0a767c02570359119155",
+    "mobile/package-lock.json": "af8a4d8cb7778038edb6c8b23ab1b434057f10a24ac13d4a2cc8ce8b970a6c21",
+    "mobile/tsconfig.json": "d92c2d5c519a5fc6fc2980d9ec9c05dcda8842698229462daca0689ef12147cc"
+  },
+  "artifacts": {
+    "audio-input-sdk-preset-negative-results.json": "4ef7441f4b40b34982fe8fa6d3e1300b1d71b5c1181261e33f9a8a2eeb72c0b6",
+    "audio-input-sdk-preset-repaired.spec.json": "d6337bea0fc4b08f6700469049c43f19988f1b28a94697007d2db6b44181f569",
+    "audio-input-sdk-preset-repaired.exit.json": "5733252c3dcdd5694f7969e71783c54e8dde44fde93ad62bd7ba8f87a6f6e5f7",
+    "audio-input-sdk-preset-negative.exit.json": "98530cc482247d8e66dbaa5d699df661651b1dba126308d68a8f1105b77c8e5d",
+    "audio-input-sdk-preset-negative.spec.json": "ea83a01d41044673da5ddd481d0110ca032372a1ddb6fd11de105ea37d484e5f",
+    "README.md": "974d39ebbf128277f2b05b10f0d2d039eb0b8619998f248d55e6e8415ab77083",
+    "flash-proposal.json": "24dfe0a4531b0f98bf041ee82352f59483b563d72c874fe87e60340e74905750",
+    "audio-input-sdk-repaired-typecheck.log": "2748564d7ea10f94e20a9d8c0708d6ff676c42c0c62f8a1f8f6e7a29c1da157f",
+    "audio-input-sdk-preset-repaired.log": "6106c3976cd867fdc13093e2402697d1aa5c5feaf95cb22b6e934f04d7b06304",
+    "audio-input-sdk-preset-repaired-results.json": "496ecedaeb0bb1249374a6fc91f552b97b5cfaef5edbfae35e300ee34ee3aa7f",
+    "audio-input-sdk-preset-negative.log": "142e1280507ecf83d04ee610cd678e6c94bf22975e71bcb13b70f21cf3bc0b0f",
+    "flash-exit.json": "8409ea313598e27222c829c424bdd985cd10f7ad460ff4dd4d94de5436cac022",
+    "audio-input-sdk-repaired-typecheck.exit.json": "0b3fe99ff5a19111cf96e8879e038ae86a5833221349be85db29f5448b509e4f",
+    "audio-input-sdk-repaired-typecheck.spec.json": "2bafa3b39a2ff87d81b2053d0e07ee4fdd00e9c1c43ebb652f6dab4fbe1bdeae"
+  }
+}
