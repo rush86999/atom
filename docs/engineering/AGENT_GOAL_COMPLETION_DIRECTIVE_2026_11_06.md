@@ -731,3 +731,23 @@ All7 historical case names remain; a core-profile admin negative twin prevents
 release-scope broadening. Production navigation and authority gates are unchanged.
 New ordinary outage-browser qualification remains pending. Earlier healthy UI
 evidence stays403a39173 and is not relabelled. Main web first; mobile UI last.
+
+Logout interruption qualification is now recorded at31ffe48ee, not relabelled
+onto its predecessor:180 source-frozen frontend controls and TypeScript pass.
+One browser click on the real page reached /auth/signin at the12.52s observation,
+before a controlled30s pre-dispatch transport delay completed. An early URL
+observation expired; the same attempt was inspected without a resend/restart.
+The client did not certify server termination; later fixture SQL readback had
+zero revocations. Both owned processes stopped,202324954 disposable build bytes
+removed, private DB/evidence retained. Packet web_logout_interruption_31ffe48ee
+contains the exact wrapper, source hashes, assertions and screenshot. Its source
+map covers execution-relevant code/tests/CI, not this non-executed rolling guide.
+
+The economical Flash review completed at its three-step read-only bound. A
+five-second wait is the declared bounded UX tradeoff, not an unbounded hang;
+instantaneous sign-out was not claimed. HttpOnly/secure server cookies remain
+framework-owned; do not weaken them to satisfy DOM cleanup tests. Concurrent
+Set-Cookie and server-cookie failure qualification remain separate. Preserve
+original healthy403a39173 and native e173791ef records. Further supported web
+journeys and current-principal protection for remaining server consumers are
+still required; none of this closes the full app or mobile goals.

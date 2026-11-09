@@ -1,0 +1,90 @@
+{
+  "runtime_identity": {
+    "revision": "31ffe48ee41ec09b5c060edce12f6289e113bc87",
+    "source_id": "31ffe48ee41e-dirty.2e0e0b65e057",
+    "dirty": true,
+    "dirty_digest": "2e0e0b65e057",
+    "dirty_paths": [
+      "frontend-nextjs/next-env.d.ts"
+    ],
+    "untracked_paths": [
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/build-manifest.json",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/.rscinfo",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/next-devtools-config.json",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000001.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000002.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000003.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000004.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000005.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000006.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000007.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000008.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000009.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000010.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000011.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000012.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000013.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000014.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000015.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000016.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000017.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000018.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000019.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000020.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000021.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000022.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000023.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000024.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000025.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000026.sst",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000027.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000028.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000029.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/00000030.meta",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/CURRENT",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/cache/turbopack/8d0f77bfa/LOG",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/fallback-build-manifest.json",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/lock",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/package.json",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/prerender-manifest.json",
+      "frontend-nextjs/.next-sidebar-delay-20261109/dev/routes-manifest.json"
+    ],
+    "pid": 91161,
+    "started_at": "2026-11-09T20:30:19.011155+00:00",
+    "captured_at": "2026-11-09T20:31:32.759876+00:00"
+  },
+  "ui": {
+    "started_at_ms": 1794256340289,
+    "observed_at_ms": 1794256352809,
+    "elapsed_ms": 12520,
+    "ax_state": "Browser tab: 9, Title: \"127.0.0.1:18152/dashboard\", URL: \"http://127.0.0.1:18152/auth/signin\".\n0 AXWebArea 127.0.0.1:18152/auth/signin\n\t1 container\n\t\t2 container Notifications alt+T\n\t\t71 heading Sign In to ATOM, Value: 1\n\t\t\t72 text Sign In to ATOM\n\t\t73 text Access your personal automation platform\n\t\t74 container\n\t\t\t75 text Email\n\t\t\t76 text field (settable) Email\n\t\t\t77 text Password\n\t\t\t78 link Description: Forgot password?, Value: 127.0.0.1:18152/auth/forgot-password\n\t\t\t79 text field (settable) Password\n\t\t\t80 button Sign In\n\t\t\t81 text Or continue with\n\t\t\t82 button \ud83d\udd0d Sign in with Google\n\t\t\t\t83 text \ud83d\udd0d\n\t\t\t\t84 text Sign in with Google\n\t\t\t85 button \u26ab Sign in with GitHub\n\t\t\t\t86 text \u26ab\n\t\t\t\t87 text Sign in with GitHub\n\t\t88 container\n\t\t\t89 text Don't have an account?\n\t\t\t90 link Description: Sign up, Value: 127.0.0.1:18152/auth/signup\n\t\t70 text Sign In to ATOM\n\nThe focused UI element is 0 AXWebArea 127.0.0.1:18152/auth/signin"
+  },
+  "transport": {
+    "configured_pre_dispatch_delay_seconds": 30,
+    "events": [
+      {
+        "event": "logout_started",
+        "at": 1794256340.3125749
+      },
+      {
+        "event": "logout_handler_completed",
+        "at": 1794256370.320083
+      }
+    ],
+    "logout_requests": 1
+  },
+  "initial_observation": "URL wait expired before the five-second notification deadline; same click re-observed, not resubmitted",
+  "observed_before_wrapped_application_returned": true,
+  "later_sql_revocations_for_fixture": 0,
+  "effect_scope": "No server termination was certified to this client. A cancelled request is not a general proof of rollback.",
+  "cleanup": {
+    "processes_terminal": true,
+    "ports_closed": [
+      18151,
+      18152
+    ],
+    "owned_build_bytes_removed": 202324954,
+    "database_private_evidence_retained": true,
+    "generated_next_env_restored": true
+  }
+}
