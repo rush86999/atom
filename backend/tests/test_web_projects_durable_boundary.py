@@ -126,3 +126,67 @@ def test_database_failure_is_not_an_empty_success_or_raw_error(world, caplog):
         assert result.status_code == 500
         assert 'controlled-sensitive-parameter' not in result.text
     assert 'controlled-sensitive-parameter' not in caplog.text
+
+@pytest.mark.parametrize('workspace', [None, 'default'])
+def test_real_tenant_cannot_borrow_another_tenants_default_workspace(world, workspace):
+    client, sessions = world
+    with sessions() as db:
+        from service_delivery.models import Project
+        db.add(Tenant(id='default', name='Other default tenant', subdomain='other-default', plan_type='free', edition='personal'))
+        db.add(Workspace(id='default', name='Other default workspace', tenant_id='default'))
+        db.add(Project(id='default-private-project', workspace_id='default', name='Other tenant private project'))
+        actor = db.get(User, 'web-owner'); actor.workspace_id = workspace
+        db.commit()
+    listed = client.get('/api/v1/projects')
+    assert listed.status_code in (403, 404), listed.text
+    assert 'Other tenant private project' not in listed.text
+
+def test_missing_workspace_cannot_create_inside_foreign_default_tenant(world):
+    client, sessions = world
+    with sessions() as db:
+        db.add(Tenant(id='default', name='Other tenant', subdomain='default-other', plan_type='free', edition='personal'))
+        db.add(Workspace(id='default', name='Other workspace', tenant_id='default'))
+        db.get(User, 'web-owner').workspace_id = None
+        db.commit()
+    response = client.post('/api/v1/projects', json={'name': 'Must not appear'})
+    assert response.status_code in (403, 404), response.text
+    with sessions() as db:
+        from service_delivery.models import Project
+        assert db.query(Project).count() == 0
+
+@pytest.mark.parametrize('target_tenant', ['default', None])
+def test_legacy_personal_null_scopes_still_resolve_to_matching_default(world, target_tenant):
+    client, sessions = world
+    with sessions() as db:
+        db.add(Tenant(id='default', name='Personal default', subdomain='personal-default', plan_type='free', edition='personal'))
+        db.add(Workspace(id='default', name='Personal workspace', tenant_id=target_tenant))
+        actor = db.get(User, 'web-owner'); actor.tenant_id = None; actor.workspace_id = None
+        db.commit()
+    created = client.post('/api/v1/projects', json={'name': 'Legitimate personal project'})
+    assert created.status_code in (200, 201), created.text
+    assert [row['id'] for row in client.get('/api/v1/projects').json()['projects']] == [created.json()['project']['id']]
+
+@pytest.mark.parametrize('operation', ['project_update', 'task_create', 'task_update'])
+def test_inconsistent_workspace_scope_cannot_mutate_or_link_foreign_project(world, operation):
+    client, sessions = world
+    own_task = client.post('/api/v1/tasks', json={'title': 'Retained own task'}).json()['task']
+    with sessions() as db:
+        from service_delivery.models import Project
+        db.add(Tenant(id='default', name='Foreign tenant', subdomain='foreign-default', plan_type='free', edition='personal'))
+        db.add(Workspace(id='default', name='Foreign workspace', tenant_id='default'))
+        db.add(Project(id='foreign-default-project', workspace_id='default', name='Retained peer project'))
+        db.get(User, 'web-owner').workspace_id = None
+        db.commit()
+    if operation == 'project_update':
+        response = client.put('/api/v1/projects/foreign-default-project', json={'name': 'Must not apply'})
+    elif operation == 'task_create':
+        response = client.post('/api/v1/tasks', json={'title': 'Must not create', 'project': 'foreign-default-project'})
+    else:
+        response = client.put(f"/api/v1/tasks/{own_task['id']}", json={'project': 'foreign-default-project'})
+    assert response.status_code == 404, response.text
+    with sessions() as db:
+        from service_delivery.models import Project
+        from core.models import UserTask
+        assert db.get(Project, 'foreign-default-project').name == 'Retained peer project'
+        assert db.query(UserTask).count() == 1
+        assert db.get(UserTask, own_task['id']).project_id is None

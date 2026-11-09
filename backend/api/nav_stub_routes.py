@@ -19,7 +19,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import Body, Depends, Query
+from fastapi import Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, User
@@ -121,9 +121,15 @@ def _owned_task(db: Session, task_id: str, user_id: str):
     )
 
 
-def _current_workspace_id(current_user: User) -> str:
-    """The canonical workspace scope, including personal-workspace defaults."""
-    return str(resolve_workspace_id(current_user))
+def _current_workspace_id(db: Session, current_user: User) -> str:
+    """Resolve personal defaults only within the authoritative workspace tenant."""
+    from core.models import Workspace
+
+    workspace_id = str(resolve_workspace_id(current_user))
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if workspace is None or resolve_tenant_id(workspace) != resolve_tenant_id(current_user):
+        raise router.not_found_error("Workspace", workspace_id)
+    return workspace_id
 
 
 def _authorized_project(db: Session, project_id: Any, current_user: User):
@@ -133,7 +139,7 @@ def _authorized_project(db: Session, project_id: Any, current_user: User):
         db.query(Project)
         .filter(
             Project.id == str(project_id),
-            Project.workspace_id == _current_workspace_id(current_user),
+            Project.workspace_id == _current_workspace_id(db, current_user),
         )
         .first()
     )
@@ -245,6 +251,8 @@ def _resolve_task_project_ref(
 
     try:
         project = _authorized_project(db, project_id, current_user)
+    except HTTPException:
+        raise
     except Exception:
         logger.warning("Project reference lookup failed")
         try:
@@ -439,7 +447,7 @@ async def list_projects(
 
         projects = (
             db.query(Project)
-            .filter(Project.workspace_id == _current_workspace_id(current_user))
+            .filter(Project.workspace_id == _current_workspace_id(db, current_user))
             .order_by(Project.created_at.desc())
             .all()
         )
@@ -463,6 +471,8 @@ async def list_projects(
                 for project in projects
             ]
         }
+    except HTTPException:
+        raise
     except Exception:
         logger.warning("Project list query failed")
         try:
@@ -491,7 +501,7 @@ async def create_project(
     metadata = {"color": color} if color else None
 
     project = Project(
-        workspace_id=_current_workspace_id(current_user),
+        workspace_id=_current_workspace_id(db, current_user),
         name=name,
         description=description,
         metadata_json=metadata,
@@ -516,6 +526,8 @@ async def update_project(
     """Update editable Project fields without touching financial/status data."""
     try:
         project = _authorized_project(db, project_id, current_user)
+    except HTTPException:
+        raise
     except Exception:
         logger.warning("Project lookup failed")
         try:
