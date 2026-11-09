@@ -42,6 +42,7 @@ jest.mock('expo-secure-store', () => ({
   WHEN_UNLOCKED: 'WHEN_UNLOCKED',
 }));
 import * as SecureStore from 'expo-secure-store';
+import { secureSet } from '../../storage/secureTokenStorage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -77,7 +78,7 @@ const mockAccessToken = 'mock_access_token_123';
 const mockRefreshToken = 'mock_refresh_token_456';
 const mockUser = { id: 'user_1', email: 'test@example.com', name: 'Test User' };
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
 
   // Default successful mocks
@@ -90,6 +91,10 @@ beforeEach(() => {
   (LocalAuthentication.hasHardwareAsync as jest.Mock).mockResolvedValue(true);
   (LocalAuthentication.isEnrolledAsync as jest.Mock).mockResolvedValue(true);
   (LocalAuthentication.authenticateAsync as jest.Mock).mockResolvedValue({ success: true });
+
+  // Each isolated account fixture starts a new participating session generation.
+  await secureSet('atom_access_token', 'controlled-fixture-generation');
+  jest.clearAllMocks();
 
   (global.fetch as jest.Mock).mockResolvedValue({
     ok: true,
@@ -155,7 +160,8 @@ describe('Login Flow', () => {
     );
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       'atom_refresh_token',
-      mockRefreshToken
+      mockRefreshToken,
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
     );
   });
 
@@ -337,7 +343,8 @@ describe('Token Storage', () => {
     await waitFor(() => {
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         'atom_refresh_token',
-        mockRefreshToken
+        mockRefreshToken,
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
       );
     });
   });
@@ -366,7 +373,8 @@ describe('Token Storage', () => {
     await waitFor(() => {
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         'atom_token_expiry',
-        expect.any(String)
+        expect.any(String),
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
       );
     });
 
@@ -732,7 +740,8 @@ describe('Token Refresh', () => {
     );
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
       'atom_refresh_token',
-      newRefreshToken
+      newRefreshToken,
+      expect.objectContaining({ keychainAccessible: SecureStore.WHEN_UNLOCKED })
     );
   });
 

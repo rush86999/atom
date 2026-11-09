@@ -10,6 +10,7 @@
  */
 
 import { apiService } from '../../services/api';
+import { secureSet } from '../../storage/secureTokenStorage';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -59,7 +60,7 @@ const responseHandler = mockClient.interceptors.response.use.mock.calls[0][0];
 const responseErrorHandler = mockClient.interceptors.response.use.mock.calls[0][1];
 
 describe('apiService', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     const store = new Map<string, string>();
     mockSecureGet.mockImplementation(async (key: string) => store.get(key) ?? null);
@@ -67,6 +68,9 @@ describe('apiService', () => {
     mockSecureDelete.mockImplementation(async (key: string) => { store.delete(key); });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+    await secureSet('atom_access_token', 'controlled-fixture-generation');
+    store.clear();
+    jest.clearAllMocks();
     // Default: successful responses
     mockClient.get.mockResolvedValue({ data: { ok: true } });
     mockClient.post.mockResolvedValue({ data: { ok: true } });

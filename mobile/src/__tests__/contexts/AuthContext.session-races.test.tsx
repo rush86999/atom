@@ -5,6 +5,7 @@ import { render, act, waitFor } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
+import { secureSet } from '../../storage/secureTokenStorage';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn(),
@@ -44,8 +45,8 @@ describe('AuthContext delayed session responses', () => {
     render(<AuthProvider><Capture /></AuthProvider>);
     await waitFor(() => expect(auth.isLoading).toBe(false));
   };
-  const seed = () => {
-    store.set('atom_access_token', 'original');
+  const seed = async () => {
+    await secureSet('atom_access_token', 'original');
     store.set('atom_refresh_token', 'original-refresh');
     store.set('atom_token_expiry', String(Date.now() + 3600000));
     store.set('atom_user_data', JSON.stringify({ id: 'controlled-user' }));
@@ -66,8 +67,9 @@ describe('AuthContext delayed session responses', () => {
   });
 
   test('late refresh cannot restore credentials after owner logout', async () => {
-    seed();
+    await seed();
     await mount();
+    expect(auth.isAuthenticated).toBe(true);
     const delayed = deferred<ReturnType<typeof response>>();
     (global.fetch as jest.Mock).mockReturnValueOnce(delayed.promise);
     let refresh!: Promise<boolean>;
@@ -82,8 +84,9 @@ describe('AuthContext delayed session responses', () => {
   });
 
   test('logout clears local authority while its backend response is still pending', async () => {
-    seed();
+    await seed();
     await mount();
+    expect(auth.isAuthenticated).toBe(true);
     const delayed = deferred<ReturnType<typeof response>>();
     (global.fetch as jest.Mock).mockReturnValueOnce(delayed.promise);
     let logout!: Promise<void>;
@@ -96,4 +99,23 @@ describe('AuthContext delayed session responses', () => {
       await act(async () => { delayed.resolve(response('logout')); await logout; });
     }
   });
+  test('a delayed refresh cannot replace a newer successful login', async () => {
+    await seed();
+    await mount();
+    expect(auth.isAuthenticated).toBe(true);
+    const delayed = deferred<ReturnType<typeof response>>();
+    (global.fetch as jest.Mock).mockReturnValueOnce(delayed.promise);
+    let refresh!: Promise<boolean>;
+    act(() => { refresh = auth.refreshToken(); });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    (global.fetch as jest.Mock).mockResolvedValueOnce(response('new-login'));
+    await act(async () => { expect((await auth.login(credentials)).success).toBe(true); });
+    let refreshed: boolean | undefined;
+    await act(async () => { delayed.resolve(response('old-refresh')); refreshed = await refresh; });
+    expect(refreshed).toBe(false);
+    expect(store.get('atom_access_token')).toBe('new-login');
+    expect(store.get('atom_refresh_token')).toBe('new-login-refresh');
+    expect(auth.isAuthenticated).toBe(true);
+  });
+
 });

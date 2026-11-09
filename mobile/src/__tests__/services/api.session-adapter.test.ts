@@ -15,7 +15,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 describe('real Axios session request binding', () => {
   const store = new Map<string, string>();
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     store.clear();
     (SecureStore.getItemAsync as jest.Mock).mockImplementation(async key => store.get(key) ?? null);
@@ -23,6 +23,9 @@ describe('real Axios session request binding', () => {
     (SecureStore.deleteItemAsync as jest.Mock).mockImplementation(async key => { store.delete(key); });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+    await secureSet('atom_access_token', 'controlled-fixture-generation');
+    store.clear();
+    jest.clearAllMocks();
   });
 
   test('first real request reads the stored token without warming the API cache', async () => {

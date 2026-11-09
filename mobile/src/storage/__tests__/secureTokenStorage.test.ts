@@ -12,7 +12,7 @@
  */
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { secureGet, secureSet, secureDelete, isSecureKey, readAccessTokenSnapshot, invalidateAccessToken } from '../secureTokenStorage';
+import { secureGet, secureSet, secureDelete, isSecureKey, readAccessTokenSnapshot, invalidateAccessToken, commitAuthSession, clearAuthSession } from '../secureTokenStorage';
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),
@@ -151,7 +151,7 @@ describe('access-token request ownership', () => {
     await expect(invalidateAccessToken(current)).resolves.toBe(true);
     await expect(invalidateAccessToken(current)).resolves.toBe(false);
     expect(stored).toBeNull();
-    expect(mockedSecureStore.deleteItemAsync).toHaveBeenCalledTimes(2);
+    expect(mockedSecureStore.deleteItemAsync).toHaveBeenCalledTimes(4);
   });
 
   it('orders a new login after an in-flight invalidation without deleting it', async () => {
@@ -174,4 +174,35 @@ describe('access-token request ownership', () => {
     await secureSet('atom_access_token', 'next');
     expect((await readAccessTokenSnapshot()).token).toBe('next');
   });
+  it('refuses a delayed session commit after explicit logout without another write', async () => {
+    await secureSet('atom_access_token', 'old');
+    const old = await readAccessTokenSnapshot();
+    await clearAuthSession();
+    mockedSecureStore.setItemAsync.mockClear();
+    await expect(commitAuthSession(old, { token: 'late', expiresAt: '123' })).resolves.toBe(false);
+    expect(mockedSecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(stored).toBeNull();
+  });
+
+  it('keeps access locally revoked when native deletion fails', async () => {
+    await secureSet('atom_access_token', 'old');
+    mockedSecureStore.deleteItemAsync.mockRejectedValueOnce(new Error('controlled delete failure'));
+    await expect(clearAuthSession()).rejects.toThrow('controlled delete failure');
+    expect(stored).toBe('old'); // Native state is uncertain; no restart claim.
+    await expect(secureGet('atom_access_token')).resolves.toBeNull();
+    expect((await readAccessTokenSnapshot()).token).toBeNull();
+    await secureSet('atom_access_token', 'explicit-new-login');
+    await expect(secureGet('atom_access_token')).resolves.toBe('explicit-new-login');
+  });
+
+  it('does not expose a half-written session when the profile write fails', async () => {
+    await secureSet('atom_access_token', 'old');
+    const old = await readAccessTokenSnapshot();
+    mockedAsync.setItem.mockRejectedValueOnce(new Error('controlled profile failure'));
+    await expect(commitAuthSession(old, {
+      token: 'new', expiresAt: '123', userData: '{"id":"new"}',
+    })).rejects.toThrow('controlled profile failure');
+    await expect(secureGet('atom_access_token')).resolves.toBeNull();
+  });
+
 });

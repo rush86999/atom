@@ -11,6 +11,7 @@ import { DeviceProvider, useDevice } from '../DeviceContext';
 import { AuthProvider, useAuth } from '../AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { secureSet } from '../../storage/secureTokenStorage';
 import * as Camera from 'expo-camera';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
@@ -86,12 +87,15 @@ const setupAuthenticatedState = (extraAsyncStorage: Record<string, string> = {})
 };
 
 // Setup
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
 
   (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
   (SecureStore.setItemAsync as jest.Mock).mockResolvedValue(undefined);
   (SecureStore.deleteItemAsync as jest.Mock).mockResolvedValue(undefined);
+  // A new controlled account fixture must not inherit a prior test's revocation.
+  await secureSet('atom_access_token', 'controlled-fixture-generation');
+  jest.clearAllMocks();
 
   (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);

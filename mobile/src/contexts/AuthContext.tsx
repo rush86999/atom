@@ -14,7 +14,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { secureGet, secureSet, secureDelete } from '../storage/secureTokenStorage';
+import { secureGet, secureSet, readAccessTokenSnapshot, commitAuthSession, clearAuthSession } from '../storage/secureTokenStorage';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
@@ -126,8 +126,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Load device info
       await loadDeviceInfo();
     } catch (error) {
-      console.error('Failed to initialize auth:', error);
-      await clearTokens();
+      console.error('Failed to initialize auth');
+      try { await clearTokens(); } catch {
+        console.error('Local session cleanup unavailable; access remains revoked');
+      }
+      setIsAuthenticated(false);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -165,6 +169,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
     try {
       setIsLoading(true);
+
+      const startingSession = await readAccessTokenSnapshot();
 
       // Generate device token if not exists
       let deviceToken = await secureGet(DEVICE_ID_KEY);
@@ -231,21 +237,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const data = await response.json();
 
-      // Store tokens
-      await secureSet(ACCESS_TOKEN_KEY, data.access_token);
-      if (data.refresh_token) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refresh_token);
-      }
-
-      // Calculate expiry time (default 24 hours from now)
       const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
-      await SecureStore.setItemAsync(TOKEN_EXPIRY_KEY, expiresAt.toString());
-
-      // Store user data
-      if (data.user) {
-        await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(data.user));
-        setUser(data.user);
-      }
+      const committed = await commitAuthSession(startingSession, {
+        token: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresAt: String(expiresAt),
+        userData: data.user ? JSON.stringify(data.user) : null,
+      });
+      if (!committed) return { success: false, error: 'Login superseded by a session change' };
+      setUser(data.user || null);
 
       // Update device info
       setDeviceInfo({
@@ -274,50 +274,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Logout and clear tokens
    */
   const logout = async () => {
-    try {
-      // Call backend logout endpoint if available
-      const accessToken = await secureGet(ACCESS_TOKEN_KEY);
-      if (accessToken) {
-        try {
-          await fetch(`${API_BASE_URL}/api/auth/mobile/logout`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`,
-            },
-          });
-        } catch (error) {
-          console.warn('Backend logout failed, clearing local state:', error);
-        }
+    const accessToken = await secureGet(ACCESS_TOKEN_KEY);
+    // Revoke locally before waiting for an unavailable or slow backend.
+    setIsAuthenticated(false);
+    setUser(null);
+    setDeviceInfo(null);
+    await clearTokens();
+    if (accessToken) {
+      try {
+        await fetch(`${API_BASE_URL}/api/auth/mobile/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        });
+      } catch {
+        console.warn('Backend logout unavailable after local session clear');
       }
-
-      // Clear all local state
-      await clearTokens();
-      setIsAuthenticated(false);
-      setUser(null);
-      setDeviceInfo(null);
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Even if logout fails, clear local state
-      await clearTokens();
-      setIsAuthenticated(false);
-      setUser(null);
-      setDeviceInfo(null);
     }
   };
 
-  /**
-   * Clear all stored tokens and user data
-   */
+  /** Clear the same canonical bundle used by login and refresh. */
   const clearTokens = async () => {
-    try {
-      await secureDelete(ACCESS_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(TOKEN_EXPIRY_KEY);
-      await AsyncStorage.removeItem(USER_DATA_KEY);
-    } catch (error) {
-      console.error('Failed to clear tokens:', error);
-    }
+    await clearAuthSession();
   };
 
   /**
@@ -325,7 +302,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const refreshToken = async (): Promise<boolean> => {
     try {
-      const refreshTokenValue = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      const startingSession = await readAccessTokenSnapshot();
+      const refreshTokenValue = await secureGet(REFRESH_TOKEN_KEY);
 
       if (!refreshTokenValue) {
         return false;
@@ -345,17 +323,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const data = await response.json();
 
-      // Store new tokens
-      await secureSet(ACCESS_TOKEN_KEY, data.access_token);
-      if (data.refresh_token) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refresh_token);
-      }
-
-      // Calculate new expiry
       const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
-      await SecureStore.setItemAsync(TOKEN_EXPIRY_KEY, expiresAt.toString());
-
-      return true;
+      return await commitAuthSession(startingSession, {
+        token: data.access_token,
+        refreshToken: data.refresh_token || refreshTokenValue,
+        expiresAt: String(expiresAt),
+      }, refreshTokenValue);
     } catch (error) {
       console.error('Token refresh error:', error);
       return false;

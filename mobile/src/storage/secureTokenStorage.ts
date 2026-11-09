@@ -101,6 +101,7 @@ async function deleteSecureValue(key: string): Promise<void> {
 // Native cross-process atomicity is not provided by SecureStore.
 let accessTokenTail: Promise<void> = Promise.resolve();
 let accessTokenGeneration = 0;
+let accessTokenRevoked = false;
 const ACCESS_TOKEN_KEY = 'atom_access_token';
 
 function withAccessToken<T>(operation: () => Promise<T>): Promise<T> {
@@ -119,26 +120,29 @@ export function secureSet(key: string, value: string): Promise<void> {
   return withAccessToken(async () => {
     // Invalidate old request ownership even if a native write is uncertain.
     accessTokenGeneration += 1;
+    accessTokenRevoked = true;
     await writeSecureValue(key, value);
+    accessTokenRevoked = false;
   });
 }
 
 export function secureGet(key: string): Promise<string | null> {
   if (key !== ACCESS_TOKEN_KEY) return readSecureValue(key);
-  return withAccessToken(() => readSecureValue(key));
+  return withAccessToken(() => accessTokenRevoked ? Promise.resolve(null) : readSecureValue(key));
 }
 
 export function secureDelete(key: string): Promise<void> {
   if (key !== ACCESS_TOKEN_KEY) return deleteSecureValue(key);
   return withAccessToken(async () => {
     accessTokenGeneration += 1;
+    accessTokenRevoked = true;
     await deleteSecureValue(key);
   });
 }
 
 export function readAccessTokenSnapshot(): Promise<AccessTokenSnapshot> {
   return withAccessToken(async () => ({
-    token: await readSecureValue(ACCESS_TOKEN_KEY),
+    token: accessTokenRevoked ? null : await readSecureValue(ACCESS_TOKEN_KEY),
     generation: accessTokenGeneration,
   }));
 }
@@ -149,8 +153,56 @@ export function invalidateAccessToken(snapshot: AccessTokenSnapshot): Promise<bo
     const current = await readSecureValue(ACCESS_TOKEN_KEY);
     if (current !== snapshot.token) return false;
     accessTokenGeneration += 1;
-    await deleteSecureValue(ACCESS_TOKEN_KEY);
-    await deleteSecureValue('auth_token');
+    accessTokenRevoked = true;
+    await deleteAuthSessionValues();
     return true;
+  });
+}
+
+export interface AuthSessionValues {
+  token: string;
+  refreshToken?: string;
+  expiresAt: string;
+  // Undefined preserves the current profile during refresh; null clears it.
+  userData?: string | null;
+}
+
+async function deleteAuthSessionValues(): Promise<void> {
+  for (const key of [ACCESS_TOKEN_KEY, 'atom_refresh_token', 'atom_token_expiry', 'auth_token']) {
+    await deleteSecureValue(key);
+  }
+  await AsyncStorage.removeItem('atom_user_data');
+}
+
+/** Serialize the existing token/profile keys; this is not a native DB transaction. */
+export function commitAuthSession(
+  expected: AccessTokenSnapshot,
+  values: AuthSessionValues,
+  expectedRefreshToken?: string,
+): Promise<boolean> {
+  return withAccessToken(async () => {
+    if (expected.generation !== accessTokenGeneration) return false;
+    const current = accessTokenRevoked ? null : await readSecureValue(ACCESS_TOKEN_KEY);
+    if (current !== expected.token) return false;
+    if (expectedRefreshToken !== undefined &&
+        await readSecureValue('atom_refresh_token') !== expectedRefreshToken) return false;
+    accessTokenGeneration += 1;
+    accessTokenRevoked = true;
+    await writeSecureValue(ACCESS_TOKEN_KEY, values.token);
+    if (values.refreshToken) await writeSecureValue('atom_refresh_token', values.refreshToken);
+    else await deleteSecureValue('atom_refresh_token');
+    await writeSecureValue('atom_token_expiry', values.expiresAt);
+    if (values.userData === null) await AsyncStorage.removeItem('atom_user_data');
+    else if (values.userData !== undefined) await AsyncStorage.setItem('atom_user_data', values.userData);
+    accessTokenRevoked = false;
+    return true;
+  });
+}
+
+export function clearAuthSession(): Promise<void> {
+  return withAccessToken(async () => {
+    accessTokenGeneration += 1;
+    accessTokenRevoked = true;
+    await deleteAuthSessionValues();
   });
 }

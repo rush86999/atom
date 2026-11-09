@@ -7,7 +7,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 // #6 fix: removed dead `import { AsyncStorage } from 'react-native'`
 // (RN core dropped AsyncStorage in 0.59). The secureTokenStorage helpers
 // use @react-native-async-storage/async-storage internally.
-import { secureSet, secureGet, secureDelete, readAccessTokenSnapshot, invalidateAccessToken, AccessTokenSnapshot } from '../storage/secureTokenStorage';
+import { secureSet, secureGet, clearAuthSession, readAccessTokenSnapshot, invalidateAccessToken, AccessTokenSnapshot } from '../storage/secureTokenStorage';
 import { ApiResponse } from '../types/common';
 
 // API base URL - configure for your environment
@@ -77,10 +77,7 @@ class ApiService {
    * Clear authentication token
    */
   async clearToken(): Promise<void> {
-    // #6 fix: setToken/getToken use 'atom_access_token' — clear the SAME key,
-    // plus the legacy 'auth_token' key so old stores are cleaned too.
-    await secureDelete('atom_access_token');
-    await secureDelete('auth_token');
+    await clearAuthSession();
   }
 
   /**
