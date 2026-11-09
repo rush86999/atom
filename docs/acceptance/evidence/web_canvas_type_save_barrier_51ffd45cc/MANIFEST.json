@@ -1,0 +1,17 @@
+{
+  "executed_source": "51ffd45cc4b8b32f6608033ee70ee34e929c93d4",
+  "source_files": {
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "sha256:c6904dd56067f19190b0a7ce39e2384d947cee8f8ec850630a9323dc1ea1c431",
+    "frontend-nextjs/components/canvas/CanvasTypeBadge.tsx": "sha256:7f59f1637542e2824da99d824717ccda805bb4424e5f0011ccefbc653fc18d10",
+    "frontend-nextjs/components/chat/canvas-host.tsx": "sha256:34c099754b99f322d26466a93f68db903f24841b25795990fdacda5b44751b2b",
+    "frontend-nextjs/components/canvas/__tests__/CanvasDocumentPersistence.test.tsx": "sha256:8b323dbbb5c6e6066d9bef1bdecd40d2b5f6134d614cd871e817c114f6fe645c",
+    "frontend-nextjs/hooks/useCanvasAutosave.ts": "sha256:cd243b3449d462a6d171cfa115a6987d3ff640da0f02380a2e9953f486ffd55c",
+    ".github/workflows/ci.yml": "sha256:cc5f77a24420a0ed5f4c7d57545258eeacf8f7b05537710a4ad20b61285094fd"
+  },
+  "artifacts": {
+    "final-248.log": "sha256:4fbc6715353425ddd1a167955b267324f55db9815d64161102ecdb505c6d6ca9",
+    "negative.log": "sha256:6a63c821bf4537e33a58949ee631cd512d62da7b56950626d7c8f8779cf22444",
+    "README.md": "sha256:9117fa18cdb3aadce32849c3a2892701f94679381077ef7f54f99cb4a29b7891",
+    "verification.json": "sha256:2d87776f4d79af54a0eb759601356cae5a1a4cfa6a3ba783d69d5c9753cba8a2"
+  }
+}

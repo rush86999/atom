@@ -1,0 +1,137 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+  console.error
+    [API Error] {
+      code: 'ERR_BAD_RESPONSE',
+      status: 503,
+      message: 'Request failed with status code 503',
+      url: '/api/canvas/ordinary-document?canvas_type=document&title=Ordinary%20document'
+    }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+  console.error
+    [API Error] {
+      code: 'ERR_BAD_RESPONSE',
+      status: 503,
+      message: 'Request failed with status code 503',
+      url: '/api/canvas/ordinary-document?canvas_type=document&title=Ordinary%20document'
+    }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Axios.request (node_modules/axios/lib/core/Axios.js:41:14)
+
+FAIL components/canvas/__tests__/CanvasDocumentPersistence.test.tsx
+  ○ skipped blocks dependent co-editor work when the native document save is not confirmed
+  standalone page native text persistence
+    ✕ cannot clear an uncertain save through an already-open type menu (111 ms)
+    ○ skipped shows an empty document body rather than its JSON storage envelope
+    ○ skipped shows an empty markdown body rather than its JSON storage envelope
+    ○ skipped shows an empty code body rather than its JSON storage envelope
+    ○ skipped saves the exact document body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact markdown body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact code body into the original canvas audit and preserves envelope metadata
+    ○ skipped does not certify a refused native document save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native markdown save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native code save via an unrelated legacy artifact
+    ○ skipped preserves legacy plain-string document audit content
+    ○ skipped preserves legacy plain-string markdown audit content
+    ○ skipped preserves legacy plain-string code audit content
+    ○ skipped uses the established docs registry alias for empty native text
+    ○ skipped uses the established doc registry alias for empty native text
+    ○ skipped uses the established generic registry alias for empty native text
+    ○ skipped uses the established coding registry alias for empty native text
+  chat host native text persistence
+    ✕ cannot clear an uncertain save through an already-open type menu (30 ms)
+    ○ skipped shows an empty document body rather than its JSON storage envelope
+    ○ skipped shows an empty markdown body rather than its JSON storage envelope
+    ○ skipped shows an empty code body rather than its JSON storage envelope
+    ○ skipped saves the exact document body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact markdown body into the original canvas audit and preserves envelope metadata
+    ○ skipped saves the exact code body into the original canvas audit and preserves envelope metadata
+    ○ skipped does not certify a refused native document save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native markdown save via an unrelated legacy artifact
+    ○ skipped does not certify a refused native code save via an unrelated legacy artifact
+    ○ skipped preserves legacy plain-string document audit content
+    ○ skipped preserves legacy plain-string markdown audit content
+    ○ skipped preserves legacy plain-string code audit content
+    ○ skipped uses the established docs registry alias for empty native text
+    ○ skipped uses the established doc registry alias for empty native text
+    ○ skipped uses the established generic registry alias for empty native text
+    ○ skipped uses the established coding registry alias for empty native text
+
+  ● standalone page native text persistence › cannot clear an uncertain save through an already-open type menu
+
+    expect(element).toBeDisabled()
+
+    Received element is not disabled:
+      <button aria-expanded="true" aria-haspopup="listbox" class="text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded hover:border-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors cursor-pointer" data-testid="canvas-type-document" title="Change canvas type" />
+
+      55 |   fireEvent.click(screen.getByText('Save Changes'));
+      56 |   await screen.findByText('Save not confirmed. Check version history before retrying.');
+    > 57 |   expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+         |                                                                   ^
+      58 |   expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      59 |   expect(attempts).toBe(1);
+      60 |  });
+
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:57:67
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at fulfilled (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:5:58)
+
+  ● chat host native text persistence › cannot clear an uncertain save through an already-open type menu
+
+    expect(element).toBeDisabled()
+
+    Received element is not disabled:
+      <button aria-expanded="true" aria-haspopup="listbox" class="text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded hover:border-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors cursor-pointer" data-testid="canvas-type-document" title="Change canvas type" />
+
+      55 |   fireEvent.click(screen.getByText('Save Changes'));
+      56 |   await screen.findByText('Save not confirmed. Check version history before retrying.');
+    > 57 |   expect(screen.getByRole('button',{name:'document',exact:true})).toBeDisabled();
+         |                                                                   ^
+      58 |   expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      59 |   expect(attempts).toBe(1);
+      60 |  });
+
+      at components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:57:67
+      at step (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:33:23)
+      at Object.next (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:14:53)
+      at fulfilled (components/canvas/__tests__/CanvasDocumentPersistence.test.tsx:5:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 33 skipped, 35 total
+Snapshots:   0 total
+Time:        1.212 s
+Ran all test suites within paths "components/canvas/__tests__/CanvasDocumentPersistence.test.tsx".
