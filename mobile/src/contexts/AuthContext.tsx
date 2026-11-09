@@ -14,7 +14,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { secureGet, secureSet, readAccessTokenSnapshot, commitAuthSession, clearAuthSession, AccessTokenSnapshot } from '../storage/secureTokenStorage';
+import { secureGet, secureSet, readAccessTokenSnapshot, commitAuthSession, clearAuthSession, AccessTokenSnapshot, subscribeToSessionRevocation, isAccessTokenSnapshotCurrent, getAccessTokenGeneration } from '../storage/secureTokenStorage';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
@@ -94,17 +94,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Initialize authentication state on mount
    */
   useEffect(() => {
+    const unsubscribe = subscribeToSessionRevocation(() => {
+      setIsAuthenticated(false);
+      setUser(null);
+      setDeviceInfo(null);
+    });
     initializeAuth();
+    return unsubscribe;
   }, []);
 
   const initializeAuth = async () => {
+    const startingGeneration = getAccessTokenGeneration();
     try {
       setIsLoading(true);
 
       // Check for stored tokens
-      const accessToken = await secureGet(ACCESS_TOKEN_KEY);
+      const startingSession = await readAccessTokenSnapshot();
+      const accessToken = startingSession.token;
       const tokenExpiry = await SecureStore.getItemAsync(TOKEN_EXPIRY_KEY);
       const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+      if (!isAccessTokenSnapshotCurrent(startingSession)) return;
 
       if (accessToken && tokenExpiry) {
         const expiryTime = parseInt(tokenExpiry, 10);
@@ -126,7 +135,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Token expired, try to refresh
           const refreshed = await refreshToken();
           if (!refreshed) {
-            await clearTokens();
+            await clearAuthSession(startingSession.generation);
+          } else {
+            const current = await readAccessTokenSnapshot();
+            const currentUser = await AsyncStorage.getItem(USER_DATA_KEY);
+            if (current.token && isAccessTokenSnapshotCurrent(current)) {
+              setUser(currentUser ? JSON.parse(currentUser) : null);
+              setIsAuthenticated(true);
+            }
           }
         }
       }
@@ -135,11 +151,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await loadDeviceInfo();
     } catch (error) {
       console.error('Failed to initialize auth');
-      try { await clearTokens(); } catch {
+      try { await clearAuthSession(startingGeneration); } catch {
         console.error('Local session cleanup unavailable; access remains revoked');
       }
-      setIsAuthenticated(false);
-      setUser(null);
     } finally {
       setIsLoading(false);
     }

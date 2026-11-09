@@ -67,7 +67,7 @@ const ROOM_KEY_PREFIX = 'socket_room_';
  * WebSocketProvider Component
  */
 export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { isAuthenticated, getAccessToken } = useAuth();
+  const { isAuthenticated } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -89,7 +89,6 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
    * Get current access token
    */
   const getToken = async (): Promise<string | null> => {
-    // This would come from AuthContext, but for now we'll use a placeholder
     try {
       return await secureGet('atom_access_token');
     } catch (error) {

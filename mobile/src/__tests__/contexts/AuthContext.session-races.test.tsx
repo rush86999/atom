@@ -1,5 +1,7 @@
 /** Controlled HTTP timing through the real provider and shared token helper. */
 import React from 'react';
+import { AxiosError, AxiosAdapter } from 'axios';
+import { apiService } from '../../services/api';
 import { Text } from 'react-native';
 import { render, act, waitFor } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
@@ -193,6 +195,48 @@ describe('AuthContext delayed session responses', () => {
     expect(store.has('atom_access_token')).toBe(false);
     expect(auth.isAuthenticated).toBe(false);
     expect(auth.user).toBeNull();
+  });
+
+  test('real Axios unauthorized response clears mounted provider identity', async () => {
+    await seed();
+    await mount();
+    expect(auth.isAuthenticated).toBe(true);
+    const adapter: AxiosAdapter = async config => {
+      throw new AxiosError('controlled unauthorized', 'ERR_BAD_REQUEST', config, undefined,
+        { config, status: 401, statusText: 'Unauthorized', headers: {}, data: {} });
+    };
+    await act(async () => { expect((await apiService.get('/controlled', { adapter })).success).toBe(false); });
+    expect(auth.isAuthenticated).toBe(false);
+    expect(auth.user).toBeNull();
+    expect(store.has('atom_access_token')).toBe(false);
+  });
+
+  test('expired startup session becomes authenticated after a valid mobile refresh', async () => {
+    await seed();
+    store.set('atom_token_expiry', String(Date.now() - 1000));
+    await mount();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(store.get('atom_access_token')).toBe('ordinary');
+    expect(auth.isAuthenticated).toBe(true);
+    expect(auth.user).toEqual({ id: 'controlled-user' });
+  });
+
+  test('a stale malformed startup profile cannot clear a newer successful login', async () => {
+    await seed();
+    const delayed = deferred<string | null>();
+    let startupRead = true;
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(async key => {
+      if (key === 'atom_user_data' && startupRead) { startupRead = false; return delayed.promise; }
+      return store.get(key) ?? null;
+    });
+    render(<AuthProvider><Capture /></AuthProvider>);
+    await waitFor(() => expect(AsyncStorage.getItem).toHaveBeenCalledWith('atom_user_data'));
+    await act(async () => { expect((await auth.login(credentials)).success).toBe(true); });
+    await act(async () => { delayed.resolve('{not-json'); });
+    await waitFor(() => expect(auth.isLoading).toBe(false));
+    expect(auth.isAuthenticated).toBe(true);
+    expect(store.get('atom_access_token')).toBe('ordinary');
+    expect(auth.user?.id).toBe('controlled-user');
   });
 
 });

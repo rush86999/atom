@@ -103,6 +103,27 @@ let accessTokenTail: Promise<void> = Promise.resolve();
 let accessTokenGeneration = 0;
 let accessTokenRevoked = false;
 const ACCESS_TOKEN_KEY = 'atom_access_token';
+const revocationListeners = new Set<() => void>();
+
+export function subscribeToSessionRevocation(listener: () => void): () => void {
+  revocationListeners.add(listener);
+  return () => { revocationListeners.delete(listener); };
+}
+
+function publishSessionRevocation(): void {
+  for (const listener of revocationListeners) {
+    try { listener(); } catch { console.warn('Session revocation observer failed'); }
+  }
+}
+
+export function getAccessTokenGeneration(): number {
+  return accessTokenGeneration;
+}
+
+export function isAccessTokenSnapshotCurrent(snapshot: AccessTokenSnapshot): boolean {
+  return !accessTokenRevoked && snapshot.generation === accessTokenGeneration;
+}
+
 
 function withAccessToken<T>(operation: () => Promise<T>): Promise<T> {
   const result = accessTokenTail.then(operation);
@@ -136,6 +157,7 @@ export function secureDelete(key: string): Promise<void> {
   return withAccessToken(async () => {
     accessTokenGeneration += 1;
     accessTokenRevoked = true;
+    publishSessionRevocation();
     await deleteSecureValue(key);
   });
 }
@@ -154,6 +176,7 @@ export function invalidateAccessToken(snapshot: AccessTokenSnapshot): Promise<bo
     if (current !== snapshot.token) return false;
     accessTokenGeneration += 1;
     accessTokenRevoked = true;
+    publishSessionRevocation();
     await deleteAuthSessionValues();
     return true;
   });
@@ -199,10 +222,13 @@ export function commitAuthSession(
   });
 }
 
-export function clearAuthSession(): Promise<void> {
+export function clearAuthSession(expectedGeneration?: number): Promise<boolean> {
   return withAccessToken(async () => {
+    if (expectedGeneration !== undefined && expectedGeneration !== accessTokenGeneration) return false;
     accessTokenGeneration += 1;
     accessTokenRevoked = true;
+    publishSessionRevocation();
     await deleteAuthSessionValues();
+    return true;
   });
 }
