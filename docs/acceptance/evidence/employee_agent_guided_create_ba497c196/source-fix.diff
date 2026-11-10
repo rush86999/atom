@@ -1,0 +1,923 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index f1d3c829a..a6b699023 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -500,6 +500,17 @@ jobs:
+         run: |
+           python -m pytest tests/test_email_legacy_draft_precedence.py tests/test_email_draft_shared_writer.py tests/test_email_eml_import.py tests/test_email_canvas_attachments.py tests/test_email_attachment_tool.py -q --tb=short --timeout=300 --timeout-method=thread
+ 
++      - name: Run guided agent create authority and receipt controls
++        env:
++          TESTING: "1"
++          PYTEST_CURRENT_TEST: "1"
++          DATABASE_URL: "sqlite:///test_ci_guided_create.db"
++          ATOM_DATA_DIR: "${{ runner.temp }}/atom-guided-create"
++          SECRET_KEY: "ci-test-secret-key"
++          ENVIRONMENT: "development"
++        run: |
++          python -m pytest tests/api/test_agent_guided_create_goal14.py -q --tb=short --timeout=300 --timeout-method=thread
++
+   backend-oracle:
+     runs-on: ubuntu-latest
+     defaults:
+diff --git a/backend/api/agent_onboarding_routes.py b/backend/api/agent_onboarding_routes.py
+index 00084ccf9..79146adbe 100644
+--- a/backend/api/agent_onboarding_routes.py
++++ b/backend/api/agent_onboarding_routes.py
+@@ -14,10 +14,11 @@ Design goal (per Brennan Machinery product direction):
+ import logging
+ from typing import Any, Dict, List, Optional
+ 
+-from fastapi import Depends, Query
++from fastapi import Depends, HTTPException, Query
+ from pydantic import BaseModel, Field
+ from sqlalchemy.orm import Session
+ 
++from core.agent_decision_write_service import create_agent as _create_agent_decision
+ from core.auth import User, get_current_user
+ from core.base_routes import BaseAPIRouter
+ from core.database import get_db
+@@ -25,7 +26,8 @@ from core.guided_automation_service import (
+     get_automation_suggestion_service,
+     get_guided_agent_factory,
+ )
+-from core.models import AgentRegistry, AgentStatus
++from core.models import AgentRegistry, AgentStatus, UserRole
++from core.personal_scope import resolve_tenant_id
+ from core.service_factory import ServiceFactory
+ 
+ logger = logging.getLogger(__name__)
+@@ -77,6 +79,7 @@ class SuggestionCreateRequest(BaseModel):
+ @router.post("/guided", status_code=201)
+ async def create_guided_agent(
+     req: GuidedAgentRequest,
++    operation_id: Optional[str] = None,
+     current_user: User = Depends(get_current_user),
+     db: Session = Depends(get_db),
+ ):
+@@ -96,6 +99,16 @@ async def create_guided_agent(
+     # --- Trust/maturity gate for agent-initiated creation ---
+     if req.acting_agent_id:
+         governance = ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
++        visible_agents = {
++            agent.id: agent for agent in governance.list_agents()
++        }
++        acting_agent = visible_agents.get(req.acting_agent_id)
++        if (
++            acting_agent is None
++            or resolve_tenant_id(acting_agent) != str(tenant_id)
++        ):
++            raise HTTPException(
++                status_code=404, detail="Acting agent not found")
+         decision = await governance.can_perform_action_async(
+             agent_id=req.acting_agent_id,
+             action_type="create_agent",
+@@ -113,8 +126,18 @@ async def create_guided_agent(
+                         "context": req.context,
+                         "created_by_user": str(getattr(current_user, "id", "unknown")),
+                         "tenant_id": tenant_id,
++                        "workspace_id": workspace_id,
++                        "acting_agent_id": req.acting_agent_id,
++                        "schedule_config": req.schedule_config,
+                     },
+                     reason=reason,
++                    execution_context={
++                        "workspace_id": workspace_id,
++                        "tenant_id": tenant_id,
++                        "actor_id": str(getattr(current_user, "id", "unknown")),
++                        "user_id": str(getattr(current_user, "id", "unknown")),
++                    },
++                    user_id=str(getattr(current_user, "id", "unknown")),
+                 )
+             except Exception as e:
+                 logger.error(f"Failed to create HITL action for guided agent creation: {e}")
+@@ -150,51 +173,70 @@ async def create_guided_agent(
+         "curriculum": ROLE_CURRICULUM.get(role, []),
+     }
+ 
+-    registry_entry = AgentRegistry(
++    if req.acting_agent_id:
++        # Generation may await; re-check the exact actor reference before the
++        # create so a concurrent deletion/scope move cannot leave a dangling
++        # parent binding.
++        if req.acting_agent_id not in {
++            agent.id for agent in governance.list_agents()
++        }:
++            raise HTTPException(
++                status_code=404, detail="Acting agent not found")
++
++    result = _create_agent_decision(
++        db,
++        actor=current_user,
+         name=blueprint["name"],
+-        description=blueprint["description"],
+         category=blueprint["category"],
+-        capabilities=blueprint.get("capabilities"),
++        description=blueprint.get("description"),
+         configuration=configuration,
+         schedule_config=req.schedule_config,
+-        module_path="core.generic_agent",
+-        class_name="GenericAgent",
+-        # Always spoon-fed to start: employees and autonomous agents alike
+-        # get a STUDENT that must graduate before acting unattended.
+-        status=AgentStatus.STUDENT.value,
+-        # Spoon-fed start: fresh students begin with low confidence and earn
+-        # it through teaching/observation (capped below the promotion
+-        # threshold) — the model default of 0.5 would already sit at the
+-        # training-review boundary.
++        # Server-owned student qualification contract: the caller cannot
++        # submit status/confidence/user/scope, and the generated blueprint
++        # cannot choose them either.
+         confidence_score=0.1,
+         user_id=str(getattr(current_user, "id", "unknown")),
+-        workspace_id=workspace_id,
+-        tenant_id=tenant_id,
++        parent_agent_id=req.acting_agent_id,
++        capabilities=blueprint.get("capabilities"),
++        minimum_role=UserRole.GUEST,
++        authority_label="GUIDED_CREATE",
++        operation_id=operation_id,
+     )
+-    if req.acting_agent_id:
+-        registry_entry.parent_agent_id = req.acting_agent_id
+-
+-    db.add(registry_entry)
+-    db.commit()
+-    db.refresh(registry_entry)
+-
+-    if req.schedule_config and req.schedule_config.get("active"):
++    from api.agent_routes import _raise_agent_decision
++
++    _raise_agent_decision(result)
++    data = dict(result.get("data") or {})
++
++    # A followup effect only after the first verified create; replay must not
++    # schedule the same agent a second time.
++    if (
++        result.get("status") == "verified"
++        and req.schedule_config
++        and req.schedule_config.get("active")
++    ):
+         try:
+             from core.scheduler import AgentScheduler
+-            AgentScheduler.get_instance().schedule_agent(registry_entry.id, req.schedule_config)
++            AgentScheduler.get_instance().schedule_agent(
++                data["agent_id"], req.schedule_config)
+         except Exception as e:
+-            logger.warning(f"Failed to schedule guided agent {registry_entry.id}: {e}")
++            logger.warning(
++                f"Failed to schedule guided agent {data['agent_id']}: {e}")
+ 
+     return router.success_response(
+         data={
+-            "agent_id": registry_entry.id,
+-            "name": registry_entry.name,
+-            "category": registry_entry.category,
++            "agent_id": data["agent_id"],
++            "name": data.get("agent_name") or blueprint["name"],
++            "category": data.get("category") or blueprint["category"],
+             "template": blueprint.get("template"),
+-            "maturity": AgentStatus.STUDENT.value,
++            "maturity": data.get("agent_status") or AgentStatus.STUDENT.value,
+             "created_by": "agent" if req.acting_agent_id else "employee",
++            "operation_id": data.get("operation_id"),
++            "audit_id": data.get("audit_id"),
++            "verification": data.get("verification"),
+         },
+-        message=f"Agent '{registry_entry.name}' created — it starts as a STUDENT and learns with guidance",
++        message=(
++            f"Agent '{data.get('agent_name') or blueprint['name']}' created "
++            "— it starts as a STUDENT and learns with guidance"),
+     )
+ 
+ 
+diff --git a/backend/core/agent_decision_write_service.py b/backend/core/agent_decision_write_service.py
+index 4da7aabb3..d995a329e 100644
+--- a/backend/core/agent_decision_write_service.py
++++ b/backend/core/agent_decision_write_service.py
+@@ -788,8 +788,10 @@ def _stored_json_value(value: Any) -> Any:
+     return value
+ 
+ 
+-def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
+-    return {
++def _create_state_material(
++    agent: AgentRegistry, *, extra: Optional[Dict[str, Any]] = None,
++) -> Dict[str, Any]:
++    material = {
+         "id": str(agent.id),
+         "tenant_id": (
+             None if agent.tenant_id is None else str(agent.tenant_id)),
+@@ -809,14 +811,24 @@ def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
+         "status": str(agent.status or ""),
+         "confidence_score": float(agent.confidence_score or 0.0),
+     }
++    if extra:
++        material.update(extra)
++    return material
+ 
+ 
+ def _create_target_check(db: Session):
+     def check(expected: Dict[str, Any]) -> bool:
+         current = _load_agent(db, str(expected.get("target_id") or ""))
++        audit_extra = expected.get("extra") or {}
++        state_extra = {
++            key: audit_extra[key]
++            for key in ("user_id", "parent_agent_id", "capabilities_digest")
++            if key in audit_extra
++        }
+         return (
+             current is not None
+-            and _state_digest(_create_state_material(current))
++            and _state_digest(_create_state_material(
++                current, extra=state_extra))
+             == expected["result_digest"])
+ 
+     return check
+@@ -839,6 +851,12 @@ def create_agent(
+     description: Optional[str] = None,
+     configuration: Optional[Dict[str, Any]] = None,
+     schedule_config: Optional[Dict[str, Any]] = None,
++    confidence_score: Optional[float] = None,
++    user_id: Optional[str] = None,
++    parent_agent_id: Optional[str] = None,
++    capabilities: Optional[Any] = None,
++    minimum_role: UserRole = UserRole.WORKSPACE_ADMIN,
++    authority_label: str = "AGENT_MANAGE",
+     operation_id: Optional[str] = None,
+ ) -> Dict[str, Any]:
+     """Create one STUDENT agent with an exact actor/material receipt.
+@@ -849,8 +867,8 @@ def create_agent(
+     A create remains a create (no name-based upsert or uniqueness policy).
+     """
+     actor_snapshot = _resolve_actor(
+-        db, actor, minimum_role=UserRole.WORKSPACE_ADMIN,
+-        authority_label="AGENT_MANAGE")
++        db, actor, minimum_role=minimum_role,
++        authority_label=authority_label)
+     if not actor_snapshot.get("ok"):
+         return _actor_refusal(actor_snapshot)
+     try:
+@@ -860,9 +878,31 @@ def create_agent(
+             str(exc), http_status=422, error_code="VALIDATION_ERROR",
+             field="operation_id")
+ 
++    try:
++        effective_confidence = (
++            NEW_AGENT_CONFIDENCE if confidence_score is None
++            else float(confidence_score))
++    except (TypeError, ValueError):
++        return _refused(
++            "confidence_score must be numeric", http_status=422,
++            error_code="VALIDATION_ERROR", field="confidence_score")
++    if not (0.0 <= effective_confidence < 0.5):
++        return _refused(
++            "confidence_score must be below the INTERN qualification floor",
++            http_status=422, error_code="VALIDATION_ERROR",
++            field="confidence_score")
++
+     target_id = str(uuid.uuid5(uuid.NAMESPACE_URL, operation_id))
+     configuration_digest = _create_config_digest(configuration)
+     schedule_digest = _create_schedule_digest(schedule_config)
++    state_extra: Dict[str, Any] = {}
++    if user_id is not None:
++        state_extra["user_id"] = str(user_id)
++    if parent_agent_id is not None:
++        state_extra["parent_agent_id"] = str(parent_agent_id)
++    if capabilities is not None:
++        state_extra["capabilities_digest"] = _fingerprint(
++            "agent-capabilities", _canonical(capabilities))
+     request_material = {
+         "name": str(name or ""),
+         "category": str(category or ""),
+@@ -870,9 +910,10 @@ def create_agent(
+         "configuration_digest": configuration_digest,
+         "schedule_config_digest": schedule_digest,
+         "status": AgentStatus.STUDENT.value,
+-        "confidence_score": NEW_AGENT_CONFIDENCE,
++        "confidence_score": effective_confidence,
+         "module_path": "core.generic_agent",
+         "class_name": "GenericAgent",
++        **state_extra,
+     }
+     request_digest = _request_digest(
+         _ACTION_CREATE, target_id, request_material)
+@@ -909,7 +950,10 @@ def create_agent(
+         module_path="core.generic_agent",
+         class_name="GenericAgent",
+         status=AgentStatus.STUDENT.value,
+-        confidence_score=NEW_AGENT_CONFIDENCE,
++        confidence_score=effective_confidence,
++        user_id=user_id,
++        parent_agent_id=parent_agent_id,
++        capabilities=capabilities,
+         workspace_id=actor_snapshot["workspace_id"],
+         tenant_id=actor_snapshot["tenant_id"],
+     )
+@@ -920,7 +964,8 @@ def create_agent(
+         prior_status="", result_status=AgentStatus.STUDENT.value,
+         request_digest=request_digest,
+         prior_digest=_state_digest({"absent": True}),
+-        result_digest=_state_digest(_create_state_material(agent)),
++        result_digest=_state_digest(_create_state_material(
++            agent, extra=state_extra)),
+         actor=actor_snapshot,
+         extra={
+             "category": str(category or ""),
+@@ -928,6 +973,7 @@ def create_agent(
+             "class_name": "GenericAgent",
+             "configuration_digest": configuration_digest,
+             "schedule_config_digest": schedule_digest,
++            **state_extra,
+         })
+ 
+     return _commit_and_verify(
+diff --git a/backend/tests/api/test_agent_guided_create_goal14.py b/backend/tests/api/test_agent_guided_create_goal14.py
+new file mode 100644
+index 000000000..e4b57aeb8
+--- /dev/null
++++ b/backend/tests/api/test_agent_guided_create_goal14.py
+@@ -0,0 +1,504 @@
++"""Goal14 guided public agent-create boundary controls.
++
++Real scratch SQLite + real FastAPI route + real JWT. The guided factory (the
++only model-facing component) is replaced by a deterministic double; the route,
++authority resolution, decision writer, audit receipt, replay and scheduler
++boundary stay real.
++
++The matrix covers: current active authority, forged body identity/scope/tier,
++concurrent actor change, exact scope, durable receipt, replay, changed
++material, NULL/{} exact identity, scheduler-once, foreign acting-agent
++reference, and same-scope acting-agent approval.
++"""
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++from fastapi import FastAPI
++from fastapi.testclient import TestClient
++from sqlalchemy import create_engine, func
++from sqlalchemy.orm import sessionmaker
++
++from api.agent_onboarding_routes import router as onboarding_router
++from core.auth import create_access_token
++from core.database import Base, get_db
++from core.models import (
++    AgentRegistry,
++    AuditLog,
++    HITLAction,
++    Tenant,
++    User,
++    Workspace,
++)
++
++BLUEPRINT = {
++    "name": "Guided Assistant",
++    "description": "Helps the operations team",
++    "category": "Operations",
++    "capabilities": ["read_orders", "draft_update"],
++    "template": "ops_coordinator",
++    "configuration": {
++        "system_prompt": "Help with operations work",
++        "constraints": ["require human approval for destructive actions"],
++    },
++}
++
++
++class FakeGuidedFactory:
++    """Deterministic replacement for the only model-facing component."""
++
++    def __init__(self, blueprint=None, on_design=None):
++        self.blueprint = dict(blueprint or BLUEPRINT)
++        self.on_design = on_design
++
++    async def design_agent(self, goal, context=None):
++        if self.on_design is not None:
++            self.on_design()
++        return dict(self.blueprint)
++
++
++@pytest.fixture
++def world(tmp_path: Path):
++    engine = create_engine(
++        f"sqlite:///{tmp_path / 'guided.db'}",
++        connect_args={"check_same_thread": False},
++    )
++    Base.metadata.create_all(engine)
++    Session = sessionmaker(bind=engine, expire_on_commit=False)
++    with Session() as db:
++        db.add_all([
++            Tenant(id="company", name="Company", subdomain="company",
++                   edition="personal", is_active=True),
++            Tenant(id="other", name="Other", subdomain="other",
++                   edition="personal", is_active=True),
++        ])
++        db.add_all([
++            Workspace(id="ws-a", name="A", tenant_id="company"),
++            Workspace(id="ws-b", name="B", tenant_id="other"),
++        ])
++        db.add_all([
++            User(id="member", tenant_id="company", workspace_id="ws-a",
++                 email="member@example.test", hashed_password="x",
++                 first_name="M", last_name="V", role="member",
++                 status="active", is_active=True),
++            User(id="inactive", tenant_id="company", workspace_id="ws-a",
++                 email="inactive@example.test", hashed_password="x",
++                 first_name="I", last_name="V", role="member",
++                 status="inactive", is_active=False),
++            User(id="foreign", tenant_id="other", workspace_id="ws-b",
++                 email="foreign@example.test", hashed_password="x",
++                 first_name="F", last_name="V", role="member",
++                 status="active", is_active=True),
++        ])
++        db.add_all([
++            AgentRegistry(
++                id="acting-agent", name="Acting Agent", category="Operations",
++                module_path="tests.guided", class_name="ActingAgent",
++                status="student", tenant_id="company", workspace_id="ws-a",
++                confidence_score=0.2,
++            ),
++            AgentRegistry(
++                id="foreign-agent", name="Foreign Agent", category="Operations",
++                module_path="tests.guided", class_name="ForeignAgent",
++                status="student", tenant_id="other", workspace_id="ws-b",
++                confidence_score=0.2,
++            ),
++        ])
++        db.commit()
++    return {"engine": engine, "Session": Session}
++
++
++def _client(world):
++    app = FastAPI()
++    app.include_router(onboarding_router)
++
++    def override():
++        db = world["Session"]()
++        try:
++            yield db
++        finally:
++            db.close()
++
++    app.dependency_overrides[get_db] = override
++    return TestClient(app)
++
++
++def _token(world, user_id: str) -> str:
++    with world["Session"]() as db:
++        return create_access_token({"sub": user_id}, user=db.get(User, user_id))
++
++
++def _post(client, token, body, operation_id="guided-op-1"):
++    return client.post(
++        f"/api/agents/guided?operation_id={operation_id}",
++        headers={"Authorization": f"Bearer {token}"},
++        json=body,
++    )
++
++
++def _factory(monkeypatch, *, blueprint=None, on_design=None):
++    factory = FakeGuidedFactory(blueprint=blueprint, on_design=on_design)
++    monkeypatch.setattr(
++        "api.agent_onboarding_routes.get_guided_agent_factory",
++        lambda: factory,
++    )
++    return factory
++
++
++def test_guided_create_binds_current_scope_receipt_and_replay(world, monkeypatch):
++    _factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "member")
++    body = {
++        "goal": "Keep the operations queue tidy",
++        "context": "Use the order tracker",
++        # Forged body identity/scope/tier fields must not mint authority.
++        "tenant_id": "other",
++        "workspace_id": "ws-b",
++        "user_id": "foreign",
++        "status": "autonomous",
++        "confidence_score": 0.99,
++        "maturity": "autonomous",
++    }
++    response = _post(client, token, body)
++    assert response.status_code == 201, response.text
++    data = response.json()["data"]
++    agent_id = data["agent_id"]
++    assert data["operation_id"] == "agent:create:guided-op-1"
++    assert data["audit_id"] == "agent:create:guided-op-1"
++    assert data["verification"]["status"] == "verified"
++
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, agent_id)
++        assert agent is not None
++        assert agent.name == BLUEPRINT["name"]
++        assert agent.category == BLUEPRINT["category"]
++        assert agent.tenant_id == "company"
++        assert agent.workspace_id == "ws-a"
++        assert agent.status == "student"
++        assert float(agent.confidence_score) == pytest.approx(0.1)
++        assert agent.user_id == "member"
++        assert agent.parent_agent_id is None
++        assert agent.capabilities == BLUEPRINT["capabilities"]
++        assert agent.configuration["role"] == "ops_coordinator"
++        assert agent.configuration["learning"]["teacher_agent_id"] == (
++            "atom_main")
++        audit = db.get(AuditLog, "agent:create:guided-op-1")
++        assert audit is not None
++        assert audit.action == "agent_created"
++        assert audit.user_id == "member"
++        assert audit.tenant_id == "company"
++
++    replay = _post(client, token, body)
++    assert replay.status_code == 201, replay.text
++    assert replay.json()["data"]["agent_id"] == agent_id
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.id == agent_id).scalar() == 1
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == "agent:create:guided-op-1").scalar() == 1
++
++
++def test_guided_create_concurrent_deactivation_is_refused(world, monkeypatch):
++    def deactivate():
++        with world["Session"]() as peer:
++            user = peer.get(User, "member")
++            user.is_active = False
++            user.status = "inactive"
++            peer.commit()
++
++    _factory(monkeypatch, on_design=deactivate)
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Create while authority is changing",
++    }, operation_id="guided-op-race")
++    assert response.status_code == 403, response.text
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++        assert db.get(AuditLog, "agent:create:guided-op-race") is None
++
++
++def test_guided_create_inactive_user_is_refused(world, monkeypatch):
++    _factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "inactive")
++    response = _post(client, token, {"goal": "Create without authority"})
++    assert response.status_code in (401, 403), response.text
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++
++
++def test_guided_create_null_empty_schedule_material_conflicts(
++        world, monkeypatch):
++    _factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "member")
++    body = {
++        "goal": "Create with exact material",
++        "schedule_config": None,
++    }
++    first = _post(client, token, body, operation_id="guided-null")
++    assert first.status_code == 201, first.text
++    agent_id = first.json()["data"]["agent_id"]
++
++    changed = dict(body)
++    changed["schedule_config"] = {}
++    conflict = _post(client, token, changed, operation_id="guided-null")
++    assert conflict.status_code == 409, conflict.text
++    assert conflict.json()["detail"]["error"]["code"] == (
++        "OPERATION_CONFLICT")
++
++    unchanged = _post(client, token, body, operation_id="guided-null")
++    assert unchanged.status_code == 201, unchanged.text
++    assert unchanged.json()["data"]["verification"]["status"] == (
++        "already_applied")
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.id == agent_id).scalar() == 1
++        assert db.get(AgentRegistry, agent_id).schedule_config is None
++
++
++def test_guided_create_scheduler_runs_only_on_first_verified_create(
++        world, monkeypatch):
++    _factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "member")
++    calls = []
++
++    class FakeScheduler:
++        def schedule_agent(self, agent_id, schedule_config):
++            calls.append((agent_id, dict(schedule_config)))
++
++    from core.scheduler import AgentScheduler
++
++    monkeypatch.setattr(AgentScheduler, "get_instance", lambda: FakeScheduler())
++    body = {
++        "goal": "Create a scheduled guided agent",
++        "schedule_config": {"active": True, "cron": "0 * * * *"},
++    }
++    first = _post(client, token, body, operation_id="guided-scheduled")
++    assert first.status_code == 201, first.text
++    replay = _post(client, token, body, operation_id="guided-scheduled")
++    assert replay.status_code == 201, replay.text
++    assert len(calls) == 1
++
++    changed = dict(body)
++    changed["schedule_config"] = {"active": True, "cron": "1 * * * *"}
++    conflict = _post(client, token, changed, operation_id="guided-scheduled")
++    assert conflict.status_code == 409, conflict.text
++    assert len(calls) == 1
++
++
++def test_guided_create_foreign_acting_agent_is_refused(
++        world, monkeypatch):
++    _factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Ask a foreign agent to create a helper",
++        "acting_agent_id": "foreign-agent",
++    }, operation_id="guided-foreign-acting")
++    assert response.status_code == 404, response.text
++    with world["Session"]() as db:
++        assert db.query(func.count(HITLAction.id)).filter(
++            HITLAction.agent_id == "foreign-agent").scalar() == 0
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++
++
++def test_guided_create_same_scope_acting_agent_queues_scoped_review(
++        world, monkeypatch):
++    _factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Ask the local student to create a helper",
++        "acting_agent_id": "acting-agent",
++        "schedule_config": {"active": True, "cron": "0 * * * *"},
++    }, operation_id="guided-acting-review")
++    assert response.status_code == 202, response.text
++    data = response.json()["data"]
++    assert data["status"] == "pending_approval"
++    assert data["hitl_action_id"]
++    with world["Session"]() as db:
++        row = db.get(HITLAction, data["hitl_action_id"])
++        assert row is not None
++        assert row.agent_id == "acting-agent"
++        assert row.tenant_id == "company"
++        assert row.workspace_id == "ws-a"
++        assert row.status == "pending"
++        assert "goal" in row.params
++        assert "context" in row.params
++        assert row.params["created_by_user"] == "member"
++        assert row.params["tenant_id"] == "company"
++        assert row.params["workspace_id"] == "ws-a"
++        assert row.params["acting_agent_id"] == "acting-agent"
++        assert row.params["schedule_config"] == {
++            "active": True, "cron": "0 * * * *"}
++
++
++def test_guided_create_is_create_only_and_preserves_existing_agent(
++        world, monkeypatch):
++    _factory(monkeypatch)
++    with world["Session"]() as db:
++        existing = AgentRegistry(
++            id="existing-agent", name=BLUEPRINT["name"],
++            category=BLUEPRINT["category"],
++            module_path="core.generic_agent", class_name="GenericAgent",
++            status="intern", confidence_score=0.7,
++            tenant_id="company", workspace_id="ws-a",
++            configuration={"keep": "original"},
++        )
++        db.add(existing)
++        db.commit()
++
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Create another agent with the same displayed name",
++    }, operation_id="guided-create-only")
++    assert response.status_code == 201, response.text
++    agent_id = response.json()["data"]["agent_id"]
++    assert agent_id != "existing-agent"
++
++    with world["Session"]() as db:
++        original = db.get(AgentRegistry, "existing-agent")
++        assert original.status == "intern"
++        assert float(original.confidence_score) == pytest.approx(0.7)
++        assert original.configuration == {"keep": "original"}
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 2
++
++
++def test_guided_create_generated_blueprint_cannot_mint_authority(
++        world, monkeypatch):
++    forged = dict(BLUEPRINT)
++    forged.update({
++        "status": "autonomous",
++        "confidence_score": 0.99,
++        "maturity": "autonomous",
++        "tenant_id": "other",
++        "workspace_id": "ws-b",
++        "user_id": "foreign",
++    })
++    _factory(monkeypatch, blueprint=forged)
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Generate an agent with forged authority fields",
++    }, operation_id="guided-forged-blueprint")
++    assert response.status_code == 201, response.text
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, response.json()["data"]["agent_id"])
++        assert agent.status == "student"
++        assert float(agent.confidence_score) == pytest.approx(0.1)
++        assert agent.tenant_id == "company"
++        assert agent.workspace_id == "ws-a"
++        assert agent.user_id == "member"
++
++
++def test_guided_create_replay_with_changed_generated_material_conflicts(
++        world, monkeypatch):
++    factory = FakeGuidedFactory()
++    monkeypatch.setattr(
++        "api.agent_onboarding_routes.get_guided_agent_factory",
++        lambda: factory,
++    )
++    client = _client(world)
++    token = _token(world, "member")
++    body = {"goal": "Create with generated material"}
++    first = _post(client, token, body, operation_id="guided-changed")
++    assert first.status_code == 201, first.text
++    agent_id = first.json()["data"]["agent_id"]
++
++    changed_blueprint = dict(BLUEPRINT)
++    changed_blueprint["name"] = "Different Guided Assistant"
++    factory.blueprint = changed_blueprint
++    conflict = _post(client, token, body, operation_id="guided-changed")
++    assert conflict.status_code == 409, conflict.text
++    assert conflict.json()["detail"]["error"]["code"] == (
++        "OPERATION_CONFLICT")
++    with world["Session"]() as db:
++        assert db.get(AgentRegistry, agent_id).name == BLUEPRINT["name"]
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Different Guided Assistant").scalar() == 0
++
++
++def test_guided_create_readback_uncertainty_returns_503(
++        world, monkeypatch):
++    import core.agent_decision_write_service as writes
++
++    _factory(monkeypatch)
++    monkeypatch.setattr(writes, "_load_agent", lambda db, agent_id: None)
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Create with an unreadable target after commit",
++    }, operation_id="guided-readback")
++    assert response.status_code == 503, response.text
++    assert response.json()["detail"]["error"]["code"] == (
++        "AGENT_COMMITTED_UNVERIFIED")
++    with world["Session"]() as db:
++        agent = db.query(AgentRegistry).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).first()
++        assert agent is not None
++        assert db.get(AuditLog, "agent:create:guided-readback") is not None
++
++
++def test_guided_create_commit_failure_reports_effect_unknown(
++        world, monkeypatch):
++    from sqlalchemy.orm import Session as SASession
++
++    _factory(monkeypatch)
++    original_commit = SASession.commit
++    calls = {"n": 0}
++
++    def flaky_commit(self):
++        calls["n"] += 1
++        if calls["n"] == 1:
++            raise RuntimeError("commit outcome unknown")
++        return original_commit(self)
++
++    monkeypatch.setattr(SASession, "commit", flaky_commit)
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Create while the commit outcome is unknown",
++    }, operation_id="guided-rollback")
++    assert response.status_code == 503, response.text
++    assert response.json()["detail"]["error"]["code"] == "AGENT_EFFECT_UNKNOWN"
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++        assert db.get(AuditLog, "agent:create:guided-rollback") is None
++
++
++def test_guided_create_acting_agent_deleted_during_generation_is_refused(
++        world, monkeypatch):
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, "acting-agent")
++        agent.status = "autonomous"
++        db.commit()
++
++    def delete_acting():
++        with world["Session"]() as peer:
++            peer.query(AgentRegistry).filter(
++                AgentRegistry.id == "acting-agent").delete()
++            peer.commit()
++
++    _factory(monkeypatch, on_design=delete_acting)
++    client = _client(world)
++    token = _token(world, "member")
++    response = _post(client, token, {
++        "goal": "Create after the acting agent disappears",
++        "acting_agent_id": "acting-agent",
++    }, operation_id="guided-acting-deleted")
++    assert response.status_code == 404, response.text
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++        assert db.get(AuditLog, "agent:create:guided-acting-deleted") is None
+diff --git a/backend/tests/api/test_agent_onboarding_routes.py b/backend/tests/api/test_agent_onboarding_routes.py
+index d4057d11d..4329b21b8 100644
+--- a/backend/tests/api/test_agent_onboarding_routes.py
++++ b/backend/tests/api/test_agent_onboarding_routes.py
+@@ -133,21 +133,39 @@ class TestGuidedAgentCreation:
+ 
+ 
+ class TestAgentInitiatedCreation:
+-    def _governance(self, allowed: bool):
+-        gov = MagicMock()
++    def _governance(self, db_session, allowed: bool):
++        from core.agent_governance_service import AgentGovernanceService
++
++        gov = AgentGovernanceService(
++            db_session, workspace_id="default", tenant_id="default")
+         gov.can_perform_action_async = AsyncMock(
+             return_value={"allowed": allowed, "reason": None if allowed else "Agent maturity below threshold"}
+         )
+         gov.request_approval = MagicMock(return_value="hitl-42")
+         return gov
+ 
++    def _acting_agent(self, db_session, agent_id: str, status: str):
++        db_session.add(AgentRegistry(
++            id=agent_id,
++            name=f"Acting {agent_id}",
++            category="Operations",
++            module_path="tests.guided",
++            class_name="ActingAgent",
++            status=status,
++            confidence_score=0.2,
++            workspace_id="default",
++            tenant_id="default",
++        ))
++        db_session.commit()
++
+     def test_autonomous_agent_creates_directly(self, client, employee_user, db_session):
+         global _current_test_user
+         _current_test_user = employee_user
+ 
++        self._acting_agent(db_session, "agent-auto-1", "autonomous")
+         llm = MagicMock()
+         llm.generate_completion = AsyncMock(side_effect=RuntimeError("no llm"))
+-        gov = self._governance(allowed=True)
++        gov = self._governance(db_session, allowed=True)
+         with patch("api.agent_onboarding_routes.get_guided_agent_factory",
+                    return_value=_factory_with_llm(llm)), \
+              patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
+@@ -167,7 +185,8 @@ class TestAgentInitiatedCreation:
+         global _current_test_user
+         _current_test_user = employee_user
+ 
+-        gov = self._governance(allowed=False)
++        self._acting_agent(db_session, "agent-student-1", "student")
++        gov = self._governance(db_session, allowed=False)
+         with patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
+             resp = client.post(
+                 "/api/agents/guided",
+diff --git a/backend/tests/fixtures/ci_backend_additions.json b/backend/tests/fixtures/ci_backend_additions.json
+index 2243b7813..f724427cb 100644
+--- a/backend/tests/fixtures/ci_backend_additions.json
++++ b/backend/tests/fixtures/ci_backend_additions.json
+@@ -145,5 +145,17 @@
+       "ENVIRONMENT": "development"
+     },
+     "run": "python -m pytest tests/test_email_legacy_draft_precedence.py tests/test_email_draft_shared_writer.py tests/test_email_eml_import.py tests/test_email_canvas_attachments.py tests/test_email_attachment_tool.py -q --tb=short --timeout=300 --timeout-method=thread\n"
++  },
++  {
++    "name": "Run guided agent create authority and receipt controls",
++    "env": {
++      "TESTING": "1",
++      "PYTEST_CURRENT_TEST": "1",
++      "DATABASE_URL": "sqlite:///test_ci_guided_create.db",
++      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-guided-create",
++      "SECRET_KEY": "ci-test-secret-key",
++      "ENVIRONMENT": "development"
++    },
++    "run": "python -m pytest tests/api/test_agent_guided_create_goal14.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+   }
+ ]

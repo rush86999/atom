@@ -1,0 +1,170 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 10:47:10 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 10:47:10 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:47:10 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:47:10 [    INFO] EscalationManager initialized
+2026-11-10 10:47:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:47:10 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:47:10 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:47:10 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:47:10 [    INFO] EscalationManager initialized
+2026-11-10 10:47:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:47:10 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:47:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:47:10 [    INFO] MCP Service initialized
+
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_binds_current_scope_receipt_and_replay 
+-------------------------------- live log setup --------------------------------
+2026-11-10 10:47:11 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:47:12 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+FAILED                                                                   [ 14%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_concurrent_deactivation_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:47:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-race "HTTP/1.1 201 Created"
+FAILED                                                                   [ 28%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_inactive_user_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:47:14 [ WARNING] Rejected token for non-active user inactive (status=inactive)
+2026-11-10 10:47:14 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 42%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_null_empty_schedule_material_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:47:14 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+2026-11-10 10:47:14 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+FAILED                                                                   [ 57%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_scheduler_runs_only_on_first_verified_create 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:47:15 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+2026-11-10 10:47:15 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+FAILED                                                                   [ 71%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_foreign_acting_agent_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:47:16 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-foreign-acting "HTTP/1.1 202 Accepted"
+FAILED                                                                   [ 85%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_same_scope_acting_agent_queues_scoped_review 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:47:17 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-review "HTTP/1.1 202 Accepted"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+__________ test_guided_create_binds_current_scope_receipt_and_replay ___________
+tests/api/test_agent_guided_create_goal14.py:168: in test_guided_create_binds_current_scope_receipt_and_replay
+    assert data["operation_id"] == "agent:create:guided-op-1"
+           ^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'operation_id'
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+____________ test_guided_create_concurrent_deactivation_is_refused _____________
+tests/api/test_agent_guided_create_goal14.py:217: in test_guided_create_concurrent_deactivation_is_refused
+    assert response.status_code == 403, response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"a9449cf6-5d69-4258-98d8-e52ba8024bb1","name":"Guided Assistant","category":"Operations","template":"ops_coordinator","maturity":"student","created_by":"employee"},"timestamp":"2026-11-10T15:47:13.214123+00:00","message":"Agent 'Guided Assistant' created — it starts as a STUDENT and learns with guidance"}
+E   assert 201 == 403
+E    +  where 201 = <Response [201 Created]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-race "HTTP/1.1 201 Created"
+__________ test_guided_create_null_empty_schedule_material_conflicts ___________
+tests/api/test_agent_guided_create_goal14.py:251: in test_guided_create_null_empty_schedule_material_conflicts
+    assert conflict.status_code == 409, conflict.text
+E   AssertionError: {"success":true,"data":{"agent_id":"8aa5bfdd-22e6-4d29-8bd6-2519d8b9cdec","name":"Guided Assistant","category":"Operations","template":"ops_coordinator","maturity":"student","created_by":"employee"},"timestamp":"2026-11-10T15:47:14.986267+00:00","message":"Agent 'Guided Assistant' created — it starts as a STUDENT and learns with guidance"}
+E   assert 201 == 409
+E    +  where 201 = <Response [201 Created]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+_______ test_guided_create_scheduler_runs_only_on_first_verified_create ________
+tests/api/test_agent_guided_create_goal14.py:287: in test_guided_create_scheduler_runs_only_on_first_verified_create
+    assert len(calls) == 1
+E   AssertionError: assert 2 == 1
+E    +  where 2 = len([('07cd6d4f-ca02-4add-8930-bb9c3e1c7b56', {'active': True, 'cron': '0 * * * *'}), ('149bb90c-8a3c-42ed-b4b7-9ccb398f6f9e', {'active': True, 'cron': '0 * * * *'})])
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+______________ test_guided_create_foreign_acting_agent_is_refused ______________
+tests/api/test_agent_guided_create_goal14.py:305: in test_guided_create_foreign_acting_agent_is_refused
+    assert response.status_code == 404, response.text
+E   AssertionError: {"success":true,"data":{"status":"pending_approval","hitl_action_id":"61ced787-be00-4fbe-a8ed-acf90aa86028","reason":"Agent not found"},"timestamp":"2026-11-10T15:47:16.540869+00:00","message":"Agent creation requires human approval — request queued for review"}
+E   assert 202 == 404
+E    +  where 202 = <Response [202 Accepted]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-foreign-acting "HTTP/1.1 202 Accepted"
+_______ test_guided_create_same_scope_acting_agent_queues_scoped_review ________
+tests/api/test_agent_guided_create_goal14.py:338: in test_guided_create_same_scope_acting_agent_queues_scoped_review
+    assert row.params["workspace_id"] == "ws-a"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'workspace_id'
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-review "HTTP/1.1 202 Accepted"
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-goal14-guided-create-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+../../root-py311-plugins/pytest_freezegun.py:17: 14 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_agent_guided_create_goal14.py::test_guided_create_binds_current_scope_receipt_and_replay
+FAILED tests/api/test_agent_guided_create_goal14.py::test_guided_create_concurrent_deactivation_is_refused
+FAILED tests/api/test_agent_guided_create_goal14.py::test_guided_create_null_empty_schedule_material_conflicts
+FAILED tests/api/test_agent_guided_create_goal14.py::test_guided_create_scheduler_runs_only_on_first_verified_create
+FAILED tests/api/test_agent_guided_create_goal14.py::test_guided_create_foreign_acting_agent_is_refused
+FAILED tests/api/test_agent_guided_create_goal14.py::test_guided_create_same_scope_acting_agent_queues_scoped_review
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 6 failed, 1 passed, 20 warnings in 22.80s ===================
