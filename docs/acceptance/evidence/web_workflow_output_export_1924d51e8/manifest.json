@@ -9,7 +9,7 @@
     "note": "PR819 reviewed delivery source retained; no changes to frozen workflow handoff branch/evidence."
   },
   "evidence_files": {
-    "README.md": "7ff1b92a8c4530321acf585c88433d74f21e3a21f7c55cd9e7bb615c066503d1",
+    "README.md": "718f8c0d9e4ca417b8dd36c1492dabf17e5813cb3759574f61fb0e9e57fa61a2",
     "boundary/base_export_404_and_raw_results.proof": "2f0364503573dfb8c60c7125a362791358a2da688dc7c534468c03a5ab8eba2b",
     "fresh_process/fresh_export_bytes_hash.proof": "370ac21753810655c57c83dc374e8c0f491c81007e9804bdf947c71d8ffd98c3",
     "fresh_process/fresh_process_roundtrip.py": "86af271ac04083fc6b96394fa19320d7226e7c39abd21eba1efded156ee51d4d",
@@ -20,7 +20,9 @@
     "gates/root_export_negatives_local_7.proof": "aebb8ccd96e0277c591ebb9cbf529a0003efa33c3902301284b0ca0ce0a41a4e",
     "research/REUSE_DECISION.md": "4c3f5a7b6afe71cd113dd09d21a161928e14442ce4b732148348992c222cfac4",
     "root_controls/root_export_negatives_70cc.controls.proof": "cd8617afe48056a2179fcb83a45c122d9525b6828e204029bd232688eb0c40a4",
-    "root_controls/root_export_negatives_70cc.review.json": "2af7607b28530d21d61fd69e625f30a0ddaf773a451d3246cc48aa6e8f7d0ac3"
+    "root_controls/root_export_negatives_70cc.review.json": "2af7607b28530d21d61fd69e625f30a0ddaf773a451d3246cc48aa6e8f7d0ac3",
+    "root_controls/root_export_negatives_r5tipumb.controls.proof": "5aa5f2cac8776e9a0491426989ef871d8917377a8aa1ef1c8fcb604b3eada7c4",
+    "root_controls/root_export_negatives_r5tipumb.review.json": "e7e7b3fc34d49001df1a81e24ab5b7a36466cbabb3b835f886dc1c201549f98c"
   },
   "fresh_process": {
     "bytes": 1404,
@@ -45,15 +47,23 @@
     "No DOCX/PPTX/email generation claim; supported format is deterministic JSON.",
     "No served-model, browser, whole-app, PostgreSQL, soak or production claim.",
     "No new store/engine/schema/approval/filesystem artifact path.",
-    "Root independent export acceptance and PR/merge review remain pending."
+    "Root independently reverified the unchanged export probes at controlled scope (7/7, same_source true); root delivery/CI integration and PR/merge remain root-owned. This is not whole-app acceptance."
   ],
   "packet": "docs/acceptance/evidence/web_workflow_output_export_1924d51e8/",
   "root_controls": {
+    "root_export_negatives_at_1924d51e8": {
+      "actual_exit": 0,
+      "controls": "root_controls/root_export_negatives_r5tipumb.controls.proof",
+      "duration": "7.61s",
+      "result": "7/7 PASS unchanged probes",
+      "review": "root_controls/root_export_negatives_r5tipumb.review.json",
+      "same_source": true,
+      "scope": "controlled API/SQLite/real engine; not whole-app acceptance"
+    },
     "root_export_negatives_at_70cc": {
       "actual_exit": 1,
       "result": "7/7 failed; malformed/unknown/non-success output could export"
-    },
-    "root_recheck": "pending independent root run at repaired checkpoint"
+    }
   },
   "sanitation": {
     "paths_redacted_to": "<scratch-path>",

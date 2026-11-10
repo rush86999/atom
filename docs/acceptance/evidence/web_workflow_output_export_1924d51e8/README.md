@@ -23,9 +23,11 @@ filesystem artifact path, or core-profile enablement.
   provider/model credential, send, spend, install or deployment.
 - Export is read-only. It never executes, forks, resumes, reruns, promotes or
   creates a scheduler job.
-- Root independent export acceptance is still pending; the prior 7-negative
-  root run failed at checkpoint `70cc3b7e7` and is preserved here. Local replay
-  of those 7 negatives passes at the repaired checkpoint.
+- Root independently reverified the unchanged seven export probes at source
+  `1924d51e8`: 7/7 passed in 7.61s, `actual_exit 0`, `same_source true`
+  (`root_controls/root_export_negatives_r5tipumb.*`). The original `70cc3b7e7`
+  seven-failure negative is preserved below. This is controlled-scope
+  reverification, not whole-app acceptance.
 
 ## Completion/refusal contract
 
@@ -81,7 +83,8 @@ Details returned raw results keys only (`boundary/base_export_404_and_raw_result
 Root negative run at `70cc3b7e7`: `actual_exit 1`, all 7 export probes failed
 (`root_controls/root_export_negatives_70cc.*`). The repair derives coverage from
 the canonical compiled definition and refuses malformed/incomplete/unknown
-material. Root independent re-run remains required.
+material. Root independently reverified all seven unchanged probes at this
+repaired source; root delivery/CI integration remains root-owned.
 
 ## UI
 
