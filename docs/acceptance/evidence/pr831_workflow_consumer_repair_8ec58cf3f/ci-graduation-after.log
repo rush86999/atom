@@ -1,0 +1,681 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 10:18:15 [    INFO] MCP Service initialized
+2026-11-10 10:18:15 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 10:18:15 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:18:15 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:18:15 [    INFO] EscalationManager initialized
+2026-11-10 10:18:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:15 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:18:15 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:18:15 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:18:15 [    INFO] EscalationManager initialized
+2026-11-10 10:18:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:15 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 10:18:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+
+tests/test_bpe_governance_tier_issuance.py::test_admission_persists_and_dispatch_uses_the_canonical_tier[student] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 10:18:16 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:16 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:16 [    INFO] EscalationManager initialized
+2026-11-10 10:18:16 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:16 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:16 [    INFO] EscalationManager initialized
+2026-11-10 10:18:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:16 [    INFO] Executing Agent Agent One with ReAct Loop. Input: record a fact
+2026-11-10 10:18:16 [    INFO] Agent Agent One (a1) starting task: record a fact
+2026-11-10 10:18:16 [    INFO] EscalationManager initialized
+2026-11-10 10:18:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:16 [    INFO] LanceDBHandler initialized. ID: 5738616016. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:16 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:16 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:16 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:16 [    INFO] EscalationManager initialized
+2026-11-10 10:18:16 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-canonical-student "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_bpe_governance_tier_issuance.py::test_admission_persists_and_dispatch_uses_the_canonical_tier[intern] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:17 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:17 [    INFO] EscalationManager initialized
+2026-11-10 10:18:17 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:17 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:17 [    INFO] EscalationManager initialized
+2026-11-10 10:18:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:17 [    INFO] Executing Agent Agent One with ReAct Loop. Input: record a fact
+2026-11-10 10:18:17 [    INFO] Agent Agent One (a1) starting task: record a fact
+2026-11-10 10:18:17 [    INFO] EscalationManager initialized
+2026-11-10 10:18:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:17 [    INFO] LanceDBHandler initialized. ID: 5729734480. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:17 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:17 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:17 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:17 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:17 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-canonical-intern "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_bpe_governance_tier_issuance.py::test_admission_persists_and_dispatch_uses_the_canonical_tier[supervised] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:18 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:18 [    INFO] EscalationManager initialized
+2026-11-10 10:18:18 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:18 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:18 [    INFO] EscalationManager initialized
+2026-11-10 10:18:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:18 [    INFO] Executing Agent Agent One with ReAct Loop. Input: record a fact
+2026-11-10 10:18:18 [    INFO] Agent Agent One (a1) starting task: record a fact
+2026-11-10 10:18:18 [    INFO] EscalationManager initialized
+2026-11-10 10:18:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:18 [    INFO] LanceDBHandler initialized. ID: 5729032144. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:18 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:18 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:18 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-canonical-supervised "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_bpe_governance_tier_issuance.py::test_admission_persists_and_dispatch_uses_the_canonical_tier[autonomous] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:19 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:19 [    INFO] EscalationManager initialized
+2026-11-10 10:18:19 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:19 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:19 [    INFO] EscalationManager initialized
+2026-11-10 10:18:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:19 [    INFO] Executing Agent Agent One with ReAct Loop. Input: record a fact
+2026-11-10 10:18:19 [    INFO] Agent Agent One (a1) starting task: record a fact
+2026-11-10 10:18:19 [    INFO] EscalationManager initialized
+2026-11-10 10:18:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:19 [    INFO] LanceDBHandler initialized. ID: 5768670544. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:19 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:19 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:19 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:19 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:19 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-canonical-autonomous "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_bpe_governance_tier_issuance.py::test_legacy_runtime_state_gets_a_restricted_student_ceiling[idle] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:20 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:20 [    INFO] EscalationManager initialized
+2026-11-10 10:18:20 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:20 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:20 [    INFO] EscalationManager initialized
+2026-11-10 10:18:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:20 [    INFO] Executing Agent Agent One with ReAct Loop. Input: legacy run
+2026-11-10 10:18:20 [    INFO] Agent Agent One (a1) starting task: legacy run
+2026-11-10 10:18:20 [    INFO] EscalationManager initialized
+2026-11-10 10:18:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:20 [    INFO] LanceDBHandler initialized. ID: 5770547600. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:20 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:20 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:20 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:20 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-runtime-idle "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_bpe_governance_tier_issuance.py::test_legacy_runtime_state_gets_a_restricted_student_ceiling[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:21 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:21 [    INFO] EscalationManager initialized
+2026-11-10 10:18:21 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:21 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:21 [    INFO] EscalationManager initialized
+2026-11-10 10:18:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:21 [    INFO] Executing Agent Agent One with ReAct Loop. Input: legacy run
+2026-11-10 10:18:21 [    INFO] Agent Agent One (a1) starting task: legacy run
+2026-11-10 10:18:21 [    INFO] EscalationManager initialized
+2026-11-10 10:18:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:21 [    INFO] LanceDBHandler initialized. ID: 5767395792. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:21 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:21 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:21 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:21 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:21 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-runtime-success "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_bpe_governance_tier_issuance.py::test_legacy_runtime_state_gets_a_restricted_student_ceiling[unknown] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:22 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:22 [    INFO] EscalationManager initialized
+2026-11-10 10:18:22 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:22 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:22 [    INFO] EscalationManager initialized
+2026-11-10 10:18:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:22 [    INFO] Executing Agent Agent One with ReAct Loop. Input: legacy run
+2026-11-10 10:18:22 [    INFO] Agent Agent One (a1) starting task: legacy run
+2026-11-10 10:18:22 [    INFO] EscalationManager initialized
+2026-11-10 10:18:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:22 [    INFO] LanceDBHandler initialized. ID: 5725888208. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:22 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:22 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:22 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:22 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-runtime-unknown "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_bpe_governance_tier_issuance.py::test_running_is_execution_state_and_never_a_frozen_tier 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:23 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-running-negative "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_bpe_governance_tier_issuance.py::test_forged_body_tier_and_provenance_are_rebuilt_from_admission 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:23 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:23 [    INFO] EscalationManager initialized
+2026-11-10 10:18:23 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:23 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:23 [    INFO] EscalationManager initialized
+2026-11-10 10:18:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:23 [    INFO] Executing Agent Agent One with ReAct Loop. Input: forged authority must not apply
+2026-11-10 10:18:23 [    INFO] Agent Agent One (a1) starting task: forged authority must not apply
+2026-11-10 10:18:23 [    INFO] EscalationManager initialized
+2026-11-10 10:18:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:23 [    INFO] LanceDBHandler initialized. ID: 5747521552. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:23 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:23 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:23 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:24 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:24 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:18:24 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-10 10:18:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=tier-forged-body "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_bpe_governance_tier_issuance.py::test_initial_and_resumed_trusted_contexts_share_the_job_tier PASSED [  7%]
+tests/test_bpe_governance_tier_issuance.py::test_effective_tier_only_narrows_and_never_promotes PASSED [  7%]
+tests/test_bpe_governance_tier_issuance.py::test_stable_run_scope_key_prefers_durable_job_identity PASSED [  8%]
+tests/test_bpe_governance_tier_issuance.py::test_terminal_denial_marker_is_typed_not_message_based PASSED [  9%]
+tests/test_bpe_governance_tier_issuance.py::test_recoverable_invalid_argument_can_replan_to_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:24 [    INFO] Agent TF Agent (agent-tf-1) starting task: Task
+2026-11-10 10:18:24 [   ERROR] provider policy invalid (db) — failing closed: policy must be an object
+2026-11-10 10:18:24 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: policy must be an object
+2026-11-10 10:18:24 [    INFO] EscalationManager initialized
+2026-11-10 10:18:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:24 [    INFO] LanceDBHandler initialized. ID: 5770897488. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:24 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:24 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:24 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:24 [   ERROR] AUDIT GAP for execution e2636eee-b907-486f-b472-596f30babd1c: {'complete': False, 'execution_id': 'e2636eee-b907-486f-b472-596f30babd1c', 'expected_events': 5, 'actual_events': 1, 'coverage_percentage': 20.0, 'checked_at': '2026-11-10T15:18:24.921062+00:00'}
+PASSED                                                                   [ 10%]
+tests/test_bpe_governance_tier_issuance.py::test_admitted_actor_is_verified_with_bounded_sessions PASSED [ 10%]
+tests/test_bpe_governance_tier_issuance.py::test_public_note_respects_actor_revocation_after_real_review[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:26 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:26 [    INFO] EscalationManager initialized
+2026-11-10 10:18:26 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:26 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:26 [    INFO] EscalationManager initialized
+2026-11-10 10:18:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:26 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Record a task fact
+2026-11-10 10:18:26 [    INFO] Agent Agent One (a1) starting task: Record a task fact
+2026-11-10 10:18:26 [    INFO] EscalationManager initialized
+2026-11-10 10:18:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:26 [    INFO] LanceDBHandler initialized. ID: 5750101968. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:26 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:26 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:26 [    INFO] Action workspace.note requires approval. Pausing agent...
+2026-11-10 10:18:26 [    INFO] Action workspace.note APPROVED. Proceeding...
+2026-11-10 10:18:26 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:26 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:18:26 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-10 10:18:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-public-note-False "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_bpe_governance_tier_issuance.py::test_public_note_respects_actor_revocation_after_real_review[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:27 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:27 [    INFO] EscalationManager initialized
+2026-11-10 10:18:27 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:27 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:27 [    INFO] EscalationManager initialized
+2026-11-10 10:18:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:27 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Record a task fact
+2026-11-10 10:18:27 [    INFO] Agent Agent One (a1) starting task: Record a task fact
+2026-11-10 10:18:27 [    INFO] EscalationManager initialized
+2026-11-10 10:18:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:27 [    INFO] LanceDBHandler initialized. ID: 5749369808. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:27 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:27 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:27 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:27 [    INFO] Action workspace.note requires approval. Pausing agent...
+2026-11-10 10:18:27 [    INFO] Action workspace.note APPROVED. Proceeding...
+2026-11-10 10:18:27 [ WARNING] Agent a1 halted after a terminal authority denial on workspace.note
+2026-11-10 10:18:27 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:18:27 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-10 10:18:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-public-note-True "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_bpe_governance_tier_issuance.py::test_terminal_denial_does_not_hide_prior_uncertain_effect PASSED [ 13%]
+tests/test_bpe_governance_tier_issuance.py::test_authority_denial_message_does_not_erase_prior_results PASSED [ 13%]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:28 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:28 [    INFO] EscalationManager initialized
+2026-11-10 10:18:28 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:28 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:28 [    INFO] EscalationManager initialized
+2026-11-10 10:18:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:28 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Record a task fact
+2026-11-10 10:18:28 [    INFO] Agent Agent One (a1) starting task: Record a task fact
+2026-11-10 10:18:28 [    INFO] EscalationManager initialized
+2026-11-10 10:18:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:28 [    INFO] LanceDBHandler initialized. ID: 5784417680. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:28 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:28 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:28 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:28 [    INFO] Action workspace.note requires approval. Pausing agent...
+2026-11-10 10:18:28 [    INFO] Action workspace.note APPROVED. Proceeding...
+2026-11-10 10:18:28 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:18:28 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:18:28 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-10 10:18:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-public-note-False "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_root_bpe_public_actor_probe.py::test_public_note_respects_actor_revocation_at_tool_time[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:29 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:18:29 [    INFO] EscalationManager initialized
+2026-11-10 10:18:29 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:18:29 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:18:29 [    INFO] EscalationManager initialized
+2026-11-10 10:18:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:29 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Record a task fact
+2026-11-10 10:18:29 [    INFO] Agent Agent One (a1) starting task: Record a task fact
+2026-11-10 10:18:29 [    INFO] EscalationManager initialized
+2026-11-10 10:18:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:18:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:18:29 [    INFO] LanceDBHandler initialized. ID: 5786640080. LANCEDB_AVAILABLE: True
+2026-11-10 10:18:29 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:18:29 [    INFO] Connecting to LanceDB at /private/tmp/pr831-cigrad2-WYpOHi/lancedb with storage_options=None
+2026-11-10 10:18:29 [    INFO] LanceDB connected successfully
+2026-11-10 10:18:29 [    INFO] Action workspace.note requires approval. Pausing agent...
+2026-11-10 10:18:29 [    INFO] Action workspace.note APPROVED. Proceeding...
+2026-11-10 10:18:29 [ WARNING] Agent a1 halted after a terminal authority denial on workspace.note
+2026-11-10 10:18:29 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:18:29 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+2026-11-10 10:18:29 [ WARNING] turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-10 10:18:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-public-note-True "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 15%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[target_scope] PASSED [ 15%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[target_status] PASSED [ 16%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[target_configuration] PASSED [ 17%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[actor_disabled] PASSED [ 18%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[actor_demoted] PASSED [ 18%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[actor_scope] PASSED [ 19%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[unchanged] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:35 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 10:18:35 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 20%]
+tests/test_graduation_authority_boundary.py::test_graduation_does_not_commit_unrelated_caller_changes PASSED [ 21%]
+tests/test_graduation_authority_boundary.py::test_public_graduation_lost_confirmation_is_not_clean_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:36 [   ERROR] agent decision outcome unknown: operation_id=agent:graduate:cab22638070c4bb4ac5dde77e03e51ef target=graduate error_class=RuntimeError
+2026-11-10 10:18:36 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=graduate&new_maturity=AUTONOMOUS "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 21%]
+tests/test_graduation_authority_boundary.py::test_graduation_receipt_replays_once_and_refutes_changed_result 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:37 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 10:18:37 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 22%]
+tests/test_graduation_authority_boundary.py::test_graduation_racing_peer_receipt_is_exactly_reconciled[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:38 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 10:18:38 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 23%]
+tests/test_graduation_authority_boundary.py::test_graduation_racing_peer_receipt_is_exactly_reconciled[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:39 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 10:18:39 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 23%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_documented_example_denies_with_reasons PASSED [ 24%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregulated_action_allows PASSED [ 25%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_missing_context_counts_as_violation PASSED [ 26%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_duplicate_policy_id_rejected PASSED [ 26%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregister_policy PASSED [ 27%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_defaults_mirror_readiness_thresholds PASSED [ 28%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_layers_match_doc PASSED [ 28%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_for_action_mapping PASSED [ 29%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_strategic_pass_requires_human PASSED [ 30%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_operational_pass_is_automated PASSED [ 31%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_denied_has_no_human_step PASSED [ 31%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_inferred_when_omitted PASSED [ 32%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_autonomous_pass_withholds_promotion_for_human 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:39 [    INFO] Agent agent-1 PASSED the autonomous legacy exam; no promotion or qualification pointer write
+PASSED                                                                   [ 33%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_supervised_pass_requires_qualification_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:39 [    INFO] Agent agent-unqualified passed the supervised legacy exam; legacy statistics never qualify
+PASSED                                                                   [ 34%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_policy_deny_fails_exam_with_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:39 [    INFO] Agent agent-1 failed legacy graduation exam: unknown reason | Governance policy denied: readiness_score 0.9 below min_readiness_score 0.95
+PASSED                                                                   [ 34%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_denied_on_weak_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:39 [ WARNING] Autonomous promotion DENIED by governance policy for graduate: episode_count 40 below min_episodes 50; readiness_score 0.92 below min_readiness_score 0.95
+PASSED                                                                   [ 35%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_allowed_on_strong_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:40 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 10:18:40 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 36%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_lower_tier_requires_readiness PASSED [ 36%]
+tests/test_graduation_readiness_tenant_scoping.py::TestReadinessTenantScoping::test_null_tenant_agent_resolves_for_default_tenant PASSED [ 37%]
+tests/test_graduation_readiness_tenant_scoping.py::TestReadinessTenantScoping::test_empty_tenant_agent_resolves PASSED [ 38%]
+tests/test_graduation_readiness_tenant_scoping.py::TestReadinessTenantScoping::test_tenanted_agent_still_scoped_to_its_tenant PASSED [ 39%]
+tests/test_graduation_readiness_tenant_scoping.py::TestReadinessTenantScoping::test_calculate_readiness_score_end_to_end_null_tenant PASSED [ 39%]
+tests/test_graduation_readiness_tenant_scoping.py::TestReadinessTenantScoping::test_service_readiness_rejects_foreign_tenant_and_workspace PASSED [ 40%]
+tests/test_graduation_readiness_tenant_scoping.py::TestGraduationApiTenantScoping::test_same_tenant_readiness_is_available 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:46 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/c8780c8d-1789-4139-a032-b6862fc9daf6?target_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_graduation_readiness_tenant_scoping.py::TestGraduationApiTenantScoping::test_foreign_tenant_readiness_and_promotion_return_404 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:46 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/eefe4eb9-8363-4b3e-9cac-216f52b58813 "HTTP/1.1 404 Not Found"
+2026-11-10 10:18:46 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=eefe4eb9-8363-4b3e-9cac-216f52b58813&new_maturity=INTERN "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 42%]
+tests/test_graduation_readiness_tenant_scoping.py::TestGraduationApiTenantScoping::test_null_tenant_agent_is_only_visible_to_default_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:47 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/f5e9df28-5fad-4c6a-a2dd-c5ff22f4e0c8 "HTTP/1.1 200 OK"
+2026-11-10 10:18:47 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/f5e9df28-5fad-4c6a-a2dd-c5ff22f4e0c8 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 42%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_promotion_without_evidence_is_rejected[student-INTERN-10] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:48 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=d2fb2e47-9dec-4f82-ade9-a2787533906f&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_promotion_without_evidence_is_rejected[intern-SUPERVISED-25] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:48 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=948ac19e-4405-483f-90ee-56b52a27588e&new_maturity=SUPERVISED "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_promotion_without_evidence_is_rejected[supervised-AUTONOMOUS-50] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:49 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=77489d14-8b41-44bb-8866-35733414c1b5&new_maturity=AUTONOMOUS "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_promotion_accepts_sufficient_readiness[student-INTERN-10] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:50 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 10:18:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:18:50 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/6b521d48-f9fc-4237-9467-23b506a90ecc "HTTP/1.1 200 OK"
+2026-11-10 10:18:50 [    INFO] Agent 6b6f4f29-4c82-4268-9747-a9d78367f442 promoted to INTERN by gate-lead
+2026-11-10 10:18:50 [ WARNING] Graduation notification failed for agent 6b6f4f29-4c82-4268-9747-a9d78367f442 (promotion already committed): mocked
+2026-11-10 10:18:50 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=6b6f4f29-4c82-4268-9747-a9d78367f442&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_promotion_accepts_sufficient_readiness[intern-SUPERVISED-25] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:51 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 10:18:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:18:51 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/a91cd2f3-94c6-45f8-b70a-6c0a23f36ef4 "HTTP/1.1 200 OK"
+2026-11-10 10:18:51 [    INFO] Agent 4bf4cfba-ec8d-4307-9d39-1912841e4452 promoted to SUPERVISED by gate-lead
+2026-11-10 10:18:51 [ WARNING] Graduation notification failed for agent 4bf4cfba-ec8d-4307-9d39-1912841e4452 (promotion already committed): mocked
+2026-11-10 10:18:51 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=4bf4cfba-ec8d-4307-9d39-1912841e4452&new_maturity=SUPERVISED "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_promotion_accepts_sufficient_readiness[supervised-AUTONOMOUS-50] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:52 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 10:18:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:18:52 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/4da43732-ef0c-4352-92a6-10c0696fc66f "HTTP/1.1 200 OK"
+2026-11-10 10:18:52 [    INFO] Agent 050dd313-fceb-4444-a573-268c24bf2019 promoted to AUTONOMOUS by gate-lead
+2026-11-10 10:18:52 [ WARNING] Graduation notification failed for agent 050dd313-fceb-4444-a573-268c24bf2019 (promotion already committed): mocked
+2026-11-10 10:18:52 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=050dd313-fceb-4444-a573-268c24bf2019&new_maturity=AUTONOMOUS "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_per_agent_episode_floor_blocks_and_then_allows 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=ba8e54a3-d954-4632-9ce1-41a17e5ee807&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 10:18:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 10:18:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:18:53 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/7672bc35-8266-4e9c-b1b4-b36111434c51 "HTTP/1.1 200 OK"
+2026-11-10 10:18:53 [    INFO] Agent ba8e54a3-d954-4632-9ce1-41a17e5ee807 promoted to INTERN by gate-lead
+2026-11-10 10:18:53 [ WARNING] Graduation notification failed for agent ba8e54a3-d954-4632-9ce1-41a17e5ee807 (promotion already committed): mocked
+2026-11-10 10:18:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=ba8e54a3-d954-4632-9ce1-41a17e5ee807&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_graduation_readiness_tenant_scoping.py::TestPromotionReadinessGate::test_unreadable_evidence_fails_closed PASSED [ 48%]
+tests/test_graduation_readiness_gap_evidence.py::TestConstitutionalGapEvidenceRule::test_unmeasured_compliance_is_not_a_gap PASSED [ 49%]
+tests/test_graduation_readiness_gap_evidence.py::TestConstitutionalGapEvidenceRule::test_breakdown_exposes_recorded_count PASSED [ 50%]
+tests/test_graduation_readiness_gap_evidence.py::TestConstitutionalGapEvidenceRule::test_measured_but_low_still_fires_the_gap PASSED [ 50%]
+tests/test_graduation_readiness_gap_evidence.py::TestConstitutionalGapEvidenceRule::test_measured_and_high_has_no_gap PASSED [ 51%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_graduation_criteria_constants_defined PASSED [ 52%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_intern_eligibility_calculation PASSED [ 52%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_supervised_eligibility_calculation PASSED [ 53%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_autonomous_eligibility_calculation PASSED [ 54%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_agent_not_found PASSED [ 55%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_unknown_maturity_level PASSED [ 55%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_workspace_specific_rules PASSED [ 56%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_run_graduation_exam_creates_exam 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:54 [    INFO] EscalationManager initialized
+2026-11-10 10:18:54 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 57%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_submission_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:54 [    INFO] EscalationManager initialized
+2026-11-10 10:18:54 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 57%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_evaluation_and_scoring PASSED [ 58%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_pass_fail_determination PASSED [ 59%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_result_recording PASSED [ 60%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_retry_logic PASSED [ 60%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_validate_constitutional_compliance PASSED [ 61%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_student_to_intern 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:54 [    INFO] Agent graduate promoted to INTERN by supervisor
+2026-11-10 10:18:54 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 62%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_intern_to_supervised 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:55 [    INFO] Agent graduate promoted to SUPERVISED by supervisor
+2026-11-10 10:18:55 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 63%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_supervised_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:56 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 10:18:56 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 63%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_notification PASSED [ 64%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:56 [   ERROR] Database error querying agent agent-001: DB error
+PASSED                                                                   [ 65%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_history_tracking PASSED [ 65%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_graduation_thresholds_configuration PASSED [ 66%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_criteria_immutable PASSED [ 67%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_workspace_specific_overrides PASSED [ 68%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_default_configuration_loading PASSED [ 68%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_configuration_validation PASSED [ 69%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_calculate_supervision_metrics PASSED [ 70%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_performance_trend_calculation PASSED [ 71%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_validate_graduation_with_supervision PASSED [ 71%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_calculate_readiness_success_case PASSED [ 72%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_calculate_readiness_insufficient_episodes PASSED [ 73%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_calculate_readiness_high_intervention_rate PASSED [ 73%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_unknown_maturity_level PASSED [ 74%]
+tests/test_agent_graduation.py::TestAgentPromotion::test_promote_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:57 [    INFO] Agent graduate promoted to INTERN by supervisor
+2026-11-10 10:18:57 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 75%]
+tests/test_agent_graduation.py::TestAgentPromotion::test_promote_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:57 [   ERROR] Agent nonexistent_agent not found for promotion
+PASSED                                                                   [ 76%]
+tests/test_agent_graduation.py::TestAgentPromotion::test_promote_agent_invalid_maturity 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:57 [   ERROR] Invalid maturity level: INVALID_LEVEL
+PASSED                                                                   [ 76%]
+tests/test_agent_graduation.py::TestGraduationExam::test_run_graduation_exam PASSED [ 77%]
+tests/test_agent_graduation.py::TestGraduationExam::test_validate_constitutional_compliance PASSED [ 78%]
+tests/test_agent_graduation.py::TestGraduationAuditTrail::test_get_graduation_audit_trail PASSED [ 78%]
+tests/test_agent_graduation.py::TestSandboxExecutorCoverage::test_exam_with_no_episodes_returns_failure PASSED [ 79%]
+tests/test_agent_graduation.py::TestSandboxExecutorCoverage::test_exam_calculates_score_from_episodes PASSED [ 80%]
+tests/test_agent_graduation.py::TestSandboxExecutorCoverage::test_exam_detects_excessive_interventions PASSED [ 81%]
+tests/test_agent_graduation.py::TestSupervisionMetricsCoverage::test_supervision_metrics_with_no_sessions PASSED [ 81%]
+tests/test_agent_graduation.py::TestSupervisionMetricsCoverage::test_supervision_metrics_calculates_aggregates PASSED [ 82%]
+tests/test_agent_graduation.py::TestSupervisionMetricsCoverage::test_performance_trend_calculation PASSED [ 83%]
+tests/test_agent_graduation.py::TestSkillUsageMetricsCoverage::test_skill_usage_metrics_queries_executions PASSED [ 84%]
+tests/test_agent_graduation.py::TestSkillUsageMetricsCoverage::test_readiness_score_includes_skill_diversity_bonus PASSED [ 84%]
+tests/test_agent_graduation.py::TestSupervisionValidationCoverage::test_supervision_score_breakdown PASSED [ 85%]
+tests/test_agent_graduation.py::TestSupervisionValidationCoverage::test_supervision_score_with_poor_metrics PASSED [ 86%]
+tests/test_graduation_evidence_scope.py::test_audit_route_checks_target_workspace[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:58 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/audit/674d996d-d82e-4330-85b6-458e0b502f3b "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 86%]
+tests/test_graduation_evidence_scope.py::test_audit_route_checks_target_workspace[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:18:59 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/audit/97e0d8ad-c6b3-470e-b6cc-b6b2df895145 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 87%]
+tests/test_graduation_evidence_scope.py::test_audit_route_checks_target_workspace[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:00 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/audit/18a18784-c929-4831-ae48-a5f616af2493 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_graduation_evidence_scope.py::test_audit_route_does_not_include_peer_workspace_episode 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:01 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/audit/ba8017de-f1d0-4274-95a8-1809674ae924 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_graduation_evidence_scope.py::test_personal_audit_preserves_existing_default_aliases[None] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:02 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/audit/5fcbd076-8aed-46bf-a458-b73cb4a1264a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_graduation_evidence_scope.py::test_personal_audit_preserves_existing_default_aliases[] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:03 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/audit/9b32c8d2-51c5-4701-a36c-1a63f024d01b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_graduation_evidence_scope.py::test_personal_audit_preserves_existing_default_aliases[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:03 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/audit/4e355019-718e-4423-a0f9-e5d12228bcec "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[foreign_target] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:04 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=cdb729f6-54dc-49d4-96d8-c1622e813adb "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 92%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[foreign_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:05 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=1e47bed7-dea9-4203-b2f0-8f2358bce484 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 92%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[foreign_episode] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:06 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=09ca2d1d-4241-40cf-b043-8fdb38af8a06 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 93%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[missing_episode] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:07 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=4f386863-029c-4ee7-a4c6-cc3c39deeb1f "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 94%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[mixed_scope] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:08 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=57328d3c-da2c-4700-a106-3ac120e72ba8 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 94%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[unknown_agent] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:09 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=absent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 95%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[empty] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:09 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=fa023dcf-2cca-48b4-a266-a325285aa56e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[valid] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:10 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=3646013d-79a4-4459-b3f4-f2e245dc5cd2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_graduation_exam_boundary.py::test_exam_rechecks_scope_after_an_awaited_case[episode] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:11 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=325693b7-2009-4155-883c-ccbdda72a772 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 97%]
+tests/test_graduation_exam_boundary.py::test_exam_rechecks_scope_after_an_awaited_case[target] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:12 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=58ea45bd-1d6d-4c8c-831b-07a29c6e7ae0 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 98%]
+tests/test_graduation_exam_boundary.py::test_exam_allows_real_installation_only_review_without_claiming_candidate_quality 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:19:12 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=161b3b02-34bf-4d19-8242-b313b21d02b0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_graduation_exam_boundary.py::test_service_refusal_never_passes_even_after_one_successful_review PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+api/episode_routes.py:417
+  /private/tmp/atom-pr831-b071-repair-20261110/backend/api/episode_routes.py:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+../../root-py311-plugins/pytest_freezegun.py:17: 276 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_graduation.py: 19 warnings
+  /private/tmp/atom-pr831-b071-repair-20261110/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 138 passed, 301 warnings in 80.41s (0:01:20) =================
