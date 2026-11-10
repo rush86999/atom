@@ -1,0 +1,72 @@
+{
+  "checkpoints": {
+    "completion_repair": "1924d51e87ee8d5ab439309ff5a4c6ef34dc3ee8",
+    "initial_export": "70cc3b7e7521fabbb2ca39794c8b108aefe2a03d"
+  },
+  "dependency": {
+    "branch": "codex/web-workflow-reviewed-delivery-20261110",
+    "commit": "7fd05261cd9018af700ad162d381ad9485c5c814",
+    "note": "PR819 reviewed delivery source retained; no changes to frozen workflow handoff branch/evidence."
+  },
+  "evidence_files": {
+    "README.md": "e0d4eec7784214849558498a4e3fe35830392299b1a5c879653341238a69007d",
+    "boundary/base_export_404_and_raw_results.txt": "2f0364503573dfb8c60c7125a362791358a2da688dc7c534468c03a5ab8eba2b",
+    "fresh_process/fresh_export_bytes_hash.txt": "370ac21753810655c57c83dc374e8c0f491c81007e9804bdf947c71d8ffd98c3",
+    "fresh_process/fresh_process_roundtrip.py": "86af271ac04083fc6b96394fa19320d7226e7c39abd21eba1efded156ee51d4d",
+    "gates/affected_135.txt": "25398b168e08ece3d026ae84b9c33a794cadcfde42396445ed92174be95c4025",
+    "gates/combined_40.txt": "45838fe6c2739e791072657b698ccdd240981510c8777ddf3cef93454b41c88a",
+    "gates/export_suite_10.txt": "71283d43ddb9b0b34eb62d4df392ff9339f4352263f929b43df49e620015a24b",
+    "gates/frontend_42.txt": "df7b1347dee3cd760ebf1a323605f2dab27160c2e6dd97b417ffa9918d140dc3",
+    "gates/root_export_negatives_local_7.txt": "aebb8ccd96e0277c591ebb9cbf529a0003efa33c3902301284b0ca0ce0a41a4e",
+    "research/REUSE_DECISION.md": "4c3f5a7b6afe71cd113dd09d21a161928e14442ce4b732148348992c222cfac4",
+    "root_controls/root_export_negatives_70cc.controls.txt": "cd8617afe48056a2179fcb83a45c122d9525b6828e204029bd232688eb0c40a4",
+    "root_controls/root_export_negatives_70cc.review.json": "2af7607b28530d21d61fd69e625f30a0ddaf773a451d3246cc48aa6e8f7d0ac3"
+  },
+  "fresh_process": {
+    "bytes": 1404,
+    "model_calls": false,
+    "new_execution_rows": 0,
+    "real_os_processes": true,
+    "same_bytes_sha256": "91bc0193619f664b857ac1971d70d3bc3df35c41489ddddc06ab1f7d057b018a",
+    "same_execution": true,
+    "same_workflow": true,
+    "scheduler_jobs": []
+  },
+  "gates": {
+    "affected_workflow_regression": "135 passed",
+    "boundary_base_7fd": "export route 404; raw results only",
+    "combined_handoff_export": "40 passed",
+    "export_suite": "10 passed",
+    "frontend": "42 passed",
+    "root_export_negatives_local": "7 passed"
+  },
+  "kind": "web_workflow_output_export_evidence_manifest",
+  "non_claims": [
+    "No DOCX/PPTX/email generation claim; supported format is deterministic JSON.",
+    "No served-model, browser, whole-app, PostgreSQL, soak or production claim.",
+    "No new store/engine/schema/approval/filesystem artifact path.",
+    "Root independent export acceptance and PR/merge review remain pending."
+  ],
+  "packet": "docs/acceptance/evidence/web_workflow_output_export_1924d51e8/",
+  "root_controls": {
+    "root_export_negatives_at_70cc": {
+      "actual_exit": 1,
+      "result": "7/7 failed; malformed/unknown/non-success output could export"
+    },
+    "root_recheck": "pending independent root run at repaired checkpoint"
+  },
+  "sanitation": {
+    "paths_redacted_to": "<scratch-path>",
+    "raw_credentials_included": false,
+    "raw_db_included": false,
+    "secrets_removed": true
+  },
+  "source_hashes": {
+    "backend/core/workflow_endpoints.py": "d7849e2d3aa0be0a897441ffcb598d7ffa9f6a2c5320dff045f332e2a1784a4c",
+    "backend/tests/helpers/fresh_process_workflow_roundtrip.py": "86af271ac04083fc6b96394fa19320d7226e7c39abd21eba1efded156ee51d4d",
+    "backend/tests/test_workflow_output_export.py": "338eee4273fea18a261af5c0fe79b6156ac9ce2c7ee4fa14d67f40a0720eabfd",
+    "frontend-nextjs/components/Automations/ExecutionDetailView.tsx": "618924c6b9f672f040a218044f8209769b45bca33615e33044bc4fcdc7ec1a4f",
+    "frontend-nextjs/components/Automations/__tests__/ExecutionDetailView.test.tsx": "c535a8753da32e5db0eceeb3bf0595904ceae2bd55c243e2505affd15fa11e56",
+    "frontend-nextjs/components/WorkflowAutomation.tsx": "84674333eccc9fabcc63a535de73aea8f35150a202d647ef079ad32be512259d"
+  }
+}
