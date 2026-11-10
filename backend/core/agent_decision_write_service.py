@@ -390,7 +390,9 @@ def caller_work_pending(db: Session, owned: tuple = ()) -> bool:
 
     Shared gate writers must never commit or roll back another caller's
     pending work. They refuse/return unresolved instead; the owner of the
-    transaction decides when to commit.
+    transaction decides when to commit. ``owned`` excludes only unflushed
+    ORM objects; flushed writes are conservatively caller-owned because the
+    transaction marker does not attribute individual rows.
     """
     from sqlalchemy.orm import Session as SASession
 

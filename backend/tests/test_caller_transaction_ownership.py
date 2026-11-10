@@ -91,3 +91,43 @@ def test_clean_savepoint_and_new_transaction_have_no_pending_writes(sessions):
         db.rollback()
         assert not caller_work_pending(db)
         assert db.get(_Row, 1).value == "original"
+
+
+def test_begin_nested_implicit_flush_keeps_outer_caller_ownership(sessions):
+    with sessions() as db:
+        db.get(_Row, 1).value = "implicit-outer"
+        savepoint = db.begin_nested()  # SQLAlchemy flushes before SAVEPOINT.
+        savepoint.rollback()
+        assert caller_work_pending(db)
+        with sessions() as peer:
+            assert peer.get(_Row, 1).value == "original"
+        db.commit()
+        assert not caller_work_pending(db)
+
+
+def test_session_commit_with_open_savepoint_clears_finished_outer_work(sessions):
+    with sessions() as db:
+        db.get(_Row, 1).value = "outer-committed"
+        db.flush()
+        db.begin_nested()
+        db.get(_Row, 2).value = "inner-committed"
+        db.flush()
+        db.commit()
+        assert not caller_work_pending(db)
+    with sessions() as peer:
+        assert peer.get(_Row, 1).value == "outer-committed"
+        assert peer.get(_Row, 2).value == "inner-committed"
+
+
+def test_session_close_with_open_savepoint_rolls_back_caller_work(sessions):
+    db = sessions()
+    db.get(_Row, 1).value = "outer-discarded"
+    db.flush()
+    db.begin_nested()
+    db.get(_Row, 2).value = "inner-discarded"
+    db.flush()
+    db.close()
+    assert not caller_work_pending(db)
+    with sessions() as peer:
+        assert peer.get(_Row, 1).value == "original"
+        assert peer.get(_Row, 2).value == "inner"

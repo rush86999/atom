@@ -108,3 +108,7 @@ Independent native review: `/private/tmp/savepoint-ownership-independent-review-
 3. Verify final graduation121 and approvalscopy tests. Rerun meaningful broader consumers after latest runtime repair; preserve seven named pre-existing training failures, do not suppress/xfail or relax gate. Commit/push only scoped root WIP after checks; build strict source/evidence manifest, then draftPR.
 4. Reconcile original143claims/18goals against current main/evidence; continue genuinely unclosed requirements. Long-task idle budget already has retained97/97 regression evidence at419ab9f44; do not repeat old campaigns just because stale audit names a row. Whole-app ORACLE, broader adaptive judgment, provider/connector breadth, operations/performance/profile breadth/mobile have not been universally accepted.
 5. Keep short quick_reference accurate per delivery, full goal catalog unchanged. README/diagrams must distinguish measured capabilities from goals. Update this takeover snapshot if new results materially supersede it.
+
+
+## Addendum: next verified checkpoint
+Final permanent gate completed121/121, actual exit0/same_source=true at31ub0c6n. Email worker finished/pushedf2789bef93394fda4cab28d7c270899a11c4986f: initial110pass/2pre-existing-dictfailures; aligned focused9pass. Full repaired selection and root independent review remain needed before829integration/merge. Root ordinary approvals-copy test remains pending; frontend copy not part of backend acceptance.
