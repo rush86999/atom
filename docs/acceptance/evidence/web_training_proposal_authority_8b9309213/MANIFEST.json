@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "kind": "web_training_proposal_authority_evidence_manifest",
+  "title": "Training proposal scope and expiry repair — 8b9309213",
+  "status": "submitted_withheld_not_accepted",
+  "executed_source": "8b9309213",
+  "source_files": {
+    "backend/core/student_training_service.py": "347d7974e309aa718d1f2c29d52963bc4d7e7d80d647c3b56e7c4b9ab99af1cb",
+    "backend/api/agent_maturity_routes.py": "5654306f9fc4796a16f96a9493f024a3901b76525d6cdb2ee49def5434e023e5",
+    "backend/tests/api/test_web_training_proposal_authority.py": "772d83c271785502c49e4dba6473c82952fd069573244418e681c13d51b8a64b",
+    "backend/tests/test_covpush_w59_student_training.py": "82b12b85fcaab3b6a9feeb782e1f83715d9f22317c65761db789d243bfc978e6",
+    "backend/tests/test_covpush_w63_student_training.py": "b0c61762266618c114bd4636c0192a54257042aa867329aef65348881ff1bae2",
+    "backend/tests/test_promotion_evidence_gate.py": "8c37db12a417f404c797d60198b6e75681553f6ac4642f2ce2e4e352cf828d64",
+    "backend/tests/test_role_journey_rbac_gaps.py": "33f3c0017a36dca62471bd4aa977092a65e4b9f7225a4d9dfa56faff5aa1d898",
+    "backend/tests/test_round81_agent_journey_gaps.py": "0139831868fef2e047cf1caa279dbe9626b63d7c59eb025fc203a089006ec388",
+    "backend/tests/test_training_lifecycle_manual_start.py": "4ff5c70acbb241789524dbe419e3337af0cf31765e4f3e5f20a6f8fd331fe937",
+    "backend/tests/unit/governance/test_student_training_service.py": "f4582ad319f552292bcd5b74f66de00e8305cef87b7a0d37f13f9c4ea22381c4",
+    "backend/tests/unit/test_student_training_service.py": "1fcf5fde6184391b3b5cd5042f3da93403cfc6b4426ef772ab75b5243cbddac1"
+  },
+  "artifacts": {
+    "README.md": "58ad44296e9b9db81d625cefc535fdd27015f1cd4df757879f7fd385a7fe3e01",
+    "verification.json": "177ef22aa4b1553a01a28917768626ad715e4cda6e53cf893e43c1815dddf7df"
+  }
+}

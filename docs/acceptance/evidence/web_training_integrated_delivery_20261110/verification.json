@@ -1,0 +1,227 @@
+{
+  "status": "accepted_controlled_public_API_SQLite_scope_pending_integration",
+  "source": "8b9309213ae13ce9b8476d1803500cb99556aa5c",
+  "evidence": "2474119926d08b51383a22b8a5cc0b27ff45850a",
+  "packet_checks": [
+    {
+      "kind": "source",
+      "path": "backend/core/student_training_service.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/api/agent_maturity_routes.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/api/test_web_training_proposal_authority.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/test_covpush_w59_student_training.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/test_covpush_w63_student_training.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/test_promotion_evidence_gate.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/test_role_journey_rbac_gaps.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/test_round81_agent_journey_gaps.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/test_training_lifecycle_manual_start.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/unit/governance/test_student_training_service.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "path": "backend/tests/unit/test_student_training_service.py",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "path": "README.md",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "path": "verification.json",
+      "match": true
+    }
+  ],
+  "private_log_receipt_checks": [
+    {
+      "path": "/private/tmp/root-training-heldout-negative-20261110.json",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-heldout-20261110-wc8k5fy_/tests.private.log",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-heldout-repaired-review-20261110.json",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-heldout-repaired-20261110-b_ts1_15/tests.private.log",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-proposal-authority-work/final_heldout2.log",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-proposal-authority-work/final_new2.log",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-proposal-authority-work/routes5.log",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-proposal-authority-work/final_gov.log",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-original-repaired-review-20261110.json",
+      "match": true
+    },
+    {
+      "path": "/private/tmp/root-training-original-repaired-20261110-1gz55f8m/verification.json",
+      "match": true
+    }
+  ],
+  "root_frozen_heldout": "2 passed in4.84s; original assertions unchanged; exact3files match frozen commit",
+  "root_original_public_probe": "same-scope positive200; foreign list absent/detail404/reject404; fresh proposal pending and no reviewer; route/service hashes match frozen source",
+  "coverage_limits": [
+    "No browser/served model/production/live account/PostgreSQL claim",
+    "No whole-app training or graduation acceptance",
+    "Restored expired approve:false control retained; old hash not used to suppress coverage"
+  ],
+  "integrated_dependency_revision": "e2cbff5b989c482040d61c210e74be7f8840668d",
+  "candidate_source_identity": [
+    {
+      "path": "backend/core/student_training_service.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/api/agent_maturity_routes.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/api/test_web_training_proposal_authority.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/test_covpush_w59_student_training.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/test_covpush_w63_student_training.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/test_promotion_evidence_gate.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/test_role_journey_rbac_gaps.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/test_round81_agent_journey_gaps.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/test_training_lifecycle_manual_start.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/unit/governance/test_student_training_service.py",
+      "matches_reviewed_source": true
+    },
+    {
+      "path": "backend/tests/unit/test_student_training_service.py",
+      "matches_reviewed_source": true
+    }
+  ],
+  "test_inventory": [
+    {
+      "path": "backend/tests/test_covpush_w59_student_training.py",
+      "preexisting_test_names_retained": true
+    },
+    {
+      "path": "backend/tests/test_covpush_w63_student_training.py",
+      "preexisting_test_names_retained": true
+    },
+    {
+      "path": "backend/tests/test_promotion_evidence_gate.py",
+      "preexisting_test_names_retained": true
+    },
+    {
+      "path": "backend/tests/test_role_journey_rbac_gaps.py",
+      "preexisting_test_names_retained": true
+    },
+    {
+      "path": "backend/tests/test_round81_agent_journey_gaps.py",
+      "preexisting_test_names_retained": true
+    },
+    {
+      "path": "backend/tests/test_training_lifecycle_manual_start.py",
+      "preexisting_test_names_retained": true
+    },
+    {
+      "path": "backend/tests/unit/governance/test_student_training_service.py",
+      "preexisting_test_names_retained": true
+    },
+    {
+      "path": "backend/tests/unit/test_student_training_service.py",
+      "preexisting_test_names_retained": true
+    }
+  ],
+  "root_final_frozen_gate": {
+    "pid": 4516,
+    "world": "/private/tmp/root-training-frozen-heldout-20261110-2pur_tqa",
+    "source": "8b9309213ae13ce9b8476d1803500cb99556aa5c",
+    "source_hashes": {
+      "api/agent_maturity_routes.py": "5654306f9fc4796a16f96a9493f024a3901b76525d6cdb2ee49def5434e023e5",
+      "core/student_training_service.py": "347d7974e309aa718d1f2c29d52963bc4d7e7d80d647c3b56e7c4b9ab99af1cb",
+      "tests/api/test_web_training_proposal_authority.py": "772d83c271785502c49e4dba6473c82952fd069573244418e681c13d51b8a64b"
+    },
+    "reason": "Retained meaningful additional test changes whole test-file hash; exact original heldout assertions unchanged.",
+    "passed": true,
+    "log_sha256": "2f72dbbc308b32ddbb6cb1d362933ed9c4d13b682189ae133009281be1c5625b",
+    "frozen_files_match": true
+  },
+  "original_public_probe": {
+    "passed": true,
+    "source_hashes_unchanged_during_run": true,
+    "executed_source_hashes": {
+      "api/agent_maturity_routes.py": "5654306f9fc4796a16f96a9493f024a3901b76525d6cdb2ee49def5434e023e5",
+      "core/student_training_service.py": "347d7974e309aa718d1f2c29d52963bc4d7e7d80d647c3b56e7c4b9ab99af1cb"
+    },
+    "raw_report": "/private/tmp/root-training-original-repaired-20261110-1gz55f8m/verification.json",
+    "metadata_correction": "Original standalone probe retains a hardcoded baseline source label63; for this repaired run the dispatch runtime file hashes are authoritative. Report is preserved, not treated as main63 execution.",
+    "scope": "actual public router + JWT/current User + scratch SQL; same-scope positive and foreign list/detail/reject negative"
+  }
+}

@@ -30,6 +30,20 @@ from core.models import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _training_supervisors(db_session):
+    """Real active supervisor rows for direct-service approval calls."""
+    for uid in ("test_user", "admin_user", "supervisor_123"):
+        if db_session.get(User, uid) is None:
+            db_session.add(User(
+                id=uid, email=f"{uid}@example.invalid", hashed_password="h",
+                first_name="Training", last_name=uid, role="team_lead",
+                status="active", is_active=True, tenant_id=None,
+                workspace_id=None,
+            ))
+    db_session.commit()
+
+
 class TestTrainingDurationEstimation:
     """Test AI-based training duration estimation"""
 
