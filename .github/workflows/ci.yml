@@ -707,6 +707,8 @@ jobs:
         run: |
           node --test tests/contracts/skills-proxy-authority.cjs
           npx jest tests/pages/api/__tests__/skills-list.test.ts components/Automations/__tests__/test-pieces-sidebar.test.tsx --runInBand --no-coverage --watchman=false
+      - name: Production TypeScript error rejection and valid build twin
+        run: node --test tests/contracts/production-type-gate.cjs
       - name: Production and development cookie policy contract
         run: node --test tests/contracts/nextauth-cookie-policy.cjs tests/contracts/production-middleware-session.cjs
       - name: Current backend principal session contract
