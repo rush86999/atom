@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "goal": "Connected durable web tasks across chat and the Tasks surface",
+  "state": "controlled consumer defect reproduced; queued after active authentication work",
+  "observed_source": "c0427e5204690c6fdba04bdc9b08b363e284d39f",
+  "source_sha256": {
+    "backend/core/unified_task_endpoints.py": "1ab24bd928cab2dc69fab314782a112365ee822ef7efa7a40772fea3c7c0b482",
+    "backend/core/atom_agent_endpoints.py": "8469d198cb1694413666930361e677e92bee6f21aab24d3af56f4e7692865bd8",
+    "backend/integrations/chat_orchestrator.py": "fd9808d5430bbb1a91171a4f1207992fa4e948b1a7bdcdcdec82a4e692b7b14d",
+    "backend/api/nav_stub_routes.py": "d308cb0faf3c731bf6bbcf0864b1b589d4d2237da8e0bbee47dc38b2ee19bf48",
+    "frontend-nextjs/components/TaskManagement.tsx": "29284abeac7817701e68993f37944de3ac46b3361cddd68ef147ee0d5014cd69"
+  },
+  "evidence": {
+    "source": "c0427e5204690c6fdba04bdc9b08b363e284d39f",
+    "scope": "Exact extracted functions with model/analyzer doubles, no DB or HTTP; source binding determines persistence path, not browser qualification",
+    "missing_dependency_call": {
+      "returned": false,
+      "exception_class": "AttributeError",
+      "in_memory_rows_after_failure": 1
+    },
+    "chat_consumer": {
+      "success": true,
+      "in_memory_rows": 1,
+      "returned_task_id_present": true
+    },
+    "source_observation": "The executed unified endpoint writes MOCK_TASKS only; ordinary Tasks UI uses api.nav_stub_routes and UserTask SQL rows. No shared persistence call in this executed path."
+  },
+  "limits": [
+    "Extracted exact function execution with request/model/analyzer doubles, not full HTTP or browser acceptance.",
+    "No live model, provider, DB, credential or task effect.",
+    "Tasks may be deferred in the core profile; do not force-enable it to obtain acceptance."
+  ],
+  "required_engineering": [
+    "Trace all create/list/update/delete callers, lazy router registration, MCP tools and authentication identity before edits.",
+    "Route ordinary local task consumers through the existing UserTask and project authorization mechanism; factor a shared existing service if necessary, no new task store/engine.",
+    "Remove production MagicMock identity substitution; resolve the authoritative active User from server-owned context. Missing, foreign, disabled or ambiguous identity must refuse before effect.",
+    "Preserve configured provider task routes explicitly; never silently claim provider success from a local fallback, never invoke live providers during this work.",
+    "One committed durable task must be returned with the actual id and current material; failures must not leave invisible memory-only success.",
+    "Keep tenant columns as single-tenant compatibility, not a new SaaS enrollment requirement."
+  ],
+  "required_product": [
+    "A confirmed local task created in chat must be the same record listed by the ordinary task API and supported UI, not an unconnected response object.",
+    "Same-account reload and backend restart preserve title, identity, project and current values.",
+    "No invented success on refused/unknown writes; no duplicate create on uncertain confirmation.",
+    "Keep current release profile truthful; deferred UI is not a completed CRUD journey."
+  ],
+  "acceptance": [
+    "Preserve controlled negative source c042; do not relabel it after repair.",
+    "Actual controlled chat consumer -> existing SQL UserTask -> authenticated public list read, with fresh session and real backend process restart.",
+    "Atom intent and chat orchestrator callers both use the same durable operation, invalid-authority negative twins produce zero rows.",
+    "Existing tasks/projects controls and affected chat tests; exact baseline failures remain disclosed.",
+    "Source-bound safe evidence and Git verification; raw tokens/logs/DB private."
+  ],
+  "ownership": "Prepared root successor; do not edit active SSO or browser-worker files or start duplicate inference while those tasks are live.",
+  "scope_unchanged": {
+    "historical_claims": 143,
+    "goal_rows": 18,
+    "whole_app_complete": false,
+    "web_first": true,
+    "mobile_last": true
+  }
+}
