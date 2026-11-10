@@ -1,0 +1,171 @@
+{
+  "schema": "atom-agent-creation-ui-verification-1",
+  "status": "web guided/custom/attach creation no longer auto-replays uncertain POSTs; exact receipt binding enforced; bounded custom Hire browser join PASS 23/23 controls; current main reconciled; browser health source_id explained as ambient metadata with raw health payload explicitly not preserved",
+  "candidate": {
+    "branch": "codex/web-goal14-create-ui-join-20261110",
+    "base": "38dae97a6f9a1e00179a9ac879c14215b9983d1f",
+    "current_main": "230231f5114612f4b31a602190c318667e94f2f1",
+    "merge_head": "7301110acf5e60f913259884ab3e749b5d9d4abc",
+    "browser_run_source": "708d4d6a5",
+    "browser_evidence_head": "416094ffb",
+    "receipt_repair_commit": "31a82b316",
+    "product_tree_equals_tested_31a82b316": true,
+    "backend_integration_worktree_edited": false,
+    "spawn_worktree_edited": false,
+    "runtime": "Node20 + existing linked frontend node_modules; Jest/RTL/jsdom; real lib/api interceptor; isolated world browser join; no live model/provider/DB"
+  },
+  "confirmed_gaps": {
+    "retry": {
+      "source": "createGuidedAgent apiClient.post and AgentLaunchGuide custom POST had no retry:false or stable operation id",
+      "mechanism": "shared lib/api.ts response interceptor auto-retries 5xx/network failures",
+      "before": "real adapter counter: 4 POST attempts each for guided and custom creation after a 503"
+    },
+    "receipt_binding": {
+      "source": "assertVerifiedCreation checked only agent_id and verification.status",
+      "root_probe": "/private/tmp/brennan-brief/CREATION_UI_RECEIPT_BINDING_ROOT_PROBE.json (original negative, preserved)",
+      "accepted_before": [
+        "wrong operation/audit receipt",
+        "missing operation/audit receipt",
+        "verified receipt with effect:none"
+      ],
+      "failure_first": "13 Jest twins failed before repair"
+    }
+  },
+  "repair": {
+    "retry": "creation helpers pass retry:false",
+    "operation_id": "each call submits one operation id: caller intent id or an internally generated id; a changed intent resets it, an explicit unchanged-intent retry keeps it",
+    "normalization": "the submitted id is normalized with the backend create prefix; receipt ids are never guessed",
+    "receipt_binding": "exact agent_id, top-level operation_id and audit_id, nested verification.audit_id, verification.status in verified/already_applied, and effect committed must all agree",
+    "pending": "202 pending_approval returns pending with no agent id; no refresh/attach as created",
+    "reload": "verified success passes the exact agent_id; authoritative list/refresh shows that id once",
+    "uncertainty": "5xx/network/unverified/mismatched receipts show honest uncertainty; no auto-POST",
+    "promotion_scheduler": "no promotion and no scheduler call added",
+    "not_touched": "Agent Studio (unmounted) and template spawn (no frontend caller) remain disabled/unqualified"
+  },
+  "controls": {
+    "no_auto_retry_guided": true,
+    "no_auto_retry_custom": true,
+    "operation_id_submitted_always": true,
+    "unchanged_intent_can_reconcile": true,
+    "receipt_operation_must_match": true,
+    "receipt_audit_must_match": true,
+    "nested_verification_audit_must_match": true,
+    "effect_must_be_committed": true,
+    "verified_and_already_applied_accepted": true,
+    "pending_no_agent": true,
+    "pending_no_attach": true,
+    "success_false_rejected": true,
+    "malformed_wrong_target_rejected": true,
+    "unverified_rejected": true,
+    "exact_id_reload": true,
+    "no_optimistic_duplicate": true,
+    "student_no_promotion": true,
+    "no_scheduler_duplicate": true,
+    "existing_frontend_tests_retained": true
+  },
+  "results": {
+    "retry_failure_first": {
+      "failed": 2,
+      "guided_posts": 4,
+      "custom_posts": 4,
+      "log": "failure-first-interceptor.log"
+    },
+    "interceptor_after": {
+      "passed": 8,
+      "log": "interceptor-integrity.log"
+    },
+    "receipt_failure_first": {
+      "failed": 13,
+      "log": "receipt-binding-failure-first.log"
+    },
+    "receipt_after_31a82b316": {
+      "passed": 25,
+      "log": "receipt-binding-at-31a82b316.log"
+    },
+    "focused_frontend_31a82b316": {
+      "passed": 132,
+      "log": "receipt-binding-at-31a82b316.log"
+    },
+    "tsc_31a82b316": {
+      "errors": 0,
+      "log": "receipt-binding-tsc-at-31a82b316.log"
+    },
+    "exact_receipt_gate_31a82b316": {
+      "passed": 14,
+      "failing": 0,
+      "log": "receipt-binding-gate-at-31a82b316.log"
+    },
+    "root_independent_31a82b316": {
+      "counterprobes": "5/5",
+      "jest": "51 passed across 5 suites; 0 failed",
+      "helper_git_match": true,
+      "helper_sha256": "ecfbd44a475e089bcdd8416f9ff60a5660dc6f3b9db6f85bc7584d0ebfad8f8c",
+      "artifacts": "root-independent-31a82b316/"
+    },
+    "fresh_merge_7301110ac": {
+      "focused_passed": 132,
+      "tsc_errors": 0,
+      "exact_receipt_gate": "14/14",
+      "logs": [
+        "fresh-7301110ac-focused.log",
+        "fresh-7301110ac-tsc.log",
+        "fresh-7301110ac-gate.log"
+      ]
+    },
+    "browser_join": {
+      "status": "PASS",
+      "controls_passed": 23,
+      "controls_total": 23,
+      "source": "708d4d6a5",
+      "evidence_head": "416094ffb",
+      "capture": "browser_custom_hire_join/browser_custom_hire_join.json",
+      "screenshots": 4,
+      "one_post": true,
+      "verified_receipt": true,
+      "exact_list_row_once": true,
+      "student_no_promotion": true,
+      "no_scheduler_duplicate": true,
+      "no_provider_host_requested": true,
+      "network_boundary_external_blocked": true
+    }
+  },
+  "source_identity": {
+    "browser_executed_frontend": "708d4d6a5 (via clean 416094ffb tree)",
+    "browser_executed_backend": "708d4d6a5 backend (working-tree snapshot b4aa64edb48cc5f24ed318afb627fc5a700c795f3f5626b6b0fa654455f5be49; unchanged from base 38dae97a6)",
+    "backend_snapshot_recomputed_match": true,
+    "backend_files_match_frozen": true,
+    "frontend_run_tree_matches_frozen": true,
+    "health_source_id_observed": "ec69e24f4385-dirty.d48ca",
+    "health_source_id_explanation": "ambient canonical repo metadata read by core.runtime_identity because the world lives inside /Users/rushiparikh/projects/atom; not the loaded snapshot",
+    "build_log_pinned_rev": "79b2a41032c355d84dfd58229966d85a73a7d079",
+    "build_log_pinned_rev_explanation": "run_isolated prints PINNED_REV unconditionally in snapshot mode; actual export identity is MANIFEST code_snapshot_sha256",
+    "raw_health_payload_preserved": false,
+    "launch_descriptor_preserved": false,
+    "product_code_attribution": "proven",
+    "health_payload_attribution": "incomplete (raw payload/descriptor not preserved)",
+    "reconciliation": [
+      "SOURCE_IDENTITY_RECONCILIATION.md",
+      "SOURCE_IDENTITY_RECONCILIATION.json"
+    ]
+  },
+  "checks": {
+    "no_backend_change": true,
+    "no_qualification_change": true,
+    "no_new_api_client_store_or_review_engine": true,
+    "no_new_dependency": true,
+    "no_new_world_left_behind": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "original_143_claims_18_goals_unchanged": true,
+    "webfirst_mobilelast": true,
+    "current_main_is_ancestor": true,
+    "no_pr_merge_or_self_acceptance": true
+  },
+  "boundaries": [
+    "frontend source only; backend/qualification base untouched",
+    "Node20 reused; node_modules linked, not copied",
+    "browser join is ordinary custom Hire only; guided browser cannot claim served model quality from controlled transport",
+    "raw /api/health payload and launch descriptor were not preserved; that attribution remains incomplete",
+    "root owns backend integration and final review; no merge"
+  ]
+}
