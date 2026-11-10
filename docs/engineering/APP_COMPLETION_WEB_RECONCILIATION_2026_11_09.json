@@ -161,7 +161,7 @@
       "admission_source": "a7ed7a96737b4751bfa256b2c285cf6fdb8bf23d",
       "independent_normal_fixture_tests": 89,
       "evidence": "docs/acceptance/evidence/web_sso_account_admission_a7ed7a967/",
-      "state": "backend identity/state contracts verified at controlled local API scope; complete browser SSO open",
+      "state": "Backend controlled handoff and shared classifier import repair independently verified; frontend SSO bridge implementation active and ordinary SSO browser gate remains open.",
       "next_required": [
         "safe same-origin web handoff into the existing encrypted SDK session",
         "ordinary controlled-provider browser SSO journey",
@@ -184,7 +184,12 @@
         "https://www.rfc-editor.org/rfc/rfc9700/",
         "https://next-auth.js.org/providers/credentials",
         "https://next-auth.js.org/getting-started/client"
-      ]
+      ],
+      "handoff_source": "e6e4b387ddf991ca474e416a83336bbb987965ce",
+      "executed_successor": "100ac3d99e457a667099bc9cf768a126cada8100",
+      "independent_normal_tests": 123,
+      "independent_state_and_handoff_probes": 10,
+      "handoff_evidence": "docs/acceptance/evidence/web_sso_handoff_100ac3d99/"
     },
     "performance_reconciliation": {
       "historical_missing_public_reproducer_statement": "superseded only for cache-only command availability",
@@ -236,17 +241,21 @@
         ]
       },
       "recovery_successor": {
-        "negative_source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
-        "finding": "Middleware redirects signed-out forgot-password and reset-password pages307 tologin.",
-        "independent_negative": {
-          "passed": 1,
-          "failed": 2
-        },
-        "uncommitted_successor_probes": {
-          "passed": 3,
-          "failed": 0
-        },
-        "acceptance": "Await frozen repaired source, affected controls and targeted ordinary browser recovery; provisional3pass is not whole-flow acceptance."
+        "source": "f9ef079c2a2805dc1a92b91a94a9ff2a82bd9b1b",
+        "evidence": "824402d89b90bd66e4b1da7cf023c86513144a0f",
+        "bundle": "docs/engineering/evidence/web_recovery_reset_f9ef079c2/",
+        "state": "Accepted controlled local HTTP/password recovery with private mail capture; no live email/TLS/2FA claim.",
+        "independent_middleware_sdk_probes": 6,
+        "source_hashes": 16,
+        "artifact_hashes": 9,
+        "verified_boundary": [
+          "signed-out forgot and reset forms",
+          "one used reset token",
+          "old password refused",
+          "new password opens same canonical account and actual SDK session",
+          "one matching account after flow"
+        ],
+        "original_negative": "3673:anonymous recovery pages307;2failed1passed independent probes"
       }
     },
     "actual_main_ref": "c0427e5204690c6fdba04bdc9b08b363e284d39f",
@@ -258,15 +267,15 @@
     "current_operational_queue": [
       {
         "owner": "existing frontend CLI",
-        "task": "Finish ordinary fresh-browser signup/onboarding/login/logout/reload on frozen3673, preserve exact failures; no product edits during run."
+        "task": "Finish safe same-origin SSO callback/redirect/SDK session bridge and tests; merge verified backend100 after own coherent commit; root review before ordinary SSO browser."
       },
       {
-        "owner": "existing backend CLI",
-        "task": "Implement and test same-origin SSO handoff in independent checkout, no new user/credential store; no live provider."
+        "owner": "backend CLI next slice",
+        "task": "Trace and repair confirmed chat task memory-only consumer using existing durable UserTask mechanism; no new engine or provider substitution."
       },
       {
         "owner": "root verifier",
-        "task": "Independent source/effect verification, preserve all143claims18goals, web first/mobile last; postmerge checks model-free."
+        "task": "Preserve143/18 scope, independently verify/integrate source-bound deliveries, CI model-free; web first/mobile last."
       }
     ],
     "observed_at": "2026-11-10T01:28:08.159769+00:00"

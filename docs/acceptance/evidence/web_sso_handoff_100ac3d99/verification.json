@@ -1,0 +1,40 @@
+{
+  "executed_source": "100ac3d99e457a667099bc9cf768a126cada8100",
+  "sso_implementation": "e6e4b387ddf991ca474e416a83336bbb987965ce",
+  "independent_normal_suite": {
+    "passed": 123,
+    "failed": 0,
+    "warnings": 348,
+    "seconds": 104.03,
+    "normal_repository_conftest": true
+  },
+  "independent_boundary_probes": {
+    "passed": 10,
+    "failed": 0,
+    "warnings": 3,
+    "seconds": 14.5,
+    "scope": "Controlled local issuer, real public router, separate SQLite peer transactions; no global conftest for independent probes"
+  },
+  "predecessor_negative": {
+    "source": "e6e4b387ddf991ca474e416a83336bbb987965ce",
+    "normal_control": "Shared classifier import-order error before SSO fixture",
+    "worker_failure_first_wrapper": {
+      "failed": 2,
+      "passed": 1
+    }
+  },
+  "broader_byok_comparison": {
+    "predecessor": "e6e4b387ddf991ca474e416a83336bbb987965ce",
+    "same_failed_ids": [
+      "tests/core/llm/test_byok_handler.py::TestErrorHandling::test_get_provider_fallback_order_handles_unknown_provider",
+      "tests/core/llm/test_byok_handler.py::TestProviderSelection::test_get_available_providers",
+      "tests/core/llm/test_byok_handler.py::TestProviderSelection::test_get_optimal_provider_returns_provider",
+      "tests/core/llm/test_byok_handler.py::TestStreaming::test_stream_completion_streams_tokens"
+    ],
+    "failed_before": 4,
+    "failed_after": 4,
+    "root_review": "Exact retained worker failure lists inspected; not an independent full BYOK pass"
+  },
+  "scope": "Backend web handoff and normal classifier construction at controlled local scope; frontend browser SSO, live IdP, production browser TLS and PostgreSQL/soak remain open.",
+  "raw_auth_material_published": false
+}
