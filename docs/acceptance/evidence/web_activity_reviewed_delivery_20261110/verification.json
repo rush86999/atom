@@ -1,0 +1,22 @@
+{
+  "runtime_source": "a6e40729705d88f4f1ab41d760e235b60358d3ba",
+  "integration_base": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+  "source_files": {
+    "frontend-nextjs/pages/goal-runs/index.tsx": "1d242e35f7b6b61352213c9442015294187faf5816ced5664cde38c7dd22277c",
+    "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "c046abe2e0b427cebda8a1e64ddeb878805e66b511e094d297e9dc5c7d7e331c"
+  },
+  "root_independent": {
+    "actual_exit": 0,
+    "same_source": true,
+    "result": "2passed0.531s; original2failure probes unchanged",
+    "probe_sha256": "16ffedaf22033d072b90bc3d0e1053733f5108f2dcd61b36ec88fe740a0af892"
+  },
+  "frozen_packet_git_checks": 13,
+  "producer_controls": "48 index/detail tests; tsc/eslint clean at recorded checkpoint",
+  "scope": "Activity utility consumer only. Existing deterministic ranking API, no new backend/engine/router/store. No browser/general judgment/full GOAL02 claim.",
+  "artifacts": {
+    "root-independent-controls.log": "bef89ad7b331a0679039b241af22d72ed262a9aebd38024a75110482e8ae3529",
+    "root-independent-probe.test.tsx": "16ffedaf22033d072b90bc3d0e1053733f5108f2dcd61b36ec88fe740a0af892",
+    "root-independent-review.json": "5ea813afd7bdf555e443cf4fd3fe13d1967791024fb181a7d0c3dd8e5f9ffe66"
+  }
+}

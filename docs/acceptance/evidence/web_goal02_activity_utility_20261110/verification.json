@@ -1,0 +1,111 @@
+{
+  "baseline": {
+    "control": "existing Activity list with a goal utility target",
+    "exit": 1,
+    "failure": "activity-utility-summary absent; getGoalUtility not called",
+    "log": "logs/baseline-red.log",
+    "result": "1 failed, 14 passed"
+  },
+  "boundary": "GOAL02-ACTIVITY-UTILITY-VISIBILITY",
+  "claim": "GOAL-02 activity utility visibility",
+  "controls": {
+    "eslint_changed_files": {
+      "exit": 0,
+      "log": "logs/eslint.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "index_consistency_23": {
+      "exit": 0,
+      "log": "logs/index-consistency-controls.log",
+      "log_sha256": "69049ebbd395fa7ea98305051c379d7fa8510d8b09c034dc09b2660d30dc35ff",
+      "passed": 23
+    },
+    "predecessor_45": {
+      "exit": 0,
+      "log": "logs/predecessor-45-controls.log",
+      "log_sha256": "df70ab0c6a2497fa4176dc90b68cce9d311096e807792fa3d67bf7d5ae832833",
+      "passed": 45
+    },
+    "root_probe_after": {
+      "exit": 0,
+      "log": "logs/root-probe-after.log",
+      "log_sha256": "f860c2fe1549d7031a4e77152deafc4409ca42c8d3b0f5e694b669e2bc5cd961",
+      "note": "unchanged root probe; root independent retest required",
+      "passed": 2
+    },
+    "successor_48": {
+      "exit": 0,
+      "log": "logs/successor-48-controls.log",
+      "log_sha256": "07edb6f3870c4fef7bbfe92bb04c6d32d3d2c28c1e25f8dba9f778b1ff7d99de",
+      "passed": 48
+    },
+    "typescript": {
+      "exit": 0,
+      "log": "logs/tsc.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "limits": {
+    "agent_general_judgment": false,
+    "backend_ranking_change": false,
+    "browser_liveDB_provider_model": false,
+    "root_ci_pr_pending": true,
+    "whole_goal02_closure": false
+  },
+  "predecessor_commit": "05ca1e72bb87848d07c702cc4c99201217c92b7b",
+  "repair": {
+    "authoritative_clear": "fulfilled getGoalUtility target=null removes ranking, target card and winner",
+    "backend_change": false,
+    "generation": "one Activity request generation assigned at load entry before all awaits; stale loads cannot write run/goal/utility/loading/error state",
+    "metadata_failure": "listGoals rejection preserves known titles/utility and shows distinct metadata warning; genuine empty goals still clear",
+    "new_api": false,
+    "new_engine_store_router": false,
+    "unchanged": [
+      "15s poll",
+      "include-terminal filter",
+      "member read-only",
+      "detail supervisor write controls",
+      "deterministic backend ranking"
+    ],
+    "utility_failure": "preserves last known ranking as stale, suppresses fresh winner, typed error"
+  },
+  "repair_commit": "a6e40729705d88f4f1ab41d760e235b60358d3ba",
+  "root_independent_negative": {
+    "cases": [
+      "authoritative target=null left previous winner fresh",
+      "older slow load revived target after newer targetless load"
+    ],
+    "controls": "root-independent/original-negative-controls.log",
+    "exit": 1,
+    "preserved": true,
+    "result": "2 failed",
+    "review": "root-independent/original-negative-review.json",
+    "source": "05ca1e72b"
+  },
+  "schema_version": 1,
+  "source": {
+    "after": {
+      "frontend-nextjs/pages/goal-runs/index.tsx": "1d242e35f7b6b61352213c9442015294187faf5816ced5664cde38c7dd22277c",
+      "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "c046abe2e0b427cebda8a1e64ddeb878805e66b511e094d297e9dc5c7d7e331c"
+    },
+    "before": {
+      "frontend-nextjs/pages/goal-runs/index.tsx": "0e569cea3fc02b62e760e7d2590c463ef33e38d85ba5a03034954439a883cec6",
+      "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "fde03afcca8aeb661f4374ca614d088676dd76b15ee06cb4c87678acde5d6d27"
+    }
+  },
+  "source_before": "310e72aecd1a4041a35af6ac093379d39b93556b",
+  "state": "root_negative_preserved_successor_consistency_2pass_component_frozen",
+  "twin_coverage": [
+    "target + eligible/withheld two-result",
+    "no target/no API call",
+    "first utility read failure",
+    "stale after later failure",
+    "authoritative target clear removes winner",
+    "older slow load cannot revive",
+    "goal metadata failure distinct/preserves last known",
+    "member read-only",
+    "poll refresh",
+    "include-terminal reload",
+    "detail controls regression"
+  ]
+}

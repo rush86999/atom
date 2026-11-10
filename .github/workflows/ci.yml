@@ -831,3 +831,6 @@ jobs:
       - name: Presence override outcome UI controls
         run: npx jest hooks/__tests__/useUserActivity.test.ts hooks/__tests__/useUserActivity-branches.test.ts --runInBand --no-coverage --watchman=false
 
+      - name: Activity utility ranking and stale-response controls
+        run: npx jest tests/pages/goal-runs/index.test.tsx --runInBand --no-coverage --watchman=false
+

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import GoalRunsIndexPage, { waitingLabel } from "@/pages/goal-runs/index";
 import { guidanceFor } from "@/pages/goal-runs/[id]";
 import * as api from "@/lib/goal-run-api";
@@ -46,10 +46,12 @@ jest.mock("@/lib/goal-run-api", () => ({
   listGoals: jest.fn(),
   createGoal: jest.fn(),
   createGoalRun: jest.fn(),
+  getGoalUtility: jest.fn(),
 }));
 
 const listGoalRuns = api.listGoalRuns as jest.Mock;
 const listGoals = api.listGoals as jest.Mock;
+const getGoalUtility = (api as any).getGoalUtility as jest.Mock;
 
 const run = (overrides: Partial<GoalRun>): GoalRun => ({
   id: "run-1",
@@ -78,7 +80,49 @@ describe("GoalRunsIndexPage", () => {
   beforeEach(() => {
     listGoalRuns.mockReset();
     listGoals.mockReset().mockResolvedValue([]);
+    getGoalUtility.mockReset();
     mockUseUserRole.mockReturnValue(supervisor);
+  });
+
+  it("shows the goal utility target, winner and ranked/withheld runs on Activity", async () => {
+    listGoalRuns.mockResolvedValue([
+      run({ id: "run-1", goal_id: "goal-utility", status: "achieved",
+            steps_executed: 2 }),
+      run({ id: "run-2", goal_id: "goal-utility", status: "failed",
+            steps_executed: 9 }),
+    ]);
+    listGoals.mockResolvedValue([{
+      id: "goal-utility", title: "Prepare a quote",
+      utility_target: {
+        metric: "steps_executed", direction: "minimize",
+        source: "goal_run",
+      },
+    }]);
+    getGoalUtility.mockResolvedValue({
+      goal_id: "goal-utility",
+      target: { metric: "steps_executed", direction: "minimize",
+                source: "goal_run" },
+      ranking: [
+        { id: "run-1", utility: 2, rank: 1, eligible: true, reason: "" },
+        { id: "run-2", utility: null, rank: null, eligible: false,
+          reason: "incomplete" },
+      ],
+      winner: "run-1",
+      eligible_count: 1,
+    });
+
+    render(<GoalRunsIndexPage />);
+
+    const summary = await waitFor(() =>
+      screen.getByTestId("activity-utility-summary"));
+    expect(summary.textContent).toContain("Steps executed");
+    expect(summary.textContent).toContain("lower is better");
+    expect(summary.textContent).toContain("1 eligible");
+    expect(screen.getByTestId("activity-utility-winner")).toBeTruthy();
+    expect(summary.textContent).toContain("run-1");
+    expect(screen.getByTestId("activity-utility-withheld").textContent)
+      .toContain("incomplete");
+    expect(getGoalUtility).toHaveBeenCalledWith("goal-utility");
   });
 
   it("renders runs with status badges and counters", async () => {
@@ -197,5 +241,203 @@ describe("GoalRunsIndexPage", () => {
       expect(g.tone).toBe("action");
       expect(g.text).toMatch(/no current step/i);
     });
+  });
+});
+
+
+const utilityGoal = (overrides: Record<string, unknown> = {}) => ({
+  id: "goal-utility",
+  title: "Prepare a quote",
+  utility_target: {
+    metric: "steps_executed",
+    direction: "minimize",
+    source: "goal_run",
+  },
+  ...overrides,
+});
+
+const utilityBody = {
+  goal_id: "goal-utility",
+  target: { metric: "steps_executed", direction: "minimize",
+            source: "goal_run" },
+  ranking: [
+    { id: "run-1", utility: 2, rank: 1, eligible: true, reason: "" },
+    { id: "run-2", utility: null, rank: null, eligible: false,
+      reason: "incomplete" },
+  ],
+  winner: "run-1",
+  eligible_count: 1,
+};
+
+describe("Activity goal utility visibility", () => {
+  beforeEach(() => {
+    listGoalRuns.mockReset();
+    listGoals.mockReset();
+    getGoalUtility.mockReset();
+    mockUseUserRole.mockReturnValue(supervisor);
+  });
+
+  it("does not render a utility card or call the ranking API without a target", async () => {
+    listGoalRuns.mockResolvedValue([run({ goal_id: "goal-no-target" })]);
+    listGoals.mockResolvedValue([
+      { id: "goal-no-target", title: "No target" },
+    ]);
+    render(<GoalRunsIndexPage />);
+    await waitFor(() => expect(screen.getByTestId("goal-runs-list")).toBeTruthy());
+    expect(screen.queryByTestId("activity-utility-summary")).toBeNull();
+    expect(getGoalUtility).not.toHaveBeenCalled();
+  });
+
+  it("shows a typed error and no fresh winner when the first utility read fails", async () => {
+    listGoalRuns.mockResolvedValue([run({ goal_id: "goal-utility" })]);
+    listGoals.mockResolvedValue([utilityGoal()]);
+    getGoalUtility.mockRejectedValue(new Error("utility unavailable"));
+    render(<GoalRunsIndexPage />);
+    const error = await waitFor(() =>
+      screen.getByTestId("activity-utility-error"));
+    expect(error.textContent).toContain("utility unavailable");
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    expect(screen.getAllByText("Prepare a quote").length).toBeGreaterThan(0);
+  });
+
+  it("preserves the last known ranking but marks it stale after a later failure", async () => {
+    listGoalRuns.mockResolvedValue([
+      run({ id: "run-1", goal_id: "goal-utility", status: "achieved" }),
+      run({ id: "run-2", goal_id: "goal-utility", status: "failed" }),
+    ]);
+    listGoals.mockResolvedValue([utilityGoal()]);
+    getGoalUtility
+      .mockResolvedValueOnce(utilityBody)
+      .mockRejectedValueOnce(new Error("utility unavailable"));
+    render(<GoalRunsIndexPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("activity-utility-winner")).toBeTruthy());
+    expect(screen.getByTestId("activity-utility-summary").textContent)
+      .toContain("run-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide finished/i }));
+
+    const error = await waitFor(() =>
+      screen.getByTestId("activity-utility-error"));
+    expect(error.textContent).toContain("utility unavailable");
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    // Last known ranked row is preserved, not cleared.
+    expect(screen.getByTestId("activity-utility-summary").textContent)
+      .toContain("run-1");
+  });
+
+  it("lets a member read the Activity utility ranking without write controls", async () => {
+    mockUseUserRole.mockReturnValue(member);
+    listGoalRuns.mockResolvedValue([
+      run({ id: "run-1", goal_id: "goal-utility", status: "achieved" }),
+    ]);
+    listGoals.mockResolvedValue([utilityGoal()]);
+    getGoalUtility.mockResolvedValue(utilityBody);
+    render(<GoalRunsIndexPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("activity-utility-summary")).toBeTruthy());
+    expect(screen.getByTestId("activity-utility-entry")).toBeTruthy();
+    expect(screen.queryByText(/Save target/i)).toBeNull();
+    expect(screen.queryByText(/Clear target/i)).toBeNull();
+  });
+});
+
+
+  it("refreshes the utility ranking through the existing Activity poll", async () => {
+    mockUseUserRole.mockReturnValue(supervisor);
+    const intervalSpy = jest.spyOn(global, "setInterval");
+    listGoalRuns.mockResolvedValue([
+      run({ id: "run-1", goal_id: "goal-utility", status: "achieved" }),
+    ]);
+    listGoals.mockResolvedValue([utilityGoal()]);
+    getGoalUtility.mockResolvedValue(utilityBody);
+    render(<GoalRunsIndexPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("activity-utility-summary")).toBeTruthy());
+    const poll = intervalSpy.mock.calls.find((call) => call[1] === 15000)?.[0];
+    expect(poll).toBeDefined();
+    await act(async () => { await (poll as () => void)(); });
+    await waitFor(() => expect(getGoalUtility).toHaveBeenCalledTimes(2));
+    intervalSpy.mockRestore();
+  });
+
+
+describe("Activity utility consistency", () => {
+  const target = { metric: "steps_executed", direction: "minimize",
+                   source: "goal_run" } as const;
+  const goal = { id: "goal-current", title: "Current objective",
+                 utility_target: target };
+  const body = {
+    goal_id: goal.id,
+    target,
+    ranking: [{ id: "run-current", utility: 2, rank: 1, eligible: true,
+                reason: "" }],
+    winner: "run-current",
+    eligible_count: 1,
+  };
+
+  beforeEach(() => {
+    listGoalRuns.mockReset().mockResolvedValue([
+      run({ id: "run-current", goal_id: goal.id, status: "achieved" }),
+    ]);
+    listGoals.mockReset().mockResolvedValue([goal]);
+    getGoalUtility.mockReset();
+    mockUseUserRole.mockReturnValue(member);
+  });
+
+  it("clears a fresh winner when the authoritative utility target is cleared", async () => {
+    getGoalUtility
+      .mockResolvedValueOnce(body)
+      .mockResolvedValueOnce({ ...body, target: null, ranking: [],
+                               winner: null, eligible_count: 0 });
+    render(<GoalRunsIndexPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("activity-utility-winner")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Hide finished/i }));
+    await waitFor(() => expect(getGoalUtility).toHaveBeenCalledTimes(2));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    expect(screen.queryByTestId("activity-utility-summary")).toBeNull();
+  });
+
+  it("an older slow Activity load cannot revive a target after a newer targetless load", async () => {
+    let resolveOldRuns: any;
+    let resolveOldGoals: any;
+    listGoalRuns.mockReset()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOldRuns = resolve; }))
+      .mockResolvedValueOnce([]);
+    listGoals.mockReset()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOldGoals = resolve; }))
+      .mockResolvedValueOnce([]);
+    getGoalUtility.mockResolvedValue(body);
+    render(<GoalRunsIndexPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Hide finished/i }));
+    await waitFor(() => expect(listGoalRuns).toHaveBeenCalledTimes(2));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => {
+      resolveOldRuns([run({ id: "run-current", goal_id: goal.id,
+                            status: "achieved" })]);
+      resolveOldGoals([goal]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    expect(screen.queryByTestId("activity-utility-summary")).toBeNull();
+  });
+
+  it("keeps last known utility but marks a metadata failure and suppresses the fresh winner", async () => {
+    getGoalUtility.mockResolvedValue(body);
+    render(<GoalRunsIndexPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("activity-utility-winner")).toBeTruthy());
+    listGoals.mockRejectedValueOnce(new Error("metadata unavailable"));
+    fireEvent.click(screen.getByRole("button", { name: /Hide finished/i }));
+    const warning = await waitFor(() =>
+      screen.getByTestId("activity-goal-metadata-error"));
+    expect(warning.textContent).toContain("metadata is unavailable");
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    // Last known ranked row is retained, not converted to a no-target state.
+    expect(screen.getByTestId("activity-utility-summary").textContent)
+      .toContain("run-current");
   });
 });
