@@ -1,13 +1,36 @@
 # Agent Graduation Guide
 
-> **Removed (2026-08-20):** the bespoke three-layer policy engine
-> (`core/governance/` — `policy_engine.py`, `dynamic_governance.py`,
-> `governance_service.py`) has been deleted. It was never wired into the live
-> dispatch path (live governance is `core/agent_governance_service.py`,
-> `core/governance_engine.py`, and the Gatekeeper middleware). Code samples
-> below referencing it are historical. For external policy-as-code, integrate
-> an OPA sidecar (roadmap).
+## Product goal and current implementation
 
+**The end goal of graduation is unrestricted autonomy, with exceptions in
+certain domains.** A graduated agent should independently plan, act, coordinate
+long-running work, obtain missing information and complete the result without
+routine human approval. Domain-specific rules may still require human review,
+restricted actions or specialist supervision. Those exceptions should be
+explicit policies rather than an assumption that every task needs approval.
+
+This is the product destination. The current implementation has scoped
+readiness checks, supervisor-authorized promotion and per-capability maturity;
+an AUTONOMOUS status alone does not establish the full end goal. Existing user,
+workspace, data-access and action-policy checks remain applicable today.
+
+For a concise introduction, see [Agent training and graduation](TRAINING_AND_GRADUATION.md).
+This comprehensive guide retains the criteria, worked examples and engineering
+background. Use the current
+[public routes](../../backend/api/episode_routes.py),
+[readiness and promotion service](../../backend/core/agent_graduation_service.py)
+and [capability service](../../backend/core/capability_graduation_service.py)
+for exact operating contracts. Older illustrative examples below are not
+proof of universal competence or regulatory compliance.
+
+The agent-level public promotion decision requires current supervisor-grade
+authority and readiness for the next stage. The historical exam endpoint
+reviews authorized recorded traces; it does not execute or qualify a new
+candidate. Capability maturity counts verified successes within its current
+epoch, including reset/revocation rules. Separately,
+[`GraduationService`](../../backend/core/graduation_service.py) records successful
+skill paths in `promoted_skills`; that record is not an agent-wide permission
+grant and must not be confused with either graduation decision.
 
 ## Overview
 
@@ -40,8 +63,8 @@ Atom has **two distinct graduation systems** that work together:
 
 ### 2. Capability Graduation ⚡
 **What**: Individual skill/capability maturity
-**Progression**: 5 → 20 → 50 successful uses
-**Based on**: Usage count per capability
+**Progression**: 5 → 20 → 50 new verified successes, subject to reset and revocation rules
+**Based on**: Verified successes per capability in the current progression epoch
 **Scope**: Per-capability (skills graduate independently)
 
 **Example**:
@@ -58,8 +81,8 @@ Atom has **two distinct graduation systems** that work together:
 ### 1. Safety
 
 Agents must demonstrate competence before gaining autonomy. Graduation ensures:
-- Zero critical errors in AUTONOMOUS mode
-- Constitutional compliance (tax laws, HIPAA, etc.)
+- Evidence of performance appropriate to the requested autonomy and domain
+- Recorded policy/compliance checks; a score is not regulatory certification
 - Proven track record of correct decisions
 
 ### 2. Governance Compliance
@@ -95,7 +118,7 @@ Graduation tracking includes:
 | **STUDENT** | Learning phase | Read-only, presentations |
 | **INTERN** | Basic autonomy | Streaming, form presentations |
 | **SUPERVISED** | Advanced autonomy | Form submissions, state changes (with supervision) |
-| **AUTONOMOUS** | Full independence | All actions, no oversight |
+| **AUTONOMOUS** | Highest maturity tier; unrestricted autonomy is the product goal | Current permissions and policies apply; domain exceptions may require oversight |
 
 ### Promotion Requirements
 
@@ -123,19 +146,21 @@ intervention_rate = total_interventions / episode_count
 
 ## How Graduation is Triggered
 
-Graduation is an autonomous, event-driven process that monitors agent performance across two distinct paths:
+There are distinct consumers, not one universal automatic promotion trigger:
 
-### 1. Event-Driven Trigger (Post-Task)
-Immediately following every execution of the `GenericAgent`, the system invokes the `GraduationService`. 
-- **Mechanism**: The `_record_execution` hook captures the task outcome.
-- **Context**: Passing the `agent_id` and the `skill_id` (e.g., "tax_calculation") to the evaluation engine.
-- **Immediate Action**: If the local streak threshold is met, the skill is promoted to `AUTONOMOUS` instantly.
+- **Agent-level promotion:** the authenticated episode API evaluates readiness
+  and applies an authorized next-stage promotion. Readiness alone does not
+  bypass the reviewer or current scope checks.
+- **Capability progression:** verified outcomes update capability maturity;
+  fresh-epoch and revocation rules prevent old success counts from immediately
+  restoring autonomy after a correction.
+- **Skill-path recording:** `GraduationService.check_skill_promotion` can record
+  a successful path using its complexity-based streak rule. Its
+  `promoted_skills` configuration entry is separate from agent status and
+  capability-maturity authority.
 
-### 2. Autonomous Review Trigger (Background Audit)
-The `BackgroundAgentRunner` performs system-wide audits independently of user interaction.
-- **Mechanism**: Periodic scheduled jobs (e.g., every 5 minutes).
-- **Context**: Scans the `AgentRegistry` for skills in the `SUPERVISED` or `INTERN` tiers.
-- **Action**: Aggregates episodic data across all sessions for a comprehensive readiness review.
+Background scheduling depends on the configured runner. A fixed review
+interval or universal post-task automatic promotion is not promised here.
 
 ---
 
@@ -143,7 +168,7 @@ The `BackgroundAgentRunner` performs system-wide audits independently of user in
 
 **Note**: This section describes skill promotion within the agent graduation framework. For per-capability graduation based on usage count (5/20/50 rule), see Capability Graduation Logic.
 
-Promotion to `AUTONOMOUS` state is governed by the **Dynamic Streak Rule**:
+The separate skill-path recorder uses this **Dynamic Streak Rule**; it does not replace agent readiness or capability graduation:
 
 | Complexity | Required Consecutive Clean Runs |
 |------------|--------------------------------|
@@ -155,11 +180,11 @@ Promotion to `AUTONOMOUS` state is governed by the **Dynamic Streak Rule**:
 **A "Clean Run" is defined as:**
 1.  **Success**: `True` (Task completed objective).
 2.  **Human Interventions**: `0` (Zero manual corrections).
-3.  **Constitutional Score**: `≥ 0.95` (Full domain compliance).
+3.  **Constitutional Score**: `≥ 0.95` as recorded by that path; this is not proof of full domain or regulatory compliance.
 
 ## Readiness Score Calculation
 
-### ⚡ MATURITY-ADJUSTED FORMULA (Current Implementation)
+### Maturity adjusted formula and implementation references
 
 The readiness score uses **per-target-level weights**, and each agent is
 scored only on the factors its maturity tier can actually evidence. Factors
@@ -461,10 +486,10 @@ print(f"Gaps: {result['gaps']}")
 print(f"Recommendation: {result['recommendation']}")
 ```
 
-### Step 2: Run Edge Case Tests
+### Step 2: Review Historical Edge Cases
 
 ```python
-# Test agent on historical failures from other agents
+# Review authorized historical traces; this does not execute the candidate
 edge_cases = [
     "edge_case_tax_exemption_1",
     "edge_case_hipaa_violation_1",
@@ -749,7 +774,7 @@ if human_correction_made:
 
 ---
 
-## Enhanced Governance Integration (2026) ✨
+## Governance integration background
 
 > **Status:** implemented and wired (reintroduced 2026-08-30). The original
 > general-purpose version was removed 2026-08-20 because it was never wired
