@@ -1,0 +1,12 @@
+{
+  "after_sha256": "25186c86008db9b9518087ba090845494ad75d7ecc2985b844bb4987e4a8f2ab",
+  "base_commit": "e4ffe720f14d2fdf2b77147c6fc1dfbf1627fcdc",
+  "before_sha256": "813bad84b2f466ed04fb59891e9db3ecb0eb94b63a0908ad6e59cf7df915158c",
+  "branch": "codex/pr830-trainingpanel-state-repair-20261110",
+  "change": "wait for resolved refresh state; add deferred-stale unknown-first control",
+  "ci_changed": false,
+  "kind": "pr830_trainingpanel_state_test_race_fix",
+  "merge_commit_relevant_files_identical": "406836f4 relevant files byte-identical to e4ffe720f",
+  "product_files_changed": false,
+  "test_file": "frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx"
+}

@@ -786,7 +786,37 @@ describe('Qualification assessment UI', () => {
       }),
     }));
     render(<TrainingPanel canvasId="cv-1" />);
-    expect(await screen.findByTestId('qualification-state')).toHaveTextContent('Review needs refresh');
+    // The panel intentionally renders the "unknown" fallback while readiness
+    // is in flight. Wait for the resolved stale state instead of asserting on
+    // the first render of the element (the hosted CI timing exposed this).
+    await waitFor(() =>
+      expect(screen.getByTestId('qualification-state')).toHaveTextContent('Review needs refresh')
+    );
+    expect(screen.queryByText(/Review pending in Approvals/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('request-qualification-review')).toBeInTheDocument();
+    expect(screen.getByTestId('promote-agent-button')).toBeDisabled();
+  });
+
+  it('deferred stale readiness shows unknown then the refresh-required state', async () => {
+    let resolveReadiness: (value: unknown) => void = () => {};
+    mockApi.getGraduationReadiness.mockReturnValue(new Promise((resolve) => {
+      resolveReadiness = resolve;
+    }));
+    render(<TrainingPanel canvasId="cv-1" />);
+    // Unknown-first is intentional and is not the pending-review state.
+    expect(await screen.findByTestId('qualification-state')).toHaveTextContent('Status unavailable');
+    expect(screen.queryByText(/Review pending in Approvals/)).not.toBeInTheDocument();
+    await act(async () => {
+      resolveReadiness(readiness({
+        assessment: assessment({
+          state: 'unresolved_stale',
+          review_action_id: 'stale-review-1',
+        }),
+      }));
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('qualification-state')).toHaveTextContent('Review needs refresh')
+    );
     expect(screen.queryByText(/Review pending in Approvals/)).not.toBeInTheDocument();
     expect(screen.getByTestId('request-qualification-review')).toBeInTheDocument();
     expect(screen.getByTestId('promote-agent-button')).toBeDisabled();
