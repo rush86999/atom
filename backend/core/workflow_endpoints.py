@@ -10,7 +10,7 @@ import tempfile
 import threading
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -1140,6 +1140,25 @@ def _observe_deployment_authority(
     db.expire_all()
     return _load_deployment_authority(
         db, scope, agent_id, require_direct=require_direct)
+
+
+def _current_read_actor(db: Session, scope: Dict[str, str]):
+    """Re-check a read actor's current active state, scope and view permission."""
+    db.expire_all()
+    actor = db.query(User).filter(User.id == scope["user_id"]).first()
+    if actor is None:
+        return None
+    if not bool(getattr(actor, "is_active", True)):
+        return None
+    if str(getattr(actor, "status", "") or "").lower() not in ("", "active"):
+        return None
+    if str(actor.tenant_id or "default") != scope["tenant_id"]:
+        return None
+    if str(actor.workspace_id or "default") != scope["workspace_id"]:
+        return None
+    if not RBACService.check_permission(actor, Permission.WORKFLOW_VIEW):
+        return None
+    return actor
 
 
 def _reauthorize_deployment(
@@ -2597,6 +2616,170 @@ async def get_execution_details(
         return data
 
     raise HTTPException(status_code=404, detail="Execution not found")
+
+
+def _export_token(value: Any, fallback: str) -> str:
+    token = re.sub(r"[^A-Za-z0-9_-]+", "-", str(value or "")).strip("-")
+    return (token[:48] or fallback)
+
+
+@router.get("/workflows/executions/{execution_id}/export")
+async def export_execution_result(
+    execution_id: str,
+    user: User = Depends(require_permission(Permission.WORKFLOW_VIEW)),
+    db: Session = Depends(get_db),
+):
+    """Download one completed execution's final results as a JSON document.
+
+    This is a read-only projection of the fresh durable row. It never executes,
+    forks, resumes, promotes or schedules anything, and it never exposes the
+    stored context blob, filesystem paths or credentials.
+    """
+    from core.models import WorkflowExecution as WorkflowExecutionRow
+
+    row = db.query(WorkflowExecutionRow).filter(
+        WorkflowExecutionRow.execution_id == execution_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Execution not found")
+    if not _authorize_execution_row(user, row):
+        raise HTTPException(status_code=404, detail="Execution not found")
+    if _current_read_actor(db, _caller_scope(user)) is None:
+        raise HTTPException(status_code=404, detail="Execution not found")
+
+    owner_id = str(row.owner_id or row.user_id or "")
+    if owner_id:
+        if owner_id != str(user.id):
+            raise HTTPException(status_code=404, detail="Execution not found")
+    else:
+        resolved = _generated_definition_scope(str(row.workflow_id))
+        if resolved.get("kind") != "legacy":
+            # A generated execution without an owner binding is not export
+            # authority; do not fall back to a workspace/global grant.
+            raise HTTPException(status_code=404, detail="Execution not found")
+
+    status = str(row.status or "").lower()
+    if status != "completed":
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_not_completed",
+            "status": status or "unknown",
+            "message": "only a completed execution has a downloadable result",
+        })
+    if row.error:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_has_error",
+            "message": "the execution recorded an error; no success document "
+                       "is available",
+        })
+
+    context = _safe_json(row.context)
+    history = context.get("execution_history") if isinstance(
+        context, dict) else None
+    if not isinstance(history, list) or not history:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_history_missing",
+            "message": "the execution has no complete step history; a partial "
+                       "document is not offered",
+        })
+    failure_statuses = {
+        "failed", "error", "cancelled", "canceled", "running",
+        "waiting_approval", "pending", "partial",
+    }
+    steps = []
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        step_status = str(entry.get("status") or "").lower()
+        if not step_status:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_partial",
+                "message": "a step has no completed status; a partial document "
+                           "is not offered",
+            })
+        if step_status in failure_statuses:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_not_completed",
+                "step_id": entry.get("step_id"),
+                "step_status": step_status,
+                "message": "the execution contains a non-successful step; no "
+                           "success document is available",
+            })
+        steps.append({
+            "step_id": entry.get("step_id") or entry.get("step"),
+            "step_type": entry.get("step_type"),
+            "status": step_status,
+            "error": (str(entry.get("error"))[:500]
+                      if entry.get("error") else None),
+        })
+
+    try:
+        outputs = json.loads(row.outputs or "{}")
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_output_unreadable",
+            "message": "the persisted output is unreadable; no document is "
+                       "offered",
+        }) from exc
+    if not isinstance(outputs, dict) or not outputs:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_has_no_output",
+            "message": "the completed execution has no final business output",
+        })
+    for value in outputs.values():
+        if isinstance(value, dict) and str(
+                value.get("status") or "").lower() in failure_statuses:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_not_completed",
+                "message": "the final output contains a non-successful step",
+            })
+
+    def iso(value):
+        return value.isoformat() if value is not None else None
+
+    document = {
+        "schema": "atom.workflow.execution-result.v1",
+        "execution": {
+            "execution_id": row.execution_id,
+            "workflow_id": row.workflow_id,
+            "status": status,
+            "created_at": iso(row.created_at),
+            "completed_at": iso(row.completed_at),
+            "user_id": row.user_id,
+            "owner_id": row.owner_id,
+        },
+        "workflow": {"workflow_id": row.workflow_id},
+        "results": outputs,
+        "steps": steps,
+        "provenance": {
+            "source": "durable_workflow_execution",
+            "result_field": "outputs",
+            "document_version": 1,
+            "workflow_id": row.workflow_id,
+            "execution_id": row.execution_id,
+        },
+    }
+    body = (json.dumps(
+        document, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+    digest = hashlib.sha256(body).hexdigest()
+    filename = (
+        "workflow-"
+        + _export_token(row.workflow_id, "workflow")
+        + "-execution-"
+        + _export_token(row.execution_id, "execution")
+        + ".json"
+    )
+    return Response(
+        content=body,
+        media_type="application/json; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(body)),
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "ETag": f'"sha256:{digest}"',
+        },
+    )
+
 
 # Scheduling Endpoints
 
