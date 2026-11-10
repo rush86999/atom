@@ -817,12 +817,20 @@ class TestTaskCalendarEmailHandlers:
         """Test creating a task"""
         from core.atom_agent_endpoints import handle_task_intent, ChatRequest
 
-        with patch('core.atom_agent_endpoints.create_task', new=AsyncMock(return_value={
-            "task_id": "task_001",
-            "title": "Test Task"
-        })):
+        task = SimpleNamespace(
+            id="task_001",
+            title="Test Task",
+            as_dict=lambda: {"id": "task_001", "title": "Test Task"},
+        )
+        with patch('core.user_task_service.create_user_task', return_value=task):
             request = ChatRequest(message="Create a test task", user_id="test_user")
-            result = await handle_task_intent("CREATE_TASK", {"title": "Test Task"}, request)
+            result = await handle_task_intent(
+                "CREATE_TASK",
+                {"title": "Test Task"},
+                request,
+                current_user=SimpleNamespace(id="test_user"),
+                db=object(),
+            )
 
             assert result["success"] is True
             assert "created" in result["response"]["message"].lower()
@@ -832,11 +840,20 @@ class TestTaskCalendarEmailHandlers:
         """Test listing tasks"""
         from core.atom_agent_endpoints import handle_task_intent, ChatRequest
 
-        with patch('core.atom_agent_endpoints.get_tasks', new=AsyncMock(return_value={
-            "tasks": [{"id": "task_001", "title": "Task 1"}]
-        })):
+        task = SimpleNamespace(
+            id="task_001",
+            title="Task 1",
+            as_dict=lambda: {"id": "task_001", "title": "Task 1"},
+        )
+        with patch('core.user_task_service.list_user_tasks', return_value=[task]):
             request = ChatRequest(message="List tasks", user_id="test_user")
-            result = await handle_task_intent("LIST_TASKS", {}, request)
+            result = await handle_task_intent(
+                "LIST_TASKS",
+                {},
+                request,
+                current_user=SimpleNamespace(id="test_user"),
+                db=object(),
+            )
 
             assert result["success"] is True
             assert "tasks" in result["response"]["message"].lower()

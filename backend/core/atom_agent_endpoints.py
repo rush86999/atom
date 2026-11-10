@@ -50,7 +50,6 @@ from core.system_status import SystemStatus
 from core.unified_search_endpoints import SearchRequest, hybrid_search as unified_hybrid_search
 
 # Import Task and Finance services
-from core.unified_task_endpoints import CreateTaskRequest, create_task, get_tasks
 
 # Import workflow management components
 from core.workflow_endpoints import load_workflows, save_workflows
@@ -719,7 +718,8 @@ async def chat_with_agent(
             
         # Task Intents
         elif intent in ["CREATE_TASK", "LIST_TASKS"]:
-            result = await handle_task_intent(intent, entities, request)
+            result = await handle_task_intent(
+                intent, entities, request, current_user=current_user)
             
         # Finance Intents
         elif intent in ["GET_TRANSACTIONS", "CHECK_BALANCE", "INVOICE_STATUS"]:
@@ -1455,42 +1455,158 @@ async def handle_knowledge_query(request: ChatRequest, entities: Dict[str, Any])
             "response": {"message": "I encountered an error while searching your knowledge graph.", "actions": []}
         }
 
-async def handle_task_intent(intent: str, entities: Dict[str, Any], request: ChatRequest) -> Dict[str, Any]:
-    """Handle task management intents"""
+async def handle_task_intent(
+    intent: str,
+    entities: Dict[str, Any],
+    request: ChatRequest,
+    current_user: Optional[User] = None,
+    db: Optional[Session] = None,
+) -> Dict[str, Any]:
+    """Handle local task intents through the shared durable UserTask service."""
+    from core.user_task_service import (
+        TaskServiceError,
+        create_user_task,
+        list_user_tasks,
+    )
+
+    if current_user is None:
+        return {
+            "success": False,
+            "response": {
+                "message": "Task changes require an active authenticated user.",
+                "actions": [],
+            },
+        }
+
+    def _with_db(operation):
+        if db is not None:
+            return operation(db)
+        from core.database import get_db_session
+        with get_db_session() as session:
+            return operation(session)
+
+    def _task_actions(create_action: bool = False):
+        from core.product_profile import capability_enabled
+        if not capability_enabled("tasks"):
+            return []
+        if create_action:
+            return [{"type": "create_task", "label": "Create New Task"}]
+        return [{"type": "view_tasks", "label": "View Tasks"}]
+
     if intent == "CREATE_TASK":
         try:
-            title = entities.get("title", "New Task")
-            platform = "local"
-            if "asana" in title.lower():
-                platform = "asana"
-            task_req = CreateTaskRequest(title=title, platform=platform, dueDate=datetime.now())
-            result = await create_task(task_req)
+            title = str(entities.get("title") or "New Task").strip()
+            # Structured intent/registry material is the only provider
+            # authority. A vendor word in a title is not a request to that
+            # provider; generic chat tasks default to the local durable store.
+            requested_platform = str(
+                entities.get("platform") or "local").strip().lower()
+            if requested_platform != "local":
+                return {
+                    "success": False,
+                    "response": {
+                        "message": (
+                            f"Provider task creation for {requested_platform!r} "
+                            "is not available in this local task flow."),
+                        "actions": [],
+                    },
+                }
+
+            payload = {
+                "title": title,
+                "description": entities.get("description"),
+                "priority": entities.get("priority") or "medium",
+                "status": entities.get("status") or "todo",
+                "tags": entities.get("tags") or [],
+                "estimatedHours": entities.get("estimatedHours") or 0,
+                "actualHours": entities.get("actualHours") or 0,
+                "color": entities.get("color"),
+                "metadata": entities.get("metadata"),
+            }
+            # Do not invent a deadline. A retried request with no user-supplied
+            # dueDate must bind the same accepted material instead of a new
+            # datetime.now() digest. UserTask supports a null due date.
+            if entities.get("dueDate") is not None:
+                payload["dueDate"] = entities["dueDate"]
+            for key in ("project", "projectId"):
+                if key in entities:
+                    payload[key] = entities[key]
+            request_id = (
+                request.context.get("request_id")
+                if isinstance(request.context, dict) else None
+            )
+            if isinstance(request_id, str) and request_id.strip():
+                payload["idempotencyKey"] = request_id.strip()
+
+            task = _with_db(
+                lambda session: create_user_task(
+                    session, current_user, payload))
+            task_data = task.as_dict()
             return {
                 "success": True,
                 "response": {
-                    "message": f"Created task '{title}' on {platform}.",
-                    "data": result,
-                    "actions": [{"type": "view_tasks", "label": "View Tasks"}]
-                }
+                    "message": f"Created task '{task.title}'.",
+                    "data": {
+                        "success": True,
+                        "task": task_data,
+                        "source": "local",
+                    },
+                    "actions": _task_actions(),
+                },
             }
-        except Exception as e:
-            return {"success": False, "response": {"message": f"Failed to create task: {str(e)}"}}
-    
+        except TaskServiceError as exc:
+            return {
+                "success": False,
+                "response": {
+                    "message": f"Failed to create task: {exc}",
+                    "actions": [],
+                },
+            }
+        except Exception:
+            logger.warning("Task create failed")
+            return {
+                "success": False,
+                "response": {
+                    "message": "Failed to create task.",
+                    "actions": [],
+                },
+            }
+
     elif intent == "LIST_TASKS":
         try:
-            result = await get_tasks(platform="all")
-            tasks = result.get("tasks", [])
+            tasks = _with_db(
+                lambda session: list_user_tasks(session, current_user))
+            task_rows = [task.as_dict() for task in tasks]
             return {
                 "success": True,
                 "response": {
-                    "message": f"Found {len(tasks)} tasks.",
-                    "data": result,
-                    "actions": [{"type": "create_task", "label": "Create New Task"}]
-                }
+                    "message": f"Found {len(task_rows)} tasks.",
+                    "data": {
+                        "success": True,
+                        "tasks": task_rows,
+                        "source": "local",
+                    },
+                    "actions": _task_actions(create_action=True),
+                },
             }
-        except Exception as e:
-            return {"success": False, "response": {"message": f"Failed to list tasks: {str(e)}"}}
-    
+        except TaskServiceError as exc:
+            return {
+                "success": False,
+                "response": {
+                    "message": f"Failed to list tasks: {exc}",
+                    "actions": [],
+                },
+            }
+        except Exception:
+            logger.warning("Task list failed")
+            return {
+                "success": False,
+                "response": {
+                    "message": "Failed to list tasks.",
+                    "actions": [],
+                },
+            }
+
     return {"success": False, "response": {"message": "Task action not understood."}}
 
 async def handle_finance_intent(intent: str, entities: Dict[str, Any], request: ChatRequest) -> Dict[str, Any]:
