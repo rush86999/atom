@@ -1,169 +1,169 @@
 
 ----------------------------- live log collection ------------------------------
-2026-11-10 11:32:27 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+2026-11-10 11:45:50 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
 [SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
 FROM runtime_settings 
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 11:32:27 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+2026-11-10 11:45:50 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
 [SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
 FROM runtime_settings 
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 11:32:27 [    INFO] EscalationManager initialized
-2026-11-10 11:32:27 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 11:32:27 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+2026-11-10 11:45:50 [    INFO] EscalationManager initialized
+2026-11-10 11:45:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:45:50 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
 [SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
 FROM model_catalog 
 WHERE model_catalog.exclude_from_general_routing = 1]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 11:32:27 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+2026-11-10 11:45:50 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
 [SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
 FROM runtime_settings 
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 11:32:27 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+2026-11-10 11:45:50 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
 [SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
 FROM runtime_settings 
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 11:32:27 [    INFO] EscalationManager initialized
-2026-11-10 11:32:27 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 11:32:27 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+2026-11-10 11:45:50 [    INFO] EscalationManager initialized
+2026-11-10 11:45:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:45:50 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
 [SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
 FROM model_catalog 
 WHERE model_catalog.exclude_from_general_routing = 1]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 11:32:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 11:32:27 [    INFO] MCP Service initialized
+2026-11-10 11:45:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 11:45:50 [    INFO] MCP Service initialized
 
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_binds_current_scope_receipt_and_replay 
 -------------------------------- live log setup --------------------------------
-2026-11-10 11:32:28 [    INFO] AgentTaskRegistry initialized
+2026-11-10 11:45:51 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:28 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
-2026-11-10 11:32:29 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+2026-11-10 11:45:51 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+2026-11-10 11:45:51 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
 PASSED                                                                   [  3%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_concurrent_deactivation_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:29 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-race "HTTP/1.1 403 Forbidden"
+2026-11-10 11:45:52 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-race "HTTP/1.1 403 Forbidden"
 PASSED                                                                   [  7%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_inactive_user_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:30 [ WARNING] Rejected token for non-active user inactive (status=inactive)
-2026-11-10 11:32:30 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 401 Unauthorized"
+2026-11-10 11:45:53 [ WARNING] Rejected token for non-active user inactive (status=inactive)
+2026-11-10 11:45:53 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 401 Unauthorized"
 PASSED                                                                   [ 11%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_null_empty_schedule_material_conflicts 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:31 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
-2026-11-10 11:32:31 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 409 Conflict"
-2026-11-10 11:32:31 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+2026-11-10 11:45:53 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+2026-11-10 11:45:53 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 409 Conflict"
+2026-11-10 11:45:53 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
 PASSED                                                                   [ 15%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_scheduler_runs_only_on_first_verified_create 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:32 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
-2026-11-10 11:32:32 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
-2026-11-10 11:32:32 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 409 Conflict"
+2026-11-10 11:45:54 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+2026-11-10 11:45:54 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+2026-11-10 11:45:54 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 19%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_foreign_acting_agent_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:33 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-foreign-acting "HTTP/1.1 404 Not Found"
+2026-11-10 11:45:55 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-foreign-acting "HTTP/1.1 404 Not Found"
 PASSED                                                                   [ 23%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_same_scope_acting_agent_queues_scoped_review 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:34 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-review "HTTP/1.1 202 Accepted"
+2026-11-10 11:45:56 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-review "HTTP/1.1 202 Accepted"
 PASSED                                                                   [ 26%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_is_create_only_and_preserves_existing_agent 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:34 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-create-only "HTTP/1.1 201 Created"
+2026-11-10 11:45:57 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-create-only "HTTP/1.1 201 Created"
 PASSED                                                                   [ 30%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_generated_blueprint_cannot_mint_authority 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:35 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-forged-blueprint "HTTP/1.1 201 Created"
+2026-11-10 11:45:57 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-forged-blueprint "HTTP/1.1 201 Created"
 PASSED                                                                   [ 34%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_replay_with_changed_generated_material_conflicts 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:36 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 201 Created"
-2026-11-10 11:32:36 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 409 Conflict"
+2026-11-10 11:45:58 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 201 Created"
+2026-11-10 11:45:58 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 38%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_readback_uncertainty_returns_503 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:37 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-readback "HTTP/1.1 503 Service Unavailable"
+2026-11-10 11:45:59 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-readback "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 42%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_commit_failure_reports_effect_unknown 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:37 [   ERROR] agent decision outcome unknown: operation_id=agent:create:guided-rollback target=e5481c05-b38e-5d0f-8e70-8bd9e2c58c52 error_class=RuntimeError
-2026-11-10 11:32:37 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-rollback "HTTP/1.1 503 Service Unavailable"
+2026-11-10 11:45:59 [   ERROR] agent decision outcome unknown: operation_id=agent:create:guided-rollback target=e5481c05-b38e-5d0f-8e70-8bd9e2c58c52 error_class=RuntimeError
+2026-11-10 11:45:59 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-rollback "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [ 46%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_acting_agent_deleted_during_generation_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:38 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-deleted "HTTP/1.1 404 Not Found"
+2026-11-10 11:46:00 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-deleted "HTTP/1.1 404 Not Found"
 PASSED                                                                   [ 50%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[scope] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:39 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-scope "HTTP/1.1 409 Conflict"
+2026-11-10 11:46:01 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-scope "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 53%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[status] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:40 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-status "HTTP/1.1 409 Conflict"
+2026-11-10 11:46:02 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-status "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 57%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[material] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:41 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-material "HTTP/1.1 409 Conflict"
+2026-11-10 11:46:03 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-material "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 61%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_parent_change_before_create_refuses[delete] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:42 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-delete "HTTP/1.1 409 Conflict"
+2026-11-10 11:46:04 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-delete "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 65%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_valid_autonomous_acting_agent 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:42 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-valid-acting "HTTP/1.1 201 Created"
+2026-11-10 11:46:04 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-valid-acting "HTTP/1.1 201 Created"
 PASSED                                                                   [ 69%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_create_replay_after_parent_material_change_conflicts 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:43 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-replay "HTTP/1.1 201 Created"
-2026-11-10 11:32:43 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-replay "HTTP/1.1 409 Conflict"
+2026-11-10 11:46:05 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-replay "HTTP/1.1 201 Created"
+2026-11-10 11:46:05 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-parent-replay "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 73%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_approval_creates_one_reviewed_agent 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:44 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
-2026-11-10 11:32:44 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/8a349855-3cdd-46c5-9831-eb68d5fc526b "HTTP/1.1 200 OK"
-2026-11-10 11:32:44 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/8a349855-3cdd-46c5-9831-eb68d5fc526b "HTTP/1.1 400 Bad Request"
+2026-11-10 11:46:06 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:46:06 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/62aae7e1-e81b-4098-a9c5-9492c2d9645f "HTTP/1.1 200 OK"
+2026-11-10 11:46:06 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/62aae7e1-e81b-4098-a9c5-9492c2d9645f "HTTP/1.1 400 Bad Request"
 PASSED                                                                   [ 76%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_rejection_creates_nothing 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:45 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
-2026-11-10 11:32:45 [ WARNING] HITL 7afd740f-58e4-4d8c-b0f8-bedee2beaab9 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'status': 'rejected'}
-2026-11-10 11:32:45 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/7afd740f-58e4-4d8c-b0f8-bedee2beaab9 "HTTP/1.1 200 OK"
+2026-11-10 11:46:06 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:46:06 [ WARNING] HITL 5959d100-8422-4af2-927b-b4e924efceed decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'status': 'rejected'}
+2026-11-10 11:46:06 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/5959d100-8422-4af2-927b-b4e924efceed "HTTP/1.1 200 OK"
 PASSED                                                                   [ 80%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_expired_does_not_create 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:46 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
-2026-11-10 11:32:46 [ WARNING] HITL c88e96e7-4f45-4cba-92bf-34d9c054a4d7 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'reason': 'action_not_approved', 'status': 'expired'}
+2026-11-10 11:46:07 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:46:07 [ WARNING] HITL 21f689e8-b1c4-44e8-bba1-12f54574883e decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'reason': 'action_not_approved', 'status': 'expired'}
 PASSED                                                                   [ 84%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_wrong_scope_reviewer_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:46 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
-2026-11-10 11:32:46 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/4174ebdc-d99d-4d27-bbca-556351e0fbe0 "HTTP/1.1 404 Not Found"
+2026-11-10 11:46:08 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:46:08 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/b62c3287-e948-4336-92fc-1d4dcd5ee38a "HTTP/1.1 404 Not Found"
 PASSED                                                                   [ 88%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_modified_material_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:47 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
-2026-11-10 11:32:47 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/4a12d51c-867b-4f49-91c4-3c52bece39e3 "HTTP/1.1 409 Conflict"
+2026-11-10 11:46:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:46:09 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/3d6e0d41-0f48-472a-95f4-4f32870a421f "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 92%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_stored_material_mismatch_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:48 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
-2026-11-10 11:32:48 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/1bedd882-aa44-4939-858e-a45b8c66e3a6 "HTTP/1.1 409 Conflict"
+2026-11-10 11:46:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:46:09 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/0d7016eb-b6e6-49c2-9b43-04419f6d5c81 "HTTP/1.1 409 Conflict"
 PASSED                                                                   [ 96%]
 tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_approval_survives_fresh_session 
 -------------------------------- live log call ---------------------------------
-2026-11-10 11:32:49 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
-2026-11-10 11:32:49 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/89e91a8d-7830-4932-8ab1-9d675bbe6fc0 "HTTP/1.1 200 OK"
+2026-11-10 11:46:10 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:46:10 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/d7580478-28e1-49ad-a127-57ce628bead0 "HTTP/1.1 200 OK"
 PASSED                                                                   [100%]
 
 =============================== warnings summary ===============================
@@ -196,4 +196,4 @@ PASSED                                                                   [100%]
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 26 passed, 57 warnings in 38.25s =======================
+======================= 26 passed, 57 warnings in 35.98s =======================

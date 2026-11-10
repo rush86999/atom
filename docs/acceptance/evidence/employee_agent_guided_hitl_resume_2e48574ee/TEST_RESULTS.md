@@ -1,6 +1,6 @@
 # Approved guided-create HITL resume — test results
 
-Executed source: `2e48574ee`  
+Executed source: `abad59590` (stage originally `2e48574ee`; folder retains the stage hash)  
 Parent: `9d2ba566c`
 
 Every command ran from `backend/` through the bounded test gate with

@@ -15,7 +15,8 @@ The original guided evidence documented this as the remaining candidate.
 |---|---|
 | Branch | `codex/web-goal14-guided-create-20261110` |
 | Parent | `9d2ba566c` (atomic parent claim) |
-| Follow-up code | `2e48574ee` |
+| Follow-up code | `abad59590` |
+| Stage original | `2e48574ee` (folder retains this stage hash; final bind hardening `abad59590`) |
 | Runtime | real scratch SQLite + FastAPI routes + real JWT; guided factory is a deterministic controlled double |
 
 ## Repair

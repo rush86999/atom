@@ -3,12 +3,12 @@
   "status": "approved guided-create HITL resumes through the existing review surface and decision writer for one reviewed agent; submitted for independent review",
   "branch": "codex/web-goal14-guided-create-20261110",
   "parent": "9d2ba566c",
-  "executed_source": "2e48574ee",
+  "executed_source": "abad59590",
   "original_evidence_preserved": true,
   "source_files": {
     "backend/api/agent_onboarding_routes.py": "f09398070f3231daa2d08cd7b8303f51cd26db3d250ab2a8bc233261cfb74838",
     "backend/core/guided_automation_service.py": "2127d0596eb974957b29ad132676cdb11a7e9465e8d6f2c68e812438c0630665",
-    "backend/core/hitl_resume.py": "92fb35016983d7547d44d187fb171cf239e34a579dc1073eea148f31c610a1dc",
+    "backend/core/hitl_resume.py": "db08841d23565a9dc32b5776561b1a1677ae6f2ac83d5b8e000d5b6dd1733ce2",
     "backend/tests/api/test_agent_guided_create_goal14.py": "f6514749034c78270dda57678cb659b34e9c79449c13f9a39cb29dd339f7e779",
     "backend/tests/api/test_agent_onboarding_routes.py": "4734cfecd290f30932bf8891abe7d55d6ed9ab73140e1df5482906b05a184b15",
     "backend/core/agent_decision_write_service.py": "fa76576470d8d9f5cedc0744b8c713bda5c49a81fe98a8ffae121948a896dec8",
@@ -16,15 +16,15 @@
     "backend/core/agent_governance_service.py": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e"
   },
   "artifacts": {
-    "README.md": "79ff2b792030d67bc65bc6d9740ab45b6592e89e20e296fcb3780da90f08940f",
-    "TEST_RESULTS.md": "b4fef6a75d86f060bb25600ca0c66de55b221218e739db0ea6cb62c764670bd8",
-    "affected-after.log": "c9e41eb817a4153f91031040faea76a654653bb74ba86f9f2b45cbea99af9cfc",
-    "ci-guided-step.log": "be2b7e71cbc50f553d23f96962a17df3470784632ce9b0f888881293797b6e9e",
-    "guided-after.log": "d4c4764ded0dd4af98d709c164e8f66a3ceac703b6eda3d2a24a6b999346534c",
-    "hitl-focused.log": "e3b13dc9d3189b921f7c6ba4eff7e55bd30487d66a7440ccfaa4aa7db92a5963",
+    "README.md": "3bd5030378dc2c0e78d1c5155ee15073a53a29ce4351fd36e9bacf05923abd8b",
+    "TEST_RESULTS.md": "ffac0360bf65ac97242c8d12fd5a2d1a68219037801f468830ea63ab777e9040",
+    "affected-after.log": "d5be18c4287de2e0efc29d5365ef18f00c072939bd0655596828278351ad0fb2",
+    "ci-guided-step.log": "495283bbf6dc9dc2ac89b66e3f6f8cb0aadc35908298eb824b7d4683ffe72585",
+    "guided-after.log": "ad83648399b36f07de86042de07b3e7bb28918118adb9650120b752a67edbed2",
+    "hitl-focused.log": "da87e48053fb9bbb7c3faaec0eeb7a639df68fe4c48cdbdbb4051378b759de97",
     "root-probe-after.log": "c1416bd33e2a582e45dce6f187a20f0238f2cb77a7a3dc9099d98b35688bde57",
     "source-fix.diff": "47c38be4a7e9f85c5cf997233c741f6587919f5d16a64cbbc03960d6a7abb2aa",
-    "verification.json": "bac46c0169080c8a471405947fcb81d59bc6029ed26b08a34015b5b014b76e36"
+    "verification.json": "b13f9b2ed9d3fcfe4bdd21d638fb4ca1a7f3ca044ceacb9954a88c614d935a1b"
   },
   "checks": {
     "hitl_focused": "7 passed",
@@ -52,5 +52,6 @@
     "guided generation is a controlled double; no live product model was called",
     "PR834 stacked base; no main CI claim until retargeting",
     "no merge or self-acceptance; root review remains independent"
-  ]
+  ],
+  "stage_original_source": "2e48574ee"
 }
