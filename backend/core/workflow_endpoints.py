@@ -543,6 +543,166 @@ def _find_visible_workflow(workflow_id: str, user: User) -> Optional[Dict[str, A
     return None
 
 
+def _generated_definition_scope(workflow_id: str) -> Dict[str, Any]:
+    """Resolve the authoritative scope for a generated definition.
+
+    ``generated`` carries exact tenant/workspace. ``legacy`` is returned only
+    when an existing legacy row is positively identified. When neither the
+    catalog deployment projection nor the SQL blueprint is readable, the
+    result is ``unknown`` — never an implicit legacy/global grant.
+    """
+    catalog_row_found = False
+    catalog_scope = None
+    for row in load_workflows():
+        if (row.get("id") == workflow_id
+                or row.get("workflow_id") == workflow_id):
+            catalog_row_found = True
+            deployment = row.get("deployment")
+            if isinstance(deployment, dict) and deployment.get(
+                    "canonical_workflow_id"):
+                catalog_scope = (
+                    str(deployment.get("tenant_id") or ""),
+                    str(deployment.get("workspace_id") or ""),
+                )
+            break
+
+    sql_row_found = False
+    sql_scope = None
+    sql_generated = False
+    sql_available = True
+    try:
+        from core.database import get_db_session
+        from core.models import Workflow
+
+        with get_db_session() as db:
+            workflow = db.query(Workflow).filter(
+                Workflow.id == workflow_id).first()
+            if workflow is not None:
+                sql_row_found = True
+                configuration = workflow.configuration
+                if isinstance(configuration, dict):
+                    generation = configuration.get("generation") or {}
+                    sql_generated = bool(
+                        configuration.get("schema")
+                        == "orch-workflow-blueprint-1"
+                        or configuration.get("blueprint_id")
+                        or (isinstance(generation, dict)
+                            and generation.get("profile")
+                            == "workflow_blueprint"))
+                    if sql_generated:
+                        sql_scope = (
+                            str(workflow.tenant_id or ""),
+                            str(configuration.get("workspace_id") or ""),
+                        )
+    except Exception as exc:  # noqa: BLE001 — missing authority is unknown
+        logger.warning(
+            "Could not resolve workflow scope %s: %s", workflow_id, exc)
+        sql_available = False
+
+    if catalog_scope is not None:
+        if sql_row_found and not sql_generated:
+            return {"kind": "generated", "tenant_id": "",
+                    "workspace_id": "", "contradictory": True}
+        if sql_scope is not None and catalog_scope != sql_scope:
+            return {"kind": "generated", "tenant_id": "",
+                    "workspace_id": "", "contradictory": True}
+        return {"kind": "generated", "tenant_id": catalog_scope[0],
+                "workspace_id": catalog_scope[1]}
+    if sql_generated:
+        if catalog_row_found:
+            return {"kind": "generated", "tenant_id": "",
+                    "workspace_id": "", "contradictory": True}
+        if sql_scope is None:
+            return {"kind": "generated", "tenant_id": "",
+                    "workspace_id": "", "contradictory": True}
+        return {"kind": "generated", "tenant_id": sql_scope[0],
+                "workspace_id": sql_scope[1]}
+    if catalog_row_found or sql_row_found:
+        # Positively identified existing legacy row: preserve compatibility.
+        return {"kind": "legacy"}
+    if not sql_available:
+        return {"kind": "unknown", "reason": "authority_lookup_unavailable"}
+    return {"kind": "unknown", "reason": "no_authoritative_row"}
+
+
+def _scope_matches_user(user: User, tenant_id: str, workspace_id: str) -> bool:
+    if not tenant_id or not workspace_id:
+        return False
+    scope = _caller_scope(user)
+    return (str(tenant_id) == scope["tenant_id"]
+            and str(workspace_id) == scope["workspace_id"])
+
+
+def _authorize_generated_read(user: User, workflow_id: str) -> bool:
+    """Refuse foreign/unknown generated reads; legacy only when positive."""
+    resolved = _generated_definition_scope(workflow_id)
+    kind = resolved.get("kind")
+    if kind == "generated":
+        return _scope_matches_user(
+            user, resolved.get("tenant_id"), resolved.get("workspace_id"))
+    if kind == "legacy":
+        return True
+    # Unknown/missing authority is not a positive legacy grant.
+    return False
+
+
+def _row_server_scope(row: Any) -> tuple:
+    """Server-bound execution scope from the durable row/context."""
+    tenant_id = str(getattr(row, "tenant_id", None) or "")
+    workspace_id = ""
+    try:
+        context = json.loads(getattr(row, "context", None) or "{}")
+        variables = context.get("variables") if isinstance(
+            context, dict) else None
+        if isinstance(variables, dict):
+            tenant_id = str(variables.get("tenant_id") or tenant_id or "")
+            workspace_id = str(variables.get("workspace_id") or "")
+    except (TypeError, ValueError):
+        pass
+    return tenant_id, workspace_id
+
+
+def _authorize_execution_row(user: User, row: Any) -> bool:
+    resolved = _generated_definition_scope(str(row.workflow_id))
+    kind = resolved.get("kind")
+    if kind == "generated":
+        return _scope_matches_user(
+            user, resolved.get("tenant_id"), resolved.get("workspace_id"))
+    if kind == "legacy":
+        return True
+    tenant_id, workspace_id = _row_server_scope(row)
+    return _scope_matches_user(user, tenant_id, workspace_id)
+
+
+def _authorize_runtime_scope(user: User, definition_id: str, variables: Any) -> bool:
+    resolved = _generated_definition_scope(definition_id)
+    kind = resolved.get("kind")
+    if kind == "generated":
+        return _scope_matches_user(
+            user, resolved.get("tenant_id"), resolved.get("workspace_id"))
+    if kind == "legacy":
+        return True
+    if not isinstance(variables, dict):
+        return False
+    return _scope_matches_user(
+        user, variables.get("tenant_id"), variables.get("workspace_id"))
+
+
+def _authorize_workflow_history(user: User, workflow_id: str, rows: List[Any]) -> bool:
+    resolved = _generated_definition_scope(workflow_id)
+    kind = resolved.get("kind")
+    if kind == "generated":
+        return _scope_matches_user(
+            user, resolved.get("tenant_id"), resolved.get("workspace_id"))
+    if kind == "legacy":
+        return True
+    # Unknown authority: every durable row must carry a server-bound scope
+    # that matches; a mixed or unscoped history is refused.
+    if not rows:
+        return False
+    return all(_authorize_execution_row(user, row) for row in rows)
+
+
 def _definition_material_from_view(view: Dict[str, Any]) -> Dict[str, Any]:
     """Rebuild the exact compiler material from a persisted blueprint view."""
     return {
@@ -2353,14 +2513,10 @@ async def get_workflow_executions(
     workflow_id: str,
     user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))
 ):
-    """Get execution history for a workflow"""
-    from ai.automation_engine import AutomationEngine
-    engine = AutomationEngine()
-    executions = [e.to_dict() for e in engine.get_execution_history(workflow_id)]
-
-    # Durable-engine fallback: merge DB WorkflowExecution rows for this
-    # workflow, deduping against the legacy AutomationEngine executions.
+    """Get execution history for a workflow in the caller's scope."""
     from core.models import WorkflowExecution as WorkflowExecutionRow
+
+    rows = []
     try:
         db = next(get_db())
         try:
@@ -2369,14 +2525,24 @@ async def get_workflow_executions(
             ).all()
         finally:
             db.close()
-        seen = {e["execution_id"] for e in executions}
-        for row in rows:
-            if row.execution_id in seen:
-                continue
-            executions.append(_db_execution_row_to_dict(row))
-            seen.add(row.execution_id)
     except Exception:
-        logger.exception("Failed to merge persisted execution history")
+        logger.exception("Failed to read persisted execution history")
+
+    if not _authorize_workflow_history(user, workflow_id, rows):
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from ai.automation_engine import AutomationEngine
+    engine = AutomationEngine()
+    executions = [e.to_dict() for e in engine.get_execution_history(workflow_id)]
+
+    # Durable-engine fallback: merge DB rows already loaded for the scope
+    # check, deduping against the legacy AutomationEngine executions.
+    seen = {e["execution_id"] for e in executions}
+    for row in rows:
+        if row.execution_id in seen:
+            continue
+        executions.append(_db_execution_row_to_dict(row))
+        seen.add(row.execution_id)
 
     return executions
 
@@ -2385,15 +2551,12 @@ async def get_execution_details(
     execution_id: str,
     user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))
 ):
-    """Get details of a specific execution"""
-    from ai.automation_engine import AutomationEngine
-    engine = AutomationEngine()
-    if execution_id in engine.executions:
-        return engine.executions[execution_id].to_dict()
-
-    # Durable-engine fallback: ExecutionStateManager persists to the DB
-    # WorkflowExecution table — the legacy AutomationEngine never sees them.
+    """Get details of a specific execution in the caller's authorized scope."""
     from core.models import WorkflowExecution as WorkflowExecutionRow
+
+    # Resolve the durable row first: cache/orchestrator fallbacks must not
+    # bypass the generated workflow's authoritative scope.
+    row = None
     try:
         db = next(get_db())
         try:
@@ -2402,16 +2565,36 @@ async def get_execution_details(
             ).first()
         finally:
             db.close()
-        if row is not None:
-            return _db_execution_row_to_dict(row)
     except Exception:
         logger.exception("Failed to read persisted execution details")
+    if row is not None:
+        if not _authorize_execution_row(user, row):
+            raise HTTPException(status_code=404, detail="Execution not found")
+        return _db_execution_row_to_dict(row)
 
     # Orchestrator fallback (workflow UI path).
     from advanced_workflow_orchestrator import get_orchestrator
     context = get_orchestrator().active_contexts.get(execution_id)
     if context is not None:
+        variables = getattr(context, "variables", {}) or {}
+        definition_id = str(
+            variables.get("_workflow_definition_id")
+            or getattr(context, "workflow_id", "") or "")
+        if not definition_id or not _authorize_runtime_scope(
+                user, definition_id, variables):
+            raise HTTPException(status_code=404, detail="Execution not found")
         return _orchestrator_execution_to_dict(execution_id, context)
+
+    # Legacy in-memory engine. An unknown/absent workflow identity fails
+    # closed rather than exposing an unscoped cache entry.
+    from ai.automation_engine import AutomationEngine
+    engine = AutomationEngine()
+    if execution_id in engine.executions:
+        data = engine.executions[execution_id].to_dict()
+        workflow_id = str(data.get("workflow_id") or "")
+        if not workflow_id or not _authorize_generated_read(user, workflow_id):
+            raise HTTPException(status_code=404, detail="Execution not found")
+        return data
 
     raise HTTPException(status_code=404, detail="Execution not found")
 

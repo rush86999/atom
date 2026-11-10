@@ -8,6 +8,12 @@ deployment, HITL rows and canonical execution are real.
 from __future__ import annotations
 
 from contextlib import contextmanager
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -237,7 +243,8 @@ def harness(tmp_path, monkeypatch):
     yield SimpleNamespace(
         app=app, client=TestClient(app), Session=Session, catalog=catalog,
         holder=holder, recorder=recorder, drafts=drafts,
-        engine=engine, user_a=holder["user"],
+        engine=engine, engine_url=str(engine.url), scratch_root=str(tmp_path),
+        user_a=holder["user"],
         reviewer=Session().query(User).filter(User.id == REVIEWER_A).one(),
         user_b=Session().query(User).filter(User.id == USER_B).one(),
     )
@@ -278,7 +285,12 @@ def _hitl_rows(harness):
         db.close()
 
 
-def test_ready_positive_deploy_run_and_restart(harness):
+def test_ready_positive_deploy_run_and_restart_same_process_simulation(harness):
+    """Same-process simulation only: this is NOT an actual OS-process restart.
+
+    Kept as the in-process regression; the real fresh-process roundtrip is
+    ``test_actual_fresh_process_roundtrip`` below.
+    """
     harness.drafts["draft"] = _draft_readonly()
     generated = _generate(harness, agent_id=AGENT_AUTO)
     workflow_id = generated["workflow_id"]
@@ -1032,3 +1044,258 @@ def test_sql_claim_commit_failure_keeps_file_effect(harness, monkeypatch):
     assert body["operation_id"]
     # The file effect is real and must not be reported as rollback.
     assert _catalog_rows(harness)[0]["id"] == generated["workflow_id"]
+
+
+def _run_fresh_child(harness, mode, *, execution_id="", operation_id="",
+                     owner_id="", workflow_id="", digest=""):
+    backend_dir = Path(__file__).resolve().parents[1]
+    helper = backend_dir / "tests" / "helpers" / "fresh_process_workflow_roundtrip.py"
+    assert helper.is_file(), helper
+    scratch_data = Path(harness.scratch_root) / "fresh-process-data"
+    scratch_data.mkdir(parents=True, exist_ok=True)
+    env = os.environ.copy()
+    env.update({
+        "TESTING": "1",
+        # The child is a test process; this is the documented guard branch
+        # that honors the explicit non-live DATABASE_URL below.
+        "PYTEST_VERSION": "fresh-process-evidence",
+        "PYTEST_CURRENT_TEST": "fresh-process-evidence",
+        "DATABASE_URL": harness.engine_url,
+        "ATOM_DATA_DIR": str(scratch_data),
+        "PYTHONPATH": (
+            str(backend_dir) + os.pathsep + env.get("PYTHONPATH", "")),
+    })
+    command = [
+        sys.executable, str(helper), mode,
+        "--db-url", harness.engine_url,
+        "--catalog", str(harness.catalog),
+        "--user-id", USER_A,
+        "--tenant-id", TENANT_A,
+        "--workspace-id", WS_A,
+        "--workflow-id", workflow_id,
+        "--digest", digest,
+        "--execution-id", execution_id,
+        "--operation-id", operation_id,
+        "--owner-id", owner_id,
+    ]
+    completed = subprocess.run(
+        command, cwd=str(backend_dir), env=env, capture_output=True,
+        text=True, timeout=180)
+    assert completed.returncode == 0, (
+        f"fresh child {mode} failed\nSTDOUT:\n{completed.stdout}\n"
+        f"STDERR:\n{completed.stderr}")
+    marker = "RESULT_JSON:"
+    payload = None
+    for line in completed.stdout.splitlines():
+        if line.startswith(marker):
+            payload = json.loads(line[len(marker):])
+    assert payload is not None, (
+        f"child produced no result\nSTDOUT:\n{completed.stdout}\n"
+        f"STDERR:\n{completed.stderr}")
+    return payload
+
+
+def _normalize_step_results(value):
+    """Normalize the run-route list and persisted-read dict by exact step id.
+
+    The list/dict difference is a transport serialization wrapper, not a
+    business result difference. Timing is documented volatile; status,
+    errors, matches and every other business value are compared exactly.
+    """
+    volatile = {"execution_time_ms"}
+    if isinstance(value, dict):
+        items = []
+        for step_id, payload in value.items():
+            if isinstance(payload, dict):
+                items.append({"step_id": step_id, **payload})
+            else:
+                items.append({"step_id": step_id, "result": payload})
+    else:
+        items = list(value or [])
+    normalized = {}
+    for item in items:
+        step_id = str(item.get("step_id"))
+        normalized[step_id] = {
+            key: val for key, val in item.items()
+            if key != "step_id" and key not in volatile
+        }
+    return normalized
+
+
+def test_actual_fresh_process_roundtrip(harness):
+    """Real second/third OS process over the same scratch SQL + catalog."""
+    harness.drafts["draft"] = _draft_readonly()
+    generated = _generate(harness, agent_id=AGENT_AUTO)
+    workflow_id = generated["workflow_id"]
+    digest = generated["definition_digest"]
+    deployed = _deploy(harness, workflow_id, digest, agent_id=AGENT_AUTO)
+    assert deployed.status_code == 200, deployed.text
+    assert deployed.json()["status"] == "deployed"
+
+    row = _catalog_rows(harness)[0]
+    deployment = row["deployment"]
+    operation_id = deployment["operation_id"]
+    owner_id = deployment["owner_user_id"]
+
+    # The parent's process-local registration is explicitly gone before the
+    # child starts; the child must reload the canonical SQL definition.
+    from advanced_workflow_orchestrator import get_orchestrator
+    get_orchestrator().workflows.pop(workflow_id, None)
+
+    run_result = _run_fresh_child(
+        harness, "run", workflow_id=workflow_id, digest=digest,
+        operation_id=operation_id, owner_id=owner_id)
+    print("FRESH_CHILD_RUN:" + json.dumps(run_result, sort_keys=True))
+    assert run_result["workflow_ids"] == [workflow_id]
+    assert run_result["execution_status"] == "completed"
+    run_steps = _normalize_step_results(run_result["execution_results"])
+    assert run_steps["lookup"]["status"] == "completed"
+    assert isinstance(run_steps["lookup"].get("matches"), list)
+    assert run_result["scheduler_jobs"] == []
+    assert run_result["operation_id"] == operation_id
+    assert run_result["owner_user_id"] == owner_id
+    execution_id = run_result["execution_id"]
+    assert execution_id
+    assert run_result["execution_ids"] == [execution_id]
+
+    catalog_before = harness.catalog.read_bytes()
+    verify_result = _run_fresh_child(
+        harness, "verify", workflow_id=workflow_id, digest=digest,
+        execution_id=execution_id, operation_id=operation_id,
+        owner_id=owner_id)
+    print("FRESH_CHILD_VERIFY:" + json.dumps(verify_result, sort_keys=True))
+    assert verify_result["execution_status"] == "completed"
+    assert verify_result["execution_id"] == execution_id
+    assert verify_result["execution_ids"] == [execution_id]
+    verify_steps = _normalize_step_results(verify_result["execution_results"])
+    assert verify_steps == run_steps
+    assert verify_result["deploy_status"] == "already_deployed"
+    assert verify_result["operation_id"] == operation_id
+    assert verify_result["owner_user_id"] == owner_id
+    assert verify_result["scheduler_jobs"] == []
+    assert harness.catalog.read_bytes() == catalog_before
+
+
+def test_generated_execution_readback_refuses_foreign_scope(harness):
+    harness.drafts["draft"] = _draft_readonly()
+    generated = _generate(harness, agent_id=AGENT_AUTO)
+    workflow_id = generated["workflow_id"]
+    digest = generated["definition_digest"]
+    assert _deploy(harness, workflow_id, digest,
+                   agent_id=AGENT_AUTO).json()["status"] == "deployed"
+    run = harness.client.post(
+        f"/api/v1/workflows/workflows/{workflow_id}/execute", json={})
+    assert run.status_code == 200, run.text
+    execution_id = run.json()["execution_id"]
+
+    harness.holder["user"] = harness.user_b
+    history = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}/executions")
+    assert history.status_code == 404, history.text
+    details = harness.client.get(
+        f"/api/v1/workflows/workflows/executions/{execution_id}")
+    assert details.status_code == 404, details.text
+
+
+def test_generated_execution_metadata_unavailable_is_not_legacy_authority(
+        harness, monkeypatch):
+    import core.database as database_module
+
+    harness.drafts["draft"] = _draft_readonly()
+    generated = _generate(harness, agent_id=AGENT_AUTO)
+    workflow_id = generated["workflow_id"]
+    digest = generated["definition_digest"]
+    assert _deploy(harness, workflow_id, digest,
+                   agent_id=AGENT_AUTO).json()["status"] == "deployed"
+    run = harness.client.post(
+        f"/api/v1/workflows/workflows/{workflow_id}/execute", json={})
+    assert run.status_code == 200, run.text
+    execution_id = run.json()["execution_id"]
+
+    # Projection gone and the SQL authority lookup unavailable. The durable
+    # execution row is still readable and carries server-bound scope.
+    harness.catalog.write_text("[]\n")
+
+    def unavailable():
+        raise RuntimeError("simulated authority lookup outage")
+
+    monkeypatch.setattr(database_module, "get_db_session", unavailable)
+
+    harness.holder["user"] = harness.user_b
+    assert harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}/executions"
+    ).status_code == 404
+    assert harness.client.get(
+        f"/api/v1/workflows/workflows/executions/{execution_id}"
+    ).status_code == 404
+
+    # Same owner is still served from the durable execution scope.
+    harness.holder["user"] = harness.user_a
+    own_details = harness.client.get(
+        f"/api/v1/workflows/workflows/executions/{execution_id}")
+    assert own_details.status_code == 200, own_details.text
+    assert own_details.json()["status"] == "completed"
+    assert harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}/executions"
+    ).status_code == 200
+
+
+def test_positive_legacy_scope_twin_survives_unknown_authority(
+        harness, monkeypatch):
+    import core.database as database_module
+    from core.models import WorkflowExecution
+
+    legacy_workflow_id = "legacy-scope-1"
+    legacy = {
+        "id": legacy_workflow_id, "name": "Legacy scope", "description": "",
+        "version": "1", "nodes": [], "connections": [], "triggers": [],
+        "enabled": True,
+    }
+    harness.catalog.write_text(json.dumps([legacy]))
+    db = harness.Session()
+    try:
+        db.add(WorkflowExecution(
+            execution_id="exec-legacy-scope", workflow_id=legacy_workflow_id,
+            status="completed", input_data="{}", outputs="{}",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    def unavailable():
+        raise RuntimeError("simulated authority lookup outage")
+
+    monkeypatch.setattr(database_module, "get_db_session", unavailable)
+    harness.holder["user"] = harness.user_b
+    history = harness.client.get(
+        f"/api/v1/workflows/workflows/{legacy_workflow_id}/executions")
+    assert history.status_code == 200, history.text
+    assert any(item["execution_id"] == "exec-legacy-scope"
+               for item in history.json())
+    details = harness.client.get(
+        "/api/v1/workflows/workflows/executions/exec-legacy-scope")
+    assert details.status_code == 200, details.text
+
+
+def test_contradictory_generated_scope_metadata_fails_closed(harness):
+    harness.drafts["draft"] = _draft_readonly()
+    generated = _generate(harness, agent_id=AGENT_AUTO)
+    workflow_id = generated["workflow_id"]
+    digest = generated["definition_digest"]
+    assert _deploy(harness, workflow_id, digest,
+                   agent_id=AGENT_AUTO).json()["status"] == "deployed"
+    run = harness.client.post(
+        f"/api/v1/workflows/workflows/{workflow_id}/execute", json={})
+    assert run.status_code == 200, run.text
+    execution_id = run.json()["execution_id"]
+
+    rows = _catalog_rows(harness)
+    rows[0]["deployment"]["tenant_id"] = "tenant-other"
+    harness.catalog.write_text(json.dumps(rows))
+
+    assert harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}/executions"
+    ).status_code == 404
+    assert harness.client.get(
+        f"/api/v1/workflows/workflows/executions/{execution_id}"
+    ).status_code == 404
