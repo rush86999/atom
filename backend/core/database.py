@@ -298,17 +298,46 @@ from sqlalchemy.orm import Session as _SASession
 from sqlalchemy import event as _sa_event
 
 _ATOM_CALLER_WRITES = "atom_uncommitted_writes"
+_ATOM_CALLER_WRITE_TRANSACTIONS = "atom_uncommitted_write_transactions"
 
 
 @_sa_event.listens_for(_SASession, "before_flush")
 def _mark_caller_writes(session, flush_context, instances):
+    # begin_nested() flushes pre-existing changes before entering its
+    # SAVEPOINT, so those writes belong to the outer transaction.
+    transaction = session.get_nested_transaction() or session.get_transaction()
+    session.info.setdefault(_ATOM_CALLER_WRITE_TRANSACTIONS, set()).add(transaction)
     session.info[_ATOM_CALLER_WRITES] = True
 
 
 @_sa_event.listens_for(_SASession, "after_commit")
-@_sa_event.listens_for(_SASession, "after_rollback")
-def _clear_caller_writes(session):
-    session.info.pop(_ATOM_CALLER_WRITES, None)
+def _retain_committed_savepoint_writes(session):
+    # A SAVEPOINT release commits into its parent, not the caller's outer
+    # transaction. Transfer ownership before after_transaction_end runs.
+    nested = session.get_nested_transaction()
+    writes = session.info.get(_ATOM_CALLER_WRITE_TRANSACTIONS)
+    if nested is not None and writes and nested in writes:
+        writes.remove(nested)
+        writes.add(nested.parent)
+
+
+@_sa_event.listens_for(_SASession, "after_transaction_end")
+def _finish_caller_write_transaction(session, transaction):
+    # SQLAlchemy also emits this for flush subtransactions. Only the actual
+    # outermost end clears every marker. A rolled-back/closed SAVEPOINT drops
+    # its own writes; successful releases were transferred above.
+    # https://docs.sqlalchemy.org/en/20/orm/events.html#sqlalchemy.orm.SessionEvents.after_transaction_end
+    if transaction.parent is None:
+        session.info.pop(_ATOM_CALLER_WRITES, None)
+        session.info.pop(_ATOM_CALLER_WRITE_TRANSACTIONS, None)
+        return
+    writes = session.info.get(_ATOM_CALLER_WRITE_TRANSACTIONS)
+    if writes is not None:
+        writes.discard(transaction)
+    if writes:
+        session.info[_ATOM_CALLER_WRITES] = True
+    else:
+        session.info.pop(_ATOM_CALLER_WRITES, None)
 
 
 class Base(DeclarativeBase):

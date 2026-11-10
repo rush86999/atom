@@ -487,7 +487,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/api/test_graduation_qualification_join.py tests/test_assessment_rules_semantics.py tests/unit/core/test_notification_service.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/api/test_graduation_qualification_join.py tests/test_assessment_rules_semantics.py tests/unit/core/test_notification_service.py tests/test_caller_transaction_ownership.py -q --tb=short --timeout=300 --timeout-method=thread
 
   backend-oracle:
     runs-on: ubuntu-latest
