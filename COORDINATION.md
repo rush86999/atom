@@ -448,3 +448,13 @@ root PR831 worktree (`/private/tmp/atom-web-graduation-clean-delivery-20261110`)
 or PR833 branch/evidence.
 
 Status: repair complete on isolated branch; evidence packet under docs/acceptance/evidence/pr831_workflow_consumer_repair_8ec58cf3f. No live DB/model/provider/send/spend/deploy/deps.
+
+
+## Historical main checkpoint retained during spawn integration
+
+The following predecessor status is retained as history; the spawn delivery above is the newer checkpoint.
+
+Status: guided direct create and approved create_agent HITL both use the
+shared decision writer; acting-agent references are scoped; the reviewed
+HITL material is digest-bound and resumes to one agent/receipt.
+## Session: PR831 workflow consumer repair (2026-11-10)
