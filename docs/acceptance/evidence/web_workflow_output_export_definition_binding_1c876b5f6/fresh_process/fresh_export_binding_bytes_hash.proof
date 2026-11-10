@@ -1,0 +1,97 @@
+🧪 pytest detected: honoring explicit non-dev test DB (sqlite:///<scratch-path>
+provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+LanceDB not initialized, chat history disabled
+
+tests/test_workflow_output_export.py::test_export_fresh_process_bytes_and_hash_match 
+-------------------------------- live log setup --------------------------------
+2026-11-10 02:24:15 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 02:24:15 [    INFO] EscalationManager initialized
+2026-11-10 02:24:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:24:15 [    INFO] EscalationManager initialized
+2026-11-10 02:24:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:24:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 02:24:15 [    INFO] AgentTaskRegistry initialized
+2026-11-10 02:24:15 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:24:16 [    INFO] EscalationManager initialized
+2026-11-10 02:24:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:24:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 02:24:16 [    INFO] EscalationManager initialized
+2026-11-10 02:24:16 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 02:24:16 [    INFO] Template manager initialized with 28 templates
+2026-11-10 02:24:16 [    INFO] MCP Service initialized
+2026-11-10 02:24:16 [    INFO] EscalationManager initialized
+2026-11-10 02:24:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:24:16 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 02:24:16 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 02:24:16 [    INFO] Registered workflow: ai_wf_bc50837d5c5e (Read-only record lookup)
+2026-11-10 02:24:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 02:24:16 [    INFO] Registered workflow: ai_wf_bc50837d5c5e (Read-only record lookup)
+2026-11-10 02:24:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_bc50837d5c5e/deploy "HTTP/1.1 200 OK"
+2026-11-10 02:24:16 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 02:24:16 [    INFO] No token storage file found, starting empty
+2026-11-10 02:24:16 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-10 02:24:16 [    INFO] Registered workflow: ai_wf_bc50837d5c5e (Read-only record lookup)
+2026-11-10 02:24:16 [    INFO] Executing step: start - Manual start
+2026-11-10 02:24:16 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 02:24:16 [    INFO] EscalationManager initialized
+2026-11-10 02:24:16 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 02:24:16 [    INFO] EscalationManager initialized
+2026-11-10 02:24:16 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 02:24:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 02:24:16 [    INFO] 📸 In-Memory Snapshot created for 9002a751-cc33-4901-a26b-9a35b14702db at step lookup
+2026-11-10 02:24:16 [    INFO] 📸 In-Memory Snapshot created for 9002a751-cc33-4901-a26b-9a35b14702db at step start
+2026-11-10 02:24:16 [    INFO] Persisted state for workflow 9002a751-cc33-4901-a26b-9a35b14702db (Status: completed)
+2026-11-10 02:24:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_bc50837d5c5e/execute "HTTP/1.1 200 OK"
+2026-11-10 02:24:16 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/9002a751-cc33-4901-a26b-9a35b14702db/export "HTTP/1.1 200 OK"
+FRESH_EXPORT_FIRST:{"definition_digest": "45c47cd67009de9fc13b25c3ba5c9826324b25b66165bbfc99df034436f5ce26", "deploy_status": null, "execution_id": "9002a751-cc33-4901-a26b-9a35b14702db", "execution_ids": null, "execution_results": null, "execution_status": null, "export_bytes": 1636, "export_execution_id": "9002a751-cc33-4901-a26b-9a35b14702db", "export_filename": "workflow-ai_wf_bc50837d5c5e-execution-9002a751-cc33-4901-a26b-9a35b14702db.json", "export_schema": "atom.workflow.execution-result.v1", "export_sha256": "b4f512d9c41084db4fd2bc4e7c8030504dd867403fb7f1ea9fb905f8bcf735a2", "export_workflow_id": "ai_wf_bc50837d5c5e", "mode": "export", "model_calls": false, "operation_id": "deploy_3f9a0af5d148f1bc7c87cc64", "owner_user_id": "user-a", "scheduler_jobs": [], "workflow_id": "ai_wf_bc50837d5c5e", "workflow_ids": ["ai_wf_bc50837d5c5e"]}
+FRESH_EXPORT_SECOND:{"definition_digest": "45c47cd67009de9fc13b25c3ba5c9826324b25b66165bbfc99df034436f5ce26", "deploy_status": null, "execution_id": "9002a751-cc33-4901-a26b-9a35b14702db", "execution_ids": null, "execution_results": null, "execution_status": null, "export_bytes": 1636, "export_execution_id": "9002a751-cc33-4901-a26b-9a35b14702db", "export_filename": "workflow-ai_wf_bc50837d5c5e-execution-9002a751-cc33-4901-a26b-9a35b14702db.json", "export_schema": "atom.workflow.execution-result.v1", "export_sha256": "b4f512d9c41084db4fd2bc4e7c8030504dd867403fb7f1ea9fb905f8bcf735a2", "export_workflow_id": "ai_wf_bc50837d5c5e", "mode": "export", "model_calls": false, "operation_id": "deploy_3f9a0af5d148f1bc7c87cc64", "owner_user_id": "user-a", "scheduler_jobs": [], "workflow_id": "ai_wf_bc50837d5c5e", "workflow_ids": ["ai_wf_bc50837d5c5e"]}
+PASSED
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_workflow_output_export.py::test_export_fresh_process_bytes_and_hash_match
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 6 warnings in 23.33s ========================

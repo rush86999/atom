@@ -1,0 +1,79 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_export_cannot_claim_revised_definition_for_prior_execution ________
+../../root-workflow-export-definition-binding-20261110.py:17: in test_export_cannot_claim_revised_definition_for_prior_execution
+    assert result.status_code==409,result.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:19:20.214493",
+E         "created_at": "2026-11-10T07:19:20",
+E         "execution_id": "8e75ba7e-ace1-4b23-9ed3-ca74a239a196",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_c0be46abcaed"
+E       },
+E       "provenance": {
+E         "completion_contract": "compiled-step-coverage-v1",
+E         "definition_digest": "different-authoritative-revision",
+E         "definition_status": "designed",
+E         "document_version": 2,
+E         "execution_id": "8e75ba7e-ace1-4b23-9ed3-ca74a239a196",
+E         "executor_agent_id": "agent-auto",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_c0be46abcaed"
+E       },
+E       "results": {
+E         "lookup": {
+E           "execution_time_ms": 1.6207695007324219,
+E           "matches": [],
+E           "status": "completed"
+E         },
+E         "start": {
+E           "execution_time_ms": 0.06175041198730469,
+E           "status": "completed",
+E           "trigger": "manual"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [
+E         {
+E           "error": null,
+E           "status": "completed",
+E           "step_id": "start",
+E           "step_type": "trigger"
+E         },
+E         {
+E           "error": null,
+E           "status": "completed",
+E           "step_id": "lookup",
+E           "step_type": "entity"
+E         }
+E       ],
+E       "workflow": {
+E         "name": "Read-only record lookup",
+E         "workflow_id": "ai_wf_c0be46abcaed"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+WARNING  core.lancedb_handler:lancedb_handler.py:2149 LanceDB not initialized, chat history disabled
+WARNING  core.token_storage:token_storage.py:31 Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+WARNING  core.workflow_notifier:workflow_notifier.py:85 WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  <scratch-path> DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+root-workflow-export-definition-binding-20261110.py::test_export_cannot_claim_revised_definition_for_prior_execution
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-workflow-export-definition-binding-20261110.py::test_export_cannot_claim_revised_definition_for_prior_execution
+1 failed, 3 warnings in 3.81s
