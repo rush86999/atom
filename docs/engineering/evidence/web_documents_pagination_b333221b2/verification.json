@@ -32,6 +32,16 @@
   ],
   "ordering": "created_at string desc, id desc; native scan before offset/limit; no concurrent-write snapshot guarantee",
   "raw_logs_published": false,
+  "root_proof": {
+    "counts_note": "77 worker focused gate and 80 root neighborhood are different selectors; do not sum",
+    "frontend_tests_passed": 23,
+    "normal_controls_passed": 13,
+    "original_130_case_passed": 1,
+    "source": "1605d7713116f1552d23e6a8288fd3902ce9468a",
+    "strict_packet_artifacts": 2,
+    "strict_packet_sources": 8,
+    "summary": "root_proof_summary.json"
+  },
   "root_retained_negative": {
     "authorized_stored": 130,
     "including_newest": "w1-doc-129",

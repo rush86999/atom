@@ -105,3 +105,26 @@ normal `get_current_user` dependency; no live database, provider, model,
 browser, build, download, key or deployment. Not qualified: concurrent-write
 snapshot isolation, production browser/UI acceptance, PostgreSQL/soak, and
 whole-app completion (143 claims / 18 goal rows remain unchanged).
+
+
+## Root independent proof (appended 2026-11-10)
+
+Root independently accepted the frozen repair on evidence source
+`1605d7713116f1552d23e6a8288fd3902ce9468a` / product source
+`c4bc1d4b623eb56d54491e4c79052885b5950cff`:
+
+- 13 normal controls passed in 26.99s.
+- Original real 130-record fixture acceptance passed in 3.73s: all 130
+  complete/disjoint, newest first, truthful total 130 including offset beyond
+  end, foreign/shared isolation, rows unchanged.
+- 23 frontend tests passed in 1.098s.
+- Strict packet: 8 source / 2 artifact checks passed.
+
+Root records and private probe are included as
+`root_independent_verification.json`, `root_independent_original_130_results.json`
+and `root_independent_probe.py`; `root_proof_summary.json` carries the safe
+counts. The original 100/30 overlap-30/missing-30 negative remains preserved.
+Selector counts 77 (worker focused gate) and 80 (root backend neighborhood) are
+different and must not be summed; 13 and 23 are separate selectors.
+
+No browser/build/server was executed for this append.
