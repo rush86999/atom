@@ -31,15 +31,22 @@ _AGENT_INFORMATION_ACTIONS = {
 
 
 def _load_action(action_id: str, bind: Any = None) -> Optional[Dict[str, Any]]:
+    from contextlib import closing
     from sqlalchemy.orm import sessionmaker
 
     if bind is not None:
-        session = sessionmaker(bind=bind)()
+        # The caller committed the decision and handed us its bind so the
+        # qualification receipt can use the same engine/connection.
+        session_cm = closing(sessionmaker(bind=bind)())
     else:
         from core.database import get_db_session
 
-        session = get_db_session()
-    try:
+        # get_db_session() is itself a context manager; entering it is what
+        # creates and eventually closes the Session. Calling .close() on the
+        # generator context manager (the PR831 regression) leaves the action
+        # unread and masks the real error.
+        session_cm = get_db_session()
+    with session_cm as session:
         action = session.query(HITLAction).filter(
             HITLAction.id == action_id).first()
         if action is None:
@@ -55,8 +62,6 @@ def _load_action(action_id: str, bind: Any = None) -> Optional[Dict[str, Any]]:
             "status": action.status,
             "bind": session.get_bind(),
         }
-    finally:
-        session.close()
 
 
 def _action_field(action: Any, name: str, default: Any = None) -> Any:
