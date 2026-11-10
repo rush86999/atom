@@ -1,0 +1,20 @@
+{
+  "artifacts": {
+    "README.md": "73b4782b940397fdf87a63d274b069932cd578afc62060a3b57381acab564e52",
+    "verification.json": "77959ced01eb9c48b241607cb9329c398faf9c7b49d327ddc95a4782a305ccc8"
+  },
+  "branch": "codex/web-documents-pagination-20261110",
+  "code_commit": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "executed_source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "source_base": "b333221b23f925b3768ab82c2549200360a31865",
+  "source_files": {
+    "backend/api/document_routes.py": "94250a756d64c73021ca5aa12c0ed777ef2723aca62b977ebd21a9d79ef86e50",
+    "backend/core/lancedb_handler.py": "480bd9018cdd1c1114a00bd6de1399ed0b993005a3ecdddf7338c297ee7aac45",
+    "backend/tests/api/test_document_library_pagination.py": "5ae33223d69adc48bd83ddbdc458ce18b97ce0c61f939bcb453fd36bae5333e1",
+    "backend/tests/core/test_lancedb_handler_bughunt2.py": "b70f4b538585858cd85312ce79185962f5dd2784d6ce923e8fc1f2f92841c90b",
+    "backend/tests/test_covpush_ingestion_lancedb.py": "692602e9f0c834a5e6acf4b1627659b05a2a33c3648b2012f39b397661e6e1ad",
+    "backend/tests/test_covpush_w90_core_services.py": "5b3c0c61dbc830c31f6532384fce9638eb1e2932d6c5dd31988326fcf1ad83e0",
+    "frontend-nextjs/pages/documents.tsx": "e344c437f38a5430b0273e2930fd2f7a21d0e007c59b0f4b1f9fcab35f9a46a4",
+    "frontend-nextjs/tests/pages/documents.test.tsx": "3fb1d0b404e868dc3ffb4774e933ab9bb23c1f6370771a579e4aa6a9816033fc"
+  }
+}
