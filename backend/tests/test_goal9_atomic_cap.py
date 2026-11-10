@@ -15,6 +15,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
+from types import SimpleNamespace
 
 from tests.test_oracle_mini_app_host_mutations import USER, host
 from core.agent_governance_service import AgentGovernanceService
@@ -584,3 +585,41 @@ def test_supported_upgrade_adds_reservation_columns_preserving_old_rows(
         assert conn.execute(text(
             "SELECT COUNT(*) FROM token_usage")).scalar() == 2
     engine.dispose()
+
+
+@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf")])
+def test_invalid_pricing_is_unknown_not_free(monkeypatch, price):
+    from core.llm import byok_handler
+
+    monkeypatch.setattr(
+        byok_handler, "get_pricing_fetcher",
+        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: price))
+    handler = object.__new__(byok_handler.BYOKHandler)
+    assert handler._estimate_reservation_bound(
+        "controlled-paid", "controlled-model", ["A"], 10) is None
+
+
+@pytest.mark.parametrize("bound", [-1.0, float("nan"), float("inf")])
+def test_begin_rejects_invalid_reservation_bound(host, bound):
+    _seed(host, spend=90.0)
+    with pytest.raises(BudgetReservationRefused) as exc:
+        _reserve("invalid-bound", bound)
+    assert exc.value.status_code == "BUDGET_UNPRICED_USAGE"
+    with host.Session() as db:
+        assert db.query(TokenUsage).filter(
+            TokenUsage.attempt_id == "invalid-bound").count() == 0
+
+
+@pytest.mark.parametrize("cost", [-1.0, float("nan"), float("inf")])
+def test_invalid_settlement_cost_remains_unknown(host, cost):
+    _seed(host, spend=0.0)
+    _reserve("invalid-cost", 7.0)
+    _settle("invalid-cost", cost)
+    with host.Session() as db:
+        row = db.query(TokenUsage).filter(
+            TokenUsage.attempt_id == "invalid-cost").one()
+        assert row.billed is True
+        assert row.cost_usd is None
+        assert row.pricing_status == "unknown"
+        assert row.reservation_status == "uncertain"
+        assert float(row.reserved_cost_usd) == pytest.approx(7.0)

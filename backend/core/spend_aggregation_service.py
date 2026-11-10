@@ -232,6 +232,21 @@ def begin_llm_usage(
     uncertain usage never auto-releases it. A later ``record_llm_usage``
     settles this exact row once.
     """
+    if reserved_cost_usd is not None:
+        try:
+            bound_value = float(reserved_cost_usd)
+        except (TypeError, ValueError):
+            bound_value = None
+        # A caller-supplied bound must be finite and non-negative. A malformed
+        # bound cannot lower liability or hide unknown pricing; refuse before
+        # creating any row so hard-stop dispatches nothing.
+        if (bound_value is None or not math.isfinite(bound_value)
+                or bound_value < 0):
+            raise BudgetReservationRefused(
+                "invalid reservation bound",
+                status_code="BUDGET_UNPRICED_USAGE")
+        reserved_cost_usd = bound_value
+
     from core.database import SessionLocal
 
     session = None
@@ -332,10 +347,28 @@ def begin_llm_usage(
             session.close()
 
 
-def _usage_pricing_status(cost_usd: Optional[float]) -> str:
+def _normalize_cost(cost_usd: Optional[float]) -> Optional[float]:
+    """Finite, non-negative cost or explicit unknown.
+
+    Invalid configured pricing (negative/NaN/inf/type junk) is unknown, never
+    free and never an admitted negative/infinite bound.
+    """
     if cost_usd is None:
+        return None
+    try:
+        value = float(cost_usd)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or value < 0:
+        return None
+    return value
+
+
+def _usage_pricing_status(cost_usd: Optional[float]) -> str:
+    cost = _normalize_cost(cost_usd)
+    if cost is None:
         return "unknown"
-    return "free" if float(cost_usd) == 0.0 else "priced"
+    return "free" if cost == 0.0 else "priced"
 
 
 def _intent_binding_matches(
@@ -405,6 +438,7 @@ def _settle_pending_intent(
     authoritative row, and either returns an exact replay or refuses with a
     conflict. No binding field is reassigned.
     """
+    cost_usd = _normalize_cost(cost_usd)
     binding = dict(
         request_id=request_id,
         provider_id=provider_id,
@@ -504,6 +538,7 @@ def record_llm_usage(
 
     Uses a dedicated session so it can never commit a caller's business work.
     """
+    cost_usd = _normalize_cost(cost_usd)
     # Resolve the current SessionLocal at call time so scratch/test database
     # patches apply instead of a stale module-level binding.
     from core.database import SessionLocal
@@ -567,10 +602,7 @@ def record_llm_usage(
             total_tokens=int(prompt_tokens or 0) + int(completion_tokens or 0),
             billed=True,
             cost_usd=cost_usd,
-            pricing_status=(
-                "unknown" if cost_usd is None
-                else "free" if float(cost_usd) == 0.0
-                else "priced"),
+            pricing_status=_usage_pricing_status(cost_usd),
             model_name=model_name,
         )
         session.add(row)

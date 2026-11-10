@@ -61,6 +61,20 @@ Tenant row remains intentional no-limit; a missing **non-default** tenant is
 an unresolved scope and fails closed. The existing c3 durable
 settlement/upgrade gate is preserved.
 
+### Invalid pricing / bounds (root review of a72)
+
+`_estimate_reservation_bound` now requires a finite, non-negative price. A
+negative, NaN, infinite, or non-numeric configured price returns **None**
+(unknown), never 0/free and never an infinite admitted bound. The final
+margin and bound are also finite-checked. `begin_llm_usage` validates every
+directly supplied `reserved_cost_usd` (negative/NaN/inf are refused with
+`BUDGET_UNPRICED_USAGE` before any row or provider dispatch), and
+`record_llm_usage` normalizes every computed cost to finite/non-negative or
+explicit unknown. Authoritative `0.0` remains the only known-free path.
+The root probe `retained_negative/root-invalid-pricing-probe.py` failed 3/3
+on a72 and now passes 3/3 (`gates/root-invalid-pricing-fixed.log`); the
+exact negative log is retained.
+
 ## Upgrade
 
 `reserved_cost_usd` and `reservation_status` are added through the existing
@@ -83,6 +97,10 @@ PostgreSQL equivalent and is **not applied**. Existing old rows default to
 - DB read failure, reservation write failure, unknown pricing, malformed/
   negative/non-finite policy fail closed; intentional no-limit/observe and
   the `default` scope remain allowed;
+- invalid configured price (-1/NaN/inf) -> `_estimate_reservation_bound`
+  None and real ordinary BYOK hard-stop zero provider dispatch; direct
+  malformed reservation bounds refuse; invalid settlement cost stays
+  unknown with the reserved liability retained;
 - success settlement: two ordinary calls -> two settled 0.25 rows, 10/5
   tokens each, ledger 0.5; exact replay once; missing usage -> uncertain
   liability; settlement failure retains the active reservation and hard-stop
@@ -91,13 +109,16 @@ PostgreSQL equivalent and is **not applied**. Existing old rows default to
 
 Gates:
 
-- atomic + ordinary consumer controls: **30 passed** (`gates/consumer.log`)
+- atomic + ordinary consumer controls (including invalid pricing):
+  **42 passed** (`gates/consumer.log`)
 - focused atomic/durable/upgrade/CI-lane/ordinary CI files:
-  **142 passed** (`gates/focused.log`)
-- affected budget selection: **379 passed** (`gates/affected.log`)
+  **154 passed** (`gates/focused.log`)
+- affected budget selection: **391 passed** (`gates/affected.log`)
 - additive CI lane contract: **27 passed** (`gates/ci-lane.log`)
 - root ordinary success probe on this branch: **2 passed**
   (`gates/root-probe-fixed.log`, `gates/root-probe-observation.json`)
+- root invalid-pricing probe on this branch: **3 passed**
+  (`gates/root-invalid-pricing-fixed.log`)
 
 The additive ledger (`backend/tests/fixtures/ci_backend_additions.json`) now
 declares both the durable settlement step and the atomic reservation step
@@ -121,6 +142,33 @@ exactly; the immutable baseline fixture is unchanged.
   `RETURNING`, and row locks are the DB-level serialization primitives. The
   PostgreSQL path is not runtime qualified in this slice.
 
+
+## Open Goal9 physical-attempt gates (explicitly not claimed)
+
+The current slice does **not** claim one reservation/settlement per physical
+paid attempt for streaming or gateway `generate_chat_completion`. Root
+source review found:
+
+1. **Streaming**: `stream_completion` calls `begin_llm_usage` once before the
+   `provider_order` loop; its later physical attempts (initial create at
+   `byok_handler.py:10850/10853`, self-heal at `:11122`, paid fallback at
+   `:11225`, route hops/sweep) share that request-level intent. The shared
+   `_StreamRequestState` guards (`visible_yielded`, `attempted_pairs`,
+   `self_heal_used`, `paid_retry_used`) must be preserved by any successor.
+2. **Gateway chat completion**: `generate_chat_completion` creates one
+   intent before its outer provider loop, but the direct physical retries —
+   temperature/larger-output at `:11866`, self-heal at `:11956`, paid/free
+   substitution at `:12046` — call `client.chat.completions.create` again
+   without a fresh reservation/settlement and return directly. Their actual
+   route identity and uncertain liability need per-attempt intents.
+
+These are **next finite Goal9 gates**, not covered by this candidate. The
+current candidate must not be read as a universal strict cap across every
+fallback/substitution/reasoning/self-heal/stream physical attempt. Runtime
+doubled-transport counterprobes for those paths are still required; no
+failing runtime evidence is fabricated here. The atomic reservation and
+invalid-price controls above remain valid for the paths they exercise.
+
 ## Retained negatives / boundaries
 
 - `retained_negative/atomic_cap_gap.py` + `.log`: pre-fix check-only
@@ -128,10 +176,12 @@ exactly; the immutable baseline fixture is unchanged.
 - `retained_negative/root-success-review.json` + `.log`: pre-fix ordinary
   success left pending rows (billed false, cost NULL, tokens 0); fixed and
   now covered by the 0.5/10/5 twin.
+- `retained_negative/root-invalid-pricing-probe.py` + `root-invalid-pricing-negative.log`: a72 invalid configured price (-1/NaN/inf) became free/infinite; fixed and now 3/3 green.
 - Prior CI-repair identities and 0472/1aa evidence remain unchanged.
 
 No live DB/provider/model/credential/send/spend/deploy/dependency action.
 PostgreSQL concurrency, multi-process SQLite, and universal atomicity are not
 claimed. 143 claims / 18 goals historical scores are unchanged; no claim that
-all Goal 9 is complete beyond these bounded controls. Root owns independent
-acceptance and merge.
+all Goal 9 is complete beyond these bounded controls; streaming and gateway
+chat-completion per-physical-attempt reservation remain explicitly open.
+Root owns independent acceptance and merge.

@@ -9,6 +9,7 @@ import hashlib
 import importlib
 import json
 import logging
+import math
 import os
 import re
 import tempfile
@@ -1070,6 +1071,23 @@ def _response_usage(response: Any) -> Any:
     if usage is None:
         usage = _response_field(response, "usage")
     return usage
+
+
+def _valid_cost(cost: Any) -> Optional[float]:
+    """Finite, non-negative configured cost or explicit unknown.
+
+    Invalid pricing (negative/NaN/inf/type junk) must not become free or a
+    zero/infinite reservation. The durable helper applies the same guard.
+    """
+    if cost is None:
+        return None
+    try:
+        value = float(cost)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or value < 0:
+        return None
+    return value
 
 
 def _usage_value(usage: Any, *names: str) -> int:
@@ -4206,9 +4224,26 @@ class BYOKHandler:
                     model, input_tokens_upper, output_tokens)
             if cost is None:
                 return None
-            margin = float(
-                os.getenv("ATOM_LLM_RESERVATION_MARGIN", "1.25"))
-            return max(0.0, float(cost) * max(1.0, margin))
+            try:
+                cost_value = float(cost)
+            except (TypeError, ValueError):
+                return None
+            # Invalid configured pricing is unknown, not free and not an
+            # infinite admitted bound. Only a finite, non-negative price can
+            # become a reservation; authoritative 0.0 remains known free.
+            if not math.isfinite(cost_value) or cost_value < 0:
+                return None
+            try:
+                margin_value = float(
+                    os.getenv("ATOM_LLM_RESERVATION_MARGIN", "1.25"))
+            except (TypeError, ValueError):
+                margin_value = 1.25
+            if not math.isfinite(margin_value) or margin_value < 1.0:
+                margin_value = 1.25
+            bound = cost_value * margin_value
+            if not math.isfinite(bound) or bound < 0:
+                return None
+            return bound
         except Exception:
             return None
 
@@ -4273,10 +4308,13 @@ class BYOKHandler:
                 if reference_cost is None:
                     reference_cost = get_llm_cost(
                         "gpt-4o", input_tokens, output_tokens)
+                cost = _valid_cost(cost)
+                reference_cost = _valid_cost(reference_cost)
                 if reference_cost is not None and cost is not None:
                     savings_usd = max(0.0, reference_cost - cost)
         except Exception as cost_err:
             logger.warning(f"Could not attribute LLM cost: {cost_err}")
+        cost = _valid_cost(cost)
         if known_free:
             # Trusted free contract, not a model-name/brand assumption.
             # Authoritative: the free contract wins over a pricing estimate.
@@ -7062,6 +7100,8 @@ class BYOKHandler:
                                 cost = get_llm_cost(model, input_tokens, output_tokens)
                                 reference_cost = get_llm_cost("gpt-4o", input_tokens, output_tokens)
 
+                            cost = _valid_cost(cost)
+                            reference_cost = _valid_cost(reference_cost)
                             savings_usd = max(0, reference_cost - cost) if (reference_cost is not None and cost is not None) else 0.0
 
                             # Record even when the cost resolves to 0/None
@@ -11712,6 +11752,7 @@ class BYOKHandler:
                 except Exception as cost_err:
                     logger.warning(f"Could not attribute LLM cost: {cost_err}")
                 else:
+                    cost = _valid_cost(cost)
                     # Record even when the cost resolves to 0/None (unpriced
                     # model) — the budget guard enforces from recorded usage,
                     # so skipping would be unattributed spend. Only a FAILED

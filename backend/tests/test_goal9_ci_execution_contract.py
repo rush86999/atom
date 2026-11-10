@@ -369,3 +369,32 @@ def test_concurrent_ordinary_cap_90_plus_7_plus_7(
     assert spend["current_spend_usd"] == pytest.approx(97.0)
     assert spend["reserved_spend_usd"] == pytest.approx(0.0)
     assert spend["committed_spend_usd"] == pytest.approx(97.0)
+
+
+@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf")])
+def test_invalid_pricing_hardstop_zero_provider_dispatch(
+        host, ordinary_handler, monkeypatch, price):
+    tenant_id = ordinary_handler.tenant_id
+    with host.Session() as db:
+        db.add(TenantSetting(
+            tenant_id=tenant_id,
+            setting_key="billing",
+            setting_value=json.dumps({
+                "budget_limit_usd": 100,
+                "enforcement": {"mode": "hard_stop"},
+            })))
+        db.commit()
+    from core.llm import byok_handler
+
+    monkeypatch.setattr(
+        byok_handler, "get_pricing_fetcher",
+        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: price))
+    client = ordinary_handler.clients["opencode-go"]
+    result = asyncio.run(ordinary_handler.generate_response(
+        "invalid configured price"))
+    assert client.chat.completions.create.call_count == 0
+    assert result != "ordinary ok"
+    with host.Session() as db:
+        assert db.query(TokenUsage).filter(
+            TokenUsage.tenant_id == tenant_id,
+            TokenUsage.attempt_id.isnot(None)).count() == 0
