@@ -13,8 +13,11 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from core.student_training_service import StudentTrainingService
-from core.models import AgentStatus
+from core.student_training_service import (
+    StudentTrainingService,
+    TrainingProposalNotFound,
+)
+from core.models import AgentProposal, AgentStatus
 
 
 def _agent(**kw):
@@ -66,6 +69,27 @@ def _arm_evidence_queries(db):
 @pytest.fixture
 def svc():
     return StudentTrainingService(_arm_evidence_queries(Mock()))
+
+
+@pytest.fixture(autouse=True)
+def _training_authority_doubles(monkeypatch, svc):
+    """Keep mocked service/arithmetic coverage while authority is real-tested
+    in tests/api/test_web_training_proposal_authority.py."""
+    actor = SimpleNamespace(
+        id="u1", role="team_lead", status="active", is_active=True,
+        tenant_id="default", workspace_id="default")
+    def _get(self, proposal_id, user_id, require_supervisor=False):
+        proposal = self.db.query(AgentProposal).filter(
+            AgentProposal.id == proposal_id).first()
+        if proposal is None:
+            raise TrainingProposalNotFound(proposal_id)
+        return proposal, SimpleNamespace(
+            id=getattr(proposal, "agent_id", "a1"), tenant_id="default",
+            workspace_id="default", user_id="u1", status="student"), actor
+    monkeypatch.setattr(StudentTrainingService, "get_training_proposal", _get)
+    monkeypatch.setattr(StudentTrainingService, "_claim_supervisor", lambda self, a: True)
+    monkeypatch.setattr(StudentTrainingService, "_claim_agent_target", lambda self, a: True)
+    svc.db.execute.return_value.rowcount = 1
 
 
 @pytest.fixture(autouse=True)

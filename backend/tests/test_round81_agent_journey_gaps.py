@@ -15,6 +15,7 @@ TDD: these tests failed before the fixes.
 """
 
 import pytest
+from types import SimpleNamespace
 from datetime import datetime
 from unittest.mock import MagicMock, Mock, AsyncMock, patch
 from fastapi import FastAPI, HTTPException
@@ -309,9 +310,7 @@ def member_client(member_db_session):
 class TestTrainingProposalEndpoints:
     def test_list_training_proposals_returns_rows(self, supervisor_client):
         client, db = supervisor_client
-        proposal = Mock(spec=["id", "agent_id", "agent_name", "title", "description",
-                              "status", "proposal_data", "created_at",
-                              "approved_by", "approved_at"])
+        proposal = SimpleNamespace()
         proposal.proposal_data = {
             "capability_gaps": ["email"],
             "learning_objectives": ["obj"],
@@ -326,6 +325,7 @@ class TestTrainingProposalEndpoints:
         proposal.created_at = datetime(2026, 8, 21)
         proposal.approved_by = None
         proposal.approved_at = None
+        proposal.expires_at = None
 
         listing_q = Mock()
         listing_q.filter.return_value = listing_q
@@ -344,12 +344,17 @@ class TestTrainingProposalEndpoints:
             if model.__name__ in {"TrainingSession", "AgentRegistry"}:
                 q = Mock()
                 q.filter.return_value.first.return_value = None
+                q.filter.return_value.order_by.return_value.first.return_value = None
                 return q
             return listing_q
 
         db.query = Mock(side_effect=query_impl)
 
-        resp = client.get("/api/maturity/training/proposals")
+        with patch(
+            "api.agent_maturity_routes.StudentTrainingService.list_training_proposals",
+            return_value=[proposal],
+        ):
+            resp = client.get("/api/maturity/training/proposals")
         assert resp.status_code == 200
         body = resp.json()
         assert body["proposals"][0]["id"] == "p1"
