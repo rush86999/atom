@@ -1,0 +1,14 @@
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds
+[server] healthy on :8067 (pid 45249, world identity verified: ec69e24f4385-dirty.d48ca, seatbelt, credential-free)
+{
+  "status": "FAIL",
+  "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+  "canvas_id": "507e8792-6976-4cd5-840e-fea764f94af0",
+  "action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+  "seeded_training_sessions": [],
+  "errors": [
+    "RuntimeError: no enabled promote control after training seed"
+  ]
+}

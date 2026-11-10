@@ -1,0 +1,16 @@
+Heavy gate usage (2026-11-10)
+
+The initial UI run and the retained-world continuations were launched through
+the shared gate:
+
+  /usr/local/bin/python3.11 /private/tmp/atom-agent-cli/run_bounded_test_gate.py \
+    --cwd /private/tmp/atom-web-graduation-qualification-join-20261110/backend \
+    --profile heavy -- <driver command>
+
+Profile heavy enforces the >=4 GiB disk headroom and the shared
+heavy-test-gate lock. The gate's shared JSON state file was overwritten by a
+concurrent reviewed-delivery worker after these runs, so no unrelated gate
+state is included here. The run logs in this packet are the bounded evidence.
+
+Ports used: backend 8066 (initial), 8067 (continuations); frontend 3000.
+Owned server/frontend processes were stopped after capture.

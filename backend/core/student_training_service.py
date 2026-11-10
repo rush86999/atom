@@ -52,6 +52,10 @@ class TrainingProposalConflict(ValueError):
     """Proposal is terminal, stale or changed by a competing decision."""
 
 
+class DirtyCallerWorkError(ValueError):
+    """The caller's session has unrelated pending work; do not commit it."""
+
+
 class InsufficientTrainingEvidenceError(ValueError):
     """Completion rejected: the session has no linked work evidence.
 
@@ -1069,7 +1073,9 @@ After completing this training, the agent will be able to handle similar tasks a
     async def complete_training_session(
         self,
         session_id: str,
-        outcome: TrainingOutcome
+        outcome: TrainingOutcome,
+        *,
+        actor_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Process training completion and update agent maturity.
@@ -1086,6 +1092,12 @@ After completing this training, the agent will be able to handle similar tasks a
         Returns:
             Dict with maturity_update, confidence_boost, promoted_to_intern, etc.
         """
+        from core.agent_decision_write_service import caller_work_pending
+
+        if caller_work_pending(self.db):
+            raise DirtyCallerWorkError(
+                "Training completion refused: the caller transaction has "
+                "unrelated pending work. Commit or roll it back first.")
         session = self.db.query(TrainingSession).filter(
             TrainingSession.id == session_id
         ).first()
@@ -1214,6 +1226,7 @@ After completing this training, the agent will be able to handle similar tasks a
         # production" (CSA Agentic Trust Framework / RenLayer Trust Tiers).
         promoted_to_intern = False
         promotion_progress: Dict[str, Any] = {}
+        promotion_candidate: Optional[Dict[str, Any]] = None
         if agent.status == AgentStatus.STUDENT.value:
             # Sessions may run with autoflush off; make this session's
             # just-written outcome visible to the evidence queries.
@@ -1221,14 +1234,9 @@ After completing this training, the agent will be able to handle similar tasks a
             readiness = self._evaluate_intern_readiness(agent)
             promotion_progress = readiness
             if agent.confidence_score >= 0.5 and readiness.get("ready"):
-                agent.status = AgentStatus.INTERN.value
-                session.promoted_to_intern = True
-                promoted_to_intern = True
-                logger.info(
-                    f"Agent {agent.id} promoted from STUDENT to INTERN "
-                    f"(confidence: {agent.confidence_score:.3f}, "
-                    f"evidence: {readiness})"
-                )
+                # The tier change itself is committed through the shared
+                # qualification/CAS gate after the training record is durable.
+                promotion_candidate = readiness
             elif agent.confidence_score >= 0.5:
                 logger.info(
                     f"Agent {agent.id} confidence ready but evidence gate "
@@ -1303,6 +1311,38 @@ After completing this training, the agent will be able to handle similar tasks a
 
         self.db.commit()
         self.db.refresh(session)
+
+        if promotion_candidate is not None:
+            from core.agent_graduation_service import (
+                commit_qualified_transition,
+            )
+
+            promotion_result = commit_qualified_transition(
+                self.db,
+                agent_id=str(agent.id),
+                target_level="INTERN",
+                actor_id=actor_id or getattr(agent, "user_id", None),
+                readiness=promotion_candidate,
+                source="training_completion",
+                promotion_type="automatic",
+            )
+            promotion_progress = {
+                **promotion_progress,
+                "assessment": promotion_result.get("assessment"),
+                "transition": {
+                    "status": promotion_result.get("status"),
+                    "reason": promotion_result.get("reason"),
+                },
+            }
+            promoted_to_intern = promotion_result.get("status") in (
+                "verified", "already_applied")
+            if promoted_to_intern:
+                session.promoted_to_intern = True
+                try:
+                    self.db.commit()
+                except Exception:
+                    self.db.rollback()
+            self.db.refresh(agent)
 
         logger.info(
             f"Completed training session {session_id} for agent {agent.id}. "

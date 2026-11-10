@@ -312,7 +312,7 @@ class TestMaturityGuide:
         assert data["what_it_can_do_today"]["example_actions"]  # concrete verbs
         assert data["learning_progress"]["role"] == "sales_assistant"
         assert data["next_level"] == "intern"
-        assert "graduation exam" in data["how_to_advance"]
+        assert "qualification review" in data["how_to_advance"]
         assert data["readiness"]["confidence"] < 0.45
         assert not data["readiness"]["ready_for_graduation_review"]
 

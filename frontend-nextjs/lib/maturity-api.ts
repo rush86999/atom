@@ -42,6 +42,35 @@ export interface SelfDirectedEvidence {
   required_episodes?: number;
 }
 
+export interface QualificationEvidenceBundle {
+  bundle_id: string;
+  episode_id: string;
+  task_preview: string;
+  output_preview: string;
+  evidence_refs: Array<{ kind: string; id: string }>;
+  source_revision: string;
+}
+
+export interface QualificationAssessment {
+  allowed?: boolean;
+  required?: boolean;
+  state: string;
+  message?: string;
+  receipt_id?: string;
+  review_action_id?: string;
+  policy_revision?: string;
+  policy_digest?: string;
+  candidate_capability_qualified?: boolean;
+  exception?: { kind?: string; reason?: string } | null;
+  next_action?: {
+    state?: string;
+    code?: string;
+    message?: string;
+    next_action?: string;
+    review_action_id?: string;
+  } | null;
+}
+
 export interface SelfDirectedAgentProgress {
   agent_id: string;
   agent_name: string;
@@ -50,6 +79,7 @@ export interface SelfDirectedAgentProgress {
   confidence: number;
   episode_progress: number;
   ready_for_review: boolean;
+  assessment?: QualificationAssessment;
   completed_sessions?: number;
   evidence: SelfDirectedEvidence;
   readiness: SelfDirectedReadiness;
@@ -489,7 +519,67 @@ export interface GraduationReadiness {
   gaps?: string[];
   current_maturity?: string;
   target_maturity?: string;
+  assessment?: QualificationAssessment;
+  assessment_evidence?: QualificationEvidenceBundle[];
   [key: string]: unknown;
+}
+
+export function qualificationStateLabel(state?: string): string {
+  const labels: Record<string, string> = {
+    valid: 'Qualified',
+    unresolved_missing: 'Review needed',
+    unresolved_failed: 'Review did not pass',
+    unresolved_stale: 'Review needs refresh',
+    unresolved_scope: 'Review scope changed',
+    unresolved_evaluator_unqualified: 'Evaluator not qualified',
+    unresolved_no_suitable: 'No suitable evaluator',
+    configuration_required: 'Configuration required',
+    legacy_unassessed: 'Owner exception (unassessed)',
+    manual_override: 'Owner override (unassessed)',
+    system_exempt: 'System exception (unassessed)',
+    not_required: 'Not required',
+    unknown: 'Status unavailable',
+  };
+  if (!state) return labels.unknown;
+  return labels[state] || state.replace(/_/g, ' ');
+}
+
+export function isQualificationReviewPending(
+  assessment?: {
+    review_action_id?: string;
+    allowed?: boolean;
+    state?: string;
+  } | null
+): boolean {
+  if (!assessment?.review_action_id || assessment.allowed === true) return false;
+  return assessment.state === 'unresolved_missing'
+    || assessment.state === 'unresolved_failed';
+}
+
+export async function requestQualificationReview(
+  agentId: string,
+  targetMaturity: string,
+  evidenceRefs: Array<{ kind: string; id: string }>,
+  rubricVersion?: string
+): Promise<{ action_id?: string; state?: string; [key: string]: unknown }> {
+  const res = await fetchJson('/api/episodes/graduation/qualification/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agent_id: agentId,
+      target_maturity: targetMaturity,
+      evidence_refs: evidenceRefs,
+      rubric_version: rubricVersion,
+    }),
+  });
+  const body: any = await res.json().catch((): null => null);
+  if (!res.ok) {
+    const detail = body?.detail;
+    const message = detail?.message || detail?.error?.message
+      || `Qualification review request failed (${res.status})`;
+    throw new Error(message);
+  }
+  return body;
 }
 
 export async function getGraduationReadiness(

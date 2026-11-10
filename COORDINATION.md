@@ -428,3 +428,23 @@ decision writer; ephemeral spawn stays non-durable. Budget/BYOK files belong
 to the other worker and are not touched. No live DB/model/provider.
 
 Status: coherent candidate; root review remains independent.
+
+## Session: PR831 workflow consumer repair (2026-11-10)
+
+Goal: repair the backend-core integration regression on frozen PR831 head
+`b071c8702cb1c0aed0ad70bb90a12cb343278c44` without editing the root PR831
+worktree. Isolated worktree: `/private/tmp/atom-pr831-b071-repair-20261110`,
+branch `codex/web-pr831-workflow-consumer-repair-20261110`.
+
+Observed hosted backend-core failures (5): public workflow approval/rejection/
+changed-material and separate-OS-process scheduled resume stay `PAUSED` with
+`Maturity check failed. Required: supervised`; changed-material expected a new
+pending review. Reproduced from the private log
+`/private/tmp/root-pr831-b071-backend-core-private.log`.
+
+Files owned for this session: `backend/core/hitl_resume.py` and any narrow
+workflow/governance consumer needed by the failing controls. Do not edit the
+root PR831 worktree (`/private/tmp/atom-web-graduation-clean-delivery-20261110`)
+or PR833 branch/evidence.
+
+Status: repair complete on isolated branch; evidence packet under docs/acceptance/evidence/pr831_workflow_consumer_repair_8ec58cf3f. No live DB/model/provider/send/spend/deploy/deps.

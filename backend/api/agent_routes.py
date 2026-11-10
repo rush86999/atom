@@ -134,6 +134,20 @@ def _safe_decision_observation(
 def _raise_agent_decision(result: Dict[str, Any]) -> None:
     """Map the verified agent-decision envelope to a safe HTTP error."""
     status_value = str(result.get("status") or "")
+    if status_value == "unresolved":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "success": False,
+                "error": {
+                    "code": "QUALIFICATION_REQUIRED",
+                    "message": result.get("error")
+                    or "Capability qualification is unresolved.",
+                },
+                "assessment": result.get("assessment"),
+                "verification": result.get("verification"),
+            },
+        )
     if status_value == "refused":
         raise HTTPException(
             status_code=int(result.get("http_status") or 403),
@@ -1006,8 +1020,10 @@ async def decide_hitl_action(
     if already_resolved:
         _is_info_wait = str(action.action_type or "") in (
             _INFORMATION_WAIT_ACTIONS)
-        if _is_info_wait:
-            if (
+        _is_qualification = (
+            str(action.action_type or "") == "agent_qualification_review")
+        if _is_info_wait or _is_qualification:
+            if _is_info_wait and (
                 action.status == HITLActionStatus.APPROVED.value
                 and action.user_feedback is not None
                 and req.feedback is not None
@@ -1036,6 +1052,7 @@ async def decide_hitl_action(
                         approved=True,
                         reviewer_id=str(user.id),
                         guidance=review_guidance,
+                        bind=db.get_bind(),
                     )
                 except Exception as resume_err:  # noqa: BLE001
                     logger.exception(
@@ -1112,6 +1129,7 @@ async def decide_hitl_action(
             approved=req.decision.lower() == "approved",
             reviewer_id=str(user.id),
             guidance=req.feedback,
+            bind=db.get_bind(),
         )
     except Exception as resume_err:  # noqa: BLE001 — decision already committed
         logger.exception("HITL %s decided but resume bridge failed: %s", action_id, resume_err)

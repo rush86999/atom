@@ -1,0 +1,183 @@
+PASS components/canvas/__tests__/TrainingPanel.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/approvals-page.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/Agents/__tests__/AgentMaturityGuide.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/api-interceptors.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Error: Not implemented: navigation (except hash changes)
+          at module.exports (<scratch>:9:17)
+          at navigateFetch (<scratch>:77:3)
+          at exports.navigate (<scratch>:55:3)
+          at LocationImpl._locationObjectNavigate (<scratch>:30:5)
+          at LocationImpl._locationObjectSetterNavigate (<scratch>:24:17)
+          at LocationImpl.set href [as href] (<scratch>:46:10)
+          at Location.set href [as href] (<scratch>:125:37)
+          at <scratch>:141:31
+          at <scratch>:207:18
+          at step (<scratch>:91:23)
+          at Object.next (<scratch>:72:53)
+          at <scratch>:66:71
+          at new Promise (<anonymous>)
+          at __awaiter (<scratch>:62:12)
+          at Object.<anonymous> (<scratch>:203:49)
+          at Promise.finally.completed (<scratch>:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (<scratch>:1497:10)
+          at _callCircusTest (<scratch>:1007:40)
+          at _runTest (<scratch>:947:3)
+          at <scratch>:849:7
+          at _runTestsForDescribeBlock (<scratch>:862:11)
+          at _runTestsForDescribeBlock (<scratch>:857:11)
+          at run (<scratch>:761:3)
+          at runAndTransformResultsToJestFormat (<scratch>:1918:21)
+          at jestAdapter (<scratch>:101:19)
+          at runTestInternal (<scratch>:275:16)
+          at runTest (<scratch>:343:7) {
+        type: 'not implemented'
+      }
+
+      139 |           localStorage.removeItem("auth_token");
+      140 |           localStorage.removeItem("token");
+    > 141 |           window.location.href = `/login?callbackUrl=${encodeURIComponent(loginCallbackPath())}`;
+          |                               ^
+      142 |         }
+      143 |       }
+      144 |     }
+
+      at VirtualConsole.<anonymous> (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/@jest/environment-jsdom-abstract/build/index.js:87:23)
+      at module.exports (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:12:26)
+      at navigateFetch (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+      at exports.navigate (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+      at LocationImpl._locationObjectNavigate (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:30:5)
+      at LocationImpl._locationObjectSetterNavigate (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:24:17)
+      at LocationImpl.set href [as href] (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:46:10)
+      at Location.set href [as href] (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+      at lib/api.ts:141:31
+      at lib/__tests__/api-interceptors.test.ts:207:18
+      at step (lib/__tests__/api-interceptors.test.ts:91:23)
+      at Object.next (lib/__tests__/api-interceptors.test.ts:72:53)
+      at lib/__tests__/api-interceptors.test.ts:66:71
+      at __awaiter (lib/__tests__/api-interceptors.test.ts:62:12)
+      at Object.<anonymous> (lib/__tests__/api-interceptors.test.ts:203:49)
+
+    console.error
+      [API Error] {
+        code: undefined,
+        status: 503,
+        message: undefined,
+        url: '/api/example'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Function.<anonymous> (lib/__tests__/api-interceptors.test.ts:293:14)
+      at lib/api.ts:172:38
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at Function.exports.apiClient.fetch (lib/api.ts:216:12)
+      at lib/__tests__/api-interceptors.test.ts:295:42
+      at step (lib/__tests__/api-interceptors.test.ts:91:23)
+      at Object.next (lib/__tests__/api-interceptors.test.ts:72:53)
+      at lib/__tests__/api-interceptors.test.ts:66:71
+      at __awaiter (lib/__tests__/api-interceptors.test.ts:62:12)
+      at Object.<anonymous> (lib/__tests__/api-interceptors.test.ts:286:90)
+
+    console.error
+      [API Error] {
+        code: undefined,
+        status: 503,
+        message: undefined,
+        url: '/api/example'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Function.<anonymous> (lib/__tests__/api-interceptors.test.ts:308:14)
+      at lib/api.ts:172:38
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at Function.exports.apiClient.fetch (lib/api.ts:216:12)
+      at lib/__tests__/api-interceptors.test.ts:310:42
+      at step (lib/__tests__/api-interceptors.test.ts:91:23)
+      at Object.next (lib/__tests__/api-interceptors.test.ts:72:53)
+      at lib/__tests__/api-interceptors.test.ts:66:71
+      at __awaiter (lib/__tests__/api-interceptors.test.ts:62:12)
+      at Object.<anonymous> (lib/__tests__/api-interceptors.test.ts:301:77)
+
+PASS components/Agents/__tests__/SelfDirectedPathwayCard.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/api/maturity-api.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 6 passed, 6 total
+Tests:       137 passed, 137 total
+Snapshots:   0 total
+Time:        2.035 s
+Ran all test suites matching lib/__tests__/api/maturity-api.test.ts|tests/pages/approvals-page.test.tsx|components/canvas/__tests__/TrainingPanel.test.tsx|lib/__tests__/api-interceptors.test.ts|components/Agents/__tests__/AgentMaturityGuide.test.tsx|components/Agents/__tests__/SelfDirectedPathwayCard.test.tsx.

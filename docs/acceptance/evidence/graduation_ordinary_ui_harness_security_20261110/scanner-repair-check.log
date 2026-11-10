@@ -1,0 +1,18 @@
+scanner repair check 2026-11-10T13:35:00Z
+incident=39901756
+pr=830 head=e5c75c538e426fbfb563676e5672810ed9946d6a
+original_executed_driver_sha256=c5b1536f663513df9f0767d662431e2a4f2e8b40647ec1ea45d820f39cdc64cf
+successor_driver_sha256=58cf3d81485c5a9060b78df510702e7b5c88d49d884e332e3c697771b81ccab8
+--- py_compile ---
+py_compile=PASS
+--- credential-shaped literal scan ---
+literal_scan=PASS (prior credential-shaped filename literal absent)
+--- dynamic lookup ---
+265: credential_dir = world / "backend_root" / "logs"
+267: def _scratch_credential_file():
+269: p for p in credential_dir.glob("*.txt")
+273: credential_path = _scratch_credential_file()
+277: credential_path = _scratch_credential_file()
+280: credential_value = credential_path.read_text().strip()
+281: if not credential_value:
+299: page, frontend_base, "admin@example.com", credential_value

@@ -286,3 +286,6 @@ class TestHistoryAndPromotion:
                                 capabilities_developed=["c1"]))
         assert result["promoted_to_intern"] is True
         assert agent.status == AgentStatus.INTERN.value
+
+
+pytestmark = pytest.mark.usefixtures("experience_only_qualification_exception")
