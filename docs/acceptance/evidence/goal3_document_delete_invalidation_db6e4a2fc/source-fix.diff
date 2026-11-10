@@ -1,0 +1,1108 @@
+diff --git a/backend/api/document_routes.py b/backend/api/document_routes.py
+index 1cc1560fe..3acf5096f 100644
+--- a/backend/api/document_routes.py
++++ b/backend/api/document_routes.py
+@@ -566,7 +566,7 @@ async def ingest_document(
+ 
+         # to_thread: add_document embeds synchronously; called directly on the
+         # loop thread, embed_text's same-thread guard makes every write fail.
+-        await _upsert_document(
++        upsert_status = await _upsert_document(
+             lancedb_handler,
+             text=content,
+             doc_key=doc_id,
+@@ -576,6 +576,14 @@ async def ingest_document(
+             workspace_id=ws_id,
+             extra_columns={"freshness_status": "fresh"},
+         )
++        if upsert_status == "skipped_revoked":
++            raise router.error_response(
++                error_code="DOCUMENT_REVOKED",
++                message=(
++                    "This document was deleted. Upload changed content or use "
++                    "a new document instead of replaying the removed version."),
++                status_code=409,
++            )
+ 
+         return DocumentResponse(
+             id=doc_id,
+@@ -773,7 +781,7 @@ async def upload_document(
+             "author": current_user.email if current_user else "unknown"
+         }
+ 
+-        await _upsert_document(
++        upsert_status = await _upsert_document(
+             lancedb_handler,
+             text=content,
+             doc_key=doc_id,
+@@ -786,6 +794,14 @@ async def upload_document(
+             # permanently invisible even in the right workspace store.
+             extra_columns={"freshness_status": "fresh"},
+         )
++        if upsert_status == "skipped_revoked":
++            raise router.error_response(
++                error_code="DOCUMENT_REVOKED",
++                message=(
++                    "This document was deleted. Upload changed content or use "
++                    "a new document instead of replaying the removed version."),
++                status_code=409,
++            )
+ 
+         # 5. Aligned PG row: gives the upload full journey parity with synced
+         # documents — lexical leg (FTS), VFS cat, citability. id MUST equal the
+diff --git a/backend/core/action_registry.py b/backend/core/action_registry.py
+index a5461ed32..bfb787f20 100644
+--- a/backend/core/action_registry.py
++++ b/backend/core/action_registry.py
+@@ -554,15 +554,24 @@ async def _documents_search_legacy(args: Dict[str, Any], context: Dict[str, Any]
+     try:
+         from core.database import get_db_session
+         from core.models import IngestedDocument, KnowledgeDocument
+-        from sqlalchemy import or_
++        from sqlalchemy import and_, or_
+ 
+         ws_id = _context_workspace_id(context)
+         results: List[Dict[str, Any]] = []
+         with get_db_session() as db:
++            from core.doc_freshness_service import NON_FRESH_STATUSES
++
+             ingested_q = db.query(IngestedDocument).filter(
+-                or_(
+-                    IngestedDocument.file_name.ilike(f"%{query}%"),
+-                    IngestedDocument.content_preview.ilike(f"%{query}%"),
++                and_(
++                    or_(
++                        IngestedDocument.file_name.ilike(f"%{query}%"),
++                        IngestedDocument.content_preview.ilike(f"%{query}%"),
++                    ),
++                    or_(
++                        IngestedDocument.freshness_status.is_(None),
++                        ~IngestedDocument.freshness_status.in_(
++                            tuple(NON_FRESH_STATUSES)),
++                    ),
+                 )
+             )
+             if ws_id:
+diff --git a/backend/core/doc_freshness_service.py b/backend/core/doc_freshness_service.py
+index f8556e768..a496935d6 100644
+--- a/backend/core/doc_freshness_service.py
++++ b/backend/core/doc_freshness_service.py
+@@ -516,7 +516,26 @@ class DocFreshnessService:
+         content_hash: str,
+         source_modified_at: Optional[datetime],
+     ) -> None:
+-        """Stamp freshness fields on a freshly ingested doc (status → fresh)."""
++        """Stamp freshness fields on a freshly ingested doc (status → fresh).
++
++        A terminal ``removed`` row is a durable deletion tombstone: a queued
++        producer replaying the SAME source version must not resurrect it. A
++        genuinely changed source hash is a new version and may proceed. A
++        ``superseded`` row is never revived by an ingest.
++        """
++        prior_status = str(getattr(doc, "freshness_status", "") or "").lower()
++        prior_hash = str(getattr(doc, "source_content_hash", "") or "")
++        if prior_status == "superseded":
++            logger.info(
++                "mark_on_ingest refused terminal superseded doc %s",
++                getattr(doc, "id", ""))
++            return
++        if prior_status == "removed":
++            if not content_hash or content_hash == prior_hash:
++                logger.info(
++                    "mark_on_ingest refused stale removed-version replay for %s",
++                    getattr(doc, "id", ""))
++                return
+         doc.source_url = source_url
+         doc.source_content_hash = content_hash
+         doc.last_verified_at = datetime.now(timezone.utc)
+diff --git a/backend/core/document_delete_service.py b/backend/core/document_delete_service.py
+index 87847e4b6..3e96117f4 100644
+--- a/backend/core/document_delete_service.py
++++ b/backend/core/document_delete_service.py
+@@ -25,20 +25,27 @@ import hashlib
+ import hmac
+ import json
+ import logging
++import os
+ import re
+ import uuid
++from pathlib import Path
+ from typing import Any, Dict, Optional
+ 
++from sqlalchemy import text as sa_text
+ from sqlalchemy.exc import IntegrityError
+ from sqlalchemy.orm import Session
+ 
+ from core.auth import SECRET_KEY
+-from core.models import AuditEventType, AuditLog, SecurityLevel
++from core.local_paths import resolve_local_path
++from core.models import (
++    AuditEventType, AuditLog, IngestedDocument, SecurityLevel,
++)
+ from core.personal_scope import resolve_tenant_id
+ 
+ logger = logging.getLogger(__name__)
+ 
+ DOCUMENT_DELETE_SCHEMA = "atom-document-delete-1"
++EFFECTS_VERSION = "document-delete-2"
+ _OPERATION_PREFIX = "document"
+ _SAFE_OPERATION_RE = re.compile(r"^[A-Za-z0-9:_-]{1,180}$")
+ _ACTION = "document_deleted"
+@@ -227,6 +234,7 @@ def _expected(
+ def _audit_row(
+     *, expected: Dict[str, Any], outcome: str,
+     counts: Dict[str, int], delete_flags: Dict[str, Optional[bool]],
++    effects: Optional[Dict[str, Any]] = None,
+ ) -> AuditLog:
+     metadata = {
+         "schema": expected["schema"],
+@@ -248,6 +256,14 @@ def _audit_row(
+         "post_chunk_rows": int(counts["post_chunks"]),
+         "base_delete_ok": delete_flags.get("base"),
+         "family_delete_ok": delete_flags.get("family"),
++        "effects_version": EFFECTS_VERSION,
++        "sql_effect": (effects or {}).get("sql"),
++        "sql_pre_rows": (effects or {}).get("sql_pre_rows", 0),
++        "sql_post_rows": (effects or {}).get("sql_post_rows", 0),
++        "fts_effect": (effects or {}).get("fts"),
++        "file_effect": (effects or {}).get("file"),
++        "file_shared": (effects or {}).get("file_shared", False),
++        "complete": bool((effects or {}).get("complete")),
+     }
+     success = outcome == "verified"
+     return AuditLog(
+@@ -327,6 +343,230 @@ def _verify_audit(
+         return {"status": "unavailable", "audit_id": audit_id}
+ 
+ 
++# ---------------------------------------------------------------------------
++# SQL mirror / FTS / materialized-file effects
++# ---------------------------------------------------------------------------
++
++def _fts_probe(session: Session, doc_id: str) -> Dict[str, Any]:
++    try:
++        if session.bind is None or session.bind.dialect.name != "sqlite":
++            return {"fts_present": None, "fts_rowid": None, "fts_pre": 0}
++        table = session.execute(
++            sa_text(
++                "SELECT 1 FROM sqlite_master "
++                "WHERE type='table' AND name='ingested_documents_fts'"
++            )
++        ).first()
++        if table is None:
++            return {"fts_present": False, "fts_rowid": None, "fts_pre": 0}
++        rowid = session.execute(
++            sa_text("SELECT rowid FROM ingested_documents WHERE id = :id"),
++            {"id": doc_id},
++        ).first()
++        if rowid is None:
++            return {"fts_present": True, "fts_rowid": None, "fts_pre": 0}
++        count = session.execute(
++            sa_text(
++                "SELECT COUNT(*) FROM ingested_documents_fts WHERE rowid = :r"
++            ),
++            {"r": rowid[0]},
++        ).first()
++        return {
++            "fts_present": True,
++            "fts_rowid": int(rowid[0]),
++            "fts_pre": int(count[0] if count else 0),
++        }
++    except Exception as exc:  # noqa: BLE001 - unreadable is not absence
++        logger.warning(
++            "document FTS preflight failed: doc=%s error_class=%s",
++            doc_id, type(exc).__name__)
++        return {"fts_present": None, "fts_rowid": None, "fts_pre": 0}
++
++
++def _sql_target(
++    db: Session, *, doc_id: str, workspace_id: Optional[str],
++    tenant_id: str,
++) -> Dict[str, Any]:
++    """Capture the exact scoped SQL mirror row before any effect."""
++    try:
++        with _fresh_session(db) as fresh:
++            row = fresh.query(IngestedDocument).filter(
++                IngestedDocument.id == str(doc_id)).first()
++            if row is None:
++                return {"state": "absent"}
++            if workspace_id and str(row.workspace_id) != str(workspace_id):
++                return {"state": "foreign"}
++            if (tenant_id and row.tenant_id is not None
++                    and str(row.tenant_id) != str(tenant_id)):
++                return {"state": "foreign"}
++            file_path = str(row.file_path or "")
++            freshness = str(getattr(row, "freshness_status", "") or "").lower()
++            shared = False
++            if file_path:
++                shared = fresh.query(IngestedDocument).filter(
++                    IngestedDocument.file_path == file_path,
++                    IngestedDocument.id != str(doc_id),
++                ).first() is not None
++            target = {
++                "state": "present",
++                "doc_id": str(doc_id),
++                "workspace_id": str(row.workspace_id),
++                "file_path": file_path,
++                "version": (
++                    str(row.source_content_hash)
++                    if row.source_content_hash is not None else None),
++                "shared": bool(shared),
++                "freshness": freshness,
++            }
++            if freshness in ("removed", "superseded"):
++                target["state"] = "removed"
++            target.update(_fts_probe(fresh, str(doc_id)))
++            return target
++    except Exception as exc:  # noqa: BLE001 - unreadable is not free
++        logger.warning(
++            "document SQL mirror preflight failed: doc=%s error_class=%s",
++            doc_id, type(exc).__name__)
++        return {"state": "unavailable"}
++
++
++def _delete_sql_target(db: Session, target: Dict[str, Any]) -> str:
++    """Conditional exact-version revocation; keep a terminal SQL tombstone.
++
++    Deleting the row would let a queued/stale producer recreate it as fresh.
++    ``freshness_status='removed'`` is the existing durable revocation marker;
++    lexical/action/VFS consumers filter it, and writers must refuse the same
++    source version.
++    """
++    try:
++        with _fresh_session(db) as fresh:
++            query = fresh.query(IngestedDocument).filter(
++                IngestedDocument.id == target["doc_id"],
++                IngestedDocument.workspace_id == target["workspace_id"],
++            )
++            if target.get("version") is not None:
++                query = query.filter(
++                    IngestedDocument.source_content_hash == target["version"])
++            row = query.first()
++            if row is None:
++                existing = fresh.query(IngestedDocument).filter(
++                    IngestedDocument.id == target["doc_id"],
++                    IngestedDocument.workspace_id == target["workspace_id"],
++                ).first()
++                return "version_conflict" if existing is not None else "absent"
++            if str(getattr(row, "freshness_status", "") or "").lower() in (
++                    "removed", "superseded"):
++                return "already_removed"
++            row.freshness_status = "removed"
++            fresh.commit()
++            return "revoked"
++    except Exception as exc:  # noqa: BLE001 - effect is now unknown
++        logger.warning(
++            "document SQL mirror revocation failed: doc=%s error_class=%s",
++            target.get("doc_id"), type(exc).__name__)
++        return "delete_failed"
++
++
++def _sql_count(
++    db: Session, *, doc_id: str, workspace_id: Optional[str],
++) -> Optional[int]:
++    """Count ACTIVE (non-terminal) SQL content for this document id."""
++    try:
++        from core.doc_freshness_service import NON_FRESH_STATUSES
++
++        with _fresh_session(db) as fresh:
++            query = fresh.query(IngestedDocument).filter(
++                IngestedDocument.id == str(doc_id))
++            if workspace_id:
++                query = query.filter(
++                    IngestedDocument.workspace_id == str(workspace_id))
++            query = query.filter(
++                ~IngestedDocument.freshness_status.in_(
++                    tuple(NON_FRESH_STATUSES)))
++            return int(query.count())
++    except Exception:  # noqa: BLE001 - unreadable is not absence
++        return None
++
++
++def _fts_after(db: Session, target: Dict[str, Any]) -> str:
++    if target.get("state") == "removed":
++        return "revoked"
++    if target.get("fts_present") is None:
++        return "not_sqlite"
++    if target.get("fts_present") is False:
++        return "absent"
++    rowid = target.get("fts_rowid")
++    if rowid is None:
++        return "deleted"
++    try:
++        with _fresh_session(db) as fresh:
++            row = fresh.query(IngestedDocument).filter(
++                IngestedDocument.id == target["doc_id"]).first()
++            if row is not None and str(
++                    getattr(row, "freshness_status", "") or "").lower() in (
++                    "removed", "superseded"):
++                return "revoked"
++            count = fresh.execute(
++                sa_text(
++                    "SELECT COUNT(*) FROM ingested_documents_fts "
++                    "WHERE rowid = :r"
++                ),
++                {"r": rowid},
++            ).first()
++            return "deleted" if int(count[0] if count else 0) == 0 else "remaining"
++    except Exception:  # noqa: BLE001 - unreadable is not absence
++        return "unavailable"
++
++
++def _file_plan(target: Dict[str, Any], doc_id: str) -> Dict[str, Any]:
++    file_path = str(target.get("file_path") or "")
++    if not file_path:
++        return {"effect": "absent"}
++    if target.get("shared"):
++        return {"effect": "shared"}
++    try:
++        path = Path(file_path)
++        if not path.is_absolute():
++            path = resolve_local_path(path)
++        upload_root = resolve_local_path(
++            os.getenv("ATOM_OFFICE_DIR") or "data/office") / "uploads"
++        root_real = os.path.realpath(upload_root)
++        path_real = os.path.realpath(path)
++        if os.path.commonpath([path_real, root_real]) != root_real:
++            return {"effect": "unsafe"}
++        if path.is_symlink() or not path.name.startswith(f"{doc_id}."):
++            return {"effect": "unsafe"}
++        if not path.exists():
++            return {"effect": "absent"}
++        return {"effect": "pending", "path": str(path)}
++    except Exception:  # noqa: BLE001 - never unlink an unproven path
++        return {"effect": "unsafe"}
++
++
++def _unlink_file(plan: Dict[str, Any]) -> str:
++    if plan.get("effect") != "pending":
++        return str(plan.get("effect") or "unsafe")
++    try:
++        Path(plan["path"]).unlink()
++        return "deleted"
++    except FileNotFoundError:
++        return "absent"
++    except Exception as exc:  # noqa: BLE001 - effect is now unknown
++        logger.warning(
++            "document materialized-file unlink failed: error_class=%s",
++            type(exc).__name__)
++        return "delete_failed"
++
++
++def _file_present(plan: Dict[str, Any]) -> Optional[bool]:
++    path = plan.get("path")
++    if not path:
++        return None
++    try:
++        return Path(path).exists()
++    except Exception:  # noqa: BLE001
++        return None
++
++
+ # ---------------------------------------------------------------------------
+ # Store readback / effect
+ # ---------------------------------------------------------------------------
+@@ -394,14 +634,17 @@ def _counts(
+ def _data(
+     *, doc_id: str, workspace_id: Optional[str], counts: Dict[str, int],
+     already_applied: bool = False, no_change: bool = False,
++    effects: Optional[Dict[str, Any]] = None,
+ ) -> Dict[str, Any]:
+     return {
+         "doc_id": doc_id,
+         "workspace_id": workspace_id,
+         "deleted": counts["post_base"] == 0 and counts["post_chunks"] == 0,
++        "complete": bool((effects or {}).get("complete")),
+         "already_applied": already_applied,
+         "no_change": no_change,
+         "counts": counts,
++        "effects": effects or {},
+     }
+ 
+ 
+@@ -469,6 +712,19 @@ async def _replay(
+                 current = None
+             if current is not None:
+                 counts["post_base"], counts["post_chunks"] = current
++            sql_current = _sql_count(
++                db, doc_id=expected["doc_id"],
++                workspace_id=expected["workspace_id"])
++            effects = {
++                "version": metadata.get("effects_version"),
++                "sql": metadata.get("sql_effect"),
++                "sql_pre_rows": int(metadata.get("sql_pre_rows") or 0),
++                "sql_post_rows": int(metadata.get("sql_post_rows") or 0),
++                "fts": metadata.get("fts_effect"),
++                "file": metadata.get("file_effect"),
++                "file_shared": bool(metadata.get("file_shared")),
++                "complete": bool(metadata.get("complete")),
++            }
+             if current is not None and current == (0, 0):
+                 if audit_state["status"] != "verified":
+                     return _committed_unverified(
+@@ -477,14 +733,33 @@ async def _replay(
+                         data=_data(
+                             doc_id=expected["doc_id"],
+                             workspace_id=expected["workspace_id"] or None,
+-                            counts=counts, already_applied=True))
++                            counts=counts, already_applied=True,
++                            effects=effects))
++                if (
++                    metadata.get("effects_version") != EFFECTS_VERSION
++                    or not effects["complete"]
++                    or sql_current != 0
++                ):
++                    return _committed_unverified(
++                        operation_id, audit_state,
++                        target_id=expected["doc_id"], effect="partial",
++                        data=_data(
++                            doc_id=expected["doc_id"],
++                            workspace_id=expected["workspace_id"] or None,
++                            counts=counts, effects=effects),
++                        verification_status="committed_unverified",
++                        message=(
++                            "The original receipt did not prove every "
++                            "supported effect (SQL/FTS/file); reconcile "
++                            "without repeating the deletion."))
+                 return {
+                     "status": "already_applied",
+                     "data": _with_receipt(
+                         _data(
+                             doc_id=expected["doc_id"],
+                             workspace_id=expected["workspace_id"] or None,
+-                            counts=counts, already_applied=True),
++                            counts=counts, already_applied=True,
++                            effects=effects),
+                         operation_id=operation_id,
+                         audit_id=expected["operation_id"],
+                         verification_status="already_applied",
+@@ -504,7 +779,7 @@ async def _replay(
+                 data=_data(
+                     doc_id=expected["doc_id"],
+                     workspace_id=expected["workspace_id"] or None,
+-                    counts=counts),
++                    counts=counts, effects=effects),
+                 verification_status=(
+                     "committed_unverified" if effect == "partial"
+                     else "unavailable"))
+@@ -551,6 +826,21 @@ async def delete_document_verified(
+     if replay is not None:
+         return replay
+ 
++    sql_target = _sql_target(
++        db, doc_id=doc_id, workspace_id=workspace_id,
++        tenant_id=expected["tenant_id"])
++    if sql_target.get("state") == "foreign":
++        return _refused(
++            "Document not found", http_status=404, error_code="NOT_FOUND")
++    if sql_target.get("state") == "unavailable":
++        return _refused(
++            "The document authorization mirror could not be read; no effect "
++            "was committed", http_status=503,
++            error_code="DOCUMENT_READBACK_UNAVAILABLE")
++    file_plan = (
++        _file_plan(sql_target, doc_id)
++        if sql_target.get("state") == "present" else {"effect": "absent"})
++
+     try:
+         pre = await _readback(handler, doc_id)
+     except _ReadbackUnavailable:
+@@ -558,7 +848,7 @@ async def delete_document_verified(
+             "The document store could not be read; no effect was committed",
+             http_status=503, error_code="DOCUMENT_READBACK_UNAVAILABLE")
+ 
+-    if pre == (0, 0):
++    if pre == (0, 0) and sql_target.get("state") in ("absent", "removed"):
+         if _prior_receipt_exists(
+                 db, workspace_id=workspace_id, doc_id=doc_id):
+             return _no_change(
+@@ -573,10 +863,34 @@ async def delete_document_verified(
+         return _refused(
+             "Document not found", http_status=404, error_code="NOT_FOUND")
+ 
++    # Durable SQL revocation first: the exact scoped/version row is removed
++    # and the FTS trigger follows it. Vector/file cleanup is separate and
++    # explicitly non-atomic.
++    sql_effect = "absent"
++    sql_pre_rows = 0
++    sql_post_rows = 0
++    if sql_target.get("state") == "present":
++        sql_pre_rows = 1
++        sql_effect = _delete_sql_target(db, sql_target)
++        if sql_effect == "version_conflict":
++            return _conflict(
++                "Document source version changed; refresh and retry")
++        sql_post_rows = _sql_count(
++            db, doc_id=doc_id, workspace_id=workspace_id)
++        if sql_post_rows is None:
++            sql_post_rows = -1
++    elif sql_target.get("state") == "removed":
++        sql_pre_rows = 1
++        sql_effect = "already_removed"
++        sql_post_rows = 0
++
+     base_ok: Optional[bool] = None
+     family_ok: Optional[bool] = None
+ 
+-    if pre[0] == 0:
++    if pre == (0, 0):
++        base_ok = True
++        family_ok = True
++    elif pre[0] == 0:
+         # Chunk-only family (parent already gone) — deletable, not a 404.
+         base_ok = True
+         family_ok = await _delete_family(handler, doc_id)
+@@ -595,12 +909,32 @@ async def delete_document_verified(
+             if mid is not None and mid[0] == 0:
+                 family_ok = await _delete_family(handler, doc_id)
+ 
++    file_effect = _unlink_file(file_plan)
++
+     try:
+         post = await _readback(handler, doc_id)
+     except _ReadbackUnavailable:
+         post = None
+ 
+-    if post is not None and post == (0, 0):
++    sql_post_rows = _sql_count(
++        db, doc_id=doc_id, workspace_id=workspace_id)
++    if sql_post_rows is None:
++        sql_post_rows = -1
++    fts_effect = (
++        _fts_after(db, sql_target)
++        if sql_target.get("state") in ("present", "removed") else "absent")
++
++    vector_ok = post is not None and post == (0, 0)
++    sql_ok = (
++        sql_effect in ("absent", "deleted", "revoked", "already_removed")
++        and sql_post_rows == 0)
++    fts_ok = (
++        sql_effect == "absent"
++        or fts_effect in ("deleted", "not_sqlite", "absent", "revoked"))
++    file_ok = file_effect in ("deleted", "absent", "shared")
++    complete = bool(vector_ok and sql_ok and fts_ok and file_ok)
++
++    if complete:
+         outcome = "verified"
+     elif post is not None and post[0] == 0:
+         outcome = "committed_unverified"
+@@ -612,15 +946,16 @@ async def delete_document_verified(
+     else:
+         outcome = "effect_unknown"
+ 
+-    if outcome == "verified" and pre == (0, 0):
+-        # Defensive race path: both probes disagree about presence. Do not
+-        # invent a receipt for an effect we cannot attribute.
+-        return _no_change(
+-            operation_id, target_id=doc_id,
+-            data=_data(
+-                doc_id=doc_id, workspace_id=workspace_id,
+-                counts=_counts(pre, (0, 0)), no_change=True),
+-            message=f"Document '{doc_id}' is already absent; no change.")
++    effects = {
++        "version": EFFECTS_VERSION,
++        "sql": sql_effect,
++        "sql_pre_rows": sql_pre_rows,
++        "sql_post_rows": sql_post_rows,
++        "fts": fts_effect,
++        "file": file_effect,
++        "file_shared": bool(sql_target.get("shared")),
++        "complete": complete,
++    }
+ 
+     counts = _counts(
+         pre, post if post is not None else (-1, -1))
+@@ -633,7 +968,8 @@ async def delete_document_verified(
+ 
+     receipt = _audit_row(
+         expected=expected, outcome=outcome, counts=counts,
+-        delete_flags={"base": base_ok, "family": family_ok})
++        delete_flags={"base": base_ok, "family": family_ok},
++        effects=effects)
+     try:
+         db.add(receipt)
+         db.commit()
+@@ -660,7 +996,8 @@ async def delete_document_verified(
+ 
+     verified_receipt = _verify_audit(db, expected, outcome)
+     data = _data(
+-        doc_id=doc_id, workspace_id=workspace_id, counts=counts)
++        doc_id=doc_id, workspace_id=workspace_id, counts=counts,
++        effects=effects)
+     if outcome == "verified" and verified_receipt["status"] == "verified":
+         return {
+             "status": "verified",
+@@ -668,8 +1005,9 @@ async def delete_document_verified(
+                 data, operation_id=operation_id,
+                 audit_id=operation_id),
+             "message": (
+-                f"Document '{doc_id}' deletion verified: base row and "
+-                "chunk family are absent."),
++                f"Document '{doc_id}' deletion verified: vector rows, SQL "
++                "mirror/FTS and materialized-file effects are absent or "
++                "authorized elsewhere."),
+             "operation_id": operation_id,
+             "audit_id": operation_id,
+             "target_id": doc_id,
+@@ -688,5 +1026,6 @@ async def delete_document_verified(
+         effect="partial", data=data,
+         verification_status="committed_unverified",
+         message=(
+-            "The base row was removed but the chunk family still exists. "
+-            "Reconcile the original operation; do not repeat it blindly."))
++            "The document deletion is incomplete across the vector, SQL/FTS "
++            "or file effects. Reconcile the original operation; do not repeat "
++            "it blindly."))
+diff --git a/backend/core/hybrid_search/lexical_ranker.py b/backend/core/hybrid_search/lexical_ranker.py
+index b57ad0af3..1b1df96ed 100644
+--- a/backend/core/hybrid_search/lexical_ranker.py
++++ b/backend/core/hybrid_search/lexical_ranker.py
+@@ -144,7 +144,9 @@ def _search_ingested_sqlite(
+         "bm25(ingested_documents_fts) AS rank "
+         "FROM ingested_documents_fts f "
+         "JOIN ingested_documents d ON d.rowid = f.rowid "
+-        "WHERE ingested_documents_fts MATCH :q"
++        "WHERE ingested_documents_fts MATCH :q "
++        "AND COALESCE(lower(d.freshness_status), 'fresh') "
++        "NOT IN ('stale', 'outdated', 'removed', 'superseded')"
+     )
+     params: Dict[str, Any] = {"q": fts_query, "lim": limit}
+     if workspace_id:
+@@ -233,7 +235,9 @@ def _search_ingested_pg(
+         "SELECT d.id, d.file_name, d.content_preview, d.external_modified_at, "
+         "ts_rank_cd(d.search_vector, plainto_tsquery('english', :q)) AS rank "
+         "FROM ingested_documents d "
+-        "WHERE d.search_vector @@ plainto_tsquery('english', :q)"
++        "WHERE d.search_vector @@ plainto_tsquery('english', :q) "
++        "AND COALESCE(lower(d.freshness_status), 'fresh') "
++        "NOT IN ('stale', 'outdated', 'removed', 'superseded')"
+     )
+     params: Dict[str, Any] = {"q": query, "lim": limit}
+     if workspace_id:
+@@ -335,7 +339,16 @@ def _search_iliike_fallback(
+     results: List[Dict[str, Any]] = []
+ 
+     def _ingested_rows(clause) -> list:
++        from core.doc_freshness_service import NON_FRESH_STATUSES
++
+         qi = db.query(IngestedDocument).filter(clause)
++        qi = qi.filter(
++            or_(
++                IngestedDocument.freshness_status.is_(None),
++                ~IngestedDocument.freshness_status.in_(
++                    tuple(NON_FRESH_STATUSES)),
++            )
++        )
+         if workspace_id:
+             qi = qi.filter(IngestedDocument.workspace_id == workspace_id)
+         if since:
+diff --git a/backend/core/vector_upsert.py b/backend/core/vector_upsert.py
+index 19fb475c7..8dc75c054 100644
+--- a/backend/core/vector_upsert.py
++++ b/backend/core/vector_upsert.py
+@@ -20,6 +20,34 @@ from typing import Any, Dict, Optional
+ logger = logging.getLogger(__name__)
+ 
+ 
++def _revoked_status(
++    doc_id: str, workspace_id: Optional[str], content_hash: str,
++) -> Optional[str]:
++    """Return a terminal tombstone that forbids this exact source version."""
++    try:
++        from core.database import get_db_session
++        from core.models import IngestedDocument
++
++        with get_db_session() as db:
++            row = db.query(IngestedDocument).filter(
++                IngestedDocument.id == str(doc_id)).first()
++            if row is None:
++                return None
++            status = str(getattr(row, "freshness_status", "") or "").lower()
++            if status not in ("removed", "superseded"):
++                return None
++            if (status == "removed"
++                    and content_hash
++                    and row.source_content_hash
++                    and content_hash != str(row.source_content_hash)):
++                # A genuinely changed source is a new version/authorization.
++                return None
++            return status
++    except Exception as exc:  # noqa: BLE001 - a read failure must not invent revocation
++        logger.debug(f"vector upsert tombstone probe failed for {doc_id}: {exc}")
++        return None
++
++
+ async def upsert_document(
+     handler: Any,
+     *,
+@@ -39,6 +67,8 @@ async def upsert_document(
+     from core.doc_freshness_service import extraction_content_hash
+ 
+     content_hash = extraction_content_hash(text)
++    if _revoked_status(doc_id, workspace_id, content_hash):
++        return "skipped_revoked"
+ 
+     try:
+         prior = await asyncio.to_thread(handler.get_document_by_id, table_name, doc_id)
+@@ -143,6 +173,8 @@ async def upsert_document_chunks(
+     from core.doc_freshness_service import extraction_content_hash
+ 
+     content_hash = extraction_content_hash(text)
++    if _revoked_status(doc_id, workspace_id, content_hash):
++        return "skipped_revoked"
+     chunks = _split_into_chunks(text, chunk_size, chunk_overlap)
+     if len(chunks) <= 1:
+         # A previously-chunked document that shrank must not leave orphan
+diff --git a/backend/tests/test_document_joined_lifecycle.py b/backend/tests/test_document_joined_lifecycle.py
+new file mode 100644
+index 000000000..5b083fcf9
+--- /dev/null
++++ b/backend/tests/test_document_joined_lifecycle.py
+@@ -0,0 +1,347 @@
++"""Joined Documents lifecycle: delete must invalidate every supported read.
++
++Failure-first against current main: upload writes LanceDB, the SQL
++``IngestedDocument``/FTS mirror, and the materialized file. The verified delete
++service currently removes only LanceDB base + chunk rows, so SQL/lexical/VFS/
++citability and the file survive.
++
++Scratch SQLite + scratch LanceDB + deterministic embeddings only. No live DB,
++model/provider, credential, send or spend.
++"""
++from __future__ import annotations
++
++import asyncio
++import json
++import uuid
++from pathlib import Path
++
++import pytest
++from sqlalchemy import text
++
++from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
++from core.hybrid_search.fts_bootstrap import ensure_documents_fts_for_session
++from core.hybrid_search.lexical_ranker import search_documents_lexical
++from core.models import IngestedDocument
++from tests.test_document_export import exported, _upload
++
++
++def _fts_row_count(session, doc_id: str) -> int:
++    row = session.execute(
++        text(
++            "SELECT COUNT(*) FROM ingested_documents_fts "
++            "WHERE rowid = (SELECT rowid FROM ingested_documents WHERE id = :id)"
++        ),
++        {"id": doc_id},
++    ).first()
++    return int(row[0] if row else 0)
++
++
++async def _legacy_action(query: str, workspace_id: str):
++    from core.action_registry import _documents_search_legacy
++
++    return await _documents_search_legacy(
++        {"query": query, "limit": 10},
++        {"workspace_id": workspace_id},
++    )
++
++
++def _prepare(ctx, monkeypatch, tmp_path, marker: str):
++    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
++    ensure_documents_fts_for_session(ctx.session)
++    user_id = ctx.user.id
++    doc_id = _upload(ctx, f"{marker} unique lifecycle body\n", "joined.txt")
++    ctx.session.expire_all()
++    actor = ctx.session.query(type(ctx.user)).filter(
++        type(ctx.user).id == user_id).one()
++    return doc_id, actor
++
++
++async def _delete(ctx, actor, doc_id: str, operation_id: str, monkeypatch):
++    import api.document_routes as dr
++
++    monkeypatch.setattr(
++        dr, "get_lancedb_handler", lambda ws_id=None: ctx.handler)
++    return await dr.delete_document(
++        doc_id=doc_id,
++        request=object(),
++        operation_id=operation_id,
++        db=ctx.session,
++        current_user=actor,
++        agent_id=None,
++    )
++
++
++@pytest.mark.asyncio
++async def test_delete_must_invalidate_sql_fts_lexical_action_and_file(
++    exported, monkeypatch, tmp_path
++):
++    ctx = exported
++    marker = f"joinedlifecycle{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++
++    row = ctx.session.get(IngestedDocument, doc_id)
++    assert row is not None
++    assert row.workspace_id == ctx.workspace
++    stored_file = Path(row.file_path)
++    assert stored_file.is_file()
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 1
++    assert search_documents_lexical(
++        ctx.session, marker, workspace_id=ctx.workspace
++    )
++    hybrid = await DocumentsHybridSearch(
++        db=ctx.session, lancedb=ctx.handler, workspace_id=ctx.workspace
++    ).search(marker)
++    assert any(hit.get("id") == doc_id for hit in hybrid.get("results", []))
++    legacy = await _legacy_action(marker, ctx.workspace)
++    assert any(hit.get("id") == doc_id for hit in legacy.get("results", []))
++    assert _fts_row_count(ctx.session, doc_id) == 1
++
++    out = await _delete(
++        ctx, actor, doc_id, "joined-delete-1", monkeypatch)
++    assert out["success"] is True
++    assert out["metadata"]["verification"]["status"] == "verified"
++
++    # Vector-only endpoints are clean today.
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 0
++    assert ctx.handler.count_document_rows_by_prefix(
++        "documents", f"{doc_id}::") == 0
++
++    # The retained negative: every supported SQL/FTS/lexical/hybrid/action
++    # and materialized-file read must be gone after a verified delete.
++    ctx.session.expire_all()
++    tombstone = ctx.session.get(IngestedDocument, doc_id)
++    assert tombstone is not None
++    assert tombstone.freshness_status == "removed"
++    assert search_documents_lexical(
++        ctx.session, marker, workspace_id=ctx.workspace
++    ) == []
++    hybrid_after = await DocumentsHybridSearch(
++        db=ctx.session, lancedb=ctx.handler, workspace_id=ctx.workspace
++    ).search(marker)
++    assert not any(
++        hit.get("id") == doc_id for hit in hybrid_after.get("results", []))
++    legacy_after = await _legacy_action(marker, ctx.workspace)
++    assert not any(
++        hit.get("id") == doc_id for hit in legacy_after.get("results", []))
++    assert not stored_file.exists()
++
++    replay = await _delete(
++        ctx, actor, doc_id, "joined-delete-1", monkeypatch)
++    assert replay["metadata"]["verification"]["status"] == "already_applied"
++
++
++@pytest.mark.asyncio
++async def test_sql_delete_failure_is_partial_not_clean(
++    exported, monkeypatch, tmp_path
++):
++    import core.document_delete_service as dds
++    from fastapi import HTTPException
++
++    ctx = exported
++    marker = f"joinsqlfail{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++    monkeypatch.setattr(dds, "_delete_sql_target", lambda db, target: "delete_failed")
++
++    with pytest.raises(HTTPException) as exc:
++        await _delete(ctx, actor, doc_id, "joined-sql-fail", monkeypatch)
++    assert exc.value.status_code == 503
++    detail = exc.value.detail
++    assert detail["verification"]["status"] == "committed_unverified"
++    assert detail["verification"]["effect"] == "partial"
++    assert detail["verification"]["replay"] == "do_not_repeat"
++    ctx.session.expire_all()
++    assert ctx.session.get(IngestedDocument, doc_id) is not None
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 0
++
++
++@pytest.mark.asyncio
++async def test_file_unlink_failure_is_partial_not_clean(
++    exported, monkeypatch, tmp_path
++):
++    import core.document_delete_service as dds
++    from fastapi import HTTPException
++
++    ctx = exported
++    marker = f"joinfilefail{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++    stored_file = Path(ctx.session.get(IngestedDocument, doc_id).file_path)
++    monkeypatch.setattr(dds, "_unlink_file", lambda plan: "delete_failed")
++
++    with pytest.raises(HTTPException) as exc:
++        await _delete(ctx, actor, doc_id, "joined-file-fail", monkeypatch)
++    assert exc.value.status_code == 503
++    assert exc.value.detail["verification"]["effect"] == "partial"
++    ctx.session.expire_all()
++    tombstone = ctx.session.get(IngestedDocument, doc_id)
++    assert tombstone is not None
++    assert tombstone.freshness_status == "removed"
++    assert stored_file.is_file()
++
++
++@pytest.mark.asyncio
++async def test_fts_readback_failure_is_partial_not_clean(
++    exported, monkeypatch, tmp_path
++):
++    import core.document_delete_service as dds
++    from fastapi import HTTPException
++
++    ctx = exported
++    marker = f"joinftsfail{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++    monkeypatch.setattr(dds, "_fts_after", lambda db, target: "unavailable")
++
++    with pytest.raises(HTTPException) as exc:
++        await _delete(ctx, actor, doc_id, "joined-fts-fail", monkeypatch)
++    assert exc.value.status_code == 503
++    assert exc.value.detail["verification"]["effect"] == "partial"
++
++
++@pytest.mark.asyncio
++async def test_foreign_sql_scope_is_refused_without_effects(
++    exported, monkeypatch, tmp_path
++):
++    from fastapi import HTTPException
++
++    ctx = exported
++    marker = f"joinscope{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++    stored_file = Path(ctx.session.get(IngestedDocument, doc_id).file_path)
++    ctx.session.query(IngestedDocument).filter(
++        IngestedDocument.id == doc_id).update(
++        {"workspace_id": "ws-foreign"}, synchronize_session=False)
++    ctx.session.commit()
++
++    with pytest.raises(HTTPException) as exc:
++        await _delete(ctx, actor, doc_id, "joined-scope", monkeypatch)
++    assert exc.value.status_code == 404
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 1
++    assert stored_file.is_file()
++
++
++@pytest.mark.asyncio
++async def test_stale_sql_version_refuses_before_vector_or_file_effect(
++    exported, monkeypatch, tmp_path
++):
++    import core.document_delete_service as dds
++    from fastapi import HTTPException
++
++    ctx = exported
++    marker = f"joinversion{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++    real_target = dds._sql_target(
++        ctx.session, doc_id=doc_id, workspace_id=ctx.workspace,
++        tenant_id="t1")
++    stale = dict(real_target)
++    stale["version"] = "stale-version"
++    monkeypatch.setattr(dds, "_sql_target", lambda *a, **k: stale)
++    stored_file = Path(ctx.session.get(IngestedDocument, doc_id).file_path)
++
++    with pytest.raises(HTTPException) as exc:
++        await _delete(ctx, actor, doc_id, "joined-version", monkeypatch)
++    assert exc.value.status_code == 409
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 1
++    assert stored_file.is_file()
++    ctx.session.expire_all()
++    assert ctx.session.get(IngestedDocument, doc_id) is not None
++
++
++@pytest.mark.asyncio
++async def test_stale_producer_same_version_cannot_republish(
++    exported, monkeypatch, tmp_path
++):
++    from core.vector_upsert import upsert_document
++
++    ctx = exported
++    marker = f"joinstale{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++    text = f"{marker} unique lifecycle body\n"
++    await _delete(ctx, actor, doc_id, "joined-stale-delete", monkeypatch)
++
++    result = await upsert_document(
++        ctx.handler,
++        table_name="documents",
++        text=text,
++        doc_id=doc_id,
++        source="upload:joined.txt",
++        metadata={"title": "joined.txt", "file_name": "joined.txt"},
++        user_id=ctx.user.id,
++        workspace_id=ctx.workspace,
++        extra_columns={"freshness_status": "fresh"},
++    )
++    assert result == "skipped_revoked"
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 0
++    ctx.session.expire_all()
++    assert ctx.session.get(IngestedDocument, doc_id).freshness_status == "removed"
++    assert search_documents_lexical(
++        ctx.session, marker, workspace_id=ctx.workspace
++    ) == []
++
++
++@pytest.mark.asyncio
++async def test_new_version_is_allowed_and_old_receipt_cannot_delete_it(
++    exported, monkeypatch, tmp_path
++):
++    from core.doc_freshness_service import extraction_content_hash
++    from core.vector_upsert import upsert_document
++    from fastapi import HTTPException
++
++    ctx = exported
++    marker = f"joinnewversion{uuid.uuid4().hex}"
++    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
++    text = f"{marker} unique lifecycle body\n"
++    await _delete(ctx, actor, doc_id, "joined-version-delete", monkeypatch)
++
++    new_text = text + "authorized newer revision\n"
++    result = await upsert_document(
++        ctx.handler,
++        table_name="documents",
++        text=new_text,
++        doc_id=doc_id,
++        source="upload:joined.txt",
++        metadata={"title": "joined.txt", "file_name": "joined.txt"},
++        user_id=ctx.user.id,
++        workspace_id=ctx.workspace,
++        extra_columns={"freshness_status": "fresh"},
++    )
++    assert result == "written"
++    ctx.session.expire_all()
++    row = ctx.session.get(IngestedDocument, doc_id)
++    row.freshness_status = "fresh"
++    row.source_content_hash = extraction_content_hash(new_text)
++    ctx.session.commit()
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 1
++
++    with pytest.raises(HTTPException) as exc:
++        await _delete(
++            ctx, actor, doc_id, "joined-version-delete", monkeypatch)
++    assert exc.value.status_code == 503
++    assert exc.value.detail["verification"]["effect"] in ("partial", "unknown")
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 1
++    ctx.session.expire_all()
++    assert ctx.session.get(IngestedDocument, doc_id).freshness_status == "fresh"
++
++
++@pytest.mark.asyncio
++async def test_upload_same_removed_version_is_refused(
++    exported, monkeypatch, tmp_path
++):
++    ctx = exported
++    text = f"joinuploadrevoked{uuid.uuid4().hex} removed body\n"
++    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
++    ensure_documents_fts_for_session(ctx.session)
++    user_id = ctx.user.id
++    doc_id = _upload(ctx, text, "joined.txt")
++    ctx.session.expire_all()
++    actor = ctx.session.query(type(ctx.user)).filter(
++        type(ctx.user).id == user_id).one()
++    await _delete(ctx, actor, doc_id, "joined-upload-delete", monkeypatch)
++
++    response = ctx.client.post(
++        "/api/documents/upload",
++        files={"file": ("joined.txt", text.encode("utf-8"), "text/plain")},
++    )
++    assert response.status_code == 409, response.text
++    assert response.json()["detail"]["error"]["code"] == "DOCUMENT_REVOKED"
++    assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 0
++    ctx.session.expire_all()
++    assert ctx.session.get(IngestedDocument, doc_id).freshness_status == "removed"
