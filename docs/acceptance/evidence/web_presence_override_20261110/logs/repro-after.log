@@ -1,0 +1,208 @@
+{
+  "clear": {
+    "body": {
+      "audit_id": "presence:516db4a873a7408ca8df09b0a52a2c04",
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": false,
+      "manual_override_expires_at": null,
+      "operation_id": "presence:516db4a873a7408ca8df09b0a52a2c04",
+      "state": "offline",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "audit_id": "presence:516db4a873a7408ca8df09b0a52a2c04",
+        "effect": "committed",
+        "status": "verified"
+      }
+    },
+    "status": 200
+  },
+  "foreign_clear": {
+    "body": {
+      "detail": "Cannot manage another user's activity state"
+    },
+    "status": 403
+  },
+  "foreign_get": [
+    200,
+    {
+      "audit_id": null,
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": false,
+      "manual_override_expires_at": null,
+      "operation_id": null,
+      "state": "offline",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "effect": "none",
+        "status": "verified"
+      }
+    }
+  ],
+  "foreign_set": {
+    "body": {
+      "detail": "Cannot manage another user's activity state"
+    },
+    "status": 403
+  },
+  "fresh_os_process_readback": {
+    "expiry": "2026-11-10 09:03:26.332629",
+    "manual_override": true,
+    "state": "away"
+  },
+  "get_after_clear": [
+    200,
+    {
+      "audit_id": null,
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": false,
+      "manual_override_expires_at": null,
+      "operation_id": null,
+      "state": "offline",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "effect": "none",
+        "status": "verified"
+      }
+    }
+  ],
+  "get_after_expired": [
+    200,
+    {
+      "audit_id": null,
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": false,
+      "manual_override_expires_at": null,
+      "operation_id": null,
+      "state": "offline",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "effect": "none",
+        "status": "verified"
+      }
+    }
+  ],
+  "get_after_naive": [
+    200,
+    {
+      "audit_id": null,
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": true,
+      "manual_override_expires_at": "2030-01-01T00:00:00+00:00",
+      "operation_id": null,
+      "state": "away",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "effect": "none",
+        "status": "verified"
+      }
+    }
+  ],
+  "get_after_set": [
+    200,
+    {
+      "audit_id": null,
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": true,
+      "manual_override_expires_at": "2026-11-10T09:03:26.332629+00:00",
+      "operation_id": null,
+      "state": "away",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "effect": "none",
+        "status": "verified"
+      }
+    }
+  ],
+  "invalid_expiry": {
+    "body": {
+      "detail": "Invalid datetime format: not-a-date"
+    },
+    "status": 400
+  },
+  "invalid_state": {
+    "body": {
+      "detail": "Invalid state: bogus. Must be 'online', 'away', or 'offline'"
+    },
+    "status": 400
+  },
+  "repeat_same": {
+    "first": 200,
+    "second": 200,
+    "second_body": {
+      "audit_id": "presence:b1a4e55c604a400597c3ec8e6e2f0acd",
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": true,
+      "manual_override_expires_at": null,
+      "operation_id": "presence:b1a4e55c604a400597c3ec8e6e2f0acd",
+      "state": "offline",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "audit_id": "presence:b1a4e55c604a400597c3ec8e6e2f0acd",
+        "effect": "none",
+        "replay": "safe_after_refresh",
+        "status": "no_change"
+      }
+    }
+  },
+  "set_aware_future": {
+    "body": {
+      "audit_id": "presence:c8dc4b9037a345eba5c76ed322568c91",
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": true,
+      "manual_override_expires_at": "2026-11-10T09:03:26.332629+00:00",
+      "operation_id": "presence:c8dc4b9037a345eba5c76ed322568c91",
+      "state": "away",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "audit_id": "presence:c8dc4b9037a345eba5c76ed322568c91",
+        "effect": "committed",
+        "status": "verified"
+      }
+    },
+    "status": 200
+  },
+  "set_aware_past": {
+    "body": {
+      "audit_id": "presence:a3ccd066011c444c9a2bbbf692df0e49",
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": true,
+      "manual_override_expires_at": "2026-11-10T06:03:26.547474+00:00",
+      "operation_id": "presence:a3ccd066011c444c9a2bbbf692df0e49",
+      "state": "away",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "audit_id": "presence:a3ccd066011c444c9a2bbbf692df0e49",
+        "effect": "committed",
+        "status": "verified"
+      }
+    },
+    "status": 200
+  },
+  "set_naive_future": {
+    "body": {
+      "audit_id": "presence:07dd93005ec045c99fcb6541bf17f95f",
+      "last_activity_at": "2026-11-10T07:03:25.787193+00:00",
+      "manual_override": true,
+      "manual_override_expires_at": "2030-01-01T00:00:00+00:00",
+      "operation_id": "presence:07dd93005ec045c99fcb6541bf17f95f",
+      "state": "away",
+      "success": true,
+      "user_id": "user-self-e7d234c9",
+      "verification": {
+        "audit_id": "presence:07dd93005ec045c99fcb6541bf17f95f",
+        "effect": "committed",
+        "status": "verified"
+      }
+    },
+    "status": 200
+  }
+}
