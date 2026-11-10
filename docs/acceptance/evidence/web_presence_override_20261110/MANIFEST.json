@@ -4,7 +4,7 @@
     "raw_private_db_auth_env_logs_committed": false
   },
   "artifacts": {
-    "README.md": "2beac6a7b9cb176093a4a8734086c0020fffeb179160789a91231ef9c0ed5109",
+    "README.md": "dd1a4aa25cd3eb58e88afb2eef1d9b89a152ad40f3bdbce22ea59c07717b91f9",
     "logs/backend-controls.log": "c64e05d5ae843e6bad2308064e31693789b6f2bc823afd364b2e7c4584d779ba",
     "logs/frontend-hook-controls.log": "64b4c390c3ae00d5fe64de9bb3053af7a9f026835134fff7634afb9ca01ad441",
     "logs/repro-after.log": "ed9d195700c180e464ea0a424c64f657b84943d03c4da22fd78c401d37350fab",
@@ -12,13 +12,15 @@
     "logs/tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "original-failure/repro-before.log": "5aad795edc155b67be0fa6eef515aac11daddd12c2d4a7fa8d2b6de44f1968ef",
     "original-failure/repro-before.py": "ea6245d2f43e880ddb4b2aa7ac10ecab249167f381068efd68280ac284464273",
+    "root-independent/independent-3pass-controls.log": "fa026db1d9ee0b72624623eaef7288ed5eb7e63b3eb3672cb9bb8f558af85c8e",
+    "root-independent/independent-3pass-review.json": "0a84a5baa8d61a5045ef9f27fc0c5cf7e636b88f9c2288b2430a4b5a12252c9b",
     "root-independent/negative-controls.log": "04e1ebc707201eddcf0fc14019993abc32a8e45eb085372e631f6294c8a4e41f",
     "root-independent/negative-review.json": "a7974548d5478acf70d86e72d8d90aa41912e57e53e1f0a23e12ac83dd5db928",
-    "verification.json": "01873a6b6f6c08f80d451d448ff69b4d5cfd0ac07b4147895092e4442e23d961"
+    "verification.json": "ce0a781b5ee7eb4d3b3864f36ada56d6c1676fa9cc4c1d0317299ac774850d68"
   },
   "branch": "codex/web-presence-override-20261110",
   "executed_source": {
-    "commit": "29dcfaad9",
+    "commit": "29dcfaad900d4aa91c84c40996f024f1cf2470e9",
     "files_sha256": {
       "backend/api/user_activity_routes.py": "38407e85b874f69953c6e8ef6eb06ebc4ab339c36aa7c0d13d78016404dd96b5",
       "backend/core/presence_override_write_service.py": "091d03936e65ce4705d10c6cbcbdf7b8780af043583f3d4cd6d790bafd4c29bf",
@@ -29,7 +31,7 @@
     }
   },
   "packet": "web_presence_override_20261110",
-  "repair_commit": "29dcfaad9",
+  "repair_commit": "29dcfaad900d4aa91c84c40996f024f1cf2470e9",
   "source_before_main": "310e72aecd1a4041a35af6ac093379d39b93556b",
   "source_files": {
     "backend/api/user_activity_routes.py": "38407e85b874f69953c6e8ef6eb06ebc4ab339c36aa7c0d13d78016404dd96b5",
