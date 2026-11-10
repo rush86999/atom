@@ -66,6 +66,61 @@ def test_explicit_free_and_priced_rates_remain_supported(rates, expected):
         "controlled-no-static-alias", 100, 100) == expected
 
 
+def test_known_input_only_charge_is_not_lost_for_zero_output():
+    """A legitimate embedding/input-only row keeps its known input charge."""
+    fetcher = _bare_fetcher({
+        "mode": "embedding", "input_cost_per_token": 0.01,
+        "max_input_tokens": 8192})
+    assert fetcher.estimate_cost("controlled-input-only", 100, 0) == 1.0
+
+
+@pytest.mark.parametrize("pricing,input_tokens,output_tokens", [
+    # Provided invalid rate is refused even when that dimension is unused.
+    ({"input_cost_per_token": 0.01, "output_cost_per_token": False}, 100, 0),
+    ({"input_cost_per_token": 0.01, "output_cost_per_token": -0.02}, 100, 0),
+    # Absent rate for a POSITIVE quantity is unknown.
+    ({"input_cost_per_token": 0.01}, 100, 1),
+    ({"output_cost_per_token": 0.02}, 1, 100),
+    # Negative/boolean quantities are invalid.
+    ({"input_cost_per_token": 0.01,
+      "output_cost_per_token": 0.02}, -1, 0),
+])
+def test_quantity_aware_material_contract(
+        pricing, input_tokens, output_tokens):
+    assert _bare_fetcher(pricing).estimate_cost(
+        "controlled-quantity", input_tokens, output_tokens) is None
+
+
+def test_preserved_context_metadata_reaches_read_consumers(monkeypatch):
+    """Unknown price must not erase the known context window."""
+    from core.llm.byok_handler import BYOKHandler
+    from core.dynamic_pricing_fetcher import get_pricing_fetcher
+
+    fetcher = get_pricing_fetcher()
+    saved = dict(fetcher.pricing_cache)
+    fetcher.pricing_cache["controlled-context-row"] = {
+        "input_cost_per_token": 0.01,
+        "max_input_tokens": 8192,
+        "max_tokens": 4096,
+        "mode": "embedding",
+    }
+    try:
+        handler = object.__new__(BYOKHandler)
+        assert handler.get_context_window("controlled-context-row") == 8192
+        assert handler._pinned_model_fits("controlled-context-row", 7000) is True
+        assert handler._pinned_model_fits(
+            "controlled-context-row", 9000) is False
+        # The charge for an output-bearing request is unknown, not free.
+        assert fetcher.estimate_cost(
+            "controlled-context-row", 100, 1) is None
+        # And an input-only request keeps its known charge.
+        assert fetcher.estimate_cost(
+            "controlled-context-row", 100, 0) == 1.0
+    finally:
+        fetcher.pricing_cache.clear()
+        fetcher.pricing_cache.update(saved)
+
+
 class _FakeResponse:
     def __init__(self, payload):
         self._payload = payload
@@ -91,7 +146,7 @@ class _FakeAsyncClient:
         return _FakeResponse(self._payload)
 
 
-def test_litellm_normalization_skips_incomplete_rates(monkeypatch):
+def test_litellm_normalization_preserves_rows_with_unknown_price(monkeypatch):
     import core.dynamic_pricing_fetcher as dpf
 
     payload = {
@@ -99,36 +154,58 @@ def test_litellm_normalization_skips_incomplete_rates(monkeypatch):
                       "output_cost_per_token": 0.0},
         "good-paid": {"input_cost_per_token": 0.01,
                       "output_cost_per_token": 0.02},
-        "missing-both": {},
-        "missing-output": {"input_cost_per_token": 0.01},
+        "missing-both": {"max_input_tokens": 4096, "mode": "chat"},
+        "missing-output": {"input_cost_per_token": 0.01,
+                           "max_input_tokens": 8192, "mode": "embedding"},
         "bool-rates": {"input_cost_per_token": False,
-                       "output_cost_per_token": False},
+                       "output_cost_per_token": False,
+                       "max_input_tokens": 2048, "mode": "chat"},
     }
     monkeypatch.setattr(dpf.httpx, "AsyncClient",
                         lambda **kw: _FakeAsyncClient(payload, **kw))
     fetcher = object.__new__(DynamicPricingFetcher)
     result = asyncio.run(fetcher.fetch_litellm_pricing())
     assert set(result) >= {"good-free", "good-paid"}
-    assert not ({"missing-both", "missing-output", "bool-rates"} & set(result))
+    # Metadata survives; monetary material is simply absent.
+    assert result["missing-both"]["max_input_tokens"] == 4096
+    assert "input_cost_per_token" not in result["missing-both"]
+    assert result["missing-output"]["max_input_tokens"] == 8192
+    assert result["missing-output"]["input_cost_per_token"] == 0.01
+    assert "output_cost_per_token" not in result["missing-output"]
+    assert result["bool-rates"]["max_input_tokens"] == 2048
+    assert "input_cost_per_token" not in result["bool-rates"]
     assert result["good-free"]["input_cost_per_token"] == 0.0
 
+    # Context/read consumers keep working off the preserved metadata.
+    fetcher.get_model_price = lambda model: result.get(model)
+    assert fetcher.estimate_cost("missing-output", 100, 0) == 1.0
+    assert fetcher.estimate_cost("missing-output", 100, 1) is None
+    assert fetcher.estimate_cost("missing-both", 100, 0) is None
+    assert fetcher.estimate_cost("bool-rates", 1, 1) is None
 
-def test_openrouter_normalization_skips_incomplete_rates(monkeypatch):
+
+def test_openrouter_normalization_preserves_rows_with_unknown_price(monkeypatch):
     import core.dynamic_pricing_fetcher as dpf
 
     payload = {"data": [
-        {"id": "good-free", "pricing": {"prompt": "0", "completion": "0"}},
-        {"id": "good-paid", "pricing": {"prompt": "0.01", "completion": "0.02"}},
-        {"id": "missing-completion", "pricing": {"prompt": "0.01"}},
-        {"id": "negative", "pricing": {"prompt": "-0.01", "completion": "0.02"}},
+        {"id": "good-free", "pricing": {"prompt": "0", "completion": "0"},
+         "context_length": 4096},
+        {"id": "good-paid", "pricing": {"prompt": "0.01", "completion": "0.02"},
+         "context_length": 8192},
+        {"id": "missing-completion", "pricing": {"prompt": "0.01"},
+         "context_length": 16384},
+        {"id": "negative", "pricing": {"prompt": "-0.01", "completion": "0.02"},
+         "context_length": 2048},
     ]}
     monkeypatch.setattr(dpf.httpx, "AsyncClient",
                         lambda **kw: _FakeAsyncClient(payload, **kw))
     fetcher = object.__new__(DynamicPricingFetcher)
     result = asyncio.run(fetcher.fetch_openrouter_pricing())
     assert "good-free" in result and "good-paid" in result
-    assert "missing-completion" not in result
-    assert "negative" not in result
+    assert result["missing-completion"]["max_tokens"] == 16384
+    assert "output_cost_per_token" not in result["missing-completion"]
+    assert result["negative"]["max_tokens"] == 2048
+    assert "input_cost_per_token" not in result["negative"]
 
 
 def _seed_real_pricing(monkeypatch, entries):

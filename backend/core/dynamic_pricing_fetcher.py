@@ -157,16 +157,20 @@ class DynamicPricingFetcher:
                 for model_name, model_data in data.items():
                     if not isinstance(model_data, dict):
                         continue
-                    # Never fabricate a $0 rate by defaulting a missing one.
-                    if not self.rates_are_material({
-                            "input_cost_per_token": model_data.get(
-                                "input_cost_per_token"),
-                            "output_cost_per_token": model_data.get(
-                                "output_cost_per_token")}):
-                        continue
+                    # PRESERVE the catalog row/metadata even when monetary
+                    # price is unknown; only OMIT an invalid provided rate
+                    # (never default it to 0). Context-window consumers read
+                    # max_input_tokens/max_tokens from this row.
+                    _rates = {}
+                    for _rk in ("input_cost_per_token",
+                                "output_cost_per_token"):
+                        _rv = model_data.get(_rk)
+                        if _rv is None:
+                            continue
+                        if self.rate_is_valid(_rv):
+                            _rates[_rk] = float(_rv)
                     pricing[model_name] = {
-                        "input_cost_per_token": model_data["input_cost_per_token"],
-                        "output_cost_per_token": model_data["output_cost_per_token"],
+                        **_rates,
                         "max_tokens": model_data.get("max_tokens", 0),
                         "max_input_tokens": model_data.get("max_input_tokens", 0),
                         "max_output_tokens": model_data.get("max_output_tokens", 0),
@@ -269,14 +273,18 @@ class DynamicPricingFetcher:
                 for model in data.get("data", []):
                     model_id = model.get("id", "")
                     model_pricing = model.get("pricing", {})
-                    if not self.rates_are_material({
-                            "input_cost_per_token": model_pricing.get("prompt"),
-                            "output_cost_per_token": model_pricing.get(
-                                "completion")}):
-                        continue
+                    # Preserve the catalog row; omit only an invalid/missing
+                    # monetary rate so the charge stays unknown.
+                    _rates = {}
+                    for _rk, _src in (("input_cost_per_token", "prompt"),
+                                      ("output_cost_per_token", "completion")):
+                        _rv = model_pricing.get(_src)
+                        if _rv is None:
+                            continue
+                        if self.rate_is_valid(_rv):
+                            _rates[_rk] = float(_rv)
                     pricing[model_id] = {
-                        "input_cost_per_token": float(model_pricing["prompt"]),
-                        "output_cost_per_token": float(model_pricing["completion"]),
+                        **_rates,
                         "max_tokens": model.get("context_length", 0),
                         "name": model.get("name", model_id),
                         "description": model.get("description", ""),
@@ -577,12 +585,18 @@ class DynamicPricingFetcher:
         return models
     
     def get_cheapest_models(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get the cheapest models across all providers"""
+        """Get the cheapest models across all providers.
+
+        Only rows with a COMPLETE valid rate pair participate; a row whose
+        monetary price is unknown is not ranked as if it were free.
+        """
         models = []
         
         for model_name, pricing in self.pricing_cache.items():
-            input_cost = pricing.get("input_cost_per_token", 0)
-            output_cost = pricing.get("output_cost_per_token", 0)
+            rates = self.material_rates(pricing)
+            if rates is None:
+                continue
+            input_cost, output_cost = rates
             
             # Skip models with zero cost (usually local/self-hosted)
             if input_cost > 0 or output_cost > 0:
@@ -614,8 +628,10 @@ class DynamicPricingFetcher:
                 else:
                     provider = "other"
             
-            input_cost = pricing.get("input_cost_per_token", 0)
-            output_cost = pricing.get("output_cost_per_token", 0)
+            rates = self.material_rates(pricing)
+            if rates is None:
+                continue
+            input_cost, output_cost = rates
             
             if input_cost > 0:
                 if provider not in provider_costs:
@@ -636,44 +652,76 @@ class DynamicPricingFetcher:
         return comparison
     
     @staticmethod
-    def rates_are_material(pricing: Any) -> bool:
-        """True only when BOTH per-token rates are explicit valid numbers.
+    def rate_is_valid(value: Any) -> bool:
+        """A monetary rate is material only when explicit, finite, >= 0, non-bool."""
+        if value is None or isinstance(value, bool):
+            return False
+        try:
+            rate = float(value)
+        except (TypeError, ValueError):
+            return False
+        return math.isfinite(rate) and rate >= 0
 
-        Missing rates, ``None``, bools (``False`` is numerically 0), negative
-        values and non-finite values are INVALID pricing material, not free.
-        ``pricing.get(rate, 0)`` used to turn a missing/partial entry into an
-        authoritative-looking $0 and arithmetic could even cancel a negative
-        input rate against a positive output rate. The correct-price no-
-        fabricated-free gate requires unknown here so hard_stop refuses.
+    @classmethod
+    def material_rates(cls, pricing: Any) -> Optional[tuple]:
+        """``(input_rate, output_rate)`` only when BOTH are explicit material.
+
+        Used by consumers that need a complete price pair for ranking/display
+        (cache router, provider-cost sync). Absence is unknown, never 0.
         """
         if not isinstance(pricing, dict):
-            return False
+            return None
+        values = []
         for key in ("input_cost_per_token", "output_cost_per_token"):
             value = pricing.get(key)
-            if value is None or isinstance(value, bool):
-                return False
-            try:
-                rate = float(value)
-            except (TypeError, ValueError):
-                return False
-            if not math.isfinite(rate) or rate < 0:
-                return False
-        return True
+            if not cls.rate_is_valid(value):
+                return None
+            values.append(float(value))
+        return values[0], values[1]
+
+    @classmethod
+    def rates_are_material(cls, pricing: Any) -> bool:
+        """True only when BOTH rates are explicit valid numbers."""
+        return cls.material_rates(pricing) is not None
 
     def estimate_cost(self, model_name: str, input_tokens: int, output_tokens: int) -> Optional[float]:
-        """Estimate cost for a specific request.
+        """Quantity-aware configured cost, or ``None`` when not chargeable.
 
-        Returns ``None`` (unknown) unless the configured entry carries explicit
-        finite non-negative material for BOTH rates. A genuine explicit 0/0
-        entry remains authoritative free; absence is never free.
+        Contract:
+        * every PROVIDED rate must be explicit, finite, non-negative, non-bool;
+        * a rate is REQUIRED only for a dimension with positive quantity (a
+          chat reservation has positive input and output cap, so both are
+          required there);
+        * an ABSENT rate for a zero-quantity dimension is genuinely unused
+          basis, not a reason to invent a 0 output price — legitimate
+          input-only (e.g. embedding) charges keep their known input cost;
+        * explicit 0 rates are authoritative free; absence is never free.
         """
-        pricing = self.get_model_price(model_name)
-        if not pricing or not self.rates_are_material(pricing):
+        if isinstance(input_tokens, bool) or isinstance(output_tokens, bool):
             return None
-
-        input_cost = float(pricing["input_cost_per_token"]) * input_tokens
-        output_cost = float(pricing["output_cost_per_token"]) * output_tokens
-        total = input_cost + output_cost
+        try:
+            in_qty = int(input_tokens or 0)
+            out_qty = int(output_tokens or 0)
+        except (TypeError, ValueError):
+            return None
+        if in_qty < 0 or out_qty < 0:
+            return None
+        pricing = self.get_model_price(model_name)
+        if not isinstance(pricing, dict):
+            return None
+        total = 0.0
+        for key, qty in (("input_cost_per_token", in_qty),
+                         ("output_cost_per_token", out_qty)):
+            value = pricing.get(key)
+            if value is not None:
+                # Validate every PROVIDED rate, even for a zero quantity.
+                if not self.rate_is_valid(value):
+                    return None
+                total += float(value) * qty
+            elif qty > 0:
+                # A positive charge needs this dimension's price.
+                return None
+            # qty == 0 and absent: unused basis, contributes exactly 0.
         if not math.isfinite(total) or total < 0:
             return None
         return total
