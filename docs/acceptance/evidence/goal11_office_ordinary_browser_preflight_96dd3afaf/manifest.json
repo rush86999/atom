@@ -1,0 +1,42 @@
+{
+  "actions_not_taken": [
+    "no acceptance world created",
+    "no symlink or mkdir to work around missing worlds root",
+    "no world_storage bypass",
+    "no browser launch",
+    "no backend/frontend build",
+    "no product source edit",
+    "no live DB/provider/model/send"
+  ],
+  "blocker": "The guard requires backend/data/acceptance_worlds to be the verified real tree or a valid symlink. It is absent in this fresh worktree. Per the work order and AGENTS, do not create it, symlink around the failure, or use ATOM_WORLD_STORAGE_BYPASS=1.",
+  "branch": "codex/web-goal11-office-ordinary-browser-20261110",
+  "bypass_env": "unset",
+  "evidence_files": {
+    "README.md": "3d98436bfab5e2d0308d1d1e6a686b685fa6161410b5de842828409fee9f42d9",
+    "preflight/state.proof": "e86585b893738aca2b1f9e4ba634a3b6ba2de621f5538c83f94efaf4c18d24fd",
+    "preflight/world_storage_guard.proof": "3d12fca0450362349bf94dec50890983bfa10761c15019cdc2af9708999f41e6"
+  },
+  "kind": "goal11_office_ordinary_browser_preflight_blocked",
+  "next_required": "Root provisions/identifies the verified acceptance_worlds root (or authorizes a specific existing verified root) and re-dispatches the same bounded episode. No product code change is needed.",
+  "pr826_head_matches_work_order": true,
+  "pr826_head_resolved": "96dd3afaf6a519848c04265db7249454020d7e85",
+  "preflight": {
+    "disk_free_gib": 37,
+    "disk_threshold_gib": 12,
+    "harness_files": "present after sparse checkout",
+    "memory_free_pages": 5150,
+    "memory_page_size": 16384,
+    "ports_3000_8000": "free",
+    "runners": "none registered",
+    "shared_node_modules": "/private/tmp/atom-web-production-cookies-20261109/frontend-nextjs/node_modules"
+  },
+  "source_clean": true,
+  "source_commit": "96dd3afaf6a519848c04265db7249454020d7e85",
+  "source_hash": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+  "status": "blocked_before_world_build",
+  "storage_guard_exit": 1,
+  "storage_guard_result": "FAILED: worlds root does not exist and is not a symlink: backend/data/acceptance_worlds",
+  "work_order": "/private/tmp/root-next-office-ordinary-browser-work-order-20261110.json",
+  "worktree": "/private/tmp/atom-goal11-office-browser-20261110",
+  "world_storage_config_sha256": "ea32eb191d6cd4c35922c67dd15339c7f3719d2915dcf4c37af61ec5099b3444"
+}

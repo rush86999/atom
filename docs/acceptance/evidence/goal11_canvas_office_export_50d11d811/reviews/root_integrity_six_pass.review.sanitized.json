@@ -1,0 +1,23 @@
+{
+  "actual_exit": 0,
+  "at": "2026-11-10T09:35:43.870888+00:00",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "capture_head": "76b3465a0c3ce492253020428b32fa3f7d9d4588",
+  "frozen_fixture_sha256": "6ad16a0be72089eec66da893e855323bf5202a7837eb0a99f4d0512839e09c5d",
+  "kind": "root_integrity_six_review_sanitized",
+  "probe_sha256": "1fb8c50fad810a7d1de8eb08f09b2caefb96c6b29a5865e4190f109f09da4209",
+  "same_source": true,
+  "source_after": {
+    "backend/api/canvas_routes.py": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+    "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5"
+  },
+  "source_before": {
+    "backend/api/canvas_routes.py": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+    "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5"
+  },
+  "world": "<root-world>/"
+}

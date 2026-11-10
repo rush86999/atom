@@ -1,0 +1,22 @@
+{
+  "runtime_source": "50d11d81154251a7de3dc794bce03177b22a1781",
+  "integrated_code_source": "02ecb5fda77b7e99a3c35d0445c3f6122ef56b22",
+  "evidence_files": {
+    "README.md": "4ec08f1fdad6f74822c926197d05e03736e603ae718445c365470c410728f296",
+    "integrated_backend_160.proof": "c4929c1303c74a5a6e695c17680c35c9314c98d3d3b83cbf76e8aa72ef646f4e",
+    "root_real_artifact_three.proof": "4267fbc096757f72946c9c272025df6870f9531826771c938e393189887890c4",
+    "root_real_artifact_three.review.json": "efc9e922d61cebf3f1f3421cd8d14ef61a542b9681bafb2c023dea1c073cb19c"
+  },
+  "source_files": {
+    "backend/api/canvas_routes.py": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+    "backend/core/assignment_executor.py": "b5866bf46e8ab457a1138dc584ee639d0bb615b043e6a8ff3d3a5b99ea89b9a6",
+    "backend/tests/test_canvas_office_export.py": "a8fe4753c081be904e3866c881642212772dfbb286063a80d136fb35d38d107f",
+    "backend/tests/helpers/canvas_office_export_child.py": "68b42fe90066a64f95326d97bec7e393ece996f8a3f3c41733466028a206c090",
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "93c3f856d78cfab95d2c2900617ac066e4e5d8e3163ccce76f5346b4edc8a7ca",
+    "frontend-nextjs/components/canvas/__tests__/CanvasPanel.test.tsx": "3cdd1aeaae6120143823dfad19db82cd417a525c062264f219a494314e6fefe0"
+  },
+  "actual_exit": 0,
+  "integrated_tests": 160,
+  "independent_cases": 10,
+  "scope": "controlled public API/component/real child process; not browser/full app"
+}

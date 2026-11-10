@@ -230,15 +230,20 @@ class TestNormalizeEmailContent:
     def test_email_canvas_service_draft_details(self):
         details = {
             "canvas_type": "email",
-            "subject": "Outer subject",
-            "draft": {"to_emails": ["a@x.com", "b@x.com"], "subject": "Draft subject", "body": "Hello."},
+            "draft": {
+                "draft_id": "draft-1",
+                "to_emails": ["a@x.com", "b@x.com"],
+                "subject": "Draft subject",
+                "body": "Hello.",
+            },
         }
-        assert normalize_email_content(details) == {
-            "to": "a@x.com, b@x.com",
-            "cc": "",
-            "subject": "Draft subject",
-            "body": "Hello.",
-        }
+        result = normalize_email_content(details)
+        assert result["to"] == "a@x.com, b@x.com"
+        assert result["cc"] == ""
+        assert result["subject"] == "Draft subject"
+        assert result["body"] == "Hello."
+        # Legacy-only draft still resolves; provenance is preserved.
+        assert result["draft"]["draft_id"] == "draft-1"
 
     def test_draft_details_cc_list(self):
         details = {"draft": {"to_emails": ["a@x.com"], "cc_emails": ["c@x.com"], "subject": "S", "body": "B."}}
@@ -253,12 +258,14 @@ class TestNormalizeEmailContent:
         }
 
     def test_doc_shape_body(self):
-        assert normalize_email_content({"type": "doc", "content": "doc body"}) == {
-            "to": "",
-            "cc": "",
-            "subject": "",
-            "body": "doc body",
-        }
+        result = normalize_email_content({"type": "doc", "content": "doc body"})
+        assert result["to"] == ""
+        assert result["cc"] == ""
+        assert result["subject"] == ""
+        assert result["body"] == "doc body"
+        # Provenance keys are preserved, not rewritten away.
+        assert result["type"] == "doc"
+        assert result["content"] == "doc body"
 
 
 class TestCoerceEmailCanvas:
@@ -298,7 +305,11 @@ class TestCoerceEmailCanvas:
     def test_typed_email_content_normalized(self):
         ctype, content = coerce_email_canvas("email", {"draft": {"to_emails": ["a@x.com"], "subject": "S", "body": "B."}})
         assert ctype == "email"
-        assert content == {"to": "a@x.com", "cc": "", "subject": "S", "body": "B."}
+        assert content["to"] == "a@x.com"
+        assert content["cc"] == ""
+        assert content["subject"] == "S"
+        assert content["body"] == "B."
+        assert content["draft"]["to_emails"] == ["a@x.com"]
 
     def test_typed_email_bare_string_passthrough(self):
         assert coerce_email_canvas("email", "body only") == ("email", "body only")
@@ -516,12 +527,13 @@ class TestReadCanvasCoercion(_CanvasHarness):
 
         result = await read_canvas("user-1", "c-email-1")
         assert result["canvas_type"] == "email"
-        assert result["content"] == {
-            "to": "mark@example.com",
-            "cc": "",
-            "subject": "Quote follow-up",
-            "body": "Hi Mark,",
-        }
+        # The read exposes the canonical composer fields and preserves the
+        # service's provenance/draft metadata.
+        assert result["content"]["to"] == "mark@example.com"
+        assert result["content"]["cc"] == ""
+        assert result["content"]["subject"] == "Quote follow-up"
+        assert result["content"]["body"] == "Hi Mark,"
+        assert result["content"]["draft"]["to_emails"] == ["mark@example.com"]
 
 
 class TestUpdateCanvasCoercion(_CanvasHarness):

@@ -154,7 +154,7 @@ class CodingCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id=str(actor["tenant_id"]),
+                tenant_id=str(actor["effective_tenant_id"]),
                 agent_id=agent_id,
                 user_id=str(actor["id"]),
                 canvas_id=canvas_id,
@@ -231,7 +231,7 @@ class CodingCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id=str(actor["tenant_id"]),
+                tenant_id=str(actor["effective_tenant_id"]),
                 user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="add_file",
@@ -295,7 +295,7 @@ class CodingCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id=str(actor["tenant_id"]),
+                tenant_id=str(actor["effective_tenant_id"]),
                 user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="add_diff",
