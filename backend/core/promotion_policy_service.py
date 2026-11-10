@@ -209,6 +209,15 @@ class _ScopedException(BaseModel):
     domains: List[StrictStr] = Field(default_factory=list)
     reason: Optional[StrictStr] = None
 
+    @field_validator("domains")
+    @classmethod
+    def _domains_not_supported(cls, value: List[str]) -> List[str]:
+        if value:
+            raise ValueError(
+                "exception domains are not supported; list exact agent_ids "
+                "instead of a broad or domain-based exemption")
+        return value
+
     @model_validator(mode="after")
     def _reason_required_when_allowed(self):
         if self.allowed:
@@ -279,7 +288,12 @@ class AssessmentPolicy(BaseModel):
 
     Absence of the setting returns this strict default: every new upward
     transition requires a passed scoped capability qualification. Exceptions
-    are opt-in, agent/domain scoped, and never claim qualification.
+    are opt-in and exact-agent scoped; they never claim qualification.
+
+    ``default_required=False`` and nonempty ``exceptions.*.domains`` are
+    accepted by the wire schema for compatibility but are not implemented
+    selectors. They are rejected as configuration_required rather than
+    silently ignored.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -302,6 +316,15 @@ class AssessmentPolicy(BaseModel):
     def _nonblank_identity(cls, value: str) -> str:
         if not isinstance(value, str) or not value.strip():
             raise ValueError("policy identity fields must be nonblank")
+        return value
+
+    @field_validator("default_required")
+    @classmethod
+    def _default_required_supported(cls, value: bool) -> bool:
+        if value is not True:
+            raise ValueError(
+                "default_required=False is not supported; use tiers.* to "
+                "disable a specific tier")
         return value
 
     def tier_required(self, target_level: str) -> bool:

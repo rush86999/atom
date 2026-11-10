@@ -6,12 +6,14 @@ browser/live DB. These are policy-path controls, not capability proof.
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
 import os
 import sqlite3
 import subprocess
 import sys
 import uuid
+import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -41,6 +43,7 @@ from core.models import (
     GraduationExam,
     HITLAction,
     HITLActionStatus,
+    Notification,
     PromotionHistory,
     RuntimeSetting,
     SupervisionSession,
@@ -1346,3 +1349,150 @@ def test_pending_review_moved_scope_is_not_reused(world, move):
         assert db.query(func.count(GraduationExam.id)).scalar() == 0
     assert approve(client, admin, new_id)["status"] == 200
     assert promote(client, sup)["status"] == 200
+
+
+def test_actual_graduation_notification_persists_once_without_nested_loop(
+    world, monkeypatch,
+):
+    from core.notification_service import NotificationService
+
+    monkeypatch.setattr(
+        NotificationService, "_maybe_send_email", lambda *a, **kw: False)
+    qualify(world)
+    client, sup = world.client(), world.token(SUPERVISOR)
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always")
+        first = promote(client, sup)
+        gc.collect()
+    assert first["status"] == 200, first
+    with world.Session() as db:
+        rows = db.query(Notification).filter(
+            Notification.user_id == SUPERVISOR).all()
+        graduation = [
+            row for row in rows
+            if (row.metadata_json or {}).get("notification_type")
+            == "agent_graduated"
+        ]
+        assert len(graduation) == 1
+        assert graduation[0].tenant_id == COMPANY
+        assert graduation[0].workspace_id == WS_A
+        baseline_count = len(rows)
+    assert not any(
+        "was never awaited" in str(item.message) for item in seen), seen
+
+    replay = promote(
+        client, sup, operation_id=first["json"]["data"]["operation_id"])
+    assert replay["status"] == 200, replay
+    assert replay["json"]["data"]["promoted"] is True
+    with world.Session() as db:
+        assert db.query(Notification).filter(
+            Notification.user_id == SUPERVISOR).count() == baseline_count
+
+
+@pytest.mark.parametrize("failure_mode", ["raise", "soft_fail"])
+def test_notification_failure_does_not_erase_committed_promotion(
+    world, monkeypatch, failure_mode,
+):
+    from core.notification_service import NotificationService
+
+    if failure_mode == "raise":
+        async def fail(*args, **kwargs):
+            raise RuntimeError("controlled notification unavailable")
+    else:
+        async def fail(*args, **kwargs):
+            return {
+                "success": False,
+                "notification_id": None,
+                "emailed": False,
+                "error": "notification_failed",
+            }
+    monkeypatch.setattr(NotificationService, "send_notification", fail)
+    qualify(world)
+    client, sup = world.client(), world.token(SUPERVISOR)
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always")
+        response = promote(client, sup)
+        gc.collect()
+    assert response["status"] == 200, response
+    assert response["json"]["data"]["promoted"] is True
+    with world.Session() as db:
+        assert db.get(AgentRegistry, AGENT).status == "intern"
+        assert db.query(func.count(PromotionHistory.id)).scalar() == 1
+        assert db.query(func.count(Notification.id)).scalar() == 0
+    assert not any(
+        "was never awaited" in str(item.message) for item in seen), seen
+
+
+def test_unsupported_default_required_false_is_configuration_required(
+    world, monkeypatch,
+):
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    policy["default_required"] = False
+    _set_db_policy(world, policy)
+    with world.Session() as db:
+        with pytest.raises(AssessmentPolicyError) as exc:
+            get_assessment_policy(db)
+    assert exc.value.state == "configuration_required"
+    assert "default_required" in exc.value.message
+    assert "not supported" in exc.value.message
+
+
+@pytest.mark.parametrize("kind", ["legacy", "manual", "system"])
+def test_unsupported_exception_domains_is_configuration_required(
+    world, monkeypatch, kind,
+):
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    policy["exceptions"][kind].update(
+        allowed=True,
+        agent_ids=[AGENT],
+        domains=["procurement"],
+        reason="Owner-approved exact agent exception",
+    )
+    _set_db_policy(world, policy)
+    with world.Session() as db:
+        with pytest.raises(AssessmentPolicyError) as exc:
+            get_assessment_policy(db)
+    assert exc.value.state == "configuration_required"
+    assert "domains" in exc.value.message
+    assert "not supported" in exc.value.message
+
+
+def test_default_and_exact_agent_exception_remain_supported(world, monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    assert policy["default_required"] is True
+    assert all(not item["domains"] for item in policy["exceptions"].values())
+    policy["exceptions"]["manual"].update(
+        allowed=True,
+        agent_ids=[AGENT],
+        reason="Owner-approved exact agent exception",
+    )
+    _set_db_policy(world, policy)
+    with world.Session() as db:
+        resolved = get_assessment_policy(db)["policy"]
+        agent = db.get(AgentRegistry, AGENT)
+        exception = resolved.scoped_exception("manual", agent)
+        assert exception is not None
+        assert exception.reason == "Owner-approved exact agent exception"
+        assert exception.domains == []
+        assert resolved.scoped_exception(
+            "manual", SimpleNamespace(id="not-the-named-agent")) is None
+
+
+def test_tier_gate_false_remains_supported(world, monkeypatch):
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    policy["tiers"]["intern"] = False
+    _set_db_policy(world, policy)
+    with world.Session() as db:
+        resolved = get_assessment_policy(db)["policy"]
+        assert resolved.tier_required("intern") is False
+        assert resolved.tier_required("supervised") is True

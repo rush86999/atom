@@ -1060,7 +1060,6 @@ class AgentGraduationService:
             # try/except because a notification failure must NEVER roll back
             # or obscure a successful promotion.
             try:
-                import asyncio
                 from core.notification_service import NotificationService
                 notif_svc = NotificationService(self.db)
                 agent_name = getattr(agent, "name", "Your agent")
@@ -1085,18 +1084,21 @@ class AgentGraduationService:
                     "agent_id": agent_id,
                     "new_maturity": new_maturity,
                 }
-                try:
-                    loop = get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                loop.run_until_complete(
-                    notif_svc.send_notification(
-                        user_id=user_id,
-                        notification_type="agent_graduated",
-                        data=payload,
-                    )
+                # We are already inside the promotion coroutine and the
+                # promotion is durably committed. Await the internal
+                # notification normally; never create/drive a second loop.
+                notification = await notif_svc.send_notification(
+                    user_id=user_id,
+                    notification_type="agent_graduated",
+                    data=payload,
                 )
+                if not (notification or {}).get("success"):
+                    logger.warning(
+                        "Graduation notification not delivered for agent %s "
+                        "(promotion already committed): %s",
+                        agent_id,
+                        (notification or {}).get("error") or "notification_failed",
+                    )
             except Exception as notif_exc:
                 logger.warning(
                     "Graduation notification failed for agent %s (promotion already committed): %s",
