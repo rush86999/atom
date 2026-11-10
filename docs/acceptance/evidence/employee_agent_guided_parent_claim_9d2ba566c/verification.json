@@ -1,0 +1,61 @@
+{
+  "schema": "atom-guided-parent-authority-verification-1",
+  "status": "guided create binds exact acting-agent authority in the child-create transaction; root parent-commit negatives closed; submitted for independent review",
+  "candidate": {
+    "branch": "codex/web-goal14-guided-create-20261110",
+    "parent": "ba497c196",
+    "executed_source": "9d2ba566c",
+    "original_ba_evidence_preserved": true,
+    "root_negative_preserved": true,
+    "runtime": "real scratch SQLite + FastAPI route + real JWT; deterministic guided factory double; no live product model/provider/credential/spend/send/download/deployment"
+  },
+  "root_negative": {
+    "probe": "root-negative/root-parent-commit-probe.py",
+    "proof": "root-negative/root-parent-commit-review.json",
+    "before_log": "root-negative/root-parent-commit-before.log",
+    "before": "2 failed: peer scope move and autonomous->student demotion after the route list check both returned 201 with child+audit",
+    "after": "2 passed"
+  },
+  "repair": {
+    "route_snapshot": "direct id read after generation of raw tenant/workspace, status, confidence, enabled, last_exam_id, configuration, capabilities",
+    "transaction_claim": "guarded no-op UPDATE on the exact parent snapshot in the same transaction as the actor claim and child insert",
+    "loser_effect": "rowcount 0 -> 409 AUTHORITY_CHANGED, rollback, zero child/audit/scheduler",
+    "receipt": "compact parent_authority snapshot in AuditLog extra; raw configuration not stored",
+    "replay": "current actor workspace and current parent receipt rechecked; changed parent returns 409 instead of stale already_applied",
+    "policy": "existing governance create policy unchanged; no hardcoded maturity threshold; human direct guided remains GUEST+"
+  },
+  "controls": {
+    "root_peer_scope_move_refused": true,
+    "root_peer_demotion_refused": true,
+    "peer_delete_refused": true,
+    "peer_material_change_refused": true,
+    "peer_status_change_refused": true,
+    "valid_autonomous_twin_creates": true,
+    "replay_after_parent_change_conflicts": true,
+    "zero_child_audit_scheduler_on_loser": true,
+    "human_direct_guided_policy_unchanged": true
+  },
+  "results": {
+    "root_probe_before": "2 failed",
+    "root_probe_after": {"passed": 2, "log": "root-probe-after.log"},
+    "guided_after": {"passed": 19, "log": "guided-after.log"},
+    "affected_after": {"passed": 265, "log": "affected-after.log"}
+  },
+  "checks": {
+    "no_new_review_engine": true,
+    "no_hardcoded_maturity_fork": true,
+    "no_budget_or_byok_file_change": true,
+    "no_new_table_or_store": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "remaining": [
+    "pending scoped create_agent HITL still has no resume handler; guided journey is not labelled complete"
+  ],
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "guided generation is a controlled double; no live product model was called",
+    "no merge or self-acceptance; root review remains independent"
+  ]
+}

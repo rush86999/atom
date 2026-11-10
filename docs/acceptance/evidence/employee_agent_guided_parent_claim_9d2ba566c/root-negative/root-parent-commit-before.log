@@ -1,0 +1,69 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+___ test_acting_agent_change_after_route_check_before_create_refuses[scope] ____
+
+world = {'Session': sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000g...olders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-691/test_acting_agent_change_after0/guided.db)}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x111c1ac50>
+change = 'scope'
+
+    @pytest.mark.parametrize("change",["scope","maturity"])
+    def test_acting_agent_change_after_route_check_before_create_refuses(world,monkeypatch,change):
+     from api import agent_onboarding_routes as route
+     with world["Session"]() as db:
+      a=db.get(m.AgentRegistry,"acting-agent");a.status="autonomous";a.confidence_score=0.99;db.commit()
+     m._factory(monkeypatch);original=route._create_agent_decision
+     def raced(db,**kwargs):
+      with world["Session"]() as peer:
+       a=peer.get(m.AgentRegistry,"acting-agent")
+       if change=="scope":a.tenant_id="other";a.workspace_id="ws-b"
+       else:a.status="student";a.confidence_score=0.1
+       peer.commit()
+      return original(db,**kwargs)
+     monkeypatch.setattr(route,"_create_agent_decision",raced)
+     response=m._post(m._client(world),m._token(world,"member"),{"goal":"Create with current acting authority","acting_agent_id":"acting-agent"},operation_id="root-parent-"+change)
+>    assert response.status_code in (202,403,404,409),response.text
+E    AssertionError: {"success":true,"data":{"agent_id":"19015c03-99cd-52c7-8ee0-f30a223d4d27","name":"Guided Assistant","category":"Operations","template":"ops_coordinator","maturity":"student","created_by":"agent","operation_id":"agent:create:root-parent-scope","audit_id":"agent:create:root-parent-scope","verification":{"status":"verified","effect":"committed","audit_id":"agent:create:root-parent-scope"}},"timestamp":"2026-11-10T16:05:29.112021+00:00","message":"Agent 'Guided Assistant' created — it starts as a STUDENT and learns with guidance"}
+E    assert 201 in (202, 403, 404, 409)
+E     +  where 201 = <Response [201 Created]>.status_code
+
+../../root_guided_parent_commit_probe.py:22: AssertionError
+__ test_acting_agent_change_after_route_check_before_create_refuses[maturity] __
+
+world = {'Session': sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000g...olders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-691/test_acting_agent_change_after1/guided.db)}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x13d958c50>
+change = 'maturity'
+
+    @pytest.mark.parametrize("change",["scope","maturity"])
+    def test_acting_agent_change_after_route_check_before_create_refuses(world,monkeypatch,change):
+     from api import agent_onboarding_routes as route
+     with world["Session"]() as db:
+      a=db.get(m.AgentRegistry,"acting-agent");a.status="autonomous";a.confidence_score=0.99;db.commit()
+     m._factory(monkeypatch);original=route._create_agent_decision
+     def raced(db,**kwargs):
+      with world["Session"]() as peer:
+       a=peer.get(m.AgentRegistry,"acting-agent")
+       if change=="scope":a.tenant_id="other";a.workspace_id="ws-b"
+       else:a.status="student";a.confidence_score=0.1
+       peer.commit()
+      return original(db,**kwargs)
+     monkeypatch.setattr(route,"_create_agent_decision",raced)
+     response=m._post(m._client(world),m._token(world,"member"),{"goal":"Create with current acting authority","acting_agent_id":"acting-agent"},operation_id="root-parent-"+change)
+>    assert response.status_code in (202,403,404,409),response.text
+E    AssertionError: {"success":true,"data":{"agent_id":"aac991a5-e147-50a2-b53c-c7e097866d86","name":"Guided Assistant","category":"Operations","template":"ops_coordinator","maturity":"student","created_by":"agent","operation_id":"agent:create:root-parent-maturity","audit_id":"agent:create:root-parent-maturity","verification":{"status":"verified","effect":"committed","audit_id":"agent:create:root-parent-maturity"}},"timestamp":"2026-11-10T16:05:29.917401+00:00","message":"Agent 'Guided Assistant' created — it starts as a STUDENT and learns with guidance"}
+E    assert 201 in (202, 403, 404, 409)
+E     +  where 201 = <Response [201 Created]>.status_code
+
+../../root_guided_parent_commit_probe.py:22: AssertionError
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_guided_parent_commit_probe.py::test_acting_agent_change_after_route_check_before_create_refuses[scope]
+FAILED ../../root_guided_parent_commit_probe.py::test_acting_agent_change_after_route_check_before_create_refuses[maturity]
+2 failed, 4 warnings in 4.48s

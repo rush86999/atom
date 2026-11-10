@@ -1,0 +1,77 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 09:22:20 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/api/test_agent_create_goal14.py::test_custom_create_forged_body_is_ignored_and_receipt_replays 
+-------------------------------- live log setup --------------------------------
+2026-11-10 09:22:20 [    INFO] EscalationManager initialized
+2026-11-10 09:22:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:22:20 [    INFO] EscalationManager initialized
+2026-11-10 09:22:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:22:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:22:20 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:22:21 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-1 "HTTP/1.1 201 Created"
+FAILED                                                                   [ 33%]
+tests/api/test_agent_create_goal14.py::test_custom_create_refuses_concurrent_actor_demotion 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:22:22 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-race "HTTP/1.1 201 Created"
+FAILED                                                                   [ 66%]
+tests/api/test_agent_create_goal14.py::test_custom_create_member_is_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:22:22 [    INFO] HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-member "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+________ test_custom_create_forged_body_is_ignored_and_receipt_replays _________
+tests/api/test_agent_create_goal14.py:107: in test_custom_create_forged_body_is_ignored_and_receipt_replays
+    assert data["operation_id"] == "agent:create:create-op-1"
+           ^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'operation_id'
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-1 "HTTP/1.1 201 Created"
+_____________ test_custom_create_refuses_concurrent_actor_demotion _____________
+tests/api/test_agent_create_goal14.py:159: in test_custom_create_refuses_concurrent_actor_demotion
+    assert response.status_code == 409, response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"e261db7a-7c17-4bac-8a3a-a0cbe778688f"},"timestamp":"2026-11-10T14:22:22.214970+00:00","message":"Custom agent Racing Create created successfully"}
+E   assert 201 == 409
+E    +  where 201 = <Response [201 Created]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/custom?operation_id=create-op-race "HTTP/1.1 201 Created"
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_agent_create_goal14.py::test_custom_create_forged_body_is_ignored_and_receipt_replays
+FAILED tests/api/test_agent_create_goal14.py::test_custom_create_refuses_concurrent_actor_demotion
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 2 failed, 1 passed, 5 warnings in 18.60s ===================

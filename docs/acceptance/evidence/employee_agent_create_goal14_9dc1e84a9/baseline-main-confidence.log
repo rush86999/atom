@@ -1,0 +1,47 @@
+
+tests/test_agent_confidence_baseline.py::TestConfidenceBaseline::test_marketplace_declared_intern_gets_score_in_band 
+-------------------------------- live log setup --------------------------------
+2026-11-10 09:34:38 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 09:34:38 [    INFO] EscalationManager initialized
+2026-11-10 09:34:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:34:38 [    INFO] EscalationManager initialized
+2026-11-10 09:34:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:34:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:34:38 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/private/tmp/atom-goal14-baseline/backend/tests/test_agent_confidence_baseline.py:192: assert 'confidence_score=0.55' in '"""\nAgent Marketplace Service (Upstream Client)\n\nHandles discovery and installation of agents from the Atom Agent OS Marketplace.\nSyncs with the SaaS backend and records local installation metadata.\n\nMANAGED-AGENT MODEL (IP protection): installed agents store a *reference*\nconfiguration (template_id/version/tunables) — never the publisher\'s prompts\nor experience memory. Those live in the AgentTemplate manifest (local row for\nlocal publishes; server-side on the SaaS for marketplace installs) and are\nresolved at execution time by ``core.marketplace_runtime``.\n"""\n\nimport hashlib\nimport logging\nimport uuid\nfrom typing import Any, Dict, List, Optional\n\nfrom sqlalchemy.orm import Session\nfrom sqlalchemy import and_, or_\n\nfrom core.atom_saas_client import AtomAgentOSMarketplaceClient\nfrom core.models import (\n    AgentRegistry,\n    AgentTemplate,\n    AgentInstallation,\n    GoalRun,\n    OperationErrorResolution,\n    Playbook,\n    AgentSkill,\n    Skill,\n    Tenant\n)\nfrom core.marketplace_usage_tracker import MarketplaceUsageTracker\n\nlogger = logging.getLogger(__name__)\n\n# Packaging caps — the runtime guidance injector reads at most 10\n# heuristics ...aised\n                # AttributeError on every uninstall. The plain JSON index op\n                # compiles to json_extract() on SQLite and works everywhere.\n                self.db.query(OperationErrorResolution).filter(\n                    and_(\n                        OperationErrorResolution.tenant_id == tenant_id,\n                        OperationErrorResolution.resolution_metadata["source_template_id"] == template_id\n                    )\n                ).delete(synchronize_session=False)\n\n            # 3. Cleanup skills\n            self.db.query(AgentSkill).filter(AgentSkill.agent_id == agent_id).delete()\n\n            # 4. Remove installation and agent\n            self.db.delete(installation)\n\n            if agent:\n                self.db.delete(agent)\n\n            self.db.commit()\n            logger.info(f"Uninstalled marketplace agent {agent_id} (Template: {template_id})")\n\n            return {"success": True, "message": "Agent uninstalled successfully"}\n\n        except Exception as e:\n            logger.error(f"Failed to uninstall agent {agent_id}: {e}")\n            self.db.rollback()\n            return {"success": False, "error": str(e)}\n'
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_agent_confidence_baseline.py::TestConfidenceBaseline::test_marketplace_declared_intern_gets_score_in_band
+  /private/tmp/atom-goal14-baseline/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_agent_confidence_baseline.py::TestConfidenceBaseline::test_marketplace_declared_intern_gets_score_in_band
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 failed, 6 warnings in 14.84s ========================

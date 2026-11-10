@@ -391,6 +391,24 @@ suite **202 passed** after the receipt identity sync. Agent 2 branch
 
 ---
 
+## Session: Goal14 guided create authority/receipt (2026-11-10)
+
+Branch: `codex/web-goal14-guided-create-20261110`, based on
+`fb4d7f5549169b58a1601a1083207e3f0bb44a6b` (the accepted NULL/{} custom
+create repair). Frozen PR833/PR831 worktrees are not edited.
+
+Files owned for this slice: `backend/api/agent_onboarding_routes.py`,
+`backend/core/agent_decision_write_service.py` (shared create helper only),
+`backend/tests/api/test_agent_guided_create_goal14.py`,
+`backend/tests/api/test_agent_onboarding_routes.py`, the additive CI manifest
+and its matching workflow step.
+
+The atomic budget/BYOK worker owns budget/BYOK files; this session does not
+touch them. No live DB/model/provider/credential/send/spend/deploy/deps.
+
+Status: guided direct create and approved create_agent HITL both use the
+shared decision writer; acting-agent references are scoped; the reviewed
+HITL material is digest-bound and resumes to one agent/receipt.
 ## Session: PR831 workflow consumer repair (2026-11-10)
 
 Goal: repair the backend-core integration regression on frozen PR831 head

@@ -1,0 +1,60 @@
+{
+  "schema": "atom-oracle-agent-create-verification-1",
+  "status": "public custom agent creation bound to current authority/material/receipt; submitted for independent verification; guided/spawn/register_or_update remain unqualified candidates",
+  "candidate": {
+    "branch": "codex/web-goal14-agent-create-20261110",
+    "base_main": "01b554c55045334fa562cd2858c278f5bb3e1545",
+    "executed_source": "9dc1e84a9",
+    "runtime": "real scratch SQLite + FastAPI route + scratch JWT; no live model/provider/credential/spend/send/download/deployment",
+    "confirmed_finding": "POST /api/agents/custom returned 201 and created the row after a concurrent actor demotion, with no operation id or durable audit receipt on base main 0d5132c2e"
+  },
+  "contract": {
+    "authority": "current User re-read; active status; WORKSPACE_ADMIN+; claim is_active/status/role/raw tenant/raw workspace in the create transaction",
+    "scope": "actor's resolved tenant/workspace; forged body identity/scope/tier ignored",
+    "material": "create-only AgentRegistry insert; forced STUDENT and NEW_AGENT_CONFIDENCE; no name-based upsert or uniqueness policy",
+    "receipt": "one AuditLog action=agent_created in the same transaction; fresh-session receipt and created-material digest readback",
+    "replay": "same operation/material already_applied; changed material OPERATION_CONFLICT",
+    "recovery": "confirmed rollback not_applied/effect=none; missing readback committed_unverified",
+    "scheduler": "only after the first verified create; never on replay"
+  },
+  "new_controls": {
+    "focused_tests": 4,
+    "failure_first": "2 failed / 1 passed on the unmodified route"
+  },
+  "results": {
+    "failure_first": {"passed": 1, "failed": 2, "log": "failure-first.log"},
+    "focused_311": {"passed": 4, "failed": 0, "log": "focused-311.log"},
+    "affected_311": {"passed": 216, "failed": 1, "log": "affected-311.log"},
+    "baseline_main_confidence": {"passed": 0, "failed": 1, "log": "baseline-main-confidence.log"}
+  },
+  "baseline_failure_identity": {
+    "failure": "tests/test_agent_confidence_baseline.py::TestConfidenceBaseline::test_marketplace_declared_intern_gets_score_in_band",
+    "reason": "asserts the source literal confidence_score=0.55 in core/agent_marketplace_service.py",
+    "candidate_added_failures": 0,
+    "source_file_unchanged_by_candidate": true
+  },
+  "checks": {
+    "forged_body_identity_scope_tier_ignored": true,
+    "current_actor_scope_bound": true,
+    "student_and_low_confidence_forced": true,
+    "durable_audit_receipt": true,
+    "operation_identity_replay_idempotent": true,
+    "changed_material_conflicts": true,
+    "concurrent_actor_demotion_refused": true,
+    "member_forbidden": true,
+    "no_new_table_or_migration": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "remaining_family_candidates": [
+    "POST /api/agents/guided: direct commit, no operation id/receipt/replay/claim; acting_agent_id not re-validated at commit",
+    "POST /api/agents/spawn: caller scope not bound (Atom default workspace); persists via register_or_update_agent upsert; no receipt/replay/claim",
+    "AgentGovernanceService.register_or_update_agent: internal create-or-upsert; direct commit; preserved unchanged"
+  ],
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "scheduler execution is stubbed; no live scheduler fleet operation",
+    "no new table or migration",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}
