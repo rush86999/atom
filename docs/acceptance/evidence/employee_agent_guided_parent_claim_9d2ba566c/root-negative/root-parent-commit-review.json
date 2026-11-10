@@ -1,0 +1,14 @@
+{
+  "declared_source": "ba497c196",
+  "before": {
+    "backend/api/agent_onboarding_routes.py": "95912af2c50dcda223034e46bf00fffddb51343f4711c69b17db265ee4d8e5ad",
+    "backend/core/agent_decision_write_service.py": "addcc198b46e1ce0dbff4105c0f871587d852c3fb707f15a653657af306f4e5e"
+  },
+  "after": {
+    "backend/api/agent_onboarding_routes.py": "95912af2c50dcda223034e46bf00fffddb51343f4711c69b17db265ee4d8e5ad",
+    "backend/core/agent_decision_write_service.py": "addcc198b46e1ce0dbff4105c0f871587d852c3fb707f15a653657af306f4e5e"
+  },
+  "same_runtime": true,
+  "actual_exit": 1,
+  "log": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-guided-parent-commit-20261110-ehczo1hy/pytest.log"
+}
