@@ -1227,4 +1227,140 @@ describe('CanvasPanel (extended coverage)', () => {
 
     expect(await screen.findByText('No data to display')).toBeInTheDocument();
   });
+
+  it('downloads the exact saved document after flushing dirty edits', async () => {
+    const exportCalls: any[] = [];
+    let saveCalls = 0;
+    server.use(
+      rest.put('*/api/canvas/:canvasId', (req, res, ctx) => {
+        saveCalls += 1;
+        return res(ctx.status(200), ctx.json({
+          success: true,
+          canvas_id: req.params.canvasId,
+          verification: { status: 'verified', effect: 'committed' },
+        }));
+      }),
+      rest.get('*/api/canvas/:canvasId/export/office', (req, res, ctx) => {
+        exportCalls.push({
+          canvasId: req.params.canvasId,
+          format: req.url.searchParams.get('format'),
+          expected: req.url.searchParams.get('expected_audit_id'),
+        });
+        return res(
+          ctx.status(200),
+          ctx.set('Content-Disposition', 'attachment; filename="spec.docx"'),
+          ctx.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+          ctx.body('docx-bytes'),
+        );
+      }),
+    );
+    const createObjectURL = jest.fn(() => 'blob:docx');
+    const revokeObjectURL = jest.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true, value: createObjectURL,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      configurable: true, value: revokeObjectURL,
+    });
+    let downloadedName = '';
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloadedName = this.download;
+      });
+    send({
+      type: 'canvas:present',
+      data: {
+        action: 'present',
+        component: 'document',
+        title: 'Spec',
+        data: '# Original',
+        id: 'doc-1',
+        version: 1,
+      },
+    });
+    const editor = await screen.findByTestId('canvas-editor');
+    fireEvent.change(editor, { target: { value: '# Saved edit' } });
+    fireEvent.click(screen.getByTestId('canvas-office-export'));
+
+    await waitFor(() => {
+      expect(saveCalls).toBe(1);
+    }, { timeout: 5000 });
+    await waitFor(() => {
+      expect(exportCalls).toHaveLength(1);
+    }, { timeout: 5000 });
+    expect(exportCalls[0]).toMatchObject({
+      canvasId: 'doc-1', format: 'docx',
+    });
+    expect(downloadedName).toBe('spec.docx');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:docx');
+    clickSpy.mockRestore();
+  });
+
+  it('refuses download when the save is not confirmed', async () => {
+    let exportCalls = 0;
+    server.use(
+      rest.put('*/api/canvas/:canvasId', (req, res, ctx) =>
+        res(ctx.status(500), ctx.json({ detail: 'save failed' }))),
+      rest.get('*/api/canvas/:canvasId/export/office', (req, res, ctx) => {
+        exportCalls += 1;
+        return res(ctx.status(200), ctx.body('should-not-download'));
+      }),
+    );
+    send({
+      type: 'canvas:present',
+      data: {
+        action: 'present', component: 'document', title: 'Spec',
+        data: '# Original', id: 'doc-2', version: 1,
+      },
+    });
+    const editor = await screen.findByTestId('canvas-editor');
+    fireEvent.change(editor, { target: { value: '# Unsaved edit' } });
+    fireEvent.click(screen.getByTestId('canvas-office-export'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('canvas-office-export-error')).toHaveTextContent(
+        /save is not confirmed/i,
+      );
+    });
+    expect(exportCalls).toBe(0);
+  });
+
+  it('offers PPTX download for a saved Slide outline canvas', async () => {
+    const exportCalls: any[] = [];
+    server.use(
+      rest.get('*/api/canvas/:canvasId/export/office', (req, res, ctx) => {
+        exportCalls.push({
+          format: req.url.searchParams.get('format'),
+          canvasId: req.params.canvasId,
+        });
+        return res(ctx.status(200), ctx.body('pptx-bytes'));
+      }),
+    );
+    const createObjectURL = jest.fn(() => 'blob:pptx');
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true, value: createObjectURL,
+    });
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+    send({
+      type: 'canvas:present',
+      data: {
+        action: 'present',
+        component: 'markdown',
+        title: 'Deck',
+        data: 'Slide 1: Intro\n- One\nNotes: note',
+        id: 'deck-1',
+        version: 1,
+      },
+    });
+    const button = await screen.findByTestId('canvas-office-export');
+    expect(button).toHaveTextContent('Download PPTX');
+    fireEvent.click(button);
+    await waitFor(() => expect(exportCalls).toHaveLength(1));
+    expect(exportCalls[0]).toEqual({ format: 'pptx', canvasId: 'deck-1' });
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    clickSpy.mockRestore();
+  });
 });

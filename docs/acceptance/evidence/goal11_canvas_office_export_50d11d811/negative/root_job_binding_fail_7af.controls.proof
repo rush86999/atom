@@ -1,0 +1,18 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_copied_flags_for_a_nonexistent_assignment_cannot_certify_business_results _
+../../root-canvas-office-job-binding-independent-20261110.py:14: in test_copied_flags_for_a_nonexistent_assignment_cannot_certify_business_results
+    assert response.status_code==409,{'status':response.status_code,'business_result':response.headers.get('x-atom-business-result'),'scope':response.headers.get('x-atom-artifact-scope')}
+E   AssertionError: {'business_result': 'required_results_verified', 'scope': 'assignment_bound', 'status': 200}
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  <scratch-path> DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-canvas-office-job-binding-independent-20261110.py::test_copied_flags_for_a_nonexistent_assignment_cannot_certify_business_results
+1 failed, 2 warnings in 4.32s

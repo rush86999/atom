@@ -1,0 +1,54 @@
+{
+  "baseline_audit_commit": "84e0a6362453e865fb63aab8e251867460977338",
+  "baseline_packet": {
+    "commit": "84e0a6362453e865fb63aab8e251867460977338",
+    "manifest_sha256": "37b6e19308e55666871dc1153a5b864767cffb4bcd8b8a60a811b8c2567b5c5e",
+    "packet": "docs/acceptance/evidence/goal11_email_draft_readback_audit_0d5132c2e/"
+  },
+  "evidence_files": {
+    "README.md": "1693a06656b3a1394375e8aa9b86e6ecbcd6f1084ecf8a05a3cbab9310750004",
+    "baseline/preserved_audit.json": "f7702d1b5de63a319ecf248568cadc37ceeef7bbd915d2370d5c9fb70e44c105",
+    "gates/affected_email_139.proof": "c1dafd17d0bc893fe37651e65e7834fe4e905d8c51d68ad1629bcf0347fa3b97",
+    "gates/legacy_route_9_pre_existing.proof": "5b27e06efb053e48a898590e7ce3313f490e53aebf38eb42058b9d9339a31a0a",
+    "gates/shared_writer_16.proof": "2c06e1acd4decdaf8796df369f9e20f008fa738131254b6130bf6cab7ffcba0d",
+    "predecessor/README.txt": "6e36523d6a7963cd16dc74d8f93c0e7d8599f8082b8e534b52e1cc48f744d37c",
+    "predecessor/root_projection_controls.proof": "393b1ce499628de39be37d4d49989641ab37aed16f88b078d2ea08a9f2fa77b1",
+    "predecessor/root_projection_review.sanitized.json": "efa5c982e644a6dd6fbcb0c3cabb3e03dd9c4d91860ed4fc1f3d376355bacac5"
+  },
+  "gates": {
+    "affected_email_group": "139 passed",
+    "legacy_route_shape": "10 passed, 9 pre-existing fixture failures",
+    "new_shared_writer": "16 passed"
+  },
+  "kind": "goal11_email_draft_shared_writer_actor_claim_successor",
+  "non_claims": [
+    "No new actor engine/CAS/store; shared claim reused.",
+    "No CI/PR/merge/live DB/provider/model/browser/send/new deps.",
+    "Root independent review required before PR."
+  ],
+  "packet": "docs/acceptance/evidence/goal11_email_draft_shared_writer_7625389eb/",
+  "predecessor": {
+    "commit": "8167d919e9e247b24d9fef6507f8f653011b084e",
+    "packet": "docs/acceptance/evidence/goal11_email_draft_shared_writer_8167d919e/",
+    "root_projection": "2 passed in 4.21s, actual_exit 0, same_source true at predecessor source"
+  },
+  "predecessor_repair_commit": "8167d919e9e247b24d9fef6507f8f653011b084e",
+  "root_owned_unchanged_hashes": {
+    "backend/api/canvas_routes.py": "15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/assignment_executor.py": "945226cce24c4fa41dad75123f0c7e362598a7967d2f29506b5da1a4b80654b3"
+  },
+  "shared_mechanism_hashes": {
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249"
+  },
+  "source_hashes": {
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_email_service.py": "682175983ee3a1b09438391dcd166b06003f6e94a313ddfee625ad5426ea3ace",
+    "backend/tests/helpers/email_draft_readback_child.py": "05e9dc0d9e4890f97da9ae6d031538f7b75e221f034879070602435b324854cb",
+    "backend/tests/test_covpush_w99_gaps_c.py": "01ddbd2e2526c6d0ba08644ffccd09fc2ffa374ba50c5887cce7a773953712cd",
+    "backend/tests/test_email_draft_shared_writer.py": "7e93a12c986e296b9d81a74ccf1341792409a53d21c189b10ad8e48af3457621"
+  },
+  "source_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "successor_repair_commit": "7625389eb874b2ffe804d24f0f5eb6fa0a15fd93"
+}

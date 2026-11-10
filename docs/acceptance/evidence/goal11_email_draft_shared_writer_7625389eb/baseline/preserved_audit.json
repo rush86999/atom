@@ -1,0 +1,6 @@
+{
+  "packet": "docs/acceptance/evidence/goal11_email_draft_readback_audit_0d5132c2e/",
+  "commit": "84e0a6362453e865fb63aab8e251867460977338",
+  "manifest_sha256": "37b6e19308e55666871dc1153a5b864767cffb4bcd8b8a60a811b8c2567b5c5e",
+  "status": "preserved_unchanged; original negatives and 9 legacy fixture failures remain disclosed"
+}

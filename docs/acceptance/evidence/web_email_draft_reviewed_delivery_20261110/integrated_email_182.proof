@@ -1,0 +1,1345 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 05:37:24 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:37:24 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:37:24 [    INFO] EscalationManager initialized
+2026-11-10 05:37:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:37:24 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:37:24 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:37:24 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:37:24 [    INFO] EscalationManager initialized
+2026-11-10 05:37:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:37:24 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 05:37:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 05:37:24 [    INFO] MCP Service initialized
+
+tests/test_email_draft_shared_writer.py::test_requires_prior_and_roundtrips_exact_body 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:25 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-b4c82c1475/draft "HTTP/1.1 409 Conflict"
+2026-11-10 05:37:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-e24665b0'. type='canvas:update'
+2026-11-10 05:37:26 [    INFO] Updated canvas canvas-b4c82c1475 (email)
+2026-11-10 05:37:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-b4c82c1475/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:26 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-b4c82c1475 "HTTP/1.1 200 OK"
+2026-11-10 05:37:26 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-b4c82c1475 "HTTP/1.1 200 OK"
+2026-11-10 05:37:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-b4c82c1475/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-b4c82c1475/draft "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  0%]
+tests/test_email_draft_shared_writer.py::test_stale_prior_refuses_without_overwriting_peer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:27 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-a8e0db6a'. type='canvas:update'
+2026-11-10 05:37:27 [    INFO] Updated canvas canvas-6d356488c2 (email)
+2026-11-10 05:37:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-6d356488c2/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-6d356488c2/draft "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  1%]
+tests/test_email_draft_shared_writer.py::test_inactive_moved_actor_and_moved_target_refuse 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-a31ee1757d/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 05:37:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-a31ee1757d/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 05:37:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-a31ee1757d/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 05:37:27 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-a31ee1757d "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  1%]
+tests/test_email_draft_shared_writer.py::test_scoped_create_is_ordinary_put_editable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:28 [    INFO] Created email canvas 57dc3f4a-ae81-4c37-b302-739d69919d9c: Scoped Draft
+2026-11-10 05:37:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 05:37:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-7ff41956'. type='canvas:update'
+2026-11-10 05:37:28 [    INFO] Updated canvas 57dc3f4a-ae81-4c37-b302-739d69919d9c (email)
+2026-11-10 05:37:28 [    INFO] HTTP Request: PUT http://testserver/api/canvas/57dc3f4a-ae81-4c37-b302-739d69919d9c?expected_prior_audit_id=5354ab58-ed1e-45b6-8c46-27c7510ec9c6 "HTTP/1.1 200 OK"
+2026-11-10 05:37:28 [    INFO] HTTP Request: GET http://testserver/api/canvas/57dc3f4a-ae81-4c37-b302-739d69919d9c "HTTP/1.1 200 OK"
+2026-11-10 05:37:28 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/57dc3f4a-ae81-4c37-b302-739d69919d9c "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_email_draft_shared_writer.py::test_email_get_projects_native_thread_and_attachments 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-fe4ed377'. type='canvas:update'
+2026-11-10 05:37:29 [    INFO] Updated canvas canvas-8194d54082 (email)
+2026-11-10 05:37:29 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-8194d54082?expected_prior_audit_id=audit-dacdbf6484 "HTTP/1.1 200 OK"
+2026-11-10 05:37:29 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-8194d54082 "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_email_draft_shared_writer.py::test_uncertain_and_refused_writes_are_truthful 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:29 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-f6b44251d0/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:29 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-f6b44251d0/draft "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [  3%]
+tests/test_email_draft_shared_writer.py::test_fresh_process_reads_exact_saved_body 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-6966bb3a'. type='canvas:update'
+2026-11-10 05:37:30 [    INFO] Updated canvas canvas-fe15eaaeb4 (email)
+2026-11-10 05:37:30 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-fe15eaaeb4/draft "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_email_draft_shared_writer.py::test_generic_put_explicit_empty_does_not_resurrect_native_values 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-c64f8f54'. type='canvas:update'
+2026-11-10 05:37:33 [    INFO] Updated canvas canvas-ed6b5956b2 (email)
+2026-11-10 05:37:33 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-ed6b5956b2/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-c64f8f54'. type='canvas:update'
+2026-11-10 05:37:33 [    INFO] Updated canvas canvas-ed6b5956b2 (email)
+2026-11-10 05:37:33 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-ed6b5956b2?expected_prior_audit_id=da8b3f63-ffe8-4aab-88de-9842ba315ee4 "HTTP/1.1 200 OK"
+2026-11-10 05:37:33 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-ed6b5956b2 "HTTP/1.1 200 OK"
+2026-11-10 05:37:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-c64f8f54'. type='canvas:update'
+2026-11-10 05:37:36 [    INFO] Updated canvas canvas-ed6b5956b2 (email)
+2026-11-10 05:37:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-ed6b5956b2/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:36 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-ed6b5956b2 "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_email_draft_shared_writer.py::test_native_attachment_identity_is_preserved_without_duplication 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-1ebd2a45'. type='canvas:update'
+2026-11-10 05:37:36 [    INFO] Updated canvas canvas-3ae92de2bf (email)
+2026-11-10 05:37:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-3ae92de2bf/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-1ebd2a45'. type='canvas:update'
+2026-11-10 05:37:36 [    INFO] Updated canvas canvas-3ae92de2bf (email)
+2026-11-10 05:37:36 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-3ae92de2bf/draft "HTTP/1.1 200 OK"
+2026-11-10 05:37:36 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-3ae92de2bf "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_email_draft_shared_writer.py::test_create_authority_race_has_zero_effects[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:37 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+2026-11-10 05:37:37 [ WARNING] API Error: EMAIL_CANVAS_CREATE_FAILED - Acting user changed before the canvas could be created
+2026-11-10 05:37:37 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  5%]
+tests/test_email_draft_shared_writer.py::test_create_authority_race_has_zero_effects[move] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:38 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+2026-11-10 05:37:38 [ WARNING] API Error: EMAIL_CANVAS_CREATE_FAILED - Acting user changed before the canvas could be created
+2026-11-10 05:37:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  6%]
+tests/test_email_draft_shared_writer.py::test_created_draft_survives_ordinary_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:38 [    INFO] Created email canvas 075aa290-bbf1-4eec-8a68-23b9c818d172: Restart Draft
+2026-11-10 05:37:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 05:37:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-e819d92d'. type='canvas:update'
+2026-11-10 05:37:38 [    INFO] Updated canvas 075aa290-bbf1-4eec-8a68-23b9c818d172 (email)
+2026-11-10 05:37:38 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/075aa290-bbf1-4eec-8a68-23b9c818d172/draft "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_email_draft_shared_writer.py::test_create_rejects_scope_disagreement_and_unknown_user 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:41 [   ERROR] Failed to create email canvas: Caller scope does not match the current acting user
+2026-11-10 05:37:41 [   ERROR] Failed to create email canvas: Acting user not found
+PASSED                                                                   [  7%]
+tests/test_email_draft_shared_writer.py::test_create_null_raw_scope_move_has_zero_effects[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:42 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+PASSED                                                                   [  7%]
+tests/test_email_draft_shared_writer.py::test_create_null_raw_scope_move_has_zero_effects[] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:42 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+PASSED                                                                   [  8%]
+tests/test_email_draft_shared_writer.py::test_active_personal_default_create_is_ordinary_put_editable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created email canvas 160aeeb6-cc96-4eee-aafd-b9be93f0a659: Personal Draft
+2026-11-10 05:37:43 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 05:37:43 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:personal-default'. type='canvas:update'
+2026-11-10 05:37:43 [    INFO] Updated canvas 160aeeb6-cc96-4eee-aafd-b9be93f0a659 (email)
+2026-11-10 05:37:43 [    INFO] HTTP Request: PUT http://testserver/api/canvas/160aeeb6-cc96-4eee-aafd-b9be93f0a659?expected_prior_audit_id=0a1a0888-50f6-4620-ac2b-dc46fbb1caa3 "HTTP/1.1 200 OK"
+2026-11-10 05:37:43 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/160aeeb6-cc96-4eee-aafd-b9be93f0a659 "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_canvas_types_comprehensive.py::TestCanvasTypeRegistry::test_all_canvas_types_registered PASSED [  9%]
+tests/test_canvas_types_comprehensive.py::TestCanvasTypeRegistry::test_validate_canvas_type PASSED [  9%]
+tests/test_canvas_types_comprehensive.py::TestCanvasTypeRegistry::test_validate_component PASSED [ 10%]
+tests/test_canvas_types_comprehensive.py::TestCanvasTypeRegistry::test_validate_layout PASSED [ 10%]
+tests/test_canvas_types_comprehensive.py::TestCanvasTypeRegistry::test_governance_permissions PASSED [ 11%]
+tests/test_canvas_types_comprehensive.py::TestCanvasTypeRegistry::test_min_maturity_levels PASSED [ 12%]
+tests/test_canvas_types_comprehensive.py::TestDocumentationCanvas::test_create_document_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created documentation canvas f9cdc00f-17ce-4f62-bbb3-d5ea7d533c76: Test Doc
+PASSED                                                                   [ 12%]
+tests/test_canvas_types_comprehensive.py::TestDocumentationCanvas::test_update_document_content 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created documentation canvas 7a61dd21-8ebd-4933-9a0f-8fdfec326c03: Test Doc
+2026-11-10 05:37:43 [    INFO] Updated document canvas 7a61dd21-8ebd-4933-9a0f-8fdfec326c03
+PASSED                                                                   [ 13%]
+tests/test_canvas_types_comprehensive.py::TestDocumentationCanvas::test_add_comment 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created documentation canvas 61278e0e-b80b-4295-8280-3f12f8f67be8: Test Doc
+2026-11-10 05:37:43 [    INFO] Added comment to document 61278e0e-b80b-4295-8280-3f12f8f67be8
+PASSED                                                                   [ 13%]
+tests/test_canvas_types_comprehensive.py::TestDocumentationCanvas::test_version_history 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created documentation canvas bd747b0d-6e0c-45b4-a63e-fd50a7494373: Test Doc
+2026-11-10 05:37:43 [    INFO] Updated document canvas bd747b0d-6e0c-45b4-a63e-fd50a7494373
+PASSED                                                                   [ 14%]
+tests/test_canvas_types_comprehensive.py::TestDocumentationCanvas::test_table_of_contents 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created documentation canvas 09aac305-f419-498e-a986-0905c4229bfa: Test Doc
+PASSED                                                                   [ 14%]
+tests/test_canvas_types_comprehensive.py::TestEmailCanvas::test_create_email_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created email canvas dfc502d3-bfa9-48ac-80a0-bfed99701285: Test Subject
+PASSED                                                                   [ 15%]
+tests/test_canvas_types_comprehensive.py::TestEmailCanvas::test_add_message_to_thread 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:43 [    INFO] Created email canvas 03f29bdc-2e1f-4022-b70a-2893b5f8f4a4: Test
+2026-11-10 05:37:43 [    INFO] Added message to thread 03f29bdc-2e1f-4022-b70a-2893b5f8f4a4
+PASSED                                                                   [ 15%]
+tests/test_canvas_types_comprehensive.py::TestEmailCanvas::test_save_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created email canvas 20ee7e36-dfa5-4f77-804b-2977730e878f: Test
+PASSED                                                                   [ 16%]
+tests/test_canvas_types_comprehensive.py::TestSpreadsheetCanvas::test_create_spreadsheet_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created spreadsheet canvas 3fb4471c-9e0e-4e7c-8564-4a9a3cced8e7: Test Sheet
+PASSED                                                                   [ 17%]
+tests/test_canvas_types_comprehensive.py::TestSpreadsheetCanvas::test_update_cell 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created spreadsheet canvas 5be50303-33bf-4204-bbf8-5dfc4217d8e9: Test Sheet
+PASSED                                                                   [ 17%]
+tests/test_canvas_types_comprehensive.py::TestSpreadsheetCanvas::test_add_chart 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created spreadsheet canvas 906e1003-6439-4302-bca7-059119948f87: Test Sheet
+PASSED                                                                   [ 18%]
+tests/test_canvas_types_comprehensive.py::TestOrchestrationCanvas::test_create_orchestration_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created orchestration canvas 673c0d99-cab4-47c5-981e-d8966dc27a9e: Test Workflow
+PASSED                                                                   [ 18%]
+tests/test_canvas_types_comprehensive.py::TestOrchestrationCanvas::test_add_integration_node 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created orchestration canvas 816a0417-a774-4241-9b40-34b3bb29bf6a: Test Workflow
+2026-11-10 05:37:44 [    INFO] Added workflow node slack to canvas 816a0417-a774-4241-9b40-34b3bb29bf6a
+PASSED                                                                   [ 19%]
+tests/test_canvas_types_comprehensive.py::TestOrchestrationCanvas::test_connect_nodes 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created orchestration canvas f2139fdf-beb5-4c7f-a7ba-ae9206565781: Test Workflow
+2026-11-10 05:37:44 [    INFO] Added workflow node gmail to canvas f2139fdf-beb5-4c7f-a7ba-ae9206565781
+2026-11-10 05:37:44 [    INFO] Added workflow node slack to canvas f2139fdf-beb5-4c7f-a7ba-ae9206565781
+PASSED                                                                   [ 19%]
+tests/test_canvas_types_comprehensive.py::TestTerminalCanvas::test_create_terminal_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created terminal canvas c7f76534-33ae-42b0-ae85-158e9ec2c0af
+PASSED                                                                   [ 20%]
+tests/test_canvas_types_comprehensive.py::TestTerminalCanvas::test_add_output 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created terminal canvas 7a4887b1-6c0c-4ec6-90fd-43c3a6cc1051
+PASSED                                                                   [ 20%]
+tests/test_canvas_types_comprehensive.py::TestCodingCanvas::test_create_coding_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created coding canvas 391464aa-867f-45e3-94d0-1814ad5db9be: github.com/user/repo
+PASSED                                                                   [ 21%]
+tests/test_canvas_types_comprehensive.py::TestCodingCanvas::test_add_file 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created coding canvas bdd5606f-a388-41c1-95cd-6f1ef2693fdb: test/repo
+PASSED                                                                   [ 21%]
+tests/test_canvas_types_comprehensive.py::TestCodingCanvas::test_add_diff 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] Created coding canvas c1f8e3b2-f291-4db3-9c27-8fbc51ff9243: test/repo
+PASSED                                                                   [ 22%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsAdapterInit::test_init_explicit_and_env_fallback PASSED [ 23%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsJwks::test_jwks_cached PASSED [ 23%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsJwks::test_jwks_fetch_success PASSED [ 24%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsJwks::test_jwks_fetch_failure_returns_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [   ERROR] Failed to fetch Microsoft JWKS: net down
+PASSED                                                                   [ 24%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsBotToken::test_cached_token PASSED [ 25%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsBotToken::test_missing_credentials PASSED [ 25%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsBotToken::test_token_success_and_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [   ERROR] Failed to get Microsoft Bot Token: boom
+PASSED                                                                   [ 26%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_no_app_id_rejected PASSED [ 26%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_dev_bypass_optin PASSED [ 27%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_bad_authorization_header PASSED [ 28%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_missing_kid 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [   ERROR] Teams token missing 'kid' in header
+PASSED                                                                   [ 28%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_no_jwks_keys 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [   ERROR] Failed to fetch JWKS keys from Microsoft
+PASSED                                                                   [ 29%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_no_matching_kid 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [   ERROR] No matching JWKS key found for kid: test-kid
+PASSED                                                                   [ 29%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_bad_jwk_construct 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [   ERROR] Failed to construct public key from JWK: Unable to find an algorithm for key
+PASSED                                                                   [ 30%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [    INFO] JWT verified successfully for app: app
+PASSED                                                                   [ 30%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_replay_detected 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:44 [ WARNING] Replay attack detected: JWT ID jti-replay already seen
+PASSED                                                                   [ 31%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsVerifyRequest::test_expired_and_stale_iat_and_bad_sig 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [   ERROR] Teams Token Verification Failed: Token expired
+2026-11-10 05:37:45 [   ERROR] Token issued too long ago: 3600.1064319610596s ago (max 300s)
+2026-11-10 05:37:45 [   ERROR] Teams Token Verification Failed: Signature verification failed.
+2026-11-10 05:37:45 [   ERROR] Teams Token Verification Failed: Error decoding token headers.
+PASSED                                                                   [ 31%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsWebhookSignature::test_bad_timestamp PASSED [ 32%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsWebhookSignature::test_timestamp_too_old 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [ WARNING] Webhook timestamp too old: 3600.00000500679s ago
+PASSED                                                                   [ 32%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsWebhookSignature::test_missing_signature_or_secret PASSED [ 33%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsWebhookSignature::test_valid_and_invalid_hmac PASSED [ 34%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsWebhookSignature::test_bearer_prefix_stripped PASSED [ 34%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsNormalize::test_non_dict PASSED [ 35%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsNormalize::test_non_message_activity PASSED [ 35%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsNormalize::test_message_activity PASSED [ 36%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsSendMessage::test_missing_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [   ERROR] Teams reply requires serviceUrl in metadata.
+2026-11-10 05:37:45 [   ERROR] Teams reply requires serviceUrl in metadata.
+PASSED                                                                   [ 36%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsSendMessage::test_no_token PASSED [ 37%]
+tests/test_covpush_w99_gaps_c.py::TestTeamsSendMessage::test_success_and_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [   ERROR] Failed to send Teams message: net
+PASSED                                                                   [ 37%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_create_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [    INFO] Created email canvas 98101a48-82f2-4ad6-827e-920ddac72251: Hello
+PASSED                                                                   [ 38%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_create_explicit_canvas_id 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [    INFO] Created email canvas c-1: S
+PASSED                                                                   [ 39%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_create_failure_rolls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [   ERROR] Failed to create email canvas: db down
+PASSED                                                                   [ 39%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_add_message_not_found PASSED [ 40%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_add_message_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [    INFO] Added message to thread c
+PASSED                                                                   [ 40%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_add_message_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [   ERROR] Failed to add message: db down
+PASSED                                                                   [ 41%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_save_draft_not_found PASSED [ 41%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_save_draft_success_reuses_draft_id PASSED [ 42%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_save_draft_generates_draft_id_when_missing PASSED [ 42%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_save_draft_failure PASSED [ 43%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_categorize_not_found PASSED [ 43%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_categorize_success_appends 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [    INFO] Categorized email c as Work
+PASSED                                                                   [ 44%]
+tests/test_covpush_w99_gaps_c.py::TestEmailCanvasService::test_categorize_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:45 [   ERROR] Failed to categorize email: db down
+PASSED                                                                   [ 45%]
+tests/test_covpush_w99_gaps_c.py::TestEmailDataclasses::test_email_message_defaults PASSED [ 45%]
+tests/test_covpush_w99_gaps_c.py::TestEmailDataclasses::test_email_draft_defaults PASSED [ 46%]
+tests/test_covpush_w99_gaps_c.py::TestEmailDataclasses::test_message_and_draft_to_dict PASSED [ 46%]
+tests/test_email_attachment_tool.py::test_mutations_signal_needs_approval_when_pinned 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:45 [    INFO] Created email canvas df0a5b8a-10e7-4eb6-a08b-0adeacb65a7e: Thread
+PASSED                                                                   [ 47%]
+tests/test_email_attachment_tool.py::test_reads_skip_the_gate 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:46 [    INFO] Created email canvas 1ba4fca6-631b-40cf-b785-00298b751b5b: Thread
+PASSED                                                                   [ 47%]
+tests/test_email_attachment_tool.py::test_stage_file_roundtrip_and_cap 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:47 [    INFO] Created email canvas 2312eaf5-cdf6-418b-9eba-fadbfeeeea80: Thread
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:2312eaf5-cdf6-418b-9eba-fadbfeeeea80'. type='canvas:update'
+2026-11-10 05:37:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 48%]
+tests/test_email_attachment_tool.py::test_stage_file_rejects_disallowed_type 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:48 [    INFO] Created email canvas 69d34199-074a-4527-8758-76a42a62b0d6: Thread
+PASSED                                                                   [ 48%]
+tests/test_email_attachment_tool.py::test_attach_from_message_promotes_received_file 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:48 [    INFO] Created email canvas 49cf5d81-f0e4-4c28-80d8-a3a2d8d798ba: Thread
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:48 [    INFO] Added message to thread 49cf5d81-f0e4-4c28-80d8-a3a2d8d798ba
+2026-11-10 05:37:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:49cf5d81-f0e4-4c28-80d8-a3a2d8d798ba'. type='canvas:update'
+2026-11-10 05:37:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 49%]
+tests/test_email_attachment_tool.py::test_attach_from_message_unknown_attachment 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:49 [    INFO] Created email canvas a3c66bd9-34dc-46a5-a34c-22db15bb0e75: Thread
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:49 [    INFO] Added message to thread a3c66bd9-34dc-46a5-a34c-22db15bb0e75
+PASSED                                                                   [ 50%]
+tests/test_email_attachment_tool.py::test_get_text_returns_provenance_wrapped_csv 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:50 [    INFO] Created email canvas a03420fe-11d8-4dec-a9be-28b942ec2926: Thread
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:50 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmprwrdbjf7.csv
+2026-11-10 05:37:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:a03420fe-11d8-4dec-a9be-28b942ec2926'. type='canvas:update'
+2026-11-10 05:37:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 50%]
+tests/test_email_attachment_tool.py::test_get_text_binary_without_layer_suggests_ingest 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:51 [    INFO] Created email canvas 9ce0fe84-0bd1-495d-8b80-4c33ed118426: Thread
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:51 [ WARNING] Unsupported file type: zip
+2026-11-10 05:37:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:9ce0fe84-0bd1-495d-8b80-4c33ed118426'. type='canvas:update'
+2026-11-10 05:37:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 51%]
+tests/test_email_attachment_tool.py::test_get_text_ocrs_image_attachment 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:51 [    INFO] Created email canvas cd1864df-a2bc-4878-a4b8-99a1d100f4ad: Thread
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:51 [    INFO] Image OCR (tesseract) parsed receipt.png: 19 chars
+2026-11-10 05:37:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:cd1864df-a2bc-4878-a4b8-99a1d100f4ad'. type='canvas:update'
+2026-11-10 05:37:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 51%]
+tests/test_email_attachment_tool.py::test_remove_via_tool 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:52 [    INFO] Created email canvas 0f9610b9-ade2-4d38-a676-35c4152aefb2: Thread
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:0f9610b9-ade2-4d38-a676-35c4152aefb2'. type='canvas:update'
+2026-11-10 05:37:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-11-10 05:37:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:0f9610b9-ade2-4d38-a676-35c4152aefb2'. type='canvas:update'
+2026-11-10 05:37:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 52%]
+tests/test_email_attachment_tool.py::test_registry_registers_email_attachment_tools 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:52 [    INFO] Initializing tool registry...
+2026-11-10 05:37:52 [    INFO] Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+2026-11-10 05:37:52 [    INFO] Registered tool: find_datasets v1.0.0 (dataset)
+2026-11-10 05:37:52 [    INFO] Registered tool: load_registered_dataset v1.0.0 (dataset)
+2026-11-10 05:37:52 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-10 05:37:52 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: execute_device_command v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: get_device_info v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_devices v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: send_device_command v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_canvases v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: read_canvas v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: submit_canvas_event v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: integration_ingest_item v1.0.0 (drive)
+2026-11-10 05:37:52 [    INFO] Registered tool: integration_search_index v1.0.0 (drive)
+2026-11-10 05:37:52 [    INFO] Registered tool: analyze_data v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: describe_data v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_datasets v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: load_dataset v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: query_data v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_create_thread v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_send_message v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [ WARNING] SoCo library not installed - Sonos functions will fail
+2026-11-10 05:37:52 [    INFO] Initializing tool registry...
+2026-11-10 05:37:52 [    INFO] Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+2026-11-10 05:37:52 [    INFO] Registered tool: find_datasets v1.0.0 (dataset)
+2026-11-10 05:37:52 [    INFO] Registered tool: load_registered_dataset v1.0.0 (dataset)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: execute_device_command v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: get_device_info v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_devices v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: send_device_command v1.0.0 (device)
+2026-11-10 05:37:52 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_canvases v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: read_canvas v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: submit_canvas_event v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+2026-11-10 05:37:52 [    INFO] Registered tool: integration_ingest_item v1.0.0 (drive)
+2026-11-10 05:37:52 [    INFO] Registered tool: integration_search_index v1.0.0 (drive)
+2026-11-10 05:37:52 [    INFO] Registered tool: analyze_data v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: describe_data v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_datasets v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: load_dataset v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: query_data v1.0.0 (data_analysis)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_create_thread v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_send_message v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [    INFO] Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+2026-11-10 05:37:52 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-10 05:37:52 [    INFO] Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+2026-11-10 05:37:52 [    INFO] Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+2026-11-10 05:37:52 [ WARNING] ffmpeg-python not installed. Run: pip install ffmpeg-python
+2026-11-10 05:37:52 [   ERROR] Failed to initialize FFmpegService
+2026-11-10 05:37:52 [   ERROR] Failed to register FFmpeg tool
+2026-11-10 05:37:52 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-10 05:37:52 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-10 05:37:52 [    INFO] Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+2026-11-10 05:37:52 [    INFO] Registered tool: add_member_to_team v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: create_team v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: create_tenant v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: create_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: delete_team v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: delete_tenant v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: delete_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: get_platform_settings v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: list_tenant_members v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: manage_team v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: manage_tenant_member v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: manage_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: remove_member_from_team v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: set_byok_api_key v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_platform_setting v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_team v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_tenant v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_tenant_profile v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: update_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:52 [    INFO] Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+2026-11-10 05:37:52 [    INFO] Registered tool: attach_tiebreak v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-10 05:37:52 [    INFO] Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+2026-11-10 05:37:52 [    INFO] Registered tool: present_email_canvas v1.0.0 (canvas_email)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+2026-11-10 05:37:52 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+2026-11-10 05:37:52 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+2026-11-10 05:37:52 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+2026-11-10 05:37:52 [    INFO] Registered tool: email_attachment_list v1.0.0 (email_attachment)
+2026-11-10 05:37:52 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+2026-11-10 05:37:52 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_db_query v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_db_write v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_get_state v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_install v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_list v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_publish v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_run v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_status v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: close_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_chart v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_form v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_markdown v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_status_panel v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_to_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] python-hue-v2 library not available
+2026-11-10 05:37:53 [ WARNING] Hue integration will fail - install with: pip install python-hue-v2
+2026-11-10 05:37:53 [    INFO] Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: hue_get_lights v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: hue_set_light_state v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Smart home tools registered with ToolRegistry
+2026-11-10 05:37:53 [    INFO] Registered tool: email_ingest_message v1.0.0 (email_ingest)
+2026-11-10 05:37:53 [    INFO] Registered tool: add_excel_pivot_table v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: get_excel_formula_result v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: insert_excel_columns v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: insert_excel_rows v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: modify_pptx_slides v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: modify_word_document v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_coedit_canvas v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: read_excel_cell v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: read_pptx_slides v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: read_word_document v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: recalculate_excel v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: run_excel_macro v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: write_excel_cell v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Tool discovery complete. Discovered 144 new tools. Total tools: 150
+2026-11-10 05:37:53 [ WARNING] Tool 'present_chart' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'present_markdown' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'present_form' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'update_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: update_canvas v2.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'read_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'update_canvas_content' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'delete_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'list_canvases' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_create_session' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_navigate' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_screenshot' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_fill_form' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_click' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_extract_text' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_execute_script' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_close_session' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_get_page_info' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_start_task v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_get_status v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_get_screenshot v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_stop_task v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_camera_snap' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_screen_record_start' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_screen_record_stop' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_get_location' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_send_notification' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_execute_command' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-10 05:37:53 [   ERROR] No Google Calendar credentials provided
+2026-11-10 05:37:53 [    INFO] CalendarTool initialized
+2026-11-10 05:37:53 [    INFO] Registered tool: calendar_tool v1.0.0 (productivity)
+2026-11-10 05:37:53 [    INFO] CalendarTool registered with ToolRegistry
+2026-11-10 05:37:53 [    INFO] NotionTool initialized
+2026-11-10 05:37:53 [    INFO] Registered tool: notion_tool v1.0.0 (productivity)
+2026-11-10 05:37:53 [    INFO] NotionTool registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'memory_remember' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-10 05:37:53 [ WARNING] Tool 'memory_forget' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-10 05:37:53 [    INFO] memory_remember + memory_forget registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'integration_search_index' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: integration_search_index v1.0.0 (integrations)
+2026-11-10 05:37:53 [ WARNING] Tool 'integration_ingest_item' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: integration_ingest_item v1.0.0 (integrations)
+2026-11-10 05:37:53 [ WARNING] Tool 'load_dataset' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: load_dataset v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'analyze_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: analyze_data v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'query_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: query_data v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'describe_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: describe_data v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'list_datasets' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: list_datasets v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Data analysis tools registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'find_datasets' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: find_datasets v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'load_registered_dataset' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: load_registered_dataset v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Dataset catalog tools registered with ToolRegistry
+2026-11-10 05:37:53 [    INFO] Registered tool: forecast v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Registered tool: run_model v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Predictive modeling tools registered with ToolRegistry
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.create_thread v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.send_message v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.read_inbox v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] radio.* tools registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_list' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_list v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_get_text' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_stage_file' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_attach' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_remove' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_ingest' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_ingest_message' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_ingest_message v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_get_state' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_read_text' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_list_versions' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_get_form_fields' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_merge_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_submit_for_review' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_set_form_fields' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_flatten' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_annotate' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_generate_from_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_approve' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_attach_to_email' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_redact' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_stamp_signature' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Tool registry initialized with 162 tools
+2026-11-10 05:37:53 [ WARNING] Tool 'spotify_current' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'spotify_play' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'spotify_pause' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'spotify_next' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'spotify_previous' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'spotify_volume' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'spotify_devices' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'sonos_discover' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'sonos_play' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'sonos_pause' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'sonos_volume' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-10 05:37:53 [ WARNING] Tool 'sonos_groups' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Media control tools registered with tool registry
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+2026-11-10 05:37:53 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-10 05:37:53 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+2026-11-10 05:37:53 [    INFO] Registered tool: add_member_to_team v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: create_team v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: create_tenant v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: create_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: delete_team v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: delete_tenant v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: delete_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: get_platform_settings v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: list_tenant_members v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: manage_team v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: manage_tenant_member v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: manage_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: remove_member_from_team v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: set_byok_api_key v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_platform_setting v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_team v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_tenant v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_tenant_profile v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_workspace v1.0.0 (platform_management)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+2026-11-10 05:37:53 [    INFO] Registered tool: attach_tiebreak v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_email_canvas v1.0.0 (canvas_email)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_list v1.0.0 (email_attachment)
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_db_query v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_db_write v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_get_state v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_install v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_list v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_publish v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_run v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_status v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+2026-11-10 05:37:53 [    INFO] Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: close_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_chart v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_form v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_markdown v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_status_panel v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_to_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: hue_get_lights v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: hue_set_light_state v1.0.0 (smarthome)
+2026-11-10 05:37:53 [    INFO] Registered tool: email_ingest_message v1.0.0 (email_ingest)
+2026-11-10 05:37:53 [    INFO] Registered tool: add_excel_pivot_table v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: get_excel_formula_result v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: insert_excel_columns v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: insert_excel_rows v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: modify_pptx_slides v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: modify_word_document v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: present_coedit_canvas v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: read_excel_cell v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: read_pptx_slides v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: read_word_document v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: recalculate_excel v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: run_excel_macro v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Registered tool: write_excel_cell v1.0.0 (office)
+2026-11-10 05:37:53 [    INFO] Tool discovery complete. Discovered 150 new tools. Total tools: 150
+2026-11-10 05:37:53 [ WARNING] Tool 'present_chart' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'present_markdown' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'present_form' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'update_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: update_canvas v2.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'read_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'update_canvas_content' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'delete_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'list_canvases' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_create_session' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_navigate' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_screenshot' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_fill_form' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_click' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_extract_text' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_execute_script' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_close_session' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'browser_get_page_info' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_start_task v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_get_status v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_get_screenshot v1.0.0 (browser)
+2026-11-10 05:37:53 [    INFO] Registered tool: operator_stop_task v1.0.0 (browser)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_camera_snap' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_screen_record_start' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_screen_record_stop' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_get_location' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_send_notification' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-10 05:37:53 [ WARNING] Tool 'device_execute_command' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-10 05:37:53 [   ERROR] No Google Calendar credentials provided
+2026-11-10 05:37:53 [    INFO] CalendarTool initialized
+2026-11-10 05:37:53 [    INFO] Registered tool: calendar_tool v1.0.0 (productivity)
+2026-11-10 05:37:53 [    INFO] CalendarTool registered with ToolRegistry
+2026-11-10 05:37:53 [    INFO] NotionTool initialized
+2026-11-10 05:37:53 [    INFO] Registered tool: notion_tool v1.0.0 (productivity)
+2026-11-10 05:37:53 [    INFO] NotionTool registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'memory_remember' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-10 05:37:53 [ WARNING] Tool 'memory_forget' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-10 05:37:53 [    INFO] memory_remember + memory_forget registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'integration_search_index' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: integration_search_index v1.0.0 (integrations)
+2026-11-10 05:37:53 [ WARNING] Tool 'integration_ingest_item' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: integration_ingest_item v1.0.0 (integrations)
+2026-11-10 05:37:53 [ WARNING] Tool 'load_dataset' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: load_dataset v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'analyze_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: analyze_data v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'query_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: query_data v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'describe_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: describe_data v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'list_datasets' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: list_datasets v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Data analysis tools registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'find_datasets' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: find_datasets v1.0.0 (data)
+2026-11-10 05:37:53 [ WARNING] Tool 'load_registered_dataset' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: load_registered_dataset v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Dataset catalog tools registered with ToolRegistry
+2026-11-10 05:37:53 [    INFO] Registered tool: forecast v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Registered tool: run_model v1.0.0 (data)
+2026-11-10 05:37:53 [    INFO] Predictive modeling tools registered with ToolRegistry
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.create_thread v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.send_message v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] Registered tool: radio.read_inbox v1.0.0 (coordination)
+2026-11-10 05:37:53 [    INFO] radio.* tools registered with ToolRegistry
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_list' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_list v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_get_text' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_stage_file' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_attach' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_remove' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_attachment_ingest' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'email_ingest_message' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: email_ingest_message v1.0.0 (email)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_get_state' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_read_text' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_list_versions' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_get_form_fields' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_merge_canvas' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_submit_for_review' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_set_form_fields' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_flatten' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_annotate' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_generate_from_data' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_approve' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_attach_to_email' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_redact' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_stamp_signature' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+2026-11-10 05:37:53 [ WARNING] Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+2026-11-10 05:37:53 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+2026-11-10 05:37:53 [    INFO] Tool registry initialized with 162 tools
+PASSED                                                                   [ 52%]
+tests/test_email_attachment_tool.py::test_governance_complexity_keys_present PASSED [ 53%]
+tests/test_email_attachment_tool.py::test_autonomy_topic_registered PASSED [ 53%]
+tests/test_email_canvas_attachments.py::test_staged_save_read_delete_roundtrip PASSED [ 54%]
+tests/test_email_canvas_attachments.py::test_staged_rejects_disallowed_extension PASSED [ 54%]
+tests/test_email_canvas_attachments.py::test_staged_rejects_oversized_upload PASSED [ 55%]
+tests/test_email_canvas_attachments.py::test_staged_per_canvas_cap PASSED [ 56%]
+tests/test_email_canvas_attachments.py::test_staged_ids_are_path_safe PASSED [ 56%]
+tests/test_email_canvas_attachments.py::test_orphan_sweep_removes_old_files 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:53 [    INFO] Swept 1 orphaned staged email attachments
+PASSED                                                                   [ 57%]
+tests/test_email_canvas_attachments.py::test_stage_list_remove_roundtrip 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:54 [    INFO] Created email canvas a817ffa4-4776-4b0b-8938-a23d2ed06eaa: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:a817ffa4-4776-4b0b-8938-a23d2ed06eaa'. type='canvas:update'
+2026-11-10 05:37:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-11-10 05:37:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:a817ffa4-4776-4b0b-8938-a23d2ed06eaa'. type='canvas:update'
+2026-11-10 05:37:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 57%]
+tests/test_email_canvas_attachments.py::test_stage_rejects_non_owner 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:54 [    INFO] Created email canvas a8125923-5038-4ef9-b552-9c60d6239d1e: Q3 report
+PASSED                                                                   [ 58%]
+tests/test_email_canvas_attachments.py::test_stage_batch_fails_atomically 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:55 [    INFO] Created email canvas 791b75df-4e07-40d6-97a7-29be55a34f86: Q3 report
+PASSED                                                                   [ 58%]
+tests/test_email_canvas_attachments.py::test_send_with_attachments_passes_bytes_and_cleans_staged 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:56 [    INFO] Created email canvas 7d9ec568-3a36-46cf-87a2-0f9a0a0e09bb: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:7d9ec568-3a36-46cf-87a2-0f9a0a0e09bb'. type='canvas:update'
+2026-11-10 05:37:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-11-10 05:37:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:7d9ec568-3a36-46cf-87a2-0f9a0a0e09bb'. type='canvas:update'
+2026-11-10 05:37:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 59%]
+tests/test_email_canvas_attachments.py::test_send_with_changed_attachment_hash_is_blocked_before_transport 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:57 [    INFO] Created email canvas 34e1bbc1-e670-4cc5-b572-c9efa32af3d1: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:34e1bbc1-e670-4cc5-b572-c9efa32af3d1'. type='canvas:update'
+2026-11-10 05:37:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 59%]
+tests/test_email_canvas_attachments.py::test_send_with_unknown_attachment_is_blocked 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:57 [    INFO] Created email canvas cef5f30b-6ad2-42c8-beb0-86247e4addad: Q3 report
+PASSED                                                                   [ 60%]
+tests/test_email_canvas_attachments.py::test_send_without_attachments_keeps_legacy_contract 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:58 [    INFO] Created email canvas 512dca5f-46bb-411a-a270-609e159e7bf3: Q3 report
+PASSED                                                                   [ 60%]
+tests/test_email_canvas_attachments.py::test_attachment_csv_text_rides_policy_scan 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:37:59 [    INFO] Created email canvas ef9c425d-d4f4-4fd1-96f3-74c5cb2acd91: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:37:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:ef9c425d-d4f4-4fd1-96f3-74c5cb2acd91'. type='canvas:update'
+2026-11-10 05:37:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 61%]
+tests/test_email_eml_import.py::test_eml_import_preserves_envelope_body_thread_and_attachment PASSED [ 62%]
+tests/test_email_eml_import.py::test_imported_attachment_is_not_sendable_by_default PASSED [ 62%]
+tests/test_email_eml_import.py::test_other_user_cannot_mutate_imported_email_canvas PASSED [ 63%]
+tests/test_email_eml_import.py::test_save_draft_is_retired_and_cannot_mutate_public_content PASSED [ 63%]
+tests/test_pdf_canvas_service.py::test_create_blank_and_upload 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:00 [    INFO] Created pdf canvas 3b2f55ae-8bc7-4ea3-a402-7b8ee8412f5a: quote.pdf (1 pages)
+2026-11-10 05:38:00 [    INFO] Created pdf canvas 93a87c64-5e96-4bb6-b88f-e63232f92bfd: contract.pdf (2 pages)
+2026-11-10 05:38:00 [ WARNING] invalid pdf header: b'garba'
+2026-11-10 05:38:00 [ WARNING] EOF marker not found
+2026-11-10 05:38:00 [ WARNING] EOF marker not found
+PASSED                                                                   [ 64%]
+tests/test_pdf_canvas_service.py::test_page_ops_version_and_conflict_guard 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:00 [    INFO] Created pdf canvas 621d7a4f-b3d5-4fcb-a28a-530a14743889: document.pdf (3 pages)
+PASSED                                                                   [ 64%]
+tests/test_pdf_canvas_service.py::test_ownership_is_enforced 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:00 [    INFO] Created pdf canvas be79bd03-4080-4f3d-a448-9572d7a89893: document.pdf (1 pages)
+PASSED                                                                   [ 65%]
+tests/test_pdf_canvas_service.py::test_merge_upload_and_extract_text 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:00 [    INFO] Created pdf canvas 2e5abd40-b910-4e46-84e1-68e2e4179c56: document.pdf (1 pages)
+PASSED                                                                   [ 65%]
+tests/test_pdf_canvas_service.py::test_attach_to_email_stages_and_stamps_provenance 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:00 [    INFO] Created pdf canvas 62422abc-0cb8-4d1c-b56a-45542a55a3b7: Q3 quote.pdf (1 pages)
+2026-11-10 05:38:00 [    INFO] Created email canvas 816cea31-fcd4-45f1-924b-beeed8286989: Q3 quote
+2026-11-10 05:38:00 [    INFO] Attached pdf canvas 62422abc-0cb8-4d1c-b56a-45542a55a3b7 (hash 24065d78571d, flattened=False) to email canvas 816cea31-fcd4-45f1-924b-beeed8286989
+PASSED                                                                   [ 66%]
+tests/test_pdf_canvas_service.py::test_attach_to_existing_email_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:00 [    INFO] Created pdf canvas 7825c248-dcc3-4a0d-8426-44f669292459: document.pdf (1 pages)
+2026-11-10 05:38:00 [    INFO] Created email canvas f94c3ee2-eaf6-476a-87a1-0c7373711d1a: PO request
+2026-11-10 05:38:00 [    INFO] Attached pdf canvas 7825c248-dcc3-4a0d-8426-44f669292459 (hash 76cf3941c8d7, flattened=False) to email canvas f94c3ee2-eaf6-476a-87a1-0c7373711d1a
+PASSED                                                                   [ 67%]
+tests/test_pdf_canvas_trust_ops.py::test_form_fill_then_flatten PASSED   [ 67%]
+tests/test_pdf_canvas_trust_ops.py::test_flatten_without_form_is_a_noop_passthrough PASSED [ 68%]
+tests/test_pdf_canvas_trust_ops.py::test_redact_removes_text_and_verifies PASSED [ 68%]
+tests/test_pdf_canvas_trust_ops.py::test_redact_reports_unfindable_targets PASSED [ 69%]
+tests/test_pdf_canvas_trust_ops.py::test_redact_out_of_range_page_refuses PASSED [ 69%]
+tests/test_pdf_canvas_trust_ops.py::test_annotate_adds_real_annotation_objects PASSED [ 70%]
+tests/test_pdf_canvas_trust_ops.py::test_signature_stamp PASSED          [ 70%]
+tests/test_pdf_canvas_trust_ops.py::test_generate_quote_renders_items_and_total PASSED [ 71%]
+tests/test_pdf_canvas_trust_ops.py::test_sanitize_strips_metadata_and_survey_reports PASSED [ 71%]
+tests/test_pdf_canvas_trust_ops.py::test_service_form_fill_is_versioned 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:38:00 [    INFO] Created pdf canvas 4a1a3535-576c-4e5d-b17e-87418198d72e: po.pdf (1 pages)
+PASSED                                                                   [ 72%]
+tests/test_pdf_canvas_trust_ops.py::test_service_redact_versioned_and_honest 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:01 [    INFO] Created pdf canvas f98c9b20-c42c-4624-b44a-f54cd3c4fee1: document.pdf (1 pages)
+PASSED                                                                   [ 73%]
+tests/test_pdf_canvas_trust_ops.py::test_service_generate_creates_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:02 [    INFO] Created pdf canvas 0a38a172-a3d3-405a-9ca7-33b1b248b893: Q3 Quote.pdf (1 pages)
+PASSED                                                                   [ 73%]
+tests/test_pdf_canvas_trust_ops.py::test_attach_flatten_stages_frozen_copy_without_mutating_canvas 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:38:03 [    INFO] Created pdf canvas 19bcd72c-f97a-4960-9cb7-1d53d936e982: po.pdf (1 pages)
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:03 [    INFO] Created email canvas e2a01215-de9b-419b-a674-f5ec48525377: po
+2026-11-10 05:38:03 [    INFO] Attached pdf canvas 19bcd72c-f97a-4960-9cb7-1d53d936e982 (hash a58215c0471d, flattened=True) to email canvas e2a01215-de9b-419b-a674-f5ec48525377
+PASSED                                                                   [ 74%]
+tests/test_pdf_canvas_trust_ops.py::test_archive_and_docusign_degrade_cleanly_when_unconfigured 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:38:03 [    INFO] Created pdf canvas b5687f9e-8942-4535-b3d4-a61e864e7057: po.pdf (1 pages)
+PASSED                                                                   [ 74%]
+tests/test_pdf_canvas_trust_ops.py::test_docusign_dormant_without_env PASSED [ 75%]
+tests/test_pdf_canvas_trust_ops.py::test_docusign_send_envelope_mocked PASSED [ 75%]
+tests/test_pdf_canvas_trust_ops.py::test_create_from_email_attachment 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [    INFO] Created email canvas b092d0fb-efe7-47af-b842-e20c305ae6bf: Vendor reply
+2026-11-10 05:38:04 [    INFO] Created pdf canvas b76abc5a-e289-4391-9ada-664b27c42279: vendor quote.pdf (1 pages)
+2026-11-10 05:38:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:b092d0fb-efe7-47af-b842-e20c305ae6bf'. type='canvas:update'
+2026-11-10 05:38:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-11-10 05:38:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:b092d0fb-efe7-47af-b842-e20c305ae6bf'. type='canvas:update'
+2026-11-10 05:38:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 76%]
+tests/test_round66_canvas_ownership.py::TestCanvasDocsAuth::test_add_comment_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [    INFO] HTTP Request: POST http://testserver/api/canvas/docs/c1/comment "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 76%]
+tests/test_round66_canvas_ownership.py::TestCanvasDocsAuth::test_resolve_comment_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [    INFO] HTTP Request: POST http://testserver/api/canvas/docs/c1/comment/resolve "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 77%]
+tests/test_round66_canvas_ownership.py::TestCanvasDocsAuth::test_create_uses_token_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [    INFO] HTTP Request: POST http://testserver/api/canvas/docs/create "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_round66_canvas_ownership.py::TestCanvasDocsAuth::test_get_document_denies_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_document_canvas on DocumentCanvas
+2026-11-10 05:38:04 [    INFO] HTTP Request: GET http://testserver/api/canvas/docs/c1 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 78%]
+tests/test_round66_canvas_ownership.py::TestCanvasTerminalOwnership::test_get_terminal_denies_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_terminal_canvas on TerminalCanvas
+2026-11-10 05:38:04 [    INFO] HTTP Request: GET http://testserver/api/canvas/terminal/c1 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 79%]
+tests/test_round66_canvas_ownership.py::TestCanvasTerminalOwnership::test_add_output_denies_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_terminal_canvas on TerminalCanvas
+2026-11-10 05:38:04 [    INFO] HTTP Request: POST http://testserver/api/canvas/terminal/c1/output "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 79%]
+tests/test_round66_canvas_ownership.py::TestCanvasEmailOwnership::test_get_email_denies_other_users_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:04 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/c1 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 80%]
+tests/test_supersession_and_canvas_dedup.py::TestMergeInheritsFromSupersessionStash::test_replacement_inherits_targets_when_existing_was_popped PASSED [ 80%]
+tests/test_supersession_and_canvas_dedup.py::TestMergeInheritsFromSupersessionStash::test_inherit_never_clobbers_the_replacements_own_context PASSED [ 81%]
+tests/test_supersession_and_canvas_dedup.py::TestMergeInheritsFromSupersessionStash::test_existing_branch_unchanged_and_outranks_inherit PASSED [ 81%]
+tests/test_supersession_and_canvas_dedup.py::TestMergeInheritsFromSupersessionStash::test_replacement_with_existing_still_beats_inherit PASSED [ 82%]
+tests/test_supersession_and_canvas_dedup.py::TestEmailCanvasAdoptsTheChatCanvas::test_same_subject_compose_adopts_instead_of_forking 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:05 [    INFO] Adopted existing canvas cv-chat for email compose: Quote – Machines
+2026-11-10 05:38:05 [    INFO] Created email canvas cv-chat: Quote – Machines
+PASSED                                                                   [ 82%]
+tests/test_supersession_and_canvas_dedup.py::TestEmailCanvasAdoptsTheChatCanvas::test_different_subject_still_creates_a_new_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:06 [    INFO] Created email canvas 0e42a423-e648-4d0f-bd51-45600405c9b2: Quote – Other gear
+PASSED                                                                   [ 83%]
+tests/test_supersession_and_canvas_dedup.py::TestEmailCanvasAdoptsTheChatCanvas::test_no_adoption_when_the_existing_canvas_is_not_chat_created 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:06 [    INFO] Created email canvas b96db3f2-15e1-43d7-944d-048dcc6ea2ef: Quote – Machines
+PASSED                                                                   [ 84%]
+tests/test_supersession_and_canvas_dedup.py::TestChatRouteSameConversationDedup::test_recreate_updates_the_existing_artifact 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:38:08 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 05:38:08 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 05:38:08 [    INFO] No token storage file found, starting empty
+2026-11-10 05:38:08 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 05:38:08 [    INFO] EscalationManager initialized
+2026-11-10 05:38:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:38:08 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 05:38:08 [    INFO] EscalationManager initialized
+2026-11-10 05:38:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:38:08 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 05:38:08 [    INFO] Slack Enhanced Service initialized
+2026-11-10 05:38:08 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 05:38:08 [    INFO] EscalationManager initialized
+2026-11-10 05:38:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:38:08 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 05:38:08 [    INFO] EscalationManager initialized
+2026-11-10 05:38:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 05:38:08 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 05:38:08 [    INFO] Slack Enhanced Service initialized
+2026-11-10 05:38:08 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 84%]
+tests/test_supersession_and_canvas_dedup.py::TestChatRouteSameConversationDedup::test_other_conversation_creates_its_own PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-web-email-draft-reviewed-delivery-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+../../root-py311-plugins/pytest_freezegun.py:17: 364 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_canvas_types_comprehensive.py: 19 warnings
+  /private/tmp/atom-web-email-draft-reviewed-delivery-20261110/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_pdf_canvas_service.py::test_page_ops_version_and_conflict_guard
+tests/test_pdf_canvas_service.py::test_merge_upload_and_extract_text
+tests/test_pdf_canvas_service.py::test_attach_to_email_stages_and_stamps_provenance
+tests/test_pdf_canvas_service.py::test_attach_to_existing_email_canvas
+tests/test_pdf_canvas_trust_ops.py::test_service_form_fill_is_versioned
+tests/test_pdf_canvas_trust_ops.py::test_service_redact_versioned_and_honest
+tests/test_pdf_canvas_trust_ops.py::test_attach_flatten_stages_frozen_copy_without_mutating_canvas
+  /private/tmp/atom-web-email-draft-reviewed-delivery-20261110/backend/core/pdf_canvas_service.py:128: RuntimeWarning: coroutine 'ConnectionManager.broadcast' was never awaited
+    pass
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_pdf_canvas_service.py::test_attach_to_email_stages_and_stamps_provenance
+tests/test_pdf_canvas_service.py::test_attach_to_existing_email_canvas
+tests/test_pdf_canvas_trust_ops.py::test_attach_flatten_stages_frozen_copy_without_mutating_canvas
+  /private/tmp/atom-web-email-draft-reviewed-delivery-20261110/backend/core/canvas_email_service.py:770: RuntimeWarning: coroutine 'ConnectionManager.broadcast' was never awaited
+    pass
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_supersession_and_canvas_dedup.py::TestChatRouteSameConversationDedup::test_recreate_updates_the_existing_artifact
+  /private/tmp/atom-web-email-draft-reviewed-delivery-20261110/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 182 passed, 400 warnings in 69.64s (0:01:09) =================

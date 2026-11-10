@@ -1,0 +1,5 @@
+  message: [32m'Request failed with status code 403'[39m,
+  status: [33m403[39m,
+  url: [32m'/api/canvas/159081e9-8a82-417f-b755-6248bbef5212/export/office'[39m
+    at async handleOfficeExport (components/canvas/CanvasPanel.tsx:365:30)
+

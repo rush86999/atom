@@ -1,0 +1,93 @@
+{
+  "auth": "real JWT/get_current_user + development-audience guard",
+  "browser": false,
+  "cases": {
+    "audit_scope": {
+      "canvas_tenant": "<tenant>",
+      "canvas_workspace": "<workspace>",
+      "match": false,
+      "saved_audit_tenant": "default"
+    },
+    "draft_positive": {
+      "email_read_status": 200,
+      "fresh_process_body_exact": true,
+      "fresh_process_status": 200,
+      "fresh_sql_body_exact": true,
+      "general_read_status": 200,
+      "save_status": 200
+    },
+    "email_read_after_shared_put": {
+      "email_draft_body": "",
+      "email_read_status": 200,
+      "general_read_body": "shared body",
+      "surfaces_agree": false
+    },
+    "foreign_user": {
+      "save_status": 403
+    },
+    "inactive_actor_is_active_false": {
+      "expected": "refusal before effect",
+      "mutated": true,
+      "save_status": 200
+    },
+    "moved_actor_scope_changed": {
+      "expected": "refusal before effect",
+      "mutated": true,
+      "save_status": 200
+    },
+    "moved_target_scope_changed": {
+      "audit_tenant": "default",
+      "canvas_scope": "foreign-tenant/workspace",
+      "expected": "refusal before effect",
+      "mutated": true,
+      "save_status": 200
+    },
+    "scoped_email_create_then_shared_save": {
+      "audit_after": 1,
+      "audit_before": 1,
+      "create_status": 200,
+      "created_canvas_tenant": "default",
+      "created_canvas_workspace": "default",
+      "current_user_tenant": "<tenant>",
+      "generic_put_detail": "Canvas belongs to a different tenant",
+      "generic_put_status": 403
+    },
+    "shared_generic_inactive_actor": {
+      "audit_unchanged": true,
+      "put_status": 403
+    },
+    "shared_generic_moved_target": {
+      "audit_unchanged": true,
+      "put_status": 403
+    },
+    "shared_generic_put_positive": {
+      "audit_tenant_matches_canvas": true,
+      "general_read_body_exact": true,
+      "general_read_status": 200,
+      "put_status": 200,
+      "stale_put_status": 409,
+      "verification": "verified"
+    },
+    "stale_peer_overwrite": {
+      "conflict_or_refusal": false,
+      "final_body": "accepted peer body v2",
+      "no_expected_prior_audit": true,
+      "statuses": [
+        200,
+        200,
+        200
+      ]
+    }
+  },
+  "database": "scratch SQLite (path withheld)",
+  "distinct_surfaces": {
+    "email_specific_read": "GET /api/canvas/email/{id} (latest CanvasAudit details_json)",
+    "email_specific_save": "POST /api/canvas/email/{id}/draft (EmailCanvasService.save_draft)",
+    "ordinary_ui_read": "GET /api/canvas/{id} (canvas page)",
+    "ordinary_ui_save": "PUT /api/canvas/{id}?canvas_type=email (CanvasPanel saveCanvasAuditReceipt)"
+  },
+  "kind": "goal11_email_draft_public_boundary_baseline",
+  "model": false,
+  "provider_send": false,
+  "source": "0d5132c2e060a5f2ac338bca143c5e138e607658"
+}

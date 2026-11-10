@@ -27,13 +27,21 @@ def db_session(tmp_path, monkeypatch):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
-    from core.models import Base
+    from core.models import Base, Tenant, User
 
     monkeypatch.setenv("ATOM_EMAIL_ATTACHMENT_DIR", str(tmp_path / "staged"))
     eng = create_engine(f"sqlite:///{tmp_path}/canvas.db")
     Base.metadata.create_all(bind=eng)
     Session = sessionmaker(bind=eng, expire_on_commit=False)
     with Session() as s:
+        s.add(Tenant(id="default", name="Default",
+                     subdomain=f"email-{tmp_path.name}"[:50],
+                     edition="personal", is_active=True))
+        s.add(User(id="u-1", tenant_id="default", workspace_id="default",
+                   email="u-1@example.invalid", hashed_password="x",
+                   first_name="U", last_name="Ser", role="member",
+                   status="active", is_active=True))
+        s.commit()
         yield s
 
 

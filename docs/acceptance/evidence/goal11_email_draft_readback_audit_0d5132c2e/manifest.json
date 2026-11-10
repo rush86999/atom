@@ -1,0 +1,57 @@
+{
+  "actual_exit": 0,
+  "auth": "real JWT/get_current_user + development-audience guard",
+  "branch": "codex/web-goal11-email-draft-readback-20261110",
+  "command": "Source: origin/main 0d5132c2e (resolved current)\nWorktree: /private/tmp/atom-goal11-email-draft-audit-20261110\n\nCommand:\n  cd backend\n  TESTING=0 DATABASE_URL=sqlite:///<scratch>/audit.db ATOM_DATA_DIR=<scratch>/data \\\n    PYTHONPATH=<root-plugin-path>:.<python> \\\n    /usr/local/bin/python3.11 <probe>/atom-goal11-email-draft-audit-20261110-probe.py <scratch>/audit.db\n\nActual exit: 0 (probe completed; product refusals printed in result.summary.json)\nProbe ran real public routers (email + generic canvas) with real JWT and scratch SQLite.\nNo provider/send/model/browser call.\n",
+  "contract": "contract/REPAIR_CONTRACT.md",
+  "database": "scratch SQLite (path withheld)",
+  "evidence_files": {
+    "README.md": "a83fd169d8dcbf00ff0dabb9dca7c5e6c2a20fce36d5806f535024a9c13ee4ca",
+    "baseline/commands.txt": "6a95288db0120df6cf70c2d83c583c3ae60c9bb27c05c8263c305f592607d389",
+    "baseline/result.summary.json": "d3d024b6d6cbde605dc5fa5c317d43a9c7f8a793f76a36beb33cbe4c393eeac6",
+    "contract/REPAIR_CONTRACT.md": "bb652b2f56c70e653944b650965a84db2d2b4ce249025a803cb4ca40a9ef5572",
+    "probe/email_draft_readback_child.py": "920003fd21fe3921fd6b4c5c4f26998a2d4cfc2ddc6979de75360b0bb0e4106c",
+    "probe/email_draft_readback_probe.py": "07be35cf0a217fe47e1e110857f32c4a39fc2c5326a7f3258fefc00445760b2b",
+    "trace/CONSUMERS.md": "ae7358173d2c53aa7cf78820955dc98942721ba6a7ae512b2218aeb852b19e66"
+  },
+  "findings": [
+    "ordinary generic PUT/GET path: positive verified, stale 409, moved target 403, inactive 403",
+    "email-specific /draft: inactive actor 200 + mutation",
+    "email-specific /draft: moved actor 200 + mutation",
+    "email-specific /draft: moved target 200 + mutation",
+    "email-specific /draft audit tenant hardcoded default",
+    "email-specific /draft: no expected-prior CAS; stale editor overwrites accepted peer",
+    "email create writes default scope; non-default user generic PUT then 403",
+    "email-specific GET after generic PUT returns empty draft while generic GET is exact"
+  ],
+  "kind": "goal11_email_draft_readback_audit_manifest",
+  "mode": "read_only_public_boundary_audit",
+  "non_claims": [
+    "Read-only audit; no runtime repair implemented.",
+    "No provider/send/model/browser/live DB/new dependency.",
+    "No PR/merge/CI/goal-index; root approves engineering choice.",
+    "Full 143/18 scope and original negative evidence preserved."
+  ],
+  "packet": "docs/acceptance/evidence/goal11_email_draft_readback_audit_0d5132c2e/",
+  "prior_evidence_hashes": {
+    "docs/acceptance/evidence/connected_core_20261028/employee_email_draft.json": "69c55aab8939ee678f14e277f51beb34f28cfc3ea54bb5ee309d3b92330512ae",
+    "docs/acceptance/evidence/connected_core_20261028/employee_email_reopen.json": "2e9f401448a539cae712d6d2df2cd76e64e08a323fe2cd97297a8826e574204f"
+  },
+  "probe_hashes": {
+    "probe/email_draft_readback_child.py": "920003fd21fe3921fd6b4c5c4f26998a2d4cfc2ddc6979de75360b0bb0e4106c",
+    "probe/email_draft_readback_probe.py": "07be35cf0a217fe47e1e110857f32c4a39fc2c5326a7f3258fefc00445760b2b"
+  },
+  "runtime_changes": false,
+  "source_hashes": {
+    "backend/api/canvas_email_routes.py": "8ea83cef510f83a2be89e41417e71c2088fffc816a959db9534ea7b960bde493",
+    "backend/api/canvas_routes.py": "15c1d8706b4f9c4fb88c72ed46e9eb1cf7715765a64b461a21cde16235249c3d",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/canvas_email_service.py": "ff180646166dc357b5f6b5ebda0a421126258144b504817385829d21200c26e6",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/tests/api/test_canvas_email_routes.py": "85ea93dcb55c8289e3ab4b3a7f409bfb779add828892976a7e21b986f6dee299",
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "0d898b2dd7fa502f2394e82bb0475e053fe6729bb76e4e854f6091d1d2b13804"
+  },
+  "source_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "worktree": "/private/tmp/atom-goal11-email-draft-audit-20261110"
+}

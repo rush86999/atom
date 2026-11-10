@@ -1,0 +1,73 @@
+{
+  "baseline_negative": {
+    "commit": "a8e9e52f891e93a7ab118d8f9006741bd1acc118",
+    "finding": "ordinary bootstrap admin raw NULL/default own canvas Download DOCX 403",
+    "packet": "docs/acceptance/evidence/goal11_office_ordinary_browser_episode_96dd3afaf/"
+  },
+  "branch": "codex/office-personal-scope-repair-20261110",
+  "evidence_files": {
+    "CALLER_IMPACT.md": "cbf13a063be5a1a11594002361ed44eb36ac72a73daa5f643225f4992b11fc95",
+    "README.md": "6cd67b22ce18f3b11a10f73a2d52c0118bfe7de58b2d70eac88d855397fa58a8",
+    "gates/new_scope_7.proof": "b01083b4b5085bc6b61a0c34dfe93d1ab3766f1c1f4c41f6cb291ff97abd6557",
+    "gates/office_email_104_1pre.proof": "53148761cde55552057c0da7741956e465a63961113e16507a064cf41705e4e7",
+    "gates/targeted_170.proof": "f1afec9e9a16171b76339ef5ca637655c556539fd674740571986c118534b439",
+    "root_proof/controls.proof": "896b5fa01a6f52d7f6e03a645e7364084cd0ffb678d873d26c7f099935ed2d66",
+    "root_proof/probe.py": "7732be1b2008d9c44f3d6ab29125026885cf922959b64153f21921411c20f25b",
+    "root_proof/review.sanitized.json": "45cc7b49bdb8dc0c68b8de8080eb7e4cefd33be3b703ef3b1eb5b36b4d115898"
+  },
+  "gates": {
+    "new_scope": "7 passed",
+    "office_email": "104 passed, 1 pre-existing unrelated failure",
+    "targeted_original": "170 passed"
+  },
+  "kind": "office_personal_scope_shared_authority_repair",
+  "non_changes": [
+    "active_canvas_actor raw snapshot",
+    "claim_canvas_actor exact raw claim",
+    "canvas_lifecycle_scope_error null-principal only unscoped/default policy"
+  ],
+  "non_claims": [
+    "No browser rerun; root authorizes continuation after review.",
+    "No PR/merge/CI/goal-index; no provider/model/send/live DB."
+  ],
+  "repair_commit": "def47a93d39afa04286f875e5a5003744c944de6",
+  "root_independent": {
+    "actual_exit": 0,
+    "controls": "root_proof/controls.proof",
+    "probe": "root_proof/probe.py",
+    "result": "3 passed in 5.89s",
+    "review": {
+      "actual_exit": 0,
+      "at": "2026-11-10T11:11:34.114782+00:00",
+      "auth": "real JWT/get_current_user and actual development-audience guard",
+      "capture_head": "a8e9e52f891e93a7ab118d8f9006741bd1acc118",
+      "frozen_fixture_sha256": "6ad16a0be72089eec66da893e855323bf5202a7837eb0a99f4d0512839e09c5d",
+      "probe_sha256": "7732be1b2008d9c44f3d6ab29125026885cf922959b64153f21921411c20f25b",
+      "same_source": true,
+      "source_after": {
+        "backend/api/canvas_routes.py": "95ec82d0e59019da7ae02cb9e2e58a1229e2cb7aba7ea2323db015280b360fa1",
+        "backend/core/canvas_authority.py": "1c7a392540ab529b88d61f83f657b1b5b5a12b16575adbe342554d705d6cf90a",
+        "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+        "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5"
+      },
+      "source_before": {
+        "backend/api/canvas_routes.py": "95ec82d0e59019da7ae02cb9e2e58a1229e2cb7aba7ea2323db015280b360fa1",
+        "backend/core/canvas_authority.py": "1c7a392540ab529b88d61f83f657b1b5b5a12b16575adbe342554d705d6cf90a",
+        "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+        "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5"
+      },
+      "world": "/private/tmp/root-office-null-personal-independent-20261110-bv8kktav"
+    },
+    "same_source": true
+  },
+  "source_base": "96dd3afaf6a519848c04265db7249454020d7e85",
+  "source_hashes": {
+    "backend/api/canvas_routes.py": "95ec82d0e59019da7ae02cb9e2e58a1229e2cb7aba7ea2323db015280b360fa1",
+    "backend/core/canvas_authority.py": "1c7a392540ab529b88d61f83f657b1b5b5a12b16575adbe342554d705d6cf90a",
+    "backend/core/canvas_coding_service.py": "6561114379ae1c9d01311e00d4ed00c6183512361513cb843a3b549da94bd797",
+    "backend/core/canvas_sheets_service.py": "831970cae4667eadb79afd7cb15d3903ca66fd41d3824276021be6d0476a84bc",
+    "backend/tests/api/test_web_canvas_authority.py": "4853b3ebdec9dc9a770efeafc83b9361554b4ae229411649c7463f0ab2066211",
+    "backend/tests/test_personal_scope_authority.py": "a0d14311c6748f1e6b154ea25e2de7bf4a0878180603b0cdc3b49a7090fa4ccd"
+  },
+  "status": "repaired_awaiting_root_independent_review"
+}

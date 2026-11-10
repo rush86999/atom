@@ -1,0 +1,40 @@
+ORIGINAL ROOT INDEPENDENT CONTROL — PRESERVED FAILURE FACTS
+================================================================
+
+Source world (raw, private, retained): <root-world>/
+Original probe:  probe.py  sha256 068486d9595f0ec07dd9c9c84ee215b05a8366f23a19a39634c73e569f4c703e
+Raw control log: controls.log  sha256 4ec9a208d9719c06d8ae25aabc83a22c23c87f54721902c341d624811925ef24
+Original review: review.json sha256 53edc271a55c1c83a29875adeb6c3e7b285df97afec969f5efa48436706eef72
+Current root probe (sanitized actor diagnostic only): sha256 1fb8c50fad810a7d1de8eb08f09b2caefb96c6b29a5865e4190f109f09da4209
+Original assertions unchanged; the original probe file is retained with the
+raw log and is NOT committed here.
+
+ORIGINAL RESULT: 5 failed, 1 passed, 12 warnings in 7.38s
+actual_exit: 1
+same_source: True (source unchanged before/after)
+capture_head: 08b5fdfd6d2e4c7fb5782071c64cbf475399bbd8
+auth: real JWT/get_current_user and actual development-audience guard
+
+Expected vs observed (labels/status/header facts only):
+1. DOCX section_order reordered; expected refusal 422; observed status 200,
+   business header not_claimed -> FAIL
+2. DOCX heading_level H2 demoted to H1; expected refusal 422; observed
+   status 200, business header not_claimed -> FAIL
+3. top-level non-empty business_requirements shadowed by truthy
+   assignment={run_id}; expected 409; observed status 200, business header
+   required_results_verified -> FAIL
+4. business_requirements=[None] silently skipped; expected 409; observed
+   status 200, business header required_results_verified -> FAIL
+5. actor revoked in peer transaction during Word render; expected 401/403/404
+   and no file; observed status 200 -> FAIL
+Positive: real JWT owner downloads the current document; PASS.
+
+REDACTION NOTE
+The raw controls.log contains the actor-failure assertion's dumped DOCX
+response bytes (rendered as replacement characters). That binary-bearing raw
+log is retained privately in the root world (path withheld) and is
+deliberately NOT committed, bulk-printed or ingested into this packet. Only the labelled
+case/status/header facts and the 7.38s / exit / same_source provenance above
+are reproduced. No raw DB, token, env dump, response bytes or email is
+included. The updated root probe changes ONLY the actor failure diagnostic to
+status/bytes/header facts; its assertions are unchanged.
