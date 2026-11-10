@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from tests.test_oracle_mini_app_host_mutations import USER, host
 from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentRegistry, Tenant, TenantSetting, TokenUsage, Workspace
+from core.models import AgentRegistry, Tenant, TenantSetting, TokenUsage, User, Workspace
 from core.spend_aggregation_service import (
     BudgetReservationRefused,
     SpendAggregationService,
@@ -216,6 +216,13 @@ def test_duplicate_reservation_idempotent_and_binding_conflict(host):
     with pytest.raises(Exception):
         _reserve("dup-reserve", 7.0, tenant=TENANT_B,
                  workspace=WORKSPACE_B, agent=AGENT_B)
+    with pytest.raises(Exception):
+        begin_llm_usage(
+            provider_id="openai", model_name="gpt-4o-mini",
+            agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
+            execution_id="different-execution", request_id="dup-reserve",
+            attempt_id="dup-reserve", reserved_cost_usd=7.0,
+            enforce_budget=True)
 
 
 def test_restart_active_reservation_blocks_new_reservation(host):
@@ -334,6 +341,7 @@ def test_concurrent_structured_only_one_provider_call(host, monkeypatch):
     _seed(host, spend=90.0)
     from tests.test_goal9_durable_settlement import _structured_handler
 
+    monkeypatch.setenv("ATOM_LLM_RESERVATION_MARGIN", "1.0")
     handler, calls = _structured_handler(monkeypatch)
     # The shared durable-test helper defaults to its own scope; bind this
     # production consumer to the atomic scratch tenant that has the cap.
@@ -511,6 +519,22 @@ def test_route_binding_conflict_refused(host):
         assert row.reservation_status == "active"
         assert row.provider_id == "openai"
         assert row.model_name == "gpt-4o-mini"
+
+
+def test_reservation_does_not_commit_caller_work(host):
+    _seed(host, spend=90.0)
+    caller = host.Session()
+    try:
+        user = caller.get(User, USER)
+        old_name = user.first_name
+        user.first_name = "caller-pending"
+        caller.flush()
+        _reserve("caller-tx", 7.0)
+        with host.Session() as observer:
+            assert observer.get(User, USER).first_name == old_name
+    finally:
+        caller.rollback()
+        caller.close()
 
 
 def test_supported_upgrade_adds_reservation_columns_preserving_old_rows(
