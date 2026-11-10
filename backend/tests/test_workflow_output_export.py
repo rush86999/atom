@@ -281,3 +281,114 @@ def test_export_rejects_malformed_identity_and_unknown_material(harness):
             "execution_output_unknown_step")
     finally:
         db.close()
+
+
+def _context_of(harness, execution_id):
+    from core.models import WorkflowExecution
+
+    db = harness.Session()
+    try:
+        row = db.query(WorkflowExecution).filter(
+            WorkflowExecution.execution_id == execution_id).one()
+        return json.loads(row.context), row
+    finally:
+        db.close()
+
+
+def test_export_binds_executed_definition_digest_to_authoritative_revision(
+        harness):
+    workflow_id, original_digest, execution_id = _completed_run(harness)
+    from core.models import Workflow, WorkflowExecution
+
+    context, _row = _context_of(harness, execution_id)
+    assert context["variables"]["_workflow_definition_digest"] == original_digest
+    assert context["variables"]["_workflow_definition_id"] == workflow_id
+
+    positive = _export(harness, execution_id)
+    assert positive.status_code == 200, positive.text
+    document = json.loads(positive.content.decode("utf-8"))
+    assert document["provenance"]["definition_digest"] == original_digest
+    assert document["provenance"]["executed_definition_digest"] == original_digest
+    assert document["provenance"]["executed_definition_id"] == workflow_id
+    assert document["provenance"]["definition_binding"] == (
+        "executed-context-vs-authoritative-configuration")
+
+    # Failure-first: a revised authoritative digest must not be relabelled as
+    # the revision that actually executed.
+    db = harness.Session()
+    try:
+        definition = db.query(Workflow).filter(Workflow.id == workflow_id).one()
+        configuration = dict(definition.configuration)
+        configuration["definition_digest"] = "different-authoritative-revision"
+        definition.configuration = configuration
+        db.commit()
+    finally:
+        db.close()
+    mismatch = _export(harness, execution_id)
+    assert mismatch.status_code == 409, mismatch.text
+    assert mismatch.json()["detail"]["error"] == (
+        "execution_definition_binding_mismatch")
+
+
+def test_export_refuses_missing_or_contradictory_definition_binding(harness):
+    workflow_id, _digest, execution_id = _completed_run(harness)
+    from core.models import Workflow, WorkflowExecution
+
+    db = harness.Session()
+    try:
+        row = db.query(WorkflowExecution).filter(
+            WorkflowExecution.execution_id == execution_id).one()
+        original_context = row.context
+        definition = db.query(Workflow).filter(Workflow.id == workflow_id).one()
+        original_config = dict(definition.configuration)
+
+        context = json.loads(original_context)
+        context["variables"].pop("_workflow_definition_digest", None)
+        row.context = json.dumps(context)
+        db.commit()
+        missing = _export(harness, execution_id)
+        assert missing.status_code == 409
+        assert missing.json()["detail"]["error"] == (
+            "execution_definition_binding_missing")
+
+        context = json.loads(original_context)
+        context["variables"]["_workflow_definition_digest"] = "contradictory"
+        row.context = json.dumps(context)
+        db.commit()
+        contradictory = _export(harness, execution_id)
+        assert contradictory.status_code == 409
+        assert contradictory.json()["detail"]["error"] == (
+            "execution_definition_binding_mismatch")
+
+        context = json.loads(original_context)
+        context["variables"]["_workflow_definition_id"] = "other-workflow"
+        row.context = json.dumps(context)
+        db.commit()
+        identity = _export(harness, execution_id)
+        assert identity.status_code == 409
+        assert identity.json()["detail"]["error"] == (
+            "execution_definition_binding_mismatch")
+
+        row.context = original_context
+        configuration = dict(original_config)
+        configuration.pop("definition_digest", None)
+        definition.configuration = configuration
+        db.commit()
+        no_authority = _export(harness, execution_id)
+        assert no_authority.status_code == 409
+        assert no_authority.json()["detail"]["error"] == (
+            "execution_definition_binding_missing")
+
+        configuration = dict(original_config)
+        configuration["steps"] = [
+            {**step, "description": "tampered"}
+            for step in configuration.get("steps") or []
+        ]
+        definition.configuration = configuration
+        db.commit()
+        tampered = _export(harness, execution_id)
+        assert tampered.status_code == 409
+        assert tampered.json()["detail"]["error"] == (
+            "execution_definition_binding_mismatch")
+    finally:
+        db.close()
