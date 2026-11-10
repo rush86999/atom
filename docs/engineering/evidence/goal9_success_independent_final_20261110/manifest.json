@@ -1,0 +1,12 @@
+{
+  "runtime_source": "1aa6416da5c99854c5dba8cb519ef390ceb7565f",
+  "ci_fixture_sha256": "1f504d707351068248eebd2bc5dccd7e86a5e830216cbec2ce80a0da665ead94",
+  "artifacts": {
+    "root-probe.py": "056809e6637fd5e79a742e0f7a5703e361f41d7ade39693853b019ce2a844c0e",
+    "packet-git-review.json": "a53615be04da53302e6e7eec71c56f8be3237b28793db4cea780a741ab81ec24",
+    "README.md": "5b0166f713efc13551d70bf31a91c7686f6b13de91d9df126cf781d43f79ffe8",
+    "tests.log": "c564dfbab8d7c725bd8d1cce2e31f8d084391f5cf86dd0f11c882c990923bf22",
+    "review.json": "32be2ee3c548be82fa38c6dc824e20547d938580d1f58bb4de692f8e92fea6e9",
+    "retained-test-isolation-failure.log": "2c0646ae87793998c23df30b268835b992b51f95cbe2ee199719566c25290fc8"
+  }
+}

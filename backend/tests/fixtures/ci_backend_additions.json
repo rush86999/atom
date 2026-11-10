@@ -156,5 +156,17 @@
       "ENVIRONMENT": "development"
     },
     "run": "python -m pytest tests/test_goal9_durable_settlement.py tests/test_goal9_token_usage_upgrade.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run ordinary BYOK success settlement controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_CURRENT_TEST": "goal9_ci_ordinary_success",
+      "DATABASE_URL": "sqlite:///test_ci_goal9_ordinary_success.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-goal9-ordinary-success",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/test_goal9_ci_execution_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]
