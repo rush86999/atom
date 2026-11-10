@@ -1,0 +1,83 @@
+
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:36:20 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 12:36:20 [    INFO] EscalationManager initialized
+2026-11-10 12:36:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:36:20 [    INFO] EscalationManager initialized
+2026-11-10 12:36:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:36:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:36:20 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [  4%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [  7%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [  9%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 12%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 14%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 17%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 19%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 21%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 24%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 26%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 29%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 31%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 34%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 36%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 39%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 41%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 43%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 46%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 48%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 51%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 53%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 56%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 58%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 60%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 63%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [ 65%]
+tests/test_quickstart_matrix_contract.py::test_real_matrix_has_every_supported_version_and_no_optional_failure PASSED [ 68%]
+tests/test_quickstart_matrix_contract.py::test_original_real_install_artifact_and_boot_commands_are_preserved PASSED [ 70%]
+tests/test_quickstart_matrix_contract.py::test_fresh_checkout_is_checked_before_dependency_installation PASSED [ 73%]
+tests/test_quickstart_matrix_contract.py::test_required_quickstart_waits_for_matrix_even_on_failure PASSED [ 75%]
+tests/test_quickstart_matrix_contract.py::test_actual_gate_shell_refuses_non_success_matrix[success] PASSED [ 78%]
+tests/test_quickstart_matrix_contract.py::test_actual_gate_shell_refuses_non_success_matrix[failure] PASSED [ 80%]
+tests/test_quickstart_matrix_contract.py::test_actual_gate_shell_refuses_non_success_matrix[cancelled] PASSED [ 82%]
+tests/test_quickstart_matrix_contract.py::test_actual_gate_shell_refuses_non_success_matrix[skipped] PASSED [ 85%]
+tests/test_quickstart_matrix_contract.py::test_actual_gate_shell_refuses_non_success_matrix[] PASSED [ 87%]
+tests/test_quickstart_matrix_contract.py::test_matrix_contract_is_part_of_required_backend_lane PASSED [ 90%]
+tests/test_quickstart_matrix_contract.py::test_numpy_abi_constraint_follows_supported_interpreter[3.11-1.26.4-2.1.0] PASSED [ 92%]
+tests/test_quickstart_matrix_contract.py::test_numpy_abi_constraint_follows_supported_interpreter[3.12-1.26.4-2.1.0] PASSED [ 95%]
+tests/test_quickstart_matrix_contract.py::test_numpy_abi_constraint_follows_supported_interpreter[3.13-2.1.0-1.26.4] PASSED [ 97%]
+tests/test_quickstart_matrix_contract.py::test_actual_storage_smoke_runs_after_setup_and_before_boot PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 82 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 41 passed, 87 warnings in 19.30s =======================
