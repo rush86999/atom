@@ -345,3 +345,61 @@ async def test_upload_same_removed_version_is_refused(
     assert ctx.handler.count_document_rows_by_id("documents", doc_id) == 0
     ctx.session.expire_all()
     assert ctx.session.get(IngestedDocument, doc_id).freshness_status == "removed"
+
+
+@pytest.mark.asyncio
+async def test_unsafe_outside_file_path_is_not_unlinked(
+    exported, monkeypatch, tmp_path
+):
+    from fastapi import HTTPException
+
+    ctx = exported
+    marker = f"joinunsafe{uuid.uuid4().hex}"
+    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
+    outside = tmp_path.parent / f"outside-{doc_id}.txt"
+    outside.write_text("must not be deleted\n")
+    ctx.session.query(IngestedDocument).filter(
+        IngestedDocument.id == doc_id).update(
+        {"file_path": str(outside)}, synchronize_session=False)
+    ctx.session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        await _delete(ctx, actor, doc_id, "joined-unsafe", monkeypatch)
+    assert exc.value.status_code == 503
+    assert exc.value.detail["verification"]["effect"] == "partial"
+    assert outside.is_file()
+    ctx.session.expire_all()
+    assert ctx.session.get(IngestedDocument, doc_id).freshness_status == "removed"
+
+
+@pytest.mark.asyncio
+async def test_shared_file_is_preserved_for_peer_document(
+    exported, monkeypatch, tmp_path
+):
+    ctx = exported
+    marker = f"joinshared{uuid.uuid4().hex}"
+    doc_id, actor = _prepare(ctx, monkeypatch, tmp_path, marker)
+    row = ctx.session.get(IngestedDocument, doc_id)
+    stored_file = Path(row.file_path)
+    peer = IngestedDocument(
+        id=f"peer-{uuid.uuid4().hex[:12]}",
+        workspace_id=row.workspace_id,
+        tenant_id=row.tenant_id,
+        file_name="peer.txt",
+        file_path=row.file_path,
+        file_type=row.file_type,
+        integration_id="manual_upload",
+        external_id=f"upload_peer_{uuid.uuid4().hex[:8]}",
+        content_preview="peer shares the same materialized file",
+        freshness_status="fresh",
+    )
+    ctx.session.add(peer)
+    ctx.session.commit()
+
+    out = await _delete(ctx, actor, doc_id, "joined-shared", monkeypatch)
+    assert out["metadata"]["verification"]["status"] == "verified"
+    assert out["data"]["effects"]["file"] == "shared"
+    assert stored_file.is_file()
+    ctx.session.expire_all()
+    assert ctx.session.get(IngestedDocument, doc_id).freshness_status == "removed"
+    assert ctx.session.get(IngestedDocument, peer.id) is not None
