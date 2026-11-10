@@ -132,7 +132,7 @@ class SpreadsheetCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id=str(actor.get("effective_tenant_id") or actor.get("tenant_id") or "default"),
+                tenant_id=str(actor["effective_tenant_id"]),
                 agent_id=agent_id,
                 user_id=str(actor["id"]),
                 canvas_id=canvas_id,
@@ -209,7 +209,7 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id=str(actor.get("effective_tenant_id") or actor.get("tenant_id") or "default"),
+                tenant_id=str(actor["effective_tenant_id"]),
                 user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="update_cell",
@@ -305,7 +305,7 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id=str(actor.get("effective_tenant_id") or actor.get("tenant_id") or "default"),
+                tenant_id=str(actor["effective_tenant_id"]),
                 user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="add_chart",
@@ -375,7 +375,7 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id=str(actor.get("effective_tenant_id") or actor.get("tenant_id") or "default"),
+                tenant_id=str(actor["effective_tenant_id"]),
                 user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="add_pivot_table",

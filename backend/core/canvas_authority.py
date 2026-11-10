@@ -304,21 +304,11 @@ def reserve_canvas_id(
             status_code=409,
             code="CANVAS_ID_CONFLICT",
         )
-    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
-
-    effective_tenant = (
-        actor.get("effective_tenant_id")
-        or resolve_tenant_id(actor.get("user"))
-    )
-    effective_workspace = (
-        actor.get("effective_workspace_id")
-        or resolve_workspace_id(actor.get("user"))
-    )
     db.add(
         Canvas(
             id=str(canvas_id),
-            tenant_id=str(effective_tenant),
-            workspace_id=str(effective_workspace),
+            tenant_id=str(actor["effective_tenant_id"]),
+            workspace_id=str(actor["effective_workspace_id"]),
             created_by=str(actor["id"]),
             name=str(title or "Canvas"),
             canvas_type=str(canvas_type),
