@@ -387,3 +387,52 @@ def test_no_change_commit_uncertainty_is_effect_unknown(world, monkeypatch):
             operation_id=f"presence:nochange-lost-{uuid.uuid4().hex}"))
         assert result["status"] == "effect_unknown", result
         assert result["verification"]["effect"] == "unknown"
+
+
+def test_available_supervisors_route_preserves_guest_forbidden_member_allowed(world):
+    """The presence patch accidentally deleted this baseline public route.
+
+    Restore exact baseline semantics: registered under /api/users, USER_VIEW
+    dependency, guest 403 (not 404), member 200 with the existing shape.
+    """
+    with world.Session() as db:
+        db.query(User).filter(User.id == world.self_user).update(
+            {"role": "guest"}, synchronize_session=False)
+        db.commit()
+    guest_token = world.token(world.self_user)
+    with world.client() as c:
+        guest = world.call(c, "get", "/api/users/available-supervisors",
+                           guest_token)
+        assert guest.status_code == 403, guest.text
+
+    with world.Session() as db:
+        db.query(User).filter(User.id == world.self_user).update(
+            {"role": "member"}, synchronize_session=False)
+        db.commit()
+    member_token = world.token(world.self_user)
+    with world.client() as c:
+        member = world.call(c, "get", "/api/users/available-supervisors",
+                            member_token)
+        assert member.status_code == 200, member.text
+        body = member.json()
+        assert "supervisors" in body
+        assert "total_count" in body
+        assert isinstance(body["supervisors"], list)
+
+
+def test_available_supervisors_category_filter_is_a_valid_public_twin(world):
+    with world.Session() as db:
+        db.query(User).filter(User.id == world.self_user).update(
+            {"role": "member"}, synchronize_session=False)
+        activity = db.query(UserActivity).filter(
+            UserActivity.user_id == world.peer).one()
+        activity.state = UserState.online
+        db.commit()
+    token = world.token(world.self_user)
+    with world.client() as c:
+        response = world.call(
+            c, "get", "/api/users/available-supervisors?category=finance",
+            token)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert "supervisors" in body and "total_count" in body

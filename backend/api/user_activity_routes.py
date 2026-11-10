@@ -304,6 +304,48 @@ async def clear_manual_override(
         )
 
 
+@router.get(
+    "/available-supervisors",
+    response_model=AvailableSupervisorsResponse,
+    # user:view per the permission matrix (viewer+): a workspace directory
+    # read. This is the endpoint that makes USER_VIEW an enforced
+    # permission instead of a granted-but-never-checked one.
+    dependencies=[Depends(require_permission(Permission.USER_VIEW))],
+)
+async def get_available_supervisors(
+    category: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of users available for supervision (online or away).
+
+    Optionally filter by category/specialty.
+    """
+    service = UserActivityService(db)
+
+    try:
+        supervisors = await service.get_available_supervisors(category)
+
+        # Filter by category if specified
+        if category:
+            supervisors = [
+                s for s in supervisors
+                if s.get("specialty") == category
+            ]
+
+        return AvailableSupervisorsResponse(
+            supervisors=supervisors,
+            total_count=len(supervisors)
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal error"
+        )
+
+
 @router.get("/{user_id}/activity/sessions", response_model=ActiveSessionsResponse)
 async def get_active_sessions(
     user_id: str,
