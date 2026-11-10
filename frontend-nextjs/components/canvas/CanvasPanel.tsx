@@ -371,8 +371,12 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
             );
             const blob = response.data instanceof Blob
                 ? response.data : new Blob([response.data]);
-            const disposition = response.headers?.["content-disposition"]
-                || response.headers?.get?.("content-disposition") || "";
+            // Axios normalizes response header names to lowercase. A header
+            // value is not necessarily a string (and a field named get is
+            // not necessarily callable), so narrow before parsing it.
+            const dispositionHeader = response.headers?.["content-disposition"];
+            const disposition = typeof dispositionHeader === "string"
+                ? dispositionHeader : "";
             const match = /filename="?([^";]+)"?/i.exec(disposition);
             const filename = (match?.[1] || `canvas-${state.id}.${format}`)
                 .replace(/[\\/:*?"<>|\r\n]+/g, "_")
