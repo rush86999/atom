@@ -225,5 +225,12 @@
     "no browser replay, live provider, PostgreSQL concurrency or whole-app ORACLE claim",
     "original packets retain executed-source identity; cherry-picked source equality verified instead of relabeling traces",
     "PR depends on auth/task PR812; no required CI check bypass"
-  ]
+  ],
+  "delivery": {
+    "pr": 813,
+    "target": "main",
+    "depends_on": 812,
+    "reason": "CI workflows only run for main-target pull requests. Interim diff includes the independently reviewed auth/task candidate; reconcile main after PR812 before merge.",
+    "merge_gate": "Every required exact-head check succeeds; PR812 integrated; final diff/source review; required-review-only admin override if normal merge is blocked."
+  }
 }
