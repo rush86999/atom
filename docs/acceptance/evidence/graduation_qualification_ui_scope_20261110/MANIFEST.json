@@ -1,0 +1,219 @@
+{
+  "schema": "atom-graduation-qualification-ui-scope-1",
+  "status": "focused checkpoint submitted for independent root verification; no full-graduation or app-completion claim",
+  "branch": "codex/web-graduation-qualification-join-20261110",
+  "worktree": "/private/tmp/atom-web-graduation-qualification-join-20261110",
+  "commits": {
+    "backend_frozen_baseline": "498f3d22d410932c1d4b24546d52db9fc8e8e109",
+    "backend_successor": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+    "frontend_successor": "015515ad140c642185a652915a52b1740bac9dc4",
+    "evidence_commit": "the commit that adds this directory (evidence files only)"
+  },
+  "source_files": [
+    {
+      "path": "backend/core/agent_graduation_service.py",
+      "sha256": "9a4954ee168ed6a2d2c5de1e975393f8e9acdae06b90916d331d4baf3c9dbfac",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "backend/core/promotion_policy_service.py",
+      "sha256": "48f9592c0cf8c8075f1928489a8de6fe6df07c344929c418b071c4c59f37688e",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "backend/core/settings_catalog.py",
+      "sha256": "9a115e45a033bc16078fbe9c665e2e8b19631f9f1a6da7ac9c4a1c2bfe77aad8",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "backend/tests/api/test_graduation_qualification_join.py",
+      "sha256": "cae383f72bbbd971850507df54c52a9faea1fa4f99ae98c2fe1dba8e3fa9f68b",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "backend/api/episode_routes.py",
+      "sha256": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "backend/core/supervision_service.py",
+      "sha256": "c35198ae17c8a8069d7f792a95adafbebb777e96f91a57a5df387a6983713e9a",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "backend/api/supervision_routes.py",
+      "sha256": "d69dc8d2aae52c6ed0cc5714f7e4fad5f8d07df7c7045fc0f7115011e4989b83",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "backend/core/agent_context_resolver.py",
+      "sha256": "c512f6726520d2e66ddb8e25fc2c34a1c2cdeefe0fd4eecff9995a26c98f74a1",
+      "bound_commit": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "frontend-nextjs/lib/maturity-api.ts",
+      "sha256": "c3de570835e6e925ff2360bcad2a1bb09042a13771f5001853e09fd67e88732d",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "frontend-nextjs/components/canvas/TrainingPanel.tsx",
+      "sha256": "f72b9aac6160a112c5ece154f2eecc81b146e9d462f919c6f0173dcbb8260869",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "frontend-nextjs/components/Agents/AgentMaturityGuide.tsx",
+      "sha256": "a837e203f2ce6dba9ab7bc59905bb9644bdc51560174d9c901070796ffe09f6f",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "frontend-nextjs/lib/__tests__/api/maturity-api.test.ts",
+      "sha256": "0c267f14119e1d10baba00aca1bce05dce18bcf4520849b8ca28c378b99e228b",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx",
+      "sha256": "813bad84b2f466ed04fb59891e9db3ecb0eb94b63a0908ad6e59cf7df915158c",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "frontend-nextjs/components/Agents/__tests__/AgentMaturityGuide.test.tsx",
+      "sha256": "fdfc1543341ab5de121159e662c18a9a1c5f420825f0e005cd4b0447823c0cd5",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "frontend-nextjs/components/Agents/__tests__/SelfDirectedPathwayCard.test.tsx",
+      "sha256": "b9d0e7f0df13576d2104b36f7c59c0b4cab60feebf76b6fc708d5ab208ec6edf",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "frontend-nextjs/tests/pages/approvals-page.test.tsx",
+      "sha256": "2d6cb34429a6db5dc0adb0f48a8274dea04c0c7416b5ad7fff11e12bb18baa02",
+      "bound_commit": "015515ad140c642185a652915a52b1740bac9dc4",
+      "changed_in_this_checkpoint": true
+    }
+  ],
+  "gates": {
+    "backend_qualification": {
+      "command": "TESTING=1 scratch SQLite; python -m pytest tests/api/test_graduation_qualification_join.py -q --tb=short",
+      "result": "34 passed",
+      "log": "backend-qualification-34.log"
+    },
+    "backend_pending_scope_focus": {
+      "command": "scratch SQLite; pytest test_pending_review_moved_scope_is_not_reused test_pending_review_exact_duplicate_reuses_same_action -q",
+      "result": "7 passed",
+      "log": "backend-pending-scope-7.log"
+    },
+    "frontend_tsc": {
+      "command": "Node20 node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "result": "exit 0",
+      "log": "frontend-tsc-exit.log",
+      "raw_output": "frontend-tsc.log"
+    },
+    "frontend_jest": {
+      "command": "Node20 jest --runInBand --ci --watchAll=false --no-coverage TrainingPanel AgentMaturityGuide SelfDirectedPathwayCard approvals-page maturity-api",
+      "result": "90 passed",
+      "log": "frontend-jest-90.log"
+    },
+    "root_pending_policy_final_source": {
+      "command": "bounded gate; pytest /private/tmp/root-graduation-pending-policy-independent-20261110.py -q",
+      "result": "2 passed",
+      "log": "root-pending-policy-final.log"
+    },
+    "root_pending_scope_final_source": {
+      "command": "bounded gate; pytest /private/tmp/root-graduation-pending-scope-independent-20261110.py -q",
+      "result": "2 passed",
+      "log": "root-pending-scope-final.log"
+    },
+    "root_original_counterexamples_final_source": {
+      "command": "bounded gate; history-only + inactive-request + upward-writers probes",
+      "result": "4 passed (2 + 2)",
+      "logs": [
+        "root-original-history-inactive-final.log",
+        "root-original-upward-writers-final.log"
+      ]
+    }
+  },
+  "root_independent_reviews": {
+    "pending_policy_predecessor": {
+      "review": "root-pending-policy-review.json",
+      "result": "2 passed",
+      "note": "root independent run at predecessor source 4f018a...; final tree only tightens durable scope typing and reruns 2 passed"
+    },
+    "pending_scope_predecessor": {
+      "review": "root-pending-scope-review.json",
+      "result": "2 passed",
+      "note": "root independent run at predecessor source 3ce805...; final tree reruns 2 passed"
+    },
+    "pending_scope_earlier_failure": {
+      "review": "root-pending-scope-earlier-fail.json",
+      "result": "2 failed before repair; preserved, not erased",
+      "world": "/private/tmp/root-graduation-pending-scope-independent-20261110-jd6_7uox"
+    },
+    "pending_policy_earlier_failure": {
+      "world": "/private/tmp/root-graduation-pending-policy-independent-20261110-yutjctot",
+      "result": "1 failed / 1 passed before repair; preserved, not erased"
+    }
+  },
+  "repair_contract": {
+    "pending_reuse_requires": [
+      "schema",
+      "agent",
+      "current tier",
+      "target tier",
+      "durable HITLAction tenant_id",
+      "durable HITLAction workspace_id",
+      "policy revision",
+      "policy digest",
+      "rubric version",
+      "rubric criteria",
+      "source revision",
+      "normalized evidence",
+      "requester"
+    ],
+    "durable_scope_rule": "exact string only; moved, missing, or wrong-type values are never reusable",
+    "policy_change_rule": "fresh matching review; old review remains pending and fails closed",
+    "duplicate_rule": "exact duplicate reuses the same action id; no needless second review",
+    "rubric": "human review v1; explicit semantic task_completion/correctness criterion; no model judge or new score engine"
+  },
+  "unresolved_policy_selectors": {
+    "default_required": "accepted schema field, unused by tier_required; not an effective exemption",
+    "domains": "accepted exception schema field, unused by scoped_exception; not an effective exemption"
+  },
+  "exclusions": [
+    "no live DB, PostgreSQL, provider, model, browser, credential, send, or spend",
+    "no new engine, store, lifecycle, judge, CI yaml, goal index, PR, or merge",
+    "no full-graduation or app-completion claim",
+    "no test deletion, skip, xfail, or production mock bypass"
+  ],
+  "artifacts": {
+    "README.md": "43df6bbaec23f6accc4483a8194e85b847f1bf69d173b30fe5506dabbeabbeaf",
+    "backend-pending-scope-7.log": "3e09429658d08070b61da86dbebf7b38627c5820630a52d91951117b1a8fb25c",
+    "backend-qualification-34.log": "5bad4f10b0e9e4c5d29ab278b1c27a10155864ac772c5817c0f1c9688c311f8f",
+    "frontend-jest-90.log": "a4fb85865c10487a138ea84003a3a3287664ab24e3fb88e280bebddd413971c9",
+    "frontend-tsc-exit.log": "ff640a80cb4ea9a8916e7e49a48309503d6c8a559378b2b306598b45fd24e366",
+    "frontend-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "root-original-history-inactive-final.log": "47476da1dd79313f3692989d79ab5a82e915157d7da82c774e65c046c283906a",
+    "root-original-upward-writers-final.log": "54d80d72171008ac95a165b1b02d8deb6ec79d56a72f4be47c5ab08b54c8a352",
+    "root-pending-policy-final.log": "54d80d72171008ac95a165b1b02d8deb6ec79d56a72f4be47c5ab08b54c8a352",
+    "root-pending-policy-review.json": "82e3c201173390fe9da9c9e96a84849a262694a996a2e938d390647af73b30c5",
+    "root-pending-scope-earlier-fail.json": "d5c9311e1ff9365ad053ee88c77c85aaf4cbd79ea6b75e837da193021e8dab61",
+    "root-pending-scope-final.log": "a7dc0b20d6a11655cb12f1c9fb9b349684405b690674dd392c59ddde27d6d07e",
+    "root-pending-scope-review.json": "cba070ab7acf6044fe9d6f5fac7789ab82c76d7fc97282439b16b3670464b2c4",
+    "verification.json": "797fe6e14225a94fac8396cc5d821ffee550265ccb462c353a458949b069b808"
+  }
+}

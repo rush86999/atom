@@ -1,0 +1,28 @@
+{
+  "schema": "atom-graduation-qualification-ui-scope-verification-1",
+  "at": "2026-11-10T11:20:00Z",
+  "backend_frozen_baseline": "498f3d22d410932c1d4b24546d52db9fc8e8e109",
+  "backend_successor": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+  "frontend_successor": "015515ad140c642185a652915a52b1740bac9dc4",
+  "same_source_checks": {
+    "backend_agent_graduation_service_sha256": "9a4954ee168ed6a2d2c5de1e975393f8e9acdae06b90916d331d4baf3c9dbfac",
+    "backend_promotion_policy_service_sha256": "48f9592c0cf8c8075f1928489a8de6fe6df07c344929c418b071c4c59f37688e",
+    "frontend_maturity_api_sha256": "c3de570835e6e925ff2360bcad2a1bb09042a13771f5001853e09fd67e88732d",
+    "frontend_training_panel_sha256": "f72b9aac6160a112c5ece154f2eecc81b146e9d462f919c6f0173dcbb8260869"
+  },
+  "gate_results": {
+    "backend_qualification": "34 passed",
+    "backend_pending_scope_focus": "7 passed",
+    "frontend_tsc": "exit 0",
+    "frontend_jest": "90 passed",
+    "root_pending_policy_final_source": "2 passed",
+    "root_pending_scope_final_source": "2 passed",
+    "root_original_counterexamples_final_source": "4 passed"
+  },
+  "notes": [
+    "The approvals route may return 404 for a moved foreign HITL row (truthful scope refusal) or 409 for a reachable-but-stale row; both are fail-closed and the old row stays pending.",
+    "No foreign row is rewritten or moved back.",
+    "SQLite scratch only; controlled human review v1 only.",
+    "default_required and exception domains remain accepted-but-unused unresolved policy selectors."
+  ]
+}
