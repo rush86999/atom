@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "kind": "web_training_proposal_scope_verification",
+  "status": "submitted_withheld_not_accepted",
+  "executed_source": "8b9309213",
+  "base_main": "63dab46b5",
+  "scope": "Public maturity router with real JWT/User/SQLite rows; read/detail versus decision scope, effective agent/proposal tenant, expiry, exact actor/agent/proposal CAS, duplicate/terminal, member read and direct service consumer.",
+  "root_original_negative": {
+    "json": "/private/tmp/root-training-heldout-negative-20261110.json",
+    "json_sha256": "38f878d399f126999406a7760b14da3f74ad8e3820d12d0ea50d5f17b8899470",
+    "log": "/private/tmp/root-training-heldout-20261110-wc8k5fy_/tests.private.log",
+    "log_sha256": "6a41be18e764023cf3530995cc1c3831b7b67949c81a2a4fa5d338a8e9998e52",
+    "result": "2 failed in 4.83s",
+    "failures": [
+      "default actor list included a foreign-tenant proposal attached to a null-scope agent while detail refused",
+      "expired proposal approval returned 200 and created a training session"
+    ]
+  },
+  "root_repaired_run": {
+    "review": "/private/tmp/root-training-heldout-repaired-review-20261110.json",
+    "review_sha256": "2993e2219a090d6b5042b0640e3ec813050d96f6e5910ab08b26c8c30a1ac36c",
+    "log": "/private/tmp/root-training-heldout-repaired-20261110-b_ts1_15/tests.private.log",
+    "log_sha256": "3f2b21f47b8875bfeb6e681b4d82c86a80f7dbe03d00a64523f009826a8c34e7",
+    "result": "2 passed in 4.49s",
+    "source_unchanged_during_run": true,
+    "digests": {
+      "backend/core/student_training_service.py": "347d7974e309aa718d1f2c29d52963bc4d7e7d80d647c3b56e7c4b9ab99af1cb",
+      "backend/api/agent_maturity_routes.py": "5654306f9fc4796a16f96a9493f024a3901b76525d6cdb2ee49def5434e023e5",
+      "backend/tests/api/test_web_training_proposal_authority.py": "4b6e1c00bfa9e6cfd7373e60c791d7cd56ee2dfd0de28243bb56c45a6b04ea8b"
+    },
+    "note": "Final test file adds the expired approve:false zero-session twin and is digest 772d83c2; production service/route bytes are unchanged. Root may rerun the exact 2 controls at final freeze."
+  },
+  "final_local_heldout": {
+    "log": "/private/tmp/root-training-proposal-authority-work/final_heldout2.log",
+    "log_sha256": "b77be72562fd19010e3c5424718ef3ad880de36c10d66340c36393a43d18cd8e",
+    "result": "2 passed in 4.06s",
+    "digests": {
+      "backend/core/student_training_service.py": "347d7974e309aa718d1f2c29d52963bc4d7e7d80d647c3b56e7c4b9ab99af1cb",
+      "backend/api/agent_maturity_routes.py": "5654306f9fc4796a16f96a9493f024a3901b76525d6cdb2ee49def5434e023e5",
+      "backend/tests/api/test_web_training_proposal_authority.py": "772d83c271785502c49e4dba6473c82952fd069573244418e681c13d51b8a64b"
+    }
+  },
+  "local_affected_gates": {
+    "new_controls": {
+      "result": "16 passed in 28.78s",
+      "log": "/private/tmp/root-training-proposal-authority-work/final_new2.log",
+      "log_sha256": "4898ad4812d659a6330428df515953d391f17a35f9822362df68741bd5b3a9a7"
+    },
+    "route_consumers": {
+      "files": [
+        "tests/test_round81_agent_journey_gaps.py",
+        "tests/test_role_journey_rbac_gaps.py",
+        "tests/test_training_lifecycle_manual_start.py",
+        "tests/test_promotion_evidence_gate.py"
+      ],
+      "result": "96 passed in 37.84s",
+      "log": "/private/tmp/root-training-proposal-authority-work/routes5.log",
+      "log_sha256": "7f7d0319b387c669dddd651b830d1ebc2782320a84a9978556c5e6c10a7bc1b5"
+    },
+    "approval_service_subset": {
+      "result": "17 passed in 20.47s",
+      "log": "/private/tmp/root-training-proposal-authority-work/final_gov.log",
+      "log_sha256": "20d89eb1e1bcd30075b263d3a4ef81ab83c78cd99ffa01490df5438375b8e4a8"
+    }
+  },
+  "coverage": [
+    "same-scope member read positive; member review 403",
+    "foreign proposal absent from list/detail and approve/reject zero effect",
+    "null-scope agent plus foreign proposal tenant excluded from default list and detail, visible to owning tenant",
+    "contradictory proposal/agent non-null tenant excluded",
+    "inactive, demoted and moved actor refuse before effect",
+    "expired approval 409 with no session/status change; expired reject allowed with no session; None expiry valid",
+    "peer expiry change before claim wins",
+    "approve creates one session; duplicate approval 409 no second session",
+    "terminal/wrong-type cannot start a session",
+    "direct service consumers enforce scope/role",
+    "competing proposal material and moved agent target refuse zero effect",
+    "fresh child-process readback of status/reviewer/session"
+  ],
+  "limits": [
+    "No browser, live DB, provider/model, account, install, deployment, PR or merge.",
+    "No broad-suite or Python 3.14 claim.",
+    "Root final binding/independent gate remains required."
+  ],
+  "root_original_public_route_run": {
+    "review": "/private/tmp/root-training-original-repaired-review-20261110.json",
+    "review_sha256": "fdba090217479b78f2f76420d47b5f516f004f25cc8f5646bf6acb612a9be15c",
+    "raw_report": "/private/tmp/root-training-original-repaired-20261110-1gz55f8m/verification.json",
+    "raw_report_sha256": "0c650a2781a381c8249cf65c2a567963bb5db78e404f7d6ad7e057364acc3d68",
+    "passed": true,
+    "source_hashes_unchanged_during_run": true,
+    "digests": {
+      "backend/api/agent_maturity_routes.py": "5654306f9fc4796a16f96a9493f024a3901b76525d6cdb2ee49def5434e023e5",
+      "backend/core/student_training_service.py": "347d7974e309aa718d1f2c29d52963bc4d7e7d80d647c3b56e7c4b9ab99af1cb"
+    },
+    "scope": "actual public router with JWT/current User and scratch SQL; same-scope positive and foreign list/detail/reject negative",
+    "metadata_correction": "The preserved raw report retains its hardcoded legacy baseline label 63dab46b5. That label is not the executed source for this repaired run; the root review envelope runtime file digests above are authoritative."
+  }
+}
