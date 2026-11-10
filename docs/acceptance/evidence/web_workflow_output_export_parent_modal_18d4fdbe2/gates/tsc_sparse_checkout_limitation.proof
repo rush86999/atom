@@ -1,0 +1,26 @@
+components/canvas/CanvasPanel.tsx(13,24): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/canvas/CanvasTypeBadge.tsx(4,24): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/canvas/InteractiveForm.tsx(4,42): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/chat/canvas-host.tsx(14,24): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/chat/ChatHistorySidebar.tsx(9,28): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/chat/ChatInput.tsx(7,28): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/chat/MessageList.tsx(8,28): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/dashboards/KnowledgeCommandCenter.tsx(22,32): error TS2307: Cannot find module '@/src/components/Graph/GraphVisualization' or its corresponding type declarations.
+components/dashboards/ProjectCommandCenter.tsx(12,26): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+components/entity/EntitySchemaModal.tsx(19,32): error TS2307: Cannot find module '@/src/lib/validators/jsonSchema' or its corresponding type declarations.
+components/entity/EntityTypeForm.tsx(17,32): error TS2307: Cannot find module '@/src/lib/validators/jsonSchema' or its corresponding type declarations.
+components/entity/EntityTypeImportExport.tsx(26,75): error TS2307: Cannot find module '@/src/lib/importers/entityTypeImporter' or its corresponding type declarations.
+components/entity/MonacoSchemaEditor.tsx(2,56): error TS2307: Cannot find module '@/src/lib/validators/jsonSchema' or its corresponding type declarations.
+components/entity/MonacoSchemaEditor.tsx(60,35): error TS7006: Parameter 'error' implicitly has an 'any' type.
+components/entity/MonacoSchemaEditor.tsx(60,42): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+components/entity/VisualSchemaBuilder.tsx(22,61): error TS2307: Cannot find module '@/src/lib/schema/jsonSchemaToForm' or its corresponding type declarations.
+components/GlobalChat/ChatMessage.tsx(12,28): error TS2307: Cannot find module '@/src/lib/testIds' or its corresponding type declarations.
+pages/api/agent/handler.ts(32,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+pages/api/agent/handler.ts(33,21): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+pages/api/agent/handler.ts(140,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+pages/api/agent/handler.ts(141,21): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+pages/api/agent/handler.ts(145,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+pages/api/agent/handler.ts(146,21): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+pages/api/atom/message.ts(5,8): error TS2307: Cannot find module '../../../project/functions/atom-agent/src/handler' or its corresponding type declarations.
+pages/settings/ai.tsx(5,32): error TS2307: Cannot find module '@/src/components/AIProviders/AIProviderSettings' or its corresponding type declarations.
+types/index.ts(7,15): error TS2307: Cannot find module '../src/types/api-generated' or its corresponding type declarations.

@@ -1,0 +1,324 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+___ test_non_success_step_cannot_be_exported_as_completed_document[blocked] ____
+../../root-workflow-export-independent-20261110.py:17: in test_non_success_step_cannot_be_exported_as_completed_document
+    assert response.status_code==409,response.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:02:15.164825",
+E         "created_at": "2026-11-10T07:02:15",
+E         "execution_id": "0360e342-fe4f-404c-adc3-5cb5280c7f56",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_8749265a88aa"
+E       },
+E       "provenance": {
+E         "document_version": 1,
+E         "execution_id": "0360e342-fe4f-404c-adc3-5cb5280c7f56",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_8749265a88aa"
+E       },
+E       "results": {
+E         "lookup": {
+E           "matches": [],
+E           "status": "blocked"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [
+E         {
+E           "error": null,
+E           "status": "blocked",
+E           "step_id": "lookup",
+E           "step_type": null
+E         }
+E       ],
+E       "workflow": {
+E         "workflow_id": "ai_wf_8749265a88aa"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+WARNING  core.lancedb_handler:lancedb_handler.py:2149 LanceDB not initialized, chat history disabled
+WARNING  core.token_storage:token_storage.py:31 Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+WARNING  core.workflow_notifier:workflow_notifier.py:85 WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+_ test_non_success_step_cannot_be_exported_as_completed_document[unavailable] __
+../../root-workflow-export-independent-20261110.py:17: in test_non_success_step_cannot_be_exported_as_completed_document
+    assert response.status_code==409,response.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:02:15.976944",
+E         "created_at": "2026-11-10T07:02:15",
+E         "execution_id": "29106957-f936-4aca-b795-2fdcc9c925f0",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_5b1ffaa59939"
+E       },
+E       "provenance": {
+E         "document_version": 1,
+E         "execution_id": "29106957-f936-4aca-b795-2fdcc9c925f0",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_5b1ffaa59939"
+E       },
+E       "results": {
+E         "lookup": {
+E           "matches": [],
+E           "status": "unavailable"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [
+E         {
+E           "error": null,
+E           "status": "unavailable",
+E           "step_id": "lookup",
+E           "step_type": null
+E         }
+E       ],
+E       "workflow": {
+E         "workflow_id": "ai_wf_5b1ffaa59939"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+_ test_non_success_step_cannot_be_exported_as_completed_document[budget_exceeded] _
+../../root-workflow-export-independent-20261110.py:17: in test_non_success_step_cannot_be_exported_as_completed_document
+    assert response.status_code==409,response.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:02:16.686307",
+E         "created_at": "2026-11-10T07:02:16",
+E         "execution_id": "ab82c4a4-56f7-4b86-b069-fb4eea5f84b5",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_f36c0128d914"
+E       },
+E       "provenance": {
+E         "document_version": 1,
+E         "execution_id": "ab82c4a4-56f7-4b86-b069-fb4eea5f84b5",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_f36c0128d914"
+E       },
+E       "results": {
+E         "lookup": {
+E           "matches": [],
+E           "status": "budget_exceeded"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [
+E         {
+E           "error": null,
+E           "status": "budget_exceeded",
+E           "step_id": "lookup",
+E           "step_type": null
+E         }
+E       ],
+E       "workflow": {
+E         "workflow_id": "ai_wf_f36c0128d914"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+___ test_non_success_step_cannot_be_exported_as_completed_document[rejected] ___
+../../root-workflow-export-independent-20261110.py:17: in test_non_success_step_cannot_be_exported_as_completed_document
+    assert response.status_code==409,response.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:02:17.399431",
+E         "created_at": "2026-11-10T07:02:17",
+E         "execution_id": "460c5ef5-a404-47df-8dcb-d7340fe1b084",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_ac0c514a09f5"
+E       },
+E       "provenance": {
+E         "document_version": 1,
+E         "execution_id": "460c5ef5-a404-47df-8dcb-d7340fe1b084",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_ac0c514a09f5"
+E       },
+E       "results": {
+E         "lookup": {
+E           "matches": [],
+E           "status": "rejected"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [
+E         {
+E           "error": null,
+E           "status": "rejected",
+E           "step_id": "lookup",
+E           "step_type": null
+E         }
+E       ],
+E       "workflow": {
+E         "workflow_id": "ai_wf_ac0c514a09f5"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+___ test_non_success_step_cannot_be_exported_as_completed_document[unknown] ____
+../../root-workflow-export-independent-20261110.py:17: in test_non_success_step_cannot_be_exported_as_completed_document
+    assert response.status_code==409,response.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:02:18.123008",
+E         "created_at": "2026-11-10T07:02:18",
+E         "execution_id": "3cc9ad18-6b80-4e39-8321-f21d3d8b7c8c",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_c36450f47660"
+E       },
+E       "provenance": {
+E         "document_version": 1,
+E         "execution_id": "3cc9ad18-6b80-4e39-8321-f21d3d8b7c8c",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_c36450f47660"
+E       },
+E       "results": {
+E         "lookup": {
+E           "matches": [],
+E           "status": "unknown"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [
+E         {
+E           "error": null,
+E           "status": "unknown",
+E           "step_id": "lookup",
+E           "step_type": null
+E         }
+E       ],
+E       "workflow": {
+E         "workflow_id": "ai_wf_c36450f47660"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+______ test_incomplete_step_identity_cannot_certify_export[bad_history0] _______
+../../root-workflow-export-independent-20261110.py:28: in test_incomplete_step_identity_cannot_certify_export
+    assert response.status_code==409,response.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:02:18.800688",
+E         "created_at": "2026-11-10T07:02:18",
+E         "execution_id": "d44e711f-5007-48f6-85ce-a9f515ea5789",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_0e37a8ce5a25"
+E       },
+E       "provenance": {
+E         "document_version": 1,
+E         "execution_id": "d44e711f-5007-48f6-85ce-a9f515ea5789",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_0e37a8ce5a25"
+E       },
+E       "results": {
+E         "lookup": {
+E           "execution_time_ms": 1.5931129455566406,
+E           "matches": [],
+E           "status": "completed"
+E         },
+E         "start": {
+E           "execution_time_ms": 0.009059906005859375,
+E           "status": "completed",
+E           "trigger": "manual"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [],
+E       "workflow": {
+E         "workflow_id": "ai_wf_0e37a8ce5a25"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+______ test_incomplete_step_identity_cannot_certify_export[bad_history1] _______
+../../root-workflow-export-independent-20261110.py:28: in test_incomplete_step_identity_cannot_certify_export
+    assert response.status_code==409,response.text
+E   AssertionError: {
+E       "execution": {
+E         "completed_at": "2026-11-10T02:02:19.555453",
+E         "created_at": "2026-11-10T07:02:19",
+E         "execution_id": "46904a37-4309-43b0-8b7b-87556c22165b",
+E         "owner_id": null,
+E         "status": "completed",
+E         "user_id": "user-a",
+E         "workflow_id": "ai_wf_1238abf8a1c8"
+E       },
+E       "provenance": {
+E         "document_version": 1,
+E         "execution_id": "46904a37-4309-43b0-8b7b-87556c22165b",
+E         "result_field": "outputs",
+E         "source": "durable_workflow_execution",
+E         "workflow_id": "ai_wf_1238abf8a1c8"
+E       },
+E       "results": {
+E         "lookup": {
+E           "execution_time_ms": 1.535177230834961,
+E           "matches": [],
+E           "status": "completed"
+E         },
+E         "start": {
+E           "execution_time_ms": 0.009059906005859375,
+E           "status": "completed",
+E           "trigger": "manual"
+E         }
+E       },
+E       "schema": "atom.workflow.execution-result.v1",
+E       "steps": [
+E         {
+E           "error": null,
+E           "status": "completed",
+E           "step_id": null,
+E           "step_type": null
+E         }
+E       ],
+E       "workflow": {
+E         "workflow_id": "ai_wf_1238abf8a1c8"
+E       }
+E     }
+E     
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17: 14 warnings
+  <scratch-path> DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+root-workflow-export-independent-20261110.py::test_non_success_step_cannot_be_exported_as_completed_document[blocked]
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-workflow-export-independent-20261110.py::test_non_success_step_cannot_be_exported_as_completed_document[blocked]
+FAILED ../../root-workflow-export-independent-20261110.py::test_non_success_step_cannot_be_exported_as_completed_document[unavailable]
+FAILED ../../root-workflow-export-independent-20261110.py::test_non_success_step_cannot_be_exported_as_completed_document[budget_exceeded]
+FAILED ../../root-workflow-export-independent-20261110.py::test_non_success_step_cannot_be_exported_as_completed_document[rejected]
+FAILED ../../root-workflow-export-independent-20261110.py::test_non_success_step_cannot_be_exported_as_completed_document[unknown]
+FAILED ../../root-workflow-export-independent-20261110.py::test_incomplete_step_identity_cannot_certify_export[bad_history0]
+FAILED ../../root-workflow-export-independent-20261110.py::test_incomplete_step_identity_cannot_certify_export[bad_history1]
+7 failed, 15 warnings in 8.25s

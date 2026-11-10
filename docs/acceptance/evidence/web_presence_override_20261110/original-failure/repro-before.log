@@ -1,0 +1,111 @@
+{
+  "clear": {
+    "body": {
+      "last_activity_at": "2026-11-10T06:44:44.666372",
+      "manual_override": false,
+      "manual_override_expires_at": null,
+      "state": "offline",
+      "user_id": "user-self-8729c3e4"
+    },
+    "status": 200
+  },
+  "foreign_clear": {
+    "body": {
+      "detail": "Cannot manage another user's activity state"
+    },
+    "status": 403
+  },
+  "foreign_get": [
+    500,
+    {
+      "detail": "Internal error"
+    }
+  ],
+  "foreign_set": {
+    "body": {
+      "detail": "Cannot manage another user's activity state"
+    },
+    "status": 403
+  },
+  "get_after_clear": [
+    200,
+    {
+      "last_activity_at": "2026-11-10T06:44:44.666372",
+      "manual_override": false,
+      "manual_override_expires_at": null,
+      "state": "offline",
+      "user_id": "user-self-8729c3e4"
+    }
+  ],
+  "get_after_expired": [
+    500,
+    {
+      "detail": "Internal error"
+    }
+  ],
+  "get_after_naive": [
+    500,
+    {
+      "detail": "Internal error"
+    }
+  ],
+  "get_after_set": [
+    500,
+    {
+      "detail": "Internal error"
+    }
+  ],
+  "invalid_expiry": {
+    "body": {
+      "detail": "Invalid datetime format: not-a-date"
+    },
+    "status": 400
+  },
+  "invalid_state": {
+    "body": {
+      "detail": "Invalid state: bogus. Must be 'online', 'away', or 'offline'"
+    },
+    "status": 400
+  },
+  "repeat_same": {
+    "first": 200,
+    "second": 200,
+    "second_body": {
+      "last_activity_at": "2026-11-10T06:44:44.666372",
+      "manual_override": true,
+      "manual_override_expires_at": null,
+      "state": "offline",
+      "user_id": "user-self-8729c3e4"
+    }
+  },
+  "set_aware_future": {
+    "body": {
+      "last_activity_at": "2026-11-10T06:44:44.666372",
+      "manual_override": true,
+      "manual_override_expires_at": "2026-11-10T08:44:45.321523",
+      "state": "away",
+      "user_id": "user-self-8729c3e4"
+    },
+    "status": 200
+  },
+  "set_aware_past": {
+    "body": {
+      "last_activity_at": "2026-11-10T06:44:44.666372",
+      "manual_override": true,
+      "manual_override_expires_at": "2026-11-10T05:44:45.346657",
+      "state": "away",
+      "user_id": "user-self-8729c3e4"
+    },
+    "status": 200
+  },
+  "set_naive_future": {
+    "body": {
+      "last_activity_at": "2026-11-10T06:44:44.666372",
+      "manual_override": true,
+      "manual_override_expires_at": "2030-01-01T00:00:00",
+      "state": "away",
+      "user_id": "user-self-8729c3e4"
+    },
+    "status": 200
+  }
+}

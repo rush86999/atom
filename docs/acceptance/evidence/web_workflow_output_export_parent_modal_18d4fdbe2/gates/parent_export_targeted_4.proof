@@ -1,0 +1,12 @@
+watchman warning: Recrawled this watch 1 time, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '<scratch-path> ; watchman watch-project '<scratch-path>
+
+PASS components/Workflow/__tests__/WorkflowAutomation.test.tsx
+
+Test Suites: 1 passed, 1 total
+Tests:       43 skipped, 4 passed, 47 total
+Snapshots:   0 total
+Time:        1.647 s, estimated 8 s

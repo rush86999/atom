@@ -1,0 +1,92 @@
+{
+  "branch": "codex/ci-reviewed-web-regressions-20261110",
+  "change": {
+    "fallback_replaced_by_incomplete_sort": false,
+    "files": [
+      "backend/requirements.txt",
+      "backend/tests/api/test_document_library_pagination.py"
+    ],
+    "regression": "test_standard_requirements_include_the_lance_sdk_scanner asserts the standard requirements, installed pylance, LanceTable.to_lance and ColumnOrdering",
+    "requirements_addition": "pylance==0.39.0 next to lancedb==0.24.3",
+    "typed_503_preserved": true,
+    "vector_full_materialization": false
+  },
+  "controls": {
+    "command": "pytest tests/api/test_web_canvas_authority.py tests/api/test_web_canvas_restore_ordering.py tests/api/test_document_library_pagination.py tests/api/test_web_training_proposal_authority.py",
+    "exit": 0,
+    "includes_130_row_global_order_and_boundaries": true,
+    "includes_foreign_scope_and_auth": true,
+    "includes_typed_503_when_primitive_unavailable": true,
+    "log": "logs/targeted-reviewed-web-controls.log",
+    "log_sha256": "bc6c30fc5a16130913e900bdd33730f84776867f15e50001eb472373dde321bb",
+    "new_dependency_contract_test": true,
+    "prior_local_baseline": {
+      "api_checks": 62,
+      "ci_ledger_checks": 27,
+      "rerun_in_this_repair": false
+    },
+    "result": "63 passed"
+  },
+  "dependency_decision": {
+    "ci_only_install": false,
+    "constraint_compatibility": "pyarrow 21 satisfies >=14 and <26; numpy 1.26.4 satisfies >=1.22 and <2",
+    "distribution": "pylance",
+    "local_acceptance_versions": {
+      "lance_namespace": "0.4.3",
+      "lancedb": "0.24.3",
+      "numpy": "1.26.4",
+      "pyarrow": "21.0.0",
+      "pylance": "0.39.0"
+    },
+    "normal_requirements": "backend/requirements.txt",
+    "test_skip_or_fallback": false,
+    "version": "0.39.0",
+    "wheel_metadata": {
+      "abi": "cp39-abi3",
+      "platform_wheels": [
+        "macosx_10_15_x86_64",
+        "macosx_11_0_arm64",
+        "manylinux_2_17_x86_64",
+        "manylinux_2_28_x86_64",
+        "manylinux_2_17_aarch64",
+        "manylinux_2_28_aarch64",
+        "win_amd64"
+      ],
+      "requires_dist": [
+        "pyarrow>=14",
+        "numpy>=1.22",
+        "lance-namespace>=0.0.20"
+      ],
+      "requires_python": ">=3.9",
+      "source": "PyPI JSON metadata only; no package download or local install"
+    }
+  },
+  "limits": {
+    "all_13_ci_jobs_rerun": false,
+    "ci_yaml_or_ledger_edited": false,
+    "install_download_uninstall_performed": false,
+    "other_agent_files_edited": false,
+    "provider_model_browser_used": false,
+    "python_314_note": "requirements-py314.txt remains the separate lancedb 0.38.0 supplemental set; this repair targets primary supported 3.11-3.13 standard installs",
+    "python_314_quickstart_forced": false,
+    "root_exact_ci_required_before_merge": true
+  },
+  "pr": "817",
+  "problem": {
+    "ci_failure_reference": "ci_failure_reference.json",
+    "ci_result": "8 failed, 54 passed",
+    "ci_step": "reviewed web authority and library regression controls",
+    "missing_module": "lance (distribution pylance)",
+    "why": "lancedb 0.24.3 leaves pylance optional; Table.to_lance() imports lance and the ordered scanner imports lance.dataset.ColumnOrdering"
+  },
+  "schema_version": 1,
+  "source_after": "ea82333a5826b203b0d38bd7e40237717216f8dd",
+  "source_before": "36f9a5909ade46e0505bf83a7de3380f717ddd54",
+  "state": "dependency_fix_targeted_controls_passed_root_ci_pending",
+  "supporting_primary_sources": [
+    "https://github.com/lancedb/lancedb/issues/1793",
+    "https://lancedb.github.io/lancedb/python/python/",
+    "installed lancedb/table.py to_lance import and ImportError message",
+    "PyPI pylance 0.39.0 metadata (metadata-only)"
+  ]
+}

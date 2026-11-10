@@ -539,3 +539,124 @@ describe('useUserActivity Hook', () => {
     });
   });
 });
+
+
+const presenceResponse = (status: number, body: Record<string, unknown>) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  statusText: status >= 200 && status < 300 ? 'OK' : 'Service Unavailable',
+  json: async () => body,
+});
+
+describe('useUserActivity presence response contract', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    global.fetch = jest.fn();
+    global.mockFetch = global.fetch;
+    (global.mockFetch as jest.Mock).mockResolvedValue(heartbeatOk());
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('ambiguous 202 success:false preserves prior state and surfaces error', async () => {
+    const { result } = renderHook(() =>
+      useUserActivity({ userId: 'user-presence-202' })
+    );
+    await waitFor(() => expect(result.current.state).toBeTruthy());
+    const prior = result.current.state;
+
+    (global.mockFetch as jest.Mock).mockResolvedValueOnce(presenceResponse(202, {
+      success: false,
+      state: 'away',
+      last_activity_at: new Date().toISOString(),
+      manual_override: true,
+      verification: {
+        status: 'unavailable',
+        effect: 'committed',
+        replay: 'do_not_repeat',
+      },
+    }));
+
+    await act(async () => {
+      await result.current.setManualOverride('away');
+    });
+
+    expect(result.current.state).toBe(prior);
+    expect(result.current.error).toMatch(/could not be confirmed/i);
+  });
+
+  test('503 ambiguous commit preserves prior state and surfaces error', async () => {
+    const { result } = renderHook(() =>
+      useUserActivity({ userId: 'user-presence-503' })
+    );
+    await waitFor(() => expect(result.current.state).toBeTruthy());
+    const prior = result.current.state;
+
+    (global.mockFetch as jest.Mock).mockResolvedValueOnce(presenceResponse(503, {
+      success: false,
+      error: 'The presence change committed but its readback did not verify.',
+      verification: {
+        status: 'unavailable',
+        effect: 'committed',
+        replay: 'do_not_repeat',
+      },
+    }));
+
+    await act(async () => {
+      await result.current.setManualOverride('away');
+    });
+
+    expect(result.current.state).toBe(prior);
+    expect(result.current.error).toMatch(/readback did not verify/i);
+  });
+
+  test('malformed/missing state is not accepted as success', async () => {
+    const { result } = renderHook(() =>
+      useUserActivity({ userId: 'user-presence-malformed' })
+    );
+    await waitFor(() => expect(result.current.state).toBeTruthy());
+    const prior = result.current.state;
+
+    (global.mockFetch as jest.Mock).mockResolvedValueOnce(presenceResponse(200, {
+      success: true,
+      state: 'bogus',
+      last_activity_at: new Date().toISOString(),
+      manual_override: true,
+    }));
+
+    await act(async () => {
+      await result.current.setManualOverride('away');
+    });
+
+    expect(result.current.state).toBe(prior);
+    expect(result.current.error).toMatch(/missing its state/i);
+  });
+
+  test('503 on clear preserves prior state and surfaces error', async () => {
+    const { result } = renderHook(() =>
+      useUserActivity({ userId: 'user-presence-clear' })
+    );
+    await waitFor(() => expect(result.current.state).toBeTruthy());
+    const prior = result.current.state;
+
+    (global.mockFetch as jest.Mock).mockResolvedValueOnce(presenceResponse(503, {
+      success: false,
+      error: 'The presence change committed but its readback did not verify.',
+      verification: {
+        status: 'unavailable',
+        effect: 'committed',
+        replay: 'do_not_repeat',
+      },
+    }));
+
+    await act(async () => {
+      await result.current.clearManualOverride();
+    });
+
+    expect(result.current.state).toBe(prior);
+    expect(result.current.error).toMatch(/readback did not verify/i);
+  });
+});

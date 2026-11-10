@@ -1,0 +1,1401 @@
+
+----------------------------- live log collection ------------------------------
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success 
+-------------------------------- live log setup --------------------------------
+2026-11-10 02:48:31 [    INFO] EscalationManager initialized
+2026-11-10 02:48:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:48:31 [    INFO] EscalationManager initialized
+2026-11-10 02:48:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:48:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 02:48:31 [    INFO] AgentTaskRegistry initialized
+2026-11-10 02:48:31 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+PASSED                                                                   [  2%]
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_with_optional_fields PASSED [  5%]
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_creates_session PASSED [  8%]
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_exception_handled PASSED [ 11%]
+tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_online FAILED [ 14%]
+tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_away FAILED [ 17%]
+tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_offline FAILED [ 20%]
+tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_with_manual_override FAILED [ 22%]
+tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_no_existing_record FAILED [ 25%]
+tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_exception_handled FAILED [ 28%]
+tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_online FAILED [ 31%]
+tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_away FAILED [ 34%]
+tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_offline FAILED [ 37%]
+tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_with_expiry FAILED [ 40%]
+tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_invalid_state PASSED [ 42%]
+tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_invalid_datetime_format PASSED [ 45%]
+tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_exception_handled FAILED [ 48%]
+tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_success FAILED [ 51%]
+tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_not_set FAILED [ 54%]
+tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_user_not_found FAILED [ 57%]
+tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_exception_handled FAILED [ 60%]
+tests/api/test_user_activity_routes.py::TestAvailableSupervisors::test_get_available_supervisors_success PASSED [ 62%]
+tests/api/test_user_activity_routes.py::TestAvailableSupervisors::test_get_available_supervisors_with_category PASSED [ 65%]
+tests/api/test_user_activity_routes.py::TestAvailableSupervisors::test_get_available_supervisors_no_results PASSED [ 68%]
+tests/api/test_user_activity_routes.py::TestAvailableSupervisors::test_get_available_supervisors_exception_handled PASSED [ 71%]
+tests/api/test_user_activity_routes.py::TestActiveSessions::test_get_active_sessions_success PASSED [ 74%]
+tests/api/test_user_activity_routes.py::TestActiveSessions::test_get_active_sessions_multiple_sessions PASSED [ 77%]
+tests/api/test_user_activity_routes.py::TestActiveSessions::test_get_active_sessions_no_sessions PASSED [ 80%]
+tests/api/test_user_activity_routes.py::TestActiveSessions::test_get_active_sessions_exception_handled PASSED [ 82%]
+tests/api/test_user_activity_routes.py::TestSessionTermination::test_terminate_session_success FAILED [ 85%]
+tests/api/test_user_activity_routes.py::TestSessionTermination::test_terminate_session_not_found PASSED [ 88%]
+tests/api/test_user_activity_routes.py::TestSessionTermination::test_terminate_session_exception_handled FAILED [ 91%]
+tests/api/test_user_activity_routes.py::TestStateTransitions::test_state_transition_offline_to_away FAILED [ 94%]
+tests/api/test_user_activity_routes.py::TestStateTransitions::test_state_transition_away_to_online FAILED [ 97%]
+tests/api/test_user_activity_routes.py::TestConcurrency::test_multiple_sessions_same_user PASSED [100%]
+
+=================================== FAILURES ===================================
+___________________ TestUserState.test_get_user_state_online ___________________
+tests/api/test_user_activity_routes.py:224: in test_get_user_state_online
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+____________________ TestUserState.test_get_user_state_away ____________________
+tests/api/test_user_activity_routes.py:239: in test_get_user_state_away
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+__________________ TestUserState.test_get_user_state_offline ___________________
+tests/api/test_user_activity_routes.py:254: in test_get_user_state_offline
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+____________ TestUserState.test_get_user_state_with_manual_override ____________
+tests/api/test_user_activity_routes.py:270: in test_get_user_state_with_manual_override
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_____________ TestUserState.test_get_user_state_no_existing_record _____________
+tests/api/test_user_activity_routes.py:286: in test_get_user_state_no_existing_record
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_____________ TestUserState.test_get_user_state_exception_handled ______________
+tests/api/test_user_activity_routes.py:299: in test_get_user_state_exception_handled
+    assert response.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+______________ TestManualOverride.test_set_manual_override_online ______________
+tests/api/test_user_activity_routes.py:321: in test_set_manual_override_online
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_______________ TestManualOverride.test_set_manual_override_away _______________
+tests/api/test_user_activity_routes.py:338: in test_set_manual_override_away
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_____________ TestManualOverride.test_set_manual_override_offline ______________
+tests/api/test_user_activity_routes.py:355: in test_set_manual_override_offline
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+___________ TestManualOverride.test_set_manual_override_with_expiry ____________
+tests/api/test_user_activity_routes.py:379: in test_set_manual_override_with_expiry
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+________ TestManualOverride.test_set_manual_override_exception_handled _________
+tests/api/test_user_activity_routes.py:416: in test_set_manual_override_exception_handled
+    assert response.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_____________ TestClearOverride.test_clear_manual_override_success _____________
+tests/api/test_user_activity_routes.py:437: in test_clear_manual_override_success
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_____________ TestClearOverride.test_clear_manual_override_not_set _____________
+tests/api/test_user_activity_routes.py:452: in test_clear_manual_override_not_set
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_________ TestClearOverride.test_clear_manual_override_user_not_found __________
+tests/api/test_user_activity_routes.py:463: in test_clear_manual_override_user_not_found
+    assert response.status_code == 404
+E   assert 403 == 404
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+________ TestClearOverride.test_clear_manual_override_exception_handled ________
+tests/api/test_user_activity_routes.py:474: in test_clear_manual_override_exception_handled
+    assert response.status_code == 500
+E   assert 403 == 500
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+____________ TestSessionTermination.test_terminate_session_success _____________
+tests/api/test_user_activity_routes.py:646: in test_terminate_session_success
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+_______ TestSessionTermination.test_terminate_session_exception_handled ________
+tests/api/test_user_activity_routes.py:671: in test_terminate_session_exception_handled
+    assert response.status_code == 500
+E   assert 404 == 500
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:37] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:37] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:37] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+__________ TestStateTransitions.test_state_transition_offline_to_away __________
+tests/api/test_user_activity_routes.py:692: in test_state_transition_offline_to_away
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:38] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+__________ TestStateTransitions.test_state_transition_away_to_online ___________
+tests/api/test_user_activity_routes.py:707: in test_state_transition_away_to_online
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <Response [403 Forbidden]>.status_code
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ATOM Platform Starting (Hybrid Mode)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] faulthandler: SIGUSR1 dumps thread stacks to stderr
+[2026-11-10 02:48:38] [[93mWARNING[0m] [main_api_app] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Initializing database tables...
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping table creation in test mode (fixture managed)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.execution_recovery] Crash recovery: no orphaned executions found
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Terminal-delivery recovery task started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Research continuation worker started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Accepted-evidence assignment recovery started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Accepted-information wait recovery started (outside the scheduler gate)
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping Schedulers and Workers in test mode
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⊘ Skipping Postgres Event Bus in test mode
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service initialized
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ⏩ Skipping redundant QStash schedule cleanup
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Auto-Dev ReflectionEngine registered on event bus
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ============================================================
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Server Ready
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.research_continuation] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+------------------------------ Captured log setup ------------------------------
+INFO     main_api_app:main_api_app.py:429 ============================================================
+INFO     main_api_app:main_api_app.py:430 ATOM Platform Starting (Hybrid Mode)
+INFO     main_api_app:main_api_app.py:431 ============================================================
+INFO     main_api_app:main_api_app.py:442 faulthandler: SIGUSR1 dumps thread stacks to stderr
+WARNING  main_api_app:oauth_config_preflight.py:55 Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+INFO     main_api_app:main_api_app.py:467 Initializing database tables...
+INFO     main_api_app:main_api_app.py:533 ⊘ Skipping table creation in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:563 ⊘ Skipping admin bootstrap in test mode (fixture managed)
+INFO     main_api_app:main_api_app.py:577 Loaded integrations so far: ['oauth', 'microsoft365', 'twilio', 'notion', 'auth', 'asana', 'mailchimp', 'monday', 'zoho_workdrive', 'whatsapp', 'salesforce', 'outlook']
+INFO     core.execution_recovery:execution_recovery.py:274 Crash recovery: no orphaned executions found
+INFO     main_api_app:main_api_app.py:655 Terminal-delivery recovery task started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:669 Research continuation worker started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:695 Accepted-evidence assignment recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:714 Accepted-information wait recovery started (outside the scheduler gate)
+INFO     main_api_app:main_api_app.py:919 ⊘ Skipping Schedulers and Workers in test mode
+INFO     main_api_app:main_api_app.py:931 ⊘ Skipping Postgres Event Bus in test mode
+INFO     main_api_app:main_api_app.py:941 ✓ AI Workflow Service initialized
+INFO     main_api_app:main_api_app.py:961 ⏩ Skipping redundant QStash schedule cleanup
+INFO     main_api_app:main_api_app.py:1211 ✓ Auto-Dev ReflectionEngine registered on event bus
+INFO     main_api_app:main_api_app.py:1262 ============================================================
+INFO     main_api_app:main_api_app.py:1263 ✓ Server Ready
+INFO     core.async_turn_continuation:async_turn_continuation.py:844 [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO     core.async_turn_continuation:async_turn_continuation.py:736 [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO     core.research_continuation:research_continuation.py:2117 [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+--------------------------- Captured stdout teardown ---------------------------
+[2026-11-10 02:48:38] [[92mINFO[0m] [core.async_turn_continuation] [async-continuation] terminal-delivery recovery task stopping
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] Shutting down ATOM Platform...
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Workflow Scheduler stopped
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ Postgres Event Bus listener stopped
+[2026-11-10 02:48:38] [[92mINFO[0m] [main_api_app] ✓ AI Workflow Service sessions cleaned up
+---------------------------- Captured log teardown -----------------------------
+INFO     core.async_turn_continuation:async_turn_continuation.py:866 [async-continuation] terminal-delivery recovery task stopping
+INFO     main_api_app:main_api_app.py:1279 Shutting down ATOM Platform...
+INFO     main_api_app:main_api_app.py:1294 ✓ Workflow Scheduler stopped
+INFO     main_api_app:main_api_app.py:1319 ✓ Postgres Event Bus listener stopped
+INFO     main_api_app:main_api_app.py:1327 ✓ AI Workflow Service sessions cleaned up
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    recipients: List[str] = Field(
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+tests/api/test_user_activity_routes.py::TestHeartbeat::test_send_heartbeat_success
+  <scratch-path> PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_online
+FAILED tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_away
+FAILED tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_offline
+FAILED tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_with_manual_override
+FAILED tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_no_existing_record
+FAILED tests/api/test_user_activity_routes.py::TestUserState::test_get_user_state_exception_handled
+FAILED tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_online
+FAILED tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_away
+FAILED tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_offline
+FAILED tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_with_expiry
+FAILED tests/api/test_user_activity_routes.py::TestManualOverride::test_set_manual_override_exception_handled
+FAILED tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_success
+FAILED tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_not_set
+FAILED tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_user_not_found
+FAILED tests/api/test_user_activity_routes.py::TestClearOverride::test_clear_manual_override_exception_handled
+FAILED tests/api/test_user_activity_routes.py::TestSessionTermination::test_terminate_session_success
+FAILED tests/api/test_user_activity_routes.py::TestSessionTermination::test_terminate_session_exception_handled
+FAILED tests/api/test_user_activity_routes.py::TestStateTransitions::test_state_transition_offline_to_away
+FAILED tests/api/test_user_activity_routes.py::TestStateTransitions::test_state_transition_away_to_online
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 19 failed, 16 passed, 13 warnings in 22.94s ==================

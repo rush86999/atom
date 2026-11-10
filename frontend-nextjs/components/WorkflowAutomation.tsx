@@ -63,6 +63,7 @@ import {
   History, // [Lesson 3]
   GitBranch, // [Lesson 3]
   Sparkles,
+  Download,
 } from "lucide-react";
 
 interface WorkflowTemplate {
@@ -164,6 +165,8 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null);
+  const [exportingExecution, setExportingExecution] = useState(false);
+  const [exportExecutionError, setExportExecutionError] = useState<string | null>(null);
 
   const [builderInitialData, setBuilderInitialData] = useState<any>(null); // For AI generated workflows
   const [genPrompt, setGenPrompt] = useState("");
@@ -449,9 +452,18 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
       const data = await response.json();
       if (data.execution_id) {
+        const status = String(data.status || "");
+        const titles: Record<string, string> = {
+          waiting_approval: "Waiting for Approval",
+          completed: "Workflow Completed",
+          failed: "Workflow Failed",
+          running: "Workflow Started",
+        };
         toast({
-          title: "Workflow Started",
-          description: `Execution ${data.execution_id} has started`,
+          title: titles[status] || "Execution Recorded",
+          description: status === "waiting_approval"
+            ? `Execution ${data.execution_id} is waiting for approval; no later step ran.`
+            : `Execution ${data.execution_id} — status: ${status || "unknown"}`,
         });
 
         // Refresh executions list
@@ -472,6 +484,67 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       });
     } finally {
       setExecuting(false);
+    }
+  };
+
+  const handleExportExecution = async () => {
+    if (!activeExecution || exportingExecution) return;
+    const executionId = activeExecution.execution_id;
+    setExportExecutionError(null);
+    setExportingExecution(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(
+        `/api/v1/workflows/workflows/executions/${encodeURIComponent(executionId)}/export`,
+        {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      if (!response.ok) {
+        let message = `Export failed (HTTP ${response.status})`;
+        try {
+          const data = await response.json();
+          const detail = data?.detail;
+          if (detail && typeof detail === 'object') {
+            message = detail.message || detail.error || message;
+          } else {
+            message = extractApiErrorMessage(data, message, response.status);
+          }
+        } catch {
+          // non-JSON refusal
+        }
+        setExportExecutionError(message);
+        return;
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") || "";
+      const match = /filename="?([^";]+)"?/i.exec(disposition);
+      const fallback = `workflow-${String(activeExecution.workflow_id || "workflow").replace(/[^A-Za-z0-9_-]+/g, "-").slice(0, 48)}-execution-${String(executionId).replace(/[^A-Za-z0-9_-]+/g, "-").slice(0, 48)}.json`;
+      const filename = (match?.[1] || fallback)
+        .replace(/[\\/:*?"<>|\r\n]+/g, "_")
+        .slice(0, 160);
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.rel = "noopener";
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast({
+        title: "Results downloaded",
+        description: filename,
+      });
+    } catch (error) {
+      setExportExecutionError(
+        error instanceof Error
+          ? error.message
+          : "The execution result could not be downloaded. Refresh and retry."
+      );
+    } finally {
+      setExportingExecution(false);
     }
   };
 
@@ -1390,10 +1463,41 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
                     Workflow: {activeExecution.workflow_id}
                   </p>
                 </div>
-                <Badge className={getStatusColor(activeExecution.status)}>
-                  {activeExecution.status}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleExportExecution}
+                    disabled={
+                      exportingExecution ||
+                      String(activeExecution.status || "").toLowerCase() !== "completed"
+                    }
+                    title={
+                      String(activeExecution.status || "").toLowerCase() === "completed"
+                        ? "Download the completed execution results as JSON"
+                        : "Only a completed execution has downloadable results"
+                    }
+                  >
+                    {exportingExecution ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    Download results
+                  </Button>
+                  <Badge className={getStatusColor(activeExecution.status)}>
+                    {activeExecution.status}
+                  </Badge>
+                </div>
               </div>
+
+              {exportExecutionError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Download unavailable</AlertTitle>
+                  <AlertDescription>{exportExecutionError}</AlertDescription>
+                </Alert>
+              )}
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>

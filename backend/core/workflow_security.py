@@ -81,6 +81,13 @@ def _normalize_step(step: Any) -> Dict[str, Any]:
 
     service = getattr(step, "service", None) or params.get("service")
     action = getattr(step, "action", None) or params.get("action")
+    # ORCH-01 compiled steps carry the declared effect in
+    # parameters["design_action"]; the gate must inspect the same authority
+    # the executor uses, not only legacy top-level service/action keys.
+    design_action = params.get("design_action")
+    if isinstance(design_action, dict):
+        service = service or design_action.get("service")
+        action = action or design_action.get("action")
 
     out: Dict[str, Any] = {
         "step_type": step_type,

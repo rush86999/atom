@@ -1,0 +1,38 @@
+{
+  "world": "/private/tmp/root-presence-independent-20261110-tgw52lci",
+  "source_before": {
+    "backend/api/user_activity_routes.py": "48d7665f267de2808fd60f085aac3a33e2de60b92fabc2036534d195fda5ccff",
+    "backend/core/user_activity_service.py": "91c9416f36102043db237b7458121e82e329168bd262353409ddab1a9c8d418d",
+    "backend/core/presence_override_write_service.py": "091d03936e65ce4705d10c6cbcbdf7b8780af043583f3d4cd6d790bafd4c29bf",
+    "backend/tests/api/test_user_activity_presence_override.py": "9c25d07df22c3dd00a6765e2bdf8a0f115852563531f46a76db82d2c92384b7b"
+  },
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-presence-override-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-presence-independent-20261110.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "capture_head": "310e72aecd1a4041a35af6ac093379d39b93556b",
+  "actual_exit": 1,
+  "source_after": {
+    "backend/api/user_activity_routes.py": "48d7665f267de2808fd60f085aac3a33e2de60b92fabc2036534d195fda5ccff",
+    "backend/core/user_activity_service.py": "91c9416f36102043db237b7458121e82e329168bd262353409ddab1a9c8d418d",
+    "backend/core/presence_override_write_service.py": "091d03936e65ce4705d10c6cbcbdf7b8780af043583f3d4cd6d790bafd4c29bf",
+    "backend/tests/api/test_user_activity_presence_override.py": "9c25d07df22c3dd00a6765e2bdf8a0f115852563531f46a76db82d2c92384b7b"
+  },
+  "at": "2026-11-10T06:58:16.921837+00:00",
+  "same_source": true
+}

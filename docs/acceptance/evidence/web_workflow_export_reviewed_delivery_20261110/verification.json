@@ -1,0 +1,28 @@
+{
+  "runtime_source": "1c876b5f6f39e0a579b53fae4b954a73403f2507",
+  "parent_consumer_source": "18d4fdbe238e987da454f2a5ebf84883493bd4fc",
+  "integration_test_checkpoint": "43c64025dcd0a5eca4c10487393852a16bb22f95",
+  "scope": "Deterministic JSON execution result export; controlled API/SQLite/real-engine/real child process and ordinary modal component. No served-model/browser/DOCX/PPTX/PG/soak/general artifact goal claim.",
+  "validation": {
+    "independent_original_7": "pass8.05s at1c; actual_exit0 same_source verified",
+    "independent_definition_binding": "pass1/3.41s at1c; actual_exit0 same_source verified",
+    "real_parent_and_standalone": "60passed6.299s",
+    "full_frontend_shared_source_tsc_exit": 0,
+    "immutable_ci_preservation": "27passed1.50s"
+  },
+  "source_files": {
+    "backend/core/workflow_endpoints.py": "272dcfcbbcdceccb8c9789ce5420e7194763b457931d56fca53d5f64e4aa315c",
+    "backend/tests/test_workflow_output_export.py": "910cd41ca87cbde03f18dec98ef1a4bfa121463fbc28328da2e4d3ca234b3fdd",
+    "backend/tests/helpers/fresh_process_workflow_roundtrip.py": "86af271ac04083fc6b96394fa19320d7226e7c39abd21eba1efded156ee51d4d",
+    "frontend-nextjs/components/WorkflowAutomation.tsx": "758833f9c3e74cada076dca8e1055f6b1e7b26d7803a0d4c00c8e990630383e7",
+    "frontend-nextjs/components/Workflow/__tests__/WorkflowAutomation.test.tsx": "92934f71e45e5ead39bced3c5cb5c40f1938b30c101526ad785f1658167a4019",
+    "frontend-nextjs/components/Automations/ExecutionDetailView.tsx": "618924c6b9f672f040a218044f8209769b45bca33615e33044bc4fcdc7ec1a4f",
+    "frontend-nextjs/components/Automations/__tests__/ExecutionDetailView.test.tsx": "c535a8753da32e5db0eceeb3bf0595904ceae2bd55c243e2505affd15fa11e56"
+  },
+  "test_checkpoint_note": "The60-control and tsc capture preceded the checkpoint commit with its sole explicit test-expectation edit already present. Source bytes are frozen in integration_test_checkpoint. Original runtime and negative packet identities remain unchanged.",
+  "artifacts": {
+    "real-consumers-60.log": "7e9e8879f3e8605b812cdf0fbc75f40b10fba43b8516cce031755aa125c78074",
+    "full-checkout-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "at": "2026-11-10T07:37:07.108365+00:00"
+}

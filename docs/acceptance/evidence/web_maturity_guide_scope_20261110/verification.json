@@ -1,0 +1,104 @@
+{
+  "boundary": "GOV-01-MATURITY-GUIDE-SCOPE",
+  "claim": "GOV-01 maturity-guide read authority",
+  "control_twins": [
+    "owner same scope",
+    "same-tenant/workspace member",
+    "legacy shared null/default agent",
+    "foreign tenant/workspace 404",
+    "unknown 404",
+    "deactivated principal refused",
+    "principal moved workspace uses current DB scope",
+    "fresh-session readback",
+    "read no agent/learning mutation"
+  ],
+  "controls": {
+    "neighborhood_79": {
+      "exit": 0,
+      "log": "logs/neighborhood-79.log",
+      "log_sha256": "c088ffab66d918744cfe1775ef8b56990195ba809af4b0bbab4b1b1e6c7c42ad",
+      "passed": 79
+    },
+    "onboarding_scope": {
+      "exit": 0,
+      "log": "logs/onboarding-scope.log",
+      "log_sha256": "f192190302df453112936503854308c672031fc24a4d40dc8a9171033835e509",
+      "passed": 20
+    },
+    "repro_after": {
+      "exit": 0,
+      "log": "logs/repro-after.log",
+      "log_sha256": "13a196cbd54b2e3a5d0a191a159272d19dc06f751e91f6fe53b0a70592307b37"
+    },
+    "scope_tests": {
+      "exit": 0,
+      "log": "logs/scope-tests.log",
+      "log_sha256": "b6d49c78455e3664b89fa2135f80d17dfab7d5b916bb2b52014c34de894d52af",
+      "passed": 6
+    }
+  },
+  "limits": {
+    "agent_promotion": false,
+    "browser_liveDB_provider_model": false,
+    "root_ci_pr_pending": true,
+    "thresholds_or_confidence_label_changed": false,
+    "whole_graduation_or_goal_closed": false
+  },
+  "repair": {
+    "backend_read_only": true,
+    "current_principal": "re-read active User row; token claims not authority",
+    "foreign_unknown": "indistinguishable 404 with existing error shape; no name/confidence/learning/mastery",
+    "new_store_engine_router": false,
+    "no_change": [
+      "graduation thresholds",
+      "exam/lifecycle",
+      "confidence 0.45 label",
+      "guided creation/teaching routes"
+    ],
+    "reuse": [
+      "api.agent_routes._authoritative_reader",
+      "api.agent_routes._scoped_agent",
+      "core.personal_scope semantics"
+    ],
+    "route": "GET /api/agents/{agent_id}/maturity-guide",
+    "scope": "tenant/workspace/personal-shared condition from existing agent read policy"
+  },
+  "repair_commit": "e8ee987f4a62849ca48aedce79122b9f9cc042d4",
+  "runtime_failure_before": {
+    "log": "original-failure/repro-before.log",
+    "observed": "foreign tenant/workspace principal GET maturity-guide returned 200 with agent_name, confidence, lessons/mastery",
+    "owner_same_scope": "200 positive control",
+    "probe": "original-failure/repro-before.py",
+    "unknown": "404"
+  },
+  "schema_version": 1,
+  "secondary_open": {
+    "id": "GOV-01-MATURITY-GUIDE-CONFIDENCE-ONLY",
+    "not_changed": true,
+    "note": "guide readiness confidence ceiling differs from canonical multi-factor readiness; not expanded in this slice",
+    "status": "open separate diagnosis"
+  },
+  "source": {
+    "after": {
+      "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+      "backend/tests/api/test_agent_onboarding_routes.py": "ae4cdb388a0777456fc629d642bf1bee8b956ce49255b1a7691dc0cecc2867c1",
+      "backend/tests/api/test_maturity_guide_scope.py": "2d026ec83610fd461f9d7d3b1a2505b5e7b08c44c0c91ff3cd4607332cf78245"
+    },
+    "before": {
+      "backend/api/agent_onboarding_routes.py": "76f131318591e3d3db528b18569cfb329458db6844973a74e406446bd3445829",
+      "backend/tests/api/test_agent_onboarding_routes.py": "19d1ae8712b805865457b832fa63b308a8edd1b4edaeb58652ffc54cd61f9ba4",
+      "backend/tests/api/test_maturity_guide_scope.py": "ABSENT"
+    }
+  },
+  "source_before": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+  "state": "foreign_scope_leak_reproduced_fixed_actual_scratch_runtime",
+  "unrelated_preexisting": {
+    "baseline_exit": 1,
+    "baseline_log": "logs/unrelated-teach-baseline.log",
+    "conclusion": "same failures on untouched baseline; not caused or relabelled by this repair",
+    "current_exit": 1,
+    "current_log": "logs/unrelated-teach-current.log",
+    "failures": 4,
+    "tests": "tests/test_teach_thread_reply.py"
+  }
+}

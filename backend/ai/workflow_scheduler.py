@@ -116,6 +116,77 @@ class WorkflowScheduler:
         self.engine = engine
 
     @staticmethod
+    async def _execute_generated_job(
+        workflow_def: Dict[str, Any], input_data: Dict[str, Any],
+        authorized: bool,
+    ) -> None:
+        """Run a generated entry through its canonical SQL blueprint.
+
+        The catalog row is only a reference. The scoped blueprint is reloaded,
+        its compiler digest is recomputed, the definition is re-registered via
+        the existing consumer, and the real orchestrator dispatches supported
+        handlers. Mandatory HITL checkpoints inside the definition stay in the
+        execution path.
+        """
+        from core.database import get_db_session
+        from core.workflow_blueprint_service import (
+            load_blueprint, register_compiled_workflow,
+        )
+        from core.workflow_endpoints import (
+            _compiled_from_view, _recompute_definition_digest,
+        )
+        from core.workflow_security import has_critical_step
+
+        deployment = workflow_def.get("deployment") or {}
+        workflow_id = str(
+            deployment.get("canonical_workflow_id")
+            or workflow_def.get("id") or "")
+        tenant_id = str(deployment.get("tenant_id") or "default")
+        workspace_id = str(deployment.get("workspace_id") or "default")
+        with get_db_session() as db:
+            view = load_blueprint(
+                db, workflow_id=workflow_id, tenant_id=tenant_id,
+                workspace_id=workspace_id)
+        if view is None:
+            logger.warning(
+                "Scheduled generated workflow %s has no scoped blueprint; "
+                "nothing was run", workflow_id)
+            return
+        stored_digest = str(view.get("definition_digest") or "")
+        if (not stored_digest
+                or _recompute_definition_digest(view) != stored_digest
+                or str(deployment.get("definition_digest")) != stored_digest):
+            logger.warning(
+                "Scheduled generated workflow %s changed since deployment; "
+                "nothing was run", workflow_id)
+            return
+        if not view.get("execution_ready", True):
+            logger.warning(
+                "Scheduled generated workflow %s is not executable; nothing "
+                "was run", workflow_id)
+            return
+        if has_critical_step(view.get("steps") or []) and not authorized:
+            logger.warning(
+                "Skipping scheduled critical generated workflow %s "
+                "(schedule not authorized for WORKFLOW_MANAGE)", workflow_id)
+            return
+        if not register_compiled_workflow(_compiled_from_view(view)):
+            logger.warning(
+                "Scheduled generated workflow %s could not be registered; "
+                "nothing was run", workflow_id)
+            return
+        from advanced_workflow_orchestrator import get_orchestrator
+        await get_orchestrator().execute_workflow(
+            workflow_id,
+            input_data or {},
+            execution_context={
+                "tenant_id": tenant_id,
+                "workspace_id": workspace_id,
+                "user_id": str(deployment.get("owner_user_id") or "") or None,
+            },
+        )
+
+    @staticmethod
     async def _execute_job(workflow_id: str, input_data: Dict[str, Any] = None, authorized: bool = False):
         """Internal job function to execute a workflow.
 
@@ -142,6 +213,12 @@ class WorkflowScheduler:
                 workflow_def = _load_template_definition(workflow_id)
 
             if workflow_def:
+                deployment = workflow_def.get("deployment")
+                if (isinstance(deployment, dict)
+                        and deployment.get("canonical_workflow_id")):
+                    await WorkflowScheduler._execute_generated_job(
+                        workflow_def, input_data or {}, authorized)
+                    return
                 # R69: skip critical definitions (orchestrator steps OR
                 # AutomationEngine nodes) unless the scheduler was authorized.
                 if (has_critical_definition(workflow_def) or has_critical_automation_nodes(workflow_def)) and not authorized:

@@ -1,0 +1,38 @@
+{
+  "world": "/private/tmp/root-reviewed-integration-ui-20261110-rhma4n80",
+  "capture_head": "b532d8c0d82a4cc476f98cae1f42c1f6c1570015",
+  "source_before": {
+    "frontend-nextjs/hooks/useUserActivity.ts": "8f9ded59ed71802d1689875cdb66b69bf2048c1b52380548a1d297d124a6c069",
+    "frontend-nextjs/pages/goal-runs/index.tsx": "1d242e35f7b6b61352213c9442015294187faf5816ced5664cde38c7dd22277c",
+    "frontend-nextjs/components/WorkflowAutomation.tsx": "758833f9c3e74cada076dca8e1055f6b1e7b26d7803a0d4c00c8e990630383e7",
+    "frontend-nextjs/components/Automations/ExecutionDetailView.tsx": "618924c6b9f672f040a218044f8209769b45bca33615e33044bc4fcdc7ec1a4f"
+  },
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/.nvm/versions/node/v20.20.2/bin/node",
+    "node_modules/.bin/jest",
+    "hooks/__tests__/useUserActivity.test.ts",
+    "hooks/__tests__/useUserActivity-branches.test.ts",
+    "tests/pages/goal-runs/index.test.tsx",
+    "tests/pages/goal-runs/detail.test.tsx",
+    "components/Workflow/__tests__/WorkflowAutomation.test.tsx",
+    "components/Automations/__tests__/ExecutionDetailView.test.tsx",
+    "--runInBand",
+    "--no-coverage",
+    "--watchman=false"
+  ],
+  "actual_exit": 0,
+  "source_after": {
+    "frontend-nextjs/hooks/useUserActivity.ts": "8f9ded59ed71802d1689875cdb66b69bf2048c1b52380548a1d297d124a6c069",
+    "frontend-nextjs/pages/goal-runs/index.tsx": "1d242e35f7b6b61352213c9442015294187faf5816ced5664cde38c7dd22277c",
+    "frontend-nextjs/components/WorkflowAutomation.tsx": "758833f9c3e74cada076dca8e1055f6b1e7b26d7803a0d4c00c8e990630383e7",
+    "frontend-nextjs/components/Automations/ExecutionDetailView.tsx": "618924c6b9f672f040a218044f8209769b45bca33615e33044bc4fcdc7ec1a4f"
+  },
+  "same_source": true
+}

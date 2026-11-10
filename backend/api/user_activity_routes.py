@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from core.auth import get_current_user
@@ -19,6 +20,12 @@ from core.rbac_service import Permission
 from core.security.rbac import user_meets_role
 from core.security_dependencies import require_permission
 from core.user_activity_service import UserActivityService
+from core.presence_override_write_service import (
+    parse_expiry,
+    verified_clear_override,
+    verified_get_state,
+    verified_set_override,
+)
 from sqlalchemy.orm import Session
 
 router = BaseAPIRouter(prefix="/api/users", tags=["user-activity"])
@@ -60,18 +67,27 @@ class HeartbeatRequest(BaseModel):
 
 
 class UserStateResponse(BaseModel):
-    """User state response"""
+    """User state response.
+
+    ``verification``/``operation_id``/``audit_id`` are additive presence
+    receipt metadata; the original fields and meanings are unchanged.
+    """
     user_id: str
     state: str  # "online", "away", "offline"
     last_activity_at: str
     manual_override: bool
     manual_override_expires_at: Optional[str]
+    success: bool = True
+    operation_id: Optional[str] = None
+    audit_id: Optional[str] = None
+    verification: Optional[dict] = None
 
 
 class ManualOverrideRequest(BaseModel):
     """Manual state override request"""
     state: str  # "online", "away", "offline"
     expires_at: Optional[str] = None  # ISO datetime string
+    operation_id: Optional[str] = None
 
 
 class SupervisorInfo(BaseModel):
@@ -111,6 +127,48 @@ class ActiveSessionsResponse(BaseModel):
 # ============================================================================
 # API Endpoints
 # ============================================================================
+
+def _presence_result(result: dict):
+    """Map a verified presence decision onto the existing response fields."""
+    state = str(result.get("status") or "")
+    if state in ("verified", "already_applied", "no_change"):
+        data = result.get("data") or {
+            key: result.get(key) for key in (
+                "user_id", "state", "last_activity_at", "manual_override",
+                "manual_override_expires_at")
+        }
+        return UserStateResponse(
+            **data,
+            success=True,
+            operation_id=result.get("operation_id"),
+            audit_id=result.get("audit_id"),
+            verification=result.get("verification"),
+        )
+    if state == "refused":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 403),
+            detail=str(result.get("error") or "Presence change refused"),
+        )
+    if state == "conflict":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail=str(result.get("error") or "Presence changed"),
+        )
+    body = {
+        "success": False,
+        "error": result.get("error") or result.get("message"),
+        "operation_id": result.get("operation_id"),
+        "audit_id": result.get("audit_id"),
+        "verification": result.get("verification"),
+    }
+    data = result.get("data")
+    if isinstance(data, dict):
+        body.update(data)
+    # Never return 2xx for an ambiguous commit: existing web consumers treat
+    # response.ok as success and would replace a valid state with this body.
+    code = 503 if state in ("committed_unverified", "effect_unknown") else 409
+    return JSONResponse(status_code=code, content=body)
+
 
 @router.post("/{user_id}/activity/heartbeat", response_model=UserStateResponse)
 async def send_heartbeat(
@@ -159,41 +217,15 @@ async def get_user_state(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get current user state (online/away/offline)."""
-    service = UserActivityService(db)
+    """Get current user state with normalized UTC timestamps.
 
-    try:
-        state = await service.get_user_state(user_id)
-
-        # Get activity record for full response
-        activity_record = db.query(UserActivity).filter(
-            UserActivity.user_id == user_id
-        ).first()
-
-        if not activity_record:
-            # Create minimal response
-            return UserStateResponse(
-                user_id=user_id,
-                state=state.value,
-                last_activity_at=datetime.now(timezone.utc).isoformat(),
-                manual_override=False,
-                manual_override_expires_at=None
-            )
-
-        return UserStateResponse(
-            user_id=activity_record.user_id,
-            state=activity_record.state.value,
-            last_activity_at=activity_record.last_activity_at.isoformat(),
-            manual_override=activity_record.manual_override,
-            manual_override_expires_at=activity_record.manual_override_expires_at.isoformat()
-            if activity_record.manual_override_expires_at else None
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal error"
-        )
+    Existing authenticated read visibility is preserved; expired overrides
+    are cleared before the response so a stale manual state is not reported
+    active.
+    """
+    result = await verified_get_state(
+        db, actor=current_user, target_user_id=user_id)
+    return _presence_result(result)
 
 
 @router.post("/{user_id}/activity/override", response_model=UserStateResponse)
@@ -203,53 +235,41 @@ async def set_manual_override(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Manually set user state with optional expiry.
+    """Set a verified manual presence override.
 
-    Allows users to override automatic activity tracking.
+    The actor/target guard, activity CAS, audit receipt and independent
+    readback are in the service transaction. Invalid input is a typed 400.
     """
-    _ensure_own_activity(user_id, current_user)
-    service = UserActivityService(db)
-
     try:
-        # Validate state
-        try:
-            state = UserState(override.state)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid state: {override.state}. Must be 'online', 'away', or 'offline'"
-            )
-
-        # Parse expiry if provided
-        expires_at = None
-        if override.expires_at:
-            try:
-                expires_at = datetime.fromisoformat(override.expires_at.replace('Z', '+00:00'))
-            except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid datetime format: {override.expires_at}"
-                )
-
-        activity = await service.set_manual_override(
-            user_id=user_id,
+        state = UserState(override.state)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid state: {override.state}. Must be 'online', "
+                "'away', or 'offline'"
+            ),
+        )
+    try:
+        expires_at = parse_expiry(override.expires_at)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid datetime format: {override.expires_at}",
+        )
+    try:
+        result = await verified_set_override(
+            db,
+            actor=current_user,
+            target_user_id=user_id,
             state=state,
-            expires_at=expires_at
+            expires_at=expires_at,
+            operation_id=override.operation_id,
         )
-
-        return UserStateResponse(
-            user_id=activity.user_id,
-            state=activity.state.value,
-            last_activity_at=activity.last_activity_at.isoformat(),
-            manual_override=activity.manual_override,
-            manual_override_expires_at=activity.manual_override_expires_at.isoformat()
-            if activity.manual_override_expires_at else None
-        )
-
+        return _presence_result(result)
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:  # noqa: BLE001
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal error"
@@ -259,33 +279,25 @@ async def set_manual_override(
 @router.delete("/{user_id}/activity/override", response_model=UserStateResponse)
 async def clear_manual_override(
     user_id: str,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Clear manual override and return to automatic activity tracking.
-    """
-    _ensure_own_activity(user_id, current_user)
-    service = UserActivityService(db)
+    """Clear a manual override with verified readback.
 
+    Existing response fields are preserved; receipt metadata is additive.
+    """
     try:
-        activity = await service.clear_manual_override(user_id)
-
-        return UserStateResponse(
-            user_id=activity.user_id,
-            state=activity.state.value,
-            last_activity_at=activity.last_activity_at.isoformat(),
-            manual_override=activity.manual_override,
-            manual_override_expires_at=activity.manual_override_expires_at.isoformat()
-            if activity.manual_override_expires_at else None
+        result = await verified_clear_override(
+            db,
+            actor=current_user,
+            target_user_id=user_id,
+            operation_id=operation_id,
         )
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Internal error"
-        )
-    except Exception as e:
+        return _presence_result(result)
+    except HTTPException:
+        raise
+    except Exception:  # noqa: BLE001
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal error"

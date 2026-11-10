@@ -7,7 +7,7 @@ Integrates the advanced workflow orchestrator with the main API system
 import asyncio
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from advanced_workflow_orchestrator import WorkflowContext, WorkflowStatus, get_orchestrator
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
@@ -361,6 +361,31 @@ class AgentWorkflowRequest(BaseModel):
     prompt: str
     tenant_id: str = "default"
     user_id: str = "default_user"
+    # Optional accepted executor identity. It is validated against the
+    # caller's scope and recorded as requested provenance; it never grants
+    # authority by itself.
+    agent_id: Optional[str] = None
+
+
+def _requested_executor(
+    db: Session, agent_id: str, tenant_id: str, workspace_id: str,
+):
+    from core.models import AgentRegistry
+
+    agent = db.query(AgentRegistry).filter(
+        AgentRegistry.id == agent_id).first()
+    if agent is None:
+        return None
+    if str(agent.tenant_id or "default") != tenant_id:
+        return None
+    if str(agent.workspace_id or "default") not in (workspace_id, "default"):
+        return None
+    if not bool(getattr(agent, "enabled", True)):
+        return None
+    if str(getattr(agent, "status", "") or "").lower() in (
+            "inactive", "disabled", "archived"):
+        return None
+    return agent
 
 @router.post("/generate-from-agent")
 async def generate_workflow_from_agent(
@@ -389,6 +414,19 @@ async def generate_workflow_from_agent(
     tenant_id = str(current_user.tenant_id or "default")
     workspace_id = str(current_user.workspace_id or "default")
     user_id = str(current_user.id or "")
+
+    requested_executor_agent_id = str(request.agent_id or "").strip()
+    if requested_executor_agent_id:
+        executor = _requested_executor(
+            db, requested_executor_agent_id, tenant_id, workspace_id)
+        if executor is None:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "executor_agent_unavailable",
+                    "message": "the requested executor agent is not "
+                               "available in this scope",
+                })
 
     try:
         from ai.nlp_engine import NaturalLanguageEngine, RouteCategory
@@ -429,6 +467,12 @@ async def generate_workflow_from_agent(
                 "profile": "workflow_blueprint",
                 "route_reasoning": str(
                     getattr(route, "reasoning", "") or ""),
+                # Requested executor provenance, not fabricated generator
+                # provenance. Absence means an older unbound design that can
+                # only deploy through a fresh explicit matching review.
+                **({"requested_executor_agent_id":
+                    requested_executor_agent_id}
+                   if requested_executor_agent_id else {}),
             },
         )
         registered = register_compiled_workflow(compiled)

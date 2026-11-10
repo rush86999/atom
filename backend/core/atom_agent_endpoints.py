@@ -52,7 +52,7 @@ from core.unified_search_endpoints import SearchRequest, hybrid_search as unifie
 # Import Task and Finance services
 
 # Import workflow management components
-from core.workflow_endpoints import load_workflows, save_workflows
+from core.workflow_endpoints import load_workflows, mutate_workflows, save_workflows
 from integrations.gmail_service import GmailService
 
 # Import Calendar and Email services
@@ -1064,10 +1064,13 @@ async def handle_create_workflow(request: ChatRequest, entities: Dict[str, Any])
                 }
             }
             
-        # Save the generated workflow to the standard storage
-        workflows = load_workflows()
-        workflows.append(workflow_def)
-        save_workflows(workflows)
+        # Save the generated workflow through the shared row-level RMW so a
+        # concurrent writer's rows are never replaced by a stale snapshot.
+        def _append_workflow(rows):
+            rows.append(workflow_def)
+            return True, None
+
+        mutate_workflows(_append_workflow)
         
         node_count = len(workflow_def.get('nodes', []))
         is_template = "template_id" in workflow_def

@@ -1,0 +1,42 @@
+{
+  "accepted_probe_result": true,
+  "actual_exit": 0,
+  "at": "2026-11-10T07:10:45.281638+00:00",
+  "capture_head": "1924d51e87ee8d5ab439309ff5a4c6ef34dc3ee8",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-production-cookies-20261109/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-workflow-export-independent-20261110.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "probe_sha256": "983cfd0d66fc044bafc29ce8a97e7f9b6e9f8f95d25c4029f985433ed55061d7",
+  "same_source": true,
+  "source_after": {
+    "backend/advanced_workflow_api.py": "4153b3da72692f7e8c206cbdea674b87fc1c14d3c2819f10e25b45b0ec3ceb59",
+    "backend/ai/workflow_scheduler.py": "0e4e8ba6713f878ee062c8d1d291c067a78e064886b892e4519d65cdc3648567",
+    "backend/core/workflow_endpoints.py": "d7849e2d3aa0be0a897441ffcb598d7ffa9f6a2c5320dff045f332e2a1784a4c",
+    "backend/tests/test_generated_workflow_handoff.py": "5146fe29300275ae4a989d50e0e51dc56f039619bd0485dda6dcb753105d1934",
+    "backend/tests/test_workflow_output_export.py": "338eee4273fea18a261af5c0fe79b6156ac9ce2c7ee4fa14d67f40a0720eabfd"
+  },
+  "source_before": {
+    "backend/advanced_workflow_api.py": "4153b3da72692f7e8c206cbdea674b87fc1c14d3c2819f10e25b45b0ec3ceb59",
+    "backend/ai/workflow_scheduler.py": "0e4e8ba6713f878ee062c8d1d291c067a78e064886b892e4519d65cdc3648567",
+    "backend/core/workflow_endpoints.py": "d7849e2d3aa0be0a897441ffcb598d7ffa9f6a2c5320dff045f332e2a1784a4c",
+    "backend/tests/test_generated_workflow_handoff.py": "5146fe29300275ae4a989d50e0e51dc56f039619bd0485dda6dcb753105d1934",
+    "backend/tests/test_workflow_output_export.py": "338eee4273fea18a261af5c0fe79b6156ac9ce2c7ee4fa14d67f40a0720eabfd"
+  },
+  "world": "<scratch-world>"
+}

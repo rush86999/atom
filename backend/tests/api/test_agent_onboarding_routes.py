@@ -15,7 +15,7 @@ from core.guided_automation_service import (
     AutomationSuggestionService,
     GuidedAgentFactory,
 )
-from core.models import AgentRegistry, AgentExecution
+from core.models import AgentRegistry, AgentExecution, User
 
 
 _current_test_user = None
@@ -54,17 +54,20 @@ def client(db_session: Session):
 def employee_user(db_session: Session):
     import uuid
     user_id = str(uuid.uuid4())
-    user = type(
-        "User",
-        (),
-        {
-            "id": user_id,
-            "email": f"emp-{user_id}@example.com",
-            "workspace_id": "default",
-            "tenant_id": "default",
-            "role": "member",
-        },
-    )()
+    user = User(
+        id=user_id,
+        email=f"emp-{user_id}@example.com",
+        first_name="Employee",
+        last_name="User",
+        workspace_id="default",
+        tenant_id="default",
+        role="member",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     return user
 
 

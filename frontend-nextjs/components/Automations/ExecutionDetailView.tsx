@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertTriangle, Clock, Download, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,8 @@ const ExecutionDetailView: React.FC<ExecutionDetailViewProps> = ({ executionId, 
     const [detail, setDetail] = useState<ExecutionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [exporting, setExporting] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -79,6 +81,58 @@ const ExecutionDetailView: React.FC<ExecutionDetailViewProps> = ({ executionId, 
         );
     }
 
+    const handleExport = async () => {
+        if (!detail || exporting) return;
+        setExportError(null);
+        setExporting(true);
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(
+                `/api/v1/workflows/workflows/executions/${encodeURIComponent(detail.execution_id)}/export`,
+                {
+                    method: 'GET',
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                },
+            );
+            if (!response.ok) {
+                let message = `Download failed (HTTP ${response.status})`;
+                try {
+                    const data = await response.json();
+                    message = data?.detail?.message || data?.detail?.error
+                        || data?.message || message;
+                } catch {
+                    // non-JSON refusal
+                }
+                setExportError(message);
+                return;
+            }
+            const blob = await response.blob();
+            const disposition = response.headers.get('content-disposition') || '';
+            const match = /filename="?([^";]+)"?/i.exec(disposition);
+            const fallback = `workflow-${String(detail.workflow_id || 'workflow').replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 48)}-execution-${String(detail.execution_id).replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 48)}.json`;
+            const filename = (match?.[1] || fallback)
+                .replace(/[\\/:*?"<>|\r\n]+/g, '_')
+                .slice(0, 160);
+            const url = window.URL.createObjectURL(blob);
+            const link = window.document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.rel = 'noopener';
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            setExportError(
+                err instanceof Error
+                    ? err.message
+                    : 'The execution result could not be downloaded. Refresh and retry.',
+            );
+        } finally {
+            setExporting(false);
+        }
+    };
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'success':
@@ -106,10 +160,44 @@ const ExecutionDetailView: React.FC<ExecutionDetailViewProps> = ({ executionId, 
                     <CardContent className="pt-6 space-y-4">
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-semibold">Execution Details</h2>
-                            <Badge className={getStatusColor(detail.status)}>
-                                {detail.status.toUpperCase()}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleExport}
+                                    disabled={
+                                        exporting ||
+                                        !['completed', 'success'].includes(
+                                            String(detail.status || '').toLowerCase(),
+                                        )
+                                    }
+                                    title={
+                                        ['completed', 'success'].includes(
+                                            String(detail.status || '').toLowerCase(),
+                                        )
+                                            ? 'Download the completed execution results as JSON'
+                                            : 'Only a completed execution has downloadable results'
+                                    }
+                                >
+                                    {exporting ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Download className="mr-2 h-4 w-4" />
+                                    )}
+                                    Download results
+                                </Button>
+                                <Badge className={getStatusColor(detail.status)}>
+                                    {detail.status.toUpperCase()}
+                                </Badge>
+                            </div>
                         </div>
+
+                        {exportError && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertDescription>{exportError}</AlertDescription>
+                            </Alert>
+                        )}
 
                         <div className="flex gap-8">
                             <div>

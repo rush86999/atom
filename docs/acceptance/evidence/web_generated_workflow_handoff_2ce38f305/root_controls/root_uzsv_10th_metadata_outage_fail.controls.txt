@@ -1,0 +1,23 @@
+.........F                                                               [100%]
+=================================== FAILURES ===================================
+____ test_generated_execution_metadata_unavailable_is_not_legacy_authority _____
+../../root-workflow-handoff-independent-20261110.py:125: in test_generated_execution_metadata_unavailable_is_not_legacy_authority
+    assert response.status_code in (404,503),response.text
+E   AssertionError: {"execution_id":"309ac05d-bd0b-4dfd-b652-23fa9960e8f3","workflow_id":"ai_wf_89395fb06ed2","trigger_data":{},"start_time":"2026-11-10T06:37:46","end_time":"2026-11-10T01:37:46.835013","status":"completed","actions_executed":[],"errors":[],"results":{"start":{"status":"completed","trigger":"manual","execution_time_ms":0.009059906005859375},"lookup":{"status":"completed","matches":[],"execution_time_ms":1.6980171203613281}},"duration_ms":0.0}
+E   assert 200 in (404, 503)
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+WARNING  core.workflow_endpoints:workflow_endpoints.py:594 Could not resolve generated workflow scope ai_wf_89395fb06ed2: controlled authoritative definition lookup unavailable
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17: 20 warnings
+  <scratch-path> DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+root-workflow-handoff-independent-20261110.py::test_generated_execution_readback_preserves_deployment_scope[history]
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-workflow-handoff-independent-20261110.py::test_generated_execution_metadata_unavailable_is_not_legacy_authority
+1 failed, 9 passed, 21 warnings in 10.35s

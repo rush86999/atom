@@ -24,6 +24,14 @@ aiosqlite>=0.19.0,<1.0.0
 # compile Rust through a broken local LLVM/z3 toolchain. 0.24.3 is the
 # version the packaged acceptance environment ran.
 lancedb==0.24.3
+# lancedb 0.24.3 intentionally leaves its Lance Python SDK optional, but the
+# document-list path needs the native ordered scan: table.to_lance() imports
+# `lance` and `_ordered_documents_frame` imports `lance.dataset.ColumnOrdering`.
+# Without this normal-install dependency, the real library returns 503
+# DOCUMENT_LISTING_UNAVAILABLE instead of ordered pages. 0.39.0 ships
+# cp39-abi3 wheels for the supported Python 3.11-3.13 platforms and accepts
+# the existing pyarrow<26 / numpy<2 constraints.
+pylance==0.39.0
 # F3 (Phase D 2026-10-17): pyarrow 26 enforces numpy>=2 at runtime while this
 # Python <3.13 installs retain numpy<2 — a resolver picked 26.0.0 and LanceDB died with
 # "pyarrow requires NumPy 2.0 or newer, found 1.26.4", so every document

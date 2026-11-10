@@ -1,0 +1,38 @@
+.FFF                                                                     [100%]
+=================================== FAILURES ===================================
+______________ test_guide_honors_actual_reader_scope[ra-peer-404] ______________
+../../root-maturity-guide-independent-20261110.py:32: in test_guide_honors_actual_reader_scope
+    assert response.status_code==expected,response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"ra-peer","agent_name":"Private peer","current_level":"student","level_guide":{"level":"student","title":"Student — learning the ropes","what_it_can_do":"Watch, search, read, and summarize. It learns from every task: the Atom meta agent teaches it and it observes what gets approved in your workspace.","what_it_cannot_do":"Nothing that changes anything — no sending, creating, or updating. Expect to spoon-feed it.","useful_for":"Not directly useful yet — it is building context. Days, not weeks, if you give it feedback."},"what_it_can_do_today":{"complexity_band":1,"example_actions":["query_knowledge_graph","search","read","list","get"]},"learning_progress":{"role":"general","curriculum":[],"lessons_from_teacher":1,"observations":0,"pathways_used":[]},"mastery":{"topics":{},"mastered":[],"in_progress":{},"threshold":3},"readiness":{"ready_for_graduation_review":false,"confidence":0.41,"confidence_needed_for_training_review":0.45,"note":"4 more observations (or 1 lessons) roughly reach the review threshold."},"next_level":"intern","how_to_advance":"Complete training sessions and pass the graduation exam: confidence ≥ 0.5 plus demonstrated episodes with low intervention. Teaching and observation accelerate this."},"timestamp":"2026-11-10T07:55:48.732743+00:00","message":"Private peer is a STUDENT — see readiness for what comes next"}
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+____________ test_guide_honors_actual_reader_scope[ra-foreign-404] _____________
+../../root-maturity-guide-independent-20261110.py:32: in test_guide_honors_actual_reader_scope
+    assert response.status_code==expected,response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"ra-foreign","agent_name":"Private foreign","current_level":"student","level_guide":{"level":"student","title":"Student — learning the ropes","what_it_can_do":"Watch, search, read, and summarize. It learns from every task: the Atom meta agent teaches it and it observes what gets approved in your workspace.","what_it_cannot_do":"Nothing that changes anything — no sending, creating, or updating. Expect to spoon-feed it.","useful_for":"Not directly useful yet — it is building context. Days, not weeks, if you give it feedback."},"what_it_can_do_today":{"complexity_band":1,"example_actions":["query_knowledge_graph","search","read","list","get"]},"learning_progress":{"role":"general","curriculum":[],"lessons_from_teacher":1,"observations":0,"pathways_used":[]},"mastery":{"topics":{},"mastered":[],"in_progress":{},"threshold":3},"readiness":{"ready_for_graduation_review":false,"confidence":0.41,"confidence_needed_for_training_review":0.45,"note":"4 more observations (or 1 lessons) roughly reach the review threshold."},"next_level":"intern","how_to_advance":"Complete training sessions and pass the graduation exam: confidence ≥ 0.5 plus demonstrated episodes with low intervention. Teaching and observation accelerate this."},"timestamp":"2026-11-10T07:55:49.497036+00:00","message":"Private foreign is a STUDENT — see readiness for what comes next"}
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+_______ test_token_from_old_workspace_cannot_read_after_authority_moves ________
+../../root-maturity-guide-independent-20261110.py:40: in test_token_from_old_workspace_cannot_read_after_authority_moves
+    assert response.status_code in (401,403,404),response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"ra-own","agent_name":"Own student","current_level":"student","level_guide":{"level":"student","title":"Student — learning the ropes","what_it_can_do":"Watch, search, read, and summarize. It learns from every task: the Atom meta agent teaches it and it observes what gets approved in your workspace.","what_it_cannot_do":"Nothing that changes anything — no sending, creating, or updating. Expect to spoon-feed it.","useful_for":"Not directly useful yet — it is building context. Days, not weeks, if you give it feedback."},"what_it_can_do_today":{"complexity_band":1,"example_actions":["query_knowledge_graph","search","read","list","get"]},"learning_progress":{"role":"general","curriculum":[],"lessons_from_teacher":1,"observations":0,"pathways_used":[]},"mastery":{"topics":{},"mastered":[],"in_progress":{},"threshold":3},"readiness":{"ready_for_graduation_review":false,"confidence":0.41,"confidence_needed_for_training_review":0.45,"note":"4 more observations (or 1 lessons) roughly reach the review threshold."},"next_level":"intern","how_to_advance":"Complete training sessions and pass the graduation exam: confidence ≥ 0.5 plus demonstrated episodes with low intervention. Teaching and observation accelerate this."},"timestamp":"2026-11-10T07:55:50.148267+00:00","message":"Own student is a STUDENT — see readiness for what comes next"}
+E   assert 200 in (401, 403, 404)
+E    +  where 200 = <Response [200 OK]>.status_code
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-maturity-guide-independent-20261110.py::test_guide_honors_actual_reader_scope[ra-peer-404]
+FAILED ../../root-maturity-guide-independent-20261110.py::test_guide_honors_actual_reader_scope[ra-foreign-404]
+FAILED ../../root-maturity-guide-independent-20261110.py::test_token_from_old_workspace_cannot_read_after_authority_moves
+3 failed, 1 passed, 8 warnings in 5.29s

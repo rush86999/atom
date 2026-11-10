@@ -1,0 +1,48 @@
+{
+  "dependency": {
+    "backend_runtime": "1c876b5f6f39e0a579b53fae4b954a73403f2507",
+    "base": "7fd05261cd9018af700ad162d381ad9485c5c814",
+    "parent_modal_checkpoint": "18d4fdbe238e987da454f2a5ebf84883493bd4fc"
+  },
+  "evidence_files": {
+    "README.md": "4d0f68e54bbf77a4570ce5e215915366d688b142bf2f1b7c466c9483c3d52929",
+    "gates/parent_export_targeted_4.proof": "e3ab06de61d2b164113216f547c41618de3b95e16fe315c9c5edda769a064de3",
+    "gates/parent_full_suite_46pass_1pre_existing_fail.proof": "a521b18e6f31be64ddec9c2cb78ce4299ba7d9c6e23672d802c4391004a703b8",
+    "gates/standalone_generator_36.proof": "df03a8eca621417ac4599dc8ed2a92d1a68f6fabf7f8de3680e43fb0cfdcd2b9",
+    "gates/tsc_sparse_checkout_limitation.proof": "d71f86183fcc3502bcbb781ee800c183f65f4ad221c824c45df115c223a12971",
+    "pre_existing/base_7fd_parent_error_toast_failure.proof": "bdf051194b150f3faf42ef41a30ec9de0857ddcbe432ee9a04e0a4517e80fa04"
+  },
+  "gates": {
+    "parent_export_targeted": "4 passed",
+    "parent_full_suite": "46 passed, 1 pre-existing failure",
+    "standalone_generator": "36 passed",
+    "typescript": "not accepted from sparse checkout; module-resolution errors recorded"
+  },
+  "kind": "web_workflow_output_export_parent_modal_evidence_manifest",
+  "non_claims": [
+    "No browser/model/provider/install/send/spend/deployment claim.",
+    "No tsc-green claim from sparse checkout.",
+    "No backend runtime change; 1c876b5f6 remains frozen.",
+    "Root owns integrated CI/PR/acceptance and final delivery."
+  ],
+  "packet": "docs/acceptance/evidence/web_workflow_output_export_parent_modal_18d4fdbe2/",
+  "parent_modal": {
+    "actual_bug_fixed": "structured detail.message/detail.error now rendered instead of JSON-serialized detail",
+    "positive": "4 targeted tests: completed blob/filename/same execution/no execute; 409/503 typed refusal; running disabled",
+    "pre_existing_failure": "base 7fd parent error-toast test expectation stale; unchanged and proven failing at base"
+  },
+  "sanitation": {
+    "paths_redacted_to": "<scratch-path>",
+    "raw_credentials_included": false,
+    "raw_db_included": false,
+    "secrets_removed": true
+  },
+  "source_hashes": {
+    "backend/core/workflow_endpoints.py": "272dcfcbbcdceccb8c9789ce5420e7194763b457931d56fca53d5f64e4aa315c",
+    "backend/tests/test_workflow_output_export.py": "910cd41ca87cbde03f18dec98ef1a4bfa121463fbc28328da2e4d3ca234b3fdd",
+    "frontend-nextjs/components/Automations/ExecutionDetailView.tsx": "618924c6b9f672f040a218044f8209769b45bca33615e33044bc4fcdc7ec1a4f",
+    "frontend-nextjs/components/Automations/__tests__/ExecutionDetailView.test.tsx": "c535a8753da32e5db0eceeb3bf0595904ceae2bd55c243e2505affd15fa11e56",
+    "frontend-nextjs/components/Workflow/__tests__/WorkflowAutomation.test.tsx": "84f4694882739192eadcdab03e2987bee6142dfa896a5b7bb3b03d0fc518ccb2",
+    "frontend-nextjs/components/WorkflowAutomation.tsx": "758833f9c3e74cada076dca8e1055f6b1e7b26d7803a0d4c00c8e990630383e7"
+  }
+}

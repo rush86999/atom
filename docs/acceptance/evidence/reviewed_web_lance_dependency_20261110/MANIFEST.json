@@ -1,0 +1,31 @@
+{
+  "artifact_policy": {
+    "only_targeted_test_log_committed": true,
+    "raw_env_db_auth_logs_committed": false,
+    "root_ci_log_referenced_by_hash_only": true
+  },
+  "artifacts": {
+    "README.md": "367c8dbe7f68011c578f61bc74818e7dd1f7e12fffa8f7d10244b3d220178996",
+    "ci_failure_reference.json": "48137084c88236d7f75ccb3183b8980760082206f11aa329d737bf74e1749ce4",
+    "logs/targeted-reviewed-web-controls.log": "bc6c30fc5a16130913e900bdd33730f84776867f15e50001eb472373dde321bb",
+    "verification.json": "5c21ef443d20abf5051ca035aa7bcd4f32bb513a5b0076e1d2a2988881998fbf"
+  },
+  "branch": "codex/ci-reviewed-web-regressions-20261110",
+  "executed_source": {
+    "commit": "ea82333a5826b203b0d38bd7e40237717216f8dd",
+    "files_sha256": {
+      "backend/core/lancedb_handler.py": "480bd9018cdd1c1114a00bd6de1399ed0b993005a3ecdddf7338c297ee7aac45",
+      "backend/requirements.txt": "a4edeec1ecfd0fbaf9ace09a763455bdc0074eed8f8f4728d79942a388417431",
+      "backend/tests/api/test_document_library_pagination.py": "7154a6ed752bd563920578989f3c18410f73060c154ae4977c41d86b62c49654"
+    }
+  },
+  "packet": "reviewed_web_lance_dependency_20261110",
+  "pr": 817,
+  "source_before": "36f9a5909ade46e0505bf83a7de3380f717ddd54",
+  "source_commit": "ea82333a5826b203b0d38bd7e40237717216f8dd",
+  "source_files": {
+    "backend/core/lancedb_handler.py": "480bd9018cdd1c1114a00bd6de1399ed0b993005a3ecdddf7338c297ee7aac45",
+    "backend/requirements.txt": "a4edeec1ecfd0fbaf9ace09a763455bdc0074eed8f8f4728d79942a388417431",
+    "backend/tests/api/test_document_library_pagination.py": "7154a6ed752bd563920578989f3c18410f73060c154ae4977c41d86b62c49654"
+  }
+}

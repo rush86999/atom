@@ -1,0 +1,26 @@
+{
+  "executed_source": "ea2830ed5ce798b2898d4555c76aaf27aa498409",
+  "capture_head": "482423a9687fe0bf55cb6f5fddf573a17ea3f1f9",
+  "source_files": {
+    ".github/workflows/ci.yml": "7da90bdba1719353de6d6a4fd115e0ca12a23d7d85ec48390853f2cd8fa45d18",
+    "backend/tests/fixtures/ci_backend_additions.json": "41feea98c85e26064ad451b6f90bffe72b9444fa804bd40fa39ff1c12c257da7",
+    "backend/tests/api/test_web_canvas_authority.py": "45069e3b568c290fc513cad479779d4795d453a18faa906083d6199ed6977788",
+    "backend/tests/api/test_web_canvas_restore_ordering.py": "55b8101aabf3375f91bfd1d4e12a276e1fc9ae89197240afbb16322296530724",
+    "backend/tests/api/test_document_library_pagination.py": "5ae33223d69adc48bd83ddbdc458ce18b97ce0c61f939bcb453fd36bae5333e1",
+    "backend/tests/api/test_web_training_proposal_authority.py": "772d83c271785502c49e4dba6473c82952fd069573244418e681c13d51b8a64b",
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249",
+    "backend/api/canvas_sheets_routes.py": "dc042ecb923a40545928e398289211f08d7b9a4154c7728286426e6e8c0bcd9c",
+    "backend/api/canvas_coding_routes.py": "689b1a7d1e3d3f81fcce958f09aa6ed42bf3e916d566201437ab6ad1b9380465",
+    "backend/core/canvas_sheets_service.py": "580a3a6bd5053f508666099a96bd91b2d47f4a204408931dbcfbb036b58c5842",
+    "backend/core/canvas_coding_service.py": "05e861f2eebdc872147c58f774dc5588870ad33722d87c497f33966501080aaf",
+    "backend/api/document_routes.py": "94250a756d64c73021ca5aa12c0ed777ef2723aca62b977ebd21a9d79ef86e50",
+    "backend/core/lancedb_handler.py": "480bd9018cdd1c1114a00bd6de1399ed0b993005a3ecdddf7338c297ee7aac45",
+    "backend/api/agent_maturity_routes.py": "5654306f9fc4796a16f96a9493f024a3901b76525d6cdb2ee49def5434e023e5",
+    "backend/core/student_training_service.py": "347d7974e309aa718d1f2c29d52963bc4d7e7d80d647c3b56e7c4b9ab99af1cb"
+  },
+  "artifacts": {
+    "verification.json": "fce91a69db425e1fc3bbcb5b73cafdfe3122065e8ae7a38296a39dcba087bd31",
+    "combined-controls.log": "1908d7e9ebd1b690be5fd138efa2ec760e0b0b2375a8a27542df76ad98278e90"
+  }
+}

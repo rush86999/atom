@@ -1,0 +1,15 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx
+  Independent Activity utility consistency
+    ✓ does not retain a fresh winner after the authoritative utility target is cleared (53 ms)
+    ✓ an older slow Activity load cannot revive a target after a newer targetless load (8 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        0.531 s, estimated 1 s
+Ran all test suites matching tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx.

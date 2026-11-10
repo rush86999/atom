@@ -1,0 +1,364 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 03:07:47 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:07:47 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:07:47 [    INFO] EscalationManager initialized
+2026-11-10 03:07:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:47 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:07:47 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:07:47 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:07:47 [    INFO] EscalationManager initialized
+2026-11-10 03:07:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:47 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:07:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 03:07:47 [    INFO] MCP Service initialized
+
+::test_revocation_after_authority_observation_refuses[post] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:48 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-17366c63/activity/override "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  2%]
+::test_revocation_after_authority_observation_refuses[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:49 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-30e1860b/activity/override "HTTP/1.1 200 OK"
+2026-11-10 03:07:49 [    INFO] HTTP Request: DELETE http://testserver/api/users/user-self-30e1860b/activity/override "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  4%]
+::test_no_change_committed_audit_lost_confirmation_never_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:49 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-c2e6e06c/activity/override "HTTP/1.1 200 OK"
+2026-11-10 03:07:49 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-c2e6e06c/activity/override "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  6%]
+::test_existing_supervisor_directory_route_and_permission_are_preserved[guest-403] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:50 [    INFO] HTTP Request: GET http://testserver/api/users/available-supervisors "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  9%]
+::test_existing_supervisor_directory_route_and_permission_are_preserved[member-200] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:51 [    INFO] HTTP Request: GET http://testserver/api/users/available-supervisors "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+::test_guide_honors_actual_reader_scope[ra-own-200] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:52 [    INFO] HTTP Request: GET http://testserver/api/agents/ra-own/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+::test_guide_honors_actual_reader_scope[ra-peer-404] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:52 [ WARNING] API Error: AGENT_NOT_FOUND - Agent ra-peer not found
+2026-11-10 03:07:52 [    INFO] HTTP Request: GET http://testserver/api/agents/ra-peer/maturity-guide "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 15%]
+::test_guide_honors_actual_reader_scope[ra-foreign-404] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:53 [ WARNING] API Error: AGENT_NOT_FOUND - Agent ra-foreign not found
+2026-11-10 03:07:53 [    INFO] HTTP Request: GET http://testserver/api/agents/ra-foreign/maturity-guide "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 18%]
+::test_token_from_old_workspace_cannot_read_after_authority_moves 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:54 [ WARNING] API Error: AGENT_NOT_FOUND - Agent ra-own not found
+2026-11-10 03:07:54 [    INFO] HTTP Request: GET http://testserver/api/agents/ra-own/maturity-guide "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+::test_non_success_step_cannot_be_exported_as_completed_document[blocked] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 03:07:54 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:54 [    INFO] EscalationManager initialized
+2026-11-10 03:07:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:54 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:07:54 [    INFO] EscalationManager initialized
+2026-11-10 03:07:54 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:55 [    INFO] Template manager initialized with 28 templates
+2026-11-10 03:07:55 [    INFO] EscalationManager initialized
+2026-11-10 03:07:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:55 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 03:07:55 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 03:07:55 [    INFO] Registered workflow: ai_wf_fd17a74b5114 (Read-only record lookup)
+2026-11-10 03:07:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:07:55 [    INFO] Registered workflow: ai_wf_fd17a74b5114 (Read-only record lookup)
+2026-11-10 03:07:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_fd17a74b5114/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:07:55 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 03:07:55 [    INFO] No token storage file found, starting empty
+2026-11-10 03:07:55 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-10 03:07:55 [    INFO] Registered workflow: ai_wf_fd17a74b5114 (Read-only record lookup)
+2026-11-10 03:07:55 [    INFO] Executing step: start - Manual start
+2026-11-10 03:07:55 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:07:55 [    INFO] EscalationManager initialized
+2026-11-10 03:07:55 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:55 [    INFO] EscalationManager initialized
+2026-11-10 03:07:55 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:07:55 [    INFO] 📸 In-Memory Snapshot created for a487e45b-c2cc-40b7-a9bf-55bd70accfd4 at step lookup
+2026-11-10 03:07:55 [    INFO] 📸 In-Memory Snapshot created for a487e45b-c2cc-40b7-a9bf-55bd70accfd4 at step start
+2026-11-10 03:07:55 [    INFO] Persisted state for workflow a487e45b-c2cc-40b7-a9bf-55bd70accfd4 (Status: completed)
+2026-11-10 03:07:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_fd17a74b5114/execute "HTTP/1.1 200 OK"
+2026-11-10 03:07:55 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/a487e45b-c2cc-40b7-a9bf-55bd70accfd4/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+::test_non_success_step_cannot_be_exported_as_completed_document[unavailable] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:55 [    INFO] EscalationManager initialized
+2026-11-10 03:07:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:55 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:07:55 [    INFO] EscalationManager initialized
+2026-11-10 03:07:55 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:55 [    INFO] Registered workflow: ai_wf_527ba36f179f (Read-only record lookup)
+2026-11-10 03:07:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:07:55 [    INFO] Registered workflow: ai_wf_527ba36f179f (Read-only record lookup)
+2026-11-10 03:07:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_527ba36f179f/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:07:55 [    INFO] Registered workflow: ai_wf_527ba36f179f (Read-only record lookup)
+2026-11-10 03:07:55 [    INFO] Executing step: start - Manual start
+2026-11-10 03:07:55 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:07:55 [    INFO] EscalationManager initialized
+2026-11-10 03:07:55 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:55 [    INFO] EscalationManager initialized
+2026-11-10 03:07:55 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:07:55 [    INFO] 📸 In-Memory Snapshot created for e33e752b-2570-44dd-8e10-5dfcc3674356 at step lookup
+2026-11-10 03:07:55 [    INFO] 📸 In-Memory Snapshot created for e33e752b-2570-44dd-8e10-5dfcc3674356 at step start
+2026-11-10 03:07:55 [    INFO] Persisted state for workflow e33e752b-2570-44dd-8e10-5dfcc3674356 (Status: completed)
+2026-11-10 03:07:55 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_527ba36f179f/execute "HTTP/1.1 200 OK"
+2026-11-10 03:07:55 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/e33e752b-2570-44dd-8e10-5dfcc3674356/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+::test_non_success_step_cannot_be_exported_as_completed_document[budget_exceeded] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:56 [    INFO] EscalationManager initialized
+2026-11-10 03:07:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:56 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:07:56 [    INFO] EscalationManager initialized
+2026-11-10 03:07:56 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:56 [    INFO] Registered workflow: ai_wf_167fdd641d3d (Read-only record lookup)
+2026-11-10 03:07:56 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:07:56 [    INFO] Registered workflow: ai_wf_167fdd641d3d (Read-only record lookup)
+2026-11-10 03:07:56 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_167fdd641d3d/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:07:56 [    INFO] Registered workflow: ai_wf_167fdd641d3d (Read-only record lookup)
+2026-11-10 03:07:56 [    INFO] Executing step: start - Manual start
+2026-11-10 03:07:56 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:07:56 [    INFO] EscalationManager initialized
+2026-11-10 03:07:56 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:56 [    INFO] EscalationManager initialized
+2026-11-10 03:07:56 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:07:56 [    INFO] 📸 In-Memory Snapshot created for 006b848f-80c0-4068-8d53-a2a4d5944726 at step lookup
+2026-11-10 03:07:56 [    INFO] 📸 In-Memory Snapshot created for 006b848f-80c0-4068-8d53-a2a4d5944726 at step start
+2026-11-10 03:07:56 [    INFO] Persisted state for workflow 006b848f-80c0-4068-8d53-a2a4d5944726 (Status: completed)
+2026-11-10 03:07:56 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_167fdd641d3d/execute "HTTP/1.1 200 OK"
+2026-11-10 03:07:56 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/006b848f-80c0-4068-8d53-a2a4d5944726/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 27%]
+::test_non_success_step_cannot_be_exported_as_completed_document[rejected] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:57 [    INFO] EscalationManager initialized
+2026-11-10 03:07:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:57 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:07:57 [    INFO] EscalationManager initialized
+2026-11-10 03:07:57 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:57 [    INFO] Registered workflow: ai_wf_4aa6619a0051 (Read-only record lookup)
+2026-11-10 03:07:57 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:07:57 [    INFO] Registered workflow: ai_wf_4aa6619a0051 (Read-only record lookup)
+2026-11-10 03:07:57 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_4aa6619a0051/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:07:57 [    INFO] Registered workflow: ai_wf_4aa6619a0051 (Read-only record lookup)
+2026-11-10 03:07:57 [    INFO] Executing step: start - Manual start
+2026-11-10 03:07:57 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:07:57 [    INFO] EscalationManager initialized
+2026-11-10 03:07:57 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:57 [    INFO] EscalationManager initialized
+2026-11-10 03:07:57 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:07:57 [    INFO] 📸 In-Memory Snapshot created for 696b231a-621a-4b08-abe3-cc57e1b7678b at step lookup
+2026-11-10 03:07:57 [    INFO] 📸 In-Memory Snapshot created for 696b231a-621a-4b08-abe3-cc57e1b7678b at step start
+2026-11-10 03:07:57 [    INFO] Persisted state for workflow 696b231a-621a-4b08-abe3-cc57e1b7678b (Status: completed)
+2026-11-10 03:07:57 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_4aa6619a0051/execute "HTTP/1.1 200 OK"
+2026-11-10 03:07:57 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/696b231a-621a-4b08-abe3-cc57e1b7678b/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+::test_non_success_step_cannot_be_exported_as_completed_document[unknown] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:58 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:58 [    INFO] Registered workflow: ai_wf_adf8b673c658 (Read-only record lookup)
+2026-11-10 03:07:58 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:07:58 [    INFO] Registered workflow: ai_wf_adf8b673c658 (Read-only record lookup)
+2026-11-10 03:07:58 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_adf8b673c658/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:07:58 [    INFO] Registered workflow: ai_wf_adf8b673c658 (Read-only record lookup)
+2026-11-10 03:07:58 [    INFO] Executing step: start - Manual start
+2026-11-10 03:07:58 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:07:58 [    INFO] 📸 In-Memory Snapshot created for ac1ada6a-4b16-4e00-a29c-29bd5ba950cb at step lookup
+2026-11-10 03:07:58 [    INFO] 📸 In-Memory Snapshot created for ac1ada6a-4b16-4e00-a29c-29bd5ba950cb at step start
+2026-11-10 03:07:58 [    INFO] Persisted state for workflow ac1ada6a-4b16-4e00-a29c-29bd5ba950cb (Status: completed)
+2026-11-10 03:07:58 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_adf8b673c658/execute "HTTP/1.1 200 OK"
+2026-11-10 03:07:58 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/ac1ada6a-4b16-4e00-a29c-29bd5ba950cb/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 31%]
+::test_incomplete_step_identity_cannot_certify_export[bad_history0] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:58 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:58 [    INFO] Registered workflow: ai_wf_36f6fb18e1b8 (Read-only record lookup)
+2026-11-10 03:07:58 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:07:58 [    INFO] Registered workflow: ai_wf_36f6fb18e1b8 (Read-only record lookup)
+2026-11-10 03:07:58 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_36f6fb18e1b8/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:07:58 [    INFO] Registered workflow: ai_wf_36f6fb18e1b8 (Read-only record lookup)
+2026-11-10 03:07:58 [    INFO] Executing step: start - Manual start
+2026-11-10 03:07:58 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:58 [    INFO] EscalationManager initialized
+2026-11-10 03:07:58 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:07:58 [    INFO] 📸 In-Memory Snapshot created for 1712c75a-f248-4926-ab02-a8420cfe1e4f at step lookup
+2026-11-10 03:07:58 [    INFO] 📸 In-Memory Snapshot created for 1712c75a-f248-4926-ab02-a8420cfe1e4f at step start
+2026-11-10 03:07:58 [    INFO] Persisted state for workflow 1712c75a-f248-4926-ab02-a8420cfe1e4f (Status: completed)
+2026-11-10 03:07:58 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_36f6fb18e1b8/execute "HTTP/1.1 200 OK"
+2026-11-10 03:07:58 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/1712c75a-f248-4926-ab02-a8420cfe1e4f/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+::test_incomplete_step_identity_cannot_certify_export[bad_history1] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:07:59 [    INFO] EscalationManager initialized
+2026-11-10 03:07:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:07:59 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:07:59 [    INFO] EscalationManager initialized
+2026-11-10 03:07:59 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:59 [    INFO] Registered workflow: ai_wf_555223abb503 (Read-only record lookup)
+2026-11-10 03:07:59 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:07:59 [    INFO] Registered workflow: ai_wf_555223abb503 (Read-only record lookup)
+2026-11-10 03:07:59 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_555223abb503/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:07:59 [    INFO] Registered workflow: ai_wf_555223abb503 (Read-only record lookup)
+2026-11-10 03:07:59 [    INFO] Executing step: start - Manual start
+2026-11-10 03:07:59 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:07:59 [    INFO] EscalationManager initialized
+2026-11-10 03:07:59 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:59 [    INFO] EscalationManager initialized
+2026-11-10 03:07:59 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:07:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:07:59 [    INFO] 📸 In-Memory Snapshot created for 353f67b0-41e3-49dd-b6a8-2bb4e1352dc2 at step lookup
+2026-11-10 03:07:59 [    INFO] 📸 In-Memory Snapshot created for 353f67b0-41e3-49dd-b6a8-2bb4e1352dc2 at step start
+2026-11-10 03:07:59 [    INFO] Persisted state for workflow 353f67b0-41e3-49dd-b6a8-2bb4e1352dc2 (Status: completed)
+2026-11-10 03:07:59 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_555223abb503/execute "HTTP/1.1 200 OK"
+2026-11-10 03:07:59 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/353f67b0-41e3-49dd-b6a8-2bb4e1352dc2/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+::test_export_cannot_claim_revised_definition_for_prior_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:08:00 [    INFO] EscalationManager initialized
+2026-11-10 03:08:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:08:00 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:08:00 [    INFO] EscalationManager initialized
+2026-11-10 03:08:00 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:08:00 [    INFO] Registered workflow: ai_wf_619d3752d4d4 (Read-only record lookup)
+2026-11-10 03:08:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 03:08:00 [    INFO] Registered workflow: ai_wf_619d3752d4d4 (Read-only record lookup)
+2026-11-10 03:08:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_619d3752d4d4/deploy "HTTP/1.1 200 OK"
+2026-11-10 03:08:00 [    INFO] Registered workflow: ai_wf_619d3752d4d4 (Read-only record lookup)
+2026-11-10 03:08:00 [    INFO] Executing step: start - Manual start
+2026-11-10 03:08:00 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 03:08:00 [    INFO] EscalationManager initialized
+2026-11-10 03:08:00 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:08:00 [    INFO] EscalationManager initialized
+2026-11-10 03:08:00 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 03:08:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 03:08:00 [    INFO] 📸 In-Memory Snapshot created for d7faf188-95dd-42ab-9b31-e3dba362db66 at step lookup
+2026-11-10 03:08:00 [    INFO] 📸 In-Memory Snapshot created for d7faf188-95dd-42ab-9b31-e3dba362db66 at step start
+2026-11-10 03:08:00 [    INFO] Persisted state for workflow d7faf188-95dd-42ab-9b31-e3dba362db66 (Status: completed)
+2026-11-10 03:08:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_619d3752d4d4/execute "HTTP/1.1 200 OK"
+2026-11-10 03:08:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/d7faf188-95dd-42ab-9b31-e3dba362db66/export "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved 
+-------------------------------- live log setup --------------------------------
+2026-11-10 03:08:00 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 40%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 43%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 45%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 47%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 50%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 52%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 54%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 56%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 59%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 61%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 63%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 65%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 68%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 70%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 72%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 75%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 77%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 79%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 84%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-web-reviewed-integration-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+../../root-py311-plugins/pytest_freezegun.py:17: 88 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+::test_non_success_step_cannot_be_exported_as_completed_document[blocked]
+  /private/tmp/atom-web-reviewed-integration-20261110/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 44 passed, 95 warnings in 30.58s =======================

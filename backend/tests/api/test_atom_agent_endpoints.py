@@ -646,7 +646,8 @@ class TestWorkflowHandlers:
             })
 
             with patch('core.atom_agent_endpoints.load_workflows', return_value=[]):
-                with patch('core.atom_agent_endpoints.save_workflows') as mock_save:
+                with patch('core.atom_agent_endpoints.mutate_workflows') as mock_mutate:
+                    mock_mutate.side_effect = lambda mutator: mutator([])
                     request = ChatRequest(
                         message="Create a daily report workflow",
                         user_id="test_user"
@@ -656,6 +657,7 @@ class TestWorkflowHandlers:
                     assert result["success"] is True
                     assert "workflow_id" in result["response"]
                     assert "nodes" in result["response"]
+                    assert mock_mutate.called is True
 
     @pytest.mark.asyncio
     async def test_handle_create_workflow_failure(self):

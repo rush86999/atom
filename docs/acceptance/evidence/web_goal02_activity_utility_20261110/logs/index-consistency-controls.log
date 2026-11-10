@@ -1,0 +1,40 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/goal-runs/index.test.tsx
+  ✓ refreshes the utility ranking through the existing Activity poll (10 ms)
+  GoalRunsIndexPage
+    ✓ shows the goal utility target, winner and ranked/withheld runs on Activity (30 ms)
+    ✓ renders runs with status badges and counters (7 ms)
+    ✓ shows the goal title, not a bare UUID (2026-09-10 journey fix) (5 ms)
+    ✓ falls back to the goal id when the goal fetch has no title (6 ms)
+    ✓ shows the waiting badge for sleeping runs (15 ms)
+    ✓ empty state explains where runs come from and offers the start CTA (24 ms)
+    ✓ supervisor sees the New goal run affordance (6 ms)
+    ✓ member sees the start affordance — role-based everyday work (5 ms)
+    ✓ viewer does not see the start affordance (backend would 403) (4 ms)
+    ✓ unknown role stays fail-open (backend enforces) (4 ms)
+    waitingLabel
+      ✓ labels human checkpoints
+      ✓ reads event names as words (1 ms)
+      ✓ returns null for active runs
+    guidanceFor active run
+      ✓ names the current step so a long run is legible
+      ✓ flags an active run with no current step
+  Activity goal utility visibility
+    ✓ does not render a utility card or call the ranking API without a target (6 ms)
+    ✓ shows a typed error and no fresh winner when the first utility read fails (6 ms)
+    ✓ preserves the last known ranking but marks it stale after a later failure (16 ms)
+    ✓ lets a member read the Activity utility ranking without write controls (6 ms)
+  Activity utility consistency
+    ✓ clears a fresh winner when the authoritative utility target is cleared (13 ms)
+    ✓ an older slow Activity load cannot revive a target after a newer targetless load (5 ms)
+    ✓ keeps last known utility but marks a metadata failure and suppresses the fresh winner (13 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       23 passed, 23 total
+Snapshots:   0 total
+Time:        0.723 s, estimated 2 s
+Ran all test suites matching tests/pages/goal-runs/index.test.tsx.

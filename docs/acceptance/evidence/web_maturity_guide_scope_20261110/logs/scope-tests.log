@@ -1,0 +1,106 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 02:50:38 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 02:50:38 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:50:38 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:50:38 [    INFO] EscalationManager initialized
+2026-11-10 02:50:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:50:38 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:50:38 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:50:38 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:50:38 [    INFO] EscalationManager initialized
+2026-11-10 02:50:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:50:38 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:50:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 02:50:38 [    INFO] MCP Service initialized
+
+tests/api/test_maturity_guide_scope.py::test_owner_and_same_scope_member_get_guide_with_fresh_readback 
+-------------------------------- live log setup --------------------------------
+2026-11-10 02:50:38 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:50:39 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-efbc8a93/maturity-guide "HTTP/1.1 200 OK"
+2026-11-10 02:50:39 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-efbc8a93/maturity-guide "HTTP/1.1 200 OK"
+2026-11-10 02:50:39 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-efbc8a93/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/api/test_maturity_guide_scope.py::test_foreign_tenant_workspace_and_unknown_are_indistinguishable_404 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:50:40 [ WARNING] API Error: AGENT_NOT_FOUND - Agent agent-a-cb9f8cdd not found
+2026-11-10 02:50:40 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-cb9f8cdd/maturity-guide "HTTP/1.1 404 Not Found"
+2026-11-10 02:50:40 [ WARNING] API Error: AGENT_NOT_FOUND - Agent does-not-exist not found
+2026-11-10 02:50:40 [    INFO] HTTP Request: GET http://testserver/api/agents/does-not-exist/maturity-guide "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/api/test_maturity_guide_scope.py::test_legacy_shared_agent_remains_readable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:50:40 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-shared-c2090f27/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/api/test_maturity_guide_scope.py::test_deactivated_principal_is_refused_without_data 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:50:41 [ WARNING] Rejected token for non-active user user-b-103f3dc3 (status=inactive)
+2026-11-10 02:50:41 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-b-103f3dc3/maturity-guide "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 66%]
+tests/api/test_maturity_guide_scope.py::test_moved_principal_uses_current_workspace_not_token_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:50:42 [ WARNING] API Error: AGENT_NOT_FOUND - Agent agent-a-04b14c1b not found
+2026-11-10 02:50:42 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-04b14c1b/maturity-guide "HTTP/1.1 404 Not Found"
+2026-11-10 02:50:42 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-b-04b14c1b/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/api/test_maturity_guide_scope.py::test_read_does_not_mutate_agent_or_learning 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:50:42 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-5b9bf5ca/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 6 passed, 5 warnings in 20.37s ========================

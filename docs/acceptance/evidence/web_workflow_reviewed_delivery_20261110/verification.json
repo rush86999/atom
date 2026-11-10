@@ -1,0 +1,77 @@
+{
+  "at": "2026-11-10T06:48:05.739300+00:00",
+  "base_main": "310e72aecd1a4041a35af6ac093379d39b93556b",
+  "runtime_source": "23a9a44968845e86e0ac4cfc0e1705de9da2d0f7",
+  "source_files": [
+    {
+      "path": "backend/advanced_workflow_api.py",
+      "same_frozen_successor": true,
+      "sha256": "4153b3da72692f7e8c206cbdea674b87fc1c14d3c2819f10e25b45b0ec3ceb59"
+    },
+    {
+      "path": "backend/ai/workflow_scheduler.py",
+      "same_frozen_successor": true,
+      "sha256": "0e4e8ba6713f878ee062c8d1d291c067a78e064886b892e4519d65cdc3648567"
+    },
+    {
+      "path": "backend/core/atom_agent_endpoints.py",
+      "same_frozen_successor": true,
+      "sha256": "3492f5bcd330349622f483d01692ef5b5b9d8b3298cd94f878848eec7d12b556"
+    },
+    {
+      "path": "backend/core/workflow_endpoints.py",
+      "same_frozen_successor": true,
+      "sha256": "75f5aa09d9c4300ac368566e880f03b1354310e2efb20104ac1bfe8eb4bef824"
+    },
+    {
+      "path": "backend/core/workflow_security.py",
+      "same_frozen_successor": true,
+      "sha256": "5b7f9b04d4d20a598d0962a17231ae5530d2a63650aa6bc20e1beff1b0ddac5f"
+    },
+    {
+      "path": "backend/tests/api/test_atom_agent_endpoints.py",
+      "same_frozen_successor": true,
+      "sha256": "3c5ed8a933f8fd935bd1fa5e9cc4924bf349f2084d50171a2febab255888d041"
+    },
+    {
+      "path": "backend/tests/test_generated_workflow_handoff.py",
+      "same_frozen_successor": true,
+      "sha256": "5146fe29300275ae4a989d50e0e51dc56f039619bd0485dda6dcb753105d1934"
+    },
+    {
+      "path": "frontend-nextjs/components/Automations/AgentWorkflowGenerator.tsx",
+      "same_frozen_successor": true,
+      "sha256": "7853243353ad292ca3ccb259874a121973e9530d335a19f67fd99a3d7b1bf476"
+    },
+    {
+      "path": "frontend-nextjs/components/Automations/__tests__/test-agent-workflow-generator.test.tsx",
+      "same_frozen_successor": true,
+      "sha256": "3467f9f8f34906004fc15bc29d611e61b3a9e0fe720fb1769f2b308a99bd747f"
+    },
+    {
+      "path": "frontend-nextjs/components/WorkflowAutomation.tsx",
+      "same_frozen_successor": true,
+      "sha256": "15733d349b813d9b8f4f76948968b5c6f571dcb717b32b224ca4f9b5074b1fa3"
+    },
+    {
+      "path": "frontend-nextjs/pages/automations.tsx",
+      "same_frozen_successor": true,
+      "sha256": "200b34ecce90ff5fa10dee09b7fc80e33d7c380a5e12585307dac712d940d930"
+    },
+    {
+      "path": "frontend-nextjs/tests/pages/automations-page.test.tsx",
+      "same_frozen_successor": true,
+      "sha256": "09ce9838a7f6656c74250b5926c81bedda279a75b9a4781355a55f415aac412c"
+    },
+    {
+      "path": "backend/tests/helpers/fresh_process_workflow_roundtrip.py",
+      "same_frozen_successor": true,
+      "sha256": "b6294833fef86740187182db50961238d854f260899317215fa1a0008d520e89"
+    }
+  ],
+  "independent_controls": "10passed10.14s actualexit0 same_source true; previousnegatives preserved",
+  "independent_fresh_process": "1passed24.36s actualexit0 same_source true; exact normalizedbusinessresults/execution/operation/owner, oneexecution,no jobs, no modelcalls",
+  "packet_integrity": "21/21 artifacts strictGitmatch",
+  "scope": "controlled publicAPI/SQLite/realcanonicalengine/freshOSprocess + components; not servedmodel/browser/liveconnector/PG/soak/wholeapp",
+  "hosted_ci": "pending; persistent30backend+48frontend gates added"
+}
