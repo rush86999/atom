@@ -37,6 +37,8 @@ from core.auth import SECRET_KEY, get_current_user
 from core.database import Base, get_db
 from core.models import OAuthState, SSOConfiguration, Tenant, User
 from core.personal_scope import PERSONAL_TENANT_ID
+from core.security.middleware import SecurityHeadersMiddleware as CoreSecurityHeaders
+from middleware.security import SecurityHeadersMiddleware as ParallelSecurityHeaders
 from scripts.controlled_oidc_provider import OIDCProvider, _pem
 
 CLIENT_ID = "atom-acceptance-client"
@@ -1876,6 +1878,37 @@ def test_peer_unchanged_before_state_claim_still_valid(
 # ============================================================================
 # Same-origin browser web handoff (backend-only slice)
 # ============================================================================
+
+@pytest.mark.parametrize("middleware_cls", [
+    CoreSecurityHeaders,
+    ParallelSecurityHeaders,
+])
+def test_real_web_sso_responses_keep_no_referrer_through_security_headers(
+        db, admin, web_provider, web_app_url, middleware_cls):
+    """The real callback/exchange headers survive wrapped by either variant."""
+    app = FastAPI()
+    app.add_middleware(middleware_cls)
+    app.include_router(router)
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: admin
+    client = TestClient(app, base_url=WEB_ORIGIN)
+
+    _save_config(client, web_provider)
+    login = _web_login(client)
+    assert login.status_code == 302
+
+    callback_url = _provider_redirect(login.headers["Location"])
+    callback = _callback(client, callback_url)
+    assert callback.status_code == 302
+    assert callback.headers["cache-control"] == "no-store"
+    assert callback.headers["referrer-policy"] == "no-referrer"
+
+    code = _web_callback_code(callback.headers["Location"])
+    exchange = _web_exchange(client, code)
+    assert exchange.status_code == 200
+    assert exchange.headers["cache-control"] == "no-store"
+    assert exchange.headers["referrer-policy"] == "no-referrer"
+
 
 def test_web_same_origin_handoff_positive(
         client, web_provider, web_app_url, db):
