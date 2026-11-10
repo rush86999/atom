@@ -1,0 +1,50 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/canvas/__tests__/TrainingPanel.test.tsx
+  TrainingPanel
+    ○ skipped renders agent card, progress, evidence, and lesson editor for a supervisor
+    ○ skipped teach sends the lesson through the learning channel
+    ○ skipped teach with the playbook toggle ALSO drafts a playbook (P2)
+    ○ skipped teach-as-playbook reloads the Playbooks queue and shows the new draft
+    ○ skipped suggested task goes to the training chat and lands in the lesson plan
+    ○ skipped completion is gated on recorded evidence
+    ○ skipped completing the session surfaces the promotion result
+    ○ skipped pending proposal can be approved without leaving the canvas
+    ○ skipped promote asks for confirmation and calls the graduation endpoint
+    ○ skipped an unconfirmed promotion shows the next action without a graduation notice
+    ○ skipped non-supervisor viewers get teach + progress only
+    ○ skipped canvas with no linked agent renders the empty state
+  TrainingPanel teaching points
+    ○ skipped renders the journal: count, taught/observed badges, newest first
+    ○ skipped teaching points show the canvas they were taught on
+    ○ skipped teaching a lesson refreshes the journal so the new point shows
+    ○ skipped a context refresh does not clobber unsaved lesson-plan edits
+  TrainingPanel teaching point editing
+    ○ skipped corrects a taught lesson in place and refreshes the journal
+    ○ skipped observed points edit text only — their type is the classification
+    ○ skipped cancel discards the draft without calling the API
+    ○ skipped a supervisor deletes a point after confirming
+    ○ skipped an employee may edit but never sees the delete control
+  Self-directed pathway card wiring
+    ○ skipped renders the self-directed card for a STUDENT-tier hire
+    ○ skipped promote button calls the graduation promote endpoint with INTERN
+  Qualification assessment UI
+    ✓ a stale pending id is not shown as a current pending review (35 ms)
+    ○ skipped missing assessment defaults to unknown and blocks promotion
+    ○ skipped pending review hides the request action and shows the queue
+    ○ skipped unresolved_failed offers the explicit review action and stays blocked
+    ○ skipped unresolved_stale offers the explicit review action and stays blocked
+    ○ skipped explicit owner exception is honest and allows promotion
+    ○ skipped valid assessment allows promotion without a second review
+    ○ skipped request uses only the selected task/output bundle
+    ○ skipped deferred stale readiness shows unknown then the refresh-required state
+    ○ skipped deferred readiness shows unknown then the valid state
+
+Test Suites: 1 passed, 1 total
+Tests:       32 skipped, 1 passed, 33 total
+Snapshots:   0 total
+Time:        0.868 s, estimated 1 s
+Ran all test suites matching components/canvas/__tests__/TrainingPanel.test.tsx with tests matching "a stale pending id is not shown as a current pending review".

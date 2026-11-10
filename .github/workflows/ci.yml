@@ -479,6 +479,15 @@ jobs:
 
           '
 
+      - name: Run scoped graduation qualification and policy controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_graduation_qualification.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-graduation-qualification"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/api/test_graduation_qualification_join.py tests/test_assessment_rules_semantics.py tests/unit/core/test_notification_service.py tests/test_caller_transaction_ownership.py tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale tests/test_agent_decision_contract.py::test_promote_replay_refutes_changed_qualification_material 'tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote]' tests/test_agent_decision_contract.py::test_unqualified_manual_promotion_is_not_an_authority_bypass tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_success tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_creates_history tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_without_qualification_never_dispatches -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run generated Canvas Office export receipt and file controls
         env:
           TESTING: "1"
@@ -821,7 +830,7 @@ jobs:
         working-directory: frontend-nextjs
         # Positive HTTP alone is not promotion; opt-out must reach the shared
         # retry interceptor so an uncertain mutation is never re-dispatched.
-        run: npx jest lib/__tests__/api/maturity-api.test.ts tests/pages/approvals-page.test.tsx components/canvas/__tests__/TrainingPanel.test.tsx lib/__tests__/api-interceptors.test.ts --runInBand --no-coverage --watchman=false
+        run: npx jest lib/__tests__/api/maturity-api.test.ts tests/pages/approvals-page.test.tsx components/canvas/__tests__/TrainingPanel.test.tsx lib/__tests__/api-interceptors.test.ts components/Agents/__tests__/AgentMaturityGuide.test.tsx components/Agents/__tests__/SelfDirectedPathwayCard.test.tsx --runInBand --no-coverage --watchman=false
       - name: Goal utility surface regression tests
         working-directory: frontend-nextjs
         run: npx jest tests/pages/goal-runs/detail.test.tsx --runInBand --no-coverage

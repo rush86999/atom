@@ -27,6 +27,7 @@ import {
   updateTrainingGuidance,
   getGraduationReadiness,
   promoteAgent,
+  requestQualificationReview,
   getAgentGraduationProgress,
 } from '../../maturity-api';
 
@@ -299,5 +300,48 @@ describe('maturity-api canvas training surface', () => {
 
     expect(out.episode_count).toBe(4);
     expect(mockFetch.mock.calls[0][0]).toBe('/api/agents/a1/graduation-progress');
+  });
+});
+
+
+describe('maturity-api qualification review', () => {
+  test('posts only the selected task/output evidence', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ data: { action_id: 'review-1', state: 'pending_review' } })
+    );
+    const out = await requestQualificationReview(
+      'a1',
+      'INTERN',
+      [
+        { kind: 'agent_episode', id: 'ep-1' },
+        { kind: 'agent_execution', id: 'exec-1' },
+      ],
+      'heldout-v1',
+    );
+    expect(out.data.action_id).toBe('review-1');
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('/api/episodes/graduation/qualification/request');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      agent_id: 'a1',
+      target_maturity: 'INTERN',
+      evidence_refs: [
+        { kind: 'agent_episode', id: 'ep-1' },
+        { kind: 'agent_execution', id: 'exec-1' },
+      ],
+      rubric_version: 'heldout-v1',
+    });
+  });
+
+  test('surfaces the actionable detail message on refusal', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      detail: {
+        state: 'unresolved_missing',
+        message: 'Capability qualification requires task/context and actual output.',
+      },
+    }, false, 409));
+    await expect(requestQualificationReview(
+      'a1', 'INTERN', [{ kind: 'agent_episode', id: 'ep-1' }],
+    )).rejects.toThrow('requires task/context and actual output');
   });
 });

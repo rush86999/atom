@@ -126,8 +126,8 @@ class TestSupervisionSessions:
         assert outcome.supervisor_rating == 4
 
     @pytest.mark.asyncio
-    async def test_complete_supervision_promotes_to_autonomous(self):
-        """SupervisionService promotes agent to AUTONOMOUS when threshold met."""
+    async def test_complete_supervision_does_not_promote_without_qualification(self):
+        """Confidence can complete; the tier needs a qualification receipt."""
         db = Mock(spec=Session)
 
         # Mock session
@@ -179,13 +179,11 @@ class TestSupervisionSessions:
             feedback="Excellent"
         )
 
-        # Agent should be promoted to AUTONOMOUS
-        # Note: mock_agent.status is set by the production code
-        # We just need to verify it was called/set
+        # Confidence may complete, but a Mock DB cannot supply the
+        # qualification receipt/CAS; the tier stays supervised truthfully.
         assert mock_agent.confidence_score >= 0.9
-        # The status should be set to autonomous (checking the attribute value)
         from core.models import AgentStatus
-        assert mock_agent.status == AgentStatus.AUTONOMOUS.value
+        assert mock_agent.status == AgentStatus.SUPERVISED.value
 
 
 class TestRealTimeMonitoring:

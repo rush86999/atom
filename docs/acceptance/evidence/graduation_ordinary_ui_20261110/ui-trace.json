@@ -1,0 +1,37 @@
+{
+  "release_profile": {
+    "agents": "enabled",
+    "canvas": "enabled",
+    "approvals": "enabled; nav=false; min_role=team_lead",
+    "deferred_surfaces_force_enabled": false
+  },
+  "paths": [
+    {
+      "path": "/login",
+      "observed": "real admin email/password form; login POST 200; token persisted"
+    },
+    {
+      "path": "/dashboard",
+      "observed": "ordinary onboarding wizard; completed/dismissed through its own controls"
+    },
+    {
+      "path": "/agents",
+      "observed": "unique agent card and ordinary Teach button; maturity guide button present but disabled without an active run (no model run performed)"
+    },
+    {
+      "path": "/canvas/{canvas_id}?agent_id=...&side=training",
+      "observed": "TrainingPanel: missing assessment, evidence picker, request review, pending copy, valid qualified state, promote control"
+    },
+    {
+      "path": "/approvals",
+      "observed": "ordinary qualification card with task/output/frozen rubric; Approve button"
+    }
+  ],
+  "agent_maturity_guide": {
+    "reachable_without_model_run": false,
+    "evidence": "active-agent-maturity-guide-button disabled because activeAgentId is set by a run",
+    "action": "not force-enabled; qualification state observed in TrainingPanel instead"
+  },
+  "approvals_authority": "bootstrap raw-NULL admin is workspace_admin (team_lead+), so the ordinary Approve control is enabled",
+  "no_pagewide_aggregate": true
+}

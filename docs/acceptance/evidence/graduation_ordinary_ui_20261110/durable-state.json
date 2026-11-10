@@ -1,0 +1,134 @@
+{
+  "agent": {
+    "id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+    "status": "intern",
+    "last_exam_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+    "promotion_count": 1,
+    "confidence_score": 0.62
+  },
+  "hitl": {
+    "id": "9a19f509-86a2-4770-a016-4f913e25542d",
+    "status": "approved",
+    "action_type": "agent_qualification_review",
+    "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+    "params": {
+      "target_level": "INTERN",
+      "policy_revision": "1",
+      "policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+      "rubric_version": "heldout-v1",
+      "rubric_ids": [
+        "task_context",
+        "actual_output",
+        "task_completion",
+        "scope",
+        "safety"
+      ],
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-09"
+        },
+        {
+          "kind": "agent_execution",
+          "id": "4d66ed51fe-exec-09"
+        }
+      ]
+    }
+  },
+  "receipt": {
+    "id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+    "passed": 1,
+    "promoted": 0,
+    "target_level": "INTERN",
+    "current_level": "student",
+    "metadata": {
+      "receipt_kind": "capability_qualification",
+      "candidate_capability_qualified": true,
+      "review_action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+      "policy_revision": "1",
+      "policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+      "rubric_version": "heldout-v1",
+      "rubric_ids": [
+        "task_context",
+        "actual_output",
+        "task_completion",
+        "scope",
+        "safety"
+      ],
+      "source_revision": "d7f0661874c7f2712cddf2ec611eabd4035b960138ef9a0656b5d472e50cc805",
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-09"
+        },
+        {
+          "kind": "agent_execution",
+          "id": "4d66ed51fe-exec-09"
+        }
+      ]
+    }
+  },
+  "promotion_history": [
+    {
+      "id": "1177d21d-9164-415b-a2cc-9d9223002213",
+      "from_level": "student",
+      "to_level": "intern",
+      "exam_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+      "promoted_by": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+      "justification": "public graduation; assessment=valid"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "6969f91c-2ccf-4711-a1cf-71f146d890bf",
+      "user_id": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+      "tenant_id": "default",
+      "workspace_id": "default",
+      "metadata": {
+        "notification_type": "agent_graduated",
+        "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+        "new_maturity": "INTERN"
+      }
+    }
+  ],
+  "training_sessions": [
+    {
+      "id": "4d66ed51fe-training-session-0",
+      "status": "completed",
+      "tasks_completed": 10,
+      "total_tasks": 10,
+      "performance_score": 1.0
+    },
+    {
+      "id": "4d66ed51fe-training-session-1",
+      "status": "completed",
+      "tasks_completed": 10,
+      "total_tasks": 10,
+      "performance_score": 1.0
+    },
+    {
+      "id": "4d66ed51fe-training-session-2",
+      "status": "completed",
+      "tasks_completed": 10,
+      "total_tasks": 10,
+      "performance_score": 1.0
+    }
+  ],
+  "fixture_counts": {
+    "agent_executions": 10,
+    "agent_episodes": 10,
+    "artifacts": 1,
+    "episode_segments": 1
+  },
+  "exact_ids": {
+    "world": "grad_ordinary_ui_6da_1794315411_4d66ed51fe",
+    "run_dir": "/private/tmp/atom-web-graduation-qualification-join-20261110/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315411_4d66ed51fe/runs/run-9c939f4aeb4d",
+    "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+    "canvas_id": "507e8792-6976-4cd5-840e-fea764f94af0",
+    "action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+    "receipt_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+    "promotion_history_id": "1177d21d-9164-415b-a2cc-9d9223002213",
+    "notification_id": "6969f91c-2ccf-4711-a1cf-71f146d890bf",
+    "admin_id": "e260f8b0-e322-4590-8a47-40b6f01c5dc6"
+  }
+}

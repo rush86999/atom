@@ -47,7 +47,7 @@ const SAMPLE_GUIDE = {
     note: '23 more observations roughly reach the review threshold.',
   },
   next_level: 'intern',
-  how_to_advance: 'Complete training sessions and pass the graduation exam.',
+  how_to_advance: 'Complete training sessions, then request a scoped capability qualification review.',
 };
 
 describe('AgentMaturityGuideDialog', () => {
@@ -87,7 +87,7 @@ describe('AgentMaturityGuideDialog', () => {
   it('shows the readiness note and how to advance', async () => {
     render(<AgentMaturityGuideDialog agentId="agent-1" open onOpenChange={jest.fn()} />);
     expect(await screen.findByTestId('maturity-readiness-note')).toHaveTextContent('23 more observations');
-    expect(screen.getByTestId('maturity-advance').textContent).toContain('graduation exam');
+    expect(screen.getByTestId('maturity-advance').textContent).toContain('qualification review');
   });
 
   it('shows an error message when the API fails', async () => {
@@ -96,5 +96,62 @@ describe('AgentMaturityGuideDialog', () => {
     await waitFor(() =>
       expect(screen.getByText(/could not load the maturity guide/i)).toBeInTheDocument()
     );
+  });
+
+  it('missing assessment is unknown and blocked, never Ready', async () => {
+    render(<AgentMaturityGuideDialog agentId="agent-1" open onOpenChange={jest.fn()} />);
+    const block = await screen.findByTestId('maturity-qualification');
+    expect(block.textContent).toContain('Status unavailable');
+    expect(block.textContent).toContain('promotion is blocked');
+    expect(block.textContent).not.toContain('qualified');
+  });
+
+  it('valid assessment shows the receipt qualification', async () => {
+    mockedGuide.mockResolvedValue({
+      ...SAMPLE_GUIDE,
+      assessment: {
+        allowed: true,
+        required: true,
+        state: 'valid',
+        candidate_capability_qualified: true,
+        receipt_id: 'qualification:1',
+        review_action_id: 'approved-review-1',
+      },
+    });
+    render(<AgentMaturityGuideDialog agentId="agent-1" open onOpenChange={jest.fn()} />);
+    const block = await screen.findByTestId('maturity-qualification');
+    expect(block.textContent).toContain('Qualified');
+    expect(block.textContent).not.toContain('Review pending');
+  });
+
+  it('pending review is visible without claiming qualification', async () => {
+    mockedGuide.mockResolvedValue({
+      ...SAMPLE_GUIDE,
+      assessment: {
+        allowed: false,
+        required: true,
+        state: 'unresolved_missing',
+        review_action_id: 'review-1',
+      },
+    });
+    render(<AgentMaturityGuideDialog agentId="agent-1" open onOpenChange={jest.fn()} />);
+    expect(await screen.findByText(/Review pending in Approvals/)).toBeInTheDocument();
+    expect(screen.getByTestId('maturity-qualification').textContent).not.toContain('qualified');
+  });
+
+  it('owner exception is honest and never shown as qualified', async () => {
+    mockedGuide.mockResolvedValue({
+      ...SAMPLE_GUIDE,
+      assessment: {
+        allowed: true,
+        required: true,
+        state: 'legacy_unassessed',
+        exception: { kind: 'legacy_unassessed', reason: 'Owner approved continuity' },
+      },
+    });
+    render(<AgentMaturityGuideDialog agentId="agent-1" open onOpenChange={jest.fn()} />);
+    const block = await screen.findByTestId('maturity-qualification');
+    expect(block.textContent).toContain('Owner exception: Owner approved continuity');
+    expect(block.textContent).not.toContain('qualified');
   });
 });

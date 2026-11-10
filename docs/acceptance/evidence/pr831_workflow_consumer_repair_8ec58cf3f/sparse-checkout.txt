@@ -1,0 +1,21 @@
+# Sparse worktree quickstart materialization
+
+$ git sparse-checkout list
+/backend/
+/.github/workflows/ci.yml
+docs/acceptance/evidence
+frontend-nextjs
+COORDINATION.md
+scripts/acceptance/substantive_assessment_campaign.py
+/scripts/acceptance/deterministic_assessment_qualification.py
+/scripts/acceptance/qualification
+/docs/agents
+/docs/architecture/orchestration_migration/acceptance
+/docs/engineering
+/docs/acceptance
+/scripts/acceptance/browser_graduation_qualification_ui.py
+scripts/quickstart.sh
+
+$ git sparse-checkout add scripts/quickstart.sh
+$ ls -l scripts/quickstart.sh
+-rwxr-xr-x@ 1 rushiparikh  wheel  7767 Nov 10 10:17 scripts/quickstart.sh
