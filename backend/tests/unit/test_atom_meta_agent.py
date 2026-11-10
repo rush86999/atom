@@ -433,7 +433,7 @@ class TestAtomMetaAgentErrorHandling:
             assert agent.name == "Finance Analyst"
             assert agent.category == "Finance"
             assert agent.status == AgentStatus.STUDENT.value
-            assert agent.confidence_score == 0.5
+            assert agent.confidence_score == 0.35
 
     @pytest.mark.asyncio
     async def test_spawn_agent_unknown_template(self, atom_agent):
@@ -613,7 +613,8 @@ class TestPostgreSQLIntegration:
                 "capabilities": ["test_capability"]
             },
             persist=True,
-            db=postgresql_db
+            db=postgresql_db,
+            actor=actor,
         ))
 
         # Verify agent exists in database (now in same session!)
@@ -806,7 +807,7 @@ class TestPostgreSQLIntegration:
             pytest.skip("PostgreSQL unavailable")
 
         from core.atom_meta_agent import AtomMetaAgent
-        from core.models import AgentRegistry, Workspace, Tenant
+        from core.models import AgentRegistry, Workspace, Tenant, User
 
         # Create tenant first
         tenant = Tenant(
@@ -903,6 +904,17 @@ class TestPostgreSQLIntegration:
 
         agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
 
+        # The durable spawn decision needs an authenticated actor row.
+        actor = User(
+            id=f"spawn-actor-{test_tenant_id[:8]}",
+            email=f"spawn-actor-{test_tenant_id[:8]}@example.test",
+            first_name="Spawn", last_name="Actor", hashed_password="x",
+            role="workspace_admin", status="active", is_active=True,
+            tenant_id=test_tenant_id, workspace_id=test_workspace_id,
+        )
+        postgresql_db.add(actor)
+        postgresql_db.commit()
+
         # Create agent - all new agents start at STUDENT status
         agent_registry = asyncio.run(agent.spawn_agent(
             template_name="custom",
@@ -916,13 +928,13 @@ class TestPostgreSQLIntegration:
             db=postgresql_db
         ))
 
-        # Verify initial maturity (status = student, confidence_score = 0.5)
+        # Verify initial maturity (status = student, confidence_score = 0.35)
         saved_agent = postgresql_db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_registry.id
         ).first()
 
         assert saved_agent.status == "student"
-        assert saved_agent.confidence_score == 0.5
+        assert saved_agent.confidence_score == 0.35
 
         # Update maturity to INTERN
         saved_agent.status = "intern"

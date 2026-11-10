@@ -552,7 +552,9 @@ async def test_local_spawn_and_list_agents(svc, base_env):
     assert res["templates"] == [{"name": "T"}] and res["registered"][0]["id"] == "ag1"
     atom = MagicMock()
     atom.spawn_agent = AsyncMock(return_value={"agent": "new"})
-    base_env.setattr("core.atom_meta_agent.get_atom_agent", lambda ws: atom)
+    base_env.setattr(
+        "core.atom_meta_agent.get_scoped_atom_agent",
+        lambda ws, tenant_id=None, user=None: atom)
     res = await svc.execute_tool("local-tools", "spawn_agent",
                                  {"template": "T"}, {"workspace_id": "w"})
     assert res == {"agent": "new"}

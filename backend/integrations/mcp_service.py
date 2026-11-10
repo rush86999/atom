@@ -2134,13 +2134,106 @@ class MCPService(IntegrationService):
                 }
 
             elif tool_name == "spawn_agent":
-                from core.atom_meta_agent import get_atom_agent
-                atom = get_atom_agent(context.get("workspace_id", "default"))
-                return await atom.spawn_agent(
-                    template_name=arguments.get("template"),
-                    persist=arguments.get("persist", False)
+                ctx = context or {}
+                from core.personal_scope import (
+                    resolve_tenant_id as _scope_tenant,
+                    resolve_workspace_id as _scope_workspace,
                 )
 
+                template_name = arguments.get("template")
+                custom_params = arguments.get("custom_params")
+                persist = bool(arguments.get("persist", False))
+                ctx_workspace = ctx.get("workspace_id")
+                ctx_tenant = ctx.get("tenant_id")
+                user_id = ctx.get("user_id")
+                user = None
+                if user_id:
+                    from core.database import SessionLocal
+                    from core.models import User as _User
+
+                    with SessionLocal() as lookup_db:
+                        user = (
+                            lookup_db.query(_User)
+                            .filter(_User.id == str(user_id))
+                            .first()
+                        )
+                    if user is None:
+                        return {
+                            "error": "Authenticated user required for spawn",
+                            "persisted": False,
+                        }
+
+                if user is not None:
+                    authoritative_workspace = _scope_workspace(user)
+                    authoritative_tenant = _scope_tenant(user)
+                    if (
+                        (ctx_workspace
+                         and str(ctx_workspace) != authoritative_workspace)
+                        or (ctx_tenant
+                            and str(ctx_tenant) != authoritative_tenant)
+                    ):
+                        return {
+                            "error": (
+                                "Spawn context contradicts the current "
+                                "user's authoritative workspace/tenant"),
+                            "persisted": False,
+                        }
+                    effective_workspace = authoritative_workspace
+                    effective_tenant = authoritative_tenant
+                else:
+                    effective_workspace = (
+                        str(ctx_workspace) if ctx_workspace
+                        else _scope_workspace())
+                    effective_tenant = (
+                        str(ctx_tenant) if ctx_tenant
+                        else _scope_tenant())
+
+                if persist and user is None:
+                    return {
+                        "error": (
+                            "Authenticated user required for persistent "
+                            "spawn"),
+                        "persisted": False,
+                    }
+
+                from core.atom_meta_agent import get_scoped_atom_agent
+
+                atom = get_scoped_atom_agent(
+                    effective_workspace, effective_tenant, user)
+                if persist:
+                    from core.database import SessionLocal
+
+                    with SessionLocal() as db:
+                        result = await atom.spawn_agent_decision(
+                            template_name=template_name,
+                            custom_params=custom_params,
+                            actor=user,
+                            db=db,
+                            operation_id=arguments.get("operation_id"),
+                        )
+                        if result.get("status") in (
+                                "verified", "already_applied"):
+                            data = dict(result.get("data") or {})
+                            data["persisted"] = True
+                            data["operation_id"] = result.get("operation_id")
+                            data["audit_id"] = result.get("audit_id")
+                            data["verification"] = (
+                                data.get("verification")
+                                or result.get("verification"))
+                            return data
+                        return {
+                            "error": (
+                                result.get("error")
+                                or result.get("status")),
+                            "persisted": False,
+                            "verification": result.get("verification"),
+                        }
+
+                return await atom.spawn_agent(
+                    template_name=template_name,
+                    custom_params=custom_params,
+                    persist=False,
+                )
             elif tool_name == "list_workflows":
                 try:
                     import json

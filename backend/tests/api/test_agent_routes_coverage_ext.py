@@ -742,9 +742,9 @@ def test_promote_agent_not_found(admin_user, client):
 def test_spawn_agent_failure_propagates(admin_user, client):
     """An exception from spawn_agent surfaces as 500 (no swallow)."""
     _set_user(admin_user)
-    with patch("core.atom_meta_agent.get_atom_agent") as mock_atom:
+    with patch("core.atom_meta_agent.get_scoped_atom_agent") as mock_atom:
         inst = Mock()
-        inst.spawn_agent = AsyncMock(side_effect=ValueError("bad template"))
+        inst.spawn_agent = AsyncMock(side_effect=RuntimeError("bad template"))
         mock_atom.return_value = inst
         resp = client.post(
             "/api/agents/spawn",

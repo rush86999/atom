@@ -1,0 +1,21 @@
+{
+  "source_ref": "cea73ac362f9191edcf1c1b15a8ed73c807d7d48",
+  "source_files": {
+    "backend/api/agent_routes.py": "5c46440a91208c665740d7ec579d212e9e8ce5a47980d9188564a2116a8dd422",
+    "backend/core/agent_decision_write_service.py": "7f9e83bdb2485650b3d3d68ad85c1fbb4a6e45f410180b7f3a955e13b4275a4a",
+    "backend/core/atom_meta_agent.py": "ab54c9731178d5d75855b72fe72c3d6407358bfdb4c113f84384e9d3caca0092",
+    "backend/core/hitl_resume.py": "a39f409f138c1b297aacf19014ce1d2bf122fe0dc557143196a8ef036124832c",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/integrations/mcp_service.py": "6ce4f0c5732bade24d10e1b62b18eb8d70cf96516a7a8e20e5d24ef79bf18d45",
+    "backend/tests/api/test_agent_spawn_goal14.py": "0a0dea5a3bbfeba7783e48cfcc61642e87bbf45237fd527521cf130a910bbb08",
+    ".github/workflows/ci.yml": "ccda4f4d9e1870f18d4735474842bc90ce373c120b51a2e96001d92c7d141893",
+    "backend/tests/fixtures/ci_backend_additions.json": "035fd5e57a6b9ec3e12d63149615dd43d9aac46f64ecd4d97c5995cb752a74cc"
+  },
+  "artifacts": {
+    "after-155.log": "214fc5a4be10625ecb6694e3eaba5a57954d06aaae752b82e346753f6c3b7127",
+    "README.md": "7fdff5c8f2318dedd7d5bcdcaf7d189af4bcc67678e2354648453563e7dc64a8",
+    "verification.json": "815a750613d9ef182112747e59826d7f85905c3b894ac21177731bf3b8ea9eff",
+    "test_independent_spawn_claim.py": "d5ed332e1063885cb6796ffcf421a7bd07b47d59319713157eb4431ecc854659"
+  }
+}
