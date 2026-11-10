@@ -970,6 +970,411 @@ def _validate_pptx_package(body: bytes, source_text: str) -> None:
                         "rendered PPTX speaker notes do not match the source")
 
 
+def _normalized_export_requirements(raw: Any) -> list:
+    """Validate exactly one claimed requirement set, or refuse."""
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_business_requirements_malformed",
+            "message": "business requirements must be a list of bindings",
+        })
+    if not raw:
+        return []
+    malformed = [
+        index for index, item in enumerate(raw)
+        if not isinstance(item, dict) or not item
+    ]
+    if malformed:
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_business_requirements_malformed",
+            "message": "a business requirement has no valid binding",
+            "indices": malformed,
+        })
+    try:
+        from core.employee_business_outcomes import (
+            normalize_business_requirements,
+        )
+        return normalize_business_requirements(raw)
+    except Exception as exc:  # noqa: BLE001 — fail closed, no internals
+        logger.warning(
+            "Canvas export business requirement unreadable (class=%s)",
+            type(exc).__name__)
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_business_requirements_unreadable",
+            "message": "a business requirement binding is unsupported or "
+                       "malformed",
+        }) from exc
+
+
+def _claimed_export_requirements(material: Dict[str, Any]) -> Optional[list]:
+    """Read CanvasAudit-carried requirement claims for fail-closed checks.
+
+    A claim is never proof: the route resolves the canonical persisted
+    assignment separately. A claim that disagrees with that assignment
+    refuses instead of adding or removing a requirement.
+    """
+    details = material.get("details") if isinstance(
+        material.get("details"), dict) else {}
+    assignment = details.get("assignment") if isinstance(
+        details.get("assignment"), dict) else {}
+    top_present = "business_requirements" in details
+    nested_present = "business_requirements" in assignment
+    if not (top_present or nested_present):
+        return None
+    top = (
+        _normalized_export_requirements(details.get("business_requirements"))
+        if top_present else None)
+    nested = (
+        _normalized_export_requirements(
+            assignment.get("business_requirements"))
+        if nested_present else None)
+    if top is not None and nested is not None:
+        key = lambda items: sorted(  # noqa: E731 - local comparison key
+            items, key=lambda item: item["requirement_id"])
+        if key(top) != key(nested):
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_requirements_contradictory",
+                "message": "top-level and assignment business requirements "
+                           "disagree; the export is refused rather than "
+                           "weakening either set",
+            })
+    return top if top is not None else nested
+
+
+def _resolve_export_job(db: Session, canvas_id: str, actor: Dict[str, Any]):
+    """Resolve the authoritative persisted job bound to this canvas.
+
+    Resolution is server-owned: ``Canvas.goal_run_id`` (the existing goal-run
+    back-link) or the run's exact ``provenance.canvas_id``. A truthy
+    ``run_id`` copied into CanvasAudit metadata is never used, and there is no
+    first-available-job fallback. The GoalRunService is workspace-scoped.
+    """
+    from sqlalchemy.orm import sessionmaker
+
+    from core.goals.goal_run_service import GoalRunService
+    from core.models import Canvas
+    from core.task_lifecycle import TaskLifecycle
+
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if canvas is None:
+        return {"canvas": None, "record": None, "binding": None,
+                "error": "canvas_missing"}
+    factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
+    runs = GoalRunService(
+        workspace_id=str(actor.get("workspace_id") or ""),
+        tenant_id=str(actor.get("tenant_id") or ""),
+        session_factory=factory)
+    lifecycle = TaskLifecycle(runs)
+    goal_run_id = str(getattr(canvas, "goal_run_id", "") or "").strip()
+    if goal_run_id:
+        record = lifecycle.get_task(goal_run_id)
+        if record is None:
+            return {"canvas": canvas, "record": None,
+                    "binding": "canvas_goal_run_id",
+                    "error": "job_binding_unresolved"}
+        return {"canvas": canvas, "record": record,
+                "binding": "canvas_goal_run_id", "error": None}
+    record = lifecycle.find_active_task_for_canvas(canvas_id)
+    if record is not None:
+        return {"canvas": canvas, "record": record,
+                "binding": "canvas_provenance_active", "error": None}
+    record = lifecycle.find_canvas_evidence_task(canvas_id)
+    if record is not None:
+        return {"canvas": canvas, "record": record,
+                "binding": "canvas_provenance_evidence", "error": None}
+    return {"canvas": canvas, "record": None, "binding": None, "error": None}
+
+
+def _authoritative_export_steps(
+    record: Dict[str, Any], assignment: Dict[str, Any],
+) -> list:
+    """Steps whose applied result comes from a durable applied operation.
+
+    A persisted assignment step flag/result alone is not proof: it is mapped
+    from the run's operation record here, and an ``applied`` claim without a
+    matching applied operation is downgraded to unverified. Embedded/copied
+    CanvasAudit steps never enter this path.
+    """
+    operations = {
+        str(operation.get("operation_id") or ""): operation
+        for operation in (record.get("operations") or [])
+        if isinstance(operation, dict)
+    }
+    steps = []
+    for raw in assignment.get("steps") or []:
+        if not isinstance(raw, dict):
+            continue
+        step = dict(raw)
+        operation = operations.get(str(step.get("operation_id") or ""))
+        execution = (
+            operation.get("execution")
+            if operation is not None
+            and str(operation.get("status") or "") == "applied"
+            and isinstance(operation.get("execution"), dict)
+            and operation.get("execution")
+            else None
+        )
+        if execution is None:
+            step["status"] = "unverified"
+            step["result"] = None
+        else:
+            step["status"] = "applied"
+            step["result"] = execution
+        steps.append(step)
+    return steps
+
+
+def _stale_export_source(reason: str) -> HTTPException:
+    return HTTPException(status_code=409, detail={
+        "error": "canvas_export_source_changed",
+        "message": "the verified job receipt is not bound to the current "
+                   "saved canvas source; refresh and re-verify",
+        "reason": reason,
+    })
+
+
+def _check_export_job_binding(
+    canvas: Any, record: Dict[str, Any], assignment: Dict[str, Any],
+    *, revision_id: str, source_digest: str,
+) -> None:
+    """Compare recorded job/source/revision bindings to the current canvas."""
+    from core.canvas_assignment import _canvas_state
+
+    try:
+        state = _canvas_state(canvas)
+    except Exception as exc:  # noqa: BLE001 — unreadable is a refusal
+        logger.warning(
+            "Canvas export job state unreadable (class=%s)",
+            type(exc).__name__)
+        raise _stale_export_source("job_state_unreadable") from exc
+
+    provenance = {}
+    candidates = [
+        (record.get("task_revision") or {}).get("provenance"),
+        assignment.get("provenance"),
+    ]
+    for candidate in candidates:
+        if isinstance(candidate, dict):
+            for key, value in candidate.items():
+                if value not in (None, "", [], {}):
+                    provenance.setdefault(key, value)
+    source_entries = [
+        entry for entry in (assignment.get("sources") or [])
+        if isinstance(entry, dict)
+        and (
+            not entry.get("canvas_id")
+            or str(entry.get("canvas_id")) == str(canvas.id)
+        )
+    ]
+
+    def _compare(binding: Dict[str, Any]) -> None:
+        revision = binding.get("state_revision")
+        if revision not in (None, ""):
+            try:
+                expected_revision = int(revision)
+            except (TypeError, ValueError) as exc:
+                raise _stale_export_source("job_revision_unreadable") from exc
+            if state["revision"] != expected_revision:
+                raise _stale_export_source("canvas_revision_changed")
+        manifest = binding.get("manifest_revision")
+        if manifest not in (None, "") and str(manifest) != str(
+                state["manifest_revision"] or ""):
+            raise _stale_export_source("canvas_manifest_changed")
+        source = binding.get("source") if isinstance(
+            binding.get("source"), dict) else binding
+        for field, actual in (
+            ("source_version", state["source_version"]),
+            ("sha256", (state["source"] or {}).get("sha256")),
+            ("resource_id", (state["source"] or {}).get("resource_id")),
+        ):
+            wanted = source.get(field)
+            if wanted not in (None, "") and str(wanted) != str(actual or ""):
+                raise _stale_export_source(f"canvas_{field}_changed")
+
+    _compare(provenance)
+    for entry in source_entries:
+        _compare(entry)
+
+    recorded_audit = (
+        provenance.get("canvas_audit_id")
+        or provenance.get("source_audit_id"))
+    if recorded_audit not in (None, "") and str(
+            recorded_audit) != str(revision_id):
+        raise _stale_export_source("canvas_audit_changed")
+    recorded_body = (
+        provenance.get("canvas_content_sha256")
+        or provenance.get("canvas_sha256"))
+    if recorded_body not in (None, "") and str(
+            recorded_body) != str(source_digest):
+        raise _stale_export_source("canvas_body_changed")
+    return provenance
+
+
+def _artifact_bound_to_export(
+    record: Dict[str, Any], assignment: Dict[str, Any],
+    source_text: str, format: str,
+) -> Optional[bool]:
+    """Whether the job's verified artifact for this format is this body.
+
+    ``None`` means the job has no artifact step for the format, so the
+    business-result receipts (not document composition) are the claim.
+    """
+    adapter = (
+        "artifact.document" if format == "docx" else "artifact.presentation")
+    steps = [
+        step for step in _authoritative_export_steps(record, assignment)
+        if str(step.get("adapter") or "") == adapter
+    ]
+    if not steps:
+        return None
+    body_sha = hashlib.sha256(source_text.encode("utf-8")).hexdigest()
+    for step in steps:
+        if str(step.get("status") or "") != "applied":
+            continue
+        result = step.get("result") if isinstance(
+            step.get("result"), dict) else {}
+        artifact = result.get("artifact") if isinstance(
+            result.get("artifact"), dict) else {}
+        if not (artifact.get("sha256") and artifact.get("revision")):
+            continue
+        if str(result.get("content_sha256") or "") == body_sha:
+            return True
+    return False
+
+
+def _resolve_export_business_claim(
+    db: Session, canvas_id: str, actor: Dict[str, Any],
+    material: Dict[str, Any], *, revision_id: str, source_digest: str,
+    source_text: str, format: str,
+) -> tuple:
+    """Authoritative artifact scope and verified business result for export."""
+    from core.employee_business_outcomes import (
+        business_requirement_views, normalize_business_requirements,
+    )
+
+    claimed = _claimed_export_requirements(material)
+    resolution = _resolve_export_job(db, canvas_id, actor)
+    record = resolution.get("record")
+    assignment = (
+        record.get("assignment") if isinstance(record, dict)
+        and isinstance(record.get("assignment"), dict) else None)
+    if resolution.get("error") == "job_binding_unresolved":
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_job_binding_required",
+            "message": "the canvas job binding can no longer be resolved; "
+                       "the copied result claim is not authoritative",
+        })
+    if record is None:
+        if claimed:
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_job_binding_required",
+                "message": "business requirements are claimed but no "
+                           "authoritative persisted job is bound to this "
+                           "canvas",
+            })
+        return "unscoped_canvas_draft", "not_claimed"
+    if str(record.get("run_status") or "") in ("failed", "cancelled"):
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_job_not_active",
+            "message": "the bound job is not in an exportable state",
+            "run_status": record.get("run_status"),
+        })
+    if assignment is None:
+        if claimed:
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_job_binding_required",
+                "message": "the bound job has no persisted assignment plan",
+            })
+        return "assignment_bound", "no_required_results"
+
+    try:
+        requirements = normalize_business_requirements(
+            assignment.get("business_requirements") or [])
+    except Exception as exc:  # noqa: BLE001 — fail closed, no internals
+        logger.warning(
+            "Canvas export canonical requirements unreadable (class=%s)",
+            type(exc).__name__)
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_business_requirements_unreadable",
+            "message": "the persisted job requirements are unsupported or "
+                       "malformed",
+        }) from exc
+    if claimed is not None and claimed and requirements:
+        key = lambda items: sorted(  # noqa: E731 - local comparison key
+            items, key=lambda item: item["requirement_id"])
+        if key(claimed) != key(requirements):
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_requirements_contradictory",
+                "message": "the canvas result claim disagrees with the "
+                           "persisted job requirements",
+            })
+    if claimed and not requirements:
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_business_requirements_contradictory",
+            "message": "the canvas claims requirements that its persisted "
+                       "job does not carry",
+        })
+    if not requirements:
+        return "assignment_bound", "no_required_results"
+
+    provenance = _check_export_job_binding(
+        resolution["canvas"], record, assignment,
+        revision_id=revision_id, source_digest=source_digest)
+
+    authoritative = {
+        **assignment,
+        "steps": _authoritative_export_steps(record, assignment),
+    }
+    views = business_requirement_views(authoritative)
+    if len(views) != len(requirements):
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_business_requirements_unreadable",
+            "message": "the persisted job receipts could not be evaluated "
+                       "exactly",
+        })
+    unresolved = [
+        view for view in views
+        if str(view.get("status") or "") != "satisfied"
+    ]
+    if unresolved:
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_business_result_required",
+            "message": "the requested output cannot be published before its "
+                       "required scoped business result is verified",
+            "unresolved": [
+                {"label": item.get("label"),
+                 "next_action": item.get("next_action")}
+                for item in unresolved
+            ],
+        })
+    artifact_bound = _artifact_bound_to_export(
+        record, assignment, source_text, format)
+    if artifact_bound is False:
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_artifact_binding_mismatch",
+            "message": "the saved canvas body is not the verified job "
+                       "artifact for this format; a manual edit cannot "
+                       "inherit the old business result",
+        })
+    if artifact_bound is None:
+        # No artifact step for this format: a byte-exact body digest recorded
+        # by the producer is still an exact output binding. Without one, a
+        # calculation job alone cannot certify an arbitrary document body.
+        recorded_body = (
+            provenance.get("canvas_content_sha256")
+            or provenance.get("canvas_sha256"))
+        body_sha = hashlib.sha256(source_text.encode("utf-8")).hexdigest()
+        if not recorded_body or str(recorded_body) != body_sha:
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_output_binding_required",
+                "message": "the bound job has business results but no exact "
+                           "output/body binding to the current saved canvas; "
+                           "the document cannot be certified from an old "
+                           "receipt",
+            })
+
+    return "assignment_bound", "required_results_verified"
+
+
 @router.get("/{canvas_id}/export/office")
 async def export_generated_canvas_office(
     canvas_id: str,
@@ -1022,99 +1427,6 @@ async def export_generated_canvas_office(
             "message": "the canvas result is not accepted for final publication",
             "review_status": review_status,
         })
-    details = material.get("details") if isinstance(
-        material.get("details"), dict) else {}
-    assignment = details.get("assignment") if isinstance(
-        details.get("assignment"), dict) else {}
-    top_present = "business_requirements" in details
-    nested_present = "business_requirements" in assignment
-
-    def _normalized_requirements(raw):
-        """Validate one representation exactly, or refuse without weakening."""
-        if not isinstance(raw, list):
-            raise HTTPException(status_code=409, detail={
-                "error": "canvas_export_business_requirements_malformed",
-                "message": "business requirements must be a list of bindings",
-            })
-        if not raw:
-            return []
-        malformed = [
-            index for index, item in enumerate(raw)
-            if not isinstance(item, dict) or not item
-        ]
-        if malformed:
-            raise HTTPException(status_code=409, detail={
-                "error": "canvas_export_business_requirements_malformed",
-                "message": "a business requirement has no valid binding",
-                "indices": malformed,
-            })
-        try:
-            from core.employee_business_outcomes import (
-                normalize_business_requirements,
-            )
-            return normalize_business_requirements(raw)
-        except Exception as exc:  # noqa: BLE001 — fail closed, no internals
-            logger.warning(
-                "Canvas export business requirement unreadable (class=%s)",
-                type(exc).__name__)
-            raise HTTPException(status_code=409, detail={
-                "error": "canvas_export_business_requirements_unreadable",
-                "message": "a business requirement binding is unsupported or "
-                           "malformed",
-            }) from exc
-
-    top_requirements = (
-        _normalized_requirements(details.get("business_requirements"))
-        if top_present else None
-    )
-    nested_requirements = (
-        _normalized_requirements(assignment.get("business_requirements"))
-        if nested_present else None
-    )
-    if top_requirements is not None and nested_requirements is not None:
-        def _by_requirement_id(items):
-            return sorted(items, key=lambda item: item["requirement_id"])
-
-        if _by_requirement_id(top_requirements) != _by_requirement_id(
-                nested_requirements):
-            raise HTTPException(status_code=409, detail={
-                "error": "canvas_export_business_requirements_contradictory",
-                "message": "top-level and assignment business requirements "
-                           "disagree; the export is refused rather than "
-                           "weakening either set",
-            })
-    requirements = (
-        top_requirements if top_requirements is not None
-        else nested_requirements)
-    artifact_scope = "unscoped_canvas_draft"
-    if requirements:
-        from core.employee_business_outcomes import business_requirement_views
-
-        merged_assignment = dict(assignment)
-        merged_assignment["business_requirements"] = requirements
-        views = business_requirement_views(merged_assignment)
-        if len(views) != len(requirements):
-            raise HTTPException(status_code=409, detail={
-                "error": "canvas_export_business_requirements_unreadable",
-                "message": "the business requirement receipts could not be "
-                           "evaluated exactly",
-            })
-        artifact_scope = "assignment_bound"
-        unresolved = [
-            view for view in views
-            if str(view.get("status") or "") != "satisfied"
-        ]
-        if unresolved:
-            raise HTTPException(status_code=409, detail={
-                "error": "canvas_export_business_result_required",
-                "message": "the requested output cannot be published before "
-                           "its required scoped business result is verified",
-                "unresolved": [
-                    {"label": item.get("label"),
-                     "next_action": item.get("next_action")}
-                    for item in unresolved
-                ],
-            })
     text = _canvas_export_text(material.get("content"))
     if text is None or not text.strip():
         raise HTTPException(status_code=409, detail={
@@ -1122,18 +1434,27 @@ async def export_generated_canvas_office(
             "message": "the saved canvas has no document text to export",
         })
     canvas_type = str(material.get("canvas_type") or "").lower()
-    if format == "pptx" and canvas_type not in ("presentation", "markdown", "generic"):
+    if format == "pptx" and canvas_type not in (
+            "presentation", "markdown", "generic"):
         raise HTTPException(status_code=409, detail={
             "error": "canvas_export_format_unsupported",
             "message": "this canvas type is not a presentation source",
         })
-    if format == "docx" and canvas_type not in ("docs", "document", "markdown", "generic"):
+    if format == "docx" and canvas_type not in (
+            "docs", "document", "markdown", "generic"):
         raise HTTPException(status_code=409, detail={
             "error": "canvas_export_format_unsupported",
             "message": "this canvas type is not a document source",
         })
 
     source_digest = canvas_content_digest(material.get("content"))
+    artifact_scope, business_result = _resolve_export_business_claim(
+        db, canvas_id, actor, material,
+        revision_id=revision_id,
+        source_digest=source_digest,
+        source_text=text,
+        format=format,
+    )
     source_sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
     title = str(material.get("title") or "").strip() or None
     from core.local_paths import resolve_local_path
@@ -1198,15 +1519,39 @@ async def export_generated_canvas_office(
             raise HTTPException(status_code=exc.status_code, detail={
                 "error": exc.code, "message": str(exc)}) from exc
         latest_material = visible_canvas_material(fresh_db, canvas_id)
+        if (not latest_material.get("success")
+                or str(latest_material.get("revision_audit_id") or "")
+                != revision_id):
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_source_changed",
+                "message": "the saved canvas changed while the file was "
+                           "rendered; retry",
+            })
+        latest_digest = canvas_content_digest(
+            latest_material.get("content"))
+        if latest_digest != source_digest:
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_source_changed",
+                "message": "the saved canvas changed while the file was "
+                           "rendered; retry",
+            })
+        latest_text = _canvas_export_text(latest_material.get("content"))
+        latest_scope, latest_result = _resolve_export_business_claim(
+            fresh_db, canvas_id, actor, latest_material,
+            revision_id=str(latest_material.get("revision_audit_id") or ""),
+            source_digest=latest_digest,
+            source_text=latest_text or "",
+            format=format,
+        )
+        if (latest_scope != artifact_scope
+                or latest_result != business_result):
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_job_changed",
+                "message": "the job/receipt state changed while the file was "
+                           "rendered; retry",
+            })
     finally:
         fresh_db.close()
-    if (not latest_material.get("success")
-            or str(latest_material.get("revision_audit_id") or "") != revision_id
-            or canvas_content_digest(latest_material.get("content")) != source_digest):
-        raise HTTPException(status_code=409, detail={
-            "error": "canvas_source_changed",
-            "message": "the saved canvas changed while the file was rendered; retry",
-        })
 
     output_sha = hashlib.sha256(body).hexdigest()
     filename = (
@@ -1233,9 +1578,7 @@ async def export_generated_canvas_office(
             "X-Atom-Source-SHA256": source_sha,
             "X-Atom-Output-SHA256": output_sha,
             "X-Atom-Artifact-Scope": artifact_scope,
-            "X-Atom-Business-Result": (
-                "not_claimed" if artifact_scope == "unscoped_canvas_draft"
-                else "required_results_verified"),
+            "X-Atom-Business-Result": business_result,
         },
     )
 

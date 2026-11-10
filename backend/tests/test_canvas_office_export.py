@@ -431,36 +431,186 @@ def _requirement():
     }
 
 
-def _verified_quote_step():
-    return {
-        "step_id": "quote-step-1",
-        "adapter": "quote.calculate",
-        "status": "applied",
-        "result": {
-            "value": 1200,
-            "unit": "USD",
-            "verification": {"status": "verified"},
+def _job_services(world):
+    from core.assignment_executor import AssignmentExecutor
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+
+    runs = GoalRunService(
+        workspace_id=world.ws, tenant_id=world.tenant,
+        session_factory=world.Session)
+    goals = GoalService(
+        workspace_id=world.ws, tenant_id=world.tenant,
+        session_factory=world.Session)
+    lifecycle = TaskLifecycle(runs, goals)
+    return lifecycle, AssignmentExecutor(lifecycle)
+
+
+def _quote_step():
+    from core.assignment_plan import new_step
+
+    return new_step(
+        step_id="calculate",
+        title="Calculate the quote",
+        operation_type="calculate",
+        adapter="quote.calculate",
+        inputs={
+            "line_items": [{
+                "item_id": "B",
+                "quantity": "1",
+                "unit": "each",
+                "pack_size": "1",
+                "unit_price": "100.00",
+                "price_basis": "contract",
+                "currency": "USD",
+                "category": "B",
+                "source_ref": {
+                    "resource_id": "price-list",
+                    "source_version": "v1",
+                },
+            }],
+            "currency": "USD",
+            "freight": "0",
+            "tax": {"basis": "none"},
+            "as_of": "2026-11-01",
+            "rounding": "half_up",
+            "scale": 2,
+            "rounding_authority": "customer agreement",
+            "source_evidence": [{
+                "resource_id": "price-list",
+                "source_version": "v1",
+            }],
         },
-    }
+        effect="local",
+    )
+
+
+def _create_real_quote_job(world, canvas_id, *, provenance=None,
+                           with_artifact=None, requirements=True):
+    from core.assignment_plan import new_assignment, new_deliverable
+
+    lifecycle, executor = _job_services(world)
+    steps = [_quote_step()]
+    deliverables = []
+    if with_artifact is not None:
+        from core.assignment_plan import new_step
+
+        steps.append(new_step(
+            step_id="deliverable",
+            title="Render the quote document",
+            operation_type="present",
+            adapter="artifact.document",
+            depends_on=["calculate"],
+            inputs={
+                "path": str(with_artifact),
+                "title": "Quote",
+                "content": (
+                    "# Quote\n\nTotal: 100.00 USD.\n"),
+            },
+            effect="local",
+        ))
+        deliverables.append(new_deliverable(
+            deliverable_id="del-document", kind="document",
+            description="quote document", step_id="deliverable"))
+    plan = new_assignment(
+        objective="Quote for the saved canvas",
+        workspace_id=world.ws,
+        tenant_id=world.tenant,
+        steps=steps,
+        deliverables=deliverables,
+        business_requirements=(
+            [{
+                "requirement_id": "result-quote-1",
+                "operation": "quote_calculation",
+                "subject": "PO-0090",
+                "label": "quote calculation",
+            }] if requirements else []
+        ),
+        authorized_actions=["calculate", "present"],
+        provenance={
+            "canvas_id": canvas_id,
+            "requester_id": world.user,
+            **(provenance or {}),
+        },
+    )
+    created = executor.create_assignment(
+        f"conv-{canvas_id}", "Quote for the saved canvas", assignment=plan)
+    import asyncio
+    started = asyncio.run(executor.execute(created["run_id"]))
+    return lifecycle, created["run_id"], started
+
+
+def _bind_canvas_to_run(world, canvas_id, run_id):
+    with world.Session() as db:
+        db.query(Canvas).filter(Canvas.id == canvas_id).update(
+            {"goal_run_id": run_id}, synchronize_session=False)
+        db.commit()
 
 
 def test_export_refuses_unresolved_assignment_business_result(world):
     canvas_id, audit_id = world.create_canvas()
-    _set_audit_details(
-        world, canvas_id,
-        assignment={"business_requirements": [_requirement()]})
+    from core.assignment_plan import new_assignment
+
+    lifecycle, executor = _job_services(world)
+    plan = new_assignment(
+        objective="Unfinished quote",
+        workspace_id=world.ws, tenant_id=world.tenant,
+        steps=[_quote_step()],
+        authorized_actions=["calculate"],
+        business_requirements=[{
+            "requirement_id": "result-quote-1",
+            "operation": "quote_calculation",
+            "subject": "PO-0090",
+            "label": "quote calculation",
+        }],
+        provenance={"canvas_id": canvas_id, "requester_id": world.user},
+    )
+    created = executor.create_assignment(
+        f"conv-{canvas_id}", "Unfinished quote", assignment=plan)
+    _bind_canvas_to_run(world, canvas_id, created["run_id"])
     response = _export(world.client(), canvas_id, "docx",
                        expected_audit_id=audit_id)
-    assert response.status_code == 409
+    assert response.status_code == 409, response.text
     assert response.json()["detail"]["error"] == (
         "canvas_export_business_result_required")
     assert response.headers.get("x-atom-business-result") is None
 
 
+def test_copied_flags_for_a_missing_job_cannot_certify(world):
+    canvas_id, audit_id = world.create_canvas()
+    _set_audit_details(
+        world, canvas_id,
+        assignment={
+            "run_id": "job-that-does-not-exist",
+            "business_requirements": [{
+                "requirement_id": "result-quote-1",
+                "operation": "quote_calculation",
+                "subject": "PO-0090",
+                "label": "quote calculation",
+            }],
+            "steps": [{
+                "step_id": "quote-step-1",
+                "adapter": "quote.calculate",
+                "status": "applied",
+                "result": {
+                    "value": 1200,
+                    "unit": "USD",
+                    "verification": {"status": "verified"},
+                },
+            }],
+        },
+    )
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == (
+        "canvas_export_job_binding_required")
+    assert response.headers.get("x-atom-business-result") is None
+
+
 def test_nonempty_business_requirements_cannot_vanish(world):
     canvas_id, audit_id = world.create_canvas()
-    # The exact root shape: a truthy assignment with no requirements must not
-    # shadow the top-level non-empty requirement set.
     _set_audit_details(
         world, canvas_id,
         business_requirements=[{
@@ -513,29 +663,138 @@ def test_malformed_or_contradictory_business_requirements_fail_closed(
         "canvas_export_business_requirements_")
 
 
-@pytest.mark.parametrize("representation", ["top_level", "nested"])
-def test_valid_bound_business_result_still_exports_with_receipts(
-        world, representation):
-    canvas_id, audit_id = world.create_canvas()
-    requirement = _requirement()
-    steps = [_verified_quote_step()]
-    if representation == "top_level":
-        _set_audit_details(
-            world, canvas_id,
-            business_requirements=[requirement],
-            assignment={"run_id": "scratch-job", "steps": steps})
-    else:
-        _set_audit_details(
-            world, canvas_id,
-            assignment={"run_id": "scratch-job",
-                        "business_requirements": [requirement],
-                        "steps": steps})
+def test_real_calculation_without_exact_output_binding_is_not_certified(
+        world):
+    # The decisive root case: a real completed calculation job with a real
+    # receipt is bound to the canvas, but the canvas body has no exact
+    # output/body/source binding and shows an arbitrary contradictory total.
+    canvas_id, audit_id = world.create_canvas(
+        content="# Quote\n\nTotal: 9999.00 USD.\n")
+    lifecycle, run_id, started = _create_real_quote_job(world, canvas_id)
+    assert started["assignment"]["status"] == "completed", started
+    assert lifecycle.get_assignment(run_id)["status"] == "completed"
+    _bind_canvas_to_run(world, canvas_id, run_id)
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == (
+        "canvas_export_output_binding_required")
+    assert response.headers.get("x-atom-business-result") is None
+
+
+def test_real_executor_artifact_exports_as_verified(
+        world, tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    canvas_content = "# Quote\n\nTotal: 100.00 USD.\n"
+    canvas_id, audit_id = world.create_canvas(
+        title="Quote", content=canvas_content)
+    _lifecycle, run_id, started = _create_real_quote_job(
+        world, canvas_id, with_artifact=tmp_path / "quote.docx")
+    assert started["assignment"]["status"] == "completed", started
+    _bind_canvas_to_run(world, canvas_id, run_id)
     response = _export(world.client(), canvas_id, "docx",
                        expected_audit_id=audit_id)
     assert response.status_code == 200, response.text
     assert response.headers["x-atom-business-result"] == (
         "required_results_verified")
     assert response.headers["x-atom-artifact-scope"] == "assignment_bound"
+
+
+def test_same_owner_unrelated_job_cannot_certify(world):
+    canvas_id, audit_id = world.create_canvas()
+    other_canvas, _ = world.create_canvas(title="Other")
+    _lifecycle, _run_id, _started = _create_real_quote_job(
+        world, other_canvas)
+    _set_audit_details(
+        world, canvas_id,
+        business_requirements=[_requirement()])
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == (
+        "canvas_export_job_binding_required")
+
+
+def test_foreign_workspace_job_binding_is_refused(world):
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+    from core.assignment_executor import AssignmentExecutor
+
+    canvas_id, audit_id = world.create_canvas()
+    world.create_canvas(title="Other")
+    runs = GoalRunService(
+        workspace_id="foreign-ws", tenant_id="foreign-tenant",
+        session_factory=world.Session)
+    goals = GoalService(
+        workspace_id="foreign-ws", tenant_id="foreign-tenant",
+        session_factory=world.Session)
+    executor = AssignmentExecutor(TaskLifecycle(runs, goals))
+    from core.assignment_plan import new_assignment
+    plan = new_assignment(
+        objective="Foreign quote",
+        workspace_id="foreign-ws", tenant_id="foreign-tenant",
+        steps=[_quote_step()],
+        authorized_actions=["calculate"],
+        provenance={"canvas_id": canvas_id, "requester_id": "foreign"},
+    )
+    created = executor.create_assignment(
+        f"conv-{canvas_id}", "Foreign quote", assignment=plan)
+    _bind_canvas_to_run(world, canvas_id, created["run_id"])
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == (
+        "canvas_export_job_binding_required")
+
+
+def test_stale_job_source_revision_is_refused(world):
+    canvas_id, audit_id = world.create_canvas()
+    _lifecycle, run_id, _started = _create_real_quote_job(
+        world, canvas_id,
+        provenance={"state_revision": 7,
+                    "source": {"sha256": "old-source",
+                               "source_version": "v-old"}})
+    _bind_canvas_to_run(world, canvas_id, run_id)
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == (
+        "canvas_export_source_changed")
+
+
+def test_manual_edit_after_verified_artifact_is_refused(
+        world, tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    canvas_content = "# Quote\n\nTotal: 100.00 USD.\n"
+    canvas_id, audit_id = world.create_canvas(
+        title="Quote", content=canvas_content)
+    _lifecycle, run_id, started = _create_real_quote_job(
+        world, canvas_id, with_artifact=tmp_path / "quote.docx")
+    assert started["assignment"]["status"] == "completed", started
+    _bind_canvas_to_run(world, canvas_id, run_id)
+    verified = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert verified.status_code == 200, verified.text
+    assert verified.headers["x-atom-business-result"] == (
+        "required_results_verified")
+
+    with world.Session() as db:
+        db.add(CanvasAudit(
+            id=f"audit-{uuid.uuid4().hex[:10]}", canvas_id=canvas_id,
+            tenant_id=world.tenant, user_id=world.user,
+            canvas_type="docs", action_type="update",
+            details_json={
+                "title": "Quote",
+                "content": "# Quote\n\nTotal: 900.00 USD.\n",
+                "review_status": "accepted",
+            }))
+        db.commit()
+    edited = _export(world.client(), canvas_id, "docx")
+    assert edited.status_code == 409, edited.text
+    assert edited.json()["detail"]["error"] == (
+        "canvas_export_artifact_binding_mismatch")
+    assert edited.headers.get("x-atom-business-result") is None
 
 
 @pytest.mark.parametrize("corruption", ["section_order", "heading_level"])
