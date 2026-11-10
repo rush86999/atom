@@ -81,7 +81,9 @@ behavior and its evidence.
 Training here means reusable lessons and business context supplied to the agent.
 The demonstrated behavior does not require retraining the underlying model.
 The longer-term goal is agents that take on more responsibility as they earn it
-through assessment, verified work and human oversight. General employee-like
+through assessment, verified work and human oversight. See [agent training and
+graduation](docs/agents/TRAINING_AND_GRADUATION.md) for the maturity stages,
+review process and implementation references. General employee-like
 judgment and broad autonomous competence remain development goals.
 
 ## AI governance: control what agents can do
@@ -95,8 +97,9 @@ on supported paths. A model proposal is not permission to act.
   review; missing, rejected or mismatched approval cannot authorize the action.
 - **Reviewable execution:** supported results retain source and operation
   provenance. Unresolved requirements block completion and dependent reports.
-- **Controlled autonomy:** agent graduation toward greater autonomy is an
-  explicit project goal; broad autonomous competence is not claimed.
+- **Controlled autonomy:** the [agent graduation system](docs/agents/TRAINING_AND_GRADUATION.md)
+  connects readiness evidence and authorized promotion with maturity stages.
+  Broad autonomous competence remains a development goal.
 
 These are engineering controls with recorded acceptance boundaries, not a claim
 of regulatory certification or universal protection against AI risks.

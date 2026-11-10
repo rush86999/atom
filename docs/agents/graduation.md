@@ -1,5 +1,7 @@
 # Agent Graduation Guide
 
+> **Historical reference:** Start with [Agent training and graduation](TRAINING_AND_GRADUATION.md) for the current source-linked overview. Older examples and automatic/unrestricted-autonomy claims below are not current operating guarantees.
+
 > **Removed (2026-08-20):** the bespoke three-layer policy engine
 > (`core/governance/` — `policy_engine.py`, `dynamic_governance.py`,
 > `governance_service.py`) has been deleted. It was never wired into the live
