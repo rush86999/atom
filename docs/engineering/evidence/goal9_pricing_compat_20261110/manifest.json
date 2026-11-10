@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-10",
+  "files": {
+    "README.md": "afcf12a4abd311fa0e1d482d6d88c77d38bfa9e5505d1cbb8cf710aa8f0cb2a6",
+    "after/broad-current-main.log": "e6b09550ab87a1b1060a62e33f047f190061d5d0104e2ff0e72bd7c1f969ffe2",
+    "after/joined-current-main.log": "bd5ffa90321c7814332cfdc7ebf40f28f69f02b3b817955bbc965b6540332cb7",
+    "before/root-8de-independent-negative.log": "73582321f2d0bf52118513a2a014a81f0de17250c16e8652d8a44d19ac1d8bd4",
+    "before/root-8de-review.json": "64095cea77d06aa2d5c705b49c7ac6477544318b7ea2f6e945bf39fc357df43a",
+    "before/root-input-only-8de-failure.log": "531bf388303b9a0579654142ca169d920510737c701d3c5fd8eeb59cb8db650a",
+    "before/root-input-only-before.log": "1881f8a25e4889717ec1fb190ac34637b68a0e7a9e55368f4ece6d52bc578244",
+    "before/root-input-only-probe.json": "27bf53d07bdde51977389a82350c7eaff9c00355e7db7bc00876eab8cc012f1f",
+    "before/root-input-only-probe.py": "e11ea3eb43b883d4cd7898ecda0208729d94afe8b924b7e54bb9ddb70380f395",
+    "before/root-price-material-probe.py": "ab699ed90a63d6bd081f13557f23108c8f24dddf338b0e2da97fba98788d38c5",
+    "source/fix.diff": "17181d042180bc78b9696e43d96857cc75365ca59b85a4248b9e19b9be0af5d5",
+    "source/source-hashes.json": "c9c0be2c0677e1da28e3ee577472f04647ae108d29f3ff249387ee4067c7522b",
+    "verification.json": "0ef5f8049340a93a724548223b769fad5664454d4bac5226025991d0aa1a8ea7"
+  },
+  "schema": "goal9_pricing_compat_evidence"
+}

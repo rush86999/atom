@@ -1,0 +1,17 @@
+......F                                                                  [100%]
+=================================== FAILURES ===================================
+___________ test_known_input_only_charge_is_not_lost_for_zero_output ___________
+../../root_input_only_pricing_compat_probe.py:6: in test_known_input_only_charge_is_not_lost_for_zero_output
+    assert fetcher.estimate_cost('controlled-input-only',100,0)==1.0
+E   AssertionError: assert None == 1.0
+E    +  where None = estimate_cost('controlled-input-only', 100, 0)
+E    +    where estimate_cost = <core.dynamic_pricing_fetcher.DynamicPricingFetcher object at 0x113baf810>.estimate_cost
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17: 14 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_input_only_pricing_compat_probe.py::test_known_input_only_charge_is_not_lost_for_zero_output
+1 failed, 6 passed, 14 warnings in 0.74s
