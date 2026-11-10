@@ -1,0 +1,31 @@
+{
+  "claims": {
+    "all_browser_checks_passed": false,
+    "pre_restart_list_capture_cause": "UNKNOWN; no response body retained; no in-flight claim",
+    "pre_restart_list_capture_present": false,
+    "safe_region_screenshots_present": false,
+    "screenshot_exception_cause": "UNKNOWN; helper swallowed it; no strict-mode claim"
+  },
+  "failed_checks": [
+    "screenshot_confirmed",
+    "screenshot_draft",
+    "screenshot_promoted",
+    "screenshot_reload_after",
+    "ui_before_candidate_present",
+    "ui_before_list_lesson",
+    "ui_before_list_promoted_entry_id",
+    "ui_before_list_revision",
+    "ui_before_list_status",
+    "ui_before_visible_matches_list"
+  ],
+  "false_check_count": 10,
+  "overall": "FAILED",
+  "phase": "final checker after create/confirm/promote/restart/lesson readback",
+  "preserved_private_artifacts": {
+    "failure_checkpoint_sha256": "097f8e957b53113a53b1501873f2e8c6bed983c0f1bb18240aeb32829a84e156",
+    "failure_private_sha256": "5589f564c46938b28ef7f0ddb987935022509f3e9ec1e4df2e609688535ee7cd",
+    "full_failure_screenshot_commit": "NO - synthetic identity visible; private receipt only",
+    "full_failure_screenshot_sha256": "22efb137a632da3de6654499ea0e73c97c68fe93daddd283a7512b1fed711cd8"
+  },
+  "true_check_count": 131
+}
