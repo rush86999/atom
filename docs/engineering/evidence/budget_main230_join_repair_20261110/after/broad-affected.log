@@ -1,0 +1,1338 @@
+
+tests/test_learning_router_live_session_factory.py::test_router_resolves_current_authoritative_factory_each_call
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:39 [    INFO] EscalationManager initialized
+2026-11-10 14:14:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:14:39 [    INFO] EscalationManager initialized
+2026-11-10 14:14:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:14:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:14:39 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_learning_router_live_session_factory.py::test_existing_local_session_override_seam_is_preserved PASSED [  0%]
+tests/test_learning_router_live_session_factory.py::test_business_and_legacy_writes_follow_the_restored_factory PASSED [  1%]
+tests/test_employee_business_feedback.py::test_context_floor_before_feedback_tests
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:45 [    INFO] EscalationManager initialized
+2026-11-10 14:14:45 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:14:45 [    INFO] LocalOnlyGuard initialized
+2026-11-10 14:14:45 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-10 14:14:45 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:45 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-10 14:14:45 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [  1%]
+tests/test_employee_business_feedback.py::test_evaluated_bad_work_persists_and_changes_next_routing_decision
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:46 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:46 [    INFO] EscalationManager initialized
+2026-11-10 14:14:46 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:14:46 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:46 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:46 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-3ba2ed41d6e5 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:46 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.1s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-3ba2ed41d6e5 attempt=1
+2026-11-10 14:14:46 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:46 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:46 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-aa4e0c71068b attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:46 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-aa4e0c71068b attempt=1
+2026-11-10 14:14:46 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:46 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:46 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-e8a716044c51 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:46 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-e8a716044c51 attempt=1
+2026-11-10 14:14:46 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:46 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-10 14:14:46 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-10 14:14:46 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-4a49ae07d7d9 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:46 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-4a49ae07d7d9 attempt=1
+PASSED                                                                   [  1%]
+tests/test_employee_business_feedback.py::test_evaluated_business_failure_changes_next_routing_decision
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:47 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:47 [    INFO] EscalationManager initialized
+2026-11-10 14:14:47 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:14:47 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:47 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:47 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-128d4c8c4a07 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:47 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-128d4c8c4a07 attempt=1
+2026-11-10 14:14:47 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:47 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:47 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-f28fae79d609 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:47 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-f28fae79d609 attempt=1
+2026-11-10 14:14:47 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:47 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:47 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-f6b305fe1b67 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:47 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-f6b305fe1b67 attempt=1
+2026-11-10 14:14:47 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:47 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] BPC Ranking Successful for moderate: Top model pricey-model (Value: 8100000.00)
+2026-11-10 14:14:47 [    INFO] Structured generation (free, Managed): local_pricey/pricey-model
+2026-11-10 14:14:47 [    INFO] [structured-dispatch] local_pricey/pricey-model route=structured-b49304a28fc5 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:47 [    INFO] [structured-trace] local_pricey/pricey-model cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-b49304a28fc5 attempt=1
+PASSED                                                                   [  2%]
+tests/test_employee_business_feedback.py::test_strict_qualification_pin_fails_instead_of_escaping
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:48 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:48 [    INFO] EscalationManager initialized
+2026-11-10 14:14:48 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:14:48 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:48 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:48 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:48 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-5f0e1f6209ba attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:48 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-5f0e1f6209ba attempt=1
+2026-11-10 14:14:48 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:48 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:48 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:48 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-b94a507cbb66 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:48 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-b94a507cbb66 attempt=1
+2026-11-10 14:14:48 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:48 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:48 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:48 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-4174652d3e38 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:48 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-4174652d3e38 attempt=1
+2026-11-10 14:14:48 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:48 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:48 [    INFO] BPC Ranking Successful for simple: Top model pricey-model (Value: 8100000.00)
+2026-11-10 14:14:48 [   ERROR] Structured generation failed: no_suitable_configured_model for profile 'employee_evidence_selection': the qualification pin does not meet the workload capability contract
+PASSED                                                                   [  2%]
+tests/test_employee_business_feedback.py::test_business_evidence_is_scoped_by_workspace_tenant_and_profile_version
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:49 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:49 [    INFO] EscalationManager initialized
+2026-11-10 14:14:49 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:14:49 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:49 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:49 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:49 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:49 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:49 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-a28dbed0189e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:49 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-a28dbed0189e attempt=1
+2026-11-10 14:14:49 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:49 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:49 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:49 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:49 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:49 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-adfc6077c737 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:49 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-adfc6077c737 attempt=1
+2026-11-10 14:14:49 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:49 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:49 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:49 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:49 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:49 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-b22eb27c2b2f attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:49 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-b22eb27c2b2f attempt=1
+PASSED                                                                   [  2%]
+tests/test_employee_business_feedback.py::test_satisfied_business_outcome_annotates_the_same_generation
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:50 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:50 [    INFO] EscalationManager initialized
+2026-11-10 14:14:50 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:14:50 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:50 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:50 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:50 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:50 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:50 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-c3fd252bdf2b attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:50 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-c3fd252bdf2b attempt=1
+PASSED                                                                   [  3%]
+tests/test_employee_business_feedback.py::test_compact_evaluation_stays_in_the_compact_profile
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:50 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  3%]
+tests/test_employee_business_feedback.py::test_wait_choice_origin_needs_an_explicit_verdict_and_is_never_auto_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:51 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  3%]
+tests/test_employee_business_feedback.py::test_deterministic_fallback_is_never_credited_as_model_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:52 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:52 [    INFO] EscalationManager initialized
+2026-11-10 14:14:52 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:14:52 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:14:52 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:14:52 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:52 [    INFO] BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:14:52 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:14:52 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-3b25a056515d attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+2026-11-10 14:14:52 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-3b25a056515d attempt=1
+PASSED                                                                   [  4%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_wrong_or_missing_receipt_fields
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:53 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:53 [ WARNING] business feedback refused: workspace binding mismatch for generation binding-wrong_workspace
+2026-11-10 14:14:53 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_workspace
+2026-11-10 14:14:53 [ WARNING] business feedback refused: tenant binding mismatch for generation binding-wrong_tenant
+2026-11-10 14:14:53 [ WARNING] business routing feedback not recorded (refused_tenant): tenant=tenant-other model=llama3.1:8b generation=binding-wrong_tenant
+2026-11-10 14:14:53 [ WARNING] business feedback refused: provider binding mismatch for generation binding-wrong_provider
+2026-11-10 14:14:53 [ WARNING] business routing feedback not recorded (refused_provider): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_provider
+2026-11-10 14:14:53 [ WARNING] business feedback refused: model binding mismatch for generation binding-wrong_model
+2026-11-10 14:14:53 [ WARNING] business routing feedback not recorded (refused_model): tenant=tenant-ctrl model=other-model generation=binding-wrong_model
+2026-11-10 14:14:53 [ WARNING] business feedback refused: profile binding mismatch for generation binding-wrong_profile
+2026-11-10 14:14:53 [ WARNING] business routing feedback not recorded (refused_profile): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_profile
+2026-11-10 14:14:53 [ WARNING] business feedback refused: profile_version binding mismatch for generation binding-wrong_version
+2026-11-10 14:14:53 [ WARNING] business routing feedback not recorded (refused_profile_version): tenant=tenant-ctrl model=llama3.1:8b generation=binding-wrong_version
+PASSED                                                                   [  4%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-workspace_id]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:54 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:54 [ WARNING] business feedback refused: workspace binding mismatch for generation binding-type-workspace_id-int
+2026-11-10 14:14:54 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-workspace_id-int
+PASSED                                                                   [  4%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-route_provider]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:55 [ WARNING] business feedback refused: provider binding mismatch for generation binding-type-route_provider-int
+2026-11-10 14:14:55 [ WARNING] business routing feedback not recorded (refused_provider): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-route_provider-int
+PASSED                                                                   [  5%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-capability_profile]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:55 [ WARNING] business feedback refused: profile binding mismatch for generation binding-type-capability_profile-int
+2026-11-10 14:14:55 [ WARNING] business routing feedback not recorded (refused_profile): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-capability_profile-int
+PASSED                                                                   [  5%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[numeric-wrong-type-profile_version]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:56 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:14:56 [ WARNING] business feedback refused: profile_version binding mismatch for generation binding-type-profile_version-int
+2026-11-10 14:14:56 [ WARNING] business routing feedback not recorded (refused_profile_version): tenant=tenant-ctrl model=llama3.1:8b generation=binding-type-profile_version-int
+PASSED                                                                   [  5%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-workspace_id]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:57 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  6%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-route_provider]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:58 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  6%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-capability_profile]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:14:59 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  6%]
+tests/test_employee_business_feedback.py::test_business_binding_requires_an_exact_json_string_type[opaque-string-valid-profile_version]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:00 [    INFO] Initialized router with 30 models
+PASSED                                                                   [  7%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-workspace_id] PASSED [  7%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-route_provider] PASSED [  8%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-capability_profile] PASSED [  8%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[int-profile_version] PASSED [  8%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-workspace_id] PASSED [  9%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-route_provider] PASSED [  9%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-capability_profile] PASSED [  9%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[zero-profile_version] PASSED [ 10%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-workspace_id] PASSED [ 10%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-route_provider] PASSED [ 10%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-capability_profile] PASSED [ 11%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[true-profile_version] PASSED [ 11%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-workspace_id] PASSED [ 11%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-route_provider] PASSED [ 12%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-capability_profile] PASSED [ 12%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[false-profile_version] PASSED [ 12%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-workspace_id] PASSED [ 13%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-route_provider] PASSED [ 13%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-capability_profile] PASSED [ 13%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[list-profile_version] PASSED [ 14%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-workspace_id] PASSED [ 14%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-route_provider] PASSED [ 14%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-capability_profile] PASSED [ 15%]
+tests/test_employee_business_feedback.py::test_business_binding_error_refuses_non_string_json_types[object-profile_version] PASSED [ 15%]
+tests/test_employee_business_feedback.py::test_business_write_binding_annotates_exactly_the_receipt
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:01 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 16%]
+tests/test_employee_business_feedback.py::test_business_write_binding_refuses_unknown_generation
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:01 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:01 [ WARNING] business feedback skipped: no exact generation row for generation-does-not-exist
+2026-11-10 14:15:01 [ WARNING] business routing feedback not recorded (skipped_missing_generation): tenant=tenant-ctrl model=llama3.1:8b generation=generation-does-not-exist
+PASSED                                                                   [ 16%]
+tests/test_employee_business_feedback.py::test_business_write_binding_selects_the_exact_provider_for_same_model
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:02 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 16%]
+tests/test_employee_business_feedback.py::test_business_write_binding_duplicate_is_idempotent
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:03 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:03 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=binding-duplicate
+PASSED                                                                   [ 17%]
+tests/test_employee_business_feedback.py::test_business_write_binding_stronger_concurrent_evaluation_wins
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:04 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 17%]
+tests/test_employee_business_feedback.py::test_parsed_wait_choice_is_pending_not_business_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:05 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 17%]
+tests/test_employee_business_feedback.py::test_validated_wait_choice_is_a_scoped_positive_decision
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:06 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 18%]
+tests/test_employee_business_feedback.py::test_rejected_wait_choice_is_semantic_failure_not_fallback_credit
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:07 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 18%]
+tests/test_employee_business_feedback.py::test_business_verdicts_do_not_enter_the_fabrication_numerator PASSED [ 18%]
+tests/test_employee_business_feedback.py::test_real_model_wait_choice_is_pending_not_business_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:07 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:07 [    INFO] EscalationManager initialized
+2026-11-10 14:15:07 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-10 14:15:07 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:15:07 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:15:07 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:15:07 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:15:07 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:15:07 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-135b34138739 attempt=1 prompt_chars=3940 cap=1200 instructor_retries=0
+2026-11-10 14:15:07 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-135b34138739 attempt=1
+PASSED                                                                   [ 19%]
+tests/test_employee_business_feedback.py::test_real_rejected_wait_choice_is_semantic_failure_not_fallback_credit
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] EscalationManager initialized
+2026-11-10 14:15:08 [    INFO] CognitiveTierService initialized for workspace: ws-wait
+2026-11-10 14:15:08 [    INFO] BPC cost-priority provider diversity applied (task_type=planning)
+2026-11-10 14:15:08 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:15:08 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:15:08 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:15:08 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:15:08 [    INFO] [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-1e391a228838 attempt=1 prompt_chars=3933 cap=1200 instructor_retries=0
+2026-11-10 14:15:08 [    INFO] [structured-trace] local_ctrl1234/llama3.1:8b cap=1200 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=CompactWaitChoiceProposal route=structured-1e391a228838 attempt=1
+PASSED                                                                   [ 19%]
+tests/test_employee_business_feedback.py::test_context_floor_after_feedback_tests
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] EscalationManager initialized
+2026-11-10 14:15:08 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:15:08 [    INFO] BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:15:08 [ WARNING] capability route: zero candidates for employee_evidence_selection; clients=['local_ctrl1234'] local_routes=['llama3.1:8b'] estimated_tokens=40000 min_context=46000 local_context={'llama3.1:8b': 16384} policy={'mode': 'unset', 'allowed_providers': [], 'preferred': None, 'source': 'default', 'managed_by_env': False, 'revision': '', 'error': None, 'scope': 'installation'}
+2026-11-10 14:15:08 [ WARNING] capability route: no suitable configured model for profile employee_evidence_selection v2026-11-04.1 — configured routes exist, but none passed the workload capability floor/context checks
+PASSED                                                                   [ 19%]
+tests/test_covpush_learnrouter.py::TestCheckCostWithinBudget::test_none_cost_within_budget PASSED [ 20%]
+tests/test_covpush_learnrouter.py::TestCheckCostWithinBudget::test_tracker_says_exceeded PASSED [ 20%]
+tests/test_covpush_learnrouter.py::TestCheckCostWithinBudget::test_tracker_unavailable_returns_true PASSED [ 20%]
+tests/test_covpush_learnrouter.py::TestRouteFallbacks::test_no_candidates_falls_back_to_cheapest
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+tests/test_covpush_learnrouter.py::TestRouteFallbacks::test_no_candidates_after_cost_filter
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+tests/test_covpush_learnrouter.py::TestRouteFallbacks::test_no_candidates_after_latency_filter
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+tests/test_covpush_learnrouter.py::TestRouteFallbacks::test_latency_filter_skips_zero_speed
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 22%]
+tests/test_covpush_learnrouter.py::TestRouteFallbacks::test_route_success_sets_alternatives_and_elapsed
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Routed question_answering to gpt-4o (confidence=0.99, cost=$0.0025)
+PASSED                                                                   [ 22%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_ema_alpha_env_and_clamps
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 22%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_ema_update_metric_seed_and_step
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 23%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_ema_record_key_eviction
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 23%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_update_ema_scores_with_and_without_metrics
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 24%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_ema_normalization_cold_fleet
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 24%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_ema_normalization_observed_fleet
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 24%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_ema_quality_term_cold_returns_none
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 25%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_ema_quality_term_hot
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 25%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_combined_score_predictor_term
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 25%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_combined_score_capability_and_preference_bonuses
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 26%]
+tests/test_covpush_learnrouter.py::TestScoringBlend::test_score_candidates_sorts_descending
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 26%]
+tests/test_covpush_learnrouter.py::TestStashAndConsume::test_stash_generates_id
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 26%]
+tests/test_covpush_learnrouter.py::TestStashAndConsume::test_stash_with_explicit_id
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 27%]
+tests/test_covpush_learnrouter.py::TestStashAndConsume::test_stash_evicts_overflow
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 27%]
+tests/test_covpush_learnrouter.py::TestStashAndConsume::test_create_routing_result_stashes
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 27%]
+tests/test_covpush_learnrouter.py::TestStashAndConsume::test_generate_reasoning_variants
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 28%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_record_feedback_recovered_features_and_retrain
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 28%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_record_feedback_preference_cap
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 28%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_retrain_trains_predictors_and_weights
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+2026-11-10 14:15:08 [    INFO] Trained per-model predictor for gpt-4o: samples=2, accuracy=1.000
+2026-11-10 14:15:08 [    INFO] Updated router for tenant=tenant-1, task=question_answering with 2 samples; predictors=[gpt-4o(1.00)]
+2026-11-10 14:15:08 [    INFO] Updated router for tenant=tenant-1, task=question_answering with 2 samples; predictors=[]
+PASSED                                                                   [ 29%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_retrain_no_feedback_returns
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 29%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_retrain_per_model_failure_logged
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+2026-11-10 14:15:08 [    INFO] Trained per-model predictor for gpt-4o: samples=1, accuracy=1.000
+2026-11-10 14:15:08 [    INFO] Updated router for tenant=tenant-1, task=question_answering with 1 samples; predictors=[gpt-4o(1.00)]
+2026-11-10 14:15:08 [ WARNING] Per-model training failed for gpt-4o (tenant=tenant-1, task=question_answering): train boom
+2026-11-10 14:15:08 [    INFO] Updated router for tenant=tenant-1, task=question_answering with 1 samples; predictors=[]
+PASSED                                                                   [ 29%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_derive_weights_from_success
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 30%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_set_cached_weights_evicts
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 30%]
+tests/test_covpush_learnrouter.py::TestFeedbackPipeline::test_get_learned_weights_cached
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 31%]
+tests/test_covpush_learnrouter.py::TestPersistence::test_persist_feedback_db_failure_swallowed
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [ WARNING] Could not persist routing feedback to DB (non-fatal, in-memory state remains): db down
+PASSED                                                                   [ 31%]
+tests/test_covpush_learnrouter.py::TestPersistence::test_resolve_feedback_context_found
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 31%]
+tests/test_covpush_learnrouter.py::TestPersistence::test_resolve_feedback_context_missing_and_error
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 32%]
+tests/test_covpush_learnrouter.py::TestPersistence::test_load_feedback_from_db
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Loaded 2 routing feedback rows from DB
+PASSED                                                                   [ 32%]
+tests/test_covpush_learnrouter.py::TestPersistence::test_load_feedback_from_db_empty_and_error
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [ WARNING] Could not load routing feedback from DB (non-fatal, starting with empty state): 'Mock' object is not iterable
+2026-11-10 14:15:08 [ WARNING] Could not load routing feedback from DB (non-fatal, starting with empty state): secret
+PASSED                                                                   [ 32%]
+tests/test_covpush_learnrouter.py::TestPersistence::test_get_per_model_router_lazy_and_bounded
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 33%]
+tests/test_covpush_learnrouter.py::TestPersistence::test_get_per_model_router_load_error_tolerated
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 33%]
+tests/test_covpush_learnrouter.py::TestFeatureExtraction::test_extract_request_features_defaults
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 33%]
+tests/test_covpush_learnrouter.py::TestFeatureExtraction::test_extract_request_features_from_context
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 34%]
+tests/test_covpush_learnrouter.py::TestFeatureExtraction::test_token_bucket_boundaries
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 34%]
+tests/test_covpush_learnrouter.py::TestFeatureExtraction::test_task_default_features
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 34%]
+tests/test_covpush_learnrouter.py::TestFeatureExtraction::test_feedback_to_training_example
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 35%]
+tests/test_covpush_learnrouter.py::TestStatisticsAndExport::test_get_routing_statistics_full
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 35%]
+tests/test_covpush_learnrouter.py::TestStatisticsAndExport::test_export_routing_data_filters_old
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Exported 1 routing records for tenant tenant-1
+2026-11-10 14:15:08 [    INFO] Exported 0 routing records for tenant other
+PASSED                                                                   [ 35%]
+tests/test_covpush_learnrouter.py::TestStatisticsAndExport::test_update_model_registry_variants
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Updated model registry: added 0 models
+2026-11-10 14:15:08 [    INFO] Updated model registry: added 1 models
+2026-11-10 14:15:08 [    INFO] Updated model registry: added 0 models
+PASSED                                                                   [ 36%]
+tests/test_covpush_learnrouter.py::TestStatisticsAndExport::test_load_local_models_into_registry
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Updated model registry: added 1 models
+PASSED                                                                   [ 36%]
+tests/test_covpush_learnrouter.py::TestStatisticsAndExport::test_load_local_models_error_and_no_providers
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 36%]
+tests/test_covpush_learnrouter.py::TestStatisticsAndExport::test_get_learning_router_factory
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 37%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_init_creates_model_dir PASSED [ 37%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_train_random_forest_multi_class
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Trained per-model predictor for m1: samples=6, accuracy=0.500
+PASSED                                                                   [ 37%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_train_single_class_uses_observed_rate
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Trained per-model predictor for allgood: samples=5, accuracy=1.000
+PASSED                                                                   [ 38%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_train_single_class_zeros
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [    INFO] Trained per-model predictor for allbad: samples=4, accuracy=0.000
+PASSED                                                                   [ 38%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_train_empty_examples_fails
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:08 [   ERROR] Per-model training failed for m: No features extracted from examples
+PASSED                                                                   [ 39%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_train_logistic
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Trained per-model predictor for lr: samples=12, accuracy=0.500
+PASSED                                                                   [ 39%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_create_estimator_variants PASSED [ 39%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_predict_satisfaction_cold_start PASSED [ 40%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_predict_satisfaction_proba_path
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Trained per-model predictor for m: samples=12, accuracy=0.500
+PASSED                                                                   [ 40%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_predict_satisfaction_no_positive_class PASSED [ 40%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_predict_satisfaction_without_proba PASSED [ 41%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_confidence_scales_with_samples PASSED [ 41%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_save_and_load_roundtrip
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Trained per-model predictor for roundtrip: samples=12, accuracy=0.500
+2026-11-10 14:15:09 [    INFO] Loaded 1 per-model predictors from <scratch>
+PASSED                                                                   [ 41%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_load_all_handles_corrupt_meta
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [ WARNING] Could not load predictor <scratch>: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 42%]
+tests/test_covpush_learnrouter.py::TestPerModelRouter::test_factory PASSED [ 42%]
+tests/test_covpush_learnrouter.py::TestResponseQualityExtra::test_exception_classification_variants PASSED [ 42%]
+tests/test_covpush_learnrouter.py::TestResponseQualityExtra::test_long_content_diminishes_score PASSED [ 43%]
+tests/test_covpush_learnrouter.py::TestResponseQualityExtra::test_truncation_empty_content_scoring PASSED [ 43%]
+tests/test_covpush_w21_llm_router.py::TestBudgetCheck::test_budget_check_within PASSED [ 43%]
+tests/test_covpush_w21_llm_router.py::TestBudgetCheck::test_budget_check_none_cost PASSED [ 44%]
+tests/test_covpush_w21_llm_router.py::TestBudgetCheck::test_budget_check_over
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 44%]
+tests/test_covpush_w21_llm_router.py::TestBudgetCheck::test_budget_check_tracker_unavailable
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 44%]
+tests/test_covpush_w21_llm_router.py::TestRouteFallbacks::test_route_no_candidates_fallback
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 45%]
+tests/test_covpush_w21_llm_router.py::TestRouteFallbacks::test_route_constraint_empties_candidates
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 45%]
+tests/test_covpush_w21_llm_router.py::TestRouteFallbacks::test_route_score_clamped_and_reasoning
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Routed question_answering to minimax-m3 (confidence=1.00, cost=$0.0600)
+PASSED                                                                   [ 45%]
+tests/test_covpush_w21_llm_router.py::TestRouteFallbacks::test_route_tenant_preference_boost
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Routed question_answering to minimax-m3 (confidence=0.97, cost=$0.0006)
+PASSED                                                                   [ 46%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_alpha_env_valid
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 46%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_alpha_env_invalid
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 47%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_alpha_env_zero
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 47%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_alpha_env_over_one
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 47%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_update_metric_init
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 48%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_update_metric_step
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 48%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_corrected_missing
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 48%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_record_key_eviction
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 49%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_update_ema_scores_without_latency_cost
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 49%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_update_ema_scores_full
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 49%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_quality_term_cold_returns_none
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 50%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_quality_term_with_history
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 50%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_normalization_baselines_cold
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 50%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_ema_normalization_baselines_observed
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 51%]
+tests/test_covpush_w21_llm_router.py::TestEmaFamily::test_combined_score_boosts
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 51%]
+tests/test_covpush_w21_llm_router.py::TestDecisionStore::test_stash_decision_generates_id
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 51%]
+tests/test_covpush_w21_llm_router.py::TestDecisionStore::test_stash_decision_eviction
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 52%]
+tests/test_covpush_w21_llm_router.py::TestDecisionStore::test_consume_decision_missing
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 52%]
+tests/test_covpush_w21_llm_router.py::TestDecisionStore::test_consume_decision_found
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 52%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_record_feedback_recovers_features
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 53%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_record_feedback_cap_eviction
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 53%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_retrain_trains_predictor
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+2026-11-10 14:15:09 [    INFO] Trained per-model predictor for gpt-4o-mini: samples=3, accuracy=1.000
+2026-11-10 14:15:09 [    INFO] Updated router for tenant=tenant-1, task=question_answering with 3 samples; predictors=[gpt-4o-mini(1.00)]
+PASSED                                                                   [ 54%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_retrain_skips_model_below_threshold
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+2026-11-10 14:15:09 [    INFO] Updated router for tenant=tenant-1, task=code_generation with 1 samples; predictors=[]
+PASSED                                                                   [ 54%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_retrain_no_feedback_returns
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 54%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_persist_feedback_error_tolerated
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [ WARNING] Could not persist routing feedback to DB (non-fatal, in-memory state remains): boom
+PASSED                                                                   [ 55%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_build_feedback_maps_quality
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 55%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_resolve_feedback_context_found
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 55%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_resolve_feedback_context_missing
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 56%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_resolve_feedback_context_error
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 56%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_load_feedback_from_db_tenant_filter
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Loaded 1 routing feedback rows from DB
+PASSED                                                                   [ 56%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_load_feedback_from_db_error
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [ WARNING] Could not load routing feedback from DB (non-fatal, starting with empty state): boom
+PASSED                                                                   [ 57%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_get_per_model_router_lazy_create
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+PASSED                                                                   [ 57%]
+tests/test_covpush_w21_llm_router.py::TestFeedbackPipeline::test_get_per_model_router_eviction
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+2026-11-10 14:15:09 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+2026-11-10 14:15:09 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+PASSED                                                                   [ 57%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_extract_features_content_signals
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 58%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_extract_features_prompt_text
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 58%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_token_bucket_all
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 58%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_task_default_features
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 59%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_feedback_to_training_example_defaults
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 59%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_feedback_to_training_example_recovered
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 59%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_derive_weights_zero_samples
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 60%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_derive_weights_scaled
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 60%]
+tests/test_covpush_w21_llm_router.py::TestFeatures::test_set_cached_weights_eviction
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 60%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_statistics_tenant_scoping
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 61%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_statistics_ema_scoping
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 61%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_update_registry_missing_id_skipped
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Updated model registry: added 0 models
+PASSED                                                                   [ 62%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_update_registry_enum_values
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Updated model registry: added 1 models
+PASSED                                                                   [ 62%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_update_registry_existing_updates
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Updated model registry: added 0 models
+PASSED                                                                   [ 62%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_load_local_models_with_caps
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Updated model registry: added 1 models
+PASSED                                                                   [ 63%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_load_local_models_error
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 63%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_export_routing_data_filters
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Exported 1 routing records for tenant tenant-1
+PASSED                                                                   [ 63%]
+tests/test_covpush_w21_llm_router.py::TestStatsAndRegistry::test_get_learning_router_factory
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 64%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_block_workflow_execution_exception
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [ WARNING] Enterprise security services not available: No module named 'ai_enhanced_service'
+2026-11-10 14:15:09 [    INFO] Enterprise Security Service initialized
+2026-11-10 14:15:09 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [ WARNING] Blocking workflow wf execution: test
+2026-11-10 14:15:09 [   ERROR] Error blocking workflow: boom-setattr
+PASSED                                                                   [ 64%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_increase_workflow_monitoring_exception
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [    INFO] Increasing monitoring for workflow wf
+2026-11-10 14:15:09 [   ERROR] Error increasing workflow monitoring: boom-setitem
+PASSED                                                                   [ 64%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_enable_compliance_logging_exception
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [    INFO] Enabling compliance logging for workflow wf
+2026-11-10 14:15:09 [   ERROR] Error enabling compliance logging: boom-setitem
+PASSED                                                                   [ 65%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_notify_security_team_exception
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Error notifying security team: boom-get
+PASSED                                                                   [ 65%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_notify_compliance_team_exception
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Error notifying compliance team: boom-get
+PASSED                                                                   [ 65%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_import_fallback_when_services_unavailable
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [ WARNING] Enterprise unified services not available: blocked for test
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 66%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_create_and_execute_workflow_success
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 66%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_create_workflow_validation_failure
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 66%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_create_workflow_service_failure
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 67%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_execute_not_found
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 67%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_execute_security_precheck_fail
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 67%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_execute_compliance_precheck_fail
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 68%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_execute_step_exception_returns_error_result
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Error executing workflow step: step boom
+PASSED                                                                   [ 68%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_execute_triggers_alert_and_violation_handlers
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 68%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_handle_security_alert_severity_paths
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [ WARNING] Security alert triggered for workflow wf: {'severity': 'high'}
+2026-11-10 14:15:09 [ WARNING] Security alert triggered for workflow wf: {'severity': 'medium'}
+2026-11-10 14:15:09 [    INFO] Increasing monitoring for workflow wf
+2026-11-10 14:15:09 [ WARNING] Security alert triggered for workflow wf: {'severity': 'low'}
+PASSED                                                                   [ 69%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_handle_compliance_violation_severity_paths
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [ WARNING] Compliance violation detected for workflow wf: {'severity': 'high'}
+2026-11-10 14:15:09 [ WARNING] Compliance violation detected for workflow wf: {'severity': 'medium'}
+PASSED                                                                   [ 69%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_create_security_automation_flow
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 70%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_create_compliance_automation_flow
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 70%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_get_enterprise_workflows_filters
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 70%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_get_automations_status_and_metrics
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 71%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_initialize_and_private_setups
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [    INFO] Initializing enterprise services
+2026-11-10 14:15:09 [    INFO] Enterprise services initialized successfully
+2026-11-10 14:15:09 [    INFO] Setting up workflow security integration
+2026-11-10 14:15:09 [    INFO] Workflow security integration setup complete
+2026-11-10 14:15:09 [    INFO] Setting up compliance automation
+2026-11-10 14:15:09 [    INFO] Compliance automation setup complete
+2026-11-10 14:15:09 [    INFO] Setting up AI-powered automation
+2026-11-10 14:15:09 [    INFO] AI-powered automation setup complete
+2026-11-10 14:15:09 [    INFO] Starting enterprise monitoring
+2026-11-10 14:15:09 [    INFO] Enterprise monitoring started successfully
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized successfully
+PASSED                                                                   [ 71%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_initialize_missing_required_services
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Required services not available for enterprise unified service
+PASSED                                                                   [ 71%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_initialize_setup_exceptions_swallowed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [    INFO] Setting up workflow security integration
+2026-11-10 14:15:09 [   ERROR] Error setting up workflow security integration: x
+2026-11-10 14:15:09 [    INFO] Setting up compliance automation
+2026-11-10 14:15:09 [   ERROR] Error setting up compliance automation: x
+2026-11-10 14:15:09 [    INFO] Setting up AI-powered automation
+2026-11-10 14:15:09 [   ERROR] Error setting up AI-powered automation: x
+2026-11-10 14:15:09 [    INFO] Starting enterprise monitoring
+2026-11-10 14:15:09 [   ERROR] Error starting enterprise monitoring: x
+2026-11-10 14:15:09 [    INFO] Setting up workflow security integration
+2026-11-10 14:15:09 [    INFO] Workflow security integration setup complete
+2026-11-10 14:15:09 [    INFO] Setting up compliance automation
+2026-11-10 14:15:09 [    INFO] Compliance automation setup complete
+2026-11-10 14:15:09 [    INFO] Setting up AI-powered automation
+2026-11-10 14:15:09 [    INFO] AI-powered automation setup complete
+2026-11-10 14:15:09 [    INFO] Starting enterprise monitoring
+2026-11-10 14:15:09 [    INFO] Enterprise monitoring started successfully
+PASSED                                                                   [ 72%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_initialize_enterprise_services_imports
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [    INFO] Initializing enterprise services
+2026-11-10 14:15:09 [ WARNING] AI integration services not available: No module named 'atom_discord_integration'
+2026-11-10 14:15:09 [    INFO] ATOM AI Integration initialized
+2026-11-10 14:15:09 [   ERROR] Error initializing enterprise services: cannot import name 'ai_integration' from 'integrations.atom_ai_integration' (<scratch>
+PASSED                                                                   [ 72%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_get_ai_enhanced_context_paths
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Error getting AI-enhanced context: name 'AIRequest' is not defined
+PASSED                                                                   [ 72%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_security_pre_check_failure_paths
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Error in security pre-check: x
+PASSED                                                                   [ 73%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_compliance_pre_check_failure_and_error
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Error in compliance pre-check: x
+PASSED                                                                   [ 73%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_step_dispatcher_all_types
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [   ERROR] Error executing workflow step: x
+PASSED                                                                   [ 73%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_coerce_compliance_standard
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 74%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_get_service_info_and_close
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service closed
+PASSED                                                                   [ 74%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_rate_limited_and_circuit_breaker_paths
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+2026-11-10 14:15:09 [ WARNING] Circuit breaker is open for atom_enterprise_unified
+2026-11-10 14:15:09 [   ERROR] Integration error: atom_enterprise_unified.initialize: Circuit breaker open
+NoneType: None
+2026-11-10 14:15:09 [   ERROR] Error creating enterprise workflow: 503: Atom_enterprise_unified integration temporarily disabled
+2026-11-10 14:15:09 [ WARNING] Rate limit exceeded for atom_enterprise_unified
+2026-11-10 14:15:09 [   ERROR] Integration error: atom_enterprise_unified.handle_compliance_violation: Rate limit exceeded
+NoneType: None
+2026-11-10 14:15:09 [   ERROR] Error getting enterprise workflows: 429: Rate limit exceeded for atom_enterprise_unified
+2026-11-10 14:15:09 [ WARNING] Circuit breaker is open for atom_enterprise_unified
+2026-11-10 14:15:09 [   ERROR] Integration error: atom_enterprise_unified.get_service_info: Circuit breaker open
+NoneType: None
+2026-11-10 14:15:09 [ WARNING] Circuit breaker is open for atom_enterprise_unified
+2026-11-10 14:15:09 [   ERROR] Integration error: atom_enterprise_unified.get_enterprise_metrics: Circuit breaker open
+NoneType: None
+PASSED                                                                   [ 74%]
+tests/test_covpush_w101_final95.py::TestEnterpriseUnifiedFinal::test_log_enterprise_event_with_and_without_service
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Enterprise Unified Service initialized
+PASSED                                                                   [ 75%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_route_requires_reasoning
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Routed question_answering to deepseek-v4-flash (confidence=0.92, cost=$0.0004)
+PASSED                                                                   [ 75%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_route_no_candidates_fallback
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 75%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_route_with_budget_and_latency
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Routed question_answering to deepseek-v4-flash (confidence=1.00, cost=$0.0004)
+PASSED                                                                   [ 76%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_route_tenant_preference_and_long_context
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Routed question_answering to gpt-5.5 (confidence=1.00, cost=$0.5000)
+PASSED                                                                   [ 76%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_ema_normalization_zero_guards
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 77%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_routing_statistics_malformed_ema_key
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 77%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_load_local_models_with_vision_and_default_provider
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Updated model registry: added 2 models
+PASSED                                                                   [ 77%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_load_local_models_no_providers
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 78%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_load_local_models_db_error
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 78%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_extract_request_features_branches
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 78%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_token_buckets PASSED [ 79%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_stash_consume_decision_eviction
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 79%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_check_cost_within_budget PASSED [ 79%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_derive_weights_edge_cases PASSED [ 80%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_record_feedback_retrain_and_ema
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Loaded 2 per-model predictors from data/router_models/per_model
+2026-11-10 14:15:09 [    INFO] Trained per-model predictor for gpt-4o: samples=2, accuracy=1.000
+2026-11-10 14:15:09 [    INFO] Updated router for tenant=t1, task=question_answering with 2 samples; predictors=[gpt-4o(1.00)]
+2026-11-10 14:15:09 [    INFO] Trained per-model predictor for gpt-4o: samples=3, accuracy=1.000
+2026-11-10 14:15:09 [    INFO] Updated router for tenant=t1, task=question_answering with 3 samples; predictors=[gpt-4o(1.00)]
+PASSED                                                                   [ 80%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_routing_statistics_tenant_scoping
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 80%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_export_routing_data
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Exported 1 routing records for tenant t1
+2026-11-10 14:15:09 [    INFO] Exported 0 routing records for tenant other
+PASSED                                                                   [ 81%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_update_and_clear_registry
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Updated model registry: added 1 models
+2026-11-10 14:15:09 [    INFO] Cleared learning cache for tenant=t1
+2026-11-10 14:15:09 [    INFO] Cleared learning cache for tenant=all
+PASSED                                                                   [ 81%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_get_available_models_filters
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 81%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_build_feedback_from_quality PASSED [ 82%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_feedback_to_training_example_defaults
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 82%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_get_learned_weights_defaults
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 82%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_persist_feedback_swallows_db_errors
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [ WARNING] Could not persist routing feedback to DB (non-fatal, in-memory state remains): db down
+PASSED                                                                   [ 83%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_resolve_feedback_context_paths
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 83%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_load_feedback_from_db
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+2026-11-10 14:15:09 [    INFO] Loaded 2 routing feedback rows from DB
+2026-11-10 14:15:09 [ WARNING] Could not load routing feedback from DB (non-fatal, starting with empty state): x
+PASSED                                                                   [ 83%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_get_cheapest_model
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 84%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_ema_alpha_env PASSED [ 84%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_ema_eviction_cap
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 85%]
+tests/test_covpush_w101_final95.py::TestLearningRouterFinal::test_get_learning_router_factory
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 85%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_initialize_integration_endpoints_outer_error
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [   ERROR] Error initializing integration endpoints: boom-items
+PASSED                                                                   [ 85%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_initialize_integration_endpoints_inner_error_and_ok
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Platform a integration: connected
+2026-11-10 14:15:09 [ WARNING] Could not validate b integration: conn fail
+2026-11-10 14:15:09 [    INFO] Integration endpoints initialized
+PASSED                                                                   [ 86%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_create_and_get_automation
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Setup event trigger for automation auto_1794338109_06b9281e: system_event
+PASSED                                                                   [ 86%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_create_automation_invalid_data
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+PASSED                                                                   [ 86%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_create_automation_exception
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [   ERROR] Error creating workflow automation: boom
+PASSED                                                                   [ 87%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_execute_automation_not_found
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+PASSED                                                                   [ 87%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_execute_automation_success_and_metrics
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Setup event trigger for automation auto_1794338109_06b9281e: system_event
+PASSED                                                                   [ 87%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_execute_automation_disabled
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Setup event trigger for automation auto_1794338109_06b9281e: system_event
+PASSED                                                                   [ 88%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_get_automation_executions
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Setup event trigger for automation auto_1794338109_06b9281e: system_event
+PASSED                                                                   [ 88%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_get_service_info
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+PASSED                                                                   [ 88%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_pre_and_post_checks
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+PASSED                                                                   [ 89%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_event_trigger_dispatch
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Setup event trigger for automation auto_1794338109_06b9281e: system_event
+2026-11-10 14:15:09 [ WARNING] Unknown event type: nope
+PASSED                                                                   [ 89%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_security_and_compliance_automation_creators
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Setup security trigger for automation auto_1794338109_ae4cc883: malware (severity: medium)
+2026-11-10 14:15:09 [    INFO] Security Team Notification: Security threat malware detected with severity medium (Urgency: medium)
+2026-11-10 14:15:09 [    INFO] Management Notification: Security threat malware detected with severity medium (Urgency: medium)
+2026-11-10 14:15:09 [    INFO] Sent notifications for automation auto_1794338109_ae4cc883
+2026-11-10 14:15:09 [    INFO] Setup compliance trigger for automation auto_1794338109_d59aa2cc: SOC2 - access
+2026-11-10 14:15:09 [   ERROR] Error executing compliance check action: asdict() should be called on dataclass instances
+2026-11-10 14:15:09 [    INFO] Compliance Officer Notification: Compliance violation access detected for SOC2 (Urgency: medium)
+2026-11-10 14:15:09 [    INFO] Management Notification: Compliance violation access detected for SOC2 (Urgency: medium)
+2026-11-10 14:15:09 [ WARNING] Security action failed: {'success': False, 'error': 'asdict() should be called on dataclass instances'}
+2026-11-10 14:15:09 [    INFO] Sent notifications for automation auto_1794338109_d59aa2cc
+PASSED                                                                   [ 89%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_integration_automation_creator
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Setup event trigger for automation auto_1794338109_c2da188f: event_triggered
+2026-11-10 14:15:09 [ WARNING] Platform slack integration not available
+PASSED                                                                   [ 90%]
+tests/test_covpush_w101_final95.py::TestWorkflowAutomationFinal::test_close
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service initialized
+2026-11-10 14:15:09 [    INFO] Workflow Automation Service closed
+PASSED                                                                   [ 90%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 574 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 287 passed, 579 warnings in 53.68s ======================

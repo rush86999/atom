@@ -1,0 +1,35 @@
+{
+  "source_state": "worker-owned uncommitted repair; bind frozencommit onlyafter exacthashmatch",
+  "sha256_before": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093",
+  "sha256_after": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093",
+  "stable_during_test": true,
+  "results": [
+    {
+      "python": "311",
+      "exit": 0,
+      "log": "<scratch>"
+    },
+    {
+      "python": "314",
+      "exit": 1,
+      "log": "<scratch>"
+    }
+  ],
+  "initial_314_classification": "setup error: explicit pytest_freezegun plus installed entrypoint duplicate; no test ran; retained original log",
+  "corrected_314": {
+    "exit": 0,
+    "log": "<scratch>",
+    "command": [
+      "<home>",
+      "-m",
+      "pytest",
+      "-p",
+      "no:randomly",
+      "<scratch>",
+      "-q",
+      "--tb=short",
+      "--timeout=90"
+    ]
+  },
+  "sha256_after_corrected314": "d2f86d49431545725aed3fb4dc49d0b85afa8f0a8c698ec0984739f935212093"
+}

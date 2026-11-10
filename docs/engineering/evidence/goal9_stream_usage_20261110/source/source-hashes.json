@@ -1,0 +1,31 @@
+{
+  "base": "b736931489f7b54938d82141ef750e5771ef4b97",
+  "files": {
+    ".github/workflows/ci.yml": {
+      "after_sha256": "196cd043da70852ebd16c3fc8a91635f02a5b1026dd4df5a7e9a3c80e0ced701",
+      "before_sha256": "b1cdfc9bf0c7d7c2bd3594f32129f84deadee15ea9e95a2d6faa221c13e86470",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "ad9f8bca92184d2cee25cc5457c50c2088861d843063d848aa5897e14851931d",
+      "before_sha256": "9183667e1c0e5551434eaed4969d9b0544d2af4ec84f451a66166474d15e2de3",
+      "changed": true
+    },
+    "backend/tests/fixtures/ci_backend_additions.json": {
+      "after_sha256": "80c9f9cfda0fb0f4360a1b2a1e1db7a4c86fa4d195cdab4b4bf10e9d23bcc6fb",
+      "before_sha256": "6300f1ca6366bb4bbec180ac92e38b76b5a2d99ce38c13a7e05248f318bf5986",
+      "changed": true
+    },
+    "backend/tests/test_goal9_physical_attempts.py": {
+      "after_sha256": "d4ada56ba101b43180725703f5c6a6722a89dc2c9a7cdf04ca223329c2069e60",
+      "before_sha256": "8e23b51a834cfb2a3a7a15f6c6a05a54a97a3c797a63454e21e0d5798186219c",
+      "changed": true
+    },
+    "backend/tests/test_goal9_stream_usage.py": {
+      "after_sha256": "5d045703b706509adab79aa611bdfdedabade76f4a4bfadc9cba0f7ae2498291",
+      "before_sha256": null,
+      "changed": true
+    }
+  },
+  "schema": "goal9_stream_usage_source"
+}

@@ -1,0 +1,64 @@
+# Sanitized excerpt of the private root joined-gate log. The full private
+# log remains at the root-owned path recorded in verification.json; only
+# scratch/home paths are redacted here. Nothing else was altered.
+
+=================================== FAILURES ===================================
+______ test_evaluated_bad_work_persists_and_changes_next_routing_decision ______
+tests/test_employee_business_feedback.py:328: in test_evaluated_bad_work_persists_and_changes_next_routing_decision
+    assert len(rows) == 3, [
+E   AssertionError: []
+E   assert 0 == 3
+E    +  where 0 = len([])
+------------------------------ Captured log setup ------------------------------
+INFO     core.learning_llm_router:learning_llm_router.py:915 Initialized router with 30 models
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws-ctrl
+INFO     core.llm.byok_handler:byok_handler.py:5872 BPC cost-priority provider diversity applied (task_type=planning)
+INFO     core.llm.byok_handler:byok_handler.py:5876 BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:9139 Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+INFO     core.llm.byok_handler:byok_handler.py:9388 [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-67a768b93ce5 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+INFO     core.llm.byok_handler:byok_handler.py:9447 [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-67a768b93ce5 attempt=1
+INFO     core.llm.byok_handler:byok_handler.py:5872 BPC cost-priority provider diversity applied (task_type=planning)
+INFO     core.llm.byok_handler:byok_handler.py:5876 BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:9139 Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+INFO     core.llm.byok_handler:byok_handler.py:9388 [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-d100c66ff361 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+INFO     core.llm.byok_handler:byok_handler.py:9447 [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d100c66ff361 attempt=1
+INFO     core.llm.byok_handler:byok_handler.py:5872 BPC cost-priority provider diversity applied (task_type=planning)
+INFO     core.llm.byok_handler:byok_handler.py:5876 BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:9139 Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+INFO     core.llm.byok_handler:byok_handler.py:9388 [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-d79a6aab456e attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+INFO     core.llm.byok_handler:byok_handler.py:9447 [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-d79a6aab456e attempt=1
+________ test_evaluated_business_failure_changes_next_routing_decision _________
+tests/test_employee_business_feedback.py:407: in test_evaluated_business_failure_changes_next_routing_decision
+    assert len(rows) == 3
+E   assert 0 == 3
+E    +  where 0 = len([])
+------------------------------ Captured log setup ------------------------------
+INFO     core.learning_llm_router:learning_llm_router.py:915 Initialized router with 30 models
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws-ctrl
+INFO     core.llm.byok_handler:byok_handler.py:5872 BPC cost-priority provider diversity applied (task_type=planning)
+INFO     core.llm.byok_handler:byok_handler.py:5876 BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:9139 Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+INFO     core.llm.byok_handler:byok_handler.py:9388 [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-6a8a262a0ef4 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+INFO     core.llm.byok_handler:byok_handler.py:9447 [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-6a8a262a0ef4 attempt=1
+INFO     core.llm.byok_handler:byok_handler.py:5872 BPC cost-priority provider diversity applied (task_type=planning)
+INFO     core.llm.byok_handler:byok_handler.py:5876 BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)
+INFO     core.llm.byok_handler:byok_handler.py:9139 Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+INFO     core.llm.byok_handler:byok_handler.py:9388 [structured-dispatch] local_ctrl1234/llama3.1:8b route=structured-4d2ac45c7a23 attempt=1 prompt_chars=3957 cap=1800 instructor_retries=0
+INFO     core.llm.byok_handler:byok_handler.py:9447 [structured-trace] local_ctrl1234/llama3.1:8b cap=1800 dur=0.0s finish=None content_present=True tool_calls_present=False result_type=EmployeeWorkProposal route=structured-4d2ac45c7a23 attempt=1
+INFO     core.llm.byok_handler:byok_handler.py:5872 BPC cost-priority provider diversity applied (task_type=planning)
+INFO     core.llm.byok_handler:byok_handler.py:5876 BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO     core.llm.byok_handler:byok_handler.py:5979 BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 8100000.00)

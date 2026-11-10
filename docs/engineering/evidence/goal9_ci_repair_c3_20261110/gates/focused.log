@@ -1,0 +1,439 @@
+
+tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_free_model_balance_error_retries_paid
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:56 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 11:09:56 [    INFO] EscalationManager initialized
+2026-11-10 11:09:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:09:56 [    INFO] EscalationManager initialized
+2026-11-10 11:09:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:09:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 11:09:56 [    INFO] AgentTaskRegistry initialized
+2026-11-10 11:09:56 [    INFO] Initialized openai client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized anthropic client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized deepseek client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:56 [    INFO] EscalationManager initialized
+2026-11-10 11:09:56 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:56 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 11:09:56 [    INFO] LocalOnlyGuard initialized
+2026-11-10 11:09:56 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'completion:general' after 0.0s
+2026-11-10 11:09:56 [ WARNING] Attempt failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:56 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash-free — retrying with deepseek-v4-flash
+2026-11-10 11:09:56 [    INFO] Fallback succeeded: opencode-go/deepseek-v4-flash
+PASSED                                                                   [  1%]
+tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_unlisted_free_model_falls_back_to_cheapest_paid
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:56 [    INFO] Initialized openai client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized anthropic client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized deepseek client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:56 [    INFO] EscalationManager initialized
+2026-11-10 11:09:56 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:56 [    INFO] [inflight] opencode-go/mimo-v2.5-free released by 'completion:general' after 0.0s
+2026-11-10 11:09:56 [ WARNING] Attempt failed for opencode-go/mimo-v2.5-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:56 [    INFO] Budget exhausted on opencode-go/mimo-v2.5-free — retrying with minimax-m2.7
+2026-11-10 11:09:56 [    INFO] Fallback succeeded: opencode-go/minimax-m2.7
+PASSED                                                                   [  3%]
+tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_free_model_balance_error_paid_also_fails
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:56 [    INFO] Initialized openai client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized anthropic client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized deepseek client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:56 [    INFO] EscalationManager initialized
+2026-11-10 11:09:56 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:56 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'completion:general' after 0.0s
+2026-11-10 11:09:56 [ WARNING] Attempt failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:56 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash-free — retrying with deepseek-v4-flash
+2026-11-10 11:09:56 [ WARNING] Fallback deepseek-v4-flash also failed: paid model 500
+2026-11-10 11:09:56 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash-free — retrying with nemotron-3.5-lightning-free
+2026-11-10 11:09:56 [ WARNING] Fallback nemotron-3.5-lightning-free also failed: free-tier fallback attempt 2 also failed
+2026-11-10 11:09:56 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash-free — retrying with deepseek-v4.1-flash-free
+2026-11-10 11:09:56 [ WARNING] Fallback deepseek-v4.1-flash-free also failed: free-tier fallback attempt 3 also failed
+2026-11-10 11:09:56 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash-free — retrying with longcat-2.5-preview-free
+2026-11-10 11:09:56 [ WARNING] Fallback longcat-2.5-preview-free also failed: free-tier fallback attempt 4 also failed
+2026-11-10 11:09:56 [   ERROR] All providers failed. Last error: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+PASSED                                                                   [  5%]
+tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_free_model_non_balance_error_no_paid_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:56 [    INFO] Initialized openai client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized anthropic client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized deepseek client using BYOK credential
+2026-11-10 11:09:56 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:56 [    INFO] EscalationManager initialized
+2026-11-10 11:09:56 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:56 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'completion:general' after 0.0s
+2026-11-10 11:09:56 [ WARNING] Attempt failed for opencode-go/deepseek-v4-flash-free: rate limit exceeded 429
+2026-11-10 11:09:57 [    INFO] Initialized router with 30 models
+2026-11-10 11:09:57 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-10 11:09:57 [    INFO] Learning router singleton initialized
+2026-11-10 11:09:57 [   ERROR] All providers failed. Last error: rate limit exceeded 429
+PASSED                                                                   [  6%]
+tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_paid_model_balance_error_retries_free_tier_no_self_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:57 [    INFO] Initialized openai client using BYOK credential
+2026-11-10 11:09:57 [    INFO] Initialized anthropic client using BYOK credential
+2026-11-10 11:09:57 [    INFO] Initialized deepseek client using BYOK credential
+2026-11-10 11:09:57 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:57 [    INFO] EscalationManager initialized
+2026-11-10 11:09:57 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:57 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:57 [ WARNING] Attempt failed for opencode-go/deepseek-v4-flash: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:57 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash — retrying with nemotron-3.5-lightning-free
+2026-11-10 11:09:57 [ WARNING] Fallback nemotron-3.5-lightning-free also failed: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:57 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash — retrying with deepseek-v4.1-flash-free
+2026-11-10 11:09:57 [ WARNING] Fallback deepseek-v4.1-flash-free also failed: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:57 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash — retrying with longcat-2.5-preview-free
+2026-11-10 11:09:57 [ WARNING] Fallback longcat-2.5-preview-free also failed: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:57 [   ERROR] All providers failed. Last error: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+PASSED                                                                   [  8%]
+tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_paid_model_balance_error_free_tier_succeeds
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:57 [    INFO] Initialized openai client using BYOK credential
+2026-11-10 11:09:57 [    INFO] Initialized anthropic client using BYOK credential
+2026-11-10 11:09:57 [    INFO] Initialized deepseek client using BYOK credential
+2026-11-10 11:09:57 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:57 [    INFO] EscalationManager initialized
+2026-11-10 11:09:57 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:57 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:57 [ WARNING] Attempt failed for opencode-go/deepseek-v4-flash: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:57 [    INFO] Budget exhausted on opencode-go/deepseek-v4-flash — retrying with nemotron-3.5-lightning-free
+2026-11-10 11:09:57 [    INFO] Fallback succeeded: opencode-go/nemotron-3.5-lightning-free
+PASSED                                                                   [ 10%]
+tests/test_covpush_w27_opencode_retry.py::TestToThreadSafe::test_stop_iteration_becomes_runtime_error PASSED [ 11%]
+tests/test_covpush_w27_opencode_retry.py::TestToThreadSafe::test_passthrough_result_and_exception PASSED [ 13%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_benign_prompt_passes PASSED [ 15%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_ssn_prompt_flagged_restricted PASSED [ 16%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_secret_key_prompt_flagged PASSED [ 18%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_empty_and_oversized_inputs_safe PASSED [ 20%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_chat_completion_shadow_logs_but_proceeds
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:57 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:57 [    INFO] EscalationManager initialized
+2026-11-10 11:09:57 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:57 [ WARNING] llm_taint.shadow provider=opencode-go model=deepseek-v4-flash max_observed=restricted — Prompt classified restricted-sensitivity (potential PII or secrets) heading to external LLM opencode-go/deepseek-v4-flash (set ATOM_LLM_TAINT_ENFORCE=true to block)
+PASSED                                                                   [ 22%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_chat_completion_enforce_blocks
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 23%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_generate_response_enforce_returns_marker_without_dispatch
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 25%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_stream_enforce_yields_error_without_dispatch
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 27%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_benign_prompt_unaffected_under_enforce
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 28%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_default_bpc_prefers_flash_value
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:09:58 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-10 11:09:58 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 5866.67)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 30%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_fast_cap_excludes_pro
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:09:58 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 10325.33)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 32%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_quality_floor_selects_pro
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:09:58 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-pro (Value: 2109.86)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-pro - $0.000033 (Saved: $0.000042)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-pro
+PASSED                                                                   [ 33%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterFreeSuffixContract::test_free_ids_are_not_registry_models
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 35%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterFreeSuffixContract::test_route_survives_unknown_free_candidate
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Routed question_answering to minimax-m3 (confidence=0.97, cost=$0.0006)
+PASSED                                                                   [ 37%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_cached_ok_short_circuits PASSED [ 38%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_cached_reason_replayed PASSED [ 40%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_missing_client_reports_reason PASSED [ 42%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_credits_error_becomes_cached_skip_reason PASSED [ 44%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_success_returns_none_and_caches_ok PASSED [ 45%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_free_model_balance_error_retries_paid
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:09:58 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 47%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_retry_records_usage_for_budget_guard
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:09:58 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 49%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_retry_cost_attribution_failure_is_non_fatal
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:09:58 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] Could not attribute LLM cost: no table
+2026-11-10 11:09:58 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 50%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_non_free_model_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'structured:chat' after 0.0s
+2026-11-10 11:09:58 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] attempt opencode-go/deepseek-v4-flash failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+PASSED                                                                   [ 52%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_free_model_other_error_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:09:58 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: 401 invalid key
+2026-11-10 11:09:58 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=unknown status=None detail=401 invalid key
+PASSED                                                                   [ 54%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_paid_retry_failure_falls_through
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:09:58 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] OpenCode Go paid retry FAILED for deepseek-v4-flash: paid also failed
+PASSED                                                                   [ 55%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_extra_kwargs_preserved_on_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:09:58 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:09:58 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 57%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_quality_raises_quality_floor
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-pro - $0.000033 (Saved: $0.000042)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-pro
+PASSED                                                                   [ 59%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_fast_caps_quality
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 61%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_auto_passes_no_steering
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 62%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_explicit_cognitive_tier_wins_over_model_type
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=complex, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 64%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_concrete_model_name_pins_candidate_order
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] [inflight] openai/gpt-4o released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): gpt-4o - $0.000075 (Saved: $0.000000)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=openai, model=gpt-4o
+PASSED                                                                   [ 66%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_unknown_concrete_model_keeps_ranked_order
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:09:58 [    INFO] EscalationManager initialized
+2026-11-10 11:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:58 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:09:58 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 67%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_v4_specs_served_via_opencode_go
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 69%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_costs_match_gateway_blended_pricing
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 71%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_no_cache_claim_for_deepseek_v4
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 72%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_opencode_catalog_entries_present
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 74%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_minimax_m3_keeps_direct_api_entry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:58 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 76%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_micro_and_standard_include_current_flash PASSED [ 77%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_heavy_includes_pro PASSED [ 79%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_complex_includes_current_frontier PASSED [ 81%]
+tests/test_deepseek_harness_gaps.py::TestBenchmarksNoDuplicateKeys::test_model_quality_scores_has_no_duplicate_keys PASSED [ 83%]
+tests/test_deepseek_harness_gaps.py::TestSandboxEgressOpencodeGateway::test_baseline_allows_opencode_zen_host PASSED [ 84%]
+tests/test_deepseek_harness_gaps.py::TestSandboxEgressOpencodeGateway::test_llm_proxy_allows_opencode_zen_host PASSED [ 86%]
+tests/test_deepseek_harness_gaps.py::TestTripwireEgressDivergenceDocumented::test_llm_host_is_egress_allowed_but_exfil_tripped PASSED [ 88%]
+tests/test_deepseek_harness_gaps.py::TestTripwireEgressDivergenceDocumented::test_allowlisted_package_mirror_not_tripped PASSED [ 89%]
+tests/test_deepseek_harness_gaps.py::test_gatekeeper_taint_tracker_error_fails_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:58 [   ERROR] taint check unavailable for slack; failing CLOSED: tracker storage unavailable
+2026-11-10 11:09:58 [    INFO] gatekeeper.audit service=slack action=send_message agent_id=None allowed=False reason=taint check error: RuntimeError
+PASSED                                                                   [ 91%]
+tests/test_deepseek_harness_gaps.py::TestOrgPoliticsDefaultChatFn::test_routes_through_byok_handler PASSED [ 93%]
+tests/test_deepseek_harness_gaps.py::TestOrgPoliticsDefaultChatFn::test_no_clients_returns_none PASSED [ 94%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_without_execution_context_uses_none
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:09:59 [    INFO] EscalationManager initialized
+2026-11-10 11:09:59 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:09:59 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:09:59 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:09:59 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 96%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_with_execution_context_attribution
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:10:00 [    INFO] EscalationManager initialized
+2026-11-10 11:10:00 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:10:00 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:10:00 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:10:00 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 11:10:00 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5983907216'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='5979318800'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 98%]
+tests/test_goal9_ci_execution_contract.py::test_intent_failure_does_not_fallback_to_second_provider
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:10:00 [    INFO] EscalationManager initialized
+2026-11-10 11:10:00 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:10:00 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:10:00 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (RuntimeError)
+2026-11-10 11:10:00 [   ERROR] All providers failed. Last error: None
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 118 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 59 passed, 123 warnings in 21.75s =======================

@@ -1,0 +1,1013 @@
+
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_provider_in_tiers
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 11:06:25 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_cost_efficient_models_per_complexity PASSED [  1%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_custom_limits_registered PASSED [  2%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_client_initialized_with_env_key
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Initialized opencode-go client using ENV credential
+2026-11-10 11:06:25 [    INFO] Initialized opencode client using ENV credential
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+PASSED                                                                   [  3%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_no_client_without_key
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+PASSED                                                                   [  3%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_client_honors_base_url_override
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Initialized opencode-go client using ENV credential
+2026-11-10 11:06:25 [    INFO] Initialized opencode client using ENV credential
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+PASSED                                                                   [  4%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_provider_serves_from_discovered_catalog
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+PASSED                                                                   [  5%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRegistration::test_fallback_order_includes_opencode
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] LocalOnlyGuard initialized
+PASSED                                                                   [  6%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRouting::test_bpc_ranks_opencode_go
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-10 11:06:25 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 10325.33)
+PASSED                                                                   [  6%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRouting::test_static_fallback_uses_opencode_models
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+PASSED                                                                   [  7%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRouting::test_static_fallback_advanced_uses_code_model
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: opencode-go/kimi-k2.7-code: not_in_provider_catalog
+PASSED                                                                   [  8%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRateAwareRouting::test_context_limit_clamps_candidates
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [ WARNING] BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+2026-11-10 11:06:25 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [  9%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRateAwareRouting::test_exhausted_rate_budget_skips_provider
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] BPC skipped opencode-go/deepseek-v4-flash — per-model rate budget below the interactive reserve (headroom=0.00, reserve=0.20)
+2026-11-10 11:06:25 [ WARNING] BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+2026-11-10 11:06:25 [    INFO] BPC skipped opencode-go/deepseek-v4-flash — per-model rate budget below the interactive reserve (headroom=0.00, reserve=0.20)
+2026-11-10 11:06:25 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [  9%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRateAwareRouting::test_headroom_penalizes_value_score
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 10152.90)
+PASSED                                                                   [ 10%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoRateAwareRouting::test_rate_tracking_is_scoped_to_limited_providers
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+PASSED                                                                   [ 11%]
+tests/test_opencode_go_provider.py::TestProviderRateTracker::test_headroom_full_when_idle PASSED [ 12%]
+tests/test_opencode_go_provider.py::TestProviderRateTracker::test_headroom_shrinks_with_requests PASSED [ 12%]
+tests/test_opencode_go_provider.py::TestProviderRateTracker::test_headroom_floor_at_exhaustion PASSED [ 13%]
+tests/test_opencode_go_provider.py::TestProviderRateTracker::test_window_trims_old_usage PASSED [ 14%]
+tests/test_opencode_go_provider.py::TestProviderRateTracker::test_usage_summary PASSED [ 15%]
+tests/test_opencode_go_provider.py::TestOpenCodePricing::test_static_fallback_tags_provider
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+PASSED                                                                   [ 15%]
+tests/test_opencode_go_provider.py::TestOpenCodePricing::test_fetch_opencode_falls_back_offline
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+PASSED                                                                   [ 16%]
+tests/test_opencode_go_provider.py::TestOpencodeModelLimits::test_default_weights_price_derived PASSED [ 17%]
+tests/test_opencode_go_provider.py::TestOpencodeModelLimits::test_env_override_json PASSED [ 18%]
+tests/test_opencode_go_provider.py::TestOpencodeModelLimits::test_env_override_invalid_json_ignored
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [ WARNING] OPENCODE_MODEL_LIMITS is not valid JSON — ignoring (Expecting property name enclosed in double quotes: line 1 column 2 (char 1))
+PASSED                                                                   [ 18%]
+tests/test_opencode_go_provider.py::TestOpencodeModelLimits::test_unknown_model_defaults_to_weight_one PASSED [ 19%]
+tests/test_opencode_go_provider.py::TestOpencodeModelLimits::test_apply_pricing_weight_unknown_model PASSED [ 20%]
+tests/test_opencode_go_provider.py::TestPerModelRateTracking::test_provider_headroom_is_weighted_by_model PASSED [ 21%]
+tests/test_opencode_go_provider.py::TestPerModelRateTracking::test_record_without_model_id_is_weight_one PASSED [ 21%]
+tests/test_opencode_go_provider.py::TestPerModelRateTracking::test_per_model_headroom_independent PASSED [ 22%]
+tests/test_opencode_go_provider.py::TestPerModelRateTracking::test_usage_summary_includes_per_model_breakdown PASSED [ 23%]
+tests/test_opencode_go_provider.py::TestPerModelRateTracking::test_legacy_three_tuple_entries_still_count PASSED [ 24%]
+tests/test_opencode_go_provider.py::TestQuotaAwareRouting::test_quota_penalty_prefers_light_model_at_quality_parity
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 6136.36)
+PASSED                                                                   [ 25%]
+tests/test_opencode_go_provider.py::TestQuotaAwareRouting::test_quota_penalty_can_override_small_quality_gap
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 6136.36)
+PASSED                                                                   [ 25%]
+tests/test_opencode_go_provider.py::TestQuotaAwareRouting::test_per_model_exhaust_drops_model_but_keeps_provider
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] BPC skipped opencode-go/deepseek-v4-flash — per-model rate budget below the interactive reserve (headroom=0.00, reserve=0.20)
+2026-11-10 11:06:25 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-pro (Value: 2004.37)
+PASSED                                                                   [ 26%]
+tests/test_opencode_go_provider.py::TestMonthlyQuotaPersistence::test_monthly_usage_round_trip PASSED [ 27%]
+tests/test_opencode_go_provider.py::TestMonthlyQuotaPersistence::test_monthly_hard_skip_in_bpc
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] BPC skipped opencode-go — monthly subscription quota exhausted (limit=100000)
+2026-11-10 11:06:25 [ WARNING] BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+2026-11-10 11:06:25 [    INFO] BPC skipped opencode-go — monthly subscription quota exhausted (limit=100000)
+2026-11-10 11:06:25 [ WARNING] no ranked route is verified against a provider catalogue (1 candidate(s) checked); using the unreconciled ranking — support is UNKNOWN, not confirmed: deepseek/deepseek-chat: provider_catalog_unknown
+PASSED                                                                   [ 28%]
+tests/test_opencode_go_provider.py::TestMonthlyQuotaPersistence::test_no_persistence_means_no_monthly_skip
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:25 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 10325.33)
+PASSED                                                                   [ 28%]
+tests/test_opencode_go_provider.py::TestOpenCodeUsageDebugEndpoint::test_endpoint_returns_usage_summary
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] HTTP Request: GET http://testserver/api/debug/opencode-usage "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_opencode_go_provider.py::TestOpenCodeUsageDebugEndpoint::test_endpoint_model_filter
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] HTTP Request: GET http://testserver/api/debug/opencode-usage?model=kimi-k3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoFreePaidRetryStreaming::test_free_model_insufficient_balance_retries_on_paid
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:25 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:25 [    INFO] EscalationManager initialized
+2026-11-10 11:06:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:25 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:25 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 11:06:25 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:25 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:25 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:25 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [    INFO] OpenCode Go free-model stream retry started on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 31%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoFreePaidRetryStreaming::test_non_free_model_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for deepseek-v4-flash. Last error: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+PASSED                                                                   [ 31%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoFreePaidRetryStreaming::test_free_model_other_error_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: 401 invalid key
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=unknown status=None detail=401 invalid key
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for deepseek-v4-flash-free. Last error: 401 invalid key
+PASSED                                                                   [ 32%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoFreePaidRetryStreaming::test_retry_preserves_extra_kwargs
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=mimo-v2.5-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/mimo-v2.5-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/mimo-v2.5-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/mimo-v2.5-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [    INFO] OpenCode Go free-model stream retry started on paid model minimax-m2.7 (free mimo-v2.5-free hit credit limit)
+PASSED                                                                   [ 33%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoFreePaidRetryStreaming::test_retry_failure_falls_through_to_error
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] OpenCode Go free-model stream retry FAILED on paid model deepseek-v4-flash: paid also failed
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for deepseek-v4-flash-free. Last error: paid also failed
+PASSED                                                                   [ 34%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoFreePaidRetryStreaming::test_mid_stream_failure_does_not_duplicate_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=unknown status=None detail=stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] mid-stream failure on opencode-go/deepseek-v4-flash-free after 1 visible chunk(s) — keeping the partial answer, not replaying
+PASSED                                                                   [ 34%]
+tests/test_opencode_go_provider.py::TestOpenCodeGoFreePaidRetryStreaming::test_mid_stream_credits_error_does_not_retry_or_duplicate
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] mid-stream failure on opencode-go/deepseek-v4-flash-free after 1 visible chunk(s) — keeping the partial answer, not replaying
+PASSED                                                                   [ 35%]
+tests/test_opencode_go_provider.py::TestOpenCodePaidFallbackHelper::test_mapping_defaults PASSED [ 36%]
+tests/test_opencode_go_provider.py::TestOpenCodePaidFallbackHelper::test_env_override PASSED [ 37%]
+tests/test_opencode_go_provider.py::TestOpenCodePaidFallbackHelper::test_invalid_env_ignored
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [ WARNING] OPENCODE_FREE_PAID_FALLBACK is not valid JSON — ignoring
+PASSED                                                                   [ 37%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_no_clients_raises PASSED [ 38%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_budget_exceeded_fail_closed PASSED [ 39%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_budget_tracker_error_fail_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [   ERROR] Budget tracker unavailable for workspace ws1; blocking request (fail-closed): db down
+PASSED                                                                   [ 40%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_trial_expired PASSED [ 40%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_no_provider_order_raises PASSED [ 41%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_success_path
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 42%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_fallback_skips_non_serving_provider
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [ WARNING] No client available for provider: anthropic
+2026-11-10 11:06:26 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 43%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_fallback_after_failure
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting completion with provider: deepseek (requested: openai)
+2026-11-10 11:06:26 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 43%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_all_failed_raises PASSED [ 44%]
+tests/test_covpush_w57_byok_handler_d.py::TestStreamCompletion::test_success_stream
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 45%]
+tests/test_covpush_w57_byok_handler_d.py::TestStreamCompletion::test_error_delta
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/gpt-4o: 'str' object has no attribute 'choices'
+2026-11-10 11:06:26 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail='str' object has no attribute 'choices'
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for gpt-4o. Last error: 'str' object has no attribute 'choices'
+PASSED                                                                   [ 46%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[initial-zero-single]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-a
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-a released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-a: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-a failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for model-a. Last error: controlled model failure
+PASSED                                                                   [ 46%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[initial-reasoning-single]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-a
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-a released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] [stream-empty] opencode-go/model-a streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-a: opencode-go/model-a streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-a failed: cause=unknown status=None detail=opencode-go/model-a streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for model-a. Last error: opencode-go/model-a streamed no visible content (chunks=0, finish_reason=stop)
+PASSED                                                                   [ 47%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[initial-visible-single]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-a
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-a released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-a: stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-a failed: cause=unknown status=None detail=stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] mid-stream failure on opencode-go/model-a after 1 visible chunk(s) — keeping the partial answer, not replaying
+PASSED                                                                   [ 48%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[paid-zero-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] OpenCode Go free-model stream retry FAILED on paid model deepseek-v4-flash: controlled model failure
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for deepseek-v4-flash-free. Last error: controlled model failure
+PASSED                                                                   [ 49%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[paid-reasoning-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [    INFO] OpenCode Go free-model stream retry started on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+2026-11-10 11:06:26 [ WARNING] OpenCode Go free-model stream retry FAILED on paid model deepseek-v4-flash: paid retry stream for opencode-go/deepseek-v4-flash produced no visible content
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for deepseek-v4-flash-free. Last error: paid retry stream for opencode-go/deepseek-v4-flash produced no visible content
+PASSED                                                                   [ 50%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[paid-visible-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [    INFO] OpenCode Go free-model stream retry started on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+2026-11-10 11:06:26 [ WARNING] OpenCode Go free-model stream retry FAILED on paid model deepseek-v4-flash: stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] visible partial already delivered for opencode-go/deepseek-v4-flash-free — stopping the request without replay
+PASSED                                                                   [ 50%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[heal-zero-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/gpt-4o: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [    INFO] [SelfHeal-stream] retrying openai/gpt-4o with patch=test-repair keys=['model']
+2026-11-10 11:06:26 [ WARNING] [SelfHeal-stream] retry FAILED for openai/gpt-4o: controlled model failure (rule=test-repair)
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for gpt-4o. Last error: controlled model failure
+PASSED                                                                   [ 51%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[heal-reasoning-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/gpt-4o: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [    INFO] [SelfHeal-stream] retrying openai/gpt-4o with patch=test-repair keys=['model']
+2026-11-10 11:06:26 [    INFO] [SelfHeal-stream] retry SUCCEEDED for openai/gpt-4o (rule=test-repair)
+2026-11-10 11:06:26 [ WARNING] [SelfHeal-stream] retry FAILED for openai/gpt-4o: self-heal stream for openai/gpt-4o produced no visible content (rule=test-repair)
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for gpt-4o. Last error: self-heal stream for openai/gpt-4o produced no visible content
+PASSED                                                                   [ 52%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[heal-visible-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/gpt-4o: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [    INFO] [SelfHeal-stream] retrying openai/gpt-4o with patch=test-repair keys=['model']
+2026-11-10 11:06:26 [    INFO] [SelfHeal-stream] retry SUCCEEDED for openai/gpt-4o (rule=test-repair)
+2026-11-10 11:06:26 [ WARNING] [SelfHeal-stream] retry FAILED for openai/gpt-4o: stream cut mid-way (rule=test-repair)
+2026-11-10 11:06:26 [ WARNING] visible partial already delivered for openai/gpt-4o — stopping the request without replay
+PASSED                                                                   [ 53%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[provider-zero-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=shared-model
+2026-11-10 11:06:26 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/shared-model: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [    INFO] Falling back to next provider...
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: deepseek (requested: openai) model=shared-model
+2026-11-10 11:06:26 [    INFO] [inflight] deepseek/shared-model released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 53%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[provider-reasoning-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=shared-model
+2026-11-10 11:06:26 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] [stream-empty] openai/shared-model streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/shared-model: openai/shared-model streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=openai/shared-model streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [    INFO] Falling back to next provider...
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: deepseek (requested: openai) model=shared-model
+2026-11-10 11:06:26 [    INFO] [inflight] deepseek/shared-model released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 54%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[provider-visible-single]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=shared-model
+2026-11-10 11:06:26 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/shared-model: stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] mid-stream failure on openai/shared-model after 1 visible chunk(s) — keeping the partial answer, not replaying
+PASSED                                                                   [ 55%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[ranked-zero-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/gpt-4o: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [    INFO] Falling back to next provider...
+2026-11-10 11:06:26 [ WARNING] all 2 provider(s) failed for openai/gpt-4o — falling back to ranked route deepseek/deepseek-chat
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: deepseek (requested: deepseek) model=deepseek-chat
+2026-11-10 11:06:26 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 56%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[ranked-reasoning-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] [stream-empty] openai/gpt-4o streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/gpt-4o: openai/gpt-4o streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=openai/gpt-4o streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [    INFO] Falling back to next provider...
+2026-11-10 11:06:26 [ WARNING] all 2 provider(s) failed for openai/gpt-4o — falling back to ranked route deepseek/deepseek-chat
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: deepseek (requested: deepseek) model=deepseek-chat
+2026-11-10 11:06:26 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 56%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[ranked-visible-single]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:26 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for openai/gpt-4o: stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] mid-stream failure on openai/gpt-4o after 1 visible chunk(s) — keeping the partial answer, not replaying
+PASSED                                                                   [ 57%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[sweep-zero-three]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-z
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-z released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-z: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-z failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for model-z. Last error: controlled model failure
+2026-11-10 11:06:26 [ WARNING] stream ladder exhausted the caller's fallbacks — one catalog-driven sweep over untried healthy providers: opencode-go/model-a, opencode-go/model-b
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-a
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-a released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-a: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-a failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [ WARNING] all 1 provider(s) failed for opencode-go/model-a — falling back to ranked route opencode-go/model-b
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-b
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-b released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-b: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-b failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for model-b. Last error: controlled model failure
+PASSED                                                                   [ 58%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[sweep-reasoning-three]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-z
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-z released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-z: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-z failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for model-z. Last error: controlled model failure
+2026-11-10 11:06:26 [ WARNING] stream ladder exhausted the caller's fallbacks — one catalog-driven sweep over untried healthy providers: opencode-go/model-a, opencode-go/model-b
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-a
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-a released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] [stream-empty] opencode-go/model-a streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-a: opencode-go/model-a streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-a failed: cause=unknown status=None detail=opencode-go/model-a streamed no visible content (chunks=0, finish_reason=stop)
+2026-11-10 11:06:26 [ WARNING] all 1 provider(s) failed for opencode-go/model-a — falling back to ranked route opencode-go/model-b
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-b
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-b released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 59%]
+tests/test_stream_retry_state_contract.py::test_generated_stream_retry_state_matrix[sweep-visible-two]
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-z
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-z released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-z: controlled model failure
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-z failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:26 [   ERROR] All 1 providers failed for model-z. Last error: controlled model failure
+2026-11-10 11:06:26 [ WARNING] stream ladder exhausted the caller's fallbacks — one catalog-driven sweep over untried healthy providers: opencode-go/model-a, opencode-go/model-b
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-a
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/model-a released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/model-a: stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/model-a failed: cause=unknown status=None detail=stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] mid-stream failure on opencode-go/model-a after 1 visible chunk(s) — keeping the partial answer, not replaying
+PASSED                                                                   [ 59%]
+tests/test_stream_retry_state_contract.py::test_paid_retry_partial_never_dispatches_ranked_route
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:26 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:26 [    INFO] EscalationManager initialized
+2026-11-10 11:06:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:26 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:26 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 11:06:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:26 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 11:06:26 [    INFO] OpenCode Go free-model stream retry started on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+2026-11-10 11:06:26 [ WARNING] OpenCode Go free-model stream retry FAILED on paid model deepseek-v4-flash: stream cut mid-way
+2026-11-10 11:06:26 [ WARNING] visible partial already delivered for opencode-go/deepseek-v4-flash-free — stopping the request without replay
+PASSED                                                                   [ 60%]
+tests/test_stream_retry_state_contract.py::test_sweep_budget_survives_ranked_fallback_recursion
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:27 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-z
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/model-z released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Streaming failed for opencode-go/model-z: controlled model failure
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/model-z failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:27 [   ERROR] All 1 providers failed for model-z. Last error: controlled model failure
+2026-11-10 11:06:27 [ WARNING] stream ladder exhausted the caller's fallbacks — one catalog-driven sweep over untried healthy providers: opencode-go/model-a, opencode-go/model-b
+2026-11-10 11:06:27 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-a
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/model-a released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Streaming failed for opencode-go/model-a: controlled model failure
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/model-a failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:27 [ WARNING] all 1 provider(s) failed for opencode-go/model-a — falling back to ranked route opencode-go/model-b
+2026-11-10 11:06:27 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=model-b
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/model-b released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Streaming failed for opencode-go/model-b: controlled model failure
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/model-b failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:27 [   ERROR] All 1 providers failed for model-b. Last error: controlled model failure
+PASSED                                                                   [ 61%]
+tests/test_stream_retry_state_contract.py::test_unknown_catalogue_still_refuses_dispatch
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:27 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [   ERROR] All 1 providers failed for gpt-4o. Last error: None
+PASSED                                                                   [ 62%]
+tests/test_stream_retry_state_contract.py::test_local_only_still_refuses_cloud_route
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:27 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [ WARNING] [local-only] no local provider has a client; no dispatch
+PASSED                                                                   [ 62%]
+tests/test_stream_retry_state_contract.py::test_one_request_repair_total_across_ranked_fallback
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [ WARNING] Could not create database session for tier service: __enter__
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:06:27 [ WARNING] Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 11:06:27 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Streaming failed for openai/gpt-4o: controlled model failure
+2026-11-10 11:06:27 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:27 [    INFO] [SelfHeal-stream] retrying openai/gpt-4o with patch=test-repair keys=['model']
+2026-11-10 11:06:27 [ WARNING] [SelfHeal-stream] retry FAILED for openai/gpt-4o: controlled model failure (rule=test-repair)
+2026-11-10 11:06:27 [    INFO] Falling back to next provider...
+2026-11-10 11:06:27 [ WARNING] all 2 provider(s) failed for openai/gpt-4o — falling back to ranked route deepseek/deepseek-chat
+2026-11-10 11:06:27 [    INFO] Attempting stream with provider: deepseek (requested: deepseek) model=deepseek-chat
+2026-11-10 11:06:27 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Streaming failed for deepseek/deepseek-chat: controlled model failure
+2026-11-10 11:06:27 [ WARNING] attempt deepseek/deepseek-chat failed: cause=unknown status=None detail=controlled model failure
+2026-11-10 11:06:27 [    INFO] Falling back to next provider...
+2026-11-10 11:06:27 [   ERROR] All 2 providers failed for deepseek-chat. Last error: controlled model failure
+PASSED                                                                   [ 63%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_benign_prompt_passes PASSED [ 64%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_ssn_prompt_flagged_restricted PASSED [ 65%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_secret_key_prompt_flagged PASSED [ 65%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_empty_and_oversized_inputs_safe PASSED [ 66%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_chat_completion_shadow_logs_but_proceeds
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [ WARNING] llm_taint.shadow provider=opencode-go model=deepseek-v4-flash max_observed=restricted — Prompt classified restricted-sensitivity (potential PII or secrets) heading to external LLM opencode-go/deepseek-v4-flash (set ATOM_LLM_TAINT_ENFORCE=true to block)
+PASSED                                                                   [ 67%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_chat_completion_enforce_blocks
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 68%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_generate_response_enforce_returns_marker_without_dispatch
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 68%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_stream_enforce_yields_error_without_dispatch
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 69%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_benign_prompt_unaffected_under_enforce
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 70%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_default_bpc_prefers_flash_value
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:27 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 5866.67)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 71%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_fast_cap_excludes_pro
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:27 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 10325.33)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 71%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_quality_floor_selects_pro
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Loaded 5377 model prices from cache
+2026-11-10 11:06:27 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-pro (Value: 2109.86)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-pro - $0.000033 (Saved: $0.000042)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-pro
+PASSED                                                                   [ 72%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterFreeSuffixContract::test_free_ids_are_not_registry_models
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 73%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterFreeSuffixContract::test_route_survives_unknown_free_candidate
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Routed question_answering to minimax-m3 (confidence=0.97, cost=$0.0006)
+PASSED                                                                   [ 74%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_cached_ok_short_circuits PASSED [ 75%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_cached_reason_replayed PASSED [ 75%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_missing_client_reports_reason PASSED [ 76%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_credits_error_becomes_cached_skip_reason PASSED [ 77%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_success_returns_none_and_caches_ok PASSED [ 78%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_free_model_balance_error_retries_paid
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 78%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_retry_records_usage_for_budget_guard
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 79%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_retry_cost_attribution_failure_is_non_fatal
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] Could not attribute LLM cost: no table
+2026-11-10 11:06:27 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 80%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_non_free_model_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/deepseek-v4-flash failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+PASSED                                                                   [ 81%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_free_model_other_error_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: 401 invalid key
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=unknown status=None detail=401 invalid key
+PASSED                                                                   [ 81%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_paid_retry_failure_falls_through
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] OpenCode Go paid retry FAILED for deepseek-v4-flash: paid also failed
+PASSED                                                                   [ 82%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_extra_kwargs_preserved_on_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 11:06:27 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 11:06:27 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 83%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_quality_raises_quality_floor
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-pro - $0.000033 (Saved: $0.000042)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-pro
+PASSED                                                                   [ 84%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_fast_caps_quality
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 84%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_auto_passes_no_steering
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 85%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_explicit_cognitive_tier_wins_over_model_type
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=complex, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 86%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_concrete_model_name_pins_candidate_order
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] [inflight] openai/gpt-4o released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): gpt-4o - $0.000075 (Saved: $0.000000)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=openai, model=gpt-4o
+PASSED                                                                   [ 87%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_unknown_concrete_model_keeps_ranked_order
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 11:06:27 [    INFO] EscalationManager initialized
+2026-11-10 11:06:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 11:06:27 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 11:06:27 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 87%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_v4_specs_served_via_opencode_go
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 88%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_costs_match_gateway_blended_pricing
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 89%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_no_cache_claim_for_deepseek_v4
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 90%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_opencode_catalog_entries_present
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 90%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_minimax_m3_keeps_direct_api_entry
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:06:27 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 91%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_micro_and_standard_include_current_flash PASSED [ 92%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_heavy_includes_pro PASSED [ 93%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_complex_includes_current_frontier PASSED [ 93%]
+tests/test_deepseek_harness_gaps.py::TestBenchmarksNoDuplicateKeys::test_model_quality_scores_has_no_duplicate_keys PASSED [ 94%]
+tests/test_deepseek_harness_gaps.py::TestSandboxEgressOpencodeGateway::test_baseline_allows_opencode_zen_host PASSED [ 95%]
+tests/test_deepseek_harness_gaps.py::TestSandboxEgressOpencodeGateway::test_llm_proxy_allows_opencode_zen_host PASSED [ 96%]
+tests/test_deepseek_harness_gaps.py::TestTripwireEgressDivergenceDocumented::test_llm_host_is_egress_allowed_but_exfil_tripped PASSED [ 96%]
+tests/test_deepseek_harness_gaps.py::TestTripwireEgressDivergenceDocumented::test_allowlisted_package_mirror_not_tripped PASSED [ 97%]
+tests/test_deepseek_harness_gaps.py::test_gatekeeper_taint_tracker_error_fails_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:06:27 [   ERROR] taint check unavailable for slack; failing CLOSED: tracker storage unavailable
+2026-11-10 11:06:27 [    INFO] gatekeeper.audit service=slack action=send_message agent_id=None allowed=False reason=taint check error: RuntimeError
+PASSED                                                                   [ 98%]
+tests/test_deepseek_harness_gaps.py::TestOrgPoliticsDefaultChatFn::test_routes_through_byok_handler PASSED [ 99%]
+tests/test_deepseek_harness_gaps.py::TestOrgPoliticsDefaultChatFn::test_no_clients_returns_none PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 264 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 132 passed, 269 warnings in 21.22s ======================

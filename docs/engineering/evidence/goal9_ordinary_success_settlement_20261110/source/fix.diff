@@ -1,0 +1,243 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 7912cd4d8..844cde2f1 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -510,6 +510,17 @@ jobs:
+         run: |
+           python -m pytest tests/test_goal9_durable_settlement.py tests/test_goal9_token_usage_upgrade.py -q --tb=short --timeout=300 --timeout-method=thread
+ 
++      - name: Run ordinary BYOK success settlement controls
++        env:
++          TESTING: "1"
++          PYTEST_CURRENT_TEST: "goal9_ci_ordinary_success"
++          DATABASE_URL: "sqlite:///test_ci_goal9_ordinary_success.db"
++          ATOM_DATA_DIR: "${{ runner.temp }}/atom-goal9-ordinary-success"
++          SECRET_KEY: "ci-test-secret-key"
++          ENVIRONMENT: "development"
++        run: |
++          python -m pytest tests/test_goal9_ci_execution_contract.py -q --tb=short --timeout=300 --timeout-method=thread
++
+   backend-oracle:
+     runs-on: ubuntu-latest
+     defaults:
+diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
+index fba2ec765..331facded 100644
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -7058,6 +7058,38 @@ class BYOKHandler:
+                     # Log for analytics
+                     logger.info(f"BYOK Logic: complexity={complexity.value}, provider={provider_id}, model={model}")
+ 
++                    # Durable authoritative settlement of THIS success attempt.
++                    # The pre-dispatch intent row is the exact attempt; settle
++                    # it once via the existing ledger helper. Missing usage or
++                    # pricing remains explicit unknown, never a fabricated 0.
++                    # The inline tracker/cache/rate/feedback above are kept as
++                    # the cache/feedback surface and are not duplicated here.
++                    try:
++                        from core.spend_aggregation_service import (
++                            record_llm_usage,
++                        )
++
++                        record_llm_usage(
++                            provider_id=provider_id,
++                            model_name=model,
++                            prompt_tokens=_usage_value(
++                                usage, "prompt_tokens", "input_tokens"),
++                            completion_tokens=_usage_value(
++                                usage, "completion_tokens", "output_tokens"),
++                            cost_usd=observed_cost,
++                            agent_id=agent_id,
++                            workspace_id=getattr(self, "workspace_id", None),
++                            tenant_id=getattr(self, "tenant_id", None),
++                            execution_id=execution_id,
++                            chain_id=chain_id,
++                            request_id=_settlement_request_id,
++                            attempt_id=_attempt_id,
++                        )
++                    except Exception as settle_err:
++                        logger.error(
++                            "LLM durable usage settlement failed (%s)",
++                            type(settle_err).__name__)
++
+                     # Phase 226.4-04: Record successful API call for health monitoring
+                     latency_ms = (time.time() - request_start) * 1000
+                     self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+diff --git a/backend/tests/test_goal9_ci_execution_contract.py b/backend/tests/test_goal9_ci_execution_contract.py
+index 484768061..1fbcecc8d 100644
+--- a/backend/tests/test_goal9_ci_execution_contract.py
++++ b/backend/tests/test_goal9_ci_execution_contract.py
+@@ -10,14 +10,40 @@ used exactly, with no hidden provider fallback when the intent cannot persist.
+ from __future__ import annotations
+ 
+ import asyncio
++import json
++from types import SimpleNamespace
+ from unittest.mock import MagicMock
+ 
+ import pytest
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
+ 
+ from tests.test_oracle_mini_app_host_mutations import host
+ from tests._llm_route_catalog import install_route_catalog
++from core.budget_enforcement_service import BudgetEnforcementService
+ from core.llm.byok_handler import AwaitableResult, BYOKHandler
+-from core.models import TokenUsage
++from core.models import Tenant, TenantSetting, TokenUsage, Workspace
++from core.spend_aggregation_service import (
++    SpendAggregationService,
++    clear_settlement_failure,
++    record_llm_usage,
++)
++
++SUCCESS_TENANT = "tenant-goal9-success"
++SUCCESS_WORKSPACE = "ws-goal9-success"
++
++
++def _bind_success_scope(host, handler):
++    with host.Session() as db:
++        db.add(Tenant(
++            id=SUCCESS_TENANT, name="Goal9 success",
++            subdomain="goal9-success"))
++        db.add(Workspace(
++            id=SUCCESS_WORKSPACE, name="Goal9 success",
++            tenant_id=SUCCESS_TENANT))
++        db.commit()
++    handler.workspace_id = SUCCESS_WORKSPACE
++    handler.tenant_id = SUCCESS_TENANT
+ 
+ 
+ def _response(content: str):
+@@ -124,3 +150,131 @@ def test_intent_failure_does_not_fallback_to_second_provider(
+     with host.Session() as db:
+         assert db.query(TokenUsage).filter(
+             TokenUsage.attempt_id.isnot(None)).count() == 0
++
++
++def test_two_ordinary_successes_settle_ledger_once(
++        host, ordinary_handler, monkeypatch):
++    from core.llm import byok_handler
++
++    _bind_success_scope(host, ordinary_handler)
++    monkeypatch.setattr(
++        byok_handler, "get_pricing_fetcher",
++        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: 0.25))
++    client = ordinary_handler.clients["opencode-go"]
++    client.chat.completions.create.return_value = _response(
++        "independent ordinary")
++
++    for prompt in ("First independent call", "Second independent call"):
++        assert asyncio.run(ordinary_handler.generate_response(prompt)) == (
++            "independent ordinary")
++    assert client.chat.completions.create.call_count == 2
++
++    with host.Session() as db:
++        rows = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == SUCCESS_TENANT).all()
++        assert len(rows) == 2
++        assert len({r.attempt_id for r in rows}) == 2
++        assert len({r.request_id for r in rows}) == 2
++        assert all(r.billed is True for r in rows)
++        assert all(r.cost_usd == pytest.approx(0.25) for r in rows)
++        assert all(r.pricing_status == "priced" for r in rows)
++        assert all(
++            r.prompt_tokens == 10 and r.completion_tokens == 5 for r in rows)
++        assert all(r.execution_id is None for r in rows)
++        assert all(
++            r.workspace_id == SUCCESS_WORKSPACE
++            and r.tenant_id == SUCCESS_TENANT for r in rows)
++        first = rows[0]
++
++    with host.Session() as db:
++        spend = SpendAggregationService(db).update_tenant_spend(
++            SUCCESS_TENANT, persist=False)
++    assert spend["current_spend_usd"] == pytest.approx(0.5)
++
++    replay_id = record_llm_usage(
++        provider_id=first.provider_id,
++        model_name=first.model_name,
++        prompt_tokens=10,
++        completion_tokens=5,
++        cost_usd=0.25,
++        agent_id=first.agent_id,
++        workspace_id=first.workspace_id,
++        tenant_id=first.tenant_id,
++        execution_id=first.execution_id,
++        chain_id=first.chain_id,
++        request_id=first.request_id,
++        attempt_id=first.attempt_id,
++    )
++    assert replay_id == first.id
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == SUCCESS_TENANT).count() == 2
++
++
++def test_missing_usage_is_explicit_unknown(
++        host, ordinary_handler, monkeypatch):
++    _bind_success_scope(host, ordinary_handler)
++    ordinary_handler.clients[
++        "opencode-go"].chat.completions.create.return_value = SimpleNamespace(
++            choices=[SimpleNamespace(
++                message=SimpleNamespace(
++                    content="no usage", reasoning_content=None),
++                finish_reason="stop")])
++    assert asyncio.run(ordinary_handler.generate_response(
++        "No usage in response")) == "no usage"
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == SUCCESS_TENANT).one()
++        assert row.billed is True
++        assert row.cost_usd is None
++        assert row.pricing_status == "unknown"
++        assert row.prompt_tokens == 0
++        assert row.completion_tokens == 0
++
++
++def test_success_settlement_failure_retains_intent_across_restart(
++        host, ordinary_handler, monkeypatch):
++    _bind_success_scope(host, ordinary_handler)
++    with host.Session() as db:
++        db.add(TenantSetting(
++            tenant_id=SUCCESS_TENANT,
++            setting_key="billing",
++            setting_value=json.dumps({
++                "budget_limit_usd": 100,
++                "enforcement": {"mode": "hard_stop"},
++            })))
++        db.commit()
++    ordinary_handler.clients["opencode-go"].chat.completions.create.return_value = (
++        _response("settle failure still returns"))
++    from core import spend_aggregation_service as spend_module
++
++    def _settlement_down(*args, **kwargs):
++        raise RuntimeError("controlled settlement write failure")
++
++    monkeypatch.setattr(
++        spend_module, "record_llm_usage", _settlement_down)
++    assert asyncio.run(ordinary_handler.generate_response(
++        "settlement failure")) == "settle failure still returns"
++
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == SUCCESS_TENANT).one()
++        assert row.billed is False
++        assert row.cost_usd is None
++        assert row.pricing_status == "unknown"
++        refused = BudgetEnforcementService(
++            db).check_budget_before_action_sync(
++                SUCCESS_TENANT, "ci-agent", "llm")
++    assert refused["allowed"] is False
++    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
++
++    spend_module.clear_settlement_failure()
++    engine = create_engine(str(host.engine.url))
++    Session = sessionmaker(bind=engine, expire_on_commit=False)
++    with Session() as db:
++        refused = BudgetEnforcementService(
++            db).check_budget_before_action_sync(
++                SUCCESS_TENANT, "ci-agent", "llm")
++    assert refused["allowed"] is False
++    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
++    engine.dispose()

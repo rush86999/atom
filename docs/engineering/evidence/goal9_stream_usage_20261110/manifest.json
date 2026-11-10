@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-10",
+  "files": {
+    "README.md": "8ebb1f2697d8232bcc185bb367528dfa809c131992872ac9b6262685ad84e43b",
+    "after/broad-stream-consumers.log": "4d32015da365606a2896e01c7d686e58f8629000602b801a2575b074f71be55e",
+    "after/focused-stream-pricing.log": "3d442d3a899f009ff1da051e919248c1e35c56d3a009051760d7d6c33ce8a78e",
+    "after/stream-usage-controls.log": "20e2f542067ca3da7602242949526755b9f02a0b9003c87f886574c4479415da",
+    "retry_inventory.md": "cc16c410e8f1fa8e1baccb55ee739f6e1a54e8e8f34ef749bcb01e8b2be85eb2",
+    "source/fix.diff": "fc96f9bb704ddf7dc7e1a16e0925aa0491e9a70b7f502263bd122243edcda1dd",
+    "source/source-hashes.json": "f4b09016a827591cd6839744345afadd67f5d97153777abc340c8c3ede2f3b2d",
+    "verification.json": "70631a73669765eac8404848e4d0d2081d053c9e9ab4501c99acb961c3abc7f2"
+  },
+  "schema": "goal9_stream_usage_evidence"
+}

@@ -1,0 +1,23 @@
+{
+  "atomic_wip_checkpoint": "bc8d7c10a03903779e02bb8564cb948b9c3f8a31",
+  "base_commit": "c3c540f720f7497e8443a6d30299c3525e2ed8d9",
+  "branch": "codex/goal9-ci-repair-c3-20261110",
+  "date": "2026-11-10",
+  "files": {
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "5fabea247add1e0725dbf23b9d66e328d5a39bbbaddcc89f94a12ae84f35d57e",
+      "before_sha256": "768fe04febc170bea282db06d026fce1617531ea5ec997104252031a298c07e4",
+      "changed": true
+    },
+    "backend/tests/test_goal9_ci_execution_contract.py": {
+      "after_sha256": "605202b125ce3722ab71ff50916a5ada2b20a2081e818cb37de49762b6a83592",
+      "before_sha256": null,
+      "changed": true
+    }
+  },
+  "note": "c3 NameError execution_id consumer-contract repair; stream per-call identity; no hidden fallback on intent failure",
+  "product_files_changed": [
+    "backend/core/llm/byok_handler.py"
+  ],
+  "schema": "goal9_ci_repair_c3_source"
+}

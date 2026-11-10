@@ -1,0 +1,36 @@
+{
+  "atomic_wip": "separate branch codex/goal9-atomic-cap-20261110",
+  "base_commit": "0472eb9203a3d171c2b521a28c9a5f579397163f",
+  "branch": "codex/goal9-ci-success-settlement-20261110",
+  "date": "2026-11-10",
+  "evidence_files": {
+    "README.md": "1aad397697010549d3eb2d0474ef3dde8f2eecad1bc682561b40b6ac7470df06",
+    "gates/bounded.log": "03702de6779440e18234b3c5b157d97fa72de482544d606db06c09b9f34e7c30",
+    "gates/durable.log": "a2119be2af1e57a9accfe06f563225c18f820054b69d7cfaa302ee073dda04e1",
+    "gates/focused.log": "f916820c0706d45f53f562449fb20e99679843e03e3afe6e2e6c5b2191895946",
+    "gates/root-probe-fixed.log": "e426da741475d0e3366b4d0720d0efd18869318659465cfccfa8eb94b4a034cd",
+    "gates/root-probe-observation.json": "7c8828efca6b0a5940bb7399fd09aa871d4e811a1855ea75e80ddbb1f4255b06",
+    "retained_negative/root-success-prefix.log": "e0fba12492cf6a5fdaba13846d7f303978b54abb24c4bb70a935326960e38948",
+    "retained_negative/root-success-review.json": "f28ec67d276d2f42e470cd401559a1cd0dfdefa2a42b8c116d8aa937bc869e8e",
+    "retained_negative/root_goal9_ordinary_ci_probe.py": "c4928a4da3ed2a17d1758b5ac47e327b45bbdc5b8a586f49f33070f36089609d",
+    "source/fix.diff": "957f9ee696ce70b946eb171f2f70307b3279f89de0a82495f4d021fe1f99e0b7",
+    "source/source-hashes.json": "a41ba57e42e799a3732b0d7dc1cbd7458705b1f7e3595e67c8dd1b48b3b2f4ef"
+  },
+  "gates": {
+    "bounded_ci_subset": "228 passed",
+    "durable": "29 passed",
+    "focused": "62 passed",
+    "live_provider_db": false,
+    "root_probe": "2 passed",
+    "scratch": "SQLite only"
+  },
+  "kind": "goal9_ordinary_success_settlement",
+  "root_probe": {
+    "fixed_gate": "gates/root-probe-fixed.log",
+    "fixed_observation": "gates/root-probe-observation.json",
+    "negative": "retained_negative/root-success-review.json",
+    "pre_fix_log": "retained_negative/root-success-prefix.log"
+  },
+  "root_review_required": true,
+  "status": "tested_candidate_ready_for_root_review"
+}

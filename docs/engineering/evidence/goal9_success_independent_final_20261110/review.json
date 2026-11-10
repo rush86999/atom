@@ -1,0 +1,35 @@
+{
+  "source": "1aa6416da5c99854c5dba8cb519ef390ceb7565f",
+  "source_after": "1aa6416da5c99854c5dba8cb519ef390ceb7565f",
+  "same_source": true,
+  "actual_exit": 0,
+  "log": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-goal9-success-isolated-final-20261110-40jbxq7p/pytest.log",
+  "root_probe_isolation": "pytestmonkeypatch restores failuremarker at teardown; no productionchange",
+  "ci_followup": "onlymissingadditiveledgerentrycorrected",
+  "rows": [
+    {
+      "attempt_id": "ca919efb-2a51-468a-a240-1b338dcb126b:1",
+      "request_id": "ca919efb-2a51-468a-a240-1b338dcb126b",
+      "execution_id": null,
+      "workspace_id": "root-budget-ws",
+      "tenant_id": "root-budget",
+      "billed": true,
+      "cost_usd": 0.25,
+      "pricing_status": "priced",
+      "prompt_tokens": 10,
+      "completion_tokens": 5
+    },
+    {
+      "attempt_id": "67d555d0-2c18-4aac-9d64-2630161df9b8:1",
+      "request_id": "67d555d0-2c18-4aac-9d64-2630161df9b8",
+      "execution_id": null,
+      "workspace_id": "root-budget-ws",
+      "tenant_id": "root-budget",
+      "billed": true,
+      "cost_usd": 0.25,
+      "pricing_status": "priced",
+      "prompt_tokens": 10,
+      "completion_tokens": 5
+    }
+  ]
+}
