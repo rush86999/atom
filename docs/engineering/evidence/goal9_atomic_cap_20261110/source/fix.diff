@@ -107,7 +107,7 @@ index 46d01a454..c3e320f32 100644
  
      def _get_budget_override(self, tenant_id: str) -> Optional[Dict]:
 diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
-index a8d102bc2..83a63c7e0 100644
+index a8d102bc2..bc99cecc4 100644
 --- a/backend/core/llm/byok_handler.py
 +++ b/backend/core/llm/byok_handler.py
 @@ -9,6 +9,7 @@ import hashlib
@@ -118,7 +118,7 @@ index a8d102bc2..83a63c7e0 100644
  import os
  import re
  import tempfile
-@@ -1072,6 +1073,23 @@ def _response_usage(response: Any) -> Any:
+@@ -1072,6 +1073,25 @@ def _response_usage(response: Any) -> Any:
      return usage
  
  
@@ -128,7 +128,9 @@ index a8d102bc2..83a63c7e0 100644
 +    Invalid pricing (negative/NaN/inf/type junk) must not become free or a
 +    zero/infinite reservation. The durable helper applies the same guard.
 +    """
-+    if cost is None:
++    if cost is None or isinstance(cost, bool):
++        # Python float(False)==0 and float(True)==1: a bool is malformed
++        # pricing, not authoritative free/one-dollar pricing.
 +        return None
 +    try:
 +        value = float(cost)
@@ -142,7 +144,7 @@ index a8d102bc2..83a63c7e0 100644
  def _usage_value(usage: Any, *names: str) -> int:
      value = None
      for name in names:
-@@ -4156,6 +4174,79 @@ class BYOKHandler:
+@@ -4156,6 +4176,81 @@ class BYOKHandler:
          except Exception:
              logger.debug("Rate usage tracking failed (non-fatal)", exc_info=True)
  
@@ -196,6 +198,8 @@ index a8d102bc2..83a63c7e0 100644
 +                    model, input_tokens_upper, output_tokens)
 +            if cost is None:
 +                return None
++            if isinstance(cost, bool):
++                return None
 +            try:
 +                cost_value = float(cost)
 +            except (TypeError, ValueError):
@@ -222,7 +226,7 @@ index a8d102bc2..83a63c7e0 100644
      def _record_provider_usage(
          self,
          provider_id: str,
-@@ -4217,10 +4308,13 @@ class BYOKHandler:
+@@ -4217,10 +4312,13 @@ class BYOKHandler:
                  if reference_cost is None:
                      reference_cost = get_llm_cost(
                          "gpt-4o", input_tokens, output_tokens)
@@ -236,7 +240,7 @@ index a8d102bc2..83a63c7e0 100644
          if known_free:
              # Trusted free contract, not a model-name/brand assumption.
              # Authoritative: the free contract wins over a pricing estimate.
-@@ -6316,6 +6410,7 @@ class BYOKHandler:
+@@ -6316,6 +6414,7 @@ class BYOKHandler:
          messages: Optional[List[Dict[str, Any]]] = None,  # Full conversation (chat path)
          max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
          estimated_tokens: Optional[int] = None,  # MEASURED input tokens, when the caller has them
@@ -244,7 +248,7 @@ index a8d102bc2..83a63c7e0 100644
      ) -> str:
          """
          Generate a response using cost-optimized provider routing.
-@@ -6869,6 +6964,10 @@ class BYOKHandler:
+@@ -6869,6 +6968,10 @@ class BYOKHandler:
                      _settlement_attempt += 1
                      _attempt_id = (
                          f"{_settlement_request_id}:{_settlement_attempt}")
@@ -255,7 +259,7 @@ index a8d102bc2..83a63c7e0 100644
                      try:
                          from core.spend_aggregation_service import (
                              begin_llm_usage,
-@@ -6884,6 +6983,8 @@ class BYOKHandler:
+@@ -6884,6 +6987,8 @@ class BYOKHandler:
                              chain_id=chain_id,
                              request_id=_settlement_request_id,
                              attempt_id=_attempt_id,
@@ -264,7 +268,7 @@ index a8d102bc2..83a63c7e0 100644
                          )
                      except Exception as intent_err:
                          _release_once()
-@@ -6891,7 +6992,9 @@ class BYOKHandler:
+@@ -6891,7 +6996,9 @@ class BYOKHandler:
                              "Durable usage intent unavailable; refusing "
                              "dispatch of %s/%s (%s)",
                              provider_id, model, type(intent_err).__name__)
@@ -275,7 +279,7 @@ index a8d102bc2..83a63c7e0 100644
  
                      try:
                          response = await _to_thread_safe(
-@@ -6997,6 +7100,8 @@ class BYOKHandler:
+@@ -6997,6 +7104,8 @@ class BYOKHandler:
                                  cost = get_llm_cost(model, input_tokens, output_tokens)
                                  reference_cost = get_llm_cost("gpt-4o", input_tokens, output_tokens)
  
@@ -284,7 +288,7 @@ index a8d102bc2..83a63c7e0 100644
                              savings_usd = max(0, reference_cost - cost) if (reference_cost is not None and cost is not None) else 0.0
  
                              # Record even when the cost resolves to 0/None
-@@ -7055,6 +7160,39 @@ class BYOKHandler:
+@@ -7055,6 +7164,39 @@ class BYOKHandler:
                      # Log for analytics
                      logger.info(f"BYOK Logic: complexity={complexity.value}, provider={provider_id}, model={model}")
  
@@ -324,7 +328,7 @@ index a8d102bc2..83a63c7e0 100644
                      # Phase 226.4-04: Record successful API call for health monitoring
                      latency_ms = (time.time() - request_start) * 1000
                      self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
-@@ -9168,6 +9306,32 @@ class BYOKHandler:
+@@ -9168,6 +9310,32 @@ class BYOKHandler:
                              _structured_attempt_id = (
                                  f"{_structured_settlement_request_id}:"
                                  f"{_attempt_count}")
@@ -357,7 +361,7 @@ index a8d102bc2..83a63c7e0 100644
                              try:
                                  from core.spend_aggregation_service import (
                                      begin_llm_usage,
-@@ -9184,6 +9348,9 @@ class BYOKHandler:
+@@ -9184,6 +9352,9 @@ class BYOKHandler:
                                      request_id=(
                                          _structured_settlement_request_id),
                                      attempt_id=_structured_attempt_id,
@@ -367,7 +371,7 @@ index a8d102bc2..83a63c7e0 100644
                                  )
                              except Exception as intent_err:
                                  _release_once()
-@@ -10431,32 +10598,42 @@ class BYOKHandler:
+@@ -10431,32 +10602,42 @@ class BYOKHandler:
                  stream_prompt = str(_m.get("content", ""))
                  break
          stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
@@ -423,7 +427,7 @@ index a8d102bc2..83a63c7e0 100644
  
          # P4 prompt-taint gate (shadow by default; blocks under enforce).
          _taint_block = self._llm_taint_check(
-@@ -11495,6 +11672,11 @@ class BYOKHandler:
+@@ -11495,6 +11676,11 @@ class BYOKHandler:
                  _settlement_attempt += 1
                  _attempt_id = (
                      f"{_settlement_request_id}:{_settlement_attempt}")
@@ -435,7 +439,7 @@ index a8d102bc2..83a63c7e0 100644
                  try:
                      from core.spend_aggregation_service import (
                          begin_llm_usage,
-@@ -11508,6 +11690,8 @@ class BYOKHandler:
+@@ -11508,6 +11694,8 @@ class BYOKHandler:
                          tenant_id=getattr(self, "tenant_id", None),
                          request_id=_settlement_request_id,
                          attempt_id=_attempt_id,
@@ -444,7 +448,7 @@ index a8d102bc2..83a63c7e0 100644
                      )
                  except Exception as intent_err:
                      self._release_model_attempt(
-@@ -11518,7 +11702,9 @@ class BYOKHandler:
+@@ -11518,7 +11706,9 @@ class BYOKHandler:
                          "completion dispatch of %s/%s (%s)",
                          attempt_provider_id, model,
                          type(intent_err).__name__)
@@ -455,7 +459,7 @@ index a8d102bc2..83a63c7e0 100644
                  try:
                      response = await client.chat.completions.create(**_attempt_kwargs)
                  finally:
-@@ -11566,6 +11752,7 @@ class BYOKHandler:
+@@ -11566,6 +11756,7 @@ class BYOKHandler:
                  except Exception as cost_err:
                      logger.warning(f"Could not attribute LLM cost: {cost_err}")
                  else:
@@ -482,7 +486,7 @@ index 5661a0d7e..ee1fea107 100644
      model_name = Column(String, nullable=True)
      timestamp = Column(DateTime, default=func.now())
 diff --git a/backend/core/spend_aggregation_service.py b/backend/core/spend_aggregation_service.py
-index b640c7078..790d91d48 100644
+index b640c7078..f3531126d 100644
 --- a/backend/core/spend_aggregation_service.py
 +++ b/backend/core/spend_aggregation_service.py
 @@ -11,12 +11,13 @@ New Phase 10 Features:
@@ -516,7 +520,7 @@ index b640c7078..790d91d48 100644
  def settlement_failure_reason() -> Optional[str]:
      """Reason a prior settlement write failed, or None when healthy."""
      return _SETTLEMENT_FAILURE_REASON
-@@ -52,6 +62,147 @@ def clear_settlement_failure() -> None:
+@@ -52,6 +62,156 @@ def clear_settlement_failure() -> None:
  
  
  
@@ -549,6 +553,10 @@ index b640c7078..790d91d48 100644
 +        return 0.0, "soft_stop"
 +
 +    limit = getattr(tenant, "budget_limit_usd", None)
++    if isinstance(limit, bool):
++        if strict:
++            raise BudgetPolicyUnavailable("invalid tenant budget limit")
++        limit = None
 +    if limit is not None:
 +        try:
 +            limit = float(limit)
@@ -586,12 +594,17 @@ index b640c7078..790d91d48 100644
 +
 +    raw_limit = data.get("budget_limit_usd")
 +    if raw_limit is not None:
-+        try:
-+            parsed_limit = float(raw_limit)
-+        except (TypeError, ValueError):
++        if isinstance(raw_limit, bool):
 +            if strict:
 +                raise BudgetPolicyUnavailable("invalid billing cap")
 +            parsed_limit = None
++        else:
++            try:
++                parsed_limit = float(raw_limit)
++            except (TypeError, ValueError):
++                if strict:
++                    raise BudgetPolicyUnavailable("invalid billing cap")
++                parsed_limit = None
 +        if parsed_limit is not None:
 +            if not math.isfinite(parsed_limit) or parsed_limit < 0:
 +                if strict:
@@ -664,7 +677,7 @@ index b640c7078..790d91d48 100644
  def begin_llm_usage(
      *,
      provider_id: Optional[str],
-@@ -63,22 +214,46 @@ def begin_llm_usage(
+@@ -63,22 +223,50 @@ def begin_llm_usage(
      chain_id: Optional[str] = None,
      request_id: Optional[str] = None,
      attempt_id: str,
@@ -696,6 +709,10 @@ index b640c7078..790d91d48 100644
 +    settles this exact row once.
      """
 +    if reserved_cost_usd is not None:
++        if isinstance(reserved_cost_usd, bool):
++            raise BudgetReservationRefused(
++                "invalid reservation bound",
++                status_code="BUDGET_UNPRICED_USAGE")
 +        try:
 +            bound_value = float(reserved_cost_usd)
 +        except (TypeError, ValueError):
@@ -720,7 +737,7 @@ index b640c7078..790d91d48 100644
          existing = session.query(TokenUsage).filter(
              TokenUsage.attempt_id == str(attempt_id)).first()
          if existing is not None:
-@@ -112,11 +287,50 @@ def begin_llm_usage(
+@@ -112,11 +300,50 @@ def begin_llm_usage(
              billed=False,
              cost_usd=None,
              pricing_status="unknown",
@@ -771,18 +788,19 @@ index b640c7078..790d91d48 100644
      except Exception as intent_err:
          # Do not put SQL/params in the degraded reason or log.
          mark_settlement_failure(
-@@ -133,10 +347,28 @@ def begin_llm_usage(
+@@ -133,10 +360,30 @@ def begin_llm_usage(
              session.close()
  
  
--def _usage_pricing_status(cost_usd: Optional[float]) -> str:
 +def _normalize_cost(cost_usd: Optional[float]) -> Optional[float]:
 +    """Finite, non-negative cost or explicit unknown.
 +
 +    Invalid configured pricing (negative/NaN/inf/type junk) is unknown, never
 +    free and never an admitted negative/infinite bound.
 +    """
-     if cost_usd is None:
++    if cost_usd is None or isinstance(cost_usd, bool):
++        # bool is not a numeric price: float(False)==0 would otherwise become
++        # authoritative free and float(True)==1 a fake one-dollar charge.
 +        return None
 +    try:
 +        value = float(cost_usd)
@@ -793,7 +811,8 @@ index b640c7078..790d91d48 100644
 +    return value
 +
 +
-+def _usage_pricing_status(cost_usd: Optional[float]) -> str:
+ def _usage_pricing_status(cost_usd: Optional[float]) -> str:
+-    if cost_usd is None:
 +    cost = _normalize_cost(cost_usd)
 +    if cost is None:
          return "unknown"
@@ -802,7 +821,7 @@ index b640c7078..790d91d48 100644
  
  
  def _intent_binding_matches(
-@@ -206,6 +438,7 @@ def _settle_pending_intent(
+@@ -206,6 +453,7 @@ def _settle_pending_intent(
      authoritative row, and either returns an exact replay or refuses with a
      conflict. No binding field is reassigned.
      """
@@ -810,7 +829,7 @@ index b640c7078..790d91d48 100644
      binding = dict(
          request_id=request_id,
          provider_id=provider_id,
-@@ -233,6 +466,8 @@ def _settle_pending_intent(
+@@ -233,6 +481,8 @@ def _settle_pending_intent(
              TokenUsage.chain_id == chain_id,
              TokenUsage.pricing_status == "unknown",
              TokenUsage.cost_usd.is_(None),
@@ -819,7 +838,7 @@ index b640c7078..790d91d48 100644
          )
          .values(
              prompt_tokens=int(prompt_tokens or 0),
-@@ -240,6 +475,10 @@ def _settle_pending_intent(
+@@ -240,6 +490,10 @@ def _settle_pending_intent(
              total_tokens=int(prompt_tokens or 0) + int(completion_tokens or 0),
              cost_usd=cost_usd,
              pricing_status=_usage_pricing_status(cost_usd),
@@ -830,7 +849,7 @@ index b640c7078..790d91d48 100644
              billed=True,
          )
          .execution_options(synchronize_session=False)
-@@ -299,6 +538,7 @@ def record_llm_usage(
+@@ -299,6 +553,7 @@ def record_llm_usage(
  
      Uses a dedicated session so it can never commit a caller's business work.
      """
@@ -838,7 +857,7 @@ index b640c7078..790d91d48 100644
      # Resolve the current SessionLocal at call time so scratch/test database
      # patches apply instead of a stale module-level binding.
      from core.database import SessionLocal
-@@ -362,10 +602,7 @@ def record_llm_usage(
+@@ -362,10 +617,7 @@ def record_llm_usage(
              total_tokens=int(prompt_tokens or 0) + int(completion_tokens or 0),
              billed=True,
              cost_usd=cost_usd,
@@ -850,7 +869,7 @@ index b640c7078..790d91d48 100644
              model_name=model_name,
          )
          session.add(row)
-@@ -410,28 +647,17 @@ class SpendAggregationService:
+@@ -410,28 +662,17 @@ class SpendAggregationService:
  
          This is the admin-configured source (set via the budget control API at
          api/admin/budget_routes.py). Returns 0.0 if unset (meaning no limit).
@@ -887,7 +906,7 @@ index b640c7078..790d91d48 100644
  
      def get_total_spend(
          self,
-@@ -519,6 +745,12 @@ class SpendAggregationService:
+@@ -519,6 +760,12 @@ class SpendAggregationService:
                  TokenUsage.tenant_id == tenant_id,
                  or_(TokenUsage.pricing_status == "unknown",
                      TokenUsage.cost_usd.is_(None)),
@@ -900,7 +919,7 @@ index b640c7078..790d91d48 100644
                  TokenUsage.timestamp >= start_dt,
                  TokenUsage.timestamp <= end_dt,
              ).scalar() or 0)
-@@ -609,7 +841,6 @@ class SpendAggregationService:
+@@ -609,7 +856,6 @@ class SpendAggregationService:
              if not budget_limit:
                  budget_limit = self._budget_limit_from_setting(tenant_id)
              budget_limit = float(budget_limit or 0.0)
@@ -908,7 +927,7 @@ index b640c7078..790d91d48 100644
              # Unknown-cost liabilities travel WITH the spend read so a hard
              # stop cannot allow on a spend number that silently omits them.
              # A read failure here becomes {"error": ...} above, which the
-@@ -618,14 +849,32 @@ class SpendAggregationService:
+@@ -618,14 +864,32 @@ class SpendAggregationService:
              # previous result shape.
              unpriced_usage_rows = 0
              unattributed_unpriced_rows = 0
@@ -1007,10 +1026,10 @@ index 20faac5e1..10525c1b4 100644
  ]
 diff --git a/backend/tests/test_goal9_atomic_cap.py b/backend/tests/test_goal9_atomic_cap.py
 new file mode 100644
-index 000000000..e195eae38
+index 000000000..5697ef581
 --- /dev/null
 +++ b/backend/tests/test_goal9_atomic_cap.py
-@@ -0,0 +1,625 @@
+@@ -0,0 +1,656 @@
 +"""Goal 9 atomic hard-stop admission/reservation controls.
 +
 +Scratch SQLite + real ledger/transaction only. The reservation is a
@@ -1600,7 +1619,7 @@ index 000000000..e195eae38
 +    engine.dispose()
 +
 +
-+@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf")])
++@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf"), False, True])
 +def test_invalid_pricing_is_unknown_not_free(monkeypatch, price):
 +    from core.llm import byok_handler
 +
@@ -1612,7 +1631,7 @@ index 000000000..e195eae38
 +        "controlled-paid", "controlled-model", ["A"], 10) is None
 +
 +
-+@pytest.mark.parametrize("bound", [-1.0, float("nan"), float("inf")])
++@pytest.mark.parametrize("bound", [-1.0, float("nan"), float("inf"), False, True])
 +def test_begin_rejects_invalid_reservation_bound(host, bound):
 +    _seed(host, spend=90.0)
 +    with pytest.raises(BudgetReservationRefused) as exc:
@@ -1623,7 +1642,7 @@ index 000000000..e195eae38
 +            TokenUsage.attempt_id == "invalid-bound").count() == 0
 +
 +
-+@pytest.mark.parametrize("cost", [-1.0, float("nan"), float("inf")])
++@pytest.mark.parametrize("cost", [-1.0, float("nan"), float("inf"), False, True])
 +def test_invalid_settlement_cost_remains_unknown(host, cost):
 +    _seed(host, spend=0.0)
 +    _reserve("invalid-cost", 7.0)
@@ -1636,9 +1655,40 @@ index 000000000..e195eae38
 +        assert row.pricing_status == "unknown"
 +        assert row.reservation_status == "uncertain"
 +        assert float(row.reserved_cost_usd) == pytest.approx(7.0)
++
++
++@pytest.mark.parametrize("price,expected", [
++    (0, 0.0), (0.0, 0.0), (0.25, 0.3125),
++])
++def test_numeric_zero_and_positive_prices_remain_valid(
++        monkeypatch, price, expected):
++    from core.llm import byok_handler
++
++    monkeypatch.setattr(
++        byok_handler, "get_pricing_fetcher",
++        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: price))
++    monkeypatch.setenv("ATOM_LLM_RESERVATION_MARGIN", "1.25")
++    handler = object.__new__(byok_handler.BYOKHandler)
++    assert handler._estimate_reservation_bound(
++        "controlled-paid", "controlled-model", ["A"], 10
++    ) == pytest.approx(expected)
++
++
++def test_numeric_zero_direct_bounds_remain_valid(host):
++    _seed(host, spend=90.0)
++    for bound, attempt in ((0, "numeric-zero-int"),
++                           (0.0, "numeric-zero-float")):
++        _reserve(attempt, bound)
++    with host.Session() as db:
++        rows = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id.in_(
++                ["numeric-zero-int", "numeric-zero-float"])).all()
++        assert len(rows) == 2
++        assert all(r.reservation_status == "active" for r in rows)
++        assert all(float(r.reserved_cost_usd or 0.0) == 0.0 for r in rows)
 diff --git a/backend/tests/test_goal9_ci_execution_contract.py b/backend/tests/test_goal9_ci_execution_contract.py
 new file mode 100644
-index 000000000..93cfdae6e
+index 000000000..2729585c6
 --- /dev/null
 +++ b/backend/tests/test_goal9_ci_execution_contract.py
 @@ -0,0 +1,400 @@
@@ -2015,7 +2065,7 @@ index 000000000..93cfdae6e
 +    assert spend["committed_spend_usd"] == pytest.approx(97.0)
 +
 +
-+@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf")])
++@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf"), False, True])
 +def test_invalid_pricing_hardstop_zero_provider_dispatch(
 +        host, ordinary_handler, monkeypatch, price):
 +    tenant_id = ordinary_handler.tenant_id

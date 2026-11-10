@@ -371,7 +371,7 @@ def test_concurrent_ordinary_cap_90_plus_7_plus_7(
     assert spend["committed_spend_usd"] == pytest.approx(97.0)
 
 
-@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf")])
+@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf"), False, True])
 def test_invalid_pricing_hardstop_zero_provider_dispatch(
         host, ordinary_handler, monkeypatch, price):
     tenant_id = ordinary_handler.tenant_id

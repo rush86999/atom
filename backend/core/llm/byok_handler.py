@@ -1079,7 +1079,9 @@ def _valid_cost(cost: Any) -> Optional[float]:
     Invalid pricing (negative/NaN/inf/type junk) must not become free or a
     zero/infinite reservation. The durable helper applies the same guard.
     """
-    if cost is None:
+    if cost is None or isinstance(cost, bool):
+        # Python float(False)==0 and float(True)==1: a bool is malformed
+        # pricing, not authoritative free/one-dollar pricing.
         return None
     try:
         value = float(cost)
@@ -4223,6 +4225,8 @@ class BYOKHandler:
                 cost = get_llm_cost(
                     model, input_tokens_upper, output_tokens)
             if cost is None:
+                return None
+            if isinstance(cost, bool):
                 return None
             try:
                 cost_value = float(cost)

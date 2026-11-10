@@ -91,6 +91,10 @@ def read_billing_policy(
         return 0.0, "soft_stop"
 
     limit = getattr(tenant, "budget_limit_usd", None)
+    if isinstance(limit, bool):
+        if strict:
+            raise BudgetPolicyUnavailable("invalid tenant budget limit")
+        limit = None
     if limit is not None:
         try:
             limit = float(limit)
@@ -128,12 +132,17 @@ def read_billing_policy(
 
     raw_limit = data.get("budget_limit_usd")
     if raw_limit is not None:
-        try:
-            parsed_limit = float(raw_limit)
-        except (TypeError, ValueError):
+        if isinstance(raw_limit, bool):
             if strict:
                 raise BudgetPolicyUnavailable("invalid billing cap")
             parsed_limit = None
+        else:
+            try:
+                parsed_limit = float(raw_limit)
+            except (TypeError, ValueError):
+                if strict:
+                    raise BudgetPolicyUnavailable("invalid billing cap")
+                parsed_limit = None
         if parsed_limit is not None:
             if not math.isfinite(parsed_limit) or parsed_limit < 0:
                 if strict:
@@ -233,6 +242,10 @@ def begin_llm_usage(
     settles this exact row once.
     """
     if reserved_cost_usd is not None:
+        if isinstance(reserved_cost_usd, bool):
+            raise BudgetReservationRefused(
+                "invalid reservation bound",
+                status_code="BUDGET_UNPRICED_USAGE")
         try:
             bound_value = float(reserved_cost_usd)
         except (TypeError, ValueError):
@@ -353,7 +366,9 @@ def _normalize_cost(cost_usd: Optional[float]) -> Optional[float]:
     Invalid configured pricing (negative/NaN/inf/type junk) is unknown, never
     free and never an admitted negative/infinite bound.
     """
-    if cost_usd is None:
+    if cost_usd is None or isinstance(cost_usd, bool):
+        # bool is not a numeric price: float(False)==0 would otherwise become
+        # authoritative free and float(True)==1 a fake one-dollar charge.
         return None
     try:
         value = float(cost_usd)

@@ -71,9 +71,24 @@ directly supplied `reserved_cost_usd` (negative/NaN/inf are refused with
 `BUDGET_UNPRICED_USAGE` before any row or provider dispatch), and
 `record_llm_usage` normalizes every computed cost to finite/non-negative or
 explicit unknown. Authoritative `0.0` remains the only known-free path.
-The root probe `retained_negative/root-invalid-pricing-probe.py` failed 3/3
-on a72 and now passes 3/3 (`gates/root-invalid-pricing-fixed.log`); the
-exact negative log is retained.
+**Follow-up (bool pricing).** Python `float(False) == 0.0` and
+`float(True) == 1.0`, so a bool configured price/bound would otherwise become
+authoritative free (or a fake one-dollar charge). Bool is now rejected
+**before** `float` in the estimator, cost normalization, direct reservation
+admission, and policy-cap parsing. Numeric `0`/`0.0` and positive values keep
+their existing meaning (authoritative known-free / priced).
+
+Retained evidence, kept distinct and not retroactively relabelled:
+
+- `retained_negative/root-invalid-pricing-probe.py` plus
+  `retained_negative/root-invalid-pricing-negative.log` are the **original**
+  a72 three-case (`-1/NaN/inf`) negative: 3 failed on a72, unchanged.
+- The bool cases are a **follow-up**, added later to the root probe. The
+  current five-case probe passes 5/5 on this successor
+  (`gates/root-invalid-pricing-fixed.log`); it did not participate in the
+  original a72 negative.
+- `gates/root-direct-bound-fixed.log`: the five-case direct-bound probe
+  passes 5/5 on this successor.
 
 ## Upgrade
 
@@ -97,10 +112,11 @@ PostgreSQL equivalent and is **not applied**. Existing old rows default to
 - DB read failure, reservation write failure, unknown pricing, malformed/
   negative/non-finite policy fail closed; intentional no-limit/observe and
   the `default` scope remain allowed;
-- invalid configured price (-1/NaN/inf) -> `_estimate_reservation_bound`
+- invalid configured price (-1/NaN/inf/bool) -> `_estimate_reservation_bound`
   None and real ordinary BYOK hard-stop zero provider dispatch; direct
-  malformed reservation bounds refuse; invalid settlement cost stays
-  unknown with the reserved liability retained;
+  malformed reservation bounds (including bool) refuse; invalid settlement
+  cost stays unknown with the reserved liability retained; numeric `0`/
+  positive price and `0`/positive direct bound remain valid twins;
 - success settlement: two ordinary calls -> two settled 0.25 rows, 10/5
   tokens each, ledger 0.5; exact replay once; missing usage -> uncertain
   liability; settlement failure retains the active reservation and hard-stop
@@ -109,16 +125,18 @@ PostgreSQL equivalent and is **not applied**. Existing old rows default to
 
 Gates:
 
-- atomic + ordinary consumer controls (including invalid pricing):
-  **42 passed** (`gates/consumer.log`)
+- atomic + ordinary consumer controls (including invalid pricing and bool
+  follow-up): **54 passed** (`gates/consumer.log`)
 - focused atomic/durable/upgrade/CI-lane/ordinary CI files:
-  **154 passed** (`gates/focused.log`)
-- affected budget selection: **391 passed** (`gates/affected.log`)
+  **166 passed** (`gates/focused.log`)
+- affected budget selection: **403 passed** (`gates/affected.log`)
 - additive CI lane contract: **27 passed** (`gates/ci-lane.log`)
 - root ordinary success probe on this branch: **2 passed**
   (`gates/root-probe-fixed.log`, `gates/root-probe-observation.json`)
-- root invalid-pricing probe on this branch: **3 passed**
-  (`gates/root-invalid-pricing-fixed.log`)
+- root invalid-pricing probe on this branch (5 cases incl. bool):
+  **5 passed** (`gates/root-invalid-pricing-fixed.log`)
+- root direct-bound probe on this branch (5 cases incl. bool):
+  **5 passed** (`gates/root-direct-bound-fixed.log`)
 
 The additive ledger (`backend/tests/fixtures/ci_backend_additions.json`) now
 declares both the durable settlement step and the atomic reservation step

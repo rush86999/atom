@@ -587,7 +587,7 @@ def test_supported_upgrade_adds_reservation_columns_preserving_old_rows(
     engine.dispose()
 
 
-@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf")])
+@pytest.mark.parametrize("price", [-1.0, float("nan"), float("inf"), False, True])
 def test_invalid_pricing_is_unknown_not_free(monkeypatch, price):
     from core.llm import byok_handler
 
@@ -599,7 +599,7 @@ def test_invalid_pricing_is_unknown_not_free(monkeypatch, price):
         "controlled-paid", "controlled-model", ["A"], 10) is None
 
 
-@pytest.mark.parametrize("bound", [-1.0, float("nan"), float("inf")])
+@pytest.mark.parametrize("bound", [-1.0, float("nan"), float("inf"), False, True])
 def test_begin_rejects_invalid_reservation_bound(host, bound):
     _seed(host, spend=90.0)
     with pytest.raises(BudgetReservationRefused) as exc:
@@ -610,7 +610,7 @@ def test_begin_rejects_invalid_reservation_bound(host, bound):
             TokenUsage.attempt_id == "invalid-bound").count() == 0
 
 
-@pytest.mark.parametrize("cost", [-1.0, float("nan"), float("inf")])
+@pytest.mark.parametrize("cost", [-1.0, float("nan"), float("inf"), False, True])
 def test_invalid_settlement_cost_remains_unknown(host, cost):
     _seed(host, spend=0.0)
     _reserve("invalid-cost", 7.0)
@@ -623,3 +623,34 @@ def test_invalid_settlement_cost_remains_unknown(host, cost):
         assert row.pricing_status == "unknown"
         assert row.reservation_status == "uncertain"
         assert float(row.reserved_cost_usd) == pytest.approx(7.0)
+
+
+@pytest.mark.parametrize("price,expected", [
+    (0, 0.0), (0.0, 0.0), (0.25, 0.3125),
+])
+def test_numeric_zero_and_positive_prices_remain_valid(
+        monkeypatch, price, expected):
+    from core.llm import byok_handler
+
+    monkeypatch.setattr(
+        byok_handler, "get_pricing_fetcher",
+        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: price))
+    monkeypatch.setenv("ATOM_LLM_RESERVATION_MARGIN", "1.25")
+    handler = object.__new__(byok_handler.BYOKHandler)
+    assert handler._estimate_reservation_bound(
+        "controlled-paid", "controlled-model", ["A"], 10
+    ) == pytest.approx(expected)
+
+
+def test_numeric_zero_direct_bounds_remain_valid(host):
+    _seed(host, spend=90.0)
+    for bound, attempt in ((0, "numeric-zero-int"),
+                           (0.0, "numeric-zero-float")):
+        _reserve(attempt, bound)
+    with host.Session() as db:
+        rows = db.query(TokenUsage).filter(
+            TokenUsage.attempt_id.in_(
+                ["numeric-zero-int", "numeric-zero-float"])).all()
+        assert len(rows) == 2
+        assert all(r.reservation_status == "active" for r in rows)
+        assert all(float(r.reserved_cost_usd or 0.0) == 0.0 for r in rows)

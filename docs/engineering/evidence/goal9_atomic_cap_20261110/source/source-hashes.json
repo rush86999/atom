@@ -14,7 +14,7 @@
       "changed": true
     },
     "backend/core/llm/byok_handler.py": {
-      "after_sha256": "016389e19bebb46eb061683f2349d3cf299db49879a83563a70391e6a5a6b302",
+      "after_sha256": "cbb6f77544cd25e9eb903b870812d8e51567d54e57c292715670128c39987833",
       "before_sha256": "768fe04febc170bea282db06d026fce1617531ea5ec997104252031a298c07e4",
       "changed": true
     },
@@ -24,7 +24,7 @@
       "changed": true
     },
     "backend/core/spend_aggregation_service.py": {
-      "after_sha256": "026cbb8cae084348b88e1b01d5bba03bb6a07939ea7cf02ccb7c37b4ed86c3d8",
+      "after_sha256": "944c6596d7cc8d00f30e5e15e99123637d620ee890f069f4f6fd0c244fe710b0",
       "before_sha256": "c97a22a32221d71e5d7926b4a18252e07096d3c5129ddbef932e1f0a3b1c99d0",
       "changed": true
     },
@@ -39,12 +39,12 @@
       "changed": true
     },
     "backend/tests/test_goal9_atomic_cap.py": {
-      "after_sha256": "efb1b6e34bb93a073a700b20e23e225b633f85f2e7a2491a372b6599043dd12b",
+      "after_sha256": "97cf8e535605d7d31c485197beba3bb9c8de02883b0fd797bce1780355f90138",
       "before_sha256": null,
       "changed": true
     },
     "backend/tests/test_goal9_ci_execution_contract.py": {
-      "after_sha256": "f6e3bb19c18a8e92d01cebc131d8937b2d12b3cc5a992694751b67d107d3e391",
+      "after_sha256": "5370c8c704f7e85717155bea4ba5284d50ea7454bb4a0c4f974555e53bfce7a5",
       "before_sha256": null,
       "changed": true
     },
@@ -55,7 +55,7 @@
     }
   },
   "migration_ddl": "migration.sql",
-  "note": "TokenUsage reservation/CAS; conservative bound; strict policy; invalid price/bound unknown; ordinary success settlement; streaming/chat per-physical-attempt gates open; additive CI ledger",
+  "note": "TokenUsage reservation/CAS; conservative bound; strict policy; invalid price/bound (incl. bool) unknown; numeric 0/positive twins valid; ordinary success settlement; streaming/chat per-physical-attempt gates open; additive CI ledger",
   "product_files_changed": [
     ".github/workflows/ci.yml",
     "backend/core/budget_enforcement_service.py",
@@ -68,5 +68,6 @@
     "backend/tests/test_goal9_ci_execution_contract.py",
     "backend/tests/test_goal9_durable_settlement.py"
   ],
+  "retained_original_negative": "retained_negative/root-invalid-pricing-probe.py is the original a72 3-case probe; bool cases are follow-up in probes/",
   "schema": "goal9_atomic_cap_source"
 }
