@@ -41,13 +41,14 @@ from core.models import (
     AgentJobStatus,
     AgentRegistry,
     AgentStatus,
+    NEW_AGENT_CONFIDENCE,
     AuditEventType,
     AuditLog,
     SecurityLevel,
     User,
     UserRole,
 )
-from core.personal_scope import resolve_tenant_id
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.security.rbac import role_level
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,7 @@ _ACTION_DELETE = "agent_deleted"
 _ACTION_RUN = "agent_run_admitted"
 _ACTION_REPLACE = "agent_replaced"
 _ACTION_STOP = "agent_stopped"
+_ACTION_CREATE = "agent_created"
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +286,7 @@ def _resolve_actor(
                 "role": str(row.role or ""),
                 "status": str(row.status or ""),
                 "tenant_id": str(resolve_tenant_id(row)),
+                "workspace_id": str(resolve_workspace_id(row)),
                 "raw_tenant_id": row.tenant_id,
                 "raw_workspace_id": row.workspace_id,
             }
@@ -762,6 +765,166 @@ def _commit_and_verify(
 # ---------------------------------------------------------------------------
 # Public decisions
 # ---------------------------------------------------------------------------
+
+def _create_config_digest(value: Any) -> str:
+    return _fingerprint("agent-configuration", _canonical(value))
+
+
+def _create_schedule_digest(value: Any) -> str:
+    return _fingerprint("agent-schedule", _canonical(value))
+
+
+def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
+    return {
+        "id": str(agent.id),
+        "tenant_id": (
+            None if agent.tenant_id is None else str(agent.tenant_id)),
+        "workspace_id": (
+            None if agent.workspace_id is None
+            else str(agent.workspace_id)),
+        "name": str(agent.name or ""),
+        "description": (
+            None if agent.description is None else str(agent.description)),
+        "category": str(agent.category or ""),
+        "configuration_digest": _create_config_digest(
+            agent.configuration or {}),
+        "schedule_digest": _create_schedule_digest(
+            agent.schedule_config or {}),
+        "module_path": str(agent.module_path or ""),
+        "class_name": str(agent.class_name or ""),
+        "status": str(agent.status or ""),
+        "confidence_score": float(agent.confidence_score or 0.0),
+    }
+
+
+def _create_target_check(db: Session):
+    def check(expected: Dict[str, Any]) -> bool:
+        current = _load_agent(db, str(expected.get("target_id") or ""))
+        return (
+            current is not None
+            and _state_digest(_create_state_material(current))
+            == expected["result_digest"])
+
+    return check
+
+
+def _create_success_data(expected: Dict[str, Any]) -> Dict[str, Any]:
+    extra = expected.get("extra") or {}
+    return {
+        "agent_id": str(expected.get("target_id") or ""),
+        "agent_status": str(expected.get("result_status") or ""),
+        "agent_name": str(expected.get("agent_name") or ""),
+        "category": str(extra.get("category") or ""),
+        "tenant_id": expected.get("target_tenant_id"),
+        "workspace_id": expected.get("target_workspace_id"),
+    }
+
+
+def create_agent(
+    db: Session, *, actor: Any, name: str, category: str,
+    description: Optional[str] = None,
+    configuration: Optional[Dict[str, Any]] = None,
+    schedule_config: Optional[Dict[str, Any]] = None,
+    operation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create one STUDENT agent with an exact actor/material receipt.
+
+    The public create alias previously inserted directly with no operation
+    identity, audit receipt, replay, or commit-time actor claim. This uses the
+    same resolved-actor/claim/AuditLog pattern as the other agent decisions.
+    A create remains a create (no name-based upsert or uniqueness policy).
+    """
+    actor_snapshot = _resolve_actor(
+        db, actor, minimum_role=UserRole.WORKSPACE_ADMIN,
+        authority_label="AGENT_MANAGE")
+    if not actor_snapshot.get("ok"):
+        return _actor_refusal(actor_snapshot)
+    try:
+        operation_id = _operation_id("create", operation_id)
+    except ValueError as exc:
+        return _refused(
+            str(exc), http_status=422, error_code="VALIDATION_ERROR",
+            field="operation_id")
+
+    target_id = str(uuid.uuid5(uuid.NAMESPACE_URL, operation_id))
+    configuration_digest = _create_config_digest(configuration or {})
+    schedule_digest = _create_schedule_digest(schedule_config or {})
+    request_material = {
+        "name": str(name or ""),
+        "category": str(category or ""),
+        "description": None if description is None else str(description),
+        "configuration_digest": configuration_digest,
+        "schedule_config_digest": schedule_digest,
+        "status": AgentStatus.STUDENT.value,
+        "confidence_score": NEW_AGENT_CONFIDENCE,
+        "module_path": "core.generic_agent",
+        "class_name": "GenericAgent",
+    }
+    request_digest = _request_digest(
+        _ACTION_CREATE, target_id, request_material)
+    expected_base = {
+        "operation_id": operation_id,
+        "schema": REVIEW_SCHEMA,
+        "action": _ACTION_CREATE,
+        "event_type": AuditEventType.CREATE.value,
+        "target_id": target_id,
+        "request_digest": request_digest,
+        "actor_id": actor_snapshot["id"],
+    }
+    replay = _replay(
+        db, operation_id, expected_base, authority=actor_snapshot,
+        target_check=_create_target_check(db),
+        success_data=_create_success_data)
+    if replay is not None:
+        return replay
+
+    if not _claim_actor(db, actor_snapshot):
+        db.rollback()
+        return _conflict(
+            "actor authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
+
+    agent = AgentRegistry(
+        id=target_id,
+        name=str(name or ""),
+        description=description,
+        category=str(category or ""),
+        configuration=configuration,
+        schedule_config=schedule_config,
+        module_path="core.generic_agent",
+        class_name="GenericAgent",
+        status=AgentStatus.STUDENT.value,
+        confidence_score=NEW_AGENT_CONFIDENCE,
+        workspace_id=actor_snapshot["workspace_id"],
+        tenant_id=actor_snapshot["tenant_id"],
+    )
+    db.add(agent)
+    expected = _audit_expected(
+        operation_id=operation_id, action=_ACTION_CREATE,
+        event_type=AuditEventType.CREATE.value, agent=agent,
+        prior_status="", result_status=AgentStatus.STUDENT.value,
+        request_digest=request_digest,
+        prior_digest=_state_digest({"absent": True}),
+        result_digest=_state_digest(_create_state_material(agent)),
+        actor=actor_snapshot,
+        extra={
+            "category": str(category or ""),
+            "module_path": "core.generic_agent",
+            "class_name": "GenericAgent",
+            "configuration_digest": configuration_digest,
+            "schedule_config_digest": schedule_digest,
+        })
+
+    return _commit_and_verify(
+        db, expected=expected, audit_row=_audit_row(
+            expected=expected, actor=actor_snapshot),
+        target_check=lambda: _create_target_check(db)(expected),
+        success_data=_create_success_data(expected),
+        authority=actor_snapshot,
+        replay_check=_create_target_check(db),
+        replay_data=_create_success_data,
+    )
+
 
 def update_agent(
     db: Session, *, actor: Any, agent_id: str, changes: Dict[str, Any],
