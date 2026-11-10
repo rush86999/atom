@@ -1060,8 +1060,8 @@ def _resolve_export_job(db: Session, canvas_id: str, actor: Dict[str, Any]):
                 "error": "canvas_missing"}
     factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
     runs = GoalRunService(
-        workspace_id=str(actor.get("workspace_id") or ""),
-        tenant_id=str(actor.get("tenant_id") or ""),
+        workspace_id=str(actor["effective_workspace_id"]),
+        tenant_id=str(actor["effective_tenant_id"]),
         session_factory=factory)
     lifecycle = TaskLifecycle(runs)
     goal_run_id = str(getattr(canvas, "goal_run_id", "") or "").strip()

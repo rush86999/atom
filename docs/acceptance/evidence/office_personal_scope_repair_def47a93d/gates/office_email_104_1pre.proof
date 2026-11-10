@@ -1,0 +1,411 @@
+
+----------------------------- live log collection ------------------------------
+
+tests/test_office_canvas_binding.py::test_office_path_key_matches_relative_and_absolute 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:43 [    INFO] EscalationManager initialized
+2026-11-10 06:11:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:43 [    INFO] EscalationManager initialized
+2026-11-10 06:11:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:11:43 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_office_canvas_binding.py::test_office_draft_binds_absolute_path 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:43 [    INFO] MCP Service initialized
+2026-11-10 06:11:43 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 06:11:43 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 06:11:43 [    INFO] No token storage file found, starting empty
+2026-11-10 06:11:43 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 06:11:43 [    INFO] EscalationManager initialized
+2026-11-10 06:11:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 06:11:43 [    INFO] EscalationManager initialized
+2026-11-10 06:11:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 06:11:43 [    INFO] Slack Enhanced Service initialized
+2026-11-10 06:11:43 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 06:11:43 [    INFO] EscalationManager initialized
+2026-11-10 06:11:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:43 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 06:11:43 [    INFO] EscalationManager initialized
+2026-11-10 06:11:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:43 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 06:11:43 [    INFO] Slack Enhanced Service initialized
+2026-11-10 06:11:43 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [  1%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_matches_legacy_relative_binding PASSED [  2%]
+tests/test_office_canvas_binding.py::test_ensure_canvas_for_file_reuses_and_repairs_legacy_row PASSED [  3%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_skips_deleted_canvas PASSED [  4%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_still_reaches_the_live_canvas PASSED [  5%]
+tests/test_office_canvas_binding.py::test_ensure_canvas_for_file_ignores_tombstoned_binding PASSED [  6%]
+tests/test_office_canvas_binding.py::test_broadcast_file_update_refuses_deleted_canvas PASSED [  7%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_xlsx_snapshot_has_grid PASSED [  8%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_docx_snapshot_joins_all_paragraphs PASSED [  9%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_pptx_snapshot_lists_slides PASSED [ 10%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_sync_result_includes_snapshot 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:45 [    INFO] WorkbookRuntime initialized: engine=libreoffice
+2026-11-10 06:11:46 [    INFO] Rendered book.xlsx to HTML via LibreOffice
+2026-11-10 06:11:46 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 06:11:46 [    INFO] EscalationManager initialized
+2026-11-10 06:11:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:11:46 [    INFO] LanceDBHandler initialized. ID: 6275528848. LANCEDB_AVAILABLE: True
+2026-11-10 06:11:46 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 06:11:46 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmphiad_1d8.xlsx
+2026-11-10 06:11:46 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 06:11:46 [    INFO] Connecting to LanceDB at <scratch-path> with storage_options=None
+2026-11-10 06:11:46 [    INFO] LanceDB connected successfully
+2026-11-10 06:11:46 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-10 06:11:46 [    INFO] Table 'documents' created successfully
+2026-11-10 06:11:46 [    INFO] Document added to 'documents': doc_4e2f3b02c6dbcc476c9c83bc
+2026-11-10 06:11:46 [    INFO] Ingested book.xlsx (157 chars) from office_canvas
+PASSED                                                                   [ 11%]
+tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_edit_preserves_table_and_styles 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] Document added to 'documents': doc_523e5abc5968218fc5ce2a71
+2026-11-10 06:11:47 [    INFO] Ingested report.docx (157 chars) from office_canvas
+PASSED                                                                   [ 12%]
+tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_appended_lines_added_with_paragraph 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] Document added to 'documents': doc_d0d642f3b9a900d9e4589cbb
+2026-11-10 06:11:47 [    INFO] Ingested report.docx (69 chars) from office_canvas
+PASSED                                                                   [ 13%]
+tests/test_office_canvas_coediting.py::TestPptxSync::test_slide_text_edit_round_trips 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] Document added to 'documents': doc_b671388fe525ee2fba5ef3c1
+2026-11-10 06:11:47 [    INFO] Ingested deck.pptx (34 chars) from office_canvas
+PASSED                                                                   [ 14%]
+tests/test_office_canvas_coediting.py::TestPptxSync::test_add_slide_creates_slide 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] Document added to 'documents': doc_8cbf2d61da60807dcccfcf29
+2026-11-10 06:11:47 [    INFO] Ingested deck.pptx (72 chars) from office_canvas
+PASSED                                                                   [ 15%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[xlsx_file-office_excel-xlsx] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 06:11:47 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpp66h3rmm.xlsx
+2026-11-10 06:11:47 [    INFO] Document added to 'documents': doc_d54c9d7051acbb0228c99783
+2026-11-10 06:11:47 [    INFO] Ingested book.xlsx (156 chars) from office_canvas
+PASSED                                                                   [ 16%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[docx_file-office_word-docx] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] Document added to 'documents': doc_9f4d76cc1cf68245b2fd022c
+2026-11-10 06:11:47 [    INFO] Ingested report.docx (68 chars) from office_canvas
+PASSED                                                                   [ 17%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[pptx_file-office_pptx-pptx] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] Document added to 'documents': doc_5414428f7efbec8bb648f1df
+2026-11-10 06:11:47 [    INFO] Ingested deck.pptx (44 chars) from office_canvas
+PASSED                                                                   [ 18%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_broadcast_reaches_both_channels 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:47 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 06:11:47 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpj74dftas.xlsx
+PASSED                                                                   [ 19%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_present_creates_bound_canvas_row 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_3d0af0d1853a'. type='canvas:update'
+2026-11-10 06:11:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+PASSED                                                                   [ 20%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_present_reuses_existing_binding 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_2fe2336129bb'. type='canvas:update'
+2026-11-10 06:11:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 06:11:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_2fe2336129bb'. type='canvas:update'
+2026-11-10 06:11:48 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+PASSED                                                                   [ 20%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_explicit_canvas_id_respected FAILED [ 21%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_canvas_types_per_format 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_249082246991'. type='canvas:update'
+2026-11-10 06:11:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 06:11:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_bde0ba655928'. type='canvas:update'
+2026-11-10 06:11:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+PASSED                                                                   [ 22%]
+tests/test_office_canvas_coediting.py::TestNotifyFileCanvases::test_agent_write_notifies_bound_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:49 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 06:11:49 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp6vn04nqm.xlsx
+PASSED                                                                   [ 23%]
+tests/test_office_canvas_coediting.py::TestNotifyFileCanvases::test_unbound_files_notify_nothing PASSED [ 24%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_write_excel_cell_notifies PASSED [ 25%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_failed_write_does_not_notify PASSED [ 26%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_modify_word_notifies PASSED [ 27%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_modify_pptx_notifies PASSED [ 28%]
+tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_cell_edit_refreshes_canvas_content 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:50 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 06:11:50 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp69b1olid.xlsx
+2026-11-10 06:11:50 [    INFO] Document added to 'documents': doc_9315872a5500d213e62a4b95
+2026-11-10 06:11:50 [    INFO] Ingested book.xlsx (157 chars) from office_canvas
+PASSED                                                                   [ 29%]
+tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_broadcast_persists_html_for_rest_clients 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:50 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 06:11:50 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpx7z_j5ia.xlsx
+PASSED                                                                   [ 30%]
+tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_magicmock_db_is_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:50 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 06:11:50 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp6b3l0c7r.xlsx
+2026-11-10 06:11:50 [    INFO] Document added to 'documents': doc_af3dec2ba9967ef16242c459
+2026-11-10 06:11:50 [    INFO] Ingested book.xlsx (156 chars) from office_canvas
+PASSED                                                                   [ 31%]
+tests/test_office_file_ownership_boundary.py::TestAuthenticatedSurface::test_every_office_endpoint_requires_a_user PASSED [ 32%]
+tests/test_office_file_ownership_boundary.py::TestAuthenticatedSurface::test_no_office_route_declares_its_own_anonymous_handler PASSED [ 33%]
+tests/test_office_file_ownership_boundary.py::TestContainmentStillHolds::test_path_inside_office_dir_is_accepted PASSED [ 34%]
+tests/test_office_file_ownership_boundary.py::TestContainmentStillHolds::test_traversal_outside_office_dir_is_rejected PASSED [ 35%]
+tests/test_office_file_ownership_boundary.py::TestContainmentStillHolds::test_sibling_prefix_is_not_treated_as_inside PASSED [ 36%]
+tests/test_office_file_ownership_boundary.py::TestOwnershipIsNotEnforcedByContainment::test_any_authenticated_users_file_is_reachable_by_path PASSED [ 37%]
+tests/test_office_file_ownership_boundary.py::TestOwnershipIsNotEnforcedByContainment::test_office_dir_is_a_single_flat_root PASSED [ 38%]
+tests/test_office_file_ownership_boundary.py::TestTeamVsPerUserOwnership::test_canvas_linked_file_is_team PASSED [ 39%]
+tests/test_office_file_ownership_boundary.py::TestTeamVsPerUserOwnership::test_default_is_team PASSED [ 40%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_write_cell_outside_dir_rejected PASSED [ 40%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_write_cell_outside_dir_rejected_service PASSED [ 41%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_write_cell_new_file_outside_dir_rejected PASSED [ 42%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_modify_word_outside_dir_rejected PASSED [ 43%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_modify_word_new_file_outside_dir_rejected PASSED [ 44%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_modify_pptx_outside_dir_rejected PASSED [ 45%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_formula_result_outside_dir_rejected PASSED [ 46%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_insert_rows_outside_dir_rejected PASSED [ 47%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_insert_columns_outside_dir_rejected PASSED [ 48%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_recalculate_outside_dir_rejected PASSED [ 49%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_pivot_table_outside_dir_rejected PASSED [ 50%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_run_macro_outside_dir_rejected PASSED [ 51%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_runtime_endpoints_not_dead_code PASSED [ 52%]
+tests/test_bughunt_office.py::TestWritePathsContained::test_runtime_endpoints_return_json_not_500 PASSED [ 53%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_leading_whitespace_formula_sanitized[ =1+1] PASSED [ 54%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_leading_whitespace_formula_sanitized[  =HYPERLINK("http://evil.example","x")] PASSED [ 55%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_leading_whitespace_formula_sanitized[\t=1+1] PASSED [ 56%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_leading_whitespace_formula_sanitized[\r@SUM(1,1)] PASSED [ 57%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_leading_whitespace_formula_sanitized[\n+cmd|' /C calc'!A0] PASSED [ 58%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_leading_whitespace_formula_sanitized[ \t =2+2] PASSED [ 59%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_plain_text_untouched PASSED [ 60%]
+tests/test_bughunt_office.py::TestCSVInjectionLeadingWhitespace::test_existing_prefix_behavior_unchanged PASSED [ 60%]
+tests/test_bughunt_office.py::TestXlsxLiteralTextNotFormula::test_equals_text_written_as_string_not_formula 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:51 [    INFO] Recalculated workbook via LibreOffice: lit.xlsx
+PASSED                                                                   [ 61%]
+tests/test_bughunt_office.py::TestXlsxLiteralTextNotFormula::test_true_formula_still_written_as_formula 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] Recalculated workbook via LibreOffice: fml.xlsx
+PASSED                                                                   [ 62%]
+tests/test_bughunt_office.py::TestOfficeSyncBroadcastChannel::test_broadcast_file_update_pushes_on_canvas_channel 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [   ERROR] DOCX parse error: File is not a zip file
+PASSED                                                                   [ 63%]
+tests/test_bughunt_mail_office.py::test_gmail_fetch_recent_messages_ingests_without_typeerror 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] EscalationManager initialized
+2026-11-10 06:11:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:52 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 06:11:52 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 06:11:52 [    INFO] EscalationManager initialized
+2026-11-10 06:11:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:52 [    INFO] Webhook processor initialized and callback registered
+PASSED                                                                   [ 64%]
+tests/test_bughunt_mail_office.py::test_gmail_sync_calendar_events_runs_full_implementation PASSED [ 65%]
+tests/test_bughunt_mail_office.py::test_gmail_execute_operation_404_maps_to_resource_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [   ERROR] Error executing Gmail operation get_message: 404 not found
+PASSED                                                                   [ 66%]
+tests/test_bughunt_mail_office.py::test_gmail_execute_operation_forbidden_maps_to_permission_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [   ERROR] Error executing Gmail operation get_message: forbidden
+PASSED                                                                   [ 67%]
+tests/test_bughunt_mail_office.py::test_gmail_http_error_class_resolvable_when_google_libs_installed PASSED [ 68%]
+tests/test_bughunt_mail_office.py::test_gmail_tenant_mismatch_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [   ERROR] Tenant ID mismatch: expected default, got other-tenant
+PASSED                                                                   [ 69%]
+tests/test_bughunt_mail_office.py::test_outlook_is_token_expired_handles_float_timestamps PASSED [ 70%]
+tests/test_bughunt_mail_office.py::test_outlook_handle_response_accepts_202 PASSED [ 71%]
+tests/test_bughunt_mail_office.py::test_outlook_send_email_success_after_202 PASSED [ 72%]
+tests/test_bughunt_mail_office.py::test_enhanced_handle_response_accepts_202 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] OutlookEnhancedService initialized
+PASSED                                                                   [ 73%]
+tests/test_bughunt_mail_office.py::test_ms365_get_service_status_exists PASSED [ 74%]
+tests/test_bughunt_mail_office.py::test_ms365_services_status_route_returns_200 PASSED [ 75%]
+tests/test_bughunt_mail_office.py::test_telegram_callback_query_routes_to_action_handler 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+2026-11-10 06:11:52 [    INFO] EscalationManager initialized
+2026-11-10 06:11:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:11:52 [    INFO] LanceDBHandler initialized. ID: 6315023376. LANCEDB_AVAILABLE: True
+2026-11-10 06:11:52 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-10 06:11:52 [    INFO] Telegram Integration initialized
+2026-11-10 06:11:52 [    INFO] EscalationManager initialized
+2026-11-10 06:11:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:11:52 [    INFO] LanceDBHandler initialized. ID: 6315026768. LANCEDB_AVAILABLE: True
+2026-11-10 06:11:52 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-10 06:11:52 [    INFO] Telegram Integration initialized
+2026-11-10 06:11:52 [    INFO] Received callback query cq1 with data: action_approve_request_123
+2026-11-10 06:11:52 [    INFO] Handling action callback: action=approve_request, params=['123'], user=42
+2026-11-10 06:11:52 [    INFO] Approving request 123 by user 42
+PASSED                                                                   [ 76%]
+tests/test_bughunt_mail_office.py::test_telegram_callback_unknown_action_answered 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] EscalationManager initialized
+2026-11-10 06:11:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:11:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:11:52 [    INFO] LanceDBHandler initialized. ID: 6315152976. LANCEDB_AVAILABLE: True
+2026-11-10 06:11:52 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-10 06:11:52 [    INFO] Telegram Integration initialized
+2026-11-10 06:11:52 [    INFO] Received callback query cq2 with data: nope_prefix
+2026-11-10 06:11:52 [ WARNING] No handler found for callback data: nope_prefix
+PASSED                                                                   [ 77%]
+tests/test_bughunt_mail_office.py::test_gchat_enhanced_service_available_at_import 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [ WARNING] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-10 06:11:52 [    INFO] Google Chat Enhanced Service initialized
+2026-11-10 06:11:52 [    INFO] ATOM Google Chat Integration initialized
+PASSED                                                                   [ 78%]
+tests/test_bughunt_mail_office.py::test_gchat_cross_platform_handlers_register 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] ATOM Google Chat Integration initialized
+PASSED                                                                   [ 79%]
+tests/test_bughunt_mail_office.py::test_gchat_oauth_callback_fails_closed_without_state 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] ATOM Google Chat Integration initialized
+2026-11-10 06:11:52 [   ERROR] Error handling OAuth callback: OAuth state missing - refusing to exchange code
+PASSED                                                                   [ 80%]
+tests/test_bughunt_mail_office.py::test_workspace_sync_add_platform_to_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] Created unified workspace 8d4218b6-cb20-48eb-b5d4-9d8c9cf7474c for user u1 with 2 platforms
+2026-11-10 06:11:52 [    INFO] Added platform discord to workspace 8d4218b6-cb20-48eb-b5d4-9d8c9cf7474c (now has 3 platforms)
+PASSED                                                                   [ 80%]
+tests/test_bughunt_mail_office.py::test_workspace_sync_propagate_change_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] Created unified workspace b08c2a09-46ec-4aef-97ec-c4d7b5f0b90f for user u1 with 3 platforms
+2026-11-10 06:11:52 [    INFO] Propagating name_change from google_chat to 3 platforms for workspace b08c2a09-46ec-4aef-97ec-c4d7b5f0b90f
+2026-11-10 06:11:52 [    INFO] Applying name_change to slack (platform_id=T1)
+2026-11-10 06:11:52 [    INFO] Slack Enhanced Service initialized
+2026-11-10 06:11:52 [    INFO] Would rename Slack workspace T1 to W2
+2026-11-10 06:11:52 [    INFO] Applying name_change to discord (platform_id=D1)
+2026-11-10 06:11:52 [ WARNING] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-10 06:11:52 [    INFO] ATOM Discord Integration initialized
+2026-11-10 06:11:52 [    INFO] Would rename Discord guild D1 to W2
+2026-11-10 06:11:52 [    INFO] Applying name_change to teams (platform_id=M1)
+2026-11-10 06:11:52 [    INFO] Teams Enhanced Service initialized
+2026-11-10 06:11:52 [    INFO] ATOM Teams Integration initialized
+2026-11-10 06:11:52 [    INFO] Would rename Teams team M1 to W2
+2026-11-10 06:11:52 [    INFO] Sync completed for workspace b08c2a09-46ec-4aef-97ec-c4d7b5f0b90f: 3 successful, 0 failed
+PASSED                                                                   [ 81%]
+tests/test_bughunt_mail_office.py::test_workspace_sync_slack_propagation_service_resolvable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] Created unified workspace ca31b9e0-654b-480f-9860-eb928dfd330c for user u1 with 1 platforms
+2026-11-10 06:11:52 [    INFO] Propagating name_change from discord to 1 platforms for workspace ca31b9e0-654b-480f-9860-eb928dfd330c
+2026-11-10 06:11:52 [    INFO] Applying name_change to slack (platform_id=T1)
+2026-11-10 06:11:52 [    INFO] Slack Enhanced Service initialized
+2026-11-10 06:11:52 [    INFO] Would rename Slack workspace T1 to W2
+2026-11-10 06:11:52 [    INFO] Sync completed for workspace ca31b9e0-654b-480f-9860-eb928dfd330c: 1 successful, 0 failed
+PASSED                                                                   [ 82%]
+tests/test_email_canvas_attachments.py::test_staged_save_read_delete_roundtrip PASSED [ 83%]
+tests/test_email_canvas_attachments.py::test_staged_rejects_disallowed_extension PASSED [ 84%]
+tests/test_email_canvas_attachments.py::test_staged_rejects_oversized_upload PASSED [ 85%]
+tests/test_email_canvas_attachments.py::test_staged_per_canvas_cap PASSED [ 86%]
+tests/test_email_canvas_attachments.py::test_staged_ids_are_path_safe PASSED [ 87%]
+tests/test_email_canvas_attachments.py::test_orphan_sweep_removes_old_files 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [    INFO] Swept 1 orphaned staged email attachments
+PASSED                                                                   [ 88%]
+tests/test_email_canvas_attachments.py::test_stage_list_remove_roundtrip 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:52 [    INFO] Created email canvas 66eaf968-f33b-4079-97e6-c3c859bca19c: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:66eaf968-f33b-4079-97e6-c3c859bca19c'. type='canvas:update'
+2026-11-10 06:11:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-11-10 06:11:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:66eaf968-f33b-4079-97e6-c3c859bca19c'. type='canvas:update'
+2026-11-10 06:11:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 89%]
+tests/test_email_canvas_attachments.py::test_stage_rejects_non_owner 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:53 [    INFO] Created email canvas fc142952-991e-4078-b083-cc17533cf3c7: Q3 report
+PASSED                                                                   [ 90%]
+tests/test_email_canvas_attachments.py::test_stage_batch_fails_atomically 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:54 [    INFO] Created email canvas e57680f8-6140-4809-a05b-6a6b52355e4b: Q3 report
+PASSED                                                                   [ 91%]
+tests/test_email_canvas_attachments.py::test_send_with_attachments_passes_bytes_and_cleans_staged 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:55 [    INFO] Created email canvas cf681bc3-7eb8-4049-a9b5-4039749a45ac: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:cf681bc3-7eb8-4049-a9b5-4039749a45ac'. type='canvas:update'
+2026-11-10 06:11:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-11-10 06:11:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:cf681bc3-7eb8-4049-a9b5-4039749a45ac'. type='canvas:update'
+2026-11-10 06:11:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 92%]
+tests/test_email_canvas_attachments.py::test_send_with_changed_attachment_hash_is_blocked_before_transport 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:55 [    INFO] Created email canvas 4eb7f943-e45e-43b2-bef3-ae74ce8ecf08: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:4eb7f943-e45e-43b2-bef3-ae74ce8ecf08'. type='canvas:update'
+2026-11-10 06:11:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 93%]
+tests/test_email_canvas_attachments.py::test_send_with_unknown_attachment_is_blocked 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:56 [    INFO] Created email canvas 689b4933-8059-45c3-9344-11983c1e077d: Q3 report
+PASSED                                                                   [ 94%]
+tests/test_email_canvas_attachments.py::test_send_without_attachments_keeps_legacy_contract 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:57 [    INFO] Created email canvas 981c026b-ec66-49e4-8583-fe3adc106c8e: Q3 report
+PASSED                                                                   [ 95%]
+tests/test_email_canvas_attachments.py::test_attachment_csv_text_rides_policy_scan 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:11:58 [    INFO] Created email canvas 44e3a8ae-a554-40a5-9ee7-fa2461e6e596: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:44e3a8ae-a554-40a5-9ee7-fa2461e6e596'. type='canvas:update'
+2026-11-10 06:11:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 96%]
+tests/test_email_eml_import.py::test_eml_import_preserves_envelope_body_thread_and_attachment PASSED [ 97%]
+tests/test_email_eml_import.py::test_imported_attachment_is_not_sendable_by_default PASSED [ 98%]
+tests/test_email_eml_import.py::test_other_user_cannot_mutate_imported_email_canvas PASSED [ 99%]
+tests/test_email_eml_import.py::test_save_draft_updates_public_canvas_content 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:11:58 [    INFO] Saved draft for canvas canvas_email_1
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+___________ TestPresentPersistence.test_explicit_canvas_id_respected ___________
+tests/test_office_canvas_coediting.py:379: in test_explicit_canvas_id_respected
+    assert resp.json()["canvas_id"] == cid
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'canvas_id'
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_office_canvas_binding.py::test_office_draft_binds_absolute_path
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_office_canvas_coediting.py::TestPresentPersistence::test_explicit_canvas_id_respected
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 1 failed, 104 passed, 6 warnings in 36.65s ==================
