@@ -1,0 +1,3 @@
+# Main/graduation union verification
+
+Merge4f579187b combines main01b554c5504 with graduationd6362a756. The three conflicts were CI additive steps, additions-ledger entries and quick-reference status. All9jobs, both parents’ steps, the immutable pre-parallel CI baseline and original143claims/18goals are preserved. Existing27 CI-contract controls pass with actualexit0 and identical before/after source hashes. This is integration/CI evidence, not a new browser/model or full-app qualification. Original runtime/evidence source identities remain unchanged. Fresh exact combined-head required checks must pass before merge.

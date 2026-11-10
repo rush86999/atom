@@ -1,0 +1,50 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/canvas/__tests__/TrainingPanel.test.tsx
+  TrainingPanel
+    ✓ renders agent card, progress, evidence, and lesson editor for a supervisor (32 ms)
+    ✓ teach sends the lesson through the learning channel (20 ms)
+    ✓ teach with the playbook toggle ALSO drafts a playbook (P2) (21 ms)
+    ✓ teach-as-playbook reloads the Playbooks queue and shows the new draft (22 ms)
+    ✓ suggested task goes to the training chat and lands in the lesson plan (13 ms)
+    ✓ completion is gated on recorded evidence (10 ms)
+    ✓ completing the session surfaces the promotion result (15 ms)
+    ✓ pending proposal can be approved without leaving the canvas (12 ms)
+    ✓ promote asks for confirmation and calls the graduation endpoint (15 ms)
+    ✓ an unconfirmed promotion shows the next action without a graduation notice (16 ms)
+    ✓ non-supervisor viewers get teach + progress only (7 ms)
+    ✓ canvas with no linked agent renders the empty state (4 ms)
+  TrainingPanel teaching points
+    ✓ renders the journal: count, taught/observed badges, newest first (15 ms)
+    ✓ teaching points show the canvas they were taught on (7 ms)
+    ✓ teaching a lesson refreshes the journal so the new point shows (14 ms)
+    ✓ a context refresh does not clobber unsaved lesson-plan edits (12 ms)
+  TrainingPanel teaching point editing
+    ✓ corrects a taught lesson in place and refreshes the journal (16 ms)
+    ✓ observed points edit text only — their type is the classification (13 ms)
+    ✓ cancel discards the draft without calling the API (10 ms)
+    ✓ a supervisor deletes a point after confirming (10 ms)
+    ✓ an employee may edit but never sees the delete control (5 ms)
+  Self-directed pathway card wiring
+    ✓ renders the self-directed card for a STUDENT-tier hire (8 ms)
+    ✓ promote button calls the graduation promote endpoint with INTERN (9 ms)
+  Qualification assessment UI
+    ✓ missing assessment defaults to unknown and blocks promotion (6 ms)
+    ✓ pending review hides the request action and shows the queue (10 ms)
+    ✓ unresolved_failed offers the explicit review action and stays blocked (8 ms)
+    ✓ unresolved_stale offers the explicit review action and stays blocked (6 ms)
+    ✓ explicit owner exception is honest and allows promotion (9 ms)
+    ✓ valid assessment allows promotion without a second review (10 ms)
+    ✓ request uses only the selected task/output bundle (32 ms)
+    ✓ a stale pending id is not shown as a current pending review (7 ms)
+    ✓ deferred stale readiness shows unknown then the refresh-required state (10 ms)
+    ✓ deferred readiness shows unknown then the valid state (7 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       33 passed, 33 total
+Snapshots:   0 total
+Time:        1.095 s
+Ran all test suites matching components/canvas/__tests__/TrainingPanel.test.tsx.

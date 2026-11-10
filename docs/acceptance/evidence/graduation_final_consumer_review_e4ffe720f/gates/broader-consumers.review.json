@@ -1,0 +1,53 @@
+{
+  "actual_exit": 1,
+  "at": "2026-11-10T13:20:51.856387+00:00",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "capture_head": "e4ffe720f14d2fdf2b77147c6fc1dfbf1627fcdc",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "<scratch>",
+    "--cwd",
+    "<scratch>",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_agent_decision_contract.py",
+    "tests/test_governance_graduation_integration.py",
+    "tests/test_graduation_exam_boundary.py",
+    "tests/test_graduation_exam.py",
+    "tests/core/test_supervision_service.py",
+    "tests/test_student_training_service.py",
+    "tests/test_caller_transaction_ownership.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "frozen_fixture_sha256": "dbb2cd14e025b038d5f2cd4b058c38bf348e16edbc2cbc55b3c352401d8da09a",
+  "probe_sha256": "54ebdae9648b887003a540f4dea3aee81b06f9b68d6f2774d20a46b24ca1c395",
+  "same_source": true,
+  "source_after": {
+    ".github/workflows/ci.yml": "fd108471851a6d0449449e718188625fed5dae41bb4fb281c448dd4d569d6ba2",
+    "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/tests/fixtures/ci_backend_additions.json": "72257f8dbbc9b52494e55e50fc091214e84cbd12b47981b21a68d397e20b9760",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940"
+  },
+  "source_before": {
+    ".github/workflows/ci.yml": "fd108471851a6d0449449e718188625fed5dae41bb4fb281c448dd4d569d6ba2",
+    "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/tests/fixtures/ci_backend_additions.json": "72257f8dbbc9b52494e55e50fc091214e84cbd12b47981b21a68d397e20b9760",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940"
+  },
+  "world": "<scratch>"
+}

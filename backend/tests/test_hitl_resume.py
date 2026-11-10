@@ -45,7 +45,7 @@ def test_goal_run_decision_approval_resumes(monkeypatch):
             return {"resumed": True, "approved": approved,
                     "run": {"id": run_id, "status": "active"}}
 
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action())
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action())
     monkeypatch.setattr(
         "core.goals.goal_run_service.GoalRunService", FakeService)
 
@@ -87,7 +87,7 @@ def test_goal_run_checkpoint_rejection_rewinds(monkeypatch):
             calls["advance"] = (run_id, event)
             return {"advanced": True}
 
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         action_type="goal_run_checkpoint",
         params={"run_id": "run-1", "step_id": "cp1"},
     ))
@@ -121,7 +121,7 @@ def test_workflow_approval_resumes_execution(monkeypatch):
             calls["resume"] = (execution_id, workflow.get("id"), inputs)
             return True
 
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         action_type="execute_command",
         params={"execution_id": "exec-1", "workflow_id": "wf-1"},
     ))
@@ -152,7 +152,7 @@ def test_workflow_rejection_fails_execution(monkeypatch):
         async def update_execution_status(self, execution_id, status, error=None):
             calls["failed"] = (execution_id, status, error)
 
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         action_type="execute_command",
         params={"execution_id": "exec-1", "workflow_id": "wf-1"},
     ))
@@ -171,7 +171,7 @@ def test_workflow_rejection_fails_execution(monkeypatch):
 
 
 def test_non_durable_action_is_not_claimed(monkeypatch):
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         action_type="recall_episodes", params={"query": "x"}))
     result = asyncio.run(hitl_resume.resume_after_hitl_decision(
         "hitl-1", approved=True))
@@ -191,7 +191,7 @@ def test_goal_run_legacy_unbound_action_is_refused(monkeypatch):
             calls["resume"] = True
             return {"resumed": True}
 
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         params={"run_id": "run-1", "decision": {"decision": "ASK_HUMAN"}}))
     monkeypatch.setattr(
         "core.goals.goal_run_service.GoalRunService", FakeService)
@@ -224,7 +224,7 @@ def test_goal_run_stale_action_returns_refresh_required(monkeypatch):
                     "reason": "stale_decision_review",
                     "current_decision_id": "dec-2"}
 
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         params={"run_id": "run-1", "decision": {
             "decision": "ADVANCE",
             "decision_id": "dec-1",
@@ -251,7 +251,7 @@ def test_preflight_goal_decision_rejects_stale_review(monkeypatch):
         "decision_generation": 1,
         "decision_binding": "bind-a",
     }})
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: action)
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: action)
 
     class FakeService:
         def __init__(self, workspace_id, tenant_id, session_factory=None):
@@ -286,7 +286,7 @@ def test_preflight_goal_decision_rejects_decision_rewrite(monkeypatch):
         "decision_generation": 1,
         "decision_binding": "bind-a",
     }})
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: action)
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: action)
     out = hitl_resume.preflight_hitl_decision(
         "hitl-1", {"decision": {"decision": "REPLAN"}})
     assert out["valid"] is False
@@ -294,7 +294,7 @@ def test_preflight_goal_decision_rejects_decision_rewrite(monkeypatch):
 
 
 def test_preflight_non_goal_action_is_unaffected(monkeypatch):
-    monkeypatch.setattr(hitl_resume, "_load_action", lambda _: _action(
+    monkeypatch.setattr(hitl_resume, "_load_action", lambda *_, **__: _action(
         action_type="send_email",
         params={"to": "x@y.example", "subject": "hi"}))
     assert hitl_resume.preflight_hitl_decision("hitl-1")["valid"] is True

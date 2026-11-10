@@ -1,0 +1,47 @@
+{
+  "schema": "atom-graduation-qualification-ui-scope-verification-1",
+  "at": "2026-11-10T11:20:00Z",
+  "backend_frozen_baseline": "498f3d22d410932c1d4b24546d52db9fc8e8e109",
+  "backend_successor": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+  "frontend_successor": "015515ad140c642185a652915a52b1740bac9dc4",
+  "same_source_checks": {
+    "backend_agent_graduation_service_sha256": "9a4954ee168ed6a2d2c5de1e975393f8e9acdae06b90916d331d4baf3c9dbfac",
+    "backend_promotion_policy_service_sha256": "48f9592c0cf8c8075f1928489a8de6fe6df07c344929c418b071c4c59f37688e",
+    "frontend_maturity_api_sha256": "c3de570835e6e925ff2360bcad2a1bb09042a13771f5001853e09fd67e88732d",
+    "frontend_training_panel_sha256": "f72b9aac6160a112c5ece154f2eecc81b146e9d462f919c6f0173dcbb8260869"
+  },
+  "gate_results": {
+    "backend_qualification": "34 passed",
+    "backend_pending_scope_focus": "7 passed",
+    "frontend_tsc": "exit 0",
+    "frontend_jest": "90 passed",
+    "root_pending_policy_final_source": "2 passed",
+    "root_pending_scope_final_source": "2 passed",
+    "root_original_counterexamples_final_source": "4 passed",
+    "root_final_ten_frozen_cf2": "10 passed, exit 0, same_source true, 6/6 parity",
+    "local_pending_policy_supporting_final_source": "2 passed (supporting, not root independent)",
+    "local_pending_scope_supporting_final_source": "2 passed (supporting, not root independent)",
+    "local_original_counterexamples_supporting_final_source": "4 passed (supporting)"
+  },
+  "notes": [
+    "The authoritative frozen-source proof is the root final 10-case gate at cf2c7c707: 10 passed, exit 0, same_source true, 6/6 source parity.",
+    "Earlier individual root pending-policy and pending-scope passes precede the final durable-scope type guard and do not have exact cf2 source parity; they are retained as intermediate evidence only.",
+    "The approvals route may return 404 for a moved foreign HITL row (truthful scope refusal) or 409 for a reachable-but-stale row; both are fail-closed and the old row stays pending.",
+    "No foreign row is rewritten or moved back.",
+    "SQLite scratch only; controlled human review v1 only.",
+    "default_required and exception domains remain accepted-but-unused unresolved policy selectors.",
+    "NotificationService coroutine warnings in the final 10-case log are disclosed, not hidden or suppressed.",
+    "No full-graduation, app-completion, or model-competence claim."
+  ],
+  "root_final_ten_frozen_cf2": {
+    "review": "root-final-ten-review.json",
+    "controls": "root-final-ten-controls.log",
+    "parity": "root-final-ten-parity.json",
+    "result": "10 passed",
+    "actual_exit": 0,
+    "same_source": true,
+    "source_parity": "6/6 captured sources match cf2c7c707",
+    "authoritative_for_frozen_source": true,
+    "scope": "pending policy 2, moved review scope 2, actual-output positive + fresh-session replay 2, inactive request, history-only, upward writers"
+  }
+}

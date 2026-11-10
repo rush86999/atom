@@ -1,0 +1,3 @@
+command: npx tsc --noEmit --skipLibCheck
+EXIT=0
+(no diagnostics)

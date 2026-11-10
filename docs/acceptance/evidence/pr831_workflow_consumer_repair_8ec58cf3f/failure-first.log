@@ -1,0 +1,497 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 09:48:55 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 09:48:56 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 09:48:56 [    INFO] No token storage file found, starting empty
+2026-11-10 09:48:56 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:48:56 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:48:56 [    INFO] EscalationManager initialized
+2026-11-10 09:48:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:48:56 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:48:56 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:48:56 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:48:56 [    INFO] EscalationManager initialized
+2026-11-10 09:48:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:48:56 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:48:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:48:56 [    INFO] MCP Service initialized
+2026-11-10 09:48:56 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-10 09:48:56 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+
+tests/test_workflow_public_approval_flow.py::test_public_workflow_approval_is_visible_decidable_and_resumes_once 
+-------------------------------- live log setup --------------------------------
+2026-11-10 09:48:56 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:48:56 [    INFO] Event bus started
+2026-11-10 09:48:56 [    INFO] Loaded analytics data: 0 workflows, 0 integrations
+2026-11-10 09:48:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:48:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:48:57 [ WARNING] 🚫 Governance pause for execution f40d51eb-6252-4cb4-925a-22faf2856f42 at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:48:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:48:57 [    INFO] HTTP Request: POST http://test/workflows/wf-local-f5e9c3b33a/execute "HTTP/1.1 200 OK"
+2026-11-10 09:48:57 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:48:57 [   ERROR] HITL dfe08203-6eb9-4c6d-b06f-08180a52ec3e decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+2026-11-10 09:48:57 [    INFO] HTTP Request: POST http://test/api/agents/approvals/dfe08203-6eb9-4c6d-b06f-08180a52ec3e "HTTP/1.1 200 OK"
+FAILED                                                                   [ 11%]
+tests/test_workflow_public_approval_flow.py::test_scheduled_real_workflow_approval_join 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:48:57 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 09:48:57 [    INFO] Scheduler started
+2026-11-10 09:48:57 [    INFO] WorkflowScheduler started
+2026-11-10 09:48:57 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-10 09:48:57 [    INFO] Removed job job_wf-local-cce15ef9e9_1794322137.189638
+2026-11-10 09:48:57 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 14:48:57 UTC], next run at: 2026-11-10 14:48:57 UTC)" (scheduled at 2026-11-10 14:48:57.389631+00:00)
+2026-11-10 09:48:57 [    INFO] Executing scheduled workflow: wf-local-cce15ef9e9
+2026-11-10 09:48:57 [    INFO] Scheduled execution 121df4c3-e85f-4ac2-b5b6-08a123418ebe started
+2026-11-10 09:48:57 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 14:48:57 UTC], next run at: 2026-11-10 14:48:57 UTC)" executed successfully
+2026-11-10 09:48:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:48:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:48:57 [ WARNING] 🚫 Governance pause for execution 121df4c3-e85f-4ac2-b5b6-08a123418ebe at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:48:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:48:57 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:48:57 [   ERROR] HITL 9f674f0c-2afc-43c2-b56f-b9859630c3b4 decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+2026-11-10 09:48:57 [    INFO] HTTP Request: POST http://test/api/agents/approvals/9f674f0c-2afc-43c2-b56f-b9859630c3b4 "HTTP/1.1 200 OK"
+2026-11-10 09:49:12 [    INFO] WorkflowScheduler shutdown
+2026-11-10 09:49:12 [    INFO] Scheduler has been shut down
+FAILED                                                                   [ 22%]
+tests/test_workflow_public_approval_flow.py::test_resume_inputs_cannot_rewrite_the_frozen_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:12 [ WARNING] 🚫 Governance pause for execution ea1f1fa2-cb65-4784-a770-e0586ef1c28d at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:12 [    INFO] HTTP Request: POST http://test/workflows/wf-local-94ff740363/execute "HTTP/1.1 200 OK"
+2026-11-10 09:49:12 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:12 [    INFO] Workflow ea1f1fa2-cb65-4784-a770-e0586ef1c28d step s1 authorized by durable HITL 5a90dc19-5fd3-4bc2-81fc-d8ec447ea24a
+2026-11-10 09:49:12 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:12 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:12 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 09:49:12 [    INFO] Initialized global governance cache
+2026-11-10 09:49:12 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-94ff740363
+PASSED                                                                   [ 33%]
+tests/test_workflow_public_approval_flow.py::test_schedule_freezes_caller_scope_and_discards_client_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:49:12 [    INFO] HTTP Request: POST http://test/workflows/wf-local-0aa70033dd/schedule "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_rejection_leaves_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:49:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:13 [ WARNING] 🚫 Governance pause for execution f859feae-8d9c-43b5-930f-c63073a21b08 at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:49:13 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:13 [    INFO] HTTP Request: POST http://test/workflows/wf-local-35ff5a5efb/execute "HTTP/1.1 200 OK"
+2026-11-10 09:49:13 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:13 [   ERROR] HITL d9904188-988e-4662-ba85-403a6f80c54f decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+2026-11-10 09:49:13 [    INFO] HTTP Request: POST http://test/api/agents/approvals/d9904188-988e-4662-ba85-403a6f80c54f "HTTP/1.1 200 OK"
+FAILED                                                                   [ 55%]
+tests/test_workflow_public_approval_flow.py::test_changed_material_after_review_does_not_execute 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [ WARNING] 🚫 Governance pause for execution f77ad792-839c-413d-8b23-def0faecff6c at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [    INFO] HTTP Request: POST http://test/workflows/wf-local-20fa30164d/execute "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [   ERROR] HITL f994c984-9429-4ed1-b8cf-3845a9aabcb6 decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+2026-11-10 09:49:28 [    INFO] HTTP Request: POST http://test/api/agents/approvals/f994c984-9429-4ed1-b8cf-3845a9aabcb6 "HTTP/1.1 200 OK"
+FAILED                                                                   [ 66%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [ WARNING] 🚫 Governance pause for execution 5e4c82a9-9451-4504-a107-179c8d2b1661 at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [    INFO] HTTP Request: POST http://test/workflows/wf-local-eaeecfcebd/execute "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [    INFO] HTTP Request: POST http://test/api/agents/approvals/9109eb01-3472-43dd-a5e5-e307b84e23e8 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 77%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [ WARNING] 🚫 Governance pause for execution 220bfb18-f056-4666-9342-fbaaf879d7bc at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:49:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:49:28 [    INFO] HTTP Request: POST http://test/workflows/wf-local-4d4b9cfd05/execute "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:28 [    INFO] HTTP Request: POST http://test/api/agents/approvals/6d4f70f8-2745-442d-a02a-8d8e6afe5235 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 88%]
+tests/test_workflow_scheduled_process_restart.py::test_scheduled_approval_join_survives_a_separate_process_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:49:28 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 09:49:28 [    INFO] Scheduler started
+2026-11-10 09:49:28 [    INFO] WorkflowScheduler started
+2026-11-10 09:49:28 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-10 09:49:28 [    INFO] WorkflowScheduler shutdown
+2026-11-10 09:49:44 [    INFO] Scheduler has been shut down
+2026-11-10 09:49:44 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-10 09:49:44 [   ERROR] HITL fa9144b9-4a46-4978-963c-848096765a01 decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+2026-11-10 09:49:44 [    INFO] HTTP Request: POST http://test/api/agents/approvals/fa9144b9-4a46-4978-963c-848096765a01 "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_____ test_public_workflow_approval_is_visible_decidable_and_resumes_once ______
+tests/test_workflow_public_approval_flow.py:258: in test_public_workflow_approval_is_visible_decidable_and_resumes_once
+    assert decision.json()["resume"]["resumed"] is True, decision.json()
+E   AssertionError: {'approval_id': 'dfe08203-6eb9-4c6d-b06f-08180a52ec3e', 'decided_by': 'reviewer-local-f5e9c3b33a', 'message': 'Action approved', 'resume': {'error': "'_GeneratorContextManager' object has no attribute 'close'", 'handled': True, 'resumed': False}, ...}
+E   assert False is True
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.orchestration.event_bus:event_bus.py:260 Event bus started
+INFO     core.analytics_engine:analytics_engine.py:96 Loaded analytics data: 0 workflows, 0 integrations
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.workflow_engine:workflow_engine.py:1038 🚫 Governance pause for execution f40d51eb-6252-4cb4-925a-22faf2856f42 at step s1: Maturity check failed. Required: supervised
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/workflows/wf-local-f5e9c3b33a/execute "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+ERROR    api.approvals_routes:approvals_routes.py:188 HITL dfe08203-6eb9-4c6d-b06f-08180a52ec3e decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/agents/approvals/dfe08203-6eb9-4c6d-b06f-08180a52ec3e "HTTP/1.1 200 OK"
+__________________ test_scheduled_real_workflow_approval_join __________________
+tests/test_workflow_public_approval_flow.py:333: in test_scheduled_real_workflow_approval_join
+    completed = await _wait_status(
+tests/test_workflow_public_approval_flow.py:159: in _wait_status
+    raise AssertionError(
+E   AssertionError: execution 121df4c3-e85f-4ac2-b5b6-08a123418ebe did not reach COMPLETED; last={'execution_id': '121df4c3-e85f-4ac2-b5b6-08a123418ebe', 'workflow_id': 'wf-local-cce15ef9e9', 'status': 'PAUSED', 'version': 5, 'input_data': {'_atom_execution_scope': {'workspace_id': 'workspace-local-cce15ef9e9', 'tenant_id': 'tenant-local-cce15ef9e9'}}, 'steps': {'s1': {'id': 's1', 'created_at': '2026-11-10T14:48:57.426875+00:00', 'status': 'PAUSED', 'updated_at': '2026-11-10T14:48:57.446995+00:00', 'error': 'Governance approval required: Maturity check failed. Required: supervised'}}, 'outputs': {}, 'context': {}, 'created_at': '2026-11-10T14:48:57.392884', 'updated_at': '2026-11-10T14:48:57.455647', 'error': 'Governance approval required: Maturity check failed. Required: supervised'}
+------------------------------ Captured log call -------------------------------
+INFO     ai.workflow_scheduler:workflow_scheduler.py:42 WorkflowScheduler using SQLAlchemyJobStore
+INFO     apscheduler.scheduler:base.py:214 Scheduler started
+INFO     ai.workflow_scheduler:workflow_scheduler.py:59 WorkflowScheduler started
+INFO     apscheduler.scheduler:base.py:1090 Added job "WorkflowScheduler._execute_job" to job store "default"
+INFO     apscheduler.scheduler:base.py:728 Removed job job_wf-local-cce15ef9e9_1794322137.189638
+INFO     apscheduler.executors.default:base.py:179 Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 14:48:57 UTC], next run at: 2026-11-10 14:48:57 UTC)" (scheduled at 2026-11-10 14:48:57.389631+00:00)
+INFO     ai.workflow_scheduler:workflow_scheduler.py:198 Executing scheduled workflow: wf-local-cce15ef9e9
+INFO     ai.workflow_scheduler:workflow_scheduler.py:237 Scheduled execution 121df4c3-e85f-4ac2-b5b6-08a123418ebe started
+INFO     apscheduler.executors.default:base.py:203 Job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 14:48:57 UTC], next run at: 2026-11-10 14:48:57 UTC)" executed successfully
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.workflow_engine:workflow_engine.py:1038 🚫 Governance pause for execution 121df4c3-e85f-4ac2-b5b6-08a123418ebe at step s1: Maturity check failed. Required: supervised
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+ERROR    api.approvals_routes:approvals_routes.py:188 HITL 9f674f0c-2afc-43c2-b56f-b9859630c3b4 decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/agents/approvals/9f674f0c-2afc-43c2-b56f-b9859630c3b4 "HTTP/1.1 200 OK"
+INFO     ai.workflow_scheduler:workflow_scheduler.py:112 WorkflowScheduler shutdown
+INFO     apscheduler.scheduler:base.py:245 Scheduler has been shut down
+______________ test_public_workflow_rejection_leaves_zero_effect _______________
+tests/test_workflow_public_approval_flow.py:443: in test_public_workflow_rejection_leaves_zero_effect
+    failed = await _wait_status(state_manager, execution_id, "FAILED")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_workflow_public_approval_flow.py:159: in _wait_status
+    raise AssertionError(
+E   AssertionError: execution f859feae-8d9c-43b5-930f-c63073a21b08 did not reach FAILED; last={'execution_id': 'f859feae-8d9c-43b5-930f-c63073a21b08', 'workflow_id': 'wf-local-35ff5a5efb', 'status': 'PAUSED', 'version': 5, 'input_data': {'_atom_execution_scope': {'workspace_id': 'workspace-local-35ff5a5efb', 'tenant_id': 'tenant-local-35ff5a5efb'}}, 'steps': {'s1': {'id': 's1', 'created_at': '2026-11-10T14:49:13.012804+00:00', 'status': 'PAUSED', 'updated_at': '2026-11-10T14:49:13.032129+00:00', 'error': 'Governance approval required: Maturity check failed. Required: supervised'}}, 'outputs': {}, 'context': {}, 'created_at': '2026-11-10T14:49:12.981664', 'updated_at': '2026-11-10T14:49:13.040146', 'error': 'Governance approval required: Maturity check failed. Required: supervised'}
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.workflow_engine:workflow_engine.py:1038 🚫 Governance pause for execution f859feae-8d9c-43b5-930f-c63073a21b08 at step s1: Maturity check failed. Required: supervised
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/workflows/wf-local-35ff5a5efb/execute "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+ERROR    api.approvals_routes:approvals_routes.py:188 HITL d9904188-988e-4662-ba85-403a6f80c54f decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/agents/approvals/d9904188-988e-4662-ba85-403a6f80c54f "HTTP/1.1 200 OK"
+_____________ test_changed_material_after_review_does_not_execute ______________
+tests/test_workflow_public_approval_flow.py:482: in test_changed_material_after_review_does_not_execute
+    assert {row.status for row in bound} == {"pending", "approved"}
+E   AssertionError: assert {'approved'} == {'approved', 'pending'}
+E     
+E     Extra items in the right set:
+E     'pending'
+E     
+E     Full diff:
+E       {
+E           'approved',
+E     -     'pending',
+E       }
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+WARNING  core.workflow_engine:workflow_engine.py:1038 🚫 Governance pause for execution f77ad792-839c-413d-8b23-def0faecff6c at step s1: Maturity check failed. Required: supervised
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/workflows/wf-local-20fa30164d/execute "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+ERROR    api.approvals_routes:approvals_routes.py:188 HITL f994c984-9429-4ed1-b8cf-3845a9aabcb6 decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/agents/approvals/f994c984-9429-4ed1-b8cf-3845a9aabcb6 "HTTP/1.1 200 OK"
+_______ test_scheduled_approval_join_survives_a_separate_process_restart _______
+tests/test_workflow_scheduled_process_restart.py:159: in test_scheduled_approval_join_survives_a_separate_process_restart
+    completed = await _wait_status(
+tests/test_workflow_public_approval_flow.py:159: in _wait_status
+    raise AssertionError(
+E   AssertionError: execution 0dd32dde-ffd2-4a96-8725-b64456d683c2 did not reach COMPLETED; last={'execution_id': '0dd32dde-ffd2-4a96-8725-b64456d683c2', 'workflow_id': 'wf-local-b3d44b8ddb', 'status': 'PAUSED', 'version': 5, 'input_data': {'_atom_execution_scope': {'workspace_id': 'workspace-local-b3d44b8ddb', 'tenant_id': 'tenant-local-b3d44b8ddb'}}, 'steps': {'s1': {'id': 's1', 'created_at': '2026-11-10T14:49:38.049319+00:00', 'status': 'PAUSED', 'updated_at': '2026-11-10T14:49:38.079592+00:00', 'error': 'Governance approval required: Maturity check failed. Required: supervised'}}, 'outputs': {}, 'context': {}, 'created_at': '2026-11-10T14:49:37.984901', 'updated_at': '2026-11-10T14:49:38.088844', 'error': 'Governance approval required: Maturity check failed. Required: supervised'}
+------------------------------ Captured log call -------------------------------
+INFO     ai.workflow_scheduler:workflow_scheduler.py:42 WorkflowScheduler using SQLAlchemyJobStore
+INFO     apscheduler.scheduler:base.py:214 Scheduler started
+INFO     ai.workflow_scheduler:workflow_scheduler.py:59 WorkflowScheduler started
+INFO     apscheduler.scheduler:base.py:1090 Added job "WorkflowScheduler._execute_job" to job store "default"
+INFO     ai.workflow_scheduler:workflow_scheduler.py:112 WorkflowScheduler shutdown
+INFO     apscheduler.scheduler:base.py:245 Scheduler has been shut down
+INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+ERROR    api.approvals_routes:approvals_routes.py:188 HITL fa9144b9-4a46-4978-963c-848096765a01 decided but resume failed: '_GeneratorContextManager' object has no attribute 'close'
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 43, in _load_action
+    action = session.query(HITLAction).filter(
+             ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'query'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/api/approvals_routes.py", line 181, in decide_approval
+    resume = await resume_after_hitl_decision(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 497, in resume_after_hitl_decision
+    action = _load_action(action_id, bind=bind)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-pr831-b071-repair-20261110/backend/core/hitl_resume.py", line 59, in _load_action
+    session.close()
+    ^^^^^^^^^^^^^
+AttributeError: '_GeneratorContextManager' object has no attribute 'close'
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/agents/approvals/fa9144b9-4a46-4978-963c-848096765a01 "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /private/tmp/atom-pr831-b071-repair-20261110/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-pr831-b071-repair-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_workflow_public_approval_flow.py::test_public_workflow_approval_is_visible_decidable_and_resumes_once
+FAILED tests/test_workflow_public_approval_flow.py::test_scheduled_real_workflow_approval_join
+FAILED tests/test_workflow_public_approval_flow.py::test_public_workflow_rejection_leaves_zero_effect
+FAILED tests/test_workflow_public_approval_flow.py::test_changed_material_after_review_does_not_execute
+FAILED tests/test_workflow_scheduled_process_restart.py::test_scheduled_approval_join_survives_a_separate_process_restart
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============== 5 failed, 4 passed, 7 warnings in 80.18s (0:01:20) ==============

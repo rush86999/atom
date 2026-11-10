@@ -1,0 +1,1529 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 09:58:52 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 09:58:52 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 09:58:52 [    INFO] No token storage file found, starting empty
+2026-11-10 09:58:52 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:52 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:52 [    INFO] EscalationManager initialized
+2026-11-10 09:58:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:58:52 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:52 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:52 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:52 [    INFO] EscalationManager initialized
+2026-11-10 09:58:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:58:52 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:58:52 [    INFO] MCP Service initialized
+2026-11-10 09:58:52 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-10 09:58:52 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 09:58:53 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 09:58:53 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] EscalationManager initialized
+2026-11-10 09:58:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:58:53 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 09:58:53 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] EscalationManager initialized
+2026-11-10 09:58:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:58:53 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 09:58:53 [    INFO] Slack Enhanced Service initialized
+2026-11-10 09:58:53 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 09:58:53 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] EscalationManager initialized
+2026-11-10 09:58:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:58:53 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 09:58:53 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] EscalationManager initialized
+2026-11-10 09:58:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:58:53 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 09:58:53 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 09:58:53 [    INFO] Slack Enhanced Service initialized
+2026-11-10 09:58:53 [    INFO] Loaded 0 persisted sessions from file.
+
+tests/test_hitl_resume.py::test_goal_run_decision_approval_resumes 
+-------------------------------- live log setup --------------------------------
+2026-11-10 09:58:53 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_hitl_resume.py::test_goal_run_checkpoint_rejection_rewinds PASSED [  1%]
+tests/test_hitl_resume.py::test_workflow_approval_resumes_execution PASSED [  2%]
+tests/test_hitl_resume.py::test_workflow_rejection_fails_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:53 [ WARNING] HITL hitl-1 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+PASSED                                                                   [  2%]
+tests/test_hitl_resume.py::test_non_durable_action_is_not_claimed PASSED [  3%]
+tests/test_hitl_resume.py::test_goal_run_legacy_unbound_action_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:53 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'decision_review_required'}
+PASSED                                                                   [  4%]
+tests/test_hitl_resume.py::test_goal_run_stale_action_returns_refresh_required 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:53 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'stale_decision_review', 'current_decision_id': 'dec-2'}
+PASSED                                                                   [  4%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_stale_review PASSED [  5%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_decision_rewrite PASSED [  6%]
+tests/test_hitl_resume.py::test_preflight_non_goal_action_is_unaffected PASSED [  6%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_approval_is_visible_decidable_and_resumes_once 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:53 [    INFO] Event bus started
+2026-11-10 09:58:53 [    INFO] Loaded analytics data: 9 workflows, 0 integrations
+2026-11-10 09:58:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:53 [ WARNING] 🚫 Governance pause for execution 65458913-9c46-4548-91db-d46bf8e6511c at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:53 [    INFO] Workflow 65458913-9c46-4548-91db-d46bf8e6511c step s1 authorized by durable HITL d0c5773b-e11e-40e0-a5b1-04aa52dfa2a0
+2026-11-10 09:58:53 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 09:58:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 09:58:54 [    INFO] Initialized global governance cache
+2026-11-10 09:58:54 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-2894fca178
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 09:58:54 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-2894fca178
+PASSED                                                                   [  7%]
+tests/test_workflow_public_approval_flow.py::test_scheduled_real_workflow_approval_join 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:54 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 09:58:54 [    INFO] Scheduler started
+2026-11-10 09:58:54 [    INFO] WorkflowScheduler started
+2026-11-10 09:58:54 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-10 09:58:54 [    INFO] Removed job job_wf-local-67a061afca_1794322734.144869
+2026-11-10 09:58:54 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 14:58:54 UTC], next run at: 2026-11-10 14:58:54 UTC)" (scheduled at 2026-11-10 14:58:54.344862+00:00)
+2026-11-10 09:58:54 [    INFO] Executing scheduled workflow: wf-local-67a061afca
+2026-11-10 09:58:54 [    INFO] Scheduled execution 90a2f378-855c-44b1-adce-3c42e4e5ec74 started
+2026-11-10 09:58:54 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-10 14:58:54 UTC], next run at: 2026-11-10 14:58:54 UTC)" executed successfully
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] 🚫 Governance pause for execution 90a2f378-855c-44b1-adce-3c42e4e5ec74 at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [    INFO] Workflow 90a2f378-855c-44b1-adce-3c42e4e5ec74 step s1 authorized by durable HITL 6ee7ea42-a174-445b-bc1d-4b3d52af944b
+2026-11-10 09:58:54 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 09:58:54 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-67a061afca
+2026-11-10 09:58:54 [    INFO] WorkflowScheduler shutdown
+2026-11-10 09:58:54 [    INFO] Scheduler has been shut down
+PASSED                                                                   [  8%]
+tests/test_workflow_public_approval_flow.py::test_resume_inputs_cannot_rewrite_the_frozen_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] 🚫 Governance pause for execution 9f24fedb-c46e-448d-ba86-516dc1563159 at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:54 [    INFO] Workflow 9f24fedb-c46e-448d-ba86-516dc1563159 step s1 authorized by durable HITL a1188baa-38a6-414c-a8b3-e2bc49a9e1c5
+2026-11-10 09:58:54 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 09:58:55 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-32fbed2707
+PASSED                                                                   [  8%]
+tests/test_workflow_public_approval_flow.py::test_schedule_freezes_caller_scope_and_discards_client_scope PASSED [  9%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_rejection_leaves_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] 🚫 Governance pause for execution 2a4e2911-4258-44f4-be78-05207f8a1714 at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] HITL 156df1d2-2213-45bb-a5e2-0483a5ef6237 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+PASSED                                                                   [ 10%]
+tests/test_workflow_public_approval_flow.py::test_changed_material_after_review_does_not_execute 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] 🚫 Governance pause for execution 5113b69a-8471-4f89-8786-187396ca743a at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] workflow 5113b69a-8471-4f89-8786-187396ca743a: durable approval 0114a8ad-4c8f-4740-9f6c-84c5cfc9a44d does not bind the current step payload
+2026-11-10 09:58:55 [ WARNING] 🚫 Governance pause for execution 5113b69a-8471-4f89-8786-187396ca743a at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+PASSED                                                                   [ 10%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] 🚫 Governance pause for execution dfd087ab-a218-4e35-9f8c-e6114c904771 at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+PASSED                                                                   [ 11%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:58:55 [ WARNING] 🚫 Governance pause for execution 642e897e-ec14-416f-9424-7f618a6b1efe at step s1: Maturity check failed. Required: supervised
+2026-11-10 09:58:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+PASSED                                                                   [ 12%]
+tests/test_workflow_scheduled_process_restart.py::test_scheduled_approval_join_survives_a_separate_process_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:58:55 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 09:58:55 [    INFO] Scheduler started
+2026-11-10 09:58:55 [    INFO] WorkflowScheduler started
+2026-11-10 09:58:55 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-10 09:58:55 [    INFO] WorkflowScheduler shutdown
+2026-11-10 09:59:11 [    INFO] Scheduler has been shut down
+2026-11-10 09:59:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:59:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:59:11 [    INFO] Workflow 960f0408-3f98-4066-9d50-9f8b33aa277b step s1 authorized by durable HITL 5782a1e6-9fcb-4d4d-80d8-cceec9eb412b
+2026-11-10 09:59:11 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-10 09:59:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:59:11 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-10 09:59:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-10 09:59:11 [ WARNING] Slack token not configured, skipping notification
+2026-11-10 09:59:11 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-209030c3b7
+PASSED                                                                   [ 13%]
+tests/test_workflow_approval_scope.py::test_governance_created_approval_is_visible_to_scoped_reviewer PASSED [ 13%]
+tests/test_workflow_approval_scope.py::test_governance_created_approval_is_decidable_in_its_own_scope PASSED [ 14%]
+tests/test_workflow_approval_scope.py::test_wrong_scope_reviewer_cannot_list_or_decide[workspace] PASSED [ 15%]
+tests/test_workflow_approval_scope.py::test_wrong_scope_reviewer_cannot_list_or_decide[tenant] PASSED [ 15%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_denied_below_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:21 [    INFO] Created HITL action 31e14bc6-d05b-423b-ba70-88411ea5dd39 for agent None
+PASSED                                                                   [ 16%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:21 [    INFO] Created HITL action 2d0c6e11-a23d-4142-8bbc-dac45bb7c84e for agent None
+PASSED                                                                   [ 17%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_required_role_matching_is_case_insensitive 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:22 [    INFO] Created HITL action f96d0f76-7205-487b-8540-3f78d028407f for agent None
+PASSED                                                                   [ 17%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unknown_required_role_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:22 [    INFO] Created HITL action dcfc5a46-468e-4bd0-9ba0-9b538cbe4276 for agent None
+2026-11-10 09:59:22 [   ERROR] HITL action dcfc5a46-468e-4bd0-9ba0-9b538cbe4276 requires unknown role 'grand_wizard'; denying (fail closed)
+PASSED                                                                   [ 18%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unverified_approver_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:22 [    INFO] Created HITL action 268624b8-43c2-446e-a341-92a221b780d0 for agent None
+PASSED                                                                   [ 19%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_enforces_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:22 [    INFO] Created HITL action d8fe79e4-c11e-4b26-be6b-1759d7b193e1 for agent None
+PASSED                                                                   [ 19%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:22 [    INFO] Created HITL action 46a055fb-dd10-41c6-af7f-62c68f7057d8 for agent None
+PASSED                                                                   [ 20%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_cannot_reject_non_pending_action 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:23 [    INFO] Created HITL action dd9e9ee5-5579-455e-9a82-33bc2650ba62 for agent None
+PASSED                                                                   [ 21%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_modified_params_persist_on_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:23 [    INFO] Created HITL action bca71f22-c4ce-444d-9e1a-afc873a78126 for agent None
+PASSED                                                                   [ 21%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_returns_plain_array PASSED [ 22%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_approved PASSED [ 23%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_rejected PASSED [ 23%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_member_denied PASSED [ 24%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_respects_required_role PASSED [ 25%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_modified_params_applied PASSED [ 26%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_stale_goal_decision_is_refused_before_hitl_change PASSED [ 26%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_requires_auth PASSED [ 27%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:25 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: reject_workflow on Workflow Approval
+PASSED                                                                   [ 28%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_supervisor_allowed PASSED [ 28%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_member_cannot_approve_proposal PASSED [ 29%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_supervisor_can_approve_proposal PASSED [ 30%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_intervention_approve_uses_working_service_and_gates PASSED [ 30%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_documented_example_denies_with_reasons PASSED [ 31%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregulated_action_allows PASSED [ 32%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_missing_context_counts_as_violation PASSED [ 32%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_duplicate_policy_id_rejected PASSED [ 33%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregister_policy PASSED [ 34%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_defaults_mirror_readiness_thresholds PASSED [ 34%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_layers_match_doc PASSED [ 35%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_for_action_mapping PASSED [ 36%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_strategic_pass_requires_human PASSED [ 36%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_operational_pass_is_automated PASSED [ 37%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_denied_has_no_human_step PASSED [ 38%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_inferred_when_omitted PASSED [ 39%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_autonomous_pass_withholds_promotion_for_human 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:25 [    INFO] Agent agent-1 PASSED the autonomous legacy exam; no promotion or qualification pointer write
+PASSED                                                                   [ 39%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_supervised_pass_requires_qualification_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:25 [    INFO] Agent agent-unqualified passed the supervised legacy exam; legacy statistics never qualify
+PASSED                                                                   [ 40%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_policy_deny_fails_exam_with_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:25 [    INFO] Agent agent-1 failed legacy graduation exam: unknown reason | Governance policy denied: readiness_score 0.9 below min_readiness_score 0.95
+PASSED                                                                   [ 41%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_denied_on_weak_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:26 [ WARNING] Autonomous promotion DENIED by governance policy for graduate: episode_count 40 below min_episodes 50; readiness_score 0.92 below min_readiness_score 0.95
+PASSED                                                                   [ 41%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_allowed_on_strong_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:27 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 09:59:27 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 42%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_lower_tier_requires_readiness PASSED [ 43%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[target_scope] PASSED [ 43%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[target_status] PASSED [ 44%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[target_configuration] PASSED [ 45%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[actor_disabled] PASSED [ 45%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[actor_demoted] PASSED [ 46%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[actor_scope] PASSED [ 47%]
+tests/test_graduation_authority_boundary.py::test_graduation_revalidates_after_awaited_readiness[unchanged] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:33 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 09:59:33 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 47%]
+tests/test_graduation_authority_boundary.py::test_graduation_does_not_commit_unrelated_caller_changes PASSED [ 48%]
+tests/test_graduation_authority_boundary.py::test_public_graduation_lost_confirmation_is_not_clean_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:35 [   ERROR] agent decision outcome unknown: operation_id=agent:graduate:32b2702445c2464e9544c6cd6f5e1d29 target=graduate error_class=RuntimeError
+PASSED                                                                   [ 49%]
+tests/test_graduation_authority_boundary.py::test_graduation_receipt_replays_once_and_refutes_changed_result 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:35 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 09:59:35 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 50%]
+tests/test_graduation_authority_boundary.py::test_graduation_racing_peer_receipt_is_exactly_reconciled[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:36 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 09:59:36 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 50%]
+tests/test_graduation_authority_boundary.py::test_graduation_racing_peer_receipt_is_exactly_reconciled[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:37 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 09:59:37 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 51%]
+tests/api/test_graduation_qualification_join.py::test_missing_receipt_blocks_then_review_unlocks_promotion 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 09:59:38 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 09:59:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 52%]
+tests/api/test_graduation_qualification_join.py::test_exact_replay_after_fresh_session_and_changed_material 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 09:59:39 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 09:59:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 52%]
+tests/api/test_graduation_qualification_join.py::test_required_receipt_fields_and_review_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+PASSED                                                                   [ 53%]
+tests/api/test_graduation_qualification_join.py::test_governance_hook_preserves_caller_work 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:42 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+2026-11-10 09:59:42 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+2026-11-10 09:59:42 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+PASSED                                                                   [ 54%]
+tests/api/test_graduation_qualification_join.py::test_policy_null_row_is_invalid_and_fresh_read_defeats_cache PASSED [ 54%]
+tests/api/test_graduation_qualification_join.py::test_peer_policy_change_before_target_dml_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+PASSED                                                                   [ 55%]
+tests/api/test_graduation_qualification_join.py::test_peer_receipt_and_evidence_change_before_target_dml_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+PASSED                                                                   [ 56%]
+tests/api/test_graduation_qualification_join.py::test_member_foreign_and_deactivated_controls 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:46 [ WARNING] Rejected token for non-active user supervisor (status=inactive)
+PASSED                                                                   [ 56%]
+tests/api/test_graduation_qualification_join.py::test_legacy_exception_is_explicit_and_unassessed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:47 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 09:59:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 57%]
+tests/api/test_graduation_qualification_join.py::test_manual_promotion_requires_explicit_exception PASSED [ 58%]
+tests/api/test_graduation_qualification_join.py::test_restart_readback_from_fresh_os_process 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 09:59:49 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 09:59:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:49 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 58%]
+tests/api/test_graduation_qualification_join.py::test_training_completion_requires_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:51 [    INFO] Completed training session session-3 for agent student-agent. Performance: 1.00 (claimed 1.0; evidence 11/11 successful runs), Confidence boost: 0.200 (0.620 → 0.820), Promoted: False
+2026-11-10 09:59:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:company'. type='maturity_update'
+2026-11-10 09:59:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 09:59:51 [    INFO] Completed training session session-4 for agent student-agent. Performance: 1.00 (claimed 1.0; evidence 11/11 successful runs), Confidence boost: 0.180 (0.820 → 1.000), Promoted: True
+2026-11-10 09:59:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:company'. type='maturity_update'
+PASSED                                                                   [ 59%]
+tests/api/test_graduation_qualification_join.py::test_legacy_exam_does_not_overwrite_qualification_pointer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 09:59:52 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 09:59:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 09:59:52 [ WARNING] EdgeCaseSimulator unavailable; skipping edge case simulations
+2026-11-10 09:59:52 [    INFO] Agent student-agent failed legacy graduation exam: readiness score below threshold, found 11 constitutional violations, skill mastery below threshold | Governance policy denied: confidence_score 0.62 below min_confidence_score 0.7; episode_count 11 below min_episodes 25
+PASSED                                                                   [ 60%]
+tests/api/test_graduation_qualification_join.py::test_peer_exception_revocation_before_dml_refuses PASSED [ 60%]
+tests/api/test_graduation_qualification_join.py::test_peer_policy_value_change_without_timestamp_refuses PASSED [ 61%]
+tests/api/test_graduation_qualification_join.py::test_same_passed_receipt_and_review_changes_before_dml_refuse 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+PASSED                                                                   [ 62%]
+tests/api/test_graduation_qualification_join.py::test_inactive_status_active_requester_is_refused PASSED [ 63%]
+tests/api/test_graduation_qualification_join.py::test_history_only_episode_is_not_qualification PASSED [ 63%]
+tests/api/test_graduation_qualification_join.py::test_artifact_output_is_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:59:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 09:59:59 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 09:59:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 09:59:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 64%]
+tests/api/test_graduation_qualification_join.py::test_evidence_endpoint_excludes_history_only PASSED [ 65%]
+tests/api/test_graduation_qualification_join.py::test_peer_evidence_scope_move_before_dml_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:01 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:02 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:03 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+PASSED                                                                   [ 65%]
+tests/api/test_graduation_qualification_join.py::test_supervision_completion_requires_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:06 [    INFO] Session sup-1 completed. Confidence boost: 0.050 (0.950 → 1.000), Promoted: False
+2026-11-10 10:00:06 [    INFO] EscalationManager initialized
+2026-11-10 10:00:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:06 [    INFO] Initiated supervision episode creation for session sup-1
+2026-11-10 10:00:06 [    INFO] Initiated two-way learning for session sup-1
+2026-11-10 10:00:06 [ WARNING] LanceDB not available, skipping archival
+2026-11-10 10:00:06 [    INFO] Created supervision episode 52003f08-cf01-4351-8c41-b0cdc248a159 from session sup-1
+2026-11-10 10:00:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:07 [    INFO] Session sup-2 completed. Confidence boost: 0.050 (0.950 → 1.000), Promoted: True
+2026-11-10 10:00:07 [    INFO] EscalationManager initialized
+2026-11-10 10:00:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:07 [    INFO] Initiated supervision episode creation for session sup-2
+2026-11-10 10:00:07 [    INFO] Initiated two-way learning for session sup-2
+2026-11-10 10:00:07 [ WARNING] LanceDB not available, skipping archival
+2026-11-10 10:00:07 [    INFO] Created supervision episode 7aaafb77-2fd1-45bc-a2af-476b58b16b92 from session sup-2
+PASSED                                                                   [ 66%]
+tests/api/test_graduation_qualification_join.py::test_existing_system_student_is_not_healed_even_with_flag 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:08 [ WARNING] System default Chat Assistant student-agent remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+2026-11-10 10:00:08 [ WARNING] System default Chat Assistant student-agent remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+2026-11-10 10:00:08 [    INFO] Creating system default Chat Assistant agent
+2026-11-10 10:00:08 [    INFO] Created system default agent: d5244a32-5ccd-494f-8b9e-4777ca34175c
+2026-11-10 10:00:08 [ WARNING] System default Chat Assistant d5244a32-5ccd-494f-8b9e-4777ca34175c remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+PASSED                                                                   [ 67%]
+tests/api/test_graduation_qualification_join.py::test_supervision_entry_preserves_caller_work PASSED [ 67%]
+tests/api/test_graduation_qualification_join.py::test_enabled_exception_requires_nonblank_owner_reason PASSED [ 68%]
+tests/api/test_graduation_qualification_join.py::test_blank_policy_identity_and_rubric_are_invalid PASSED [ 69%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_exact_duplicate_reuses_same_action PASSED [ 69%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_policy_change_creates_fresh_review_and_old_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:17 [ WARNING] API Error: STALE_DECISION_REVIEW - The assessment policy revision changed after this review was requested.
+2026-11-10 10:00:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:17 [   ERROR] Graduation finalization error: error_class=TypeError
+PASSED                                                                   [ 70%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:18 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 722f5967-b9dc-406d-8ef1-3f20a7c5e89b
+2026-11-10 10:00:18 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:18 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:18 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:18 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 71%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:19 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 08affd07-cc08-466f-9a39-2b35728af1b1
+2026-11-10 10:00:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:19 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 71%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:20 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 7deda409-5bc7-4f72-9a30-cafc01616bc5
+2026-11-10 10:00:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:20 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 72%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:21 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 3eba5224-cbbe-47a6-917b-9c5f805ce12a
+2026-11-10 10:00:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:21 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 73%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:22 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 8322f146-b298-4fce-8f75-b03872f4f08f
+2026-11-10 10:00:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:22 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 73%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:24 [ WARNING] API Error: NOT_FOUND - HITLAction not found: f2b87d9f-7e75-402f-a0bd-56f0fac9332f
+2026-11-10 10:00:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:24 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 74%]
+tests/api/test_graduation_qualification_join.py::test_actual_graduation_notification_persists_once_without_nested_loop 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:25 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 75%]
+tests/api/test_graduation_qualification_join.py::test_notification_failure_does_not_erase_committed_promotion[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:26 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:26 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): controlled notification unavailable
+2026-11-10 10:00:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 76%]
+tests/api/test_graduation_qualification_join.py::test_notification_failure_does_not_erase_committed_promotion[soft_fail] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:28 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 10:00:28 [ WARNING] Graduation notification not delivered for agent student-agent (promotion already committed): notification_failed
+2026-11-10 10:00:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+PASSED                                                                   [ 76%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_default_required_false_is_configuration_required PASSED [ 77%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[legacy] PASSED [ 78%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[manual] PASSED [ 78%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[system] PASSED [ 79%]
+tests/api/test_graduation_qualification_join.py::test_default_and_exact_agent_exception_remain_supported PASSED [ 80%]
+tests/api/test_graduation_qualification_join.py::test_tier_gate_false_remains_supported PASSED [ 80%]
+tests/api/test_graduation_qualification_join.py::test_personal_bootstrap_raw_null_admin_qualification_flow 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:35 [    INFO] BOOTSTRAP: User admin@example.com not found. Creating...
+2026-11-10 10:00:36 [    INFO] BOOTSTRAP: Created admin@example.com
+2026-11-10 10:00:36 [    INFO] BOOTSTRAP: Creating default tenant...
+2026-11-10 10:00:36 [    INFO] BOOTSTRAP: Creating default workspace...
+2026-11-10 10:00:36 [    INFO] BOOTSTRAP: Default tenant and workspace ensured.
+2026-11-10 10:00:36 [    INFO] BOOTSTRAP: Created onboarding Demo Assistant agent (id=0972ae39-c005-42eb-bf3b-30f97fcf11f5)
+2026-11-10 10:00:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 10:00:36 [    INFO] Agent personal-candidate promoted to INTERN by 6e9eb6ac-ff4f-4ac4-b62b-73d7599ef530
+2026-11-10 10:00:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 10:00:36 [ WARNING] Rejected token for non-active user 6e9eb6ac-ff4f-4ac4-b62b-73d7599ef530 (status=inactive)
+PASSED                                                                   [ 81%]
+tests/api/test_graduation_qualification_join.py::test_empty_rubric_criteria_is_configuration_required PASSED [ 82%]
+tests/api/test_graduation_qualification_join.py::test_duplicate_rubric_criterion_ids_is_configuration_required PASSED [ 82%]
+tests/api/test_graduation_qualification_join.py::test_distinct_owner_rubric_criteria_remain_supported PASSED [ 83%]
+tests/api/test_graduation_qualification_join.py::test_public_qualification_refuses_invalid_rubric_policy PASSED [ 84%]
+tests/test_agent_generic_information_wait.py::test_generic_info_wait_resumes_same_job_to_verified_result 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:41 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:41 [    INFO] EscalationManager initialized
+2026-11-10 10:00:41 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:41 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:41 [    INFO] EscalationManager initialized
+2026-11-10 10:00:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:41 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-10 10:00:41 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-10 10:00:41 [    INFO] EscalationManager initialized
+2026-11-10 10:00:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:41 [    INFO] LanceDBHandler initialized. ID: 6242514832. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:41 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:41 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:41 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:41 [    INFO] EscalationManager initialized
+2026-11-10 10:00:41 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:41 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:00:41 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-10 10:00:41 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:41 [    INFO] EscalationManager initialized
+2026-11-10 10:00:41 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:41 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:41 [    INFO] EscalationManager initialized
+2026-11-10 10:00:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:41 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-10 10:00:41 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-10 10:00:41 [    INFO] EscalationManager initialized
+2026-11-10 10:00:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:41 [    INFO] LanceDBHandler initialized. ID: 6275123920. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:41 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:41 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:41 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:41 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:00:41 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:00:41 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+PASSED                                                                   [ 84%]
+tests/test_agent_generic_information_wait.py::test_wrong_correlation_cannot_resume_the_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:42 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:42 [    INFO] EscalationManager initialized
+2026-11-10 10:00:42 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:42 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:42 [    INFO] EscalationManager initialized
+2026-11-10 10:00:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:42 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Look up the account
+2026-11-10 10:00:42 [    INFO] Agent Agent One (a1) starting task: Look up the account
+2026-11-10 10:00:42 [    INFO] EscalationManager initialized
+2026-11-10 10:00:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:42 [    INFO] LanceDBHandler initialized. ID: 6290338640. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:42 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:42 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:42 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:00:42 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+PASSED                                                                   [ 85%]
+tests/test_agent_generic_information_wait.py::test_duplicate_answer_does_not_dispatch_again 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:43 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:43 [    INFO] EscalationManager initialized
+2026-11-10 10:00:43 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:43 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:43 [    INFO] EscalationManager initialized
+2026-11-10 10:00:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:43 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-10 10:00:43 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-10 10:00:43 [    INFO] EscalationManager initialized
+2026-11-10 10:00:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:43 [    INFO] LanceDBHandler initialized. ID: 6290105040. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:43 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:43 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:43 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:00:43 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-10 10:00:43 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:43 [    INFO] EscalationManager initialized
+2026-11-10 10:00:43 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:43 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:43 [    INFO] EscalationManager initialized
+2026-11-10 10:00:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:43 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-10 10:00:43 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-10 10:00:43 [    INFO] EscalationManager initialized
+2026-11-10 10:00:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:43 [    INFO] LanceDBHandler initialized. ID: 6290003536. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:43 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:43 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:43 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:00:43 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 10:00:43 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+2026-11-10 10:00:43 [ WARNING] turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+PASSED                                                                   [ 86%]
+tests/test_agent_generic_information_wait.py::test_answer_after_cancellation_cannot_revive_the_job 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:44 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:44 [    INFO] EscalationManager initialized
+2026-11-10 10:00:44 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:44 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:44 [    INFO] EscalationManager initialized
+2026-11-10 10:00:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:44 [    INFO] Executing Agent Agent One with ReAct Loop. Input: use the code
+2026-11-10 10:00:44 [    INFO] Agent Agent One (a1) starting task: use the code
+2026-11-10 10:00:44 [    INFO] EscalationManager initialized
+2026-11-10 10:00:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:44 [    INFO] LanceDBHandler initialized. ID: 6300966352. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:44 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:44 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:44 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 86%]
+tests/test_agent_generic_information_wait.py::test_legacy_approvals_input_surface_resumes_the_same_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:45 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:45 [    INFO] EscalationManager initialized
+2026-11-10 10:00:45 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:45 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:45 [    INFO] EscalationManager initialized
+2026-11-10 10:00:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:45 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create from approvals
+2026-11-10 10:00:45 [    INFO] Agent Agent One (a1) starting task: create from approvals
+2026-11-10 10:00:45 [    INFO] EscalationManager initialized
+2026-11-10 10:00:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:45 [    INFO] LanceDBHandler initialized. ID: 6301709648. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:45 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:45 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:45 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:45 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:45 [    INFO] EscalationManager initialized
+2026-11-10 10:00:45 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:45 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:45 [    INFO] EscalationManager initialized
+2026-11-10 10:00:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:45 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create from approvals
+2026-11-10 10:00:45 [    INFO] Agent Agent One (a1) starting task: create from approvals
+2026-11-10 10:00:45 [    INFO] EscalationManager initialized
+2026-11-10 10:00:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:45 [    INFO] LanceDBHandler initialized. ID: 6303619856. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:45 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:45 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:45 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:45 [    INFO] Recorded outcome for a1: success
+2026-11-10 10:00:45 [ WARNING] API Error: INFORMATION_ANSWER_CONFLICT - A different answer was already accepted for this wait.
+2026-11-10 10:00:45 [ WARNING] HITL c37fe54d-9ff4-4008-ad27-cc9055f6dc22 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'reason': 'job_not_waiting_for_this_answer', 'status': 'refused', 'job': {'job_status': 'success', 'outcome': 'success', 'reason': 'execution_succeeded', 'next_action': 'none', 'requires_reconciliation': False, 'execution_id': '26627856-242e-432c-9011-0182fa1e3102'}}
+PASSED                                                                   [ 87%]
+tests/test_agent_generic_information_wait.py::test_second_missing_fact_waits_again_then_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:46 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:46 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:46 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-10 10:00:46 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:46 [    INFO] LanceDBHandler initialized. ID: 6305578000. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:46 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:46 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:46 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:46 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:46 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:46 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-10 10:00:46 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:46 [    INFO] LanceDBHandler initialized. ID: 6306158160. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:46 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:46 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:46 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:46 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:46 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:46 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-10 10:00:46 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-10 10:00:46 [    INFO] EscalationManager initialized
+2026-11-10 10:00:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:46 [    INFO] LanceDBHandler initialized. ID: 6306417552. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:46 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:46 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:46 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:46 [    INFO] Recorded outcome for a1: success
+PASSED                                                                   [ 88%]
+tests/test_agent_generic_information_wait.py::test_answer_without_wait_identity_is_refused_before_acceptance 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:47 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:47 [    INFO] EscalationManager initialized
+2026-11-10 10:00:47 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:47 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:47 [    INFO] EscalationManager initialized
+2026-11-10 10:00:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:47 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-10 10:00:47 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-10 10:00:47 [    INFO] EscalationManager initialized
+2026-11-10 10:00:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:47 [    INFO] LanceDBHandler initialized. ID: 6308271056. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:47 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:47 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:47 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:47 [    INFO] EscalationManager initialized
+2026-11-10 10:00:47 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:47 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:47 [    INFO] EscalationManager initialized
+2026-11-10 10:00:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:47 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-10 10:00:47 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-10 10:00:47 [    INFO] EscalationManager initialized
+2026-11-10 10:00:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:47 [    INFO] LanceDBHandler initialized. ID: 6306638736. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:47 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:47 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:47 [    INFO] Recorded outcome for a1: success
+PASSED                                                                   [ 89%]
+tests/test_agent_generic_information_wait.py::test_old_answer_cannot_settle_the_next_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:48 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:48 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:48 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-10 10:00:48 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:48 [    INFO] LanceDBHandler initialized. ID: 6304951248. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:48 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:48 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:48 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:48 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:48 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-10 10:00:48 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:48 [    INFO] LanceDBHandler initialized. ID: 6303639760. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:48 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:48 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:48 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:48 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:48 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-10 10:00:48 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-10 10:00:48 [    INFO] EscalationManager initialized
+2026-11-10 10:00:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:48 [    INFO] LanceDBHandler initialized. ID: 6304310416. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:48 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:48 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:48 [    INFO] Recorded outcome for a1: success
+PASSED                                                                   [ 89%]
+tests/test_agent_generic_information_wait.py::test_real_react_step_consumer_answers_wait_and_verifies_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:49 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:49 [    INFO] EscalationManager initialized
+2026-11-10 10:00:49 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:49 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:49 [    INFO] EscalationManager initialized
+2026-11-10 10:00:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:49 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-10 10:00:49 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-10 10:00:49 [    INFO] EscalationManager initialized
+2026-11-10 10:00:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:49 [    INFO] LanceDBHandler initialized. ID: 6288398800. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:49 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:49 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:49 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:49 [    INFO] Initializing tool registry...
+2026-11-10 10:00:49 [    INFO] Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+2026-11-10 10:00:49 [    INFO] Registered tool: find_datasets v1.0.0 (dataset)
+2026-11-10 10:00:49 [    INFO] Registered tool: load_registered_dataset v1.0.0 (dataset)
+2026-11-10 10:00:49 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-10 10:00:49 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: execute_device_command v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: get_device_info v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: list_devices v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: send_device_command v1.0.0 (device)
+2026-11-10 10:00:49 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: list_canvases v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: read_canvas v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: submit_canvas_event v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+2026-11-10 10:00:49 [    INFO] Registered tool: integration_ingest_item v1.0.0 (drive)
+2026-11-10 10:00:49 [    INFO] Registered tool: integration_search_index v1.0.0 (drive)
+2026-11-10 10:00:49 [    INFO] Registered tool: analyze_data v1.0.0 (data_analysis)
+2026-11-10 10:00:49 [    INFO] Registered tool: describe_data v1.0.0 (data_analysis)
+2026-11-10 10:00:49 [    INFO] Registered tool: list_datasets v1.0.0 (data_analysis)
+2026-11-10 10:00:49 [    INFO] Registered tool: load_dataset v1.0.0 (data_analysis)
+2026-11-10 10:00:49 [    INFO] Registered tool: query_data v1.0.0 (data_analysis)
+2026-11-10 10:00:49 [    INFO] Registered tool: radio_create_thread v1.0.0 (agent_radio)
+2026-11-10 10:00:49 [    INFO] Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+2026-11-10 10:00:49 [    INFO] Registered tool: radio_send_message v1.0.0 (agent_radio)
+2026-11-10 10:00:49 [    INFO] Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+2026-11-10 10:00:49 [ WARNING] SoCo library not installed - Sonos functions will fail
+2026-11-10 10:00:49 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-10 10:00:49 [    INFO] Media control tools registered with tool registry
+2026-11-10 10:00:49 [    INFO] Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+2026-11-10 10:00:49 [ WARNING] ffmpeg-python not installed. Run: pip install ffmpeg-python
+2026-11-10 10:00:49 [   ERROR] Failed to initialize FFmpegService
+2026-11-10 10:00:49 [   ERROR] Failed to register FFmpeg tool
+2026-11-10 10:00:49 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-10 10:00:49 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+2026-11-10 10:00:49 [    INFO] Registered tool: add_member_to_team v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: create_team v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: create_tenant v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: create_workspace v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: delete_team v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: delete_tenant v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: delete_workspace v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: get_platform_settings v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: list_tenant_members v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: manage_team v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: manage_tenant_member v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: manage_workspace v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: remove_member_from_team v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: set_byok_api_key v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_platform_setting v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_team v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_tenant v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_tenant_profile v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_workspace v1.0.0 (platform_management)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+2026-11-10 10:00:49 [    INFO] Registered tool: attach_tiebreak v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_email_canvas v1.0.0 (canvas_email)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_list v1.0.0 (email_attachment)
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_db_query v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_db_write v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_get_state v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_install v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_list v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_publish v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_run v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_status v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+2026-11-10 10:00:49 [    INFO] Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: close_canvas v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_chart v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_form v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_markdown v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_status_panel v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_to_canvas v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] python-hue-v2 library not available
+2026-11-10 10:00:49 [ WARNING] Hue integration will fail - install with: pip install python-hue-v2
+2026-11-10 10:00:49 [    INFO] Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+2026-11-10 10:00:49 [    INFO] Registered tool: hue_get_lights v1.0.0 (smarthome)
+2026-11-10 10:00:49 [    INFO] Registered tool: hue_set_light_state v1.0.0 (smarthome)
+2026-11-10 10:00:49 [    INFO] Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+2026-11-10 10:00:49 [    INFO] Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+2026-11-10 10:00:49 [    INFO] Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+2026-11-10 10:00:49 [    INFO] Smart home tools registered with ToolRegistry
+2026-11-10 10:00:49 [    INFO] Registered tool: email_ingest_message v1.0.0 (email_ingest)
+2026-11-10 10:00:49 [    INFO] Registered tool: add_excel_pivot_table v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: get_excel_formula_result v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: insert_excel_columns v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: insert_excel_rows v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: modify_pptx_slides v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: modify_word_document v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: present_coedit_canvas v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: read_excel_cell v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: read_pptx_slides v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: read_word_document v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: recalculate_excel v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: run_excel_macro v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Registered tool: write_excel_cell v1.0.0 (office)
+2026-11-10 10:00:49 [    INFO] Tool discovery complete. Discovered 132 new tools. Total tools: 150
+2026-11-10 10:00:49 [ WARNING] Tool 'present_chart' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'present_markdown' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'present_form' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'update_canvas' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: update_canvas v2.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'read_canvas' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'update_canvas_content' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'delete_canvas' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'list_canvases' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_create_session' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_navigate' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_screenshot' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_fill_form' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_click' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_extract_text' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_execute_script' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_close_session' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'browser_get_page_info' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: operator_start_task v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: operator_get_status v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: operator_get_screenshot v1.0.0 (browser)
+2026-11-10 10:00:49 [    INFO] Registered tool: operator_stop_task v1.0.0 (browser)
+2026-11-10 10:00:49 [ WARNING] Tool 'device_camera_snap' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-10 10:00:49 [ WARNING] Tool 'device_screen_record_start' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-10 10:00:49 [ WARNING] Tool 'device_screen_record_stop' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-10 10:00:49 [ WARNING] Tool 'device_get_location' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-10 10:00:49 [ WARNING] Tool 'device_send_notification' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-10 10:00:49 [ WARNING] Tool 'device_execute_command' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-10 10:00:49 [   ERROR] No Google Calendar credentials provided
+2026-11-10 10:00:49 [    INFO] CalendarTool initialized
+2026-11-10 10:00:49 [    INFO] Registered tool: calendar_tool v1.0.0 (productivity)
+2026-11-10 10:00:49 [    INFO] CalendarTool registered with ToolRegistry
+2026-11-10 10:00:49 [    INFO] NotionTool initialized
+2026-11-10 10:00:49 [    INFO] Registered tool: notion_tool v1.0.0 (productivity)
+2026-11-10 10:00:49 [    INFO] NotionTool registered with ToolRegistry
+2026-11-10 10:00:49 [ WARNING] Tool 'memory_remember' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-10 10:00:49 [ WARNING] Tool 'memory_forget' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-10 10:00:49 [    INFO] memory_remember + memory_forget registered with ToolRegistry
+2026-11-10 10:00:49 [ WARNING] Tool 'integration_search_index' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: integration_search_index v1.0.0 (integrations)
+2026-11-10 10:00:49 [ WARNING] Tool 'integration_ingest_item' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: integration_ingest_item v1.0.0 (integrations)
+2026-11-10 10:00:49 [ WARNING] Tool 'load_dataset' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: load_dataset v1.0.0 (data)
+2026-11-10 10:00:49 [ WARNING] Tool 'analyze_data' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: analyze_data v1.0.0 (data)
+2026-11-10 10:00:49 [ WARNING] Tool 'query_data' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: query_data v1.0.0 (data)
+2026-11-10 10:00:49 [ WARNING] Tool 'describe_data' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: describe_data v1.0.0 (data)
+2026-11-10 10:00:49 [ WARNING] Tool 'list_datasets' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: list_datasets v1.0.0 (data)
+2026-11-10 10:00:49 [    INFO] Data analysis tools registered with ToolRegistry
+2026-11-10 10:00:49 [ WARNING] Tool 'find_datasets' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: find_datasets v1.0.0 (data)
+2026-11-10 10:00:49 [ WARNING] Tool 'load_registered_dataset' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: load_registered_dataset v1.0.0 (data)
+2026-11-10 10:00:49 [    INFO] Dataset catalog tools registered with ToolRegistry
+2026-11-10 10:00:49 [    INFO] Registered tool: forecast v1.0.0 (data)
+2026-11-10 10:00:49 [    INFO] Registered tool: run_model v1.0.0 (data)
+2026-11-10 10:00:49 [    INFO] Predictive modeling tools registered with ToolRegistry
+2026-11-10 10:00:49 [    INFO] Registered tool: radio.create_thread v1.0.0 (coordination)
+2026-11-10 10:00:49 [    INFO] Registered tool: radio.send_message v1.0.0 (coordination)
+2026-11-10 10:00:49 [    INFO] Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+2026-11-10 10:00:49 [    INFO] Registered tool: radio.read_inbox v1.0.0 (coordination)
+2026-11-10 10:00:49 [    INFO] radio.* tools registered with ToolRegistry
+2026-11-10 10:00:49 [ WARNING] Tool 'email_attachment_list' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_list v1.0.0 (email)
+2026-11-10 10:00:49 [ WARNING] Tool 'email_attachment_get_text' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email)
+2026-11-10 10:00:49 [ WARNING] Tool 'email_attachment_stage_file' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email)
+2026-11-10 10:00:49 [ WARNING] Tool 'email_attachment_attach' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email)
+2026-11-10 10:00:49 [ WARNING] Tool 'email_attachment_remove' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email)
+2026-11-10 10:00:49 [ WARNING] Tool 'email_attachment_ingest' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email)
+2026-11-10 10:00:49 [ WARNING] Tool 'email_ingest_message' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: email_ingest_message v1.0.0 (email)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_get_state' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_read_text' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_list_versions' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_get_form_fields' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_merge_canvas' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_submit_for_review' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_set_form_fields' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_flatten' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_annotate' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_generate_from_data' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_approve' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_attach_to_email' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_redact' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_stamp_signature' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+2026-11-10 10:00:49 [ WARNING] Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+2026-11-10 10:00:49 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+2026-11-10 10:00:49 [    INFO] Tool registry initialized with 162 tools
+2026-11-10 10:00:49 [    INFO] ✓ Tool Registry integrated with MCP Service
+2026-11-10 10:00:49 [    INFO] Core MCP Service initialized
+2026-11-10 10:00:50 [    INFO] EscalationManager initialized
+2026-11-10 10:00:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:50 [    INFO] EscalationManager initialized
+2026-11-10 10:00:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:50 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-10 10:00:50 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-10 10:00:51 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 10:00:51 [    INFO] EscalationManager initialized
+2026-11-10 10:00:51 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 10:00:51 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 10:00:51 [    INFO] EscalationManager initialized
+2026-11-10 10:00:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:51 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-10 10:00:51 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-10 10:00:51 [    INFO] EscalationManager initialized
+2026-11-10 10:00:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:51 [    INFO] LanceDBHandler initialized. ID: 6300841040. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:51 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:00:51 [    INFO] Connecting to LanceDB at /private/tmp/pr831-affected3-MjGvqu/lancedb with storage_options=None
+2026-11-10 10:00:51 [    INFO] LanceDB connected successfully
+2026-11-10 10:00:51 [    INFO] EscalationManager initialized
+2026-11-10 10:00:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:51 [    INFO] EscalationManager initialized
+2026-11-10 10:00:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:51 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-10 10:00:51 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-10 10:00:51 [    INFO] EscalationManager initialized
+2026-11-10 10:00:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:51 [    INFO] EscalationManager initialized
+2026-11-10 10:00:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:51 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-10 10:00:51 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-10 10:00:51 [    INFO] Recorded outcome for a1: success
+PASSED                                                                   [ 90%]
+tests/test_orch01_real_checkpoint_contract.py::test_pending_resume_refuses_then_exact_approval_releases_once 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:51 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:51 [    INFO] Created HITL action 357edef7-950b-4743-8b6e-ee589ec5578f for agent system_default_agent
+2026-11-10 10:00:51 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:51 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
+2026-11-10 10:00:51 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
+2026-11-10 10:00:51 [    INFO] Resuming workflow exec-real-approve from step approval_record after authoritative approval
+2026-11-10 10:00:51 [    INFO] Executing step: record - Write record
+2026-11-10 10:00:51 [    INFO] Persisted state for workflow exec-real-approve (Status: completed)
+2026-11-10 10:00:51 [ WARNING] Step approval_record is not waiting for approval
+PASSED                                                                   [ 91%]
+tests/test_orch01_real_checkpoint_contract.py::test_rejected_checkpoint_and_missing_checkpoint_dispatch_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:52 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:52 [    INFO] Created HITL action 660a15ee-d81a-4c0c-a54c-4e4e2fc524a5 for agent system_default_agent
+2026-11-10 10:00:52 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:52 [    INFO] Persisted state for workflow exec-real-rejected (Status: waiting_approval)
+2026-11-10 10:00:52 [    INFO] Persisted state for workflow exec-real-rejected (Status: failed)
+2026-11-10 10:00:52 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:52 [    INFO] Created HITL action 8dad3809-ab71-4112-b340-cb8218ee81c6 for agent system_default_agent
+2026-11-10 10:00:52 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:52 [    INFO] Persisted state for workflow exec-real-missing (Status: waiting_approval)
+2026-11-10 10:00:52 [    INFO] Persisted state for workflow exec-real-missing (Status: failed)
+PASSED                                                                   [ 91%]
+tests/test_orch01_real_checkpoint_contract.py::test_changed_reviewed_material_cannot_reuse_old_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:53 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:53 [    INFO] Created HITL action a176686a-8938-4d27-88b9-c1afe8918272 for agent system_default_agent
+2026-11-10 10:00:53 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:53 [    INFO] Persisted state for workflow exec-real-changed (Status: waiting_approval)
+2026-11-10 10:00:53 [    INFO] Persisted state for workflow exec-real-changed (Status: failed)
+PASSED                                                                   [ 92%]
+tests/test_orch01_real_checkpoint_contract.py::test_hitl_queue_decision_uses_the_same_advanced_consumer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:53 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:53 [    INFO] Created HITL action 2bbc6064-8604-48e5-91d8-922e4e7ff6e0 for agent system_default_agent
+2026-11-10 10:00:53 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:53 [    INFO] Persisted state for workflow exec-hitl-queue (Status: waiting_approval)
+2026-11-10 10:00:53 [    INFO] Resuming workflow exec-hitl-queue from step approval_record after authoritative approval
+2026-11-10 10:00:53 [    INFO] Executing step: record - Write record
+2026-11-10 10:00:53 [    INFO] Persisted state for workflow exec-hitl-queue (Status: completed)
+2026-11-10 10:00:53 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:53 [    INFO] Created HITL action 1c4dd8e4-57ca-417f-b191-143084a89519 for agent system_default_agent
+2026-11-10 10:00:53 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:53 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: waiting_approval)
+2026-11-10 10:00:53 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: failed)
+2026-11-10 10:00:53 [ WARNING] HITL 1c4dd8e4-57ca-417f-b191-143084a89519 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED', 'reason': 'approval binding did not match the authoritative execution; a fresh matching review is required'}
+PASSED                                                                   [ 93%]
+tests/test_orch01_real_checkpoint_contract.py::test_public_approval_route_requires_scope_and_exact_binding 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:54 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:54 [    INFO] Created HITL action cf559b32-3c9c-4dfc-8aef-e991d259a6da for agent system_default_agent
+2026-11-10 10:00:54 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:54 [    INFO] Persisted state for workflow exec-route-first (Status: waiting_approval)
+2026-11-10 10:00:54 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:54 [    INFO] Created HITL action bbda526f-c7c8-42f1-a914-792dcbddc0c5 for agent system_default_agent
+2026-11-10 10:00:54 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:54 [    INFO] Persisted state for workflow exec-route-second (Status: waiting_approval)
+2026-11-10 10:00:54 [    INFO] Resuming workflow exec-route-first from step approval_record after authoritative approval
+2026-11-10 10:00:54 [    INFO] Executing step: record - Write record
+2026-11-10 10:00:54 [    INFO] Persisted state for workflow exec-route-first (Status: completed)
+PASSED                                                                   [ 93%]
+tests/test_orch01_real_checkpoint_contract.py::test_public_route_reports_fresh_review_for_partial_binding 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:55 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 10:00:55 [    INFO] Created HITL action 6395e6a0-062d-4076-ab3f-c13ac755cb7e for agent system_default_agent
+2026-11-10 10:00:55 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 10:00:55 [    INFO] Persisted state for workflow exec-partial-route (Status: waiting_approval)
+2026-11-10 10:00:55 [    INFO] Persisted state for workflow exec-partial-route (Status: failed)
+PASSED                                                                   [ 94%]
+tests/test_chat_teaching_route.py::test_public_chat_compound_request_keeps_email_obligation 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:56 [    INFO] EscalationManager initialized
+2026-11-10 10:00:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:56 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:00:56 [    INFO] EscalationManager initialized
+2026-11-10 10:00:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:56 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:00:56 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:00:56 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:00:56 [    INFO] runtime identity: source_id=b071c8702cb1-dirty.a06d6854b87e revision=b071c8702cb1 dirty=True (3 modified, 0 untracked)
+2026-11-10 10:00:56 [    INFO] Processing chat message from user user-1: len=63 fp=b4e6199ae422
+2026-11-10 10:00:56 [    INFO] [CHATCTX] request.agent_id='agent-1' context=shape shape={"task_context": {"qualification": "str(len=8)"}}
+2026-11-10 10:00:56 [    INFO] canvas action proposal filed: 768ba058-cac7-4b57-9f6f-54278a5fc3ac (send_email, canvas=bc66cdf1-8365-43f1-91ad-36e94e5e6cbe)
+2026-11-10 10:00:56 [    INFO] Recorded outcome for agent-1: success
+2026-11-10 10:00:56 [ WARNING] [apply-dbg] state=partial work_turn=True noop=None success_in=True
+2026-11-10 10:00:56 [    INFO] EscalationManager initialized
+2026-11-10 10:00:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:56 [   ERROR] Session s1 not found
+PASSED                                                                   [ 95%]
+tests/test_chat_teaching_route.py::test_compound_email_draft_clarification_and_approval_resume 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:57 [    INFO] EscalationManager initialized
+2026-11-10 10:00:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:57 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:00:57 [    INFO] EscalationManager initialized
+2026-11-10 10:00:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:57 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:00:57 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:00:57 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:00:57 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-d9c37c
+2026-11-10 10:00:57 [    INFO] canvas action proposal filed: cdc6b58a-fd5d-47a7-bc40-57c2e4b35815 (send_email, canvas=58fbb0cf-16c8-441e-8724-0bd03a00efd7)
+2026-11-10 10:00:57 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 10:00:57 [    INFO] EscalationManager initialized
+2026-11-10 10:00:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:00:57 [    INFO] LanceDBHandler initialized. ID: 6520234192. LANCEDB_AVAILABLE: True
+2026-11-10 10:00:57 [    INFO] Executing action send_email from proposal cdc6b58a-fd5d-47a7-bc40-57c2e4b35815
+2026-11-10 10:00:57 [    INFO] EscalationManager initialized
+2026-11-10 10:00:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:57 [    INFO] Created proposal episode d9072775-f27c-4032-a50d-c2701572a188 for proposal cdc6b58a-fd5d-47a7-bc40-57c2e4b35815 (outcome: approved)
+2026-11-10 10:00:57 [    INFO] Approved and executed proposal cdc6b58a-fd5d-47a7-bc40-57c2e4b35815 by user user-1
+PASSED                                                                   [ 95%]
+tests/test_chat_teaching_route.py::test_chat_obligation_payload_drift_refused[to-different-recipient@example.invalid] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:57 [    INFO] EscalationManager initialized
+2026-11-10 10:00:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:57 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:00:57 [    INFO] EscalationManager initialized
+2026-11-10 10:00:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:57 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:00:57 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:00:57 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:00:57 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-c8961f
+2026-11-10 10:00:57 [    INFO] canvas action proposal filed: 494b74bb-32a7-4dff-8986-50ccb3066288 (send_email, canvas=e5abd4eb-27e6-484f-a284-d90b79a1b98c)
+2026-11-10 10:00:57 [ WARNING] HITL c46bf8ed-99f2-43d6-b28d-f2b523b512a0 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '494b74bb-32a7-4dff-8986-50ccb3066288', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 96%]
+tests/test_chat_teaching_route.py::test_chat_obligation_payload_drift_refused[body-A different body that was never reviewed.] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:58 [    INFO] EscalationManager initialized
+2026-11-10 10:00:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:58 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:00:58 [    INFO] EscalationManager initialized
+2026-11-10 10:00:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:58 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:00:58 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:00:58 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:00:58 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-d35a32
+2026-11-10 10:00:58 [    INFO] canvas action proposal filed: 14273c19-06cb-49f3-871a-61207f0fdec0 (send_email, canvas=d767227c-be2c-4e5c-bd09-1a20d64a6ed8)
+2026-11-10 10:00:58 [ WARNING] HITL 3e10ef87-645b-425d-b173-870f60facc85 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '14273c19-06cb-49f3-871a-61207f0fdec0', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 97%]
+tests/test_chat_teaching_route.py::test_chat_obligation_payload_drift_refused[attachment_hashes-value2] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:00:59 [    INFO] EscalationManager initialized
+2026-11-10 10:00:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:59 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:00:59 [    INFO] EscalationManager initialized
+2026-11-10 10:00:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:00:59 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:00:59 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:00:59 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:00:59 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-62544a
+2026-11-10 10:00:59 [    INFO] canvas action proposal filed: b11f933e-b610-46b2-b415-45c57507d441 (send_email, canvas=614f5f29-f60e-48d8-8399-9ee66aa9ac54)
+2026-11-10 10:00:59 [ WARNING] HITL 4ec76119-42ad-4104-9887-8379bfcd6164 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': 'b11f933e-b610-46b2-b415-45c57507d441', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 97%]
+tests/test_chat_teaching_route.py::test_chat_obligation_rejection_has_no_transport 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:01:00 [    INFO] EscalationManager initialized
+2026-11-10 10:01:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:01:00 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:01:00 [    INFO] EscalationManager initialized
+2026-11-10 10:01:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:01:00 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:01:00 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:01:00 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:01:00 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-fae80e
+2026-11-10 10:01:00 [    INFO] canvas action proposal filed: 5d3430ca-5f9a-4a85-9e92-ec6af0408e0f (send_email, canvas=be5c32bc-291a-4f37-a41f-1171da44f2f7)
+2026-11-10 10:01:00 [    INFO] EscalationManager initialized
+2026-11-10 10:01:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:01:00 [    INFO] Created proposal episode fe1c8068-893a-4f3c-bb05-e95d60bcee69 for proposal 5d3430ca-5f9a-4a85-9e92-ec6af0408e0f (outcome: rejected)
+2026-11-10 10:01:00 [    INFO] Updated learning parameters for agent agent-1
+2026-11-10 10:01:00 [    INFO] Rejected proposal 5d3430ca-5f9a-4a85-9e92-ec6af0408e0f by user user-1. Reason: not this one
+2026-11-10 10:01:00 [ WARNING] HITL 9f9a9470-de0a-4f36-906c-4ff3d0e4835b decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '5d3430ca-5f9a-4a85-9e92-ec6af0408e0f', 'status': 'rejected'}
+PASSED                                                                   [ 98%]
+tests/test_chat_teaching_route.py::test_chat_obligation_change_between_read_and_claim_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:01:00 [    INFO] EscalationManager initialized
+2026-11-10 10:01:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:01:00 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:01:00 [    INFO] EscalationManager initialized
+2026-11-10 10:01:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:01:00 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:01:00 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:01:00 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:01:00 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-5b62e2
+2026-11-10 10:01:00 [    INFO] canvas action proposal filed: 85958305-99dc-4363-a603-9edbfa8ebfcf (send_email, canvas=ddea6bff-8137-4514-8079-ccf23dc57668)
+2026-11-10 10:01:00 [ WARNING] HITL 9fbce28e-fc54-411b-889f-a3e030c061a7 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': '85958305-99dc-4363-a603-9edbfa8ebfcf', 'status': 'payload_changed', 'reason': 'the proposal payload changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [ 99%]
+tests/test_chat_teaching_route.py::test_chat_obligation_canvas_change_between_read_and_claim_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:01:01 [    INFO] EscalationManager initialized
+2026-11-10 10:01:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:01:01 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 10:01:01 [    INFO] EscalationManager initialized
+2026-11-10 10:01:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:01:01 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 10:01:01 [    INFO] Slack Enhanced Service initialized
+2026-11-10 10:01:01 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 10:01:01 [    INFO] [teaching-context] resume state=pending last_answer=None has_result=False session=email-dc41c4
+2026-11-10 10:01:01 [    INFO] canvas action proposal filed: dc7a4423-f5d3-4f1d-91b6-4819b44fee36 (send_email, canvas=4a7bb750-1229-41d6-9b0a-9a03cfbf5630)
+2026-11-10 10:01:01 [ WARNING] HITL 0dd99752-1d74-4eae-b022-f9061c2450c0 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'chat_obligation', 'proposal_id': 'dc7a4423-f5d3-4f1d-91b6-4819b44fee36', 'status': 'payload_changed', 'reason': 'the canvas/artifact changed after review; fresh approval is required', 'fresh_review_required': True}
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /private/tmp/atom-pr831-b071-repair-20261110/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/episode_routes.py:417
+  /private/tmp/atom-pr831-b071-repair-20261110/backend/api/episode_routes.py:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 146 passed, 7 warnings in 152.13s (0:02:32) ==================

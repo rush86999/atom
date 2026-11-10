@@ -1,0 +1,54 @@
+{
+  "broader_consumers": {
+    "actual_exit": 1,
+    "baseline_ids": 7,
+    "failed": 7,
+    "fixed_ids": 4,
+    "log": "gates/broader-consumers.log",
+    "new_failure_ids": [],
+    "passed": 174,
+    "reviewed_head": "e4ffe720f14d2fdf2b77147c6fc1dfbf1627fcdc",
+    "runner": "/private/tmp/root-run-graduation-savepoint-consumers-20261110.py",
+    "same_source": true
+  },
+  "evidence_files": {
+    "README.md": "82d414b64992120f25020505faca94bce62599a5a34bac2af54895d2eec821b8",
+    "gates/121-proof.sanitized.json": "f0fe363948aeca74a1445ea751ce84e66a84d42d69b7edfa202aea534e045aa2",
+    "gates/baseline-classification.json": "b6c47c2bf71a6e48ed6f93da84285b201fd1ed9e243f00bcc63e50c38c25b438",
+    "gates/broader-consumers.log": "52acce390d57d5e82e7cc479b75418850f6b258acea5e63a8ad4fa31436d129e",
+    "gates/broader-consumers.review.json": "9dbe2c5b271f5dbdbc139b02585270bd62722b24d47965d34e0e96bdf03969a5",
+    "review/918-savepoint-and-121.md": "90070ce76be2ddee8f9949b5729f4791ae7f8f3fb56ca3f925f13fef3dd9f10e",
+    "review/f815-promotion-replay.md": "587fc1e0acfc563559a272a52f47c4039ff06a615432b9c5ab6efc31b1af5dbd",
+    "source/source-hashes.json": "857767906561ae204a50c9e83ef6bfb5902ed75138a781b579df0fed8d818ae0"
+  },
+  "final_121": {
+    "actual_exit": 0,
+    "capture_head": "f8155821f2142a49e1c0cdd61bcc32976297341b",
+    "current_source_equal": true,
+    "passed": 121,
+    "proof_world": "root-graduation-final-permanent-gate-20261110-31ub0c6n",
+    "rerun": false,
+    "same_source": true
+  },
+  "kind": "graduation_final_consumer_independent_review",
+  "no_edits": {
+    "ci": false,
+    "graduation_ui": false,
+    "merge": false,
+    "pr": false,
+    "product": false
+  },
+  "non_claims": [
+    "not green acceptance; 7 known training baseline failures remain",
+    "no whole-GOAL-11 claim",
+    "root owns final acceptance"
+  ],
+  "review_target": "/private/tmp/atom-web-graduation-reviewed-delivery-20261110",
+  "reviewed_head": "e4ffe720f14d2fdf2b77147c6fc1dfbf1627fcdc",
+  "reviewed_repairs": [
+    "f8155821f promotion exact replay",
+    "918e7a17c savepoint caller-work ownership"
+  ],
+  "status": "review_complete_7_exact_training_baseline_remaining",
+  "takeover_doc": "docs/engineering/APP_COMPLETION_TAKEOVER_2026_11_10.md"
+}

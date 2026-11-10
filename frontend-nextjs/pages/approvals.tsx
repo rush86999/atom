@@ -151,15 +151,17 @@ const TrainingGuide: React.FC = () => {
                         click <span className="text-sky-400 font-medium">Complete Training Session</span>.
                     </li>
                     <li>
-                        <span className="font-medium text-gray-100">Repeat ×3</span> — promotion needs
-                        3 supervised sessions plus work episodes at a ≥ 0.7 success ratio (thresholds
-                        auto-tune per domain as history builds).
+                        <span className="font-medium text-gray-100">Build relevant experience</span> —
+                        complete the training and work requirements shown in the agent’s readiness
+                        panel. Requirements can vary with the current policy and domain history.
                     </li>
                     <li>
-                        <span className="font-medium text-gray-100">Graduation</span> — when the gate
-                        clears, the agent is promoted to INTERN automatically: it may then run, asking
-                        your approval per automated action, and it can help mentor the next hire in
-                        this domain.
+                        <span className="font-medium text-gray-100">Review capability before graduation</span> —
+                        experience alone does not qualify an agent. Select its actual task evidence,
+                        request a qualification review, and inspect the work against the rubric in
+                        Approvals. A valid review and the remaining readiness requirements are needed
+                        before promotion, unless the owner has explicitly configured an exception for
+                        that agent. The new tier’s permissions apply only after promotion succeeds.
                     </li>
                 </ol>
             )}
@@ -610,10 +612,30 @@ export default function ApprovalsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-medium text-amber-300">
-                      {a.action_type}
+                      {a.action_type === "agent_qualification_review"
+                        ? "Capability qualification review"
+                        : a.action_type}
                       {a.agent_id && <span className="ml-2 text-xs text-gray-500">agent {String(a.agent_id).slice(0, 8)}</span>}
                     </div>
                     {a.reason && <div className="text-sm text-gray-400 mt-1">{a.reason}</div>}
+                    {a.action_type === "agent_qualification_review" && (
+                      <div className="mt-2 rounded border border-gray-700 p-2 text-xs space-y-1">
+                        <p className="font-medium text-gray-300">Frozen rubric</p>
+                        {((a.params?.rubric_criteria as Array<Record<string, unknown>> | undefined) || []).map((criterion) => (
+                          <div key={String(criterion.id)} className="text-gray-400">
+                            {String(criterion.id)}: {String(criterion.label)}
+                          </div>
+                        ))}
+                        <p className="font-medium text-gray-300 pt-1">Scoped evidence</p>
+                        {((a.params?.evidence as Array<Record<string, unknown>> | undefined) || []).map((item) => (
+                          <div key={`${String(item.kind)}:${String(item.id)}`} className="text-gray-400">
+                            <div>{String(item.kind)}:{String(item.id)}</div>
+                            <div>Task: {String(item.task_preview || "")}</div>
+                            <div>Output: {String(item.output_preview || "")}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500 mt-1 font-mono break-all">{fmtParams(a.params)}</div>
                     <div className="text-xs text-gray-600 mt-1">
                       {a.created_at ? new Date(a.created_at).toLocaleString() : ""}

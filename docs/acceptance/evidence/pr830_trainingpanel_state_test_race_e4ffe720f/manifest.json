@@ -1,0 +1,32 @@
+{
+  "base_commit": "e4ffe720f14d2fdf2b77147c6fc1dfbf1627fcdc",
+  "branch": "codex/pr830-trainingpanel-state-repair-20261110",
+  "ci_changed": false,
+  "diagnosis": "test race: findByTestId resolves on intentional unknown fallback before readiness; merge relevant files byte-identical to e4; isolated test reproduces; exact selection at e4 136/136",
+  "evidence_files": {
+    "README.md": "23d5d22a7195c85249d3523629dca3d77a652116eacb94410dd1cd7a8fe9b2fb",
+    "diagnosis/race.md": "4f51d57e2b81fc22b75f04e42927c65a1d24aa72df69feb053e950f3e1d2f307",
+    "gates/single-after-pass.log": "8ebbd91af321172ef18250f002a57ad39af1563ef825a93b5fe4c145905c9478",
+    "gates/single-e4-before-fail.log": "9935c6d9069e70f66442c6ee27223080df1ea2433aa884654739fe56e9580ae7",
+    "gates/sixfile-after.log": "511b8a4f6add413dc97dfbc571e17f822d4cbcb5c8afb12cc078bce3562dd890",
+    "gates/sixfile-e4-before.log": "59ed2c65b3d377f2b0ce9b42147cf1c2eb751fbcc090bea5ea5da28f22009b86",
+    "gates/trainingpanel-file-after.log": "c8a27226cf2730bbf77c81f67be6ff0e848ce74aa5efcdc1545446b4d9701bea",
+    "gates/tsc.log": "9c0f61ea3aeebe35dedf0bd07c0e7b09fecb73fb74af4ef854a4f7f8f8d6353c",
+    "source/fix.diff": "8052622d99caf3e7a5c8830165822cc63a3aa244a366850f05a61fbd7866f44f",
+    "source/source-hashes.json": "76311c24d384b9997567a643db48ed0eccaa4d00e1e25e1ef643e536d5abad3d"
+  },
+  "failure": "hosted frontend-typecheck 129853448787: TrainingPanel stale-pending test expected Review needs refresh, received Status unavailable; 135/1",
+  "fix": "waitFor resolved refresh text; added deferred-stale unknown-first control; no skip/xfail/removal/semantic relaxation",
+  "gates": {
+    "exact_sixfile": "137 passed",
+    "single_after": "pass",
+    "trainingpanel_file": "33 passed",
+    "tsc": "exit 0"
+  },
+  "kind": "pr830_trainingpanel_state_test_race_fix",
+  "pr830_merge": "406836f4b1ac6e5586c53c072430372cbb1aa159",
+  "pr_or_merge": false,
+  "product_changed": false,
+  "status": "test_only_fix_validated_exact_local_selection",
+  "worktree": "<repair-worktree>"
+}

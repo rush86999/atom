@@ -1199,11 +1199,23 @@ class TestSessionCompletion:
 
     @pytest.mark.asyncio
     async def test_complete_supervision_promotes_to_autonomous(
-        self, supervision_service, db_session, mock_session, mock_agent
+        self, supervision_service, db_session, mock_session, mock_agent,
+        monkeypatch,
     ):
-        """Test completing supervision promotes agent to AUTONOMOUS"""
+        """Authorized qualification gate may move a SUPERVISED agent up."""
         # Setup agent at 0.89 confidence (just below threshold)
         mock_agent.confidence_score = 0.89
+        calls = []
+
+        def authorized_transition(db, **kwargs):
+            calls.append((db, kwargs))
+            mock_agent.status = AgentStatus.AUTONOMOUS.value
+            return {"status": "verified"}
+
+        monkeypatch.setattr(
+            "core.agent_graduation_service.commit_qualified_transition",
+            authorized_transition,
+        )
 
         # Setup mock queries
         mock_query = Mock()
@@ -1217,9 +1229,56 @@ class TestSessionCompletion:
             feedback="Excellent - ready for autonomy"
         )
 
-        # Verify promotion
+        # Verify the shared qualification gate was consulted and allowed it.
         assert mock_agent.confidence_score >= 0.9
         assert mock_agent.status == AgentStatus.AUTONOMOUS.value
+        assert calls
+        called_db, gate = calls[0]
+        assert called_db is db_session
+        assert gate["agent_id"] == mock_agent.id
+        assert gate["target_level"] == "AUTONOMOUS"
+        assert gate["source"] == "supervision_completion"
+        assert gate["readiness"] == {"ready": True, "gaps": []}
+
+    @pytest.mark.asyncio
+    async def test_complete_supervision_does_not_promote_without_qualification(
+        self, supervision_service, db_session, mock_session, mock_agent,
+        monkeypatch,
+    ):
+        """Confidence alone never bypasses a missing qualification receipt."""
+        mock_agent.confidence_score = 0.89
+        calls = []
+
+        def blocked_transition(db, **kwargs):
+            calls.append((db, kwargs))
+            return {
+                "status": "unresolved",
+                "assessment": {"state": "unresolved_missing"},
+            }
+
+        monkeypatch.setattr(
+            "core.agent_graduation_service.commit_qualified_transition",
+            blocked_transition,
+        )
+
+        mock_query = Mock()
+        mock_query.filter.return_value.first.side_effect = [mock_session, mock_agent]
+        db_session.query.return_value = mock_query
+
+        await supervision_service.complete_supervision(
+            session_id="session_123",
+            supervisor_rating=5,
+            feedback="Excellent - but unqualified",
+        )
+
+        assert mock_agent.confidence_score >= 0.9
+        assert mock_agent.status == AgentStatus.SUPERVISED.value
+        assert calls
+        called_db, gate = calls[0]
+        assert called_db is db_session
+        assert gate["agent_id"] == mock_agent.id
+        assert gate["target_level"] == "AUTONOMOUS"
+        assert gate["source"] == "supervision_completion"
 
     @pytest.mark.asyncio
     async def test_complete_supervision_creates_outcome(
