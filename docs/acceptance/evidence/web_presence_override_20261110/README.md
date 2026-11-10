@@ -44,9 +44,11 @@ No file in that packet was rewritten.
 - after commit, an independent fresh Session verifies both the activity row and
   audit row;
 - confirmed pre-commit rollback reports `effect: none`;
-- ambiguous commit/readback reports HTTP `503` with `success:false`,
-  `effect:committed`, `replay:do_not_repeat` — never a false `2xx` or false
-  rollback;
+- `committed_unverified` reports HTTP `503` with `success:false`,
+  `effect:committed`, `replay:do_not_repeat`; `effect_unknown` reports HTTP
+  `503` with `success:false`, `effect:unknown`, `replay:do_not_repeat` and
+  `COMMIT_OUTCOME_UNKNOWN`; neither is a false `2xx` or false rollback;
+- only a confirmed pre-commit rollback reports `effect:none`;
 - expiry is parsed/normalized to UTC only at the boundary and responses carry
   `+00:00`;
 - expired overrides are cleared on read, transition batch and supervisor read;

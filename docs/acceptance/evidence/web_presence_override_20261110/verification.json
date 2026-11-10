@@ -42,7 +42,12 @@
       "audit_id",
       "verification"
     ],
-    "ambiguous_outcome": "503 with success=false, effect=committed, replay=do_not_repeat; no false 2xx or false rollback",
+    "ambiguous_outcome": {
+      "committed_unverified": "HTTP 503, success=false, effect=committed, replay=do_not_repeat; target committed but independent readback did not verify",
+      "confirmed_rollback": "effect=none; only after a confirmed pre-commit rollback",
+      "effect_unknown": "HTTP 503, success=false, effect=unknown, replay=do_not_repeat, error=COMMIT_OUTCOME_UNKNOWN; commit outcome is ambiguous",
+      "no_change": "effect=none"
+    },
     "cas": "conditional UserActivity update only when prior manual_override/state/expiry match",
     "expiry_cleanup": "GET, transition batch and supervisor reads clear expired overrides",
     "frontend": "hook rejects ambiguous 202/503 and malformed/missing state without replacing prior state; uses existing extractApiErrorMessage",
