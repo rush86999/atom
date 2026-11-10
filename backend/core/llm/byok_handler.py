@@ -1101,6 +1101,33 @@ def _response_usage(response: Any) -> Any:
     return usage
 
 
+def _usage_complete_pair(usage: Any) -> Optional[tuple]:
+    """``(prompt_tokens, completion_tokens)`` only for a COMPLETE usage report.
+
+    A missing half is a PARTIAL report: treating it as zero would fabricate an
+    authoritative no-charge settlement, so it returns ``None`` (unknown). Both
+    keys must be present with non-negative integer values; ``0`` is valid.
+    """
+    if usage is None:
+        return None
+
+    def _present(*names):
+        for name in names:
+            if isinstance(usage, dict):
+                if name in usage and usage[name] is not None:
+                    return True
+            elif getattr(usage, name, None) is not None:
+                return True
+        return False
+
+    if not (_present("prompt_tokens", "input_tokens")
+            and _present("completion_tokens", "output_tokens")):
+        return None
+    prompt = _usage_value(usage, "prompt_tokens", "input_tokens")
+    completion = _usage_value(usage, "completion_tokens", "output_tokens")
+    return max(int(prompt), 0), max(int(completion), 0)
+
+
 def _valid_cost(cost: Any) -> Optional[float]:
     """Finite, non-negative configured cost or explicit unknown.
 
@@ -4545,24 +4572,45 @@ class BYOKHandler:
         attempt_id: str,
         reserved_bound: Optional[float],
         agent_id: Optional[str] = None,
+        usage: Any = None,
     ) -> None:
-        """Settle a successful stream attempt as actual-free or unknown.
+        """Settle a successful stream attempt: actual when usage is supplied.
 
-        Streaming providers do not expose authoritative usage on this path,
-        so the settlement is explicit unknown liability (the conservative
-        reservation stays on the ledger and is not silently released). The
-        one exception is a trusted numeric-zero bound: authoritative
-        known-free settles at 0.0.
+        Some providers emit a terminal usage chunk even though this path does
+        not request one. When that report is COMPLETE, its token counts are
+        authoritative for THIS attempt and are recorded (cost actual when the
+        configured price is usable, otherwise unknown with the token truth).
+        Absent or partial usage keeps the conservative reservation as explicit
+        unknown liability; it is never silently released. The one trusted free
+        case remains an authoritative numeric-zero bound.
         """
-        cost = 0.0 if reserved_bound == 0.0 else None
+        prompt_tokens = 0
+        completion_tokens = 0
+        cost: Optional[float] = None
+        pair = _usage_complete_pair(usage)
+        if pair is not None and sum(pair) > 0:
+            prompt_tokens, completion_tokens = pair
+            try:
+                fetcher = get_pricing_fetcher()
+                cost = fetcher.estimate_cost(
+                    model, prompt_tokens, completion_tokens)
+                if cost is None:
+                    cost = get_llm_cost(
+                        model, prompt_tokens, completion_tokens)
+            except Exception:
+                cost = None
+            cost = _valid_cost(cost)
+        if reserved_bound == 0.0:
+            # Authoritative numeric-zero configured price.
+            cost = 0.0
         try:
             from core.spend_aggregation_service import record_llm_usage
 
             record_llm_usage(
                 provider_id=provider_id,
                 model_name=model,
-                prompt_tokens=0,
-                completion_tokens=0,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
                 cost_usd=cost,
                 agent_id=agent_id,
                 workspace_id=getattr(self, "workspace_id", None),
@@ -11403,6 +11451,8 @@ class BYOKHandler:
                     stream = _stream_with_idle_watchdog(stream, _idle_s)
 
                 token_count = 0
+                # Terminal usage, when the provider actually supplies it.
+                _stream_usage = None
                 # Accumulate streamed content (capped) so the outcome hook can
                 # assess real quality (truncation/refusal/empty) instead of the
                 # literal placeholder "(streamed)", which always scored 0.7 and
@@ -11412,6 +11462,9 @@ class BYOKHandler:
                 _STREAM_CONTENT_CAP = 4000
                 _stream_finish_reason = None
                 async for chunk in stream:
+                    _chunk_usage = getattr(chunk, "usage", None)
+                    if _chunk_usage is not None:
+                        _stream_usage = _chunk_usage
                     if chunk.choices:
                         choice = chunk.choices[0]
                         delta = choice.delta
@@ -11537,6 +11590,7 @@ class BYOKHandler:
                     attempt_id=_stream_attempt_id,
                     reserved_bound=_stream_attempt_bound,
                     agent_id=agent_id,
+                    usage=_stream_usage,
                 )
 
                 # Success! Return from the function
@@ -11712,11 +11766,15 @@ class BYOKHandler:
                                 # the try block, so yield from the patched stream
                                 # inline and return on success.
                                 token_count = 0
+                                _stream_usage = None
                                 _stream_content_parts = []
                                 _stream_content_chars = 0
                                 _STREAM_CONTENT_CAP = 4000
                                 _stream_finish_reason = None
                                 async for chunk in stream:
+                                    _chunk_usage = getattr(chunk, "usage", None)
+                                    if _chunk_usage is not None:
+                                        _stream_usage = _chunk_usage
                                     if chunk.choices:
                                         choice = chunk.choices[0]
                                         delta = choice.delta
@@ -11762,6 +11820,7 @@ class BYOKHandler:
                                     attempt_id=_heal_attempt_id,
                                     reserved_bound=_heal_bound,
                                     agent_id=agent_id,
+                                    usage=_stream_usage,
                                 )
                                 return
                             except _AccountingBlockedError:
@@ -11837,11 +11896,15 @@ class BYOKHandler:
                                 f"{paid_model} (free {model} hit credit limit)"
                             )
                             token_count = 0
+                            _stream_usage = None
                             _stream_content_parts = []
                             _stream_content_chars = 0
                             _STREAM_CONTENT_CAP = 4000
                             _stream_finish_reason = None
                             async for chunk in stream:
+                                _chunk_usage = getattr(chunk, "usage", None)
+                                if _chunk_usage is not None:
+                                    _stream_usage = _chunk_usage
                                 if chunk.choices:
                                     choice = chunk.choices[0]
                                     delta = choice.delta
@@ -11887,6 +11950,7 @@ class BYOKHandler:
                                 attempt_id=_paid_attempt_id,
                                 reserved_bound=_paid_bound,
                                 agent_id=agent_id,
+                                usage=_stream_usage,
                             )
                             return
                         except _AccountingBlockedError:

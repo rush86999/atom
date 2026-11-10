@@ -125,14 +125,19 @@ def _reservation_pricing(monkeypatch, *, bound_at=7.0, reserve_output=1000,
 # doubled transports
 # --------------------------------------------------------------------------
 class _ScriptedStream:
-    def __init__(self, chunks):
+    def __init__(self, chunks, fail_after=None, fail_exc=None):
         self._chunks = list(chunks)
         self._index = 0
+        self._fail_after = fail_after
+        self._fail_exc = fail_exc or RuntimeError("stream cut mid-way")
 
     def __aiter__(self):
         return self
 
     async def __anext__(self):
+        if self._fail_after is not None and self._index >= self._fail_after:
+            self._fail_after = None
+            raise self._fail_exc
         if self._index >= len(self._chunks):
             raise StopAsyncIteration
         chunk = self._chunks[self._index]
@@ -167,7 +172,10 @@ class _StreamClient:
         action = self._script.pop(0)
         if action.get("raise") is not None:
             raise action["raise"]
-        return _ScriptedStream(action.get("chunks") or [])
+        return _ScriptedStream(
+            action.get("chunks") or [],
+            fail_after=action.get("fail_after"),
+            fail_exc=action.get("fail_exc"))
 
 
 def _response(content="ok"):
