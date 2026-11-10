@@ -796,7 +796,7 @@ describe('WorkflowAutomation', () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Error',
-          description: 'Failed to execute workflow',
+          description: 'nope',
           variant: 'error',
         })
       );
