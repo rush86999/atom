@@ -73,6 +73,7 @@ export interface LearningCandidatePayload {
 
 export interface LearningThread {
   thread_id: string;
+  source_kind: string;
   subject: string;
   message_count: number;
   last_at: string;
@@ -110,27 +111,31 @@ export async function getConversationEvidence(
 }
 
 export async function listLearningCandidates(
-  threadId: string
+  threadId: string,
+  sourceKind = "email"
 ): Promise<LearningCandidatePayload[]> {
   const { data } = await apiClient.get(
-    `/api/conversation-learning/threads/${encodeURIComponent(threadId)}/candidates`
+    `/api/conversation-learning/threads/${encodeURIComponent(threadId)}/candidates`,
+    { params: { source_kind: sourceKind } }
   );
   return data?.candidates || [];
 }
 
 export async function getLearningCandidate(
   threadId: string,
-  candidateId: string
+  candidateId: string,
+  sourceKind = "email"
 ): Promise<LearningCandidatePayload> {
   const { data } = await apiClient.get(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}`,
-    { params: { thread_id: threadId } }
+    { params: { thread_id: threadId, source_kind: sourceKind } }
   );
   return data;
 }
 
 export async function createLearningCandidate(payload: {
   thread_id: string;
+  source_kind?: string;
   agent_id: string;
   proposed_lesson: string;
   method?: Record<string, any>;
@@ -161,11 +166,12 @@ export async function resolveLearningDependency(
     unit?: string;
     value?: unknown;
     confirmed_by?: string;
-  }
+  },
+  sourceKind = "email"
 ): Promise<LearningCandidatePayload> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/resolve`,
-    { thread_id: threadId, ...payload }
+    { thread_id: threadId, source_kind: sourceKind, ...payload }
   );
   return data;
 }
@@ -174,12 +180,14 @@ export async function confirmLearningCandidate(
   threadId: string,
   candidateId: string,
   reviewer: string,
-  expectedRevision: number
+  expectedRevision: number,
+  sourceKind = "email"
 ): Promise<LearningCandidatePayload> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/confirm`,
     {
       thread_id: threadId,
+      source_kind: sourceKind,
       reviewer,
       expected_revision: expectedRevision,
     }
@@ -192,12 +200,14 @@ export async function promoteLearningCandidate(
   candidateId: string,
   reviewer: string,
   expectedRevision: number,
-  expectedDigest: string
+  expectedDigest: string,
+  sourceKind = "email"
 ): Promise<{ lesson_id: string; candidate: Record<string, any> }> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/promote`,
     {
       thread_id: threadId,
+      source_kind: sourceKind,
       reviewer,
       expected_revision: expectedRevision,
       expected_digest: expectedDigest,
@@ -211,12 +221,14 @@ export async function applyLearningCandidate(
   candidateId: string,
   rows: Array<Record<string, unknown>>,
   fieldMapping: Record<string, string> = {},
-  context: Record<string, unknown> = {}
+  context: Record<string, unknown> = {},
+  sourceKind = "email"
 ): Promise<{ lesson_id: string; result: Record<string, any> }> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/apply`,
     {
       thread_id: threadId,
+      source_kind: sourceKind,
       rows,
       field_mapping: fieldMapping,
       context,
@@ -229,11 +241,12 @@ export async function rejectLearningCandidate(
   threadId: string,
   candidateId: string,
   reviewer: string,
-  reason = ""
+  reason = "",
+  sourceKind = "email"
 ): Promise<LearningCandidatePayload> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/reject`,
-    { thread_id: threadId, reviewer, reason }
+    { thread_id: threadId, source_kind: sourceKind, reviewer, reason }
   );
   return data;
 }
