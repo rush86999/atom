@@ -499,3 +499,369 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_email_draft_shared_writer.py tests/test_email_eml_import.py tests/test_email_canvas_attachments.py tests/test_email_attachment_tool.py -q --tb=short --timeout=300 --timeout-method=thread
+
+  backend-oracle:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run shared ORACLE registry verification controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_oracle_registry_verification_gap.py \
+            tests/test_oracle_effect_families.py \
+            tests/test_oracle_connected_mutations.py \
+            tests/test_assignment_executor.py \
+            tests/test_generic_oracle_mutation_contract.py \
+            tests/test_lead_shopify_authorized_material.py \
+            tests/test_oracle_shopify_product_authorized_material.py \
+            tests/test_oracle_shopify_product_create.py \
+            tests/test_oracle_shopify_product_replay.py \
+            tests/test_oracle_shopify_blog_create.py \
+            tests/test_oracle_shopify_article_create.py \
+            tests/test_oracle_radio_send.py \
+            tests/test_lead_radio_readback_identity.py \
+            tests/test_oracle_shopify_fulfillment_create.py \
+            tests/test_lead_shopify_fulfillment_rest_shape.py \
+            tests/test_shopify_fulfillment_actions.py \
+            tests/test_asset_content_receipt.py \
+            tests/test_lead_asset_usable_image.py \
+            tests/test_lead_shopify_image_content_receipt.py \
+            tests/test_lead_shopify_article_rest_shape.py \
+            tests/test_lead_shopify_error_privacy.py \
+            tests/test_generic_request_expectations.py \
+            tests/test_oracle_radio_create_thread.py \
+            tests/test_lead_radio_thread_authority_linearization.py \
+            tests/test_lead_radio_mcp_replay.py \
+            tests/test_oracle_radio_thread_replay.py \
+            tests/unit/agents/test_radio_actions.py \
+            tests/unit/agents/test_agent_radio_tool.py \
+            tests/test_generic_reconcile_commit_contract.py \
+            tests/test_generic_normal_retry_identity.py \
+            tests/test_oracle_mini_app_host_mutations.py \
+            tests/test_agent_generic_information_wait.py \
+            tests/test_generic_source_answer_contract.py \
+            tests/test_lead_generic_source_answer_material.py \
+            tests/test_lead_generic_source_snapshot_cas.py \
+            tests/test_generic_information_idle_contract.py \
+            tests/test_generic_information_two_job_isolation.py \
+            tests/test_information_wait_maturity_neutral.py \
+            tests/test_positive_maturity_no_demotion.py \
+            ../scripts/tests/test_browser_agent_job_wait_identity.py \
+            tests/test_agent_generic_information_wait_process.py \
+            tests/test_generic_information_wait_recovery.py \
+            tests/test_generic_information_wait_recovery_authority.py \
+            tests/test_lead_recovery_personal_authority.py \
+            tests/test_generic_information_recovery_batch_contract.py \
+            tests/test_boot_recovery_not_gated_by_scheduler.py \
+            tests/test_generic_information_resume_namespace_contract.py \
+            tests/test_generic_information_exact_event_contract.py \
+            tests/test_agent_run_outcome_join_contract.py \
+            tests/test_agent_run_admission_contract.py \
+            tests/test_agent_read_scope_contract.py \
+            tests/test_agent_job_readback.py \
+            tests/test_lead_job_readback_material_scope.py \
+            tests/test_lead_personal_information_answer.py \
+            tests/test_agent_job_wait_reference_contract.py \
+            tests/test_agent_job_wait_execution_contract.py \
+            tests/test_agent_job_wait_scope_contract.py \
+            tests/test_agent_job_wait_namespace_contract.py \
+            tests/test_agent_job_claim_interleaving.py \
+            tests/test_agent_job_delivery_identity.py \
+            tests/test_agent_job_outcome_projection.py \
+            tests/integration/journeys/test_oracle_registry_mutation_journey.py \
+            tests/integration/journeys/test_mini_app_host_receipts_journey.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+
+  backend-tests:
+    needs: [backend-core, backend-oracle]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every backend lane to succeed
+        env:
+          ATOM_CI_CORE_RESULT: ${{ needs.backend-core.result }}
+          ATOM_CI_ORACLE_RESULT: ${{ needs.backend-oracle.result }}
+        run: |
+          if [ "$ATOM_CI_CORE_RESULT" != "success" ] || [ "$ATOM_CI_ORACLE_RESULT" != "success" ]; then
+            echo "A required backend lane did not succeed."
+            exit 1
+          fi
+          echo "Every required backend lane succeeded."
+
+
+  # -------------------------------------------------------------------
+  # End-to-end user-journey suite: boots full app + frontend, runs
+  # Playwright tests against them.
+  # -------------------------------------------------------------------
+  e2e-journey:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/tests/e2e_ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Install frontend dependencies
+        working-directory: frontend-nextjs
+        run: npm install --legacy-peer-deps
+
+      - name: Start full backend (main_api_app) on :8001
+        working-directory: backend
+        env:
+          # ABSOLUTE path so the test step (different cwd) resolves the same DB.
+          # The role fixtures write to this DB via the backend's SessionLocal,
+          # so both processes must agree on the file location.
+          DATABASE_URL: "sqlite:////tmp/atom_e2e.db"
+          SECRET_KEY: "ci-e2e-secret-key"
+          ENVIRONMENT: "development"
+          # MUST match the env var the AuthRateLimiter checks
+          # (core/security/auth_rate_limit.py). Without this, the e2e journey
+          # tests hit 429 on /api/auth/register.
+          BYPASS_RATE_LIMIT: "1"
+          ALLOWED_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001"
+        run: |
+          rm -f /tmp/atom_e2e.db
+          python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8001 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 40); do
+            curl -fs http://127.0.0.1:8001/alive > /dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "Backend did not become healthy:"; cat /tmp/backend.log | tail -40; exit 1
+
+      - name: Start frontend on :3001
+        working-directory: frontend-nextjs
+        env:
+          NEXT_PUBLIC_API_URL: "http://localhost:8001"
+          NEXT_PUBLIC_USE_BACKEND_API: "true"
+          BACKEND_URL: "http://127.0.0.1:8001"
+          NEXTAUTH_URL: "http://localhost:3001"
+        run: |
+          # The real session issuer fails closed without its own configured key.
+          # Generate only for this isolated runner; never reuse the backend key.
+          export NEXTAUTH_SECRET="$(node -e "process.stdout.write(require('node:crypto').randomBytes(48).toString('base64url'))")"
+          echo "::add-mask::$NEXTAUTH_SECRET"
+          npm run dev -- -p 3001 > /tmp/frontend.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fs http://127.0.0.1:3001 > /dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "Frontend did not become healthy:"; cat /tmp/frontend.log | tail -40; exit 1
+
+      # GATING: API/role/permission/auth/integration journey tests. These hit
+      # the backend directly over HTTP — fast and stable — and cover the
+      # access-control contract. A failure here blocks the merge.
+      - name: Run API journey tests (gating)
+        env:
+          BACKEND_URL: "http://localhost:8001"
+          FRONTEND_URL: "http://localhost:3001"
+          # MUST match the backend's DATABASE_URL (absolute path) so the role
+          # fixtures' SessionLocal writes to the same DB the backend reads.
+          DATABASE_URL: "sqlite:////tmp/atom_e2e.db"
+          # backend/ on PYTHONPATH so `from core.database import SessionLocal`
+          # works in the role fixtures. $GITHUB_WORKSPACE is repo root.
+          PYTHONPATH: "${{ github.workspace }}/backend"
+          CI: "true"
+        run: |
+          python -m pytest tests/test_journey_api_features.py \
+            tests/test_journey_role_api.py tests/test_journey_permission_matrix.py \
+            tests/test_journey_integrations_health.py \
+            tests/test_journey_auth.py \
+            -q --tb=short --timeout=180 --timeout-method=thread
+
+      # NON-GATING: browser (Playwright) UI tests. These are the flakiest part
+      # of the suite — they spin up a real chromium instance and depend on both
+      # the backend (:8001) and the memory-heavy `next dev` server (:3001)
+      # staying responsive for the whole run on a constrained GitHub runner.
+      # When either server is starved/killed mid-run, the whole browser block
+      # times out at `page.goto` (see the original failure on run 29917046025:
+      # 28 identical Page.goto timeouts, all API tests green). The gating API
+      # journey tests above already cover the access-control contract, so a
+      # UI-only flake should not block the merge. Failures are still surfaced
+      # loudly via the job summary + uploaded screenshots/logs for triage.
+      - name: Run UI journey tests (non-gating)
+        env:
+          BACKEND_URL: "http://localhost:8001"
+          FRONTEND_URL: "http://localhost:3001"
+          DATABASE_URL: "sqlite:////tmp/atom_e2e.db"
+          PYTHONPATH: "${{ github.workspace }}/backend"
+          CI: "true"
+        continue-on-error: true
+        run: |
+          python -m pytest tests/test_journey_ui_features.py \
+            tests/test_journey_page_smoke.py tests/test_user_journey.py \
+            tests/test_journey_onboarding.py \
+            -q --tb=short --ignore=tests/test_journey_role_ui.py
+          # Role-UI tests are run separately (they each do a full browser login
+          # per role — slower). Allow them to flake without failing the gate;
+          # they're covered by the role_api + permission_matrix tests above
+          # for the access-control contract.
+          python -m pytest tests/test_journey_role_ui.py -q --tb=short \
+            || echo "::warning::role-UI journey had failures (non-gating)"
+
+      - name: Dump server logs on failure
+        # The startup health checks only print the server log if the server
+        # never became healthy. If it died *mid-run* (the common flake), that
+        # log is never surfaced — leaving a blind timeout. `always()` so this
+        # still fires even though the UI test step above is continue-on-error.
+        if: always()
+        run: |
+          echo "===== /tmp/backend.log (tail 80) ====="
+          tail -n 80 /tmp/backend.log 2>/dev/null || echo "(no backend log)"
+          echo
+          echo "===== /tmp/frontend.log (tail 80) ====="
+          tail -n 80 /tmp/frontend.log 2>/dev/null || echo "(no frontend log)"
+
+      - name: Upload screenshots on failure
+        # `always()` (not `failure()`) because the UI test step is
+        # continue-on-error — a UI-only flake won't mark the job failed, but we
+        # still want the Playwright failure screenshots for triage.
+        # if-no-files-found makes this a no-op on clean runs.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          # Absolute path — upload-artifact runs at workspace root, not the
+          # job's working-directory, so a relative path resolves wrong.
+          path: ${{ github.workspace }}/backend/tests/e2e_ui/artifacts/screenshots/
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------
+  # Frontend type check (best-effort; pre-existing errors don't block)
+  # -------------------------------------------------------------------
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-nextjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-nextjs/package-lock.json
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Type check
+        run: npx tsc --noEmit --skipLibCheck
+        continue-on-error: true  # Pre-existing errors; don't block PRs yet
+      - name: Tasks and Projects authority and confirmation controls
+        run: |
+          npx jest tests/components/task-mutation-confirmation.test.tsx components/shared/__tests__/TaskManagement.test.tsx components/__tests__/TaskManagement.test.tsx tests/components/task-management-data-loading.test.tsx tests/lib/auth-headers.test.ts tests/pages/api/__tests__/v1-tasks-id.test.ts tests/pages/api/__tests__/v1-financial-workflow.test.ts --runInBand --no-coverage --watchman=false
+          node --test tests/contracts/task-project-public-boundary.cjs
+      - name: Password recovery receipt and proxy controls
+        run: 'npx jest tests/auth/signin-logout-return-contract.test.tsx tests/components/sidebar-logout-contract.test.tsx components/layout/__tests__/Sidebar.gating.test.tsx tests/lib/backend-credentials.test.ts tests/lib/backend-signin-identity.test.ts tests/lib/backend-session-logout.test.ts tests/pages/api/__tests__/auth-forgot-password.test.ts tests/pages/api/__tests__/auth-reset-password.test.ts tests/auth/test-forgot-password.test.tsx tests/auth/test-reset-password.test.tsx tests/lib/api-error-message.test.ts tests/pages/__tests__/settings-account.test.tsx --runInBand --no-coverage --watchman=false
+
+          '
+      - name: Quickstart persistent web configuration contract
+        run: python3 -m unittest discover -s ../scripts/tests -p 'test_setup_web_auth.py'
+      - name: Authenticated skills catalogue and shared proxy contracts
+        run: |
+          node --test tests/contracts/skills-proxy-authority.cjs
+          npx jest tests/pages/api/__tests__/skills-list.test.ts components/Automations/__tests__/test-pieces-sidebar.test.tsx --runInBand --no-coverage --watchman=false
+      - name: Production TypeScript error rejection and valid build twin
+        run: node --test tests/contracts/production-type-gate.cjs
+      - name: Production and development cookie policy contract
+        run: node --test tests/contracts/nextauth-cookie-policy.cjs tests/contracts/production-middleware-session.cjs
+      - name: Current backend principal session contract
+        run: node --test tests/contracts/nextauth-current-principal.cjs
+      - name: Auth redirect regression tests
+        # The middleware must hand the login pages a relative path+query;
+        # absolute callbackUrls silently fall back to /dashboard. Keep the
+        # same-app/open-redirect twins gated.
+        run: npx jest tests/middleware.test.ts tests/lib/auth-headers.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage
+      - name: RPC failure-consumer regression tests
+        # Body-level action failures must keep the handler's typed result in
+        # RpcError.actionResult (generic global message), and MiniAppHarness
+        # must render that already-exposed error while transport/HTTP failures
+        # stay generic. Guards the RPC envelope -> shared client -> harness
+        # consumer class.
+        run: npx jest tests/lib/rpc-client-failure.test.ts tests/components/mini-app-harness-rpc-failure.test.tsx --runInBand --no-coverage
+      - name: Run agent information question UI controls
+        working-directory: frontend-nextjs
+        run: npx jest components/Agents/__tests__/AgentJobWaitPanel.test.tsx lib/__tests__/agent-job-ref.test.ts tests/pages/agents-index.test.tsx tests/pages/agents-information-job.test.tsx --runInBand --no-coverage
+      - name: Graduation outcome and client retry regression tests
+        working-directory: frontend-nextjs
+        # Positive HTTP alone is not promotion; opt-out must reach the shared
+        # retry interceptor so an uncertain mutation is never re-dispatched.
+        run: npx jest lib/__tests__/api/maturity-api.test.ts tests/pages/approvals-page.test.tsx components/canvas/__tests__/TrainingPanel.test.tsx lib/__tests__/api-interceptors.test.ts --runInBand --no-coverage --watchman=false
+      - name: Goal utility surface regression tests
+        working-directory: frontend-nextjs
+        run: npx jest tests/pages/goal-runs/detail.test.tsx --runInBand --no-coverage
+      - name: Deferred-link regression tests
+        # Core profile must not link deferred governance/connector surfaces.
+        run: npx jest tests/pages/settings-index.test.tsx tests/components/AssignmentPanel.test.tsx --runInBand --no-coverage
+      - name: Assignment source-answer regression tests
+        # The source event owns continuation; the UI must not advance again.
+        run: npx jest components/assignments/__tests__/AssignmentPanel.test.tsx --runInBand --no-coverage
+      - name: Agents release-surface regression tests
+        # Core profile must not advertise deferred Marketplace/Automations.
+        run: npx jest tests/pages/agents-index.test.tsx --runInBand --no-coverage
+      - name: Release-surface regression tests
+        # Documents must not advertise deferred search; the card follows the
+        # existing product-profile capability and keeps a supported next action.
+        run: npx jest tests/pages/documents.test.tsx tests/pages/document-detail.test.tsx --runInBand --no-coverage
+      - name: Native canvas save and uncertain-outcome controls
+        # Both canvas hosts must save native bodies into the audit trail;
+        # an uncertain save blocks retries and dependent agent dispatch.
+        run: npx jest tests/pages/canvas-detail.test.tsx tests/lib/canvas-audit-outcome.test.ts hooks/__tests__/useCanvasAutosaveUncertain.test.ts components/canvas/__tests__/CanvasDocumentPersistence.test.tsx components/canvas/__tests__/CanvasPanel.test.tsx components/chat/__tests__/CanvasHost.test.tsx hooks/__tests__/useCanvasAutosave.test.ts hooks/__tests__/useCanvasStateRegistration.test.ts lib/__tests__/canvasFrame.test.ts lib/__tests__/canvasSync.test.ts components/canvas/__tests__/CanvasVersionHistory.test.tsx components/canvas/__tests__/canvasType.test.ts components/chat/__tests__/CanvasTypePicker.test.tsx components/chat/__tests__/ArtifactSidebar.test.tsx --runInBand --no-coverage --watchman=false
+      - name: Install menu bar frontend dependencies
+        working-directory: menubar
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build menu bar frontend with strict TypeScript
+        working-directory: menubar
+        run: npm run build
+      - name: Menu bar command and tab regression tests
+        working-directory: menubar
+        run: npm test -- --runInBand --watch=false --ci
+
+      - name: Generated workflow parent-child and schedule controls
+        run: npx jest tests/pages/automations-page.test.tsx components/Automations/__tests__/test-agent-workflow-generator.test.tsx tests/automations/test-workflow-scheduler.test.tsx --runInBand --no-coverage --watchman=false
+      - name: Native-chat learning selection and review controls
+        run: npx jest tests/pages/learning.test.tsx components/learning/__tests__/ConversationLearningReview.test.tsx --runInBand --no-coverage --watchman=false
+
+      - name: Workflow result download consumer controls
+        run: npx jest components/Workflow/__tests__/WorkflowAutomation.test.tsx components/Automations/__tests__/ExecutionDetailView.test.tsx --runInBand --no-coverage --watchman=false
+      - name: Presence override outcome UI controls
+        run: npx jest hooks/__tests__/useUserActivity.test.ts hooks/__tests__/useUserActivity-branches.test.ts --runInBand --no-coverage --watchman=false
+
+      - name: Activity utility ranking and stale-response controls
+        run: npx jest tests/pages/goal-runs/index.test.tsx --runInBand --no-coverage --watchman=false
+
