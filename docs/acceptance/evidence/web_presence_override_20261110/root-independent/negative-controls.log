@@ -1,0 +1,22 @@
+..F                                                                      [100%]
+=================================== FAILURES ===================================
+_______ test_no_change_committed_audit_lost_confirmation_never_rollback ________
+../../root-presence-independent-20261110.py:65: in test_no_change_committed_audit_lost_confirmation_never_rollback
+    assert response.status_code==503,response.text
+E   AssertionError: {"success":false,"error":"The presence change may have committed but confirmation was lost. Reconcile the operation; do not repeat blindly.","operation_id":"presence:root-presence-bbfcd0380fea4faf9a297045f258c608","audit_id":null,"verification":{"status":"unavailable","effect":"unknown","replay":"do_not_repeat","error":"COMMIT_OUTCOME_UNKNOWN"}}
+E   assert 202 == 503
+E    +  where 202 = <Response [202 Accepted]>.status_code
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-presence-independent-20261110.py::test_no_change_committed_audit_lost_confirmation_never_rollback
+1 failed, 2 passed, 6 warnings in 4.44s
