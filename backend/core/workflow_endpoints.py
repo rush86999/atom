@@ -2684,6 +2684,61 @@ def _export_completion_contract(
             "error": "execution_definition_malformed",
             "message": "the canonical definition has no step contract",
         })
+
+    # Bind the export to the definition revision that actually executed.
+    # The orchestrator freezes its registered definition id/digest into
+    # context.variables; the authoritative Workflow row must match that exact
+    # revision. Never relabel a different current definition as the original.
+    context = _safe_json(row.context)
+    if not isinstance(context, dict):
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_history_missing",
+            "message": "the execution has no readable persisted context",
+        })
+    variables = context.get("variables")
+    if not isinstance(variables, dict):
+        variables = {}
+    executed_id = str(variables.get("_workflow_definition_id") or "").strip()
+    executed_digest = str(
+        variables.get("_workflow_definition_digest") or "").strip()
+    if not executed_id or not executed_digest:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_definition_binding_missing",
+            "message": "the durable execution did not persist its executed "
+                       "definition identity/digest; export is refused",
+        })
+    if executed_id != str(row.workflow_id):
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_definition_binding_mismatch",
+            "message": "the executed definition identity does not match the "
+                       "durable execution's workflow identity",
+        })
+    authoritative_digest = str(
+        configuration.get("definition_digest") or "").strip()
+    if not authoritative_digest:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_definition_binding_missing",
+            "message": "the authoritative workflow definition has no digest; "
+                       "export is refused",
+        })
+    digest_view = dict(configuration)
+    digest_view["description"] = workflow.description or ""
+    digest_view["architecture_name"] = (
+        configuration.get("architecture_name") or workflow.name)
+    recomputed_digest = _recompute_definition_digest(digest_view)
+    if recomputed_digest != authoritative_digest:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_definition_binding_mismatch",
+            "message": "the authoritative workflow configuration does not "
+                       "match its own definition digest; export is refused",
+        })
+    if executed_digest != authoritative_digest:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_definition_binding_mismatch",
+            "message": "the authoritative definition revision differs from the "
+                       "revision that actually executed; export is refused",
+        })
+
     expected: Dict[str, Dict[str, Any]] = {}
     order: List[str] = []
     optional: set = set()
@@ -2720,7 +2775,6 @@ def _export_completion_contract(
                        "is available",
         })
 
-    context = _safe_json(row.context)
     history = context.get("execution_history") if isinstance(
         context, dict) else None
     if not isinstance(history, list) or not history:
@@ -2870,6 +2924,9 @@ def _export_completion_contract(
         "outputs": outputs,
         "steps": [by_step[step_id] for step_id in order if step_id in by_step],
         "definition_steps": order,
+        "executed_definition_id": executed_id,
+        "executed_definition_digest": executed_digest,
+        "authoritative_definition_digest": authoritative_digest,
     }
 
 
@@ -2945,9 +3002,11 @@ async def export_execution_result(
             "completion_contract": "compiled-step-coverage-v1",
             "workflow_id": row.workflow_id,
             "execution_id": row.execution_id,
-            "definition_digest": (
-                configuration.get("definition_digest")
-                if isinstance(configuration, dict) else None),
+            "definition_digest": contract["authoritative_definition_digest"],
+            "executed_definition_id": contract["executed_definition_id"],
+            "executed_definition_digest": contract["executed_definition_digest"],
+            "definition_binding": (
+                "executed-context-vs-authoritative-configuration"),
             "definition_status": getattr(workflow, "status", None),
             "executor_agent_id": executor_agent_id,
         },
