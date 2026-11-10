@@ -4,12 +4,14 @@ Status: **frozen backend source/test candidate submitted for independent review.
 No merge or self-acceptance. This closes the observed supported-Documents
 lifecycle gap only; it does not claim Goal 3 complete or enable deferred Search.
 
-Base/current main: `914b9470d254293369475cd9f0fecdbf76acd650`  
-Executed source: `db6e4a2fc0792dcb8c204a4bd1ddfc691da54935`
+Base/current main after reconcile: `be8bb29f07b33077a49995816e8952721d3a6fd9`  
+Merge commit: `9496da733`  
+Source code: `db6e4a2fc0792dcb8c204a4bd1ddfc691da54935`  
+Final test/evidence head: `c90693c4233bb3c191b89d11567ae0131e72cfa9`
 
 ## Confirmed gap (failure-first)
 
-On current main, the verified `DELETE /api/documents/{doc_id}` removed only
+On the prior source, the verified `DELETE /api/documents/{doc_id}` removed only
 LanceDB base/chunk rows. The retained negative
 (`failure-first-joined.log`) uploads a synthetic TXT through the real public
 upload route, confirms vector/list/open, SQL `IngestedDocument` + FTS, lexical,
@@ -24,6 +26,10 @@ finds:
 Deleting only the SQL row would not be durable either: a queued/stale producer
 could recreate it as fresh. The retained failure also demonstrates that a
 naive vector-only delete test can pass while supported reads still leak.
+
+The new file-safety controls also fail first against parent `914b9470d`
+(`file-safety-failure-first.log`): the unsafe outside-path delete did not raise
+partial, and the shared-file case had no effects receipt.
 
 ## Repair (existing mechanisms only)
 
@@ -69,16 +75,23 @@ filter it, which is the content-access revocation.
 | Check | Result |
 |---|---|
 | Failure-first joined lifecycle | **1 failed**: SQL row/lexical/action/file survived vector delete |
-| Joined durable tests (positive, tombstone, partial SQL/file/FTS, scope, stale version, stale producer, new version, upload refusal) | **9 passed** |
-| Focused documents gate at `db6e4a2fc` | **58 passed**, 1 deselected |
-| Deselected test | `test_base_and_chunk_family_verified_with_one_receipt` hits pre-existing local `ModuleNotFoundError: lance` in `list_documents`; unrelated to this change |
-| Replay/restart | same operation id returns original receipt; new version is not deleted by old receipt |
+| Failure-first shared/unsafe file controls on parent `914b9470d` | **2 failed** |
+| Joined durable tests after merge | **11 passed** (`joined-11-file-safety.log`) |
+| File-safety controls at final head | **2 passed** (`file-safety-at-c90693c42.log`) |
+| Bounded documents gate via `run_bounded_test_gate.py` | **60 passed, 1 deselected** (`bounded-gate-c90693c42.log`) |
+| Deselected test | `test_base_and_chunk_family_verified_with_one_receipt` hits pre-existing local `ModuleNotFoundError: lance` in `list_documents`; unrelated |
 
 The joined positive proves: upload → list/open/vector/lexical/hybrid/action →
 stored-text export → delete (verified) → SQL tombstone + vector absence +
 lexical/action/hybrid absence + file absent → replay safe. Stale same-version
 producer cannot republish; a changed version can be written and an old receipt
-cannot delete it.
+cannot delete it. Shared files are preserved; outside paths are never unlinked.
+
+## Current-main reconcile
+
+`origin/main` advanced to `be8bb29f0` (verified web creation receipt merge).
+It was merged at `9496da733`, preserving both sides of the coordination/CI
+union and every prior negative. No PR838/UI branch or worktree was edited.
 
 ## Boundaries
 
