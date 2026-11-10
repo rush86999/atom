@@ -4186,9 +4186,10 @@ class BYOKHandler:
     ) -> Optional[float]:
         """Conservative configured USD bound for one paid attempt.
 
-        Inputs use the existing token counter (exact when tiktoken is
-        available); the fallback uses UTF-8 byte length as an upper bound,
-        plus explicit message/schema overhead. Output uses the request's
+        Supported byte-aligned text uses at least its UTF-8 byte length,
+        plus explicit message/schema overhead. The generic tokenizer returns
+        an estimated flag, not proof of the served model's tokenizer; neither
+        flag value may lower this text bound. Output uses the request's
         completion cap. The pricing contract then estimates the cost; a
         missing price returns None so hard-stop refuses rather than silently
         under-reserving.
@@ -4201,19 +4202,16 @@ class BYOKHandler:
             input_tokens_upper = 0
             for text in input_texts:
                 text = str(text or "")
-                counted, exact = count_tokens(text)
-                if not exact:
-                    counted = max(counted, len(text.encode("utf-8")))
-                input_tokens_upper += counted
+                counted, _estimated = count_tokens(text)
+                input_tokens_upper += max(
+                    counted, len(text.encode("utf-8")))
             input_tokens_upper += int(os.getenv(
                 "ATOM_LLM_RESERVATION_OVERHEAD_TOKENS", "256"))
             input_tokens_upper += 8 * max(1, len(input_texts))
             if schema_text:
-                schema_count, schema_exact = count_tokens(str(schema_text))
-                if not schema_exact:
-                    schema_count = max(
-                        schema_count, len(str(schema_text).encode("utf-8")))
-                input_tokens_upper += schema_count
+                schema_count, _schema_estimated = count_tokens(str(schema_text))
+                input_tokens_upper += max(
+                    schema_count, len(str(schema_text).encode("utf-8")))
             input_tokens_upper = max(1, input_tokens_upper)
 
             output_tokens = max(
