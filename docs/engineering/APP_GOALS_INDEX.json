@@ -111,8 +111,8 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T08:16:44.681258+00:00",
-    "as_of_main": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+    "updated_at": "2026-11-10T09:41:30.121946+00:00",
+    "as_of_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
     "app_complete": false,
     "historical_claims": 143,
     "goal_rows": 18,
@@ -146,50 +146,37 @@
         "pr": 818,
         "revision": "750f42215",
         "scope": "Reviewed native-chat learning: controlled API/component and ordinary UI operations plus restart durability. Original full browser verifier retains10 failed capture checks. Exact all13 PR checks and merged-union tree verified; post-merge main all12 required Actions verified green."
+      },
+      {
+        "pr": 824,
+        "revision": "0d5132c2e",
+        "scope": "Combined exact reviewed deliveries: permanent web regression gates/Lance dependency, governed workflow handoff, current presence, definition-bound JSON output, Activity utility, maturity guide scope. All13 PR checks and exact merged tree verified; post-merge CI still running at this snapshot.",
+        "included_prs": [
+          817,
+          819,
+          820,
+          821,
+          822,
+          823
+        ]
       }
     ],
-    "submitted": [
-      {
-        "pr": 817,
-        "head": "5cbc21781",
-        "scope": "Reviewed web regression gates and normal-install Lance dependency; failed predecessor preserved."
-      },
-      {
-        "pr": 819,
-        "head": "2beccb819",
-        "scope": "Governed manual workflow handoff; controlled API/real child-process evidence. No live model/browser/general scheduling claim."
-      },
-      {
-        "pr": 820,
-        "head": "30ad48ac2",
-        "scope": "Presence authority/receipt/uncertain UI plus exact restored supervisor directory. Original red CI and root negatives retained; successor root2+3 pass."
-      },
-      {
-        "pr": 821,
-        "head": "423abf868",
-        "scope": "Deterministic JSON execution export bound to executed definition and complete verified outputs; root1+7 and60 UI controls pass. Depends819."
-      },
-      {
-        "pr": 822,
-        "head": "cf4c7bde2",
-        "scope": "Activity utility visibility; original2 stale-winner failures repaired, root unchanged2 pass. Existing deterministic ranking only."
-      },
-      {
-        "pr": 823,
-        "head": "31b127927",
-        "scope": "Maturity guide current-authority scope; root real-JWT3fail1pass to4pass. No graduation policy change."
-      }
-    ],
+    "submitted": [],
     "active": [
       {
+        "owner": "root verification/integration",
+        "work": "Generated Canvas DOCX/PPTX export",
+        "acceptance": "Repair50d11d811;10 independent cases pass across real JWT and canonical executor. Genuine file positive, false receipt/contradictory body/refusal and actual child-process producer controls; evidence verified23/23. Main-based integration and permanent CI gate pending; no browser/wholeGOAL11 closure."
+      },
+      {
         "owner": "backend native CLI",
-        "work": "Ordinary generated Canvas DOCX/PPTX download through existing renderers",
-        "acceptance": "Implementation in progress; exact saved content/authority/revision, file substance, safe errors, path anchoring and actual process restart are required. No runtime acceptance or general output-goal closure yet."
+        "work": "Ordinary email draft save/open/reload audit",
+        "acceptance": "Isolated public JWT/scratch baseline first; no live provider/send. Next finite remaining output row."
       },
       {
         "owner": "frontend native CLI",
-        "work": "Teaching/assessment/graduation ordinary product-continuation audit",
-        "acceptance": "Read-only diagnosis; distinguish intentional training-review eligibility from actual exam/promotion readiness. No new lifecycle/threshold/model judge or completed-goal claim."
+        "work": "Scoped qualification to graduation receipt join",
+        "acceptance": "Existing GraduationExam/HITL/policy/CAS only; full ordinary review/readiness flow and all upward callers required. In progress, not accepted."
       }
     ],
     "superseded": [
@@ -201,13 +188,43 @@
         "pr": 814,
         "successor": 815,
         "reason": "Public Git revision under credential-worded metadata key triggered scanner. Clean successor changes that key only; no history rewrite or scanner waiver."
+      },
+      {
+        "pr": 817,
+        "successor": 824,
+        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+      },
+      {
+        "pr": 819,
+        "successor": 824,
+        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+      },
+      {
+        "pr": 820,
+        "successor": 824,
+        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+      },
+      {
+        "pr": 821,
+        "successor": 824,
+        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+      },
+      {
+        "pr": 822,
+        "successor": 824,
+        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+      },
+      {
+        "pr": 823,
+        "successor": 824,
+        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
       }
     ],
     "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
-    "next_prepared": "Finish independent review and exact-head CI of current main-web deliveries; retain the full143-claim/18-goal audit and choose the next substantive unclosed requirement after ownership/evidence reconciliation.",
+    "next_prepared": "Complete current Office export integration, scoped graduation qualification, and ordinary email-draft readback; preserve original143claims/18goals and historical negatives.",
     "integration_candidate": {
       "branch": "codex/web-reviewed-integration-20261110",
-      "status": "prepared; exact combined hosted checks required before merge",
+      "status": "merged as PR824 /0d5132c2e; exact reviewed tree preserved",
       "family_prs": [
         817,
         819,
