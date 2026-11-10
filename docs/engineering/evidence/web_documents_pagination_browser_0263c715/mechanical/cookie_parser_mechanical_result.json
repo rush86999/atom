@@ -1,0 +1,132 @@
+{
+  "all_cases_pass": true,
+  "case_count": 7,
+  "cases": [
+    {
+      "case": "raw_secure_base_name_with_dots",
+      "got": {
+        "chunk_indices": [],
+        "complete": true,
+        "kind": "raw",
+        "name": "__Secure-next-auth.session-token",
+        "parts": [
+          {
+            "httpOnly": true,
+            "name": "__Secure-next-auth.session-token",
+            "value": "header.payload.signature.jwe"
+          }
+        ],
+        "value": "header.payload.signature.jwe"
+      },
+      "ok": true
+    },
+    {
+      "case": "chunked_secure_shuffled",
+      "got": {
+        "chunk_indices": [
+          0,
+          1
+        ],
+        "complete": true,
+        "kind": "chunked",
+        "name": "__Secure-next-auth.session-token",
+        "parts": [
+          {
+            "httpOnly": true,
+            "name": "__Secure-next-auth.session-token.0",
+            "value": "AAA"
+          },
+          {
+            "httpOnly": true,
+            "name": "__Secure-next-auth.session-token.1",
+            "value": "BBB"
+          }
+        ],
+        "value": "AAABBB"
+      },
+      "ok": true
+    },
+    {
+      "case": "raw_insecure_base_name",
+      "got": {
+        "chunk_indices": [],
+        "complete": true,
+        "kind": "raw",
+        "name": "next-auth.session-token",
+        "parts": [
+          {
+            "httpOnly": true,
+            "name": "next-auth.session-token",
+            "value": "raw.jwe.value"
+          }
+        ],
+        "value": "raw.jwe.value"
+      },
+      "ok": true
+    },
+    {
+      "case": "dotted_unrelated_cookie_ignored",
+      "got": {
+        "chunk_indices": [],
+        "complete": true,
+        "kind": "raw",
+        "name": "__Secure-next-auth.session-token",
+        "parts": [
+          {
+            "httpOnly": true,
+            "name": "__Secure-next-auth.session-token",
+            "value": "chosen"
+          }
+        ],
+        "value": "chosen"
+      },
+      "ok": true
+    },
+    {
+      "case": "no_cookie",
+      "got": {
+        "chunk_indices": [],
+        "complete": false,
+        "kind": null,
+        "name": null,
+        "parts": [],
+        "value": null
+      },
+      "ok": true
+    },
+    {
+      "case": "chunk_gap_is_incomplete",
+      "got": {
+        "chunk_indices": [
+          0,
+          2
+        ],
+        "complete": false,
+        "kind": "chunked",
+        "name": "__Secure-next-auth.session-token",
+        "parts": [
+          {
+            "name": "__Secure-next-auth.session-token.0",
+            "value": "A"
+          },
+          {
+            "name": "__Secure-next-auth.session-token.2",
+            "value": "C"
+          }
+        ],
+        "value": "AC"
+      },
+      "ok": true
+    },
+    {
+      "case": "old_parser_reproduces_int_session_token",
+      "ok": true,
+      "old_error": "ValueError: invalid literal for int() with base 10: 'session-token'"
+    }
+  ],
+  "harness": "/private/tmp/root-web-document-pagination-browser-20261110.py",
+  "harness_sha256": "0263c715960029a1550f78bacdc3ac790641153b63c2aa0a72ffbd04f2ce3bd4",
+  "ok": true,
+  "preserved_failed_harness": "/private/tmp/root-web-document-pagination-browser-20261110.failed-1b0208fc.py",
+  "preserved_failed_sha256": "1b0208fc3be51a8fff3fce49d89dac5ad41d713f203a2059f35ce46ff8ddd694"
+}

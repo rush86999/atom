@@ -1,0 +1,83 @@
+{
+  "all_cases_failed_as_required": true,
+  "case_count": 9,
+  "cases": [
+    {
+      "case": "valid_observations_pass",
+      "failed_as_required": true,
+      "failures": []
+    },
+    {
+      "case": "injected_foreign_card_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page1_card_count",
+        "page1_dom_exact",
+        "page1_dom_matches_api",
+        "page1_foreign_ids",
+        "page1_last"
+      ]
+    },
+    {
+      "case": "wrong_order_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page1_api_exact",
+        "page1_dom_exact",
+        "page1_first"
+      ]
+    },
+    {
+      "case": "missing_api_status_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page1_api_status"
+      ]
+    },
+    {
+      "case": "duplicate_ids_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page1_dom_exact",
+        "page1_dom_matches_api",
+        "page1_duplicate_ids"
+      ]
+    },
+    {
+      "case": "none_observation_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page1_total"
+      ]
+    },
+    {
+      "case": "page2_next_enabled_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page2_next_disabled"
+      ]
+    },
+    {
+      "case": "dom_api_order_mismatch_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page1_api_exact",
+        "page1_dom_matches_api"
+      ]
+    },
+    {
+      "case": "shared_card_on_page2_must_fail",
+      "failed_as_required": true,
+      "failures": [
+        "page2_card_count",
+        "page2_dom_exact",
+        "page2_dom_matches_api",
+        "page2_foreign_ids",
+        "page2_last"
+      ]
+    }
+  ],
+  "harness": "/private/tmp/root-web-document-pagination-browser-20261110.py",
+  "harness_sha256": "0263c715960029a1550f78bacdc3ac790641153b63c2aa0a72ffbd04f2ce3bd4",
+  "ok": true
+}
