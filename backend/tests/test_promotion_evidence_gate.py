@@ -38,6 +38,7 @@ from core.models import (
     AgentStatus,
     BlockedTriggerContext,
     TriggerSource,
+    User,
 )
 from core.student_training_service import (
     InsufficientTrainingEvidenceError,
@@ -66,6 +67,18 @@ def db():
     finally:
         session.close()
         engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def _promotion_supervisor(db):
+    if db.get(User, "supervisor") is None:
+        db.add(User(
+            id="supervisor", email="supervisor@example.invalid",
+            hashed_password="h", first_name="Supervisor", last_name="One",
+            role="team_lead", status="active", is_active=True,
+            tenant_id=None, workspace_id=None,
+        ))
+        db.commit()
 
 
 def _hire(db, agent_id="sales-rep-1", confidence=0.5):

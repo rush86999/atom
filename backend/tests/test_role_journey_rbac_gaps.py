@@ -127,7 +127,12 @@ class TestSupervisorGatesAcceptAdminAndOwner:
         from api.agent_maturity_routes import router
 
         client, _ = make_role_client(router, UserRole.ADMIN.value)
-        resp = client.post("/api/maturity/training/proposals/p1/approve", json={"approve": True})
+        with patch("api.agent_maturity_routes.StudentTrainingService") as svc:
+            svc.return_value.approve_training = AsyncMock(
+                return_value=MagicMock(id="s1"))
+            resp = client.post(
+                "/api/maturity/training/proposals/p1/approve",
+                json={"approve": True})
         assert resp.status_code != 403, f"admin denied a TEAM_LEAD+ surface: {resp.text}"
 
     def test_graduation_promote_admin_not_denied(self):

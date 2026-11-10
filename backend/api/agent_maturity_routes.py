@@ -15,7 +15,7 @@ identity (no client-supplied user ids), and generic error responses.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, HTTPException, Query, Request
@@ -38,7 +38,10 @@ from core.proposal_service import ProposalNotFoundError, ProposalService
 from core.student_training_service import (
     InsufficientTrainingEvidenceError,
     StudentTrainingService,
+    TrainingAuthorityError,
     TrainingOutcome,
+    TrainingProposalConflict,
+    TrainingProposalNotFound,
 )
 from core.personal_scope import resolve_tenant_id
 from core import role_template_registry
@@ -71,6 +74,26 @@ def _require_supervisor(db, current_user: User) -> None:
             status_code=403,
             detail="Insufficient permissions. Required role: team_lead or higher",
         )
+
+
+def _proposal_expired(proposal: AgentProposal) -> bool:
+    expires_at = getattr(proposal, "expires_at", None)
+    if expires_at is None:
+        return False
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at <= datetime.now(timezone.utc)
+
+
+def _raise_training_error(exc: Exception) -> None:
+    """Map typed training refusals to truthful HTTP statuses."""
+    if isinstance(exc, TrainingProposalNotFound):
+        raise HTTPException(status_code=404, detail=str(exc))
+    if isinstance(exc, TrainingAuthorityError):
+        raise HTTPException(status_code=403, detail=str(exc))
+    if isinstance(exc, TrainingProposalConflict):
+        raise HTTPException(status_code=409, detail=str(exc))
+    raise HTTPException(status_code=400, detail=str(exc))
 
 
 # ============================================================================
@@ -189,15 +212,16 @@ async def list_training_proposals(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List training proposals for STUDENT agents."""
-    query = db.query(AgentProposal).filter(
-        AgentProposal.proposal_type == ProposalType.WORKFLOW.value
-    )
-    if agent_id:
-        query = query.filter(AgentProposal.agent_id == agent_id)
-    if status_filter:
-        query = query.filter(AgentProposal.status == status_filter)
-    proposals = query.order_by(AgentProposal.created_at.desc()).limit(limit).all()
+    """List training proposals in the current supervisor's agent scope."""
+    try:
+        proposals = StudentTrainingService(db).list_training_proposals(
+            str(current_user.id),
+            agent_id=agent_id,
+            status_filter=status_filter,
+            limit=limit,
+        )
+    except Exception as exc:  # typed refusal, no existence leak
+        _raise_training_error(exc)
 
     def _training_fields(p: AgentProposal) -> Dict[str, Any]:
         # Learning fields live inside the proposal_data JSON column (there are
@@ -250,6 +274,8 @@ async def list_training_proposals(
                 "status": str(p.status) if p.status else None,
                 **_training_fields(p),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
+                "expires_at": p.expires_at.isoformat() if p.expires_at else None,
+                "expired": _proposal_expired(p),
                 "approved_by": p.approved_by,
                 "approved_at": p.approved_at.isoformat() if p.approved_at else None,
             }
@@ -264,16 +290,11 @@ async def get_training_proposal(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    proposal = (
-        db.query(AgentProposal)
-        .filter(
-            AgentProposal.id == proposal_id,
-            AgentProposal.proposal_type == ProposalType.WORKFLOW.value,
-        )
-        .first()
-    )
-    if not proposal:
-        raise HTTPException(status_code=404, detail=f"Training proposal {proposal_id} not found")
+    try:
+        proposal, _agent, _actor = StudentTrainingService(db).get_training_proposal(
+            proposal_id, str(current_user.id))
+    except Exception as exc:  # typed refusal, no existence leak
+        _raise_training_error(exc)
 
     data: Dict[str, Any] = proposal.proposal_data if isinstance(proposal.proposal_data, dict) else {}
     return {
@@ -299,6 +320,8 @@ async def get_training_proposal(
             ) else None
         ),
         "status": str(proposal.status) if proposal.status else None,
+        "expires_at": proposal.expires_at.isoformat() if proposal.expires_at else None,
+        "expired": _proposal_expired(proposal),
         "approved_by": proposal.approved_by,
         "approved_at": proposal.approved_at.isoformat() if proposal.approved_at else None,
         "created_at": proposal.created_at.isoformat() if proposal.created_at else None,
@@ -316,11 +339,14 @@ async def approve_training_proposal(
     _require_supervisor(db, current_user)
 
     if not request.approve:
-        proposal = db.query(AgentProposal).filter(AgentProposal.id == proposal_id).first()
-        if not proposal:
-            raise HTTPException(status_code=404, detail=f"Proposal {proposal_id} not found")
-        proposal.status = ProposalStatus.REJECTED.value
-        db.commit()
+        try:
+            StudentTrainingService(db).reject_training(
+                proposal_id=proposal_id,
+                user_id=str(current_user.id),
+                reason="Rejected via approve=false",
+            )
+        except Exception as exc:  # typed refusal
+            _raise_training_error(exc)
         return {"message": "Training proposal rejected", "proposal_id": proposal_id}
 
     try:
@@ -329,9 +355,8 @@ async def approve_training_proposal(
             user_id=str(current_user.id),
             modifications=request.duration_override,
         )
-    except ValueError as e:
-        # Controlled validation message from our own service layer.
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:  # typed authority/conflict/validation refusal
+        _raise_training_error(e)
 
     logger.info(
         "Training approved: proposal=%s session=%s approved_by=%s",
@@ -352,20 +377,14 @@ async def reject_training_proposal(
     db: Session = Depends(get_db),
 ):
     _require_supervisor(db, current_user)
-    user_id: str = str(current_user.id)
-    proposal = db.query(AgentProposal).filter(AgentProposal.id == proposal_id).first()
-    if not proposal:
-        raise HTTPException(status_code=404, detail=f"Proposal {proposal_id} not found")
-
-    proposal.status = ProposalStatus.REJECTED.value
-    proposal.approver_id = user_id
-    proposal.reviewed_at = datetime.now()
-    # NOTE: AgentProposal has no free-form execution_result column; the reason
-    # lives in approval_reason (writing an undeclared attribute would be
-    # silently dropped by SQLAlchemy identity-map bookkeeping).
-    proposal.approval_reason = request.reason
-    db.commit()
-
+    try:
+        StudentTrainingService(db).reject_training(
+            proposal_id=proposal_id,
+            user_id=str(current_user.id),
+            reason=request.reason,
+        )
+    except Exception as exc:  # typed refusal
+        _raise_training_error(exc)
     return {"message": "Training proposal rejected", "proposal_id": proposal_id}
 
 
