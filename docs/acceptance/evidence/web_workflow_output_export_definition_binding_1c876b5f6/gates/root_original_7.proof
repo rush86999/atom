@@ -1,0 +1,8 @@
+.......                                                                  [100%]
+=============================== warnings summary ===============================
+root-workflow-export-independent-20261110.py::test_non_success_step_cannot_be_exported_as_completed_document[blocked]
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+7 passed, 1 warning in 8.42s
