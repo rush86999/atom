@@ -1,0 +1,53 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+FAIL tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx
+  Independent Activity utility consistency
+    ✕ does not retain a fresh winner after the authoritative utility target is cleared (55 ms)
+    ✕ an older slow Activity load cannot revive a target after a newer targetless load (11 ms)
+
+  ● Independent Activity utility consistency › does not retain a fresh winner after the authoritative utility target is cleared
+
+    expect(received).toBeNull()
+
+    Received: <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80" data-testid="activity-utility-winner">best</div>
+
+      90 |   await waitFor(()=>expect(getGoalUtility).toHaveBeenCalledTimes(2));
+      91 |   await act(async()=>{await Promise.resolve();await Promise.resolve();});
+    > 92 |   expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+         |                                                           ^
+      93 |  });
+      94 |  it("an older slow Activity load cannot revive a target after a newer targetless load",async()=>{
+      95 |   let resolveOldRuns:any;let resolveOldGoals:any;
+
+      at tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:92:59
+      at step (tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:77:23)
+      at Object.next (tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:58:53)
+      at fulfilled (tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:49:58)
+
+  ● Independent Activity utility consistency › an older slow Activity load cannot revive a target after a newer targetless load
+
+    expect(received).toBeNull()
+
+    Received: <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80" data-testid="activity-utility-winner">best</div>
+
+      102 |   await act(async()=>{await Promise.resolve();await Promise.resolve();});
+      103 |   await act(async()=>{resolveOldRuns([run({id:"run-current",goal_id:goal.id,status:"achieved"})]);resolveOldGoals([goal]);await Promise.resolve();await Promise.resolve();});
+    > 104 |   expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+          |                                                           ^
+      105 |   expect(screen.queryByTestId("activity-utility-summary")).toBeNull();
+      106 |  });
+      107 | });
+
+      at tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:104:59
+      at step (tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:77:23)
+      at Object.next (tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:58:53)
+      at fulfilled (tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx:49:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 2 total
+Snapshots:   0 total
+Time:        0.612 s
+Ran all test suites matching tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx.

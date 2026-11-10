@@ -1,0 +1,30 @@
+{
+  "world": "/private/tmp/root-activity-utility-independent-20261110-xkd81hx0",
+  "source_before": {
+    "frontend-nextjs/pages/goal-runs/index.tsx": "7873ffc7d5e342870c47f11d9eb6251b6a6c7231f6068d4cde1f0f288d5aac42",
+    "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "71aa1f84090f2ce6faf0093947c8d86b374d4446ffb726bb20ae2392bbb2901c"
+  },
+  "capture_head": "00c92cb035b6e57fcf3dc0cf4c1c3166216fcbcd",
+  "probe_sha256": "16ffedaf22033d072b90bc3d0e1053733f5108f2dcd61b36ec88fe740a0af892",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-goal02-activity-20261110/frontend-nextjs",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/.nvm/versions/node/v20.20.2/bin/node",
+    "node_modules/.bin/jest",
+    "tests/pages/goal-runs/root-utility-consistency-heldout.test.tsx",
+    "--runInBand",
+    "--no-coverage",
+    "--watchman=false"
+  ],
+  "actual_exit": 1,
+  "source_after": {
+    "frontend-nextjs/pages/goal-runs/index.tsx": "7873ffc7d5e342870c47f11d9eb6251b6a6c7231f6068d4cde1f0f288d5aac42",
+    "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "71aa1f84090f2ce6faf0093947c8d86b374d4446ffb726bb20ae2392bbb2901c"
+  },
+  "same_source": true
+}
