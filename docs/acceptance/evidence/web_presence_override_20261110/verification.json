@@ -2,6 +2,11 @@
   "branch": "codex/web-presence-override-20261110",
   "claim": "ORACLE-01 bounded family: manual presence override set/clear + state read",
   "controls": {
+    "affected_caller_gates": {
+      "backend": "62 passed: new presence controls + tests/test_user_activity.py + tests/unit/api/test_user_activity_routes.py + tests/test_covpush_w84_activity_publisher.py",
+      "fresh_os_process_readback": "logs/repro-after.log contains fresh_os_process_readback from a separate OS process",
+      "frontend": "39 passed: useUserActivity + branch suite including new 202/503/malformed state preservation twins"
+    },
     "backend_activity": {
       "exit": 0,
       "log": "logs/backend-controls.log",
@@ -51,7 +56,22 @@
     "target_guard": "current member mutates only own presence",
     "timezone": "naive SQLite expiry normalized to UTC at boundary; responses carry +00:00"
   },
-  "repair_commit": "29dcfaad9",
+  "repair_commit": "29dcfaad900d4aa91c84c40996f024f1cf2470e9",
+  "root_independent_after_fix": {
+    "capture_head": "29dcfaad900d4aa91c84c40996f024f1cf2470e9",
+    "controls": "root-independent/independent-3pass-controls.log",
+    "exit": 0,
+    "result": "3 passed in 3.98s",
+    "review": "root-independent/independent-3pass-review.json",
+    "same_source": true,
+    "scope": "exact original 3 public probes; root independent acceptance fact"
+  },
+  "root_independent_negative": {
+    "controls": "root-independent/negative-controls.log",
+    "preserved": true,
+    "result": "2 actor-race passed, 1 uncertainty failed with 202 before 503 repair",
+    "review": "root-independent/negative-review.json"
+  },
   "runtime_failure_before": {
     "log": "original-failure/repro-before.log",
     "observed": {
@@ -75,14 +95,17 @@
   "schema_version": 1,
   "scope": {
     "all_836_routes_certified": false,
+    "browser_claim": false,
     "frontend_compatibility_preserved": true,
     "historical_143_claims_18_goals_unchanged": true,
     "no_live_db_provider_browser_install_deployment": true,
     "no_mandatory_approval_added": true,
     "no_new_role_grant": true,
     "no_pr_or_merge": true,
+    "postgres_claim": false,
     "raw_private_db_auth_env_logs_committed": false,
-    "two_mutations_plus_read": true
+    "two_mutations_plus_read": true,
+    "whole_app_oracle_claim": false
   },
   "source": {
     "after": {
@@ -102,5 +125,5 @@
       "frontend-nextjs/hooks/useUserActivity.ts": "d9f7596dad5e6b38dfeeb50f2032c425e04bcbfa7b12a28315c42de61df39109"
     }
   },
-  "state": "runtime_failure_reproduced_repair_frozen_root_probe_after_fix_3pass"
+  "state": "root_independent_3pass_frozen_pending_pr"
 }

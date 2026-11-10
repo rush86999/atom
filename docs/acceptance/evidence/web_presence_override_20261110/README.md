@@ -2,7 +2,7 @@
 
 - Branch: `codex/web-presence-override-20261110`
 - Base: `310e72aecd1a4041a35af6ac093379d39b93556b`
-- Repair commit: `29dcfaad9`
+- Repair commit: `29dcfaad900d4aa91c84c40996f024f1cf2470e9`
 - Scope: ORACLE-01 bounded family — two presence mutations, the essential state
   read, and the existing heartbeat/expiry consumer path. Not whole-app ORACLE.
 
@@ -68,16 +68,18 @@ successful legacy `200` state payloads remain compatible.
   (`logs/frontend-hook-controls.log`). Includes 202 unknown, 503 unknown,
   malformed state and clear-failure state preservation.
 - `tsc --noEmit`: exit 0.
-- Root probe sanity rerun after the fix: **3 passed** (`logs/root-probe-after-fix.log`);
-  this is not a substitute for root independent acceptance.
+- Root independent exact rerun after the fix: **3 passed in 3.98s**, same
+  source `29dcfaad9` (`root-independent/independent-3pass-review.json` and
+  `independent-3pass-controls.log`). The earlier `tgw52lci` 2-pass/1-fail
+  negative remains preserved separately.
 
 Frontend tests reused an existing local `node_modules` directory through a
 temporary symlink; no install or download was performed.
 
 ## Limits
 
-- Only this two-mutation/read family is addressed; the 836-route ORACLE claim
-  remains open.
+- Only this two-mutation/read family is addressed; the 836-route ORACLE claim,
+  PostgreSQL and browser claims remain open.
 - No live DB, provider/model, browser, credential, spend, install, deployment,
   PR or merge.
 - Root independent exact probe and review are still required.
