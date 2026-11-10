@@ -1,0 +1,79 @@
+{
+  "base": "e2cbff5b989c482040d61c210e74be7f8840668d",
+  "branch": "codex/web-learning-native-chat-20261110",
+  "caller_impact": [
+    "shared validate_authority refuses a message with no authored segment even when excerpt is empty",
+    "email positive cases with authored text remain accepted; quoted negatives remain refused",
+    "fully quoted bodies now refuse as authority_no_authored_segment rather than authority_is_quoted",
+    "legacy email APIs and historical candidate ids keep the email default and are not renamed",
+    "affected email/native selection rerun: 71 passed, no test deletion or weakened assertions"
+  ],
+  "change_scope": [
+    "typed source_kind/source discriminator with legacy email default",
+    "native evidence from ChatSession + ChatMessage only, user-global disclosure",
+    "shared authored-segment authority contract; role user alone is not authority",
+    "truthful bounded counts and order/content source revision",
+    "edit/delete/reorder stale review and existing lesson-store staleness",
+    "explicit frontend composite source selection"
+  ],
+  "commit": "4c393f2849815038cd66a89598b8b85df09d5554",
+  "disclosures": {
+    "no_browser": true,
+    "no_install_send_spend_deploy_merge_pr": true,
+    "no_live_db": true,
+    "no_model_or_provider": true,
+    "testing": "TESTING=1 with unique scratch DATABASE_URL/ATOM_DATA_DIR and bounded gate"
+  },
+  "honest_limits": [
+    "ChatSession has no tenant/workspace column; source_scope=user_global, no workspace-isolation claim",
+    "staleness is applied on the next candidate review touch; no background edit-time watcher is claimed",
+    "native sources over 200 loaded messages report truncation and are not review-ready",
+    "GoalRun internal decisions are a separate future contract",
+    "controlled mechanics and real API/DB behavior only; no general lesson-quality claim"
+  ],
+  "positive_join": "create -> explicit confirm -> promote -> fresh-session get_agent_lessons exact reviewed lesson and provenance; post-promotion edit marks stale and normal consumption omits it",
+  "results": {
+    "combined_conversation_learning": {
+      "exit": 0,
+      "log": "logs/combined-backend.log",
+      "passed": 71
+    },
+    "eslint_changed_files": {
+      "exit": 0,
+      "log": "logs/eslint.log"
+    },
+    "frontend_learning_tests": {
+      "exit": 0,
+      "log": "logs/frontend-tests.log",
+      "passed": 5
+    },
+    "native_api_tests": {
+      "exit": 0,
+      "log": "logs/native-api-tests.log",
+      "passed": 10
+    },
+    "root_authority_probe": {
+      "exit": 0,
+      "log": "logs/root-repaired-probe.log",
+      "passed": 2
+    },
+    "typescript": {
+      "exit": 0,
+      "log": "logs/tsc.log"
+    }
+  },
+  "root_repaired_review": {
+    "assertions_unchanged": true,
+    "bound_core_sha256": {
+      "api/conversation_learning_routes.py": "b151e144350f9c5a18b40a4624f371e0d0832d9796a8ac9937a0c9eb651e2a37",
+      "core/conversation_learning.py": "4e3f2a584f13d262e51f4b1306881d29a5cf84f28c12138f576603d64eab3c46"
+    },
+    "exit": 0,
+    "independent_review_sha256": "8801fec2c0408ef2a1e1d6b1cff8700ba27a7b3e6a8e3714872c063375c6923b",
+    "probe": "root-authority-probe.py",
+    "probe_sha256": "4abec43680e802bdf92b53c071c6e2972011038e73c1e94f7dc935ac84ab3fbe",
+    "result": "2 passed",
+    "source_unchanged_during_run": true
+  },
+  "state": "focused_controls_passed_ready_for_root_independent_gate"
+}

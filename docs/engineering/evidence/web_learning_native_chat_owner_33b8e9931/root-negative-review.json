@@ -1,0 +1,13 @@
+{
+  "pid": 11802,
+  "world": "/private/tmp/root-native-learning-owner-heldout-20261110-55gni9vj",
+  "source": "a66ee49c87794de257cfd6962e7268fb92fad380",
+  "source_hashes": {
+    "core/conversation_learning.py": "4e3f2a584f13d262e51f4b1306881d29a5cf84f28c12138f576603d64eab3c46",
+    "api/conversation_learning_routes.py": "b151e144350f9c5a18b40a4624f371e0d0832d9796a8ac9937a0c9eb651e2a37"
+  },
+  "result": "2 failed in3.44s",
+  "source_unchanged_during_run": true,
+  "observed": "Same-tenant/workspace peer GET candidate and POST reject each return200 and append ConversationEvent (1->2); private source owner was not bound",
+  "status": "withheld"
+}

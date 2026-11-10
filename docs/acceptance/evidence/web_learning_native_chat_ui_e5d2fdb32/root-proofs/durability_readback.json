@@ -1,0 +1,17 @@
+{
+  "at": "2026-11-10T06:11:56.368801+00:00",
+  "world": "/private/tmp/root-web-learning-world-a5lqiv_l",
+  "method": "independent read-only SQLite connection after backend stopped",
+  "checks": {
+    "owner": true,
+    "workspace": true,
+    "tenant": true,
+    "candidate_present": true,
+    "lesson_id_present": true,
+    "lesson_text_present": true
+  },
+  "candidate_id": "lc-0f7e8850ce3a4eed",
+  "lesson_id": "76b60e582e504e7a9e90f7b68ade8660",
+  "harness_overall_result": "failed, preserved",
+  "scope": "durable ownership and configuration presence, not fresh model inference or full browser verifier acceptance"
+}

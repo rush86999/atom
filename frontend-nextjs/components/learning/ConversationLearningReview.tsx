@@ -88,11 +88,13 @@ function dependencyAnswer(
 
 export function ConversationLearningReview({
   threadId,
+  sourceKind = "email",
   candidateId = null,
   reviewer = "owner",
   className = "",
 }: {
   threadId: string;
+  sourceKind?: string;
   candidateId?: string | null;
   reviewer?: string;
   className?: string;
@@ -135,15 +137,15 @@ export function ConversationLearningReview({
     setError(null);
     try {
       if (candidateId) {
-        setPayload(await getLearningCandidate(threadId, candidateId));
+        setPayload(await getLearningCandidate(threadId, candidateId, sourceKind));
         return;
       }
-      const rows = await listLearningCandidates(threadId);
+      const rows = await listLearningCandidates(threadId, sourceKind);
       setPayload(rows[0] || null);
     } catch (err: any) {
       setError(errorText(err, "Could not load the learning review"));
     }
-  }, [threadId, candidateId]);
+  }, [threadId, sourceKind, candidateId]);
 
   useEffect(() => {
     void load();
@@ -223,6 +225,7 @@ export function ConversationLearningReview({
         .split(",").map((item) => item.trim()).filter(Boolean);
       const created = await createLearningCandidate({
         thread_id: threadId,
+        source_kind: sourceKind,
         agent_id: selectedAgentId,
         proposed_lesson: draft.lesson,
         applies_to: draft.appliesTo
@@ -278,6 +281,7 @@ export function ConversationLearningReview({
           ...dependencyAnswer(dep, answer),
           confirmed_by: reviewer,
         },
+        sourceKind,
       );
       setPayload(resolved);
       setNotice("Answer recorded. The candidate needs review again.");
@@ -294,7 +298,7 @@ export function ConversationLearningReview({
     setError(null);
     try {
       const confirmed = await confirmLearningCandidate(
-        threadId, review.candidate_id, reviewer, review.revision);
+        threadId, review.candidate_id, reviewer, review.revision, sourceKind);
       setPayload(confirmed);
       setNotice("Review confirmed. Promotion will bind this exact revision and digest.");
     } catch (err: any) {
@@ -311,7 +315,7 @@ export function ConversationLearningReview({
     try {
       const promoted = await promoteLearningCandidate(
         threadId, review.candidate_id, reviewer,
-        review.revision, review.digest);
+        review.revision, review.digest, sourceKind);
       setNotice(`Lesson promoted (${promoted.lesson_id}).`);
       await load();
     } catch (err: any) {
@@ -340,7 +344,8 @@ export function ConversationLearningReview({
             ? { customer: applyContext.customer } : {}),
           ...(applyContext.qualification
             ? { qualification: applyContext.qualification } : {}),
-        });
+        },
+        sourceKind);
       setApplyResult(
         `${applied.result.value} ${applied.result.unit || ""}`.trim());
     } catch (err: any) {
@@ -356,7 +361,8 @@ export function ConversationLearningReview({
     setError(null);
     try {
       const rejected = await rejectLearningCandidate(
-        threadId, review.candidate_id, reviewer, "Rejected in review");
+        threadId, review.candidate_id, reviewer, "Rejected in review",
+        sourceKind);
       setPayload(rejected);
       setNotice("Proposal rejected. No lesson was written.");
     } catch (err: any) {

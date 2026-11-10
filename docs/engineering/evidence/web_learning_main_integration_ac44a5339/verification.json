@@ -1,0 +1,38 @@
+{
+  "accepted_learning_commits": [
+    "33b8e99317bc0563b153d379f177a133c0a0a914",
+    "4c2642c5cb7f745845401db3aa220ff6ae893ab6"
+  ],
+  "disclosures": {
+    "no_browser": true,
+    "no_live_db": true,
+    "no_model_or_provider": true,
+    "testing": "TESTING=1 unique scratch DB/data bounded gate"
+  },
+  "integrated_main": "6f8c2a4800bb58bfef5ebcd7a9a6900081d0f453",
+  "learning_files_identical_to_4c2642c5c": true,
+  "merge_commit": "ac44a53393996e9b65d115cd17f43676a93c3fd4",
+  "predecessor_packets_identical": true,
+  "results": {
+    "backend_combined": {
+      "exit": 0,
+      "log": "logs/backend.log",
+      "passed": 74
+    },
+    "eslint_changed_files": {
+      "exit": 0,
+      "log": "logs/eslint.log"
+    },
+    "frontend_learning": {
+      "exit": 0,
+      "log": "logs/frontend.log",
+      "passed": 5
+    },
+    "typescript": {
+      "exit": 0,
+      "log": "logs/tsc.log"
+    }
+  },
+  "scope": "integration only; no product edit, no browser/build/server execution, no PR",
+  "state": "main_integrated_learning_bytes_preserved_focused_controls_passed"
+}
