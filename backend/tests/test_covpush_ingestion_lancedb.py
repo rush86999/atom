@@ -19,6 +19,7 @@ import pytest
 import core.lancedb_handler as lh
 from core.lancedb_handler import (
     ChatHistoryManager,
+    DocumentListingUnavailable,
     LanceDBHandler,
     get_lancedb_handler,
 )
@@ -27,6 +28,34 @@ from core.lancedb_handler import (
 class _FakeLLMService:
     def __init__(self, *args, **kwargs):
         self.generate_embedding = AsyncMock(return_value=[0.1, 0.2, 0.3, 0.4])
+
+
+class FakeLanceDataset:
+    """Native-like projected/ordered scan for FakeLanceTable tests."""
+
+    def __init__(self, table):
+        self.table = table
+        self.schema = table._schema_for_rows()
+
+    def to_table(self, columns=None, limit=None, offset=0, order_by=None, **kwargs):
+        df = pd.DataFrame(self.table.rows)
+        if columns:
+            keep = [c for c in columns if c in df.columns]
+            df = df[keep]
+        if order_by and not df.empty:
+            by = [o.column_name for o in order_by if o.column_name in df.columns]
+            ascending = [o.ascending for o in order_by if o.column_name in df.columns]
+            if by:
+                df = df.sort_values(by=by, ascending=ascending, na_position="last")
+        offset = offset or 0
+        if limit is not None:
+            df = df.iloc[offset:offset + limit]
+        else:
+            df = df.iloc[offset:]
+        if df.empty:
+            names = columns or list(df.columns) or [f.name for f in self.schema]
+            return pa.table({n: pa.array([], type=pa.string()) for n in names})
+        return pa.Table.from_pandas(df, preserve_index=False)
 
 
 class FakeLanceTable:
@@ -39,6 +68,24 @@ class FakeLanceTable:
             if with_freshness
             else [pa.field("id", pa.string())]
         )
+
+    def _schema_for_rows(self):
+        names = {f.name for f in self.schema}
+        if self.rows:
+            names.update(self.rows[0].keys())
+        return pa.schema([pa.field(name, pa.string()) for name in sorted(names)])
+
+    def count_rows(self):
+        return len(self.rows)
+
+    def to_arrow(self):
+        if not self.rows:
+            return pa.table({f.name: pa.array([], type=pa.string())
+                             for f in self._schema_for_rows()})
+        return pa.Table.from_pandas(pd.DataFrame(self.rows), preserve_index=False)
+
+    def to_lance(self):
+        return FakeLanceDataset(self)
 
     def search(self, *args, **kwargs):
         return self
@@ -55,6 +102,7 @@ class FakeLanceTable:
 
     def add(self, records):
         self.added.extend(records)
+
 
 
 class FakeLanceDB:
@@ -649,7 +697,8 @@ class TestLanceDBSearch:
 
     def test_list_documents_db_none(self, lh_env):
         handler = LanceDBHandler(db_path=str(lh_env / "x"))
-        assert handler.list_documents("docs") == []
+        with pytest.raises(DocumentListingUnavailable):
+            handler.list_documents("docs")
 
     def test_list_documents_offset(self, lh_handler):
         lh_handler.db._tables["docs"] = FakeLanceTable(rows=make_rows())

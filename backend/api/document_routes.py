@@ -25,7 +25,7 @@ from core.database import get_db
 from core.document_delete_service import delete_document_verified
 from core.models import User
 from core.security_dependencies import get_current_user
-from core.lancedb_handler import get_lancedb_handler
+from core.lancedb_handler import DocumentListingUnavailable, get_lancedb_handler
 from core.auto_document_ingestion import DocumentParser
 
 logger = logging.getLogger(__name__)
@@ -1275,20 +1275,63 @@ async def list_documents(
     offset: int = Query(0, ge=0, description="Skip offset (must be >= 0)"),
     current_user: User = Depends(get_current_user)
 ):
-    """List recent documents"""
+    """List recent documents.
+
+    Pagination contract:
+      * ``total`` is the full authorized workspace count (native Lance count),
+        not the page length.
+      * ``count`` is the number of items in this page.
+      * ``has_more``/``next_offset``/``previous_offset`` describe the page
+        continuation. ``next_offset`` is only present when the page returned
+        at least one row, so a caller cannot loop on a zero-length page.
+      * Ordering is ``created_at`` desc then opaque ``id`` desc, applied
+        globally before offset/limit. There is no snapshot guarantee across
+        concurrent writes: ``total`` and the page are separate reads.
+
+    A missing/empty table is a valid empty library (200). If the native
+    ordered count/scan is unavailable, the endpoint returns 503 instead of a
+    false empty success.
+    """
     try:
         # Dynamic workspace resolution
         ws_id = _resolve_ws_id(current_user)
 
         lancedb_handler = get_lancedb_handler(ws_id)
         if not lancedb_handler:
-             return router.success_response(data=[], metadata={"total": 0})
+            return router.success_response(
+                data=[],
+                metadata={
+                    "total": 0, "count": 0, "limit": limit,
+                    "offset": offset, "has_more": False,
+                    "ordering": "created_at_desc,id_desc",
+                },
+            )
 
-        docs = lancedb_handler.list_documents("documents", limit=limit, offset=offset)
-        
-        return router.success_response(
-            data=docs,
-            metadata={"total": len(docs), "limit": limit, "offset": offset}
+        page = lancedb_handler.list_documents_page(
+            "documents", limit=limit, offset=offset)
+
+        metadata = {
+            "total": page["total"],
+            "count": page["count"],
+            "limit": limit,
+            "offset": offset,
+            "has_more": page["has_more"],
+            "ordering": page["ordering"],
+        }
+        if page["has_more"] and page["next_offset"] is not None:
+            metadata["next_offset"] = page["next_offset"]
+        if offset > 0 and page["previous_offset"] is not None:
+            metadata["previous_offset"] = page["previous_offset"]
+        if page.get("stale_page"):
+            metadata["stale_page"] = True
+
+        return router.success_response(data=page["documents"], metadata=metadata)
+    except DocumentListingUnavailable as e:
+        logger.error(f"Document listing unavailable: {e}")
+        raise router.error_response(
+            "DOCUMENT_LISTING_UNAVAILABLE",
+            "Document listing is temporarily unavailable. Retry shortly.",
+            status_code=503,
         )
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")

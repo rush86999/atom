@@ -1,0 +1,47 @@
+{
+  "browser_claim": false,
+  "counts_note": "77 = worker focused gate selector; 80 = root backend neighborhood selector; 13 = root new-file normal controls; 23 = root frontend suite. These are different selectors and must not be summed.",
+  "frontend_tests": {
+    "log": "/private/tmp/root-doc-pagination-frontend-independent-20261110.log",
+    "passed": 23,
+    "seconds": 1.098
+  },
+  "isolation": {
+    "foreign_and_shared_excluded": true,
+    "rows_unchanged": true
+  },
+  "main_c042": "c0427e5204690c6fdba04bdc9b08b363e284d39f",
+  "normal_controls": {
+    "exit": 0,
+    "passed": 13,
+    "seconds": 26.99
+  },
+  "original_130_case": {
+    "exit": 0,
+    "passed": 1,
+    "seconds": 3.73
+  },
+  "original_negative_preserved": true,
+  "pagination": {
+    "missing": 0,
+    "newest_first": "w1-doc-129",
+    "offset_beyond_end": true,
+    "oldest_last": "w1-doc-000",
+    "overlap": 0,
+    "page0": 100,
+    "page1": 30,
+    "stored": 130,
+    "truthful_total": 130,
+    "union": 130
+  },
+  "private_probe": "/private/tmp/root-document-pagination-fixed-independent-20261110.py",
+  "private_records": "/private/tmp/root-document-pagination-independent-20261110-d6ojl__3/",
+  "product_source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "root_independent": true,
+  "source": "1605d7713116f1552d23e6a8288fd3902ce9468a",
+  "strict_packet": {
+    "artifacts": 2,
+    "passed": true,
+    "sources": 8
+  }
+}

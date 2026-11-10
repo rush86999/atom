@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -9,6 +9,19 @@ import { toast } from 'sonner';
 import api from '../lib/api';
 import { useProductProfile } from '../lib/product-profile';
 
+const PAGE_SIZE = 100;
+
+type DocumentsMetadata = {
+    total?: number;
+    count?: number;
+    limit?: number;
+    offset?: number;
+    has_more?: boolean;
+    next_offset?: number;
+    previous_offset?: number;
+    stale_page?: boolean;
+};
+
 export default function DocumentsPage() {
     const router = useRouter();
     const { isCapabilityEnabled } = useProductProfile();
@@ -18,19 +31,48 @@ export default function DocumentsPage() {
     const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [documents, setDocuments] = useState<any[]>([]);
     const [loadingDocs, setLoadingDocs] = useState(true);
+    const [docsError, setDocsError] = useState<string | null>(null);
+    const [offset, setOffset] = useState(0);
+    const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+    const requestSeq = useRef(0);
 
-    const fetchDocuments = useCallback(async () => {
+    const fetchDocuments = useCallback(async (nextOffset: number) => {
+        const seq = ++requestSeq.current;
+        setLoadingDocs(true);
+        setDocsError(null);
         try {
             const response = await api.get('/api/documents', {
+                params: { limit: PAGE_SIZE, offset: nextOffset },
                 validateStatus: (status) => status < 500,
             });
+            if (seq !== requestSeq.current) return;
+
             if (response.status === 200 && response.data?.success) {
-                setDocuments(response.data.data || []);
+                const items = Array.isArray(response.data.data) ? response.data.data : [];
+                const metadata: DocumentsMetadata = response.data.metadata || {};
+                const nextTotal = typeof metadata.total === 'number' ? metadata.total : items.length;
+                const resolvedOffset = typeof metadata.offset === 'number' ? metadata.offset : nextOffset;
+                setDocuments(items);
+                setOffset(resolvedOffset);
+                setTotal(nextTotal);
+                setHasMore(Boolean(metadata.has_more));
+            } else {
+                const detail = response.data?.detail;
+                const message = typeof detail === 'string'
+                    ? detail
+                    : detail?.message || response.data?.message || 'Could not load documents.';
+                setDocuments([]);
+                setDocsError(message);
             }
         } catch (error) {
-            console.error("Failed to fetch documents", error);
+            if (seq === requestSeq.current) {
+                console.error("Failed to fetch documents", error);
+                setDocuments([]);
+                setDocsError('Could not load documents. Please retry.');
+            }
         } finally {
-            setLoadingDocs(false);
+            if (seq === requestSeq.current) setLoadingDocs(false);
         }
     }, []);
 
@@ -56,7 +98,10 @@ export default function DocumentsPage() {
                     message: `Successfully uploaded "${file.name}". It is now available to your agent.`
                 });
                 toast.success("Document uploaded successfully");
-                fetchDocuments(); // Refresh list
+                // A new upload belongs on the first page of the newest-first
+                // ordering, so reset pagination instead of refreshing a later
+                // offset whose contents may have shifted.
+                void fetchDocuments(0);
             } else {
                 setUploadStatus({
                     type: 'error',
@@ -103,8 +148,22 @@ export default function DocumentsPage() {
     };
 
     useEffect(() => {
-        fetchDocuments();
+        void fetchDocuments(0);
     }, [fetchDocuments]);
+
+    // A delete performed on another surface can leave the current offset
+    // beyond the new end. Fall back to the previous page instead of showing a
+    // false "empty library" for a non-empty workspace.
+    useEffect(() => {
+        if (!loadingDocs && documents.length === 0 && offset > 0 && total > 0) {
+            void fetchDocuments(Math.max(0, offset - PAGE_SIZE));
+        }
+    }, [documents.length, loadingDocs, offset, total, fetchDocuments]);
+
+    const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+    const rangeStart = documents.length === 0 ? 0 : offset + 1;
+    const rangeEnd = documents.length === 0 ? 0 : offset + documents.length;
 
     return (
         <>
@@ -250,44 +309,119 @@ export default function DocumentsPage() {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-bold tracking-tight">Your Documents</h2>
-                        <Button variant="ghost" size="sm" onClick={fetchDocuments} disabled={loadingDocs}>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void fetchDocuments(offset)}
+                            disabled={loadingDocs}
+                        >
                             <RefreshCw className={`h-4 w-4 mr-2 ${loadingDocs ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                     </div>
 
-                    {documents.length === 0 && !loadingDocs ? (
-                        <Card>
+                    {docsError ? (
+                        <Card data-testid="documents-error">
+                            <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                                <AlertCircle className="h-12 w-12 mb-4 text-destructive" />
+                                <p>{docsError}</p>
+                                <Button
+                                    className="mt-4"
+                                    variant="outline"
+                                    onClick={() => void fetchDocuments(offset)}
+                                    disabled={loadingDocs}
+                                >
+                                    Retry
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ) : loadingDocs && documents.length === 0 ? (
+                        <Card data-testid="documents-loading">
+                            <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                                <RefreshCw className="h-8 w-8 mb-4 animate-spin text-primary" />
+                                <p>Loading documents…</p>
+                            </CardContent>
+                        </Card>
+                    ) : documents.length === 0 ? (
+                        <Card data-testid="documents-empty">
                             <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
                                 <FileText className="h-12 w-12 mb-4 opacity-20" />
-                                <p>No documents uploaded yet.</p>
+                                <p>
+                                    {total === 0
+                                        ? 'No documents uploaded yet.'
+                                        : 'No documents on this page.'}
+                                </p>
+                                {total > 0 && (
+                                    <Button
+                                        className="mt-4"
+                                        variant="outline"
+                                        onClick={() => void fetchDocuments(0)}
+                                        disabled={loadingDocs}
+                                    >
+                                        Back to first page
+                                    </Button>
+                                )}
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {documents.map((doc) => (
-                                <Card
-                                    key={doc.id}
-                                    className="cursor-pointer hover:border-primary transition-colors group"
-                                    onClick={() => router.push(`/documents/${doc.id}`)}
-                                >
-                                    <CardHeader className="flex flex-row items-top justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium leading-none truncate pr-4">
-                                            {doc.title}
-                                        </CardTitle>
-                                        <File className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-xs text-muted-foreground line-clamp-3 mb-4">
-                                            {doc.text_preview}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                            {new Date(doc.created_at).toLocaleDateString()}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
+                        <>
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {documents.map((doc) => (
+                                    <Card
+                                        key={doc.id}
+                                        className="cursor-pointer hover:border-primary transition-colors group"
+                                        onClick={() => router.push(`/documents/${doc.id}`)}
+                                    >
+                                        <CardHeader className="flex flex-row items-top justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-medium leading-none truncate pr-4">
+                                                {doc.title}
+                                            </CardTitle>
+                                            <File className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-xs text-muted-foreground line-clamp-3 mb-4">
+                                                {doc.text_preview}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {new Date(doc.created_at).toLocaleDateString()}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            <div
+                                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                                data-testid="documents-pagination"
+                            >
+                                <p className="text-sm text-muted-foreground" data-testid="documents-range">
+                                    Showing {rangeStart}–{rangeEnd} of {total}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        data-testid="documents-previous"
+                                        onClick={() => void fetchDocuments(Math.max(0, offset - PAGE_SIZE))}
+                                        disabled={loadingDocs || offset === 0}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <span className="text-sm text-muted-foreground" data-testid="documents-page">
+                                        Page {currentPage} of {pageCount}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        data-testid="documents-next"
+                                        onClick={() => void fetchDocuments(offset + PAGE_SIZE)}
+                                        disabled={loadingDocs || !hasMore}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>

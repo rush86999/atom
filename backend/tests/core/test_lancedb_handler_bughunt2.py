@@ -335,11 +335,12 @@ def test_has_column_handles_error():
 # ---------------------------------------------------------------------------
 # Coverage: list_documents offset/sort + metadata parsing
 # ---------------------------------------------------------------------------
-def test_list_documents_sorts_desc_and_applies_offset():
+def test_list_documents_sorts_desc_and_applies_offset(tmp_path):
+    import lancedb
+
     h = _make_handler()
-    h.db = MagicMock()
-    fake_table = MagicMock()
-    df = pd.DataFrame([
+    h.db = lancedb.connect(str(tmp_path))
+    h.db.create_table("docs", data=[
         {"id": "1", "text": "a", "source": "s", "metadata": "{}",
          "created_at": "2024-01-01"},
         {"id": "2", "text": "b", "source": "s", "metadata": '{"title":"B"}',
@@ -347,12 +348,8 @@ def test_list_documents_sorts_desc_and_applies_offset():
         {"id": "3", "text": "c", "source": "s", "metadata": None,
          "created_at": "2024-02-01"},
     ])
-    sq = MagicMock()
-    sq.limit.return_value.to_pandas.return_value = df
-    fake_table.search.return_value = sq
-    with patch.object(h, "get_table", return_value=fake_table):
-        docs = h.list_documents("docs", limit=2, offset=0)
-    # Sorted desc by created_at → id 2 (Mar) first, then id 3 (Feb)
+    docs = h.list_documents("docs", limit=2, offset=0)
+    # Global desc by created_at → id 2 (Mar) first, then id 3 (Feb)
     assert [d["id"] for d in docs] == ["2", "3"]
     assert docs[0]["title"] == "B"
     assert docs[1]["title"] == "s"  # metadata None → falls back to source
@@ -704,11 +701,12 @@ def test_has_column_handles_error():
 # ---------------------------------------------------------------------------
 # Coverage: list_documents offset/sort + metadata parsing
 # ---------------------------------------------------------------------------
-def test_list_documents_sorts_desc_and_applies_offset():
+def test_list_documents_sorts_desc_and_applies_offset(tmp_path):
+    import lancedb
+
     h = _make_handler()
-    h.db = MagicMock()
-    fake_table = MagicMock()
-    df = pd.DataFrame([
+    h.db = lancedb.connect(str(tmp_path))
+    h.db.create_table("docs", data=[
         {"id": "1", "text": "a", "source": "s", "metadata": "{}",
          "created_at": "2024-01-01"},
         {"id": "2", "text": "b", "source": "s", "metadata": '{"title":"B"}',
@@ -716,12 +714,8 @@ def test_list_documents_sorts_desc_and_applies_offset():
         {"id": "3", "text": "c", "source": "s", "metadata": None,
          "created_at": "2024-02-01"},
     ])
-    sq = MagicMock()
-    sq.limit.return_value.to_pandas.return_value = df
-    fake_table.search.return_value = sq
-    with patch.object(h, "get_table", return_value=fake_table):
-        docs = h.list_documents("docs", limit=2, offset=0)
-    # Sorted desc by created_at → id 2 (Mar) first, then id 3 (Feb)
+    docs = h.list_documents("docs", limit=2, offset=0)
+    # Global desc by created_at → id 2 (Mar) first, then id 3 (Feb)
     assert [d["id"] for d in docs] == ["2", "3"]
     assert docs[0]["title"] == "B"
     assert docs[1]["title"] == "s"  # metadata None → falls back to source
