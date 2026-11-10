@@ -17,7 +17,7 @@
     "prior_packet": "docs/acceptance/evidence/web_workflow_output_export_1924d51e8/"
   },
   "evidence_files": {
-    "README.md": "b985c35bd35a8cc0a2409b7a108b8a233d8329b87ea05f53aefcf209624b4573",
+    "README.md": "259cbf2e1240ad26547b99406ce89e6992f65c218e7a4b4501c6687efa9d2a81",
     "fresh_process/fresh_export_binding_bytes_hash.proof": "5cc3b78479f1ebe1822827728393cf212af7e9f1f724b2976a9aa8bdd4549839",
     "gates/affected_135.proof": "15da1a31c7b39bea9c0d4290f14ac41ce9b7242398f3ac11cb1ee32aa71ae41f",
     "gates/combined_42.proof": "d29ae33ea57d9194e5addcc248a63b6b307ddd93f3db4d777f09e8a8b4d9e0eb",
@@ -25,7 +25,11 @@
     "gates/root_definition_binding_local_pass.proof": "5e63afd637e2456618395086ef02c830c652dbfab5667990d690eb92956acf5c",
     "gates/root_original_7.proof": "9b4c69963d686e96a722caae7c39fa54d88e95e41dd515a21e34e0237cb0844b",
     "root_controls/root_definition_binding_fail_670277.controls.proof": "533af6596c17f81cf8eac55b0153b20c2bff4ea6f0cc7dd914140db1b9d8c9ac",
-    "root_controls/root_definition_binding_fail_670277.review.json": "2dbc5939ed4e46a319ed58c56fa37b044b2e6781c5a0f566dfe91d8046b7486f"
+    "root_controls/root_definition_binding_fail_670277.review.json": "2dbc5939ed4e46a319ed58c56fa37b044b2e6781c5a0f566dfe91d8046b7486f",
+    "root_controls/root_definition_binding_pass_1c876b5f6.controls.proof": "17dd34e6ad250c9e41b897bbe8af83e1044f706e092ba41f71c7c6f893ffc3f3",
+    "root_controls/root_definition_binding_pass_1c876b5f6.review.json": "b1fff13f2dbe306a06212de2cba9c753119faae749479de1a8ad3686eab8e0ef",
+    "root_controls/root_original_7_pass_1c876b5f6.controls.proof": "228d4dac41034656cd49b6bd4ebfb1e2dccfdc2ff649a4d548e07294d5439d9c",
+    "root_controls/root_original_7_pass_1c876b5f6.review.json": "90f43b6dc2a33c8cb6ea7c03e21f265b5d61ad8f4fde934c3699c63234967b00"
   },
   "fresh_process": {
     "model_calls": false,
@@ -43,12 +47,19 @@
     "root_definition_binding_local": "1 passed",
     "root_original_7": "7 passed"
   },
+  "integration_context": {
+    "base_attribution": "7fd05261cd9018af700ad162d381ad9485c5c814 (PR819 actual executed base)",
+    "owner": "root owns delivery/CI/PR",
+    "pr818": "merged 750f",
+    "pr819_integration_head": "2beccb819 (merged learning+CI only; 13 workflow bytes unchanged)",
+    "runtime_checkpoint": "1c876b5f6f39e0a579b53fae4b954a73403f2507"
+  },
   "kind": "web_workflow_output_export_definition_binding_evidence_manifest",
   "non_claims": [
     "Deterministic JSON only; no DOCX/PPTX/email generality.",
     "No served-model/browser/whole-app/PostgreSQL/soak/production claim.",
     "No new store/engine/schema/approval/filesystem path.",
-    "Root independently owns final acceptance and delivery/CI/PR."
+    "Root independently reverified the definition-binding probe and unchanged original 7 at controlled scope; root owns delivery/CI/PR. Not whole-app acceptance."
   ],
   "packet": "docs/acceptance/evidence/web_workflow_output_export_definition_binding_1c876b5f6/",
   "root_controls": {
@@ -58,7 +69,23 @@
       "result": "revised authoritative digest exported 200",
       "review": "root_controls/root_definition_binding_fail_670277.review.json"
     },
-    "root_unchanged_rerun": "pending independent root run at 1c876b5f6"
+    "root_definition_binding_pass_1c876b5f6": {
+      "actual_exit": 0,
+      "controls": "root_controls/root_definition_binding_pass_1c876b5f6.controls.proof",
+      "duration": "3.41s",
+      "result": "1/1 PASS definition-binding probe",
+      "review": "root_controls/root_definition_binding_pass_1c876b5f6.review.json",
+      "same_source": true
+    },
+    "root_original_7_pass_1c876b5f6": {
+      "actual_exit": 0,
+      "controls": "root_controls/root_original_7_pass_1c876b5f6.controls.proof",
+      "duration": "8.05s",
+      "result": "7/7 PASS unchanged original export probes",
+      "review": "root_controls/root_original_7_pass_1c876b5f6.review.json",
+      "same_source": true
+    },
+    "root_unchanged_rerun": "independently reverified at 1c876b5f6; controlled scope only"
   },
   "sanitation": {
     "paths_redacted_to": "<scratch-path>",

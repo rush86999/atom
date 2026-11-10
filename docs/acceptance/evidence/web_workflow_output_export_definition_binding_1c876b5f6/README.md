@@ -56,6 +56,27 @@ Repair at `1c876b5f6`:
 No frontend source changed in this repair; the prior 42 frontend
 Execution-Details/page/generator evidence remains at its recorded source.
 
+## Root independent results at 1c876b5f6
+
+- Definition-binding probe: **1/1 PASS**, 3.41s, `actual_exit 0`,
+  `same_source true` (`root_controls/root_definition_binding_pass_1c876b5f6.*`).
+- Original unchanged seven export probes: **7/7 PASS**, 8.05s,
+  `actual_exit 0`, `same_source true`
+  (`root_controls/root_original_7_pass_1c876b5f6.*`).
+- Original definition-binding negative at `670277944` is preserved
+  (`root_controls/root_definition_binding_fail_670277.*`); the original
+  `70cc3b7e7` seven-failure negative remains in the prior packet.
+- Controlled API/SQLite/real-engine scope only; not whole-app acceptance.
+
+## Integration context
+
+- Base attribution: PR819 reviewed delivery `7fd05261c` is the actual executed
+  base for the workflow files.
+- Runtime checkpoint: `1c876b5f6` exact.
+- PR819 integration head `2beccb819` reflects only merged learning+CI updates;
+  the 13 workflow bytes are unchanged. PR818 merged `750f`.
+- Root owns delivery/CI integration and PR/merge.
+
 ## Fresh-process determinism
 
 Two separate fresh OS processes exported the same completed execution:
