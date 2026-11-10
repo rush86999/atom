@@ -205,7 +205,49 @@
       "independent_explicit_token_probes": 7,
       "next": "actual ordinary browser login/signup/reload verification on combined frozen source",
       "runtime_candidate": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
-      "state": "Independent 191 UI,61 SDK,7 explicit-token controls pass. Ordinary browser verification currently running; not yet accepted."
+      "state": "Ordinary local-HTTP browser episode independently reviewed; frozen runtime3673, safe evidencecb1,19source12artifact Git matches. Password-recovery-page admission defect separately reproduced and being repaired.",
+      "accepted_browser_scope": {
+        "runtime_source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
+        "evidence_ref": "cb1d9a961acecfb7a747d1ad5b6e19e27da572d2",
+        "bundle": "docs/engineering/evidence/web_auth_browser_3673b07bf/",
+        "source_hashes": 19,
+        "artifact_hashes": 12,
+        "normal_boundary": [
+          "fresh UI signup",
+          "visible UI onboarding",
+          "encrypted HttpOnly SDK cookie with canonical backend identity",
+          "Settings reload",
+          "UI logout",
+          "same-account login via both forms",
+          "exact relative Settings callback"
+        ],
+        "root_checks": [
+          "executed harness SHA matches committed artifact",
+          "screenshot inspected",
+          "independent retained scratch SQL:1account,onboardingcomplete",
+          "strict Git source/artifact/candidate verification"
+        ],
+        "not_claimed": [
+          "browser production TLS",
+          "live2FA",
+          "external SSO",
+          "complete account recovery",
+          "all app goals"
+        ]
+      },
+      "recovery_successor": {
+        "negative_source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
+        "finding": "Middleware redirects signed-out forgot-password and reset-password pages307 tologin.",
+        "independent_negative": {
+          "passed": 1,
+          "failed": 2
+        },
+        "uncommitted_successor_probes": {
+          "passed": 3,
+          "failed": 0
+        },
+        "acceptance": "Await frozen repaired source, affected controls and targeted ordinary browser recovery; provisional3pass is not whole-flow acceptance."
+      }
     },
     "actual_main_ref": "c0427e5204690c6fdba04bdc9b08b363e284d39f",
     "superseded_prs": {
@@ -227,7 +269,7 @@
         "task": "Independent source/effect verification, preserve all143claims18goals, web first/mobile last; postmerge checks model-free."
       }
     ],
-    "observed_at": "2026-11-10T01:16:04.886773+00:00"
+    "observed_at": "2026-11-10T01:28:08.159769+00:00"
   },
   "operational_snapshot_rule": "Top-level historical PR/readback fields retain their original snapshot. Latest operational status is lead_verified_followthrough_2026_11_09; no historical evidence is reattributed."
 }
