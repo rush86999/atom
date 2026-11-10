@@ -388,3 +388,25 @@ now refuses an unknown vendor by default (obligation, not a silent create).
 **Verified final joint HEAD:** `b9c8ba654` — combined assignment + connected
 suite **202 passed** after the receipt identity sync. Agent 2 branch
 `ddcf2a787`, Agent 1 branch `acd86a2aa`. All worktrees clean.
+
+## Session: presence override ORACLE-01 bounded (2026-11-10)
+
+**Worktree/branch:** `/private/tmp/atom-web-presence-override-20261110`,
+`codex/web-presence-override-20261110` from main `310e72aec`.
+
+**Owned files (do not refactor in parallel):**
+`backend/api/user_activity_routes.py`,
+`backend/core/user_activity_service.py`,
+`backend/core/presence_override_write_service.py`,
+`backend/tests/api/test_user_activity_presence_override.py`,
+`frontend-nextjs/hooks/useUserActivity.ts`,
+`frontend-nextjs/hooks/__tests__/useUserActivity.test.ts`,
+`docs/acceptance/evidence/web_presence_override_20261110/`.
+
+**Scope:** verified manual presence override/clear plus the essential state
+read, heartbeat/expiry consumer path, and the existing hook contract. Not
+whole-app ORACLE; no workflow files, CI YAML or additive ledger edits.
+
+**Status:** repair `29dcfaad9`, evidence `bf2deff02`; frozen for root
+independent review. Original public-API 500 repro and root 202-uncertainty
+negative retained. No PR/merge.
