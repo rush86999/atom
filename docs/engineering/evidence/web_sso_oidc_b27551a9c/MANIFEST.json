@@ -1,7 +1,7 @@
 {
   "all_boundary_checks_true": true,
   "artifacts": {
-    "README.md": "9996fd9cd8dbdb5f067589e6c2a322d357c973b59af003cbb4cc2e501e49c7a5",
+    "README.md": "a5406683d96837b87c42bbc8b391cd652fd83f1f17d8b66871b7d5324fcb169c",
     "boundary_checks.json": "bba7e1b2f1b434df4d9220a2ab61bcfbcd7f34adc334c26b6a6f58cc2c41efef",
     "browser_sso_oidc.py": "5228fb27ab7acc6dcd74ff0608c04e641ba4c129524630268978daac8fd75bb4",
     "command.json": "89cc9648c1b79ca71f0f2d3a7af8ae73cab89dd434fa03a1dbfd2cfb463989b8",
@@ -19,8 +19,17 @@
   },
   "boundary_check_count": 31,
   "candidate_is_main": false,
+  "executed_source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
   "harness_sha256": "5228fb27ab7acc6dcd74ff0608c04e641ba4c129524630268978daac8fd75bb4",
   "logout_assertions": 4,
+  "public_secret_scan": {
+    "explicit_non_secret_exclusion": "Fixed unused frontend JWT marker in exact historical harness; real NEXTAUTH/backend secrets were independently scanned.",
+    "issues": 0,
+    "jwt_found": false,
+    "private_review": "/private/tmp/root-sso-public-secret-review-20261109.json",
+    "private_values_checked": 5,
+    "public_files_checked": 16
+  },
   "referrer_repair_source": "86053d3a70627065784819a41273939775c65e1c",
   "restart_extension_ok": true,
   "root_integration_gate": {

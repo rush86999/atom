@@ -162,12 +162,21 @@ No browser is launched by this self-test.
 
 ## Exact source manifest
 
-`MANIFEST.json` records the candidate-bound SHA-256 of every product source
-file the proof depends on (the two security-header variants and shared helper,
-the SSO route, controlled provider, auth/database/models/config, the SSO
-tests, the frontend callback/login/SSO helper/middleware, and Next config).
-All packet artifacts are Git-tracked in this directory; no canonical artifact
-is omitted as ignored.
+`MANIFEST.json` declares the canonical `executed_source`
+`b27551a9cb78ca080e97d4e8955bef49a1e220e3` and records the candidate-bound
+SHA-256 of every product source file the proof depends on (the two
+security-header variants and shared helper, the SSO route, controlled
+provider, auth/database/models/config, the SSO tests, the frontend
+callback/login/SSO helper/middleware, and Next config). All packet artifacts
+are Git-tracked in this directory; no canonical artifact is omitted as
+ignored.
+
+Root's public secret scan checked 16 public files and 5 private values with no
+issues and no JWT. One fixed, unused frontend JWT marker in the exact
+historical harness was explicitly excluded as a non-secret; real
+NEXTAUTH/backend secrets were independently scanned. The private review is
+retained at `/private/tmp/root-sso-public-secret-review-20261109.json`; the
+marker itself is not published.
 
 ## Preserved history and baseline discipline
 
