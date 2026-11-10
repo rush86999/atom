@@ -1,5 +1,7 @@
 # Agent training and graduation
 
+For the comprehensive reference, see the [Agent Graduation Guide](graduation.md).
+
 Atom connects teaching with evidence and controlled responsibility. You teach
 an agent the relevant business context, inspect its work, and use recorded
 performance to assess whether it is ready for more independent work.
@@ -87,6 +89,8 @@ model, business domain or deployment. The
 and [later progress reconciliation](../engineering/APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json)
 retain the acceptance scope and remaining goals.
 
-General employee-like judgment and broad autonomous competence remain goals.
+The end goal is unrestricted autonomy, with domain-specific exceptions for
+required approval, restricted actions or supervision. General employee-like
+judgment and broad autonomous competence remain goals.
 Training here supplies reusable lessons and context; it does not imply model
 weight fine-tuning or automatic mastery of private business data.

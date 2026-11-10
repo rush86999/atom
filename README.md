@@ -80,9 +80,10 @@ behavior and its evidence.
 
 Training here means reusable lessons and business context supplied to the agent.
 The demonstrated behavior does not require retraining the underlying model.
-The longer-term goal is agents that take on more responsibility as they earn it
-through assessment, verified work and human oversight. See [agent training and
-graduation](docs/agents/TRAINING_AND_GRADUATION.md) for the maturity stages,
+The end goal is **unrestricted autonomy, with domain-specific exceptions**:
+agents earn independent responsibility through assessment and verified work,
+while required review and supervision remain explicit for applicable domains. See [agent training and
+graduation](docs/agents/graduation.md) for the maturity stages,
 review process and implementation references. General employee-like
 judgment and broad autonomous competence remain development goals.
 
@@ -97,7 +98,7 @@ on supported paths. A model proposal is not permission to act.
   review; missing, rejected or mismatched approval cannot authorize the action.
 - **Reviewable execution:** supported results retain source and operation
   provenance. Unresolved requirements block completion and dependent reports.
-- **Controlled autonomy:** the [agent graduation system](docs/agents/TRAINING_AND_GRADUATION.md)
+- **Controlled autonomy:** the [agent graduation system](docs/agents/graduation.md)
   connects readiness evidence and authorized promotion with maturity stages.
   Broad autonomous competence remains a development goal.
 
