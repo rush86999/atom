@@ -1,0 +1,77 @@
+{
+  "schema": "atom-tw01-two-fact-both-orders-1",
+  "status": "PASS bounded controlled-mechanism episode; no model/provider/ordinary-browser claim",
+  "product_source": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "branch": "codex/web-tw01-two-fact-joined-20261110",
+  "test_files": {
+    "backend/tests/process_support/task_wait_two_fact_process_worker.py": "f387e702a939bb73172f697c5b0f733f9308c5781b23241be3b4a27296f0c9bc",
+    "backend/tests/test_task_wait_two_fact_two_order_process.py": "aff736fec5ed2684727af2a8469970f82ae8437a70a8b93cb33de3f27a8a6854"
+  },
+  "product_backend_frontend_diff": [],
+  "orders": [
+    "invoice->receiving",
+    "receiving->invoice"
+  ],
+  "assertions": {
+    "two_distinct_missing_facts": true,
+    "both_orders": true,
+    "real_os_process_restart_while_waiting": true,
+    "recovery_process_adaptation_calls": 0,
+    "same_run_objective_across_restart": true,
+    "second_wait_after_first_answer": true,
+    "final_reconciliation_total": "140.25",
+    "one_current_document_artifact": true,
+    "artifact_sha_matches_applied_receipt": true,
+    "document_contains_current_total": true,
+    "two_answer_source_records_with_versions": true,
+    "duplicate_second_delivery_inert": true,
+    "no_premature_completion_or_artifact": true,
+    "no_hidden_advance_or_plan_injection": true
+  },
+  "gates": {
+    "joined_two_order_process": "2 passed",
+    "focused_reused_plus_joined": "33 passed"
+  },
+  "reused_controls": [
+    "independent work during wait",
+    "sequential two-fact completion",
+    "two-job isolation",
+    "irrelevant/duplicate/cancelled/replay negatives",
+    "source revocation/version-after-acceptance",
+    "artifact content guard",
+    "real-process one-fact recovery",
+    "controlled 7+7-day two-fact clock twin"
+  ],
+  "clock_scope": "controlled clock seam/durable timestamps only; no actual day/soak claim",
+  "ui_boundary": {
+    "ordinary_ui_source": "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+    "ordinary_ui_sends_use_model": true,
+    "public_route": "POST /api/assignments/from-objective",
+    "route_use_model_default": true,
+    "route_model_dependency": "backend/api/assignment_routes.py _advance_employee_work -> propose_adaptation/_employee_llm",
+    "boundary": "No provider/model authority was available or used. A browser objective campaign was not run and no ordinary-UI pass is claimed. The bounded episode uses the same public route with the repository's existing controlled proposal transport in real child processes.",
+    "not_qualified": [
+      "ordinary browser objective creation",
+      "live served-model judgment",
+      "general adaptive breadth"
+    ]
+  },
+  "model_provider_dispatched": false,
+  "world_created": false,
+  "artifacts": {
+    "README.md": "94ccbf6643ee270fa8c665d5dccda7e6a10a9054781ddb9d28708e36596014e2",
+    "focused-gate-33.log": "a3021100d79df67b52a80ea5030dca7a1f0bf49426610c07323e2149c84310ce",
+    "joined-two-order-2.log": "55cea045560f941ae0b5b69bda2a10b4248b28ed30f38f5a9ba8da33e56f6172",
+    "source-identity.json": "accd770ce3286531d1984bd55362c5c1fa7f4d37182e11cb2387b73648f37640",
+    "ui-boundary-check.log": "65c7b855eb8c0dfe8912fe3f1a4a038e5d694a173628c31ad20a37cc26cc8427",
+    "ui-boundary.json": "d505d72f08c2a41b0976c54317dc20cc5c8c8c839be3e30911e9169c4365213f",
+    "verification.json": "a6bde9e45e58af1adc3aea3505117409423396ad21336b609dc7056655b80905"
+  },
+  "exclusions": [
+    "no product/backend/frontend edit",
+    "no model/provider/browser campaign",
+    "no live DB/account/send/spend/credentials",
+    "no actual multi-day soak",
+    "no whole-app or general-autonomy acceptance"
+  ]
+}

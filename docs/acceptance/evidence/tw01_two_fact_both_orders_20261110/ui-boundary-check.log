@@ -1,0 +1,22 @@
+ordinary assignment UI boundary check
+source=frontend-nextjs/components/assignments/AssignmentPanel.tsx
+325:          use_model: true,
+route=backend/api/assignment_routes.py
+33:from core.employee_adaptation import adopt_adaptation, propose_adaptation
+150:    use_model: bool = True
+154:    use_model: bool = True
+1099:    if provenance.get("use_model") is False:
+1102:            or provenance.get("use_model") is True)
+1105:async def _advance_employee_work(
+1333:        proposal_result = await propose_adaptation(
+1573:    llm = _employee_llm(current_user, db) if body.use_model else None
+1645:            "use_model": bool(body.use_model),
+1728:        adaptive_rounds = await _advance_employee_work(
+2084:    llm = _employee_llm(current_user, db) if body.use_model else None
+2087:        rounds = await _advance_employee_work(
+2298:            reassessment_rounds = await _advance_employee_work(
+2391:    use_model = provenance.get("use_model", True) is not False
+2398:        use_model
+2406:            continuation_rounds = await _advance_employee_work(
+2601:            rounds = await _advance_employee_work(
+2703:        rounds = await _advance_employee_work(

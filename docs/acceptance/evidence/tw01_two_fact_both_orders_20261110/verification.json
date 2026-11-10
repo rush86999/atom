@@ -1,0 +1,65 @@
+{
+  "schema": "atom-tw01-two-fact-both-orders-1",
+  "status": "PASS bounded controlled-mechanism episode",
+  "product_source": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "branch": "codex/web-tw01-two-fact-joined-20261110",
+  "orders": [
+    "invoice->receiving",
+    "receiving->invoice"
+  ],
+  "assertions": {
+    "two_distinct_missing_facts": true,
+    "both_orders": true,
+    "real_os_process_restart_while_waiting": true,
+    "recovery_process_adaptation_calls": 0,
+    "same_run_objective_across_restart": true,
+    "second_wait_after_first_answer": true,
+    "final_reconciliation_total": "140.25",
+    "one_current_document_artifact": true,
+    "artifact_sha_matches_applied_receipt": true,
+    "document_contains_current_total": true,
+    "two_answer_source_records_with_versions": true,
+    "duplicate_second_delivery_inert": true,
+    "no_premature_completion_or_artifact": true,
+    "no_hidden_advance_or_plan_injection": true
+  },
+  "gates": {
+    "joined_two_order_process": "2 passed",
+    "focused_reused_plus_joined": "33 passed"
+  },
+  "reused_controls": [
+    "independent work during wait",
+    "sequential two-fact completion",
+    "two-job isolation",
+    "irrelevant/duplicate/cancelled/replay negatives",
+    "source revocation/version-after-acceptance",
+    "artifact content guard",
+    "real-process one-fact recovery",
+    "controlled 7+7-day two-fact clock twin"
+  ],
+  "clock_scope": "controlled clock seam/durable timestamps only; no actual day/soak claim",
+  "ui_boundary": {
+    "ordinary_ui_source": "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+    "ordinary_ui_sends_use_model": true,
+    "public_route": "POST /api/assignments/from-objective",
+    "route_use_model_default": true,
+    "route_model_dependency": "backend/api/assignment_routes.py _advance_employee_work -> propose_adaptation/_employee_llm",
+    "boundary": "No provider/model authority was available or used. A browser objective campaign was not run and no ordinary-UI pass is claimed. The bounded episode uses the same public route with the repository's existing controlled proposal transport in real child processes.",
+    "not_qualified": [
+      "ordinary browser objective creation",
+      "live served-model judgment",
+      "general adaptive breadth"
+    ]
+  },
+  "model_provider_dispatched": false,
+  "product_backend_frontend_diff": [],
+  "world_created": false,
+  "not_qualified": [
+    "general autonomy/adaptive judgment",
+    "live provider/model quality",
+    "ordinary browser objective creation",
+    "actual multi-day soak",
+    "PostgreSQL/multi-worker/soak",
+    "whole-app completion"
+  ]
+}

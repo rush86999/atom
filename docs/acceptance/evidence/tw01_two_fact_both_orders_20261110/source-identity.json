@@ -1,0 +1,23 @@
+{
+  "product_source": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "branch": "codex/web-tw01-two-fact-joined-20261110",
+  "test_files": {
+    "backend/tests/process_support/task_wait_two_fact_process_worker.py": "f387e702a939bb73172f697c5b0f733f9308c5781b23241be3b4a27296f0c9bc",
+    "backend/tests/test_task_wait_two_fact_two_order_process.py": "aff736fec5ed2684727af2a8469970f82ae8437a70a8b93cb33de3f27a8a6854"
+  },
+  "product_backend_frontend_diff": [],
+  "harness": {
+    "kind": "existing controlled proposal transport + real public assignment router + real OS child processes",
+    "world_created": false,
+    "scratch_roots": "pytest tmp_path per test; explicit scratch SQLite/data/LanceDB/office",
+    "model_provider_dispatched": false
+  },
+  "existing_evidence": [
+    "backend/tests/test_task_wait_two_fact_events.py",
+    "backend/tests/test_task_wait_source_continuation_regressions.py",
+    "backend/tests/test_task_wait_process_recovery.py",
+    "backend/tests/test_task_wait_independent_work.py",
+    "backend/tests/test_generic_information_multiday_contract.py",
+    "docs/acceptance/evidence/employee_g5_heldout_two_order_fresh_3ccad7a5a/"
+  ]
+}

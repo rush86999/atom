@@ -1,0 +1,40 @@
+
+tests/test_task_wait_two_fact_two_order_process.py::test_two_facts_both_orders_survive_restart_and_publish_one_current_artifact[invoice-invoice-receiving] 
+-------------------------------- live log setup --------------------------------
+2026-11-10 09:04:04 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 09:04:04 [    INFO] EscalationManager initialized
+2026-11-10 09:04:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:04:04 [    INFO] EscalationManager initialized
+2026-11-10 09:04:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:04:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:04:04 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 50%]
+tests/test_task_wait_two_fact_two_order_process.py::test_two_facts_both_orders_survive_restart_and_publish_one_current_artifact[receiving-receiving-invoice] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 2 passed, 5 warnings in 39.40s ========================

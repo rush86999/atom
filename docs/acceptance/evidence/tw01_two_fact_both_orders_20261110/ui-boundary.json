@@ -1,0 +1,13 @@
+{
+  "ordinary_ui_source": "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+  "ordinary_ui_sends_use_model": true,
+  "public_route": "POST /api/assignments/from-objective",
+  "route_use_model_default": true,
+  "route_model_dependency": "backend/api/assignment_routes.py _advance_employee_work -> propose_adaptation/_employee_llm",
+  "boundary": "No provider/model authority was available or used. A browser objective campaign was not run and no ordinary-UI pass is claimed. The bounded episode uses the same public route with the repository's existing controlled proposal transport in real child processes.",
+  "not_qualified": [
+    "ordinary browser objective creation",
+    "live served-model judgment",
+    "general adaptive breadth"
+  ]
+}
