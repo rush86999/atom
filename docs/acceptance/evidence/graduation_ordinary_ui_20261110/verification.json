@@ -134,6 +134,17 @@
       "screenshots/approvals-qualification.png"
     ]
   },
+  "run5_negative": {
+    "status": "FAIL",
+    "failed_at": "ordinary onboarding modal intercepted the Agents Teach click",
+    "result": "no canvas, HITL action or receipt was created",
+    "preserved_files": [
+      "journey-onboarding-intercept-run5.json",
+      "ui-run5-onboarding-intercept.log",
+      "screenshots/agents-page-run5.png"
+    ],
+    "resolution": "run6 completed/dismissed onboarding through its own controls before Teach; no DB/API onboarding seed"
+  },
   "safety": {
     "world_storage_preflight": "OK; canonical local root via symlink; no maintenance lock",
     "heavy_gate": "used",
