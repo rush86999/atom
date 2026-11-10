@@ -1,0 +1,45 @@
+{
+  "admin_fixture_reset": "existing bootstrap password reset only; canvas/content/audit unchanged",
+  "artifact_sha256": "54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038",
+  "branch": "codex/office-email-ordinary-browser-20261110",
+  "canvas_id": "9bdfe77a-c44b-44e6-8bee-8210388a9573",
+  "code_snapshot_sha256": "b75055f7407e34de0c7fb2730fcb48b05f9228c36c14af6edafe93346004728f",
+  "current_audit": "cf0fd722-49b4-42b0-a06a-d8e89d7f328b",
+  "evidence_files": {
+    "README.md": "07b6eef5c16ce0f8c5de0064b28dc532deea7b6aa7aa5ae19776ca1a607d0dcd",
+    "capture/canvas-current.page.txt": "b5e7f46ba7d3e90214366217f7d00338d4354382a0e08130dccf9c7fe059a153",
+    "capture/canvas-current.png": "ff76fe1591e7d8b2b39558cba3959219858a85a013453cd5e229cfff4ec58560",
+    "capture/continuation.result.json": "98781f8793268391eda93631946c755a4ba5a2c73aa5369d177c68e42336f396",
+    "capture/package.semantic.json": "515256a955be73c8b9f821b79041e4fb98326498f0d6560a91472d13c7d6d799",
+    "capture/requests.json": "8ac0ba6c51c90b870082e31f4bcc5a609e96da4be12f4ad6859c133737f809c6",
+    "capture/root_readback.sanitized.json": "0107bbbf551e1c844404222c858476a9b4b9fe92ffceae8f2ce63e273e4cb8f6",
+    "partial/docx-initial.page.txt": "db4b75060d78de23d0efbf62a520aaaf61fa0d6dafbad67a025dd90903e00b2a",
+    "partial/docx-initial.png": "f03d93c89a30ec30459510c9b5b524f42b4688035daef46b37f0a017ac51e485",
+    "partial/initial.result.json": "d1fdb211b88db0f852353dc7bf5f8c1179a104548c1353e5f0e91430b03e177a",
+    "partial/pptx-initial.page.txt": "b940814a2284853e6e0613f5b001ff26bac9f776a7a24b1a5d27085271e91b78",
+    "partial/pptx-initial.png": "1703c1d972c22cc613c413315cf4d428d1636b086ec7aa642e4f0a4ed02c6d19",
+    "partial/save-click-timeout.proof": "3858f78e1f3beab46bf1c755c987745dc932a8941da06009fd8e05ce1ebe45b2",
+    "root_integrated/controls.proof": "8f27fc4c1e7eed91a3427361f3d8df75bb0d7013f798f19d9f31a5a27deb8691",
+    "root_integrated/review.sanitized.json": "7c99b3a23b3a4469de833373566710c2e27e164f90ebc14164142c75acf226ca"
+  },
+  "kind": "office_email_ordinary_browser_continuation",
+  "non_claims": [
+    "not general Office/browser/whole-GOAL-11",
+    "no product edit",
+    "no PR/merge/CI/goal-index",
+    "no provider/model/send/live DB"
+  ],
+  "preserved_partial": {
+    "initial_docx_pptx": "PASS",
+    "initial_negative": "previous 96 world/negative retained",
+    "save_click_timeout": "harness observation; root readback proved commit"
+  },
+  "root_integrated": {
+    "result": "12 controls PASS 12.10s",
+    "source": "/private/tmp/root-office-email-integrated-independent-20261110-seuk_ifc/review.json"
+  },
+  "run": "run-b25cb62b465c",
+  "source_head": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
+  "status": "passed_one_supported_docx_continuation",
+  "world": "office_ordinary_browser_1d762c2f3d_1794309563"
+}
