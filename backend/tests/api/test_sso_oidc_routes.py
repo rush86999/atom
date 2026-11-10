@@ -592,6 +592,21 @@ db.close()
 '''
 
 
+def _sso_child_environment(backend_dir):
+    """Give a real child process its imports without inheriting pytest sys.path.
+
+    Running a script from tmp_path sets sys.path[0] to that temporary folder;
+    cwd alone does not add backend/. Keep unrelated environment settings and
+    any existing Python path, with this checkout's backend explicitly first.
+    """
+    env = os.environ.copy()
+    inherited = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = str(backend_dir) + (
+        os.pathsep + inherited if inherited else ""
+    )
+    return env
+
+
 def _run_child_web_exchange(
         tmp_path, db_path, code, cookie_name, cookie_value, origin):
     """Exchange one handoff in a separate Python process.
@@ -616,7 +631,7 @@ def _run_child_web_exchange(
     result = subprocess.run(
         [sys.executable, str(script_path), str(input_path)],
         cwd=str(backend_dir),
-        env=os.environ.copy(),
+        env=_sso_child_environment(backend_dir),
         capture_output=True,
         text=True,
         timeout=120,
@@ -661,7 +676,7 @@ def _run_child_callback(
     result = subprocess.run(
         [sys.executable, str(script_path), str(input_path)],
         cwd=str(backend_dir),
-        env=os.environ.copy(),
+        env=_sso_child_environment(backend_dir),
         capture_output=True,
         text=True,
         timeout=120,
@@ -1538,13 +1553,14 @@ def test_login_persists_state_digest_not_raw_url_state(
 
 
 def test_process_restart_preserves_durable_state_and_cookie(
-        client, provider, db, tmp_path):
+        client, provider, db, tmp_path, monkeypatch):
     """Controlled process-API proof, not uvicorn/browser qualification."""
     _save_config(client, provider)
     callback = _provider_redirect(_start_login(client))
     cookie_name, cookie_value = _cookie_pair(client)
     db_path = db.get_bind().url.database
 
+    monkeypatch.delenv("PYTHONPATH", raising=False)
     summary = _run_child_callback(
         tmp_path,
         db_path,
@@ -2341,7 +2357,7 @@ def test_web_exchange_requires_every_handoff_metadata_field(
 
 
 def test_web_handoff_exchange_survives_process_restart(
-        client, web_provider, web_app_url, db, tmp_path):
+        client, web_provider, web_app_url, db, tmp_path, monkeypatch):
     _save_config(client, web_provider)
     callback = _provider_redirect(_web_login(client).headers["Location"])
     callback_response = _callback(client, callback)
@@ -2349,6 +2365,7 @@ def test_web_handoff_exchange_survives_process_restart(
     cookie_name, cookie_value = _cookie_pair(client)
     db_path = db.get_bind().url.database
 
+    monkeypatch.delenv("PYTHONPATH", raising=False)
     summary = _run_child_web_exchange(
         tmp_path,
         db_path,
