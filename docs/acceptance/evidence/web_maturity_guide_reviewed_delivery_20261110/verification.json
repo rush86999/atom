@@ -1,0 +1,20 @@
+{
+  "runtime_source": "e8ee987f4a62849ca48aedce79122b9f9cc042d4",
+  "independent_controls": "Baseline3failed1passed5.29s; unchanged repaired4passed5.09s. Real JWT/SQL/public router; actual_exit/same_source verified.",
+  "producer_controls": "20 onboarding/scope;79 affected neighborhood;4 unrelated teach baseline failures preserved.",
+  "scope": "Maturity-guide read authority only; no graduation thresholds/lifecycle/readiness label/promotion changed. Existing scoped-reader reused.",
+  "frozen_packet_git_matches": 13,
+  "artifacts": {
+    "baseline-review.json": "ab683a4d7727c57cc5402494fbba9e0879fea0f6c709b11170c99658f28f8c2e",
+    "baseline-controls.log": "94fecae46025a7ec738aa0e463c251757711537f6bb5353400225329555a2f3a",
+    "baseline-probe.py": "f2818982192c0928cc4b31243b141e0f3d1dd9daf9808695258e0ea4908588ee",
+    "fixed-review.json": "8a42c240c679b602107c70c086624504458e4640b27b95eaff09b75c9689a65c",
+    "fixed-controls.log": "796b586075cec13b02a473dd62499d6567cd32872f5c02e45ec3f4616de37722",
+    "fixed-probe.py": "f2818982192c0928cc4b31243b141e0f3d1dd9daf9808695258e0ea4908588ee"
+  },
+  "source_files": {
+    "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+    "backend/tests/api/test_agent_onboarding_routes.py": "ae4cdb388a0777456fc629d642bf1bee8b956ce49255b1a7691dc0cecc2867c1",
+    "backend/tests/api/test_maturity_guide_scope.py": "2d026ec83610fd461f9d7d3b1a2505b5e7b08c44c0c91ff3cd4607332cf78245"
+  }
+}

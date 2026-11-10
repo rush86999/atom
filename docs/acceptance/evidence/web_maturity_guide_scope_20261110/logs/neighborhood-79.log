@@ -1,0 +1,312 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 02:54:08 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 02:54:08 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:54:08 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:54:08 [    INFO] EscalationManager initialized
+2026-11-10 02:54:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:54:08 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:54:08 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:54:08 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:54:08 [    INFO] EscalationManager initialized
+2026-11-10 02:54:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:54:08 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 02:54:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 02:54:08 [    INFO] MCP Service initialized
+
+tests/api/test_maturity_guide_scope.py::test_owner_and_same_scope_member_get_guide_with_fresh_readback 
+-------------------------------- live log setup --------------------------------
+2026-11-10 02:54:08 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:09 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-887456dc/maturity-guide "HTTP/1.1 200 OK"
+2026-11-10 02:54:09 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-887456dc/maturity-guide "HTTP/1.1 200 OK"
+2026-11-10 02:54:09 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-887456dc/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/api/test_maturity_guide_scope.py::test_foreign_tenant_workspace_and_unknown_are_indistinguishable_404 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:10 [ WARNING] API Error: AGENT_NOT_FOUND - Agent agent-a-3169e18e not found
+2026-11-10 02:54:10 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-3169e18e/maturity-guide "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:10 [ WARNING] API Error: AGENT_NOT_FOUND - Agent does-not-exist not found
+2026-11-10 02:54:10 [    INFO] HTTP Request: GET http://testserver/api/agents/does-not-exist/maturity-guide "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/api/test_maturity_guide_scope.py::test_legacy_shared_agent_remains_readable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:10 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-shared-4e064ba1/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/api/test_maturity_guide_scope.py::test_deactivated_principal_is_refused_without_data 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:11 [ WARNING] Rejected token for non-active user user-b-80ea3cc1 (status=inactive)
+2026-11-10 02:54:11 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-b-80ea3cc1/maturity-guide "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  5%]
+tests/api/test_maturity_guide_scope.py::test_moved_principal_uses_current_workspace_not_token_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:12 [ WARNING] API Error: AGENT_NOT_FOUND - Agent agent-a-9584837d not found
+2026-11-10 02:54:12 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-9584837d/maturity-guide "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:12 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-b-9584837d/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/api/test_maturity_guide_scope.py::test_read_does_not_mutate_agent_or_learning 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a-dbd83d30/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/api/test_agent_onboarding_routes.py::TestGuidedAgentCreation::test_employee_creates_agent_from_goal 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 201 Created"
+PASSED                                                                   [  8%]
+tests/api/test_agent_onboarding_routes.py::TestGuidedAgentCreation::test_falls_back_to_template_without_llm 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [ WARNING] Guided agent LLM design failed, using template fallback: no llm
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 201 Created"
+PASSED                                                                   [ 10%]
+tests/api/test_agent_onboarding_routes.py::TestGuidedAgentCreation::test_requires_authentication 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 11%]
+tests/api/test_agent_onboarding_routes.py::TestGuidedAgentCreation::test_goal_minimum_length 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 12%]
+tests/api/test_agent_onboarding_routes.py::TestAgentInitiatedCreation::test_autonomous_agent_creates_directly 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [ WARNING] Guided agent LLM design failed, using template fallback: no llm
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 201 Created"
+PASSED                                                                   [ 13%]
+tests/api/test_agent_onboarding_routes.py::TestAgentInitiatedCreation::test_immature_agent_gets_hitl_not_created 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 15%]
+tests/api/test_agent_onboarding_routes.py::TestAutomationSuggestions::test_rule_based_suggestions_from_manual_history 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [ WARNING] Automation suggestion LLM call failed, using rule-based fallback: no llm
+2026-11-10 02:54:13 [    INFO] HTTP Request: GET http://testserver/api/agents/automation-suggestions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/api/test_agent_onboarding_routes.py::TestAutomationSuggestions::test_llm_suggestions_passed_through 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [    INFO] HTTP Request: GET http://testserver/api/agents/automation-suggestions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/api/test_agent_onboarding_routes.py::TestGuidedAgentFactoryUnit::test_llm_constraint_injection PASSED [ 18%]
+tests/api/test_agent_onboarding_routes.py::TestGuidedAgentFactoryUnit::test_generic_fallback_when_no_template_matches 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [ WARNING] Guided agent LLM design failed, using template fallback: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 20%]
+tests/api/test_agent_onboarding_routes.py::TestMaturityGuide::test_general_guide_lists_four_levels 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [    INFO] HTTP Request: GET http://testserver/api/agents/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/api/test_agent_onboarding_routes.py::TestMaturityGuide::test_agent_guide_reports_readiness 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [ WARNING] Guided agent LLM design failed, using template fallback: no llm
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 201 Created"
+2026-11-10 02:54:13 [    INFO] HTTP Request: GET http://testserver/api/agents/ead33b95-19c2-41e8-ab4d-2e253ec5cef9/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/api/test_agent_onboarding_routes.py::TestMaturityGuide::test_agent_guide_404_for_missing_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [ WARNING] API Error: AGENT_NOT_FOUND - Agent does-not-exist not found
+2026-11-10 02:54:13 [    INFO] HTTP Request: GET http://testserver/api/agents/does-not-exist/maturity-guide "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 24%]
+tests/api/test_agent_onboarding_routes.py::TestMaturityGuide::test_agent_guide_counts_learning_pathways 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:13 [ WARNING] Guided agent LLM design failed, using template fallback: no llm
+2026-11-10 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided "HTTP/1.1 201 Created"
+2026-11-10 02:54:13 [    INFO] Initialized global governance cache
+2026-11-10 02:54:13 [    INFO] HTTP Request: GET http://testserver/api/agents/fd30c412-129a-4010-90ca-7da3c9c53c1a/maturity-guide "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_agent_read_scope_contract.py::test_member_history_exposes_only_the_same_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:14 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_agent_read_scope_contract.py::test_peer_workspace_reads_peer_history_but_not_old_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:15 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_agent_read_scope_contract.py::test_personal_principal_reads_only_explicit_personal_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:16 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_agent_read_scope_contract.py::test_admin_current_workspace_is_a_normal_positive 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:17 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_agent_read_scope_contract.py::test_stale_actor_is_reloaded_from_the_authoritative_database 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:19 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_agent_read_scope_contract.py::test_deactivated_stale_principal_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:19 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: read agent data on Agent
+2026-11-10 02:54:19 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_agent_read_scope_contract.py::test_stale_role_is_not_trusted_for_the_read 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:20 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: read agent data on Agent
+2026-11-10 02:54:20 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 34%]
+tests/test_agent_read_scope_contract.py::test_unavailable_authority_store_is_not_a_successful_read 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:21 [ WARNING] Agent read authority unavailable: stage=actor error_class=OperationalError
+2026-11-10 02:54:21 [ WARNING] API Error: AGENT_READ_AUTHORITY_UNAVAILABLE - Agent data is temporarily unavailable; retry.
+2026-11-10 02:54:21 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 35%]
+tests/test_agent_read_scope_contract.py::test_agent_list_detail_status_and_graduation_are_workspace_scoped 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+2026-11-10 02:54:22 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:22 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:22 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/status "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:22 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/status "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:22 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/graduation-progress "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:22 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/graduation-progress "HTTP/1.1 404 Not Found"
+2026-11-10 02:54:22 [    INFO] HTTP Request: GET http://testserver/api/agents/a-shared/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_agent_read_scope_contract.py::test_history_readback_does_not_change_durable_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:23 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+2026-11-10 02:54:23 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_agent_read_scope_contract.py::test_unavailable_history_store_is_not_a_successful_empty_list 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:24 [   ERROR] Agent history read unavailable: stage=query error_class=OperationalError
+2026-11-10 02:54:24 [ WARNING] API Error: AGENT_HISTORY_UNAVAILABLE - Agent history is temporarily unavailable; retry.
+2026-11-10 02:54:24 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 39%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_calculate_readiness_success_case PASSED [ 40%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_calculate_readiness_insufficient_episodes PASSED [ 41%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_calculate_readiness_high_intervention_rate PASSED [ 43%]
+tests/test_agent_graduation.py::TestGraduationReadiness::test_unknown_maturity_level PASSED [ 44%]
+tests/test_agent_graduation.py::TestAgentPromotion::test_promote_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:25 [    INFO] Agent graduate promoted to INTERN by supervisor
+PASSED                                                                   [ 45%]
+tests/test_agent_graduation.py::TestAgentPromotion::test_promote_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:25 [   ERROR] Agent nonexistent_agent not found for promotion
+PASSED                                                                   [ 46%]
+tests/test_agent_graduation.py::TestAgentPromotion::test_promote_agent_invalid_maturity 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:25 [   ERROR] Invalid maturity level: INVALID_LEVEL
+PASSED                                                                   [ 48%]
+tests/test_agent_graduation.py::TestGraduationExam::test_run_graduation_exam PASSED [ 49%]
+tests/test_agent_graduation.py::TestGraduationExam::test_validate_constitutional_compliance PASSED [ 50%]
+tests/test_agent_graduation.py::TestGraduationAuditTrail::test_get_graduation_audit_trail PASSED [ 51%]
+tests/test_agent_graduation.py::TestSandboxExecutorCoverage::test_exam_with_no_episodes_returns_failure PASSED [ 53%]
+tests/test_agent_graduation.py::TestSandboxExecutorCoverage::test_exam_calculates_score_from_episodes PASSED [ 54%]
+tests/test_agent_graduation.py::TestSandboxExecutorCoverage::test_exam_detects_excessive_interventions PASSED [ 55%]
+tests/test_agent_graduation.py::TestSupervisionMetricsCoverage::test_supervision_metrics_with_no_sessions PASSED [ 56%]
+tests/test_agent_graduation.py::TestSupervisionMetricsCoverage::test_supervision_metrics_calculates_aggregates PASSED [ 58%]
+tests/test_agent_graduation.py::TestSupervisionMetricsCoverage::test_performance_trend_calculation PASSED [ 59%]
+tests/test_agent_graduation.py::TestSkillUsageMetricsCoverage::test_skill_usage_metrics_queries_executions PASSED [ 60%]
+tests/test_agent_graduation.py::TestSkillUsageMetricsCoverage::test_readiness_score_includes_skill_diversity_bonus PASSED [ 62%]
+tests/test_agent_graduation.py::TestSupervisionValidationCoverage::test_supervision_score_breakdown PASSED [ 63%]
+tests/test_agent_graduation.py::TestSupervisionValidationCoverage::test_supervision_score_with_poor_metrics PASSED [ 64%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_graduation_criteria_constants_defined PASSED [ 65%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_intern_eligibility_calculation PASSED [ 67%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_supervised_eligibility_calculation PASSED [ 68%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_autonomous_eligibility_calculation PASSED [ 69%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_agent_not_found PASSED [ 70%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_unknown_maturity_level PASSED [ 72%]
+tests/test_agent_graduation_service.py::TestGraduationEligibility::test_eligibility_workspace_specific_rules PASSED [ 73%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_run_graduation_exam_creates_exam 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:25 [    INFO] EscalationManager initialized
+2026-11-10 02:54:25 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 74%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_submission_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:25 [    INFO] EscalationManager initialized
+2026-11-10 02:54:25 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 75%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_evaluation_and_scoring PASSED [ 77%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_pass_fail_determination PASSED [ 78%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_result_recording PASSED [ 79%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_exam_retry_logic PASSED [ 81%]
+tests/test_agent_graduation_service.py::TestGraduationExams::test_validate_constitutional_compliance PASSED [ 82%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_student_to_intern 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:26 [    INFO] Agent graduate promoted to INTERN by supervisor
+PASSED                                                                   [ 83%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_intern_to_supervised 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:27 [    INFO] Agent graduate promoted to SUPERVISED by supervisor
+PASSED                                                                   [ 84%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promote_supervised_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:54:28 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+PASSED                                                                   [ 86%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_notification PASSED [ 87%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_rollback PASSED [ 88%]
+tests/test_agent_graduation_service.py::TestMaturityTransitions::test_promotion_history_tracking PASSED [ 89%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_graduation_thresholds_configuration PASSED [ 91%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_criteria_immutable PASSED [ 92%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_workspace_specific_overrides PASSED [ 93%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_default_configuration_loading PASSED [ 94%]
+tests/test_agent_graduation_service.py::TestGraduationConfiguration::test_configuration_validation PASSED [ 96%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_calculate_supervision_metrics PASSED [ 97%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_performance_trend_calculation PASSED [ 98%]
+tests/test_agent_graduation_service.py::TestSupervisionMetrics::test_validate_graduation_with_supervision PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/api/test_agent_onboarding_routes.py: 12 warnings
+tests/test_agent_graduation.py: 19 warnings
+  /private/tmp/atom-web-maturity-guide-scope-20261110/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 79 passed, 36 warnings in 38.11s =======================

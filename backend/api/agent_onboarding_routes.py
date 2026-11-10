@@ -283,8 +283,14 @@ async def get_agent_maturity_guide(
 ):
     """Personalized readiness report for one agent: where it is, what it can
     do today, and exactly what advances it to the next level."""
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-    if not agent:
+    # Reuse the ordinary agent-read authority and scope. The module is imported
+    # lazily to avoid a router import cycle; the helpers themselves remain the
+    # single source of current-principal/tenant/workspace policy.
+    from api.agent_routes import _authoritative_reader, _scoped_agent
+
+    actor = _authoritative_reader(db, current_user)
+    agent = _scoped_agent(db, actor, agent_id)
+    if agent is None:
         raise router.error_response(
             error_code="AGENT_NOT_FOUND",
             message=f"Agent {agent_id} not found",

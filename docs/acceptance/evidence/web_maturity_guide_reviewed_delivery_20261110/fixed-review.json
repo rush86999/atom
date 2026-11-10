@@ -1,0 +1,39 @@
+{
+  "world": "/private/tmp/root-maturity-guide-independent-20261110-70dtt28c",
+  "source_before": {
+    "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+    "backend/api/agent_routes.py": "ba11824577f43d612e175e601497aafbd569824c0e0d6ff612eeeb993b0ead7a",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7"
+  },
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-maturity-guide-scope-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-maturity-guide-independent-20261110.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "capture_head": "9f3149cab8442973c0170212d8eb7bcb925befa5",
+  "probe_sha256": "f2818982192c0928cc4b31243b141e0f3d1dd9daf9808695258e0ea4908588ee",
+  "actual_exit": 0,
+  "source_after": {
+    "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+    "backend/api/agent_routes.py": "ba11824577f43d612e175e601497aafbd569824c0e0d6ff612eeeb993b0ead7a",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7"
+  },
+  "at": "2026-11-10T07:56:41.617186+00:00",
+  "same_source": true
+}
