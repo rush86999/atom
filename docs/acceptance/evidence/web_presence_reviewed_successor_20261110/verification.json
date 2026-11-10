@@ -1,0 +1,20 @@
+{
+  "runtime_repair": "31bd7f6078696edfea102205e5648ba581262709",
+  "root_independent": "2 supervisor-route +3 unchanged original controls pass; actual_exit0/same_source each",
+  "restoration": "Exact AST match of get_available_supervisors including USER_VIEW dependency to main750; all7 baseline public route names preserved.",
+  "historical_negative": "PR820d264 hosted e2e failed guest404/expected403; roothd8w_cbb guest/member2FAIL404 preserved.",
+  "scope": "Presence bounded family only. Original29packet not rewritten. Existing old route mock suite19 state/override/session failures disclosed in successor packet; no production authority fallback added for mock DBs.",
+  "successor_git_hash_checks": 10,
+  "source_files": {
+    "backend/api/user_activity_routes.py": "4737c7b0c600ad4fc92b7552df03b50968ea7f4f6d14a372dd346d3c2e210533",
+    "backend/core/presence_override_write_service.py": "091d03936e65ce4705d10c6cbcbdf7b8780af043583f3d4cd6d790bafd4c29bf",
+    "backend/core/user_activity_service.py": "91c9416f36102043db237b7458121e82e329168bd262353409ddab1a9c8d418d",
+    "backend/tests/api/test_user_activity_presence_override.py": "c6ea1d767a0828d625becf1ab4dbae871963906b6f727b2ed536ebb99b19de8c"
+  },
+  "artifacts": {
+    "supervisor-route-2-review.json": "c586f97c0a929c7ef7ea30f2687a75162524e59146f77435a0f160465d237366",
+    "supervisor-route-2-controls.log": "3ea76af53c9f33d47e930aadfe77ad3d7fbcd6f15f933b2cb93cfb1a263bb067",
+    "original-authority-uncertainty-3-review.json": "1c4bb778ee177ec2ea4529caefb5fb1586016182e89c922a24a028c0156c1bcb",
+    "original-authority-uncertainty-3-controls.log": "ca2ca1637d0601fcf70dd14802e75f92f62ee7d1fdbdee9413e116e0bec10c0f"
+  }
+}
