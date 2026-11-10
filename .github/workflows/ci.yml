@@ -587,7 +587,13 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: "http://localhost:8001"
           NEXT_PUBLIC_USE_BACKEND_API: "true"
+          BACKEND_URL: "http://127.0.0.1:8001"
+          NEXTAUTH_URL: "http://localhost:3001"
         run: |
+          # The real session issuer fails closed without its own configured key.
+          # Generate only for this isolated runner; never reuse the backend key.
+          export NEXTAUTH_SECRET="$(node -e "process.stdout.write(require('node:crypto').randomBytes(48).toString('base64url'))")"
+          echo "::add-mask::$NEXTAUTH_SECRET"
           npm run dev -- -p 3001 > /tmp/frontend.log 2>&1 &
           for i in $(seq 1 60); do
             curl -fs http://127.0.0.1:3001 > /dev/null 2>&1 && exit 0
