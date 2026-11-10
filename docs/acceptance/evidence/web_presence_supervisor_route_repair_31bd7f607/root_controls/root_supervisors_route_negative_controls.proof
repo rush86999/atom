@@ -1,0 +1,27 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_existing_supervisor_directory_route_and_permission_are_preserved[guest-403] _
+../../root-presence-supervisors-route-independent-20261110.py:12: in test_existing_supervisor_directory_route_and_permission_are_preserved
+    assert result.status_code==expected,result.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 403
+E    +  where 404 = <Response [404 Not Found]>.status_code
+_ test_existing_supervisor_directory_route_and_permission_are_preserved[member-200] _
+../../root-presence-supervisors-route-independent-20261110.py:12: in test_existing_supervisor_directory_route_and_permission_are_preserved
+    assert result.status_code==expected,result.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  <scratch-path> DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-presence-supervisors-route-independent-20261110.py::test_existing_supervisor_directory_route_and_permission_are_preserved[guest-403]
+FAILED ../../root-presence-supervisors-route-independent-20261110.py::test_existing_supervisor_directory_route_and_permission_are_preserved[member-200]
+2 failed, 4 warnings in 3.52s

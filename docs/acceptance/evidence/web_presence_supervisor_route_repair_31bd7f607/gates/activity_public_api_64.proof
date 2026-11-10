@@ -1,0 +1,249 @@
+
+----------------------------- live log collection ------------------------------
+
+tests/api/test_user_activity_presence_override.py::test_valid_future_aware_expiry_and_fresh_readback 
+-------------------------------- live log setup --------------------------------
+2026-11-10 02:47:50 [    INFO] EscalationManager initialized
+2026-11-10 02:47:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:47:50 [    INFO] EscalationManager initialized
+2026-11-10 02:47:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:47:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 02:47:50 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:50 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-bce213f4/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:47:50 [    INFO] HTTP Request: GET http://testserver/api/users/user-self-bce213f4/activity/state "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/api/test_user_activity_presence_override.py::test_naive_expiry_is_normalized_utc_not_500 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:51 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-f6c98dc2/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:47:51 [    INFO] HTTP Request: GET http://testserver/api/users/user-self-f6c98dc2/activity/state "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/api/test_user_activity_presence_override.py::test_expired_override_clears_on_read 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:52 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-3ad21dca/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:47:52 [    INFO] User user-self-3ad21dca state: UserState.away → offline (no active sessions)
+2026-11-10 02:47:52 [    INFO] HTTP Request: GET http://testserver/api/users/user-self-3ad21dca/activity/state "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/api/test_user_activity_presence_override.py::test_invalid_state_and_expiry_are_typed_400 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:52 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-05c80370/activity/override "HTTP/1.1 400 Bad Request"
+2026-11-10 02:47:52 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-05c80370/activity/override "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  6%]
+tests/api/test_user_activity_presence_override.py::test_foreign_mutations_refused_and_existing_read_visibility 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:53 [    INFO] HTTP Request: POST http://testserver/api/users/user-peer-03e2c489/activity/override "HTTP/1.1 403 Forbidden"
+2026-11-10 02:47:53 [    INFO] HTTP Request: DELETE http://testserver/api/users/user-peer-03e2c489/activity/override "HTTP/1.1 403 Forbidden"
+2026-11-10 02:47:53 [    INFO] HTTP Request: GET http://testserver/api/users/user-self-03e2c489/activity/state "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/api/test_user_activity_presence_override.py::test_operation_replay_change_conflict_and_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:54 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-809803f8/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:47:54 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-809803f8/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:47:54 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-809803f8/activity/override "HTTP/1.1 409 Conflict"
+2026-11-10 02:47:54 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-809803f8/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:47:54 [    INFO] User user-self-809803f8 state: UserState.away → offline (no active sessions)
+2026-11-10 02:47:54 [    INFO] HTTP Request: DELETE http://testserver/api/users/user-self-809803f8/activity/override?operation_id=presence%3Aclear-424eeb1117954b96ada1fbbfefb72215 "HTTP/1.1 200 OK"
+2026-11-10 02:47:54 [    INFO] HTTP Request: DELETE http://testserver/api/users/user-self-809803f8/activity/override?operation_id=presence%3Aclear-424eeb1117954b96ada1fbbfefb72215 "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/api/test_user_activity_presence_override.py::test_heartbeat_does_not_overwrite_manual_override 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:55 [    INFO] Manual override set for user user-self-b0a68c28: away
+PASSED                                                                   [ 10%]
+tests/api/test_user_activity_presence_override.py::test_transition_batch_expires_manual_override 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:56 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-e12b61bb/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:47:56 [    INFO] User user-self-e12b61bb state: UserState.away → offline (no active sessions)
+2026-11-10 02:47:56 [    INFO] State transition batch processed: 0 users, 0 transitions
+PASSED                                                                   [ 12%]
+tests/api/test_user_activity_presence_override.py::test_service_set_and_clear_verified_results 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:56 [    INFO] User user-self-66ca3525 state: UserState.away → offline (no active sessions)
+PASSED                                                                   [ 14%]
+tests/api/test_user_activity_presence_override.py::test_stale_cas_writer_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:57 [    INFO] Manual override set for user user-self-baf974e8: away
+PASSED                                                                   [ 15%]
+tests/api/test_user_activity_presence_override.py::test_committed_unverified_is_distinct_from_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:58 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-6a2513c4/activity/override "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/api/test_user_activity_presence_override.py::test_malformed_operation_id_is_typed_refusal 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:47:59 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-bb6e49de/activity/override "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 18%]
+tests/api/test_user_activity_presence_override.py::test_actor_claim_pins_current_raw_snapshot PASSED [ 20%]
+tests/api/test_user_activity_presence_override.py::test_replay_refuses_changed_actor_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:00 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-89bf87df/activity/override "HTTP/1.1 200 OK"
+2026-11-10 02:48:00 [    INFO] HTTP Request: POST http://testserver/api/users/user-self-89bf87df/activity/override "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 21%]
+tests/api/test_user_activity_presence_override.py::test_no_change_commit_uncertainty_is_effect_unknown PASSED [ 23%]
+tests/api/test_user_activity_presence_override.py::test_available_supervisors_route_preserves_guest_forbidden_member_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:02 [    INFO] HTTP Request: GET http://testserver/api/users/available-supervisors "HTTP/1.1 403 Forbidden"
+2026-11-10 02:48:02 [    INFO] HTTP Request: GET http://testserver/api/users/available-supervisors "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/api/test_user_activity_presence_override.py::test_available_supervisors_category_filter_is_a_valid_public_twin 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:03 [    INFO] HTTP Request: GET http://testserver/api/users/available-supervisors?category=finance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_user_activity.py::test_record_heartbeat_creates_activity_and_session PASSED [ 28%]
+tests/test_user_activity.py::test_record_heartbeat_updates_existing_session PASSED [ 29%]
+tests/test_user_activity.py::test_multiple_sessions_keep_user_online PASSED [ 31%]
+tests/test_user_activity.py::test_get_user_state_returns_offline_for_no_activity PASSED [ 32%]
+tests/test_user_activity.py::test_get_user_state_returns_online_with_recent_heartbeat PASSED [ 34%]
+tests/test_user_activity.py::test_should_supervise_returns_true_for_online_and_away PASSED [ 35%]
+tests/test_user_activity.py::test_set_manual_override_sets_state 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] Manual override set for user fa141ea4-d99f-4f57-925d-9afb088fe4fa: away
+PASSED                                                                   [ 37%]
+tests/test_user_activity.py::test_set_manual_override_with_expiry 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] Manual override set for user 5cc8c2b9-313d-4698-b2be-3c5812b99bb9: offline (expires 2026-11-10 08:48:04.146909+00:00)
+PASSED                                                                   [ 39%]
+tests/test_user_activity.py::test_clear_manual_override_returns_automatic_tracking 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] Manual override set for user 76e4172d-d97f-4d39-9d9d-72ceed046cd6: offline
+2026-11-10 02:48:04 [    INFO] Manual override cleared for user 76e4172d-d97f-4d39-9d9d-72ceed046cd6
+PASSED                                                                   [ 40%]
+tests/test_user_activity.py::test_get_available_supervisors_returns_online_and_away_users 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] Manual override set for user 00339baf-4788-4a62-b588-e070a3ace654: online
+PASSED                                                                   [ 42%]
+tests/test_user_activity.py::test_get_available_supervisors_filters_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] Manual override set for user 84686ff1-a97f-4f12-8ccd-7855fbb33538: online
+PASSED                                                                   [ 43%]
+tests/test_user_activity.py::test_terminate_session_marks_as_terminated 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] User fa633589-3b4d-426d-8fec-7b4f91fb0d4c state: UserState.online → offline (no active sessions)
+PASSED                                                                   [ 45%]
+tests/test_user_activity.py::test_terminate_nonexistent_session_returns_false PASSED [ 46%]
+tests/test_user_activity.py::test_get_active_sessions_returns_only_active_sessions PASSED [ 48%]
+tests/test_user_activity.py::test_transition_state_batch_processes_multiple_users 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] User 57eb9ff8-ade5-434f-bd32-ad3872272c77 state: UserState.online → offline (no active sessions)
+2026-11-10 02:48:04 [    INFO] User 8d144c4f-b527-4c41-99b1-35d19915110c state: UserState.online → offline (no active sessions)
+2026-11-10 02:48:04 [    INFO] User e0925b46-3eac-45a4-b012-ad862c448a05 state: UserState.online → offline (no active sessions)
+2026-11-10 02:48:04 [    INFO] State transition batch processed: 3 users, 0 transitions
+PASSED                                                                   [ 50%]
+tests/test_user_activity.py::test_cleanup_stale_sessions_removes_old_sessions 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] Cleaned up 1 stale sessions
+PASSED                                                                   [ 51%]
+tests/unit/api/test_user_activity_routes.py::TestActivityTracking::test_log_user_activity 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: POST http://testserver/api/user-activities/log "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 53%]
+tests/unit/api/test_user_activity_routes.py::TestActivityTracking::test_list_user_activities 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 54%]
+tests/unit/api/test_user_activity_routes.py::TestActivityTracking::test_get_activity_details 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities/activity-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 56%]
+tests/unit/api/test_user_activity_routes.py::TestActivityAnalytics::test_get_activity_analytics 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities/analytics "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 57%]
+tests/unit/api/test_user_activity_routes.py::TestActivityAnalytics::test_export_activity_data 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: POST http://testserver/api/user-activities/analytics/export "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 59%]
+tests/unit/api/test_user_activity_routes.py::TestActivityAnalytics::test_get_activity_statistics 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities/statistics "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 60%]
+tests/unit/api/test_user_activity_routes.py::TestActivitySearch::test_search_activities 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: POST http://testserver/api/user-activities/search "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 62%]
+tests/unit/api/test_user_activity_routes.py::TestActivitySearch::test_filter_activities_by_type 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities?type=login "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 64%]
+tests/unit/api/test_user_activity_routes.py::TestActivitySearch::test_get_user_timeline 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities/timeline?user_id=user-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 65%]
+tests/unit/api/test_user_activity_routes.py::TestActivityReporting::test_generate_activity_report 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: POST http://testserver/api/user-activities/reports "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 67%]
+tests/unit/api/test_user_activity_routes.py::TestActivityReporting::test_get_activity_summary 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities/summary?user_id=user-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 68%]
+tests/unit/api/test_user_activity_routes.py::TestActivityReporting::test_export_activity_report 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities/reports/report-001/export "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 70%]
+tests/unit/api/test_user_activity_routes.py::TestErrorHandling::test_invalid_activity_type 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [    INFO] HTTP Request: GET http://testserver/api/user-activities?type=invalid "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 71%]
+tests/test_covpush_w84_activity_publisher.py::TestInit::test_disabled_without_redis PASSED [ 73%]
+tests/test_covpush_w84_activity_publisher.py::TestInit::test_disabled_when_enabled_false PASSED [ 75%]
+tests/test_covpush_w84_activity_publisher.py::TestInit::test_enabled_with_client PASSED [ 76%]
+tests/test_covpush_w84_activity_publisher.py::TestPublishActivity::test_disabled_returns_false PASSED [ 78%]
+tests/test_covpush_w84_activity_publisher.py::TestPublishActivity::test_publishes_to_both_channels PASSED [ 79%]
+tests/test_covpush_w84_activity_publisher.py::TestPublishActivity::test_default_metadata_and_session PASSED [ 81%]
+tests/test_covpush_w84_activity_publisher.py::TestPublishActivity::test_publish_error_returns_false 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [   ERROR] Failed to publish activity: redis down
+PASSED                                                                   [ 82%]
+tests/test_covpush_w84_activity_publisher.py::TestHelpers::test_publish_skill_execution PASSED [ 84%]
+tests/test_covpush_w84_activity_publisher.py::TestHelpers::test_publish_reasoning_activity PASSED [ 85%]
+tests/test_covpush_w84_activity_publisher.py::TestHelpers::test_publish_reasoning_default_state PASSED [ 87%]
+tests/test_covpush_w84_activity_publisher.py::TestHelpers::test_publish_episode_recording PASSED [ 89%]
+tests/test_covpush_w84_activity_publisher.py::TestHelpers::test_publish_episode_recording_custom_status PASSED [ 90%]
+tests/test_covpush_w84_activity_publisher.py::TestHelpers::test_helpers_disabled_mode PASSED [ 92%]
+tests/test_covpush_w84_activity_publisher.py::TestGetActivityPublisher::test_redis_enabled PASSED [ 93%]
+tests/test_covpush_w84_activity_publisher.py::TestGetActivityPublisher::test_redis_disabled_in_config PASSED [ 95%]
+tests/test_covpush_w84_activity_publisher.py::TestGetActivityPublisher::test_config_error_falls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [ WARNING] Could not initialize ActivityPublisher with Redis: no config
+PASSED                                                                   [ 96%]
+tests/test_covpush_w84_activity_publisher.py::TestGetActivityPublisher::test_redis_import_error_falls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [ WARNING] Could not initialize ActivityPublisher with Redis: import of redis halted; None in sys.modules
+PASSED                                                                   [ 98%]
+tests/test_covpush_w84_activity_publisher.py::TestGetActivityPublisher::test_from_url_error_falls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:48:04 [ WARNING] Could not initialize ActivityPublisher with Redis: bad url
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_user_activity.py::test_record_heartbeat_creates_activity_and_session
+  <scratch-path> RuntimeWarning: coroutine 'test_record_heartbeat_creates_activity_and_session.<locals>.run_test' was never awaited
+    run_test()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 64 passed, 6 warnings in 32.30s ========================
