@@ -185,20 +185,28 @@ describe('AgentLaunchGuide', () => {
 
   test('hire flow posts the role category and notifies parent', async () => {
     const onAgentsChanged = jest.fn();
-    mockApiClient.post.mockResolvedValue({
-      data: {
-        success: true,
+    mockApiClient.post.mockImplementation(async (
+      _url: string, _payload: any, config: any
+    ) => {
+      const op = config?.params?.operation_id;
+      return {
         data: {
-          agent_id: 'new-1',
-          agent_name: 'Sales Development Rep',
-          category: 'Sales',
-          tenant_id: 'company',
-          workspace_id: 'ws-a',
-          operation_id: 'agent:create:hire-intent-1',
-          audit_id: 'agent:create:hire-intent-1',
-          verification: { status: 'verified', effect: 'committed' },
+          success: true,
+          data: {
+            agent_id: 'new-1',
+            agent_name: 'Sales Development Rep',
+            category: 'Sales',
+            tenant_id: 'company',
+            workspace_id: 'ws-a',
+            operation_id: `agent:create:${op}`,
+            audit_id: `agent:create:${op}`,
+            verification: {
+              status: 'verified', effect: 'committed',
+              audit_id: `agent:create:${op}`,
+            },
+          },
         },
-      },
+      };
     });
 
     const user = userEvent.setup();
@@ -227,15 +235,24 @@ describe('AgentLaunchGuide', () => {
 
   test('does not report a malformed/unverified hire as created', async () => {
     const onAgentsChanged = jest.fn();
-    mockApiClient.post.mockResolvedValue({
-      data: {
-        success: true,
+    mockApiClient.post.mockImplementation(async (
+      _url: string, _payload: any, config: any
+    ) => {
+      const op = config?.params?.operation_id;
+      return {
         data: {
-          agent_id: 'new-unverified',
-          operation_id: 'agent:create:hire-intent-2',
-          verification: { status: 'committed_unverified', effect: 'committed' },
+          success: true,
+          data: {
+            agent_id: 'new-unverified',
+            operation_id: `agent:create:${op}`,
+            audit_id: `agent:create:${op}`,
+            verification: {
+              status: 'committed_unverified', effect: 'committed',
+              audit_id: `agent:create:${op}`,
+            },
+          },
         },
-      },
+      };
     });
 
     const user = userEvent.setup();

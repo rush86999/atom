@@ -60,21 +60,61 @@ function unwrapCreationEnvelope(res: any, label: string): any {
   return envelope?.data ?? envelope;
 }
 
-function assertVerifiedCreation(data: any, label: string): any {
+// The create decision service normalizes the caller's submitted operation id
+// to `agent:create:<submitted>` (see core/agent_decision_write_service.py's
+// create operation). This is the same submission normalization, not a guess
+// about an opaque receipt: a receipt is trusted only when it names exactly
+// the operation this helper submitted and the audit it returned.
+const CREATE_OPERATION_PREFIX = 'agent:create:';
+
+function expectedCreateReceiptId(submittedOperationId: string): string {
+  const value = String(submittedOperationId || '').trim();
+  return value.startsWith(CREATE_OPERATION_PREFIX)
+    ? value
+    : `${CREATE_OPERATION_PREFIX}${value}`;
+}
+
+function receiptProblem(label: string, problem: string, data: any): never {
+  const err: any = new Error(
+    `${label} returned a receipt that does not bind this creation (${problem}); reconcile before retrying`
+  );
+  err.code = 'UNVERIFIED_CREATE';
+  err.receipt_problem = problem;
+  err.data = data;
+  throw err;
+}
+
+function assertVerifiedCreation(
+  data: any,
+  label: string,
+  submittedOperationId: string
+): any {
   if (!data || typeof data.agent_id !== 'string' || !data.agent_id.trim()) {
-    const err: any = new Error(`${label} returned no exact agent id`);
-    err.code = 'UNVERIFIED_CREATE';
-    err.data = data;
-    throw err;
+    receiptProblem(label, 'no exact agent id', data);
   }
-  const status = data?.verification?.status;
-  if (status !== 'verified' && status !== 'already_applied') {
-    const err: any = new Error(
-      `${label} was not verified; reconcile before retrying`
-    );
-    err.code = 'UNVERIFIED_CREATE';
-    err.data = data;
-    throw err;
+  const expected = expectedCreateReceiptId(submittedOperationId);
+  if (data.operation_id !== expected) {
+    receiptProblem(label, 'operation id does not match this intent', data);
+  }
+  if (data.audit_id !== expected) {
+    receiptProblem(label, 'audit id does not match this operation', data);
+  }
+  const verification = data?.verification;
+  if (
+    !verification ||
+    (verification.status !== 'verified' &&
+      verification.status !== 'already_applied')
+  ) {
+    receiptProblem(label, 'verification is not a committed decision', data);
+  }
+  if (verification.effect !== 'committed') {
+    receiptProblem(label, 'verification effect is not committed', data);
+  }
+  // The backend's receipt carries the audit agreement in both places. A
+  // missing or different verification audit is not a valid backend-shaped
+  // receipt; do not weaken this to accept the legacy minimal fixture.
+  if (verification.audit_id !== expected) {
+    receiptProblem(label, 'verification audit does not match this operation', data);
   }
   return data;
 }
@@ -159,12 +199,12 @@ export async function createGuidedAgent(
   context?: string,
   options?: { operationId?: string }
 ): Promise<GuidedAgentResult | GuidedAgentPending> {
-  const operationId = options?.operationId;
+  const operationId = options?.operationId?.trim() || newCreationOperationId();
   const res = await apiClient.post(
     '/api/agents/guided',
     { goal, context },
     {
-      ...(operationId ? { params: { operation_id: operationId } } : {}),
+      params: { operation_id: operationId },
       // A create is not idempotent at the transport layer. A 503 or a lost
       // network confirmation may already have committed; never replay it
       // automatically. The same operation id can be reused only when the
@@ -180,7 +220,9 @@ export async function createGuidedAgent(
       reason: data.reason || 'Human approval required',
     };
   }
-  return assertVerifiedCreation(data, 'Agent creation') as GuidedAgentResult;
+  return assertVerifiedCreation(
+    data, 'Agent creation', operationId
+  ) as GuidedAgentResult;
 }
 
 export async function createCustomAgent(
@@ -193,15 +235,17 @@ export async function createCustomAgent(
   },
   options?: { operationId?: string }
 ): Promise<CustomAgentResult> {
-  const operationId = options?.operationId;
+  const operationId = options?.operationId?.trim() || newCreationOperationId();
   const res = await apiClient.post('/api/agents/custom', payload, {
-    ...(operationId ? { params: { operation_id: operationId } } : {}),
+    params: { operation_id: operationId },
     // Same no-auto-replay rule as guided creation: a lost confirmation is
     // uncertain, not permission to POST the hire again.
     retry: false,
   });
   const data = unwrapCreationEnvelope(res, 'Employee hire');
-  return assertVerifiedCreation(data, 'Employee hire') as CustomAgentResult;
+  return assertVerifiedCreation(
+    data, 'Employee hire', operationId
+  ) as CustomAgentResult;
 }
 
 export async function getAutomationSuggestions(

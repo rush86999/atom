@@ -132,7 +132,7 @@ describe('creation response integrity', () => {
         created_by: 'employee',
         operation_id: 'agent:create:intent-1',
         audit_id: 'agent:create:intent-1',
-        verification: { status: 'verified', effect: 'committed' },
+        verification: { status: 'verified', effect: 'committed', audit_id: 'agent:create:intent-1' },
       },
     });
     const result = await createGuidedAgent(
@@ -207,7 +207,7 @@ describe('creation response integrity', () => {
         category: 'Sales',
         operation_id: 'agent:create:hire-1',
         audit_id: 'agent:create:hire-1',
-        verification: { status: 'verified', effect: 'committed' },
+        verification: { status: 'verified', effect: 'committed', audit_id: 'agent:create:hire-1' },
       },
     });
     const ok = await createCustomAgent(
@@ -231,5 +231,232 @@ describe('creation response integrity', () => {
     await expect(createCustomAgent({
       name: 'No', category: 'Sales', configuration: {}, schedule_config: {},
     })).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+  });
+});
+
+describe('creation receipt binding', () => {
+  afterEach(() => {
+    (apiClient.defaults as any).adapter = originalAdapter;
+  });
+
+  function respond(data: any, status = 200) {
+    (apiClient.defaults as any).adapter = async (config: any) => ({
+      data: { success: true, data },
+      status,
+      statusText: 'OK',
+      headers: {},
+      config,
+    });
+  }
+
+  const guidedPayload = {
+    goal: 'watch invoices and flag overdue ones',
+  };
+  const customPayload = {
+    name: 'Receipt Binding Hire',
+    description: 'Controlled receipt-binding twin',
+    category: 'Operations',
+    configuration: {},
+    schedule_config: {},
+  };
+
+  function guidedData(receipt: any = {}) {
+    return {
+      agent_id: 'agent-receipt-guided',
+      name: 'Receipt Guided',
+      category: 'Operations',
+      maturity: 'student',
+      created_by: 'employee',
+      ...receipt,
+    };
+  }
+
+  function customData(receipt: any = {}) {
+    return {
+      agent_id: 'agent-receipt-custom',
+      agent_name: 'Receipt Custom',
+      category: 'Operations',
+      ...receipt,
+    };
+  }
+
+  const intent = 'intent-receipt-1';
+  const expected = `agent:create:${intent}`;
+  const exactReceipt = {
+    operation_id: expected,
+    audit_id: expected,
+    verification: {
+      status: 'verified',
+      effect: 'committed',
+      audit_id: expected,
+    },
+  };
+
+  const invalidReceipts: Array<[string, any]> = [
+    ['wrong operation identity', {
+      operation_id: 'agent:create:other-intent',
+      audit_id: 'agent:create:other-intent',
+      verification: {
+        status: 'verified', effect: 'committed',
+        audit_id: 'agent:create:other-intent',
+      },
+    }],
+    ['missing operation and audit', {
+      verification: {
+        status: 'verified', effect: 'committed', audit_id: expected,
+      },
+    }],
+    ['operation/audit disagreement', {
+      operation_id: expected,
+      audit_id: 'agent:create:other-audit',
+      verification: {
+        status: 'verified', effect: 'committed', audit_id: expected,
+      },
+    }],
+    ['missing verification audit', {
+      operation_id: expected,
+      audit_id: expected,
+      verification: {
+        status: 'verified', effect: 'committed',
+      },
+    }],
+    ['verification audit disagreement', {
+      operation_id: expected,
+      audit_id: expected,
+      verification: {
+        status: 'verified', effect: 'committed',
+        audit_id: 'agent:create:other-audit',
+      },
+    }],
+    ['contradictory effect', {
+      operation_id: expected,
+      audit_id: expected,
+      verification: {
+        status: 'verified', effect: 'none', audit_id: expected,
+      },
+    }],
+  ];
+
+  it.each(invalidReceipts)(
+    'rejects guided %s instead of treating it as created',
+    async (_label, receipt) => {
+      respond(guidedData(receipt));
+      await expect(
+        createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+      ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+    }
+  );
+
+  it.each(invalidReceipts)(
+    'rejects custom %s instead of treating it as hired',
+    async (_label, receipt) => {
+      respond(customData(receipt));
+      await expect(
+        createCustomAgent(customPayload, { operationId: intent })
+      ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+    }
+  );
+
+  it('accepts a guided verified twin with the exact submitted receipt', async () => {
+    respond(guidedData(exactReceipt));
+    const result = await createGuidedAgent(
+      guidedPayload.goal, undefined, { operationId: intent }
+    );
+    expect('agent_id' in result && result.agent_id).toBe('agent-receipt-guided');
+  });
+
+  it('accepts a custom already_applied twin with committed effect', async () => {
+    respond(customData({
+      ...exactReceipt,
+      verification: {
+        status: 'already_applied',
+        effect: 'committed',
+        audit_id: expected,
+        replay: 'do_not_repeat',
+      },
+    }));
+    const result = await createCustomAgent(customPayload, { operationId: intent });
+    expect(result.agent_id).toBe('agent-receipt-custom');
+  });
+
+  it('binds an internally generated operation id when the caller supplies none', async () => {
+    let seenQuery = '';
+    (apiClient.defaults as any).adapter = async (config: any) => {
+      seenQuery = String(config.params?.operation_id || '');
+      return {
+        data: {
+          success: true,
+          data: customData({
+            operation_id: `agent:create:${seenQuery}`,
+            audit_id: `agent:create:${seenQuery}`,
+            verification: {
+              status: 'verified', effect: 'committed',
+              audit_id: `agent:create:${seenQuery}`,
+            },
+          }),
+        },
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config,
+      };
+    };
+    const result = await createCustomAgent(customPayload);
+    expect(seenQuery).toMatch(/.+/);
+    expect(result.agent_id).toBe('agent-receipt-custom');
+  });
+
+  it('rejects a wrong-operation receipt through the real interceptor with one POST', async () => {
+    let posts = 0;
+    (apiClient.defaults as any).adapter = async (config: any) => {
+      posts += 1;
+      return {
+        data: {
+          success: true,
+          data: guidedData({
+            operation_id: 'agent:create:other-intent',
+            audit_id: 'agent:create:other-intent',
+            verification: {
+              status: 'verified', effect: 'committed',
+              audit_id: 'agent:create:other-intent',
+            },
+          }),
+        },
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config,
+      };
+    };
+    await expect(
+      createGuidedAgent(guidedPayload.goal, undefined, { operationId: intent })
+    ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+    expect(posts).toBe(1);
+  });
+
+  it('rejects a contradictory-effect hire through the real interceptor with one POST', async () => {
+    let posts = 0;
+    (apiClient.defaults as any).adapter = async (config: any) => {
+      posts += 1;
+      return {
+        data: {
+          success: true,
+          data: customData({
+            ...exactReceipt,
+            verification: {
+              status: 'verified', effect: 'none', audit_id: expected,
+            },
+          }),
+        },
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config,
+      };
+    };
+    await expect(
+      createCustomAgent(customPayload, { operationId: intent })
+    ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
+    expect(posts).toBe(1);
   });
 });
