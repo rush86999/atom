@@ -390,6 +390,28 @@ class TestTeamsSendMessage:
 # core/canvas_email_service.py
 # --------------------------------------------------------------------------- #
 class TestEmailCanvasService:
+    @pytest.fixture(autouse=True)
+    def _shared_actor_claim(self, monkeypatch):
+        from core.models import User
+
+        actor = User(
+            id="u1", tenant_id="default", workspace_id="default",
+            email="u1@example.invalid", hashed_password="x",
+            first_name="U", last_name="Ser", role="member",
+            status="active", is_active=True,
+        )
+        monkeypatch.setattr(
+            "tools.canvas_crud_tool.active_canvas_actor",
+            lambda db, uid: {
+                "ok": True, "user": actor, "id": "u1",
+                "tenant_id": "default", "workspace_id": "default",
+                "status": "active", "is_active": True},
+        )
+        monkeypatch.setattr(
+            "tools.canvas_crud_tool.claim_canvas_actor",
+            lambda db, snapshot: True,
+        )
+
     def _svc(self, first_audit=None, fail_commit=False):
         from core.canvas_email_service import EmailCanvasService
 

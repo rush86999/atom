@@ -115,23 +115,28 @@ class EmailCanvasService:
         tenant_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
     ) -> tuple:
-        """Authoritative scope for an email canvas write.
+        """Freeze the existing authoritative actor and its displayed scope.
 
-        A missing, unreadable or inactive principal refuses. A supplied
-        tenant/workspace must agree with the persisted actor row; it never
-        overrides it. Non-route callers resolve through the same row.
+        Reuses ``active_canvas_actor`` for validation/snapshot and
+        ``claim_canvas_actor`` for the transactional raw claim. The raw
+        tenant/workspace snapshot is what the claim compares; Personal
+        Edition's NULL->default display normalization is applied separately
+        for the Canvas/audit scope only. Supplied scope must agree with the
+        normalized authoritative scope and never overrides it.
         """
         from core.models import User
         from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+        from tools.canvas_crud_tool import active_canvas_actor
 
-        user = self.db.query(User).filter(
+        # Refresh the identity map before the authoritative read; the request
+        # may already hold this User from an auth dependency.
+        self.db.query(User).filter(
             User.id == str(user_id)).populate_existing().first()
-        if not isinstance(user, User):
-            raise PermissionError("Acting user could not be verified")
-        raw_status = getattr(user, "status", "")
-        status = str(getattr(raw_status, "value", raw_status) or "")
-        if status != "active" or not bool(getattr(user, "is_active", False)):
-            raise PermissionError("Acting user is not active")
+        actor = active_canvas_actor(self.db, user_id)
+        if not actor.get("ok"):
+            raise PermissionError(
+                str(actor.get("error") or "Acting user could not be verified"))
+        user = actor["user"]
         authoritative_tenant = resolve_tenant_id(user)
         authoritative_workspace = resolve_workspace_id(user)
         supplied_tenant = str(tenant_id or "").strip()
@@ -142,46 +147,7 @@ class EmailCanvasService:
         if supplied_workspace and supplied_workspace != authoritative_workspace:
             raise PermissionError(
                 "Caller scope does not match the current acting user")
-        return authoritative_tenant, authoritative_workspace
-
-    def _claim_create_actor(
-        self,
-        user_id: str,
-        tenant_id: str,
-        workspace_id: str,
-    ) -> None:
-        """Claim the exact active actor row in the SAME transaction as create.
-
-        The guarded no-op DML is the linearization point: a peer deactivation
-        or scope move committed before it matches zero rows, so Canvas/audit
-        are never created for stale authority. Existing SQL claim pattern,
-        no new store/CAS.
-        """
-        from sqlalchemy import and_, or_, update
-
-        from core.models import User
-
-        result = self.db.execute(
-            update(User)
-            .where(
-                User.id == str(user_id),
-                User.status == "active",
-                User.is_active.is_(True),
-                or_(
-                    User.tenant_id == tenant_id,
-                    and_(tenant_id == "default", User.tenant_id.is_(None)),
-                ),
-                or_(
-                    User.workspace_id == workspace_id,
-                    and_(workspace_id == "default",
-                         User.workspace_id.is_(None)),
-                ),
-            )
-            .values(id=User.id)
-        )
-        if int(getattr(result, "rowcount", 0) or 0) != 1:
-            raise PermissionError(
-                "Acting user changed before the canvas could be created")
+        return (authoritative_tenant, authoritative_workspace, actor)
 
     def create_email_canvas(
         self,
@@ -211,9 +177,13 @@ class EmailCanvasService:
             Dict with canvas details
         """
         try:
-            tenant_id, workspace_id = self._resolve_actor_scope(
+            tenant_id, workspace_id, actor = self._resolve_actor_scope(
                 user_id, tenant_id, workspace_id)
-            self._claim_create_actor(user_id, tenant_id, workspace_id)
+            from tools.canvas_crud_tool import claim_canvas_actor
+
+            if not claim_canvas_actor(self.db, actor):
+                raise PermissionError(
+                    "Acting user changed before the canvas could be created")
             canvas_id = canvas_id or str(uuid.uuid4())
             thread_id = str(uuid.uuid4())
 

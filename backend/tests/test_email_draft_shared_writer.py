@@ -535,3 +535,96 @@ def test_created_draft_survives_ordinary_restart(world):
     assert payload["status"] == 200
     assert payload["draft"]["body"] == "restart body"
     assert payload["draft"]["to_emails"] == ["restart@example.invalid"]
+
+
+def test_create_rejects_scope_disagreement_and_unknown_user(world):
+    from core.canvas_email_service import EmailCanvasService
+
+    with world.Session() as db:
+        mismatch = EmailCanvasService(db).create_email_canvas(
+            user_id=world.owner, subject="Mismatch",
+            recipients=["to@example.invalid"],
+            tenant_id=world.foreign_tenant,
+            workspace_id=world.foreign_ws)
+        unknown = EmailCanvasService(db).create_email_canvas(
+            user_id="user-does-not-exist", subject="Unknown",
+            recipients=["to@example.invalid"])
+    assert mismatch["success"] is False
+    assert unknown["success"] is False
+    with world.Session() as db:
+        assert db.query(Canvas).filter(
+            Canvas.name.in_(["Mismatch", "Unknown"])).count() == 0
+
+
+@pytest.mark.parametrize("moved", ["default", ""])
+def test_create_null_raw_scope_move_has_zero_effects(world, monkeypatch, moved):
+    from core.canvas_email_service import EmailCanvasService
+    from core.models import User
+
+    personal = f"personal-{moved or 'empty'}"
+    with world.Session() as db:
+        db.add(User(
+            id=personal, tenant_id=None, workspace_id=None,
+            email=f"{personal}@example.invalid", hashed_password="x",
+            first_name="P", last_name="User", role="member",
+            status="active", is_active=True))
+        db.commit()
+
+    original = EmailCanvasService._resolve_actor_scope
+
+    def race(self, user_id, tenant_id=None, workspace_id=None):
+        resolved = original(self, user_id, tenant_id, workspace_id)
+        with world.Session() as peer:
+            peer.query(User).filter(User.id == personal).update(
+                {"tenant_id": moved, "workspace_id": moved},
+                synchronize_session=False)
+            peer.commit()
+        return resolved
+
+    monkeypatch.setattr(EmailCanvasService, "_resolve_actor_scope", race)
+    with world.Session() as db:
+        result = EmailCanvasService(db).create_email_canvas(
+            user_id=personal, subject=f"Raw {moved or 'empty'}",
+            recipients=["to@example.invalid"])
+    assert result["success"] is False
+    with world.Session() as db:
+        assert db.query(Canvas).filter(Canvas.created_by == personal).count() == 0
+
+
+def test_active_personal_default_create_is_ordinary_put_editable(world):
+    from core.models import User
+
+    personal = "personal-default"
+    with world.Session() as db:
+        if db.get(Tenant, "default") is None:
+            db.add(Tenant(id="default", name="Default",
+                          subdomain="personal-default",
+                          edition="personal", is_active=True))
+            db.add(Workspace(id="default", name="Default",
+                             tenant_id="default"))
+        db.add(User(
+            id=personal, tenant_id="default", workspace_id="default",
+            email=f"{personal}@example.invalid", hashed_password="x",
+            first_name="P", last_name="User", role="member",
+            status="active", is_active=True))
+        db.commit()
+    client = _client(world, user_id=personal)
+    created = client.post(
+        "/api/canvas/email/create",
+        json={"user_id": "ignored", "subject": "Personal Draft",
+              "recipients": ["to@example.invalid"]})
+    assert created.status_code == 200, created.text
+    canvas_id = created.json()["canvas_id"]
+    fresh = world.fresh(canvas_id)
+    assert fresh["canvas_tenant"] == "default"
+    assert fresh["canvas_workspace"] == "default"
+    assert fresh["audit_tenant"] == "default"
+    prior = world.latest_audit_id(canvas_id)
+    put = client.put(
+        f"/api/canvas/{canvas_id}?canvas_type=email",
+        params={"expected_prior_audit_id": prior},
+        json={"to": "to@example.invalid", "cc": "",
+              "subject": "Personal Draft", "body": "personal body"})
+    assert put.status_code == 200, put.text
+    assert _email_get(client, canvas_id).json()["draft"]["body"] == (
+        "personal body")
