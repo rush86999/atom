@@ -1,0 +1,924 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 14:55:57 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:57 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:57 [    INFO] EscalationManager initialized
+2026-11-10 14:55:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:57 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id
+FROM model_catalog
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:57 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:57 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:57 [    INFO] EscalationManager initialized
+2026-11-10 14:55:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:57 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id
+FROM model_catalog
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:55:57 [    INFO] MCP Service initialized
+2026-11-10 14:55:57 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 14:55:57 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 14:55:57 [    INFO] No token storage file found, starting empty
+2026-11-10 14:55:58 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 14:55:58 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:58 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id
+FROM model_catalog
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:58 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 14:55:58 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:58 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id
+FROM model_catalog
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 14:55:58 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 14:55:58 [    INFO] Slack Enhanced Service initialized
+2026-11-10 14:55:58 [    INFO] Loaded 0 persisted sessions from file.
+
+tests/test_f6_orchestrator_delivery.py::test_non_streaming_wrapped_narration_delivered_clean
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:55:58 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:55:58 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 14:55:58 [    INFO] Slack Enhanced Service initialized
+2026-11-10 14:55:58 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] [MEMCTX] agent_id=None
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:55:58 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:55:58 [    INFO] LanceDBHandler initialized. ID: 6262748368. LANCEDB_AVAILABLE: True
+2026-11-10 14:55:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:55:58 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:55:58 [    INFO] LanceDB connected successfully
+2026-11-10 14:55:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:55:58 [    INFO] LanceDBHandler initialized. ID: 5799041296. LANCEDB_AVAILABLE: True
+2026-11-10 14:55:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:55:58 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:55:58 [    INFO] LanceDB connected successfully
+2026-11-10 14:55:58 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] EscalationManager initialized
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:55:58 [    INFO] LanceDBHandler initialized. ID: 6262738192. LANCEDB_AVAILABLE: True
+2026-11-10 14:55:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:55:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:55:58 [    INFO] LanceDBHandler initialized. ID: 5799504976. LANCEDB_AVAILABLE: True
+2026-11-10 14:55:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:55:58 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:55:58 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:55:58 [    INFO] LanceDB connected successfully
+2026-11-10 14:55:58 [    INFO] LanceDB connected successfully
+2026-11-10 14:55:59 [    INFO] EscalationManager initialized
+2026-11-10 14:55:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:59 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 14:55:59 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 14:55:59 [    INFO] EscalationManager initialized
+2026-11-10 14:55:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:55:59 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-10 14:55:59 [    INFO] Webhook processor initialized and callback registered
+2026-11-10 14:55:59 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-10 14:56:00 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-10 14:56:00 [    INFO] memory assembler: graph leg timed out
+2026-11-10 14:56:00 [    INFO] memory assembler: knowledge leg timed out
+2026-11-10 14:56:00 [ WARNING] No LLM clients available
+2026-11-10 14:56:00 [    INFO] tool planner: required read left unresolved — no registered capability can serve kinds ['note']
+2026-11-10 14:56:00 [    INFO] [stage-timing] tool plan (overlapped=False): 0.2s
+2026-11-10 14:56:00 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-10 14:56:00 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=infs
+2026-11-10 14:56:00 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=0 chars named_file=False
+2026-11-10 14:56:00 [    INFO] [prompt-budget] routing-default model=auto: input=656 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-10 14:56:00 [    INFO] [stage-timing] reply generation: 0.3s (incl. tool plan + exec above)
+2026-11-10 14:56:00 [    INFO] [verify-panel] state: mode=shadow tool_block=False content=True mission=False
+2026-11-10 14:56:00 [ WARNING] chat step persist skipped: (sqlite3.IntegrityError) NOT NULL constraint failed: agent_reasoning_steps.execution_id
+[SQL: INSERT INTO agent_reasoning_steps (id, tenant_id, execution_id, step_number, step_type, thought, action, observation, confidence, duration_ms, requested_model, resolved_model, verified, verification_evidence, feedback_score, feedback_text, match_level, match_confidence_provenance, match_confidence_score, external_validated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING timestamp]
+[parameters: ('bd78f1f3-fdb0-44ab-adf1-0805e54894fc', None, None, 1, 'thought', 'The notes mention a marker; answer with it.', '{"tool": "llm", "params": {"model": "minimax-m3"}}', 'model chain-of-thought (expand for training/audit)', 1.0, 0.0, None, None, 'unverified', None, None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2026-11-10 14:56:00 [    INFO] [review-diag] generation_completed content_len=49 review_ask=False
+PASSED                                                                   [  0%]
+tests/test_f6_orchestrator_delivery.py::test_streaming_clean_reply_delivered_without_fallback
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 14:56:00 [    INFO] Slack Enhanced Service initialized
+2026-11-10 14:56:00 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [    INFO] [MEMCTX] agent_id=None
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:00 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:00 [    INFO] LanceDBHandler initialized. ID: 6459398928. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:00 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-10 14:56:00 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-10 14:56:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:00 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:00 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-10 14:56:00 [    INFO] LanceDBHandler initialized. ID: 6459525072. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:00 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:00 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:56:00 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:00 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-10 14:56:00 [    INFO] EscalationManager initialized
+2026-11-10 14:56:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:00 [    INFO] LanceDBHandler initialized. ID: 6459252496. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:00 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:00 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:56:00 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:01 [    INFO] Created atom_communications table (384-dim vectors)
+2026-11-10 14:56:01 [    INFO] FTS index 'content_idx' (re)built on 'content' for lancedb 0.24.3
+2026-11-10 14:56:01 [    INFO] FTS index enabled on 'content' column
+2026-11-10 14:56:01 [    INFO] Created ingestion_metadata table
+2026-11-10 14:56:01 [    INFO] LanceDB memory manager initialized successfully
+2026-11-10 14:56:01 [ WARNING] No LLM clients available
+2026-11-10 14:56:01 [    INFO] tool planner: required read left unresolved — no registered capability can serve kinds ['note']
+2026-11-10 14:56:01 [    INFO] [stage-timing] tool plan (overlapped=False): 0.0s
+2026-11-10 14:56:01 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-10 14:56:01 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=infs
+2026-11-10 14:56:01 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-11-10 14:56:01 [    INFO] [prompt-budget] routing-default model=auto: input=845 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-10 14:56:01 [    INFO] [stage-timing] reply STREAMED: 0.0s to full text (ollama/llama3.1:8b, 2 chunks)
+2026-11-10 14:56:01 [    INFO] [stage-timing] reply generation: 0.1s (incl. tool plan + exec above)
+2026-11-10 14:56:01 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-11-10 14:56:01 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-11-10 14:56:01 [    INFO] [review-diag] generation_completed content_len=25 review_ask=False
+PASSED                                                                   [  1%]
+tests/test_f6_orchestrator_delivery.py::test_streaming_wrapped_reply_falls_back_and_delivers_clean
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 14:56:01 [    INFO] Slack Enhanced Service initialized
+2026-11-10 14:56:01 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] [MEMCTX] agent_id=None
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:01 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:01 [    INFO] LanceDBHandler initialized. ID: 6476541264. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:01 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:01 [    INFO] LanceDBHandler initialized. ID: 6476536400. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:01 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:01 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:56:01 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:01 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-10 14:56:01 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:56:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:56:01 [    INFO] LanceDBHandler initialized. ID: 6468910864. LANCEDB_AVAILABLE: True
+2026-11-10 14:56:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 14:56:01 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 14:56:01 [    INFO] LanceDB connected successfully
+2026-11-10 14:56:01 [ WARNING] No LLM clients available
+2026-11-10 14:56:01 [    INFO] tool planner: required read left unresolved — no registered capability can serve kinds ['note']
+2026-11-10 14:56:01 [    INFO] [stage-timing] tool plan (overlapped=False): 0.0s
+2026-11-10 14:56:01 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-10 14:56:01 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=infs
+2026-11-10 14:56:01 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=450 chars named_file=False
+2026-11-10 14:56:01 [    INFO] [prompt-budget] routing-default model=auto: input=845 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-10 14:56:01 [ WARNING] streamed reply is a generic non-answer despite tool results — grounded regeneration
+2026-11-10 14:56:01 [    INFO] [stage-timing] reply stream produced no deliverable final text (ollama/llama3.1:8b, 1 chunks) — non-streaming fallback
+2026-11-10 14:56:01 [    INFO] [stage-timing] reply generation: 0.0s (incl. tool plan + exec above)
+2026-11-10 14:56:01 [    INFO] [verify-panel] skipped: mode=shadow high_stakes=False mission=False
+2026-11-10 14:56:01 [    INFO] [verify-panel] state: mode=shadow tool_block=True content=True mission=False
+2026-11-10 14:56:01 [    INFO] [review-diag] generation_completed content_len=33 review_ask=False
+PASSED                                                                   [  2%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 14:56:01 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-197' coro=<<async_generator_athrow without __name__>()>>
+
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_benign_prompt_passes PASSED [  3%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_ssn_prompt_flagged_restricted PASSED [  4%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_secret_key_prompt_flagged PASSED [  5%]
+tests/test_deepseek_harness_gaps.py::TestPromptTaintAssessment::test_empty_and_oversized_inputs_safe PASSED [  6%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_chat_completion_shadow_logs_but_proceeds
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:01 [    INFO] LocalOnlyGuard initialized
+2026-11-10 14:56:01 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 14:56:01 [ WARNING] llm_taint.shadow provider=opencode-go model=deepseek-v4-flash max_observed=restricted — Prompt classified restricted-sensitivity (potential PII or secrets) heading to external LLM opencode-go/deepseek-v4-flash (set ATOM_LLM_TAINT_ENFORCE=true to block)
+PASSED                                                                   [  7%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_chat_completion_enforce_blocks
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  8%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_generate_response_enforce_returns_marker_without_dispatch
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  9%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_stream_enforce_yields_error_without_dispatch
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 10%]
+tests/test_deepseek_harness_gaps.py::TestLLMTaintGateWiring::test_benign_prompt_unaffected_under_enforce
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:01 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:01 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 11%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_default_bpc_prefers_flash_value
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:01 [    INFO] Loaded 5386 model prices from cache
+2026-11-10 14:56:01 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-10 14:56:01 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 5866.67)
+2026-11-10 14:56:01 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:01 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:01 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 12%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_fast_cap_excludes_pro
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:01 [    INFO] Loaded 5386 model prices from cache
+2026-11-10 14:56:01 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-flash (Value: 10325.33)
+2026-11-10 14:56:01 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:01 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:01 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 13%]
+tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_quality_floor_selects_pro
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:01 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:01 [    INFO] EscalationManager initialized
+2026-11-10 14:56:01 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:01 [ WARNING] sentence_transformers not available (error: huggingface-hub>=0.34.0,<1.0 is required for a normal functioning of this module, but found huggingface-hub==1.4.1.
+Try: `pip install transformers -U` or `pip install -e '.[dev]'` if you're working with git main), embeddings will be disabled
+2026-11-10 14:56:01 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-10 14:56:01 [    INFO] Loaded 5386 model prices from cache
+2026-11-10 14:56:02 [    INFO] BPC Ranking Successful for simple: Top model deepseek-v4-pro (Value: 2109.86)
+2026-11-10 14:56:02 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-10 14:56:02 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion:general' after 0.0s
+2026-11-10 14:56:02 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-pro - $0.000033 (Saved: $0.000042)
+2026-11-10 14:56:02 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-pro
+2026-11-10 14:56:02 [    INFO] Opened existing atom_communications table
+PASSED                                                                   [ 14%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterFreeSuffixContract::test_free_ids_are_not_registry_models
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:02 [    INFO] FTS index enabled on 'content' column
+2026-11-10 14:56:02 [    INFO] Opened existing ingestion_metadata table
+2026-11-10 14:56:02 [    INFO] LanceDB memory manager initialized successfully
+2026-11-10 14:56:03 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 15%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterFreeSuffixContract::test_route_survives_unknown_free_candidate
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Routed question_answering to minimax-m3 (confidence=0.97, cost=$0.0006)
+PASSED                                                                   [ 16%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_cached_ok_short_circuits PASSED [ 17%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_cached_reason_replayed PASSED [ 18%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_missing_client_reports_reason PASSED [ 19%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_credits_error_becomes_cached_skip_reason PASSED [ 20%]
+tests/test_deepseek_harness_gaps.py::TestOpencodeCanaryProbe::test_success_returns_none_and_caches_ok PASSED [ 20%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_free_model_balance_error_retries_paid
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 14:56:03 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 21%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_retry_records_usage_for_budget_guard
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 14:56:03 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 22%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_retry_cost_attribution_failure_is_non_fatal
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 14:56:03 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] Could not attribute LLM cost: no table
+2026-11-10 14:56:03 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 23%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_non_free_model_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'structured:chat' after 0.0s
+2026-11-10 14:56:03 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] attempt opencode-go/deepseek-v4-flash failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+PASSED                                                                   [ 24%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_free_model_other_error_no_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 14:56:03 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: 401 invalid key
+2026-11-10 14:56:03 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=unknown status=None detail=401 invalid key
+PASSED                                                                   [ 25%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_paid_retry_failure_falls_through
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 14:56:03 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] OpenCode Go paid retry FAILED for deepseek-v4-flash: paid also failed
+PASSED                                                                   [ 26%]
+tests/test_deepseek_harness_gaps.py::TestChatCompletionFreeToPaidRetry::test_extra_kwargs_preserved_on_retry
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 14:56:03 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=401 detail=Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', 'message': 'Insufficient balance. Manage your billing at opencode.ai'}}
+2026-11-10 14:56:03 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 27%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_quality_raises_quality_floor
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-pro released by 'completion:general' after 0.0s
+2026-11-10 14:56:03 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-pro - $0.000033 (Saved: $0.000042)
+2026-11-10 14:56:03 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-pro
+PASSED                                                                   [ 28%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_fast_caps_quality
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:03 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:03 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 29%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_auto_passes_no_steering
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:03 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:03 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 30%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_explicit_cognitive_tier_wins_over_model_type
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:03 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:03 [    INFO] BYOK Logic: complexity=complex, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 31%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_concrete_model_name_pins_candidate_order
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] [inflight] openai/gpt-4o released by 'completion:general' after 0.0s
+2026-11-10 14:56:03 [    INFO] LLM Cost Attributed (Managed): gpt-4o - $0.000075 (Saved: $0.000000)
+2026-11-10 14:56:03 [    INFO] BYOK Logic: complexity=simple, provider=openai, model=gpt-4o
+PASSED                                                                   [ 32%]
+tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_unknown_concrete_model_keeps_ranked_order
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized opencode-go client using BYOK credential
+2026-11-10 14:56:03 [    INFO] EscalationManager initialized
+2026-11-10 14:56:03 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:03 [    INFO] LLM Cost Attributed (Managed): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:03 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 33%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_v4_specs_served_via_opencode_go
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 34%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_costs_match_gateway_blended_pricing
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 35%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_no_cache_claim_for_deepseek_v4
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 36%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_opencode_catalog_entries_present
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 37%]
+tests/test_deepseek_harness_gaps.py::TestLearningRouterRegistryCorrections::test_minimax_m3_keeps_direct_api_entry
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:03 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 38%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_micro_and_standard_include_current_flash PASSED [ 39%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_heavy_includes_pro PASSED [ 40%]
+tests/test_deepseek_harness_gaps.py::TestCognitiveTierModelsCurrentGen::test_complex_includes_current_frontier PASSED [ 40%]
+tests/test_deepseek_harness_gaps.py::TestBenchmarksNoDuplicateKeys::test_model_quality_scores_has_no_duplicate_keys PASSED [ 41%]
+tests/test_deepseek_harness_gaps.py::TestSandboxEgressOpencodeGateway::test_baseline_allows_opencode_zen_host PASSED [ 42%]
+tests/test_deepseek_harness_gaps.py::TestSandboxEgressOpencodeGateway::test_llm_proxy_allows_opencode_zen_host PASSED [ 43%]
+tests/test_deepseek_harness_gaps.py::TestTripwireEgressDivergenceDocumented::test_llm_host_is_egress_allowed_but_exfil_tripped PASSED [ 44%]
+tests/test_deepseek_harness_gaps.py::TestTripwireEgressDivergenceDocumented::test_allowlisted_package_mirror_not_tripped PASSED [ 45%]
+tests/test_deepseek_harness_gaps.py::test_gatekeeper_taint_tracker_error_fails_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:03 [   ERROR] taint check unavailable for slack; failing CLOSED: tracker storage unavailable
+2026-11-10 14:56:03 [    INFO] gatekeeper.audit service=slack action=send_message agent_id=None allowed=False reason=taint check error: RuntimeError
+PASSED                                                                   [ 46%]
+tests/test_deepseek_harness_gaps.py::TestOrgPoliticsDefaultChatFn::test_routes_through_byok_handler PASSED [ 47%]
+tests/test_deepseek_harness_gaps.py::TestOrgPoliticsDefaultChatFn::test_no_clients_returns_none PASSED [ 48%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_no_clients_raises PASSED [ 49%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_budget_exceeded_fail_closed PASSED [ 50%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_budget_tracker_error_fail_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:06 [   ERROR] Budget tracker unavailable for workspace ws1; blocking request (fail-closed): db down
+PASSED                                                                   [ 51%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_trial_expired PASSED [ 52%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionGuards::test_no_provider_order_raises PASSED [ 53%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_success_path
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:09 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 14:56:09 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 54%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_fallback_skips_non_serving_provider
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:10 [ WARNING] No client available for provider: anthropic
+2026-11-10 14:56:10 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 14:56:10 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 55%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_fallback_after_failure
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:11 [    INFO] Attempting completion with provider: deepseek (requested: openai)
+2026-11-10 14:56:11 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 56%]
+tests/test_covpush_w57_byok_handler_d.py::TestChatCompletionSuccess::test_all_failed_raises PASSED [ 57%]
+tests/test_covpush_w57_byok_handler_d.py::TestStreamCompletion::test_success_stream
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:13 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:56:13 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 58%]
+tests/test_covpush_w57_byok_handler_d.py::TestStreamCompletion::test_error_delta
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:14 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 14:56:14 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 14:56:14 [ WARNING] Streaming failed for openai/gpt-4o: 'str' object has no attribute 'choices'
+2026-11-10 14:56:14 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail='str' object has no attribute 'choices'
+2026-11-10 14:56:14 [   ERROR] All 1 providers failed for gpt-4o. Last error: 'str' object has no attribute 'choices'
+PASSED                                                                   [ 59%]
+tests/test_llm_p2_fallbacks.py::test_short_canvas_text_is_unchanged PASSED [ 60%]
+tests/test_llm_p2_fallbacks.py::test_long_canvas_text_keeps_head_and_tail PASSED [ 60%]
+tests/test_llm_p2_fallbacks.py::test_context_error_skips_same_model_providers_for_model_fallback
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:14 [    INFO] Attempting stream with provider: p1 (requested: p1) model=m1
+2026-11-10 14:56:15 [    INFO] [inflight] p1/m1 released by 'structured:chat' after 0.3s
+2026-11-10 14:56:15 [ WARNING] Streaming failed for p1/m1: This model's maximum context length is 8192 tokens, however you requested 9900 tokens
+2026-11-10 14:56:15 [ WARNING] attempt p1/m1 failed: cause=unknown status=None detail=This model's maximum context length is 8192 tokens, however you requested 9900 tokens
+2026-11-10 14:56:15 [ WARNING] p1/m1 failed with a context-window error — skipping same-model providers for the model fallback
+2026-11-10 14:56:15 [ WARNING] all 2 provider(s) failed for p1/m1 — falling back to ranked route p1/m2
+2026-11-10 14:56:15 [    INFO] Attempting stream with provider: p1 (requested: p1) model=m2
+2026-11-10 14:56:15 [    INFO] [inflight] p1/m2 released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 61%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_without_execution_context_uses_none
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:16 [    INFO] EscalationManager initialized
+2026-11-10 14:56:16 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:16 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:16 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:16 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:56:16 [    INFO] Initialized router with 30 models
+2026-11-10 14:56:16 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-10 14:56:16 [    INFO] Learning router singleton initialized
+PASSED                                                                   [ 62%]
+tests/test_goal9_ci_execution_contract.py::test_generate_response_with_execution_context_attribution
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:17 [    INFO] EscalationManager initialized
+2026-11-10 14:56:17 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:17 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:17 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.000009 (Saved: $0.000066)
+2026-11-10 14:56:17 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:56:17 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6680023696'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6679327504'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 63%]
+tests/test_goal9_ci_execution_contract.py::test_intent_failure_does_not_fallback_to_second_provider
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:18 [    INFO] EscalationManager initialized
+2026-11-10 14:56:18 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:18 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:18 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash
+2026-11-10 14:56:18 [   ERROR] LLM generation blocked by accounting refusal: budget authorization unavailable for this request; no provider was dispatched without an authorized bound
+PASSED                                                                   [ 64%]
+tests/test_goal9_ci_execution_contract.py::test_two_ordinary_successes_settle_ledger_once
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:19 [    INFO] EscalationManager initialized
+2026-11-10 14:56:19 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:19 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:19 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:56:19 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:56:19 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6681305232'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6680023696'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 14:56:19 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:19 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:56:19 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 65%]
+tests/test_goal9_ci_execution_contract.py::test_missing_usage_is_uncertain_liability_not_released
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:20 [    INFO] EscalationManager initialized
+2026-11-10 14:56:20 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:20 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:20 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 66%]
+tests/test_goal9_ci_execution_contract.py::test_success_settlement_failure_keeps_reserved_liability_across_restart
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:21 [    INFO] EscalationManager initialized
+2026-11-10 14:56:21 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:21 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:21 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $1.600000 (Saved: $0.000000)
+2026-11-10 14:56:21 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:56:21 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:56:21 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6681263120'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6681305232'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+PASSED                                                                   [ 67%]
+tests/test_goal9_ci_execution_contract.py::test_concurrent_ordinary_cap_90_plus_7_plus_7
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:23 [    INFO] EscalationManager initialized
+2026-11-10 14:56:23 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:23 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:23 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:23 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:56:23 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:23 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash
+2026-11-10 14:56:23 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6684655312'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6681263120'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 14:56:23 [   ERROR] LLM generation blocked by accounting refusal: budget authorization unavailable for this request; no provider was dispatched without an authorized bound
+PASSED                                                                   [ 68%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[-1.0]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:24 [    INFO] EscalationManager initialized
+2026-11-10 14:56:24 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:24 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:24 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash
+2026-11-10 14:56:24 [   ERROR] LLM generation blocked by accounting refusal: budget authorization unavailable for this request; no provider was dispatched without an authorized bound
+PASSED                                                                   [ 69%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[nan]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:25 [    INFO] EscalationManager initialized
+2026-11-10 14:56:25 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:25 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:25 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash
+2026-11-10 14:56:25 [   ERROR] LLM generation blocked by accounting refusal: budget authorization unavailable for this request; no provider was dispatched without an authorized bound
+PASSED                                                                   [ 70%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[inf]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:26 [    INFO] EscalationManager initialized
+2026-11-10 14:56:26 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:26 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:26 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash
+2026-11-10 14:56:26 [   ERROR] LLM generation blocked by accounting refusal: budget authorization unavailable for this request; no provider was dispatched without an authorized bound
+PASSED                                                                   [ 71%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[False]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:27 [    INFO] EscalationManager initialized
+2026-11-10 14:56:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:27 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash
+2026-11-10 14:56:27 [   ERROR] LLM generation blocked by accounting refusal: budget authorization unavailable for this request; no provider was dispatched without an authorized bound
+PASSED                                                                   [ 72%]
+tests/test_goal9_ci_execution_contract.py::test_invalid_pricing_hardstop_zero_provider_dispatch[True]
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:27 [    INFO] EscalationManager initialized
+2026-11-10 14:56:27 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:27 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:27 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash
+2026-11-10 14:56:27 [   ERROR] LLM generation blocked by accounting refusal: budget authorization unavailable for this request; no provider was dispatched without an authorized bound
+PASSED                                                                   [ 73%]
+tests/test_goal9_ci_execution_contract.py::test_missing_usage_is_explicit_unknown
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:28 [    INFO] EscalationManager initialized
+2026-11-10 14:56:28 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:28 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:28 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+PASSED                                                                   [ 74%]
+tests/test_goal9_ci_execution_contract.py::test_success_settlement_failure_retains_intent_across_restart
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:56:29 [    INFO] EscalationManager initialized
+2026-11-10 14:56:29 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:29 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 14:56:29 [    INFO] LLM Cost Attributed (BYOK): deepseek-v4-flash - $0.250000 (Saved: $0.000000)
+2026-11-10 14:56:29 [    INFO] BYOK Logic: complexity=simple, provider=opencode-go, model=deepseek-v4-flash
+2026-11-10 14:56:29 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:56:29 [ WARNING] MODEL DRIFT: opencode-go/deepseek-v4-flash now resolves to '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6689717008'>' (was '<MagicMock name='mock.chat.completions.create()._raw_response.model' id='6684655312'>') — model-family-scoped harness patches for this identity are suppressed until the echo stabilizes
+2026-11-10 14:56:29 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9-success
+2026-11-10 14:56:29 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9-success
+PASSED                                                                   [ 75%]
+tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:30 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:30 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 76%]
+tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:31 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:31 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 77%]
+tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:32 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:32 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 78%]
+tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 79%]
+tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 80%]
+tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 80%]
+tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:35 [ WARNING] Could not attribute LLM cost: pricing unavailable
+2026-11-10 14:56:35 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 81%]
+tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [ 82%]
+tests/test_goal9_durable_settlement.py::test_known_free_contract_is_authoritative_zero_without_usage PASSED [ 83%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unpriced_read_failure_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:38 [   ERROR] [SpendAggregationService] Error updating spend: unpriced read unavailable
+2026-11-10 14:56:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unpriced read unavailable
+PASSED                                                                   [ 84%]
+tests/test_goal9_durable_settlement.py::test_upgrade_failure_keeps_hard_stop_closed
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:38 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+2026-11-10 14:56:38 [ WARNING] [BudgetEnforcementService] Durable ledger upgrade unavailable for tenant tenant-goal9: upgrade_failed:RuntimeError
+PASSED                                                                   [ 85%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:40 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 14:56:40 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+PASSED                                                                   [ 86%]
+tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:40 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 87%]
+tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:41 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 88%]
+tests/test_goal9_durable_settlement.py::test_unresolved_scope_unknown_is_visible_to_hardstop
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:42 [ WARNING] [BudgetEnforcementService] 1 unattributed unpriced usage row(s)
+PASSED                                                                   [ 89%]
+tests/test_goal9_durable_settlement.py::test_trusted_handler_scope_carrier
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:43 [    INFO] EscalationManager initialized
+2026-11-10 14:56:43 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+2026-11-10 14:56:43 [    INFO] LLM Cost Attributed: controlled-model - $0.010000 (Saved: $0.000000)
+PASSED                                                                   [ 90%]
+tests/test_goal9_durable_settlement.py::test_llm_service_scope_carrier_and_unresolved_refusal
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:43 [    INFO] EscalationManager initialized
+2026-11-10 14:56:43 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+PASSED                                                                   [ 91%]
+tests/test_goal9_durable_settlement.py::test_settlement_persistence_failure_does_not_fake_success
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:44 [   ERROR] durable LLM settlement degraded: settlement_write_failed:RuntimeError
+2026-11-10 14:56:44 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:56:44 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:44 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+2026-11-10 14:56:44 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+PASSED                                                                   [ 92%]
+tests/test_goal9_durable_settlement.py::test_structured_no_trace_calls_get_distinct_server_identities
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:45 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:56:45 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-6a51862cf316 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 14:56:45 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-6a51862cf316 attempt=1
+2026-11-10 14:56:45 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+2026-11-10 14:56:45 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:56:45 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-2b28a956ec48 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 14:56:45 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-2b28a956ec48 attempt=1
+2026-11-10 14:56:45 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 93%]
+tests/test_goal9_durable_settlement.py::test_durable_intent_survives_restart_when_settlement_write_fails
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:46 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 14:56:46 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-1b3a76866344 attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 14:56:46 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-1b3a76866344 attempt=1
+2026-11-10 14:56:46 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 14:56:46 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 94%]
+tests/test_goal9_durable_settlement.py::test_no_provider_dispatch_when_durable_intent_cannot_persist
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:47 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (_AccountingBlockedError)
+2026-11-10 14:56:47 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (_AccountingBlockedError)
+2026-11-10 14:56:47 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 14:56:47 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+PASSED                                                                   [ 95%]
+tests/test_goal9_durable_settlement.py::test_settle_exact_intent_once
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:47 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [ 96%]
+tests/test_goal9_durable_settlement.py::test_pending_cas_two_sessions_actual_survives_stale_writers PASSED [ 97%]
+tests/test_goal9_durable_settlement.py::test_null_cost_nonunknown_status_is_liability_not_free
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:56:49 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 98%]
+tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [ 99%]
+tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  <scratch>:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 210 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 105 passed, 216 warnings in 73.65s (0:01:13) =================
