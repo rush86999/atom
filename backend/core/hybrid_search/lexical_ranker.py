@@ -144,7 +144,9 @@ def _search_ingested_sqlite(
         "bm25(ingested_documents_fts) AS rank "
         "FROM ingested_documents_fts f "
         "JOIN ingested_documents d ON d.rowid = f.rowid "
-        "WHERE ingested_documents_fts MATCH :q"
+        "WHERE ingested_documents_fts MATCH :q "
+        "AND COALESCE(lower(d.freshness_status), 'fresh') "
+        "NOT IN ('stale', 'outdated', 'removed', 'superseded')"
     )
     params: Dict[str, Any] = {"q": fts_query, "lim": limit}
     if workspace_id:
@@ -233,7 +235,9 @@ def _search_ingested_pg(
         "SELECT d.id, d.file_name, d.content_preview, d.external_modified_at, "
         "ts_rank_cd(d.search_vector, plainto_tsquery('english', :q)) AS rank "
         "FROM ingested_documents d "
-        "WHERE d.search_vector @@ plainto_tsquery('english', :q)"
+        "WHERE d.search_vector @@ plainto_tsquery('english', :q) "
+        "AND COALESCE(lower(d.freshness_status), 'fresh') "
+        "NOT IN ('stale', 'outdated', 'removed', 'superseded')"
     )
     params: Dict[str, Any] = {"q": query, "lim": limit}
     if workspace_id:
@@ -335,7 +339,16 @@ def _search_iliike_fallback(
     results: List[Dict[str, Any]] = []
 
     def _ingested_rows(clause) -> list:
+        from core.doc_freshness_service import NON_FRESH_STATUSES
+
         qi = db.query(IngestedDocument).filter(clause)
+        qi = qi.filter(
+            or_(
+                IngestedDocument.freshness_status.is_(None),
+                ~IngestedDocument.freshness_status.in_(
+                    tuple(NON_FRESH_STATUSES)),
+            )
+        )
         if workspace_id:
             qi = qi.filter(IngestedDocument.workspace_id == workspace_id)
         if since:
