@@ -1,0 +1,3 @@
+# Independent email compatibility follow-through
+
+Root verified12 real-public-API Personal/scope/projection controls on frozenf2789bef9 (actualexit0; source-before/after equal). The five repaired files are byte-identical in integrationf6efe95d1; all10 native packet artifacts match Git. Native repaired suite112/112 and original negatives retained. The new normalizer matrix is added to existing email CI step; original CI jobs/selections retained. This is controlled email/Personal compatibility evidence, not generalGoal11/model competence or live send. Exact new PR head needs fresh all13 checks before merge.
