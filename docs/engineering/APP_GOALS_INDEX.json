@@ -111,8 +111,8 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T04:47:42.135962+00:00",
-    "as_of_main": "e2cbff5b989c482040d61c210e74be7f8840668d",
+    "updated_at": "2026-11-10T05:58:07.029432+00:00",
+    "as_of_main": "310e72aecd1a4041a35af6ac093379d39b93556b",
     "app_complete": false,
     "historical_claims": 143,
     "goal_rows": 18,
@@ -125,31 +125,41 @@
       {
         "pr": 812,
         "revision": "e2cbff5b9",
-        "scope": "Canonical account/SSO and durable chat-task repair at recorded controlled scopes; all13 exact-head checks passed; post-merge CI still running at this update"
+        "scope": "Canonical account/SSO and durable chat tasks at recorded controlled scopes"
+      },
+      {
+        "pr": 813,
+        "revision": "24de76a7f",
+        "scope": "Canvas authority and exact visible restore; reviewed merge tree preserved"
+      },
+      {
+        "pr": 815,
+        "revision": "6f8c2a480",
+        "scope": "Document global ordering and UI pagination;85/85 development browser checks, controlled scope"
+      },
+      {
+        "pr": 816,
+        "revision": "310e72aec",
+        "scope": "Training proposal authority and expiry; controlled public API/SQLite scope, all13 exact-head checks green; post-merge CI pending"
       }
     ],
     "submitted": [
       {
-        "pr": 813,
-        "head": "4fab98f44",
-        "scope": "Canvas sheets/coding authority and exact visible restore material; controlled independent verification complete, hosted CI pending"
-      },
-      {
-        "pr": 815,
-        "head": "4ab38c621",
-        "scope": "Document-library global ordering and accessible pagination;85/85 development browser checks and32 source/artifact checks; hosted CI pending"
+        "pr": 817,
+        "head": "36f9a5909",
+        "scope": "Persistent CI coverage for canvas authority/restore, document pagination and training proposal controls;89 local controls; hosted CI still running"
       }
     ],
     "active": [
       {
-        "owner": "backend native CLI",
-        "work": "Training-proposal authority repair",
-        "acceptance": "withheld: independent null-agent-scope disclosure and expired-review probes must pass"
+        "owner": "frontend native CLI",
+        "work": "Native-chat reviewed learning, ordinary Learning UI and real backend restart",
+        "acceptance": "Owner/quoted-authority defects repaired and four independent API probes pass at33b8e9931;20 mechanical verifier cases pass. Browser journey running at integratione5d2fdb32, not yet accepted."
       },
       {
-        "owner": "frontend native CLI",
-        "work": "Native-chat conversation learning reproduction and shared-pipeline design",
-        "acceptance": "source gap only until actual public API reproduction; no new lesson store or silent bulk training"
+        "owner": "backend native CLI",
+        "work": "Generated workflow handoff to existing catalog and canonical engine",
+        "acceptance": "Implementation in progress; shared-store failure, stale writer and uncertainty controls required; no runtime acceptance or deployment claim."
       }
     ],
     "superseded": [
@@ -163,6 +173,7 @@
         "reason": "Public Git revision under credential-worded metadata key triggered scanner. Clean successor changes that key only; no history rewrite or scanner waiver."
       }
     ],
-    "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion."
+    "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
+    "next_prepared": "Workflow output/export consumer boundary after current workflow handoff; reconcile ownership and existing evidence first."
   }
 }
