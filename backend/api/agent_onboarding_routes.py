@@ -14,10 +14,11 @@ Design goal (per Brennan Machinery product direction):
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.agent_decision_write_service import create_agent as _create_agent_decision
 from core.auth import User, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
@@ -25,7 +26,8 @@ from core.guided_automation_service import (
     get_automation_suggestion_service,
     get_guided_agent_factory,
 )
-from core.models import AgentRegistry, AgentStatus
+from core.models import AgentRegistry, AgentStatus, UserRole
+from core.personal_scope import resolve_tenant_id
 from core.service_factory import ServiceFactory
 
 logger = logging.getLogger(__name__)
@@ -77,6 +79,7 @@ class SuggestionCreateRequest(BaseModel):
 @router.post("/guided", status_code=201)
 async def create_guided_agent(
     req: GuidedAgentRequest,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -96,6 +99,16 @@ async def create_guided_agent(
     # --- Trust/maturity gate for agent-initiated creation ---
     if req.acting_agent_id:
         governance = ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
+        visible_agents = {
+            agent.id: agent for agent in governance.list_agents()
+        }
+        acting_agent = visible_agents.get(req.acting_agent_id)
+        if (
+            acting_agent is None
+            or resolve_tenant_id(acting_agent) != str(tenant_id)
+        ):
+            raise HTTPException(
+                status_code=404, detail="Acting agent not found")
         decision = await governance.can_perform_action_async(
             agent_id=req.acting_agent_id,
             action_type="create_agent",
@@ -113,8 +126,18 @@ async def create_guided_agent(
                         "context": req.context,
                         "created_by_user": str(getattr(current_user, "id", "unknown")),
                         "tenant_id": tenant_id,
+                        "workspace_id": workspace_id,
+                        "acting_agent_id": req.acting_agent_id,
+                        "schedule_config": req.schedule_config,
                     },
                     reason=reason,
+                    execution_context={
+                        "workspace_id": workspace_id,
+                        "tenant_id": tenant_id,
+                        "actor_id": str(getattr(current_user, "id", "unknown")),
+                        "user_id": str(getattr(current_user, "id", "unknown")),
+                    },
+                    user_id=str(getattr(current_user, "id", "unknown")),
                 )
             except Exception as e:
                 logger.error(f"Failed to create HITL action for guided agent creation: {e}")
@@ -150,51 +173,70 @@ async def create_guided_agent(
         "curriculum": ROLE_CURRICULUM.get(role, []),
     }
 
-    registry_entry = AgentRegistry(
+    if req.acting_agent_id:
+        # Generation may await; re-check the exact actor reference before the
+        # create so a concurrent deletion/scope move cannot leave a dangling
+        # parent binding.
+        if req.acting_agent_id not in {
+            agent.id for agent in governance.list_agents()
+        }:
+            raise HTTPException(
+                status_code=404, detail="Acting agent not found")
+
+    result = _create_agent_decision(
+        db,
+        actor=current_user,
         name=blueprint["name"],
-        description=blueprint["description"],
         category=blueprint["category"],
-        capabilities=blueprint.get("capabilities"),
+        description=blueprint.get("description"),
         configuration=configuration,
         schedule_config=req.schedule_config,
-        module_path="core.generic_agent",
-        class_name="GenericAgent",
-        # Always spoon-fed to start: employees and autonomous agents alike
-        # get a STUDENT that must graduate before acting unattended.
-        status=AgentStatus.STUDENT.value,
-        # Spoon-fed start: fresh students begin with low confidence and earn
-        # it through teaching/observation (capped below the promotion
-        # threshold) — the model default of 0.5 would already sit at the
-        # training-review boundary.
+        # Server-owned student qualification contract: the caller cannot
+        # submit status/confidence/user/scope, and the generated blueprint
+        # cannot choose them either.
         confidence_score=0.1,
         user_id=str(getattr(current_user, "id", "unknown")),
-        workspace_id=workspace_id,
-        tenant_id=tenant_id,
+        parent_agent_id=req.acting_agent_id,
+        capabilities=blueprint.get("capabilities"),
+        minimum_role=UserRole.GUEST,
+        authority_label="GUIDED_CREATE",
+        operation_id=operation_id,
     )
-    if req.acting_agent_id:
-        registry_entry.parent_agent_id = req.acting_agent_id
+    from api.agent_routes import _raise_agent_decision
 
-    db.add(registry_entry)
-    db.commit()
-    db.refresh(registry_entry)
+    _raise_agent_decision(result)
+    data = dict(result.get("data") or {})
 
-    if req.schedule_config and req.schedule_config.get("active"):
+    # A followup effect only after the first verified create; replay must not
+    # schedule the same agent a second time.
+    if (
+        result.get("status") == "verified"
+        and req.schedule_config
+        and req.schedule_config.get("active")
+    ):
         try:
             from core.scheduler import AgentScheduler
-            AgentScheduler.get_instance().schedule_agent(registry_entry.id, req.schedule_config)
+            AgentScheduler.get_instance().schedule_agent(
+                data["agent_id"], req.schedule_config)
         except Exception as e:
-            logger.warning(f"Failed to schedule guided agent {registry_entry.id}: {e}")
+            logger.warning(
+                f"Failed to schedule guided agent {data['agent_id']}: {e}")
 
     return router.success_response(
         data={
-            "agent_id": registry_entry.id,
-            "name": registry_entry.name,
-            "category": registry_entry.category,
+            "agent_id": data["agent_id"],
+            "name": data.get("agent_name") or blueprint["name"],
+            "category": data.get("category") or blueprint["category"],
             "template": blueprint.get("template"),
-            "maturity": AgentStatus.STUDENT.value,
+            "maturity": data.get("agent_status") or AgentStatus.STUDENT.value,
             "created_by": "agent" if req.acting_agent_id else "employee",
+            "operation_id": data.get("operation_id"),
+            "audit_id": data.get("audit_id"),
+            "verification": data.get("verification"),
         },
-        message=f"Agent '{registry_entry.name}' created — it starts as a STUDENT and learns with guidance",
+        message=(
+            f"Agent '{data.get('agent_name') or blueprint['name']}' created "
+            "— it starts as a STUDENT and learns with guidance"),
     )
 
 

@@ -788,8 +788,10 @@ def _stored_json_value(value: Any) -> Any:
     return value
 
 
-def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
-    return {
+def _create_state_material(
+    agent: AgentRegistry, *, extra: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    material = {
         "id": str(agent.id),
         "tenant_id": (
             None if agent.tenant_id is None else str(agent.tenant_id)),
@@ -809,14 +811,24 @@ def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
         "status": str(agent.status or ""),
         "confidence_score": float(agent.confidence_score or 0.0),
     }
+    if extra:
+        material.update(extra)
+    return material
 
 
 def _create_target_check(db: Session):
     def check(expected: Dict[str, Any]) -> bool:
         current = _load_agent(db, str(expected.get("target_id") or ""))
+        audit_extra = expected.get("extra") or {}
+        state_extra = {
+            key: audit_extra[key]
+            for key in ("user_id", "parent_agent_id", "capabilities_digest")
+            if key in audit_extra
+        }
         return (
             current is not None
-            and _state_digest(_create_state_material(current))
+            and _state_digest(_create_state_material(
+                current, extra=state_extra))
             == expected["result_digest"])
 
     return check
@@ -839,6 +851,12 @@ def create_agent(
     description: Optional[str] = None,
     configuration: Optional[Dict[str, Any]] = None,
     schedule_config: Optional[Dict[str, Any]] = None,
+    confidence_score: Optional[float] = None,
+    user_id: Optional[str] = None,
+    parent_agent_id: Optional[str] = None,
+    capabilities: Optional[Any] = None,
+    minimum_role: UserRole = UserRole.WORKSPACE_ADMIN,
+    authority_label: str = "AGENT_MANAGE",
     operation_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create one STUDENT agent with an exact actor/material receipt.
@@ -849,8 +867,8 @@ def create_agent(
     A create remains a create (no name-based upsert or uniqueness policy).
     """
     actor_snapshot = _resolve_actor(
-        db, actor, minimum_role=UserRole.WORKSPACE_ADMIN,
-        authority_label="AGENT_MANAGE")
+        db, actor, minimum_role=minimum_role,
+        authority_label=authority_label)
     if not actor_snapshot.get("ok"):
         return _actor_refusal(actor_snapshot)
     try:
@@ -860,9 +878,31 @@ def create_agent(
             str(exc), http_status=422, error_code="VALIDATION_ERROR",
             field="operation_id")
 
+    try:
+        effective_confidence = (
+            NEW_AGENT_CONFIDENCE if confidence_score is None
+            else float(confidence_score))
+    except (TypeError, ValueError):
+        return _refused(
+            "confidence_score must be numeric", http_status=422,
+            error_code="VALIDATION_ERROR", field="confidence_score")
+    if not (0.0 <= effective_confidence < 0.5):
+        return _refused(
+            "confidence_score must be below the INTERN qualification floor",
+            http_status=422, error_code="VALIDATION_ERROR",
+            field="confidence_score")
+
     target_id = str(uuid.uuid5(uuid.NAMESPACE_URL, operation_id))
     configuration_digest = _create_config_digest(configuration)
     schedule_digest = _create_schedule_digest(schedule_config)
+    state_extra: Dict[str, Any] = {}
+    if user_id is not None:
+        state_extra["user_id"] = str(user_id)
+    if parent_agent_id is not None:
+        state_extra["parent_agent_id"] = str(parent_agent_id)
+    if capabilities is not None:
+        state_extra["capabilities_digest"] = _fingerprint(
+            "agent-capabilities", _canonical(capabilities))
     request_material = {
         "name": str(name or ""),
         "category": str(category or ""),
@@ -870,9 +910,10 @@ def create_agent(
         "configuration_digest": configuration_digest,
         "schedule_config_digest": schedule_digest,
         "status": AgentStatus.STUDENT.value,
-        "confidence_score": NEW_AGENT_CONFIDENCE,
+        "confidence_score": effective_confidence,
         "module_path": "core.generic_agent",
         "class_name": "GenericAgent",
+        **state_extra,
     }
     request_digest = _request_digest(
         _ACTION_CREATE, target_id, request_material)
@@ -909,7 +950,10 @@ def create_agent(
         module_path="core.generic_agent",
         class_name="GenericAgent",
         status=AgentStatus.STUDENT.value,
-        confidence_score=NEW_AGENT_CONFIDENCE,
+        confidence_score=effective_confidence,
+        user_id=user_id,
+        parent_agent_id=parent_agent_id,
+        capabilities=capabilities,
         workspace_id=actor_snapshot["workspace_id"],
         tenant_id=actor_snapshot["tenant_id"],
     )
@@ -920,7 +964,8 @@ def create_agent(
         prior_status="", result_status=AgentStatus.STUDENT.value,
         request_digest=request_digest,
         prior_digest=_state_digest({"absent": True}),
-        result_digest=_state_digest(_create_state_material(agent)),
+        result_digest=_state_digest(_create_state_material(
+            agent, extra=state_extra)),
         actor=actor_snapshot,
         extra={
             "category": str(category or ""),
@@ -928,6 +973,7 @@ def create_agent(
             "class_name": "GenericAgent",
             "configuration_digest": configuration_digest,
             "schedule_config_digest": schedule_digest,
+            **state_extra,
         })
 
     return _commit_and_verify(

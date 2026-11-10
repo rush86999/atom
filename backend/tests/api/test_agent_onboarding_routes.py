@@ -133,21 +133,39 @@ class TestGuidedAgentCreation:
 
 
 class TestAgentInitiatedCreation:
-    def _governance(self, allowed: bool):
-        gov = MagicMock()
+    def _governance(self, db_session, allowed: bool):
+        from core.agent_governance_service import AgentGovernanceService
+
+        gov = AgentGovernanceService(
+            db_session, workspace_id="default", tenant_id="default")
         gov.can_perform_action_async = AsyncMock(
             return_value={"allowed": allowed, "reason": None if allowed else "Agent maturity below threshold"}
         )
         gov.request_approval = MagicMock(return_value="hitl-42")
         return gov
 
+    def _acting_agent(self, db_session, agent_id: str, status: str):
+        db_session.add(AgentRegistry(
+            id=agent_id,
+            name=f"Acting {agent_id}",
+            category="Operations",
+            module_path="tests.guided",
+            class_name="ActingAgent",
+            status=status,
+            confidence_score=0.2,
+            workspace_id="default",
+            tenant_id="default",
+        ))
+        db_session.commit()
+
     def test_autonomous_agent_creates_directly(self, client, employee_user, db_session):
         global _current_test_user
         _current_test_user = employee_user
 
+        self._acting_agent(db_session, "agent-auto-1", "autonomous")
         llm = MagicMock()
         llm.generate_completion = AsyncMock(side_effect=RuntimeError("no llm"))
-        gov = self._governance(allowed=True)
+        gov = self._governance(db_session, allowed=True)
         with patch("api.agent_onboarding_routes.get_guided_agent_factory",
                    return_value=_factory_with_llm(llm)), \
              patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
@@ -167,7 +185,8 @@ class TestAgentInitiatedCreation:
         global _current_test_user
         _current_test_user = employee_user
 
-        gov = self._governance(allowed=False)
+        self._acting_agent(db_session, "agent-student-1", "student")
+        gov = self._governance(db_session, allowed=False)
         with patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
             resp = client.post(
                 "/api/agents/guided",
