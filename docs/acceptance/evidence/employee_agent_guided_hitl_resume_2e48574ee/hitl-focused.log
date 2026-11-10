@@ -1,0 +1,115 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 11:34:27 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 11:34:27 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:34:27 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:34:27 [    INFO] EscalationManager initialized
+2026-11-10 11:34:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:34:27 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:34:27 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:34:27 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:34:27 [    INFO] EscalationManager initialized
+2026-11-10 11:34:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:34:27 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:34:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 11:34:27 [    INFO] MCP Service initialized
+
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_approval_creates_one_reviewed_agent 
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:34:27 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:34:28 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:34:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/adc66ef8-545b-4710-ba43-2ba4e6e854d6 "HTTP/1.1 200 OK"
+2026-11-10 11:34:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/adc66ef8-545b-4710-ba43-2ba4e6e854d6 "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 14%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_rejection_creates_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:34:29 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:34:29 [ WARNING] HITL dfe504b9-ab18-4fa8-bbfb-d2972ee64e8c decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'status': 'rejected'}
+2026-11-10 11:34:29 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/dfe504b9-ab18-4fa8-bbfb-d2972ee64e8c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_expired_does_not_create 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:34:30 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:34:30 [ WARNING] HITL f8f4ef29-3f3c-442a-aa52-60f87575efd0 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'guided_create', 'reason': 'action_not_approved', 'status': 'expired'}
+PASSED                                                                   [ 42%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_wrong_scope_reviewer_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:34:31 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:34:31 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/a1e1103e-b063-4ab1-b08e-1e7a2085fcd8 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 57%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_modified_material_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:34:32 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:34:32 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/5a051a00-82c8-4560-9661-d0d66752674c "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 71%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_stored_material_mismatch_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:34:33 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:34:33 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/f472de43-5ea5-454d-b5fe-cf30e246ed54 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 85%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_hitl_approval_survives_fresh_session 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:34:33 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-hitl-queue "HTTP/1.1 202 Accepted"
+2026-11-10 11:34:34 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/721e47e7-a990-4809-8ff3-5947d8665f9a "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 52 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 7 passed, 19 deselected, 57 warnings in 23.27s ================

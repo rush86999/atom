@@ -1,0 +1,64 @@
+{
+  "schema": "atom-guided-hitl-resume-verification-1",
+  "status": "approved guided-create HITL now resumes through the existing review surface and decision writer for one reviewed agent; submitted for independent review",
+  "candidate": {
+    "branch": "codex/web-goal14-guided-create-20261110",
+    "parent": "9d2ba566c",
+    "executed_source": "2e48574ee",
+    "runtime": "real scratch SQLite + FastAPI routes + real JWT; deterministic guided factory double; no live product model/provider/credential/spend/send/download/deployment"
+  },
+  "confirmed_finding": {
+    "before": "pending scoped create_agent HITL had no resume handler; approval marked the row approved without creating an agent or receipt"
+  },
+  "repair": {
+    "review_material": "design before trust gate; queue exact name/description/category/capabilities/configuration/template/schedule/acting-agent/scope plus review digest",
+    "preflight": "create_agent approval verifies schema and digest; rewritten payload or changed stored material is refused before approval",
+    "resume": "only an already-approved row resumes; current reviewer scope and acting parent are re-read; parent is claimed in the create transaction",
+    "effect": "one agent + one AuditLog receipt with deterministic guided-hitl:<action_id> operation id; duplicate continuation already_applied",
+    "scheduler": "only on the first verified create",
+    "no_second_engine": true,
+    "no_self_approval": true
+  },
+  "controls": {
+    "valid_approval_creates_one": true,
+    "scheduler_once": true,
+    "duplicate_resume_idempotent": true,
+    "duplicate_public_approval_no_child": true,
+    "rejected_no_effect": true,
+    "expired_no_effect": true,
+    "wrong_scope_reviewer_refused": true,
+    "modified_material_refused": true,
+    "stored_material_mismatch_refused": true,
+    "fresh_session_restart": true,
+    "root_parent_probe_still_green": true
+  },
+  "results": {
+    "hitl_focused": {"passed": 7, "log": "hitl-focused.log"},
+    "guided_after": {"passed": 26, "log": "guided-after.log"},
+    "ci_guided_step": {"passed": 26, "log": "ci-guided-step.log"},
+    "root_probe_after": {"passed": 2, "log": "root-probe-after.log"},
+    "affected_after": {"passed": 312, "log": "affected-after.log"}
+  },
+  "preserved": {
+    "original_ba_evidence": true,
+    "atomic_parent_claim_evidence": true,
+    "additive_ci_step": true,
+    "immutable_ci_baseline": true
+  },
+  "checks": {
+    "no_new_review_engine": true,
+    "no_self_approval": true,
+    "no_new_table_or_store": true,
+    "no_budget_or_byok_file_change": true,
+    "no_new_dependency": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "guided generation is a controlled double; no live product model was called",
+    "PR834 is stacked on the null-repair base; no main CI claim until retargeting",
+    "no merge or self-acceptance; root review remains independent"
+  ]
+}

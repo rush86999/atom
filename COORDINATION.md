@@ -406,5 +406,6 @@ and its matching workflow step.
 The atomic budget/BYOK worker owns budget/BYOK files; this session does not
 touch them. No live DB/model/provider/credential/send/spend/deploy/deps.
 
-Status: guided direct create uses the shared decision writer; acting-agent
-references are scoped; pending-approval resume remains a separate candidate.
+Status: guided direct create and approved create_agent HITL both use the
+shared decision writer; acting-agent references are scoped; the reviewed
+HITL material is digest-bound and resumes to one agent/receipt.

@@ -1,0 +1,703 @@
+diff --git a/backend/api/agent_onboarding_routes.py b/backend/api/agent_onboarding_routes.py
+index 2c0b2301c..27f30f71a 100644
+--- a/backend/api/agent_onboarding_routes.py
++++ b/backend/api/agent_onboarding_routes.py
+@@ -23,8 +23,10 @@ from core.auth import User, get_current_user
+ from core.base_routes import BaseAPIRouter
+ from core.database import get_db
+ from core.guided_automation_service import (
++    GUIDED_CREATE_REVIEW_SCHEMA,
+     get_automation_suggestion_service,
+     get_guided_agent_factory,
++    guided_create_review_digest,
+ )
+ from core.models import AgentRegistry, AgentStatus, UserRole
+ from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+@@ -96,6 +98,24 @@ async def create_guided_agent(
+     workspace_id = getattr(current_user, "workspace_id", None) or "default"
+     tenant_id = getattr(current_user, "tenant_id", None) or "default"
+ 
++    # --- Design the agent from the goal ---
++    factory = get_guided_agent_factory()
++    blueprint = await factory.design_agent(goal=req.goal, context=req.context)
++
++    configuration = blueprint.get("configuration") or {}
++    if not isinstance(configuration, dict):
++        configuration = {}
++    # Role-based student: the role drives curriculum and observation
++    # relevance; learning contract declares both pathways (teacher +
++    # observation), and the Atom meta agent is the designated teacher.
++    role = _role_for(blueprint)
++    configuration["role"] = role
++    configuration["learning"] = {
++        "teacher_agent_id": "atom_main",
++        "pathways": ["teacher", "observation"],
++        "curriculum": ROLE_CURRICULUM.get(role, []),
++    }
++
+     # --- Trust/maturity gate for agent-initiated creation ---
+     if req.acting_agent_id:
+         governance = ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
+@@ -116,28 +136,39 @@ async def create_guided_agent(
+         allowed = decision.get("allowed", False) if isinstance(decision, dict) else bool(decision)
+         if not allowed:
+             reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Trust policy requires human approval for agent creation"
++            created_by = str(getattr(current_user, "id", "unknown"))
++            review_params = {
++                "schema": GUIDED_CREATE_REVIEW_SCHEMA,
++                "goal": req.goal,
++                "context": req.context,
++                "name": blueprint["name"],
++                "description": blueprint.get("description"),
++                "category": blueprint["category"],
++                "capabilities": blueprint.get("capabilities"),
++                "configuration": configuration,
++                "template": blueprint.get("template"),
++                "schedule_config": req.schedule_config,
++                "acting_agent_id": req.acting_agent_id,
++                "created_by_user": created_by,
++                "tenant_id": tenant_id,
++                "workspace_id": workspace_id,
++            }
++            review_params["review_digest"] = guided_create_review_digest(
++                review_params)
+             hitl_action_id = None
+             try:
+                 hitl_action_id = governance.request_approval(
+                     agent_id=req.acting_agent_id,
+                     action_type="create_agent",
+-                    params={
+-                        "goal": req.goal,
+-                        "context": req.context,
+-                        "created_by_user": str(getattr(current_user, "id", "unknown")),
+-                        "tenant_id": tenant_id,
+-                        "workspace_id": workspace_id,
+-                        "acting_agent_id": req.acting_agent_id,
+-                        "schedule_config": req.schedule_config,
+-                    },
++                    params=review_params,
+                     reason=reason,
+                     execution_context={
+                         "workspace_id": workspace_id,
+                         "tenant_id": tenant_id,
+-                        "actor_id": str(getattr(current_user, "id", "unknown")),
+-                        "user_id": str(getattr(current_user, "id", "unknown")),
++                        "actor_id": created_by,
++                        "user_id": created_by,
+                     },
+-                    user_id=str(getattr(current_user, "id", "unknown")),
++                    user_id=created_by,
+                 )
+             except Exception as e:
+                 logger.error(f"Failed to create HITL action for guided agent creation: {e}")
+@@ -155,24 +186,6 @@ async def create_guided_agent(
+                 ),
+             )
+ 
+-    # --- Design the agent from the goal ---
+-    factory = get_guided_agent_factory()
+-    blueprint = await factory.design_agent(goal=req.goal, context=req.context)
+-
+-    configuration = blueprint.get("configuration") or {}
+-    if not isinstance(configuration, dict):
+-        configuration = {}
+-    # Role-based student: the role drives curriculum and observation
+-    # relevance; learning contract declares both pathways (teacher +
+-    # observation), and the Atom meta agent is the designated teacher.
+-    role = _role_for(blueprint)
+-    configuration["role"] = role
+-    configuration["learning"] = {
+-        "teacher_agent_id": "atom_main",
+-        "pathways": ["teacher", "observation"],
+-        "curriculum": ROLE_CURRICULUM.get(role, []),
+-    }
+-
+     parent_authority = None
+     if req.acting_agent_id:
+         # Generation may await. Read the exact acting-agent material after it
+diff --git a/backend/core/guided_automation_service.py b/backend/core/guided_automation_service.py
+index d13f62d17..abbb47b49 100644
+--- a/backend/core/guided_automation_service.py
++++ b/backend/core/guided_automation_service.py
+@@ -16,6 +16,7 @@ AgentGovernanceService.can_perform_action_async — an autonomous agent can
+ create helpers on its own, a supervised one gets an HITL approval instead.
+ """
+ 
++import hashlib
+ import json
+ import logging
+ import re
+@@ -29,6 +30,39 @@ from core.llm_service import LLMService
+ 
+ logger = logging.getLogger(__name__)
+ 
++GUIDED_CREATE_REVIEW_SCHEMA = "atom-guided-create-review-1"
++_GUIDED_CREATE_REVIEW_KEYS = (
++    "schema",
++    "goal",
++    "context",
++    "name",
++    "description",
++    "category",
++    "capabilities",
++    "configuration",
++    "template",
++    "schedule_config",
++    "acting_agent_id",
++    "created_by_user",
++    "tenant_id",
++    "workspace_id",
++)
++
++
++def guided_create_review_material(params: Dict[str, Any]) -> Dict[str, Any]:
++    """Return the exact reviewed guided-create material (no digest)."""
++    return {key: params.get(key) for key in _GUIDED_CREATE_REVIEW_KEYS}
++
++
++def guided_create_review_digest(params: Dict[str, Any]) -> str:
++    """Stable digest over the reviewed intent/generated material."""
++    material = guided_create_review_material(params)
++    return hashlib.sha256(
++        json.dumps(
++            material, sort_keys=True, separators=(",", ":"), default=str
++        ).encode("utf-8")
++    ).hexdigest()
++
+ 
+ # Keyword → template mapping for the no-LLM fallback path. Keys are matched
+ # (case-insensitive) against the employee's goal text.
+diff --git a/backend/core/hitl_resume.py b/backend/core/hitl_resume.py
+index d3b1c701e..7d2051a78 100644
+--- a/backend/core/hitl_resume.py
++++ b/backend/core/hitl_resume.py
+@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
+ _GOAL_RUN_ACTIONS = {"goal_run_decision", "goal_run_checkpoint"}
+ _ASSIGNMENT_ACTIONS = {"assignment_approval"}
+ _CHAT_OBLIGATION_ACTIONS = {"chat_request_obligation"}
++_GUIDED_CREATE_ACTIONS = {"create_agent"}
+ _AGENT_INFORMATION_ACTIONS = {
+     "agent_information_request", "agent_missing_information"}
+ 
+@@ -75,6 +76,37 @@ def preflight_hitl_decision(
+         action = _load_action(action_id)
+     if action is None:
+         return {"valid": False, "reason": "action_not_found"}
++    if _action_field(action, "action_type") == "create_agent":
++        from core.guided_automation_service import (
++            GUIDED_CREATE_REVIEW_SCHEMA,
++            guided_create_review_digest,
++        )
++
++        if modified_params:
++            return {
++                "valid": False,
++                "reason": "review_material_immutable",
++                "message": (
++                    "A guided-create review cannot be rewritten during "
++                    "approval; reject and request a fresh review."),
++            }
++        params = _action_field(action, "params") or {}
++        if params.get("schema") != GUIDED_CREATE_REVIEW_SCHEMA:
++            return {
++                "valid": False,
++                "reason": "review_schema_invalid",
++                "message": (
++                    "The guided-create review schema is missing or unknown."),
++            }
++        if params.get("review_digest") != guided_create_review_digest(params):
++            return {
++                "valid": False,
++                "reason": "review_material_mismatch",
++                "message": (
++                    "The reviewed guided-create material changed; request a "
++                    "fresh review."),
++            }
++        return {"valid": True}
+     if _action_field(action, "action_type") != "goal_run_decision":
+         return {"valid": True}
+ 
+@@ -461,6 +493,149 @@ async def _resume_workflow(action: Dict[str, Any], approved: bool,
+             "status": "RUNNING" if ok else "PAUSED"}
+ 
+ 
++async def _resume_guided_create(
++    action: Dict[str, Any],
++    approved: bool,
++    reviewer_id: Optional[str],
++    guidance: Optional[str],
++) -> Dict[str, Any]:
++    """Create the exact reviewed guided agent after an existing HITL approval.
++
++    This is not a second review engine: the approvals route already made and
++    persisted the human decision. Here we reauthorize the current reviewer and
++    acting parent, verify the reviewed intent digest, and use the shared
++    create decision writer for one durable agent + receipt.
++    """
++    from core.agent_decision_write_service import create_agent
++    from core.database import get_db_session
++    from core.guided_automation_service import (
++        GUIDED_CREATE_REVIEW_SCHEMA,
++        guided_create_review_digest,
++    )
++    from core.models import AgentRegistry, User, UserRole
++    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
++
++    params = dict(action.get("params") or {})
++    if not approved:
++        return {"handled": True, "resumed": False, "kind": "guided_create",
++                "status": "rejected"}
++    if str(action.get("status") or "") != "approved":
++        return {"handled": True, "resumed": False, "kind": "guided_create",
++                "reason": "action_not_approved",
++                "status": action.get("status")}
++    if str(params.get("schema") or "") != GUIDED_CREATE_REVIEW_SCHEMA:
++        return {"handled": True, "resumed": False, "kind": "guided_create",
++                "reason": "review_schema_invalid"}
++    if params.get("review_digest") != guided_create_review_digest(params):
++        return {"handled": True, "resumed": False, "kind": "guided_create",
++                "reason": "review_material_mismatch"}
++    if not reviewer_id:
++        return {"handled": True, "resumed": False, "kind": "guided_create",
++                "reason": "current_reviewer_required"}
++
++    action_tenant = str(params.get("tenant_id") or "")
++    action_workspace = str(params.get("workspace_id") or "")
++    with get_db_session() as db:
++        reviewer = (
++            db.query(User).filter(User.id == str(reviewer_id)).first()
++        )
++        if reviewer is None:
++            return {"handled": True, "resumed": False,
++                    "kind": "guided_create",
++                    "reason": "current_reviewer_required"}
++        if (
++            resolve_tenant_id(reviewer) != action_tenant
++            or resolve_workspace_id(reviewer) != action_workspace
++        ):
++            return {"handled": True, "resumed": False,
++                    "kind": "guided_create",
++                    "reason": "review_scope_changed"}
++
++        parent_agent_id = params.get("acting_agent_id")
++        parent_authority = None
++        if parent_agent_id:
++            parent = (
++                db.query(AgentRegistry)
++                .filter(AgentRegistry.id == str(parent_agent_id))
++                .populate_existing()
++                .first()
++            )
++            if parent is None:
++                return {"handled": True, "resumed": False,
++                        "kind": "guided_create",
++                        "reason": "acting_agent_missing"}
++            if (
++                resolve_tenant_id(parent) != action_tenant
++                or resolve_workspace_id(parent) != action_workspace
++            ):
++                return {"handled": True, "resumed": False,
++                        "kind": "guided_create",
++                        "reason": "acting_agent_scope_changed"}
++            parent_authority = {
++                "id": str(parent.id),
++                "tenant_id": parent.tenant_id,
++                "workspace_id": parent.workspace_id,
++                "status": parent.status,
++                "confidence_score": parent.confidence_score,
++                "enabled": parent.enabled,
++                "last_exam_id": parent.last_exam_id,
++                "configuration": parent.configuration,
++                "capabilities": parent.capabilities,
++            }
++
++        result = create_agent(
++            db,
++            actor=reviewer,
++            name=str(params.get("name") or ""),
++            category=str(params.get("category") or ""),
++            description=params.get("description"),
++            configuration=params.get("configuration"),
++            schedule_config=params.get("schedule_config"),
++            confidence_score=0.1,
++            user_id=str(params.get("created_by_user") or ""),
++            parent_agent_id=parent_agent_id,
++            parent_authority=parent_authority,
++            capabilities=params.get("capabilities"),
++            minimum_role=UserRole.GUEST,
++            authority_label="GUIDED_CREATE_APPROVAL",
++            operation_id=f"guided-hitl:{action['id']}",
++        )
++        status = result.get("status")
++        if status in ("verified", "already_applied"):
++            data = result.get("data") or {}
++            if status == "verified":
++                schedule_config = params.get("schedule_config")
++                if (
++                    isinstance(schedule_config, dict)
++                    and schedule_config.get("active")
++                ):
++                    try:
++                        from core.scheduler import AgentScheduler
++                        AgentScheduler.get_instance().schedule_agent(
++                            data.get("agent_id"), schedule_config)
++                    except Exception as exc:  # noqa: BLE001
++                        logger.warning(
++                            "Guided HITL schedule failed for %s: %s",
++                            data.get("agent_id"), exc)
++            return {
++                "handled": True,
++                "resumed": True,
++                "kind": "guided_create",
++                "agent_id": data.get("agent_id"),
++                "operation_id": result.get("operation_id"),
++                "audit_id": result.get("audit_id"),
++                "verification": data.get("verification"),
++            }
++        return {
++            "handled": True,
++            "resumed": False,
++            "kind": "guided_create",
++            "reason": result.get("error_code") or status,
++            "error": result.get("error"),
++            "verification": result.get("verification"),
++        }
++
++
+ async def resume_after_hitl_decision(
+     action_id: str,
+     approved: bool,
+@@ -495,6 +670,9 @@ async def resume_after_hitl_decision(
+         elif action["action_type"] in _CHAT_OBLIGATION_ACTIONS:
+             result = await _resume_chat_obligation(
+                 action, approved, reviewer_id, guidance)
++        elif action["action_type"] in _GUIDED_CREATE_ACTIONS:
++            result = await _resume_guided_create(
++                action, approved, reviewer_id, guidance)
+         elif (action.get("params") or {}).get("execution_id"):
+             result = await _resume_workflow(action, approved, guidance)
+         else:
+diff --git a/backend/tests/api/test_agent_guided_create_goal14.py b/backend/tests/api/test_agent_guided_create_goal14.py
+index 202a2ac2a..b38c00074 100644
+--- a/backend/tests/api/test_agent_guided_create_goal14.py
++++ b/backend/tests/api/test_agent_guided_create_goal14.py
+@@ -12,6 +12,7 @@ reference, and same-scope acting-agent approval.
+ """
+ from __future__ import annotations
+ 
++import asyncio
+ import json
+ from pathlib import Path
+ 
+@@ -22,6 +23,7 @@ from sqlalchemy import create_engine, func
+ from sqlalchemy.orm import sessionmaker
+ 
+ from api.agent_onboarding_routes import router as onboarding_router
++from api.approvals_routes import router as approvals_router
+ from core.auth import create_access_token
+ from core.database import Base, get_db
+ from core.models import (
+@@ -60,13 +62,18 @@ class FakeGuidedFactory:
+ 
+ 
+ @pytest.fixture
+-def world(tmp_path: Path):
++def world(tmp_path: Path, monkeypatch):
+     engine = create_engine(
+         f"sqlite:///{tmp_path / 'guided.db'}",
+         connect_args={"check_same_thread": False},
+     )
+     Base.metadata.create_all(engine)
+     Session = sessionmaker(bind=engine, expire_on_commit=False)
++    # The public approvals route's intervention/resume services use the
++    # process SessionLocal. Point it at this scratch world so the real route
++    # and the resume bridge see the same durable HITL row.
++    import core.database as database
++    monkeypatch.setattr(database, "SessionLocal", Session)
+     with Session() as db:
+         db.add_all([
+             Tenant(id="company", name="Company", subdomain="company",
+@@ -91,6 +98,14 @@ def world(tmp_path: Path):
+                  email="foreign@example.test", hashed_password="x",
+                  first_name="F", last_name="V", role="member",
+                  status="active", is_active=True),
++            User(id="reviewer", tenant_id="company", workspace_id="ws-a",
++                 email="reviewer@example.test", hashed_password="x",
++                 first_name="R", last_name="V", role="team_lead",
++                 status="active", is_active=True),
++            User(id="foreign-reviewer", tenant_id="other", workspace_id="ws-b",
++                 email="foreign-reviewer@example.test", hashed_password="x",
++                 first_name="F", last_name="R", role="team_lead",
++                 status="active", is_active=True),
+         ])
+         db.add_all([
+             AgentRegistry(
+@@ -107,12 +122,13 @@ def world(tmp_path: Path):
+             ),
+         ])
+         db.commit()
+-    return {"engine": engine, "Session": Session}
++    return {"engine": engine, "Session": Session, "db_url": engine.url}
+ 
+ 
+ def _client(world):
+     app = FastAPI()
+     app.include_router(onboarding_router)
++    app.include_router(approvals_router)
+ 
+     def override():
+         db = world["Session"]()
+@@ -633,3 +649,232 @@ def test_guided_create_replay_after_parent_material_change_conflicts(
+             AgentRegistry.id == agent_id).scalar() == 1
+         assert db.query(func.count(AuditLog.id)).filter(
+             AuditLog.id == "agent:create:guided-parent-replay").scalar() == 1
++
++
++def _queue_guided_hitl(
++    world, monkeypatch, operation_id="guided-hitl-queue",
++    schedule_config=None,
++):
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, "acting-agent")
++        agent.status = "student"
++        db.commit()
++    _factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "member")
++    body = {
++        "goal": "Queue a reviewed guided helper",
++        "acting_agent_id": "acting-agent",
++    }
++    if schedule_config is not None:
++        body["schedule_config"] = schedule_config
++    response = _post(client, token, body, operation_id=operation_id)
++    assert response.status_code == 202, response.text
++    data = response.json()["data"]
++    assert data["status"] == "pending_approval"
++    return data["hitl_action_id"]
++
++
++def _decide_approval(
++    client, token, action_id, decision="approved", modified_params=None,
++):
++    payload = {"decision": decision}
++    if modified_params is not None:
++        payload["modified_params"] = modified_params
++    return client.post(
++        f"/api/agents/approvals/{action_id}",
++        headers={"Authorization": f"Bearer {token}"},
++        json=payload,
++    )
++
++
++def test_guided_hitl_approval_creates_one_reviewed_agent(world, monkeypatch):
++    scheduled = []
++
++    class FakeScheduler:
++        def schedule_agent(self, agent_id, schedule_config):
++            scheduled.append((agent_id, dict(schedule_config)))
++
++    from core.scheduler import AgentScheduler
++
++    monkeypatch.setattr(AgentScheduler, "get_instance", lambda: FakeScheduler())
++    action_id = _queue_guided_hitl(
++        world, monkeypatch,
++        schedule_config={"active": True, "cron": "0 * * * *"},
++    )
++    client = _client(world)
++    reviewer_token = _token(world, "reviewer")
++    response = _decide_approval(client, reviewer_token, action_id)
++    assert response.status_code == 200, response.text
++    body = response.json()
++    resume = body["resume"]
++    assert resume["resumed"] is True, body
++    assert resume["kind"] == "guided_create"
++    agent_id = resume["agent_id"]
++
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, agent_id)
++        assert agent.name == BLUEPRINT["name"]
++        assert agent.category == BLUEPRINT["category"]
++        assert agent.capabilities == BLUEPRINT["capabilities"]
++        assert agent.configuration["role"] == "ops_coordinator"
++        assert agent.configuration["learning"]["teacher_agent_id"] == (
++            "atom_main")
++        assert agent.status == "student"
++        assert float(agent.confidence_score) == pytest.approx(0.1)
++        assert agent.user_id == "member"
++        assert agent.parent_agent_id == "acting-agent"
++        assert agent.tenant_id == "company"
++        assert agent.workspace_id == "ws-a"
++        audit = db.get(
++            AuditLog, f"agent:create:guided-hitl:{action_id}")
++        assert audit is not None
++        assert audit.action == "agent_created"
++        assert audit.user_id == "reviewer"
++        assert audit.tenant_id == "company"
++        row = db.get(HITLAction, action_id)
++        assert row.status == "approved"
++        assert row.reviewed_by == "reviewer"
++    assert scheduled == [(agent_id, {"active": True, "cron": "0 * * * *"})]
++
++    # Direct duplicate resume is idempotent: one child, one receipt, one
++    # schedule even if the durable continuation is replayed.
++    from core.hitl_resume import resume_after_hitl_decision
++
++    replay = asyncio.run(resume_after_hitl_decision(
++        action_id, approved=True, reviewer_id="reviewer"))
++    assert replay["resumed"] is True, replay
++    assert replay["agent_id"] == agent_id
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.id == agent_id).scalar() == 1
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 1
++    assert len(scheduled) == 1
++
++    duplicate = _decide_approval(client, reviewer_token, action_id)
++    assert duplicate.status_code == 400, duplicate.text
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.id == agent_id).scalar() == 1
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 1
++    assert len(scheduled) == 1
++
++
++def test_guided_hitl_rejection_creates_nothing(world, monkeypatch):
++    action_id = _queue_guided_hitl(world, monkeypatch)
++    client = _client(world)
++    reviewer_token = _token(world, "reviewer")
++    response = _decide_approval(
++        client, reviewer_token, action_id, decision="rejected")
++    assert response.status_code == 200, response.text
++    resume = response.json()["resume"]
++    assert resume["resumed"] is False
++    assert resume["kind"] == "guided_create"
++    assert resume["status"] == "rejected"
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
++        assert db.get(HITLAction, action_id).status == "rejected"
++
++
++def test_guided_hitl_expired_does_not_create(world, monkeypatch):
++    action_id = _queue_guided_hitl(world, monkeypatch)
++    with world["Session"]() as db:
++        row = db.get(HITLAction, action_id)
++        row.status = "expired"
++        db.commit()
++    from core.hitl_resume import resume_after_hitl_decision
++
++    result = asyncio.run(resume_after_hitl_decision(
++        action_id, approved=True, reviewer_id="reviewer"))
++    assert result["resumed"] is False
++    assert result["reason"] == "action_not_approved"
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
++
++
++def test_guided_hitl_wrong_scope_reviewer_is_refused(world, monkeypatch):
++    action_id = _queue_guided_hitl(world, monkeypatch)
++    client = _client(world)
++    foreign_token = _token(world, "foreign-reviewer")
++    response = _decide_approval(client, foreign_token, action_id)
++    assert response.status_code == 404, response.text
++    with world["Session"]() as db:
++        assert db.get(HITLAction, action_id).status == "pending"
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
++
++
++def test_guided_hitl_modified_material_is_refused(world, monkeypatch):
++    action_id = _queue_guided_hitl(world, monkeypatch)
++    client = _client(world)
++    reviewer_token = _token(world, "reviewer")
++    response = _decide_approval(
++        client, reviewer_token, action_id,
++        modified_params={"name": "Tampered Name"})
++    assert response.status_code == 409, response.text
++    assert response.json()["detail"]["reason"] == "review_material_immutable"
++    with world["Session"]() as db:
++        assert db.get(HITLAction, action_id).status == "pending"
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Tampered Name").scalar() == 0
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
++
++
++def test_guided_hitl_stored_material_mismatch_is_refused(
++        world, monkeypatch):
++    action_id = _queue_guided_hitl(world, monkeypatch)
++    with world["Session"]() as db:
++        row = db.get(HITLAction, action_id)
++        params = dict(row.params or {})
++        params["name"] = "Tampered Stored Name"
++        row.params = params
++        db.commit()
++    client = _client(world)
++    reviewer_token = _token(world, "reviewer")
++    response = _decide_approval(client, reviewer_token, action_id)
++    assert response.status_code == 409, response.text
++    assert response.json()["detail"]["reason"] == "review_material_mismatch"
++    with world["Session"]() as db:
++        assert db.get(HITLAction, action_id).status == "pending"
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Tampered Stored Name").scalar() == 0
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
++
++
++def test_guided_hitl_approval_survives_fresh_session(world, monkeypatch):
++    action_id = _queue_guided_hitl(world, monkeypatch)
++    world["engine"].dispose()
++    fresh_engine = create_engine(
++        str(world["db_url"]),
++        connect_args={"check_same_thread": False},
++    )
++    FreshSession = sessionmaker(bind=fresh_engine, expire_on_commit=False)
++    world["engine"] = fresh_engine
++    world["Session"] = FreshSession
++    import core.database as database
++
++    monkeypatch.setattr(database, "SessionLocal", FreshSession)
++    client = _client(world)
++    reviewer_token = _token(world, "reviewer")
++    response = _decide_approval(client, reviewer_token, action_id)
++    assert response.status_code == 200, response.text
++    resume = response.json()["resume"]
++    assert resume["resumed"] is True, resume
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, resume["agent_id"])
++        assert agent is not None
++        assert agent.parent_agent_id == "acting-agent"
++        assert db.get(
++            AuditLog, f"agent:create:guided-hitl:{action_id}") is not None
+diff --git a/backend/tests/api/test_agent_onboarding_routes.py b/backend/tests/api/test_agent_onboarding_routes.py
+index 4329b21b8..e2f13d70d 100644
+--- a/backend/tests/api/test_agent_onboarding_routes.py
++++ b/backend/tests/api/test_agent_onboarding_routes.py
+@@ -186,8 +186,15 @@ class TestAgentInitiatedCreation:
+         _current_test_user = employee_user
+ 
+         self._acting_agent(db_session, "agent-student-1", "student")
++        llm = _llm_mock(
++            '''{"name": "Reviewed Helper", "description": "Needs review", '''
++            '''"category": "Operations", "capabilities": ["cleanup"], '''
++            '''"template": "ops_coordinator", "configuration": {"system_prompt": "Help"}}'''
++        )
+         gov = self._governance(db_session, allowed=False)
+-        with patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
++        with patch("api.agent_onboarding_routes.get_guided_agent_factory",
++                   return_value=_factory_with_llm(llm)), \
++             patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
+             resp = client.post(
+                 "/api/agents/guided",
+                 json={"goal": "delete old records automatically", "acting_agent_id": "agent-student-1"},
