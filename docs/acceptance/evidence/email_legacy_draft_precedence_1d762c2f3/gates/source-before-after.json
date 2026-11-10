@@ -1,0 +1,46 @@
+{
+  "actual_exit": 0,
+  "gate_runner": "<scratch> --profile bounded",
+  "log": "gates/bounded-full-repaired.log",
+  "note": "Full repaired selection run once on frozen f278; scratch DB env set before imports; no installs/provider/send/browser.",
+  "profile": "bounded",
+  "result": "112 passed",
+  "schema": "email-normalizer-full-repaired-gate",
+  "scratch_dir_marker": "<scratch>",
+  "selection": [
+    "tests/test_email_legacy_draft_precedence.py",
+    "tests/test_chat_draft_classifier.py",
+    "tests/test_email_draft_shared_writer.py"
+  ],
+  "source_after": {
+    "branch": "codex/email-normalizer-legacy-draft-precedence-20261110",
+    "files": {
+      "backend/core/chat_draft_classifier.py": "409cede1ec7de78bef66b48a133d1ac5cd124bb6465ca3c4453bb8817b8408ed",
+      "backend/tests/test_chat_draft_classifier.py": "39090459163fc429462e7688f3b256c1bb003dc187f3fb183c42c35e6c8446db",
+      "backend/tests/test_email_draft_shared_writer.py": "2572ee0c1972f78d10cfb947822e945fdbde00a0b3c6018549c7f6d2e3ef2c0a",
+      "backend/tests/test_email_legacy_draft_precedence.py": "b8f8ca049267fa2f567463c0aa4da8c6207627b9b89d9ac5858ea7a692f76bdb",
+      "backend/tools/canvas_crud_tool.py": "00872970a74c2bb5529137e8d43d446f10eb424b4518d5368494ccf4a0884c99"
+    },
+    "head": "f2789bef93394fda4cab28d7c270899a11c4986f",
+    "status": ""
+  },
+  "source_before": {
+    "branch": "codex/email-normalizer-legacy-draft-precedence-20261110",
+    "files": {
+      "backend/core/chat_draft_classifier.py": "409cede1ec7de78bef66b48a133d1ac5cd124bb6465ca3c4453bb8817b8408ed",
+      "backend/tests/test_chat_draft_classifier.py": "39090459163fc429462e7688f3b256c1bb003dc187f3fb183c42c35e6c8446db",
+      "backend/tests/test_email_draft_shared_writer.py": "2572ee0c1972f78d10cfb947822e945fdbde00a0b3c6018549c7f6d2e3ef2c0a",
+      "backend/tests/test_email_legacy_draft_precedence.py": "b8f8ca049267fa2f567463c0aa4da8c6207627b9b89d9ac5858ea7a692f76bdb",
+      "backend/tools/canvas_crud_tool.py": "00872970a74c2bb5529137e8d43d446f10eb424b4518d5368494ccf4a0884c99"
+    },
+    "head": "f2789bef93394fda4cab28d7c270899a11c4986f",
+    "selection": [
+      "tests/test_email_legacy_draft_precedence.py",
+      "tests/test_chat_draft_classifier.py",
+      "tests/test_email_draft_shared_writer.py"
+    ],
+    "status": ""
+  },
+  "source_head": "f2789bef93394fda4cab28d7c270899a11c4986f",
+  "source_unchanged": true
+}

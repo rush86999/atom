@@ -98,13 +98,34 @@ Public save/readback twins in `backend/tests/test_email_draft_shared_writer.py`
 
 ## Gate results
 
-Full bounded gate (3 files, `gates/bounded-full-first.log`): first run
-`110 passed, 2 failed`; the two failures are the pre-existing exact-dict
-tests described above. Focused rerun after aligning those tests
-(`gates/bounded-focused-rerun.log`): `9 passed`, `GATE_EXIT=0` (the two
-corrected tests plus the seven new normalizer tests). The gate is the shared
-serialized `run_bounded_test_gate.py --profile bounded`; no root graduation
-test was duplicated or stopped.
+- Full bounded gate (3 files, `gates/bounded-full-first.log`): first run
+  `110 passed, 2 failed`; the two failures are the pre-existing exact-dict
+  tests described above.
+- Focused rerun after aligning those tests
+  (`gates/bounded-focused-rerun.log`): `9 passed`, `GATE_EXIT=0`.
+- **Full repaired selection, run once on frozen `f2789bef9`**
+  (`gates/bounded-full-repaired.log`): **`112 passed`, `GATE_EXIT=0`** in
+  39.96s. `gates/source-before-after.json` records the exact source head and
+  the before/after SHA-256 of all five repaired files, with
+  `source_unchanged=true`; the worktree was clean before and after. The
+  earlier 110/2 plus focused-9 are preserved as partial evidence, but this
+  final run is the full repaired-selection proof.
+
+The gate is the shared serialized `run_bounded_test_gate.py --profile bounded`;
+no root graduation test was duplicated or stopped. Scratch DB/data/office paths
+were set before imports; no installs, provider, send, or browser.
+
+## Clean integration preparation
+
+- Branch `codex/email-legacy-draft-integration-20261110`, isolated worktree
+  `/private/tmp/atom-email-legacy-integration-20261110`, based on PR829
+  `7fb2645c9f86c696b104bcfe62f4a8ed5e276a64`.
+- Contains only the repair + this evidence (the `f2789bef9` delta) atop PR829;
+  the five touched source/test files are byte-identical to `f2789bef9`.
+- No CI/workflow/fixture change versus PR829 (`git diff 7fb…HEAD -- .github
+  backend/tests/fixtures/ci_backend_additions.json` is empty).
+- The original branch/worktree and the root graduation worktree are untouched.
+  No PR edit, merge, or approval; root owns final independent review.
 
 ## Preserved
 
