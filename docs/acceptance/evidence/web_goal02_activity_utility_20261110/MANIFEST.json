@@ -4,26 +4,32 @@
     "raw_env_db_auth_logs_committed": false
   },
   "artifacts": {
-    "README.md": "cc8a0a0746628589eb1552d1b4dbe173f7aef4baa39f277a57499fa9267af2a6",
+    "README.md": "2c2b009526218a2addbd306d793b8ddbc14b946c7f8042f6ef7133380a65e7bd",
     "logs/baseline-red.log": "f55d054dd67ec5ce972125b830f93ca02ec3caff3d29b623fdc16c816e308242",
     "logs/eslint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "logs/index-detail-controls.log": "df70ab0c6a2497fa4176dc90b68cce9d311096e807792fa3d67bf7d5ae832833",
+    "logs/index-consistency-controls.log": "69049ebbd395fa7ea98305051c379d7fa8510d8b09c034dc09b2660d30dc35ff",
+    "logs/predecessor-45-controls.log": "df70ab0c6a2497fa4176dc90b68cce9d311096e807792fa3d67bf7d5ae832833",
+    "logs/root-probe-after.log": "f860c2fe1549d7031a4e77152deafc4409ca42c8d3b0f5e694b669e2bc5cd961",
+    "logs/successor-48-controls.log": "07edb6f3870c4fef7bbfe92bb04c6d32d3d2c28c1e25f8dba9f778b1ff7d99de",
     "logs/tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "verification.json": "3601a0cbc2f249a653e3d884cf60178edca94a44643c9ba5870ccf196866f801"
+    "root-independent/original-negative-controls.log": "31d7e28d4f347cfde0cd599e29d195d105e99716864e120ca43003a91541a3be",
+    "root-independent/original-negative-review.json": "5dfda2106f8728dfc0e3b8369a8e893bcca8204cadca9611c16711f379e352ec",
+    "verification.json": "54a54129f72d7c316bd033ba66f55f06a13aaad687c00e10d3545837b87c0ebe"
   },
   "branch": "codex/web-goal02-activity-20261110",
   "executed_source": {
-    "commit": "05ca1e72bb87848d07c702cc4c99201217c92b7b",
+    "commit": "a6e40729705d88f4f1ab41d760e235b60358d3ba",
     "files_sha256": {
-      "frontend-nextjs/pages/goal-runs/index.tsx": "7873ffc7d5e342870c47f11d9eb6251b6a6c7231f6068d4cde1f0f288d5aac42",
-      "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "71aa1f84090f2ce6faf0093947c8d86b374d4446ffb726bb20ae2392bbb2901c"
+      "frontend-nextjs/pages/goal-runs/index.tsx": "1d242e35f7b6b61352213c9442015294187faf5816ced5664cde38c7dd22277c",
+      "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "c046abe2e0b427cebda8a1e64ddeb878805e66b511e094d297e9dc5c7d7e331c"
     }
   },
   "packet": "web_goal02_activity_utility_20261110",
-  "repair_commit": "05ca1e72bb87848d07c702cc4c99201217c92b7b",
+  "predecessor_commit": "05ca1e72bb87848d07c702cc4c99201217c92b7b",
+  "repair_commit": "a6e40729705d88f4f1ab41d760e235b60358d3ba",
   "source_before_main": "310e72aecd1a4041a35af6ac093379d39b93556b",
   "source_files": {
-    "frontend-nextjs/pages/goal-runs/index.tsx": "7873ffc7d5e342870c47f11d9eb6251b6a6c7231f6068d4cde1f0f288d5aac42",
-    "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "71aa1f84090f2ce6faf0093947c8d86b374d4446ffb726bb20ae2392bbb2901c"
+    "frontend-nextjs/pages/goal-runs/index.tsx": "1d242e35f7b6b61352213c9442015294187faf5816ced5664cde38c7dd22277c",
+    "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "c046abe2e0b427cebda8a1e64ddeb878805e66b511e094d297e9dc5c7d7e331c"
   }
 }
