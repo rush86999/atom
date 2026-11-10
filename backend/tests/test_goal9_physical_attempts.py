@@ -36,8 +36,10 @@ WORKSPACE = "ws-goal9-physical"
 def _clean_transport_state():
     """Provider failures/cooldowns/temperature memos are process-wide."""
     from core.llm import byok_handler as bh
+    from core.spend_aggregation_service import clear_settlement_failure
 
     saved_temperatures = dict(bh._MODEL_TEMPERATURE)
+    clear_settlement_failure()
     BYOKHandler.invalidate_provider_failures()
     yield
     BYOKHandler.invalidate_provider_failures()
@@ -45,6 +47,9 @@ def _clean_transport_state():
     # change an unrelated consumer's expected temperature in the same process.
     bh._MODEL_TEMPERATURE.clear()
     bh._MODEL_TEMPERATURE.update(saved_temperatures)
+    # Deliberate settlement-failure controls set a process marker that would
+    # otherwise make unrelated consumers fail closed.
+    clear_settlement_failure()
 
 
 # --------------------------------------------------------------------------
@@ -482,6 +487,106 @@ class _AwaitableResult:
         return _inner().__await__()
 
 
+def test_generate_response_tier_fallback_gets_own_route_intent(
+        host, monkeypatch, tmp_path):
+    """Free->paid tier substitution is a new physical attempt on a new model."""
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
+    calls = []
+    client = MagicMock()
+    script = [_insufficient_balance_error(), _response("tier paid")]
+
+    def _next(**kwargs):
+        calls.append(kwargs.get("model"))
+        action = script.pop(0)
+        if isinstance(action, Exception):
+            raise action
+        return action
+
+    client.chat.completions.create.side_effect = _next
+    handler = _make_handler(
+        monkeypatch, tmp_path,
+        {"opencode-go": ["deepseek-v4-flash-free", "deepseek-v4-flash"]},
+        sync={"opencode-go": client})
+    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
+        [("opencode-go", "deepseek-v4-flash-free")])
+    result = asyncio.run(handler.generate_response("hello"))
+    assert result == "tier paid"
+    assert calls == ["deepseek-v4-flash-free", "deepseek-v4-flash"], calls
+    rows = _attempt_rows(host)
+    assert len(rows) == 2, [r.attempt_id for r in rows]
+    assert len({r.request_id for r in rows}) == 1
+    assert {r.model_name for r in rows} == {
+        "deepseek-v4-flash-free", "deepseek-v4-flash"}
+
+
+def test_generate_response_selfheal_gets_own_intent(
+        host, monkeypatch, tmp_path):
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
+    monkeypatch.setattr(
+        "core.llm.routing.request_healer.get_request_healer",
+        lambda: SimpleNamespace(heal=lambda *a, **k: SimpleNamespace(
+            patched_kwargs={"model": "gpt-4o",
+                            "messages": [{"role": "user", "content": "hello"}],
+                            "temperature": 0.7,
+                            "max_tokens": 1000},
+            rule="param-rename", patched_keys=["max_tokens"])))
+    calls = []
+    client = MagicMock()
+    script = [RuntimeError("unsupported parameter"), _response("healed")]
+
+    def _next(**kwargs):
+        calls.append(kwargs.get("model"))
+        action = script.pop(0)
+        if isinstance(action, Exception):
+            raise action
+        return action
+
+    client.chat.completions.create.side_effect = _next
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        sync={"openai": client})
+    handler.get_ranked_providers = lambda *a, **k: _AwaitableResult(
+        [("openai", "gpt-4o")])
+    result = asyncio.run(handler.generate_response("hello"))
+    assert result == "healed"
+    assert calls == ["gpt-4o", "gpt-4o"]
+    rows = _attempt_rows(host)
+    assert len(rows) == 2, [r.attempt_id for r in rows]
+    assert len({r.request_id for r in rows}) == 1
+
+
+def test_chat_sweep_gets_unique_attempts_same_request(
+        host, monkeypatch, tmp_path):
+    """The catalogue sweep is another physical attempt, not a free replay."""
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path,
+        {"openai": ["shared-model"], "deepseek": ["deepseek-chat"]},
+        async_={
+            "openai": _ChatClient(
+                [{"raise": RuntimeError("controlled failure")}], calls),
+            "deepseek": _ChatClient(
+                [{"response": _response("SWEEP")}], calls),
+        })
+    # Both providers are visible to the fallback order; deepseek does not
+    # serve the fixed model, so only the sweep can reach its own model.
+    handler.clients = {"openai": object(), "deepseek": object()}
+    result = asyncio.run(handler.chat_completion(
+        [{"role": "user", "content": "hello"}], "shared-model", "openai",
+        max_tokens=1000))
+    assert result["choices"][0]["message"]["content"] == "SWEEP"
+    assert len(calls) == 2, calls
+    rows = _attempt_rows(host)
+    assert len(rows) == 2, [r.attempt_id for r in rows]
+    assert len({r.attempt_id for r in rows}) == 2
+    assert len({r.request_id for r in rows}) == 1
+    assert {r.model_name for r in rows} == {"shared-model", "deepseek-chat"}
+
+
 # --------------------------------------------------------------------------
 # valid twins: settlement, known free, unknown liability
 # --------------------------------------------------------------------------
@@ -545,6 +650,116 @@ def test_stream_known_free_numeric_zero_is_supported(
     assert rows[0].reservation_status == "settled"
     assert rows[0].pricing_status == "free"
     assert float(rows[0].reserved_cost_usd or 0.0) == 0.0
+
+
+# --------------------------------------------------------------------------
+# replay / restart / scope binding of one physical attempt
+# --------------------------------------------------------------------------
+def test_physical_attempt_replay_idempotent_and_conflict_refused(
+        host, monkeypatch, tmp_path):
+    from core.spend_aggregation_service import record_llm_usage
+
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient(
+            [{"response": _response("settled once")}], calls)})
+    asyncio.run(handler.chat_completion(
+        [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
+        max_tokens=1000))
+    rows = _attempt_rows(host)
+    assert len(rows) == 1
+    row = rows[0]
+    replay = record_llm_usage(
+        provider_id=row.provider_id, model_name=row.model_name,
+        prompt_tokens=row.prompt_tokens, completion_tokens=row.completion_tokens,
+        cost_usd=row.cost_usd, agent_id=row.agent_id,
+        workspace_id=row.workspace_id, tenant_id=row.tenant_id,
+        execution_id=row.execution_id, chain_id=row.chain_id,
+        request_id=row.request_id, attempt_id=row.attempt_id)
+    assert replay == row.id
+    assert len(_attempt_rows(host)) == 1
+    with pytest.raises(Exception):
+        record_llm_usage(
+            provider_id=row.provider_id, model_name=row.model_name,
+            prompt_tokens=row.prompt_tokens + 1,
+            completion_tokens=row.completion_tokens + 1,
+            cost_usd=row.cost_usd, agent_id=row.agent_id,
+            workspace_id=row.workspace_id, tenant_id=row.tenant_id,
+            request_id=row.request_id, attempt_id=row.attempt_id)
+    with host.Session() as db:
+        assert db.query(TokenUsage).filter(
+            TokenUsage.attempt_id == row.attempt_id).count() == 1
+
+
+def test_failed_physical_attempt_survives_restart_as_liability(
+        host, monkeypatch, tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from core.spend_aggregation_service import (
+        BudgetReservationRefused, begin_llm_usage)
+
+    _seed(host, spend=90.0)
+    _reservation_pricing(monkeypatch)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient(
+            [{"raise": RuntimeError("provider may have charged")}], calls)})
+    with pytest.raises(Exception):
+        asyncio.run(handler.chat_completion(
+            [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
+            max_tokens=1000))
+    assert len(calls) == 1
+    engine = create_engine(str(host.engine.url))
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    try:
+        with Session() as db:
+            row = db.query(TokenUsage).filter(
+                TokenUsage.tenant_id == TENANT,
+                TokenUsage.attempt_id.isnot(None)).one()
+            assert row.reservation_status == "active"
+            assert float(row.reserved_cost_usd) == pytest.approx(7.0)
+            with pytest.raises(BudgetReservationRefused):
+                begin_llm_usage(
+                    provider_id="openai", model_name="gpt-4o",
+                    workspace_id=WORKSPACE, tenant_id=TENANT,
+                    request_id="post-restart", attempt_id="post-restart",
+                    reserved_cost_usd=7.0, enforce_budget=True)
+    finally:
+        engine.dispose()
+
+
+def test_attempt_settlement_refuses_cross_scope_binding(
+        host, monkeypatch, tmp_path):
+    from core.spend_aggregation_service import record_llm_usage
+
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch, bound_at=0.25, actual=0.25)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient(
+            [{"response": _response("scoped")}], calls)})
+    asyncio.run(handler.chat_completion(
+        [{"role": "user", "content": "hello"}], "gpt-4o", "openai",
+        max_tokens=1000))
+    row = _attempt_rows(host)[0]
+    with pytest.raises(Exception):
+        record_llm_usage(
+            provider_id=row.provider_id, model_name=row.model_name,
+            prompt_tokens=row.prompt_tokens,
+            completion_tokens=row.completion_tokens,
+            cost_usd=row.cost_usd, agent_id=row.agent_id,
+            workspace_id="ws-other-tenant", tenant_id="tenant-other",
+            request_id=row.request_id, attempt_id=row.attempt_id)
+    with host.Session() as db:
+        fresh = db.query(TokenUsage).filter(
+            TokenUsage.attempt_id == row.attempt_id).one()
+        assert fresh.tenant_id == TENANT
+        assert fresh.workspace_id == WORKSPACE
 
 
 # --------------------------------------------------------------------------

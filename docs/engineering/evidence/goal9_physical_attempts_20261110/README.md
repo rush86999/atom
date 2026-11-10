@@ -24,6 +24,12 @@ settlement:
 - ordinary `generate_response` initial / temperature-lock / tier fallback /
   self-heal / paid substitution / sweep.
 
+The matrix also covers replay idempotency and conflicting-material refusal on
+one attempt id, restart-preserved active liability (still refusing a second 7
+at 90/100), refusal to rebind a settlement to another tenant/workspace, and
+the chat catalogue sweep receiving unique attempt ids under the same request
+id.
+
 Accounting refusal is a **stop**, never a provider failure: it blocks the
 remainder of the ladder (no hidden fallback to an unauthorized route) and
 surfaces an explicit budget-authorization refusal.
@@ -125,14 +131,14 @@ it or blind-cherry-picking**:
 
 ## Evidence
 
-- `gates/physical-controls.log` — the new failure-first matrix: **26 passed**
+- `gates/physical-controls.log` — the new failure-first matrix: **32 passed**
   on this successor (12 of these failed on the frozen `0733` source; exact
   log retained at `retained_negative/pre-fix-physical-negative.log`).
 - `gates/focused.log` — physical controls + stream retry-state + P2 fallbacks
   + atomic/ordinary controls + durable settlement/upgrade + CI-lane contract:
-  **269 passed**.
+  **275 passed**.
 - `gates/affected.log` — focused set plus the wider budget selection:
-  **479 passed**.
+  **485 passed**.
 - `gates/root-prerequisite-probes.log` — root's invalid-price (5), direct
   bound (5) and estimated-flag (1) probes on this source: **11 passed**.
 - `gates/ci-lane-contract.log` — additive CI ledger contract after adding the
