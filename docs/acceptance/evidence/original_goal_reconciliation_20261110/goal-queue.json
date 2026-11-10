@@ -1,0 +1,274 @@
+{
+  "scope": "goals 10-18 only; 143 claims/18 goal rows preserved",
+  "goals": [
+    {
+      "number": 10,
+      "goal": "TASK-WAIT-01 long tasks pause/resume",
+      "historical_state": "open",
+      "classification": "bounded-pass + open at whole-app scope",
+      "evidence": [
+        "docs/engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json#task_wait_01",
+        "docs/acceptance/evidence/task_wait_01_progress_extraction_5fb98e929/",
+        "docs/acceptance/evidence/task_wait_01_source_authority_d6cb06ff7/",
+        "docs/acceptance/evidence/task_wait_01_reconciliation_2d251acdf/",
+        "backend/tests/test_task_wait_source_continuation_regressions.py",
+        "backend/tests/test_task_wait_two_fact_events.py",
+        "backend/tests/test_task_wait_source_version_after_acceptance.py",
+        "backend/tests/test_agent_generic_information_wait_process.py"
+      ],
+      "remaining": "A full both-event-order matrix across Generic, assignment and workflow surfaces is not demonstrated on current main; repeated pauses plus final usable output and current-main ordinary UI remain partial. Existing evidence includes authored loopback responses, not real served-model quality.",
+      "next_work": "TW-01"
+    },
+    {
+      "number": 11,
+      "goal": "Documents, presentations and email drafts",
+      "historical_state": "accepted-bounded",
+      "classification": "demonstrated-controlled-scope + missing ordinary breadth",
+      "evidence": [
+        "docs/acceptance/evidence/document_export_authority_20261107/",
+        "docs/acceptance/evidence/document_stored_export_ui_491ac1612/",
+        "docs/engineering/evidence/web_documents_pagination_b333221b2/",
+        "docs/acceptance/evidence/web_canvas_integrated_delivery_20261110/"
+      ],
+      "remaining": "Ordinary document journey, provider draft/readback, recipient delivery separate; one-use send is exhausted. Stored-text export and document ordering/pagination are merged/controlled, not full document breadth.",
+      "next_work": "DOC-01"
+    },
+    {
+      "number": 12,
+      "goal": "Repeatable workflows and schedules",
+      "historical_state": "accepted-bounded",
+      "classification": "demonstrated-controlled-scope + missing served process",
+      "evidence": [
+        "docs/acceptance/evidence/web_generated_workflow_handoff_2ce38f305/",
+        "docs/acceptance/evidence/web_workflow_reviewed_delivery_20261110/",
+        "docs/acceptance/evidence/employee_orch01_admin_privilege_5fbb377a4/",
+        "docs/acceptance/evidence/employee_orch01_workflow_blueprint_0fae2d46c_repair/"
+      ],
+      "remaining": "ORCH-01 served process, full scheduled result/receipt; PostgreSQL/multi-worker/soak separate. PR819/821 are integrated through PR824, but that is not a live scheduler or served-model qualification.",
+      "next_work": "WF-01"
+    },
+    {
+      "number": 13,
+      "goal": "Fleet, goals and background work",
+      "historical_state": "accepted-bounded",
+      "classification": "demonstrated-controlled-scope + missing served reliability",
+      "evidence": [
+        "docs/acceptance/evidence/web_goal02_activity_utility_20261110/",
+        "docs/acceptance/evidence/claim_progress_20261102/",
+        "docs/acceptance/evidence/full_app_consolidated_integrated_20261102/"
+      ],
+      "remaining": "Served model quality and broader operational reliability; no shadow-success claim.",
+      "next_work": "FLEET-01"
+    },
+    {
+      "number": 14,
+      "goal": "Direct mutations and whole-app ORACLE",
+      "historical_state": "open",
+      "classification": "missing/contradicted/unverified",
+      "evidence": [
+        "docs/acceptance/evidence/full_app_consolidated_integrated_20261102/oracle-whole-app-inventory/inventory.json",
+        "docs/acceptance/evidence/generic_oracle_consumer_20261107/",
+        "docs/acceptance/evidence/claim_progress_20261102/oracle-campaign-result.json"
+      ],
+      "remaining": "827 mutating HTTP routes / 366 high-risk / 311 provider writes unqualified; full ORACLE not complete.",
+      "next_work": "ORACLE-01"
+    },
+    {
+      "number": 15,
+      "goal": "Remaining exposed application",
+      "historical_state": "open/partial",
+      "classification": "regression-only at repaired board boundary; missing general exposed-app audit",
+      "evidence": [
+        "docs/acceptance/evidence/board_owner_atomic_b905b1372/",
+        "docs/acceptance/evidence/board_owner_consumer_followup_61a849996/",
+        "docs/acceptance/evidence/web_goal02_activity_utility_20261110/"
+      ],
+      "remaining": "Tasks/boards and other enabled surfaces need primary-action/durable-readback audit; board owner repairs are regression evidence, not general tasks/boards acceptance. Placeholders are not acceptance.",
+      "next_work": "EXPO-01"
+    },
+    {
+      "number": 16,
+      "goal": "Installation, compatibility and operations",
+      "historical_state": "open",
+      "classification": "open + environment/external unverified",
+      "evidence": [
+        "docs/acceptance/evidence/operations_restore_child_bb60d53d6/",
+        "docs/acceptance/evidence/operations_restore_scope_lead_22f501599/",
+        "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/"
+      ],
+      "remaining": "COMPAT-01 full install/run; PostgreSQL; mobile/menubar; backup/isolated restore/rollback; public login/restore/restart child still open; KVM. Restore-child repairs are bounded, not full operations acceptance.",
+      "next_work": "OPS-01"
+    },
+    {
+      "number": 17,
+      "goal": "Performance and comparative promises",
+      "historical_state": "unverified",
+      "classification": "unverified / no reproducible measurement",
+      "evidence": [
+        "docs/engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json#goal_map",
+        "docs/acceptance/evidence/claim_progress_20261102/"
+      ],
+      "remaining": "PERF-01/02/03 and MKT-01..05 need declared environment/workload/sample/source; no invented numbers.",
+      "next_work": "PERF-01"
+    },
+    {
+      "number": 18,
+      "goal": "Profile breadth",
+      "historical_state": "open/deferred",
+      "classification": "deferred owner decision",
+      "evidence": [
+        "docs/engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json#goal_map",
+        "docs/acceptance/evidence/claim_progress_20261102/"
+      ],
+      "remaining": "Full-profile breadth remains a separate owner decision; do not force-enable deferred profiles or add SaaS gates to close it.",
+      "next_work": "PROFILE-01"
+    }
+  ],
+  "queue": [
+    {
+      "id": "TW-01",
+      "priority": 1,
+      "goal": 10,
+      "title": "One ordinary main-web repeated TASK-WAIT-01 journey with both event orders and final usable output",
+      "why_highest_impact": "Explicit original user requirement #1: domain-independent long-running jobs can wait for missing information for days, survive restart, continue independent useful work, and resume the same job when authorized relevant information arrives. The matrix is still open at whole-app scope.",
+      "callers_consumers": [
+        "backend/core/information_wait.py (request/receipt/recover/drain)",
+        "backend/core/generic_agent.py (ReAct information_wait)",
+        "backend/api/agent_routes.py (resume_information_wait_action)",
+        "backend/api/assignment_routes.py (_record_information_wait, source/resume routes)",
+        "backend/core/assignment_executor.py (gap/resume)",
+        "backend/core/goals/goal_run_events.py (_resume_woken_run)",
+        "backend/core/goals/goal_run_executor.py / goal_run_router.py",
+        "backend/core/hitl_resume.py"
+      ],
+      "existing_mechanism": "Existing wait/event/receipt/CAS and source-revision mechanisms; no new engine/store/schema/lifecycle.",
+      "finite_acceptance": "On one ordinary main-web surface (assignment or goal run): two missing facts settle in both event orders; the same job/execution/task IDs resume after a real process restart; repeated pauses are allowed; irrelevant/foreign/stale answers do not release work; final usable artifact is published only when current; no manual advance and no duplicate effect; current authority and source revision are revalidated. Scratch SQLite/controlled source fixture; no live provider/model or send.",
+      "no_live_action_path": "Use existing controlled source fixture and local UI/API; disable external transport leaf only in the fixture if needed. No real identity/provider/connector/send/spend.",
+      "classification": "open / highest-impact next slice"
+    },
+    {
+      "id": "EXPO-01",
+      "priority": 2,
+      "goal": 15,
+      "title": "Audit one enabled tasks/boards primary action through durable readback",
+      "why_highest_impact": "Remaining exposed main-web surface with only regression repairs, not general acceptance.",
+      "callers_consumers": [
+        "frontend tasks/boards page/components",
+        "backend board/task APIs",
+        "existing board owner repair mechanisms"
+      ],
+      "existing_mechanism": "Existing board/task APIs and owner-repair controls; no new store/engine.",
+      "finite_acceptance": "One enabled surface primary action, exact current readback/reload, negative twins, no placeholder claim.",
+      "no_live_action_path": "Scratch world/UI with controlled fixture; no provider/model.",
+      "classification": "open-partial / finite audit"
+    },
+    {
+      "id": "DOC-01",
+      "priority": 3,
+      "goal": 11,
+      "title": "Ordinary document upload/open/export/reload journey",
+      "why_highest_impact": "Document/export breadth is a main-web user journey; stored export/pagination are controlled, not full ordinary journey.",
+      "callers_consumers": [
+        "documents page/component",
+        "document export routes",
+        "stored export/provenance"
+      ],
+      "existing_mechanism": "Existing document store/export/provenance and pagination controls.",
+      "finite_acceptance": "One ordinary document upload/open/export/reload with exact content/provenance; safe negatives.",
+      "no_live_action_path": "Controlled TXT/fixture and local UI; no provider/model/send.",
+      "classification": "demonstrated-controlled-scope + missing ordinary journey"
+    },
+    {
+      "id": "WF-01",
+      "priority": 4,
+      "goal": 12,
+      "title": "One served/restart scheduled workflow result and receipt",
+      "why_highest_impact": "Workflow/schedule is accepted only at controlled handoff/export scope.",
+      "callers_consumers": [
+        "workflow endpoints/scheduler",
+        "generated workflow handoff",
+        "scheduled result/readback"
+      ],
+      "existing_mechanism": "Existing workflow scheduler/handoff/export and CAS receipts.",
+      "finite_acceptance": "One scheduled run, exact result/receipt, restart/readback, duplicate inert; no live provider claim.",
+      "no_live_action_path": "Controlled scheduler/scratch world; no live model/provider.",
+      "classification": "controlled + missing served process"
+    },
+    {
+      "id": "ORACLE-01",
+      "priority": 5,
+      "goal": 14,
+      "title": "Rebase ORACLE inventory and qualify one high-risk mutation family",
+      "why_highest_impact": "Whole-app ORACLE remains open; a single family is finite and high-risk.",
+      "callers_consumers": [
+        "oracle inventory/registry",
+        "one real mutation consumer family"
+      ],
+      "existing_mechanism": "Existing oracle inventory/registry and operation receipts; no second engine.",
+      "finite_acceptance": "Updated current-main counts plus one family exact authority/readback/replay/uncertainty and negative twins.",
+      "no_live_action_path": "Controlled local family; no provider write/send.",
+      "classification": "missing/contradicted-unverified at whole-app; one-family finite"
+    },
+    {
+      "id": "OPS-01",
+      "priority": 6,
+      "goal": 16,
+      "title": "Backup/isolated restore/rollback and public restart child",
+      "why_highest_impact": "Operations/restore is a whole-app trust boundary; bounded repairs exist but full flow is open.",
+      "callers_consumers": [
+        "release kit/backup",
+        "restore child",
+        "public login/restart"
+      ],
+      "existing_mechanism": "Existing backup/restore/rollback and release kit.",
+      "finite_acceptance": "One supported backup, isolated restore, rollback, restart readback; wrong/unauthorized archive negatives.",
+      "no_live_action_path": "Scratch/isolated data; never live dev DB.",
+      "classification": "open / bounded repairs only"
+    },
+    {
+      "id": "PERF-01",
+      "priority": 7,
+      "goal": 17,
+      "title": "Declared performance/comparative measurement source",
+      "why_highest_impact": "No reproducible measurement/source for PERF/MKT numbers.",
+      "callers_consumers": [
+        "benchmark/reporting docs",
+        "marketing claims"
+      ],
+      "existing_mechanism": "Existing benchmark/CLI where available; no invented numbers.",
+      "finite_acceptance": "Declared environment/workload/sample/source and reproducible command; otherwise keep unverified.",
+      "no_live_action_path": "Local benchmark only; no provider/spend.",
+      "classification": "unverified / owner environment"
+    },
+    {
+      "id": "FLEET-01",
+      "priority": 8,
+      "goal": 13,
+      "title": "Served fleet/goal operational reliability",
+      "why_highest_impact": "Fleet/goal family is accepted bounded; served model quality/operational reliability is unobserved.",
+      "callers_consumers": [
+        "fleet/goal-run services",
+        "background executors"
+      ],
+      "existing_mechanism": "Existing fleet/goal-run/background controls.",
+      "finite_acceptance": "Controlled served/operational reliability slice with exact readback; no shadow success.",
+      "no_live_action_path": "Controlled fixture; live model authority separate.",
+      "classification": "controlled + missing served reliability"
+    },
+    {
+      "id": "PROFILE-01",
+      "priority": 9,
+      "goal": 18,
+      "title": "Owner decision on full-profile breadth",
+      "why_highest_impact": "Not an engineering queue item without owner scope decision.",
+      "callers_consumers": [
+        "product profile/navigation"
+      ],
+      "existing_mechanism": "Existing product profile; deferred surfaces must not be force-enabled.",
+      "finite_acceptance": "Owner explicitly authorizes/qualifies a profile; otherwise remain deferred.",
+      "no_live_action_path": "Read-only profile audit only.",
+      "classification": "deferred owner decision"
+    }
+  ],
+  "highest_impact_recommendation": "TW-01"
+}

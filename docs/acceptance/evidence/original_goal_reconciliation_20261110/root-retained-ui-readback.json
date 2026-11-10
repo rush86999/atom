@@ -1,0 +1,23 @@
+{
+  "read_only_db": "/private/tmp/atom-web-graduation-qualification-join-20261110/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315411_4d66ed51fe/runs/run-9c939f4aeb4d/data/atom.db",
+  "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+  "agent": {
+    "status": "intern",
+    "last_exam_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+    "promotion_count": 1
+  },
+  "history": [
+    {
+      "from_level": "student",
+      "to_level": "intern",
+      "exam_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d"
+    }
+  ],
+  "graduation_notification_ids": [
+    "6969f91c-2ccf-4711-a1cf-71f146d890bf"
+  ],
+  "native_ui_result": "PASS",
+  "source": "6da3374abd2fdd2d88df5cfae1635f4d495301d8",
+  "boundary": "Controlled fixture exposure; actual UI review/promotion, not fresh model competence; no successor source relabel",
+  "at": "2026-11-10T13:20:45.625771+00:00"
+}

@@ -1,0 +1,65 @@
+{
+  "scope": "read-only original-goal reconciliation, goals 10-18 only",
+  "catalog_preserved": {
+    "historical_claims": 143,
+    "goal_rows": 18,
+    "app_complete": false,
+    "goals_1_9": "owned by another native session; not re-audited or duplicated here"
+  },
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "branch_base": "4e81fa89a6378ffef3eeb81fd8a75f926df3bbe6",
+  "canonical_sources": {
+    "docs/engineering/APP_GOALS_INDEX.json": "ba88a2a1228f621f1c392cd8bc0534be455f76f2db005fb5ab10443f71d4c3a4",
+    "docs/engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json": "5c6319fc99db7cb03d17bf222d3568672d3237d83e16bad94dc0630e033dcc6d",
+    "docs/engineering/APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json": "c01679fffe14688568750c5d7d4462eac4059a4be3347c3fbc9df87f8086c014"
+  },
+  "pr_state": {
+    "merged_main_web": [
+      810,
+      812,
+      813,
+      815,
+      816,
+      818
+    ],
+    "integrated_via_pr824": [
+      817,
+      819,
+      820,
+      821,
+      822,
+      823
+    ],
+    "merged_prior": [
+      803,
+      804,
+      805
+    ],
+    "submitted": [
+      809
+    ],
+    "pending_ci_security_not_merged": [
+      {
+        "pr": 829,
+        "head": "08743676d"
+      },
+      {
+        "pr": 830,
+        "head": "e5c75c538e426fbfb563676e5672810ed9946d6a"
+      }
+    ],
+    "note": "APP_GOALS_INDEX quick_reference still labels 817/819-823 submitted; PR824 commit/readback is the current integration, and this report uses evidence packets rather than stale queue labels."
+  },
+  "root_attribution": {
+    "retained_ui_readback": "root-retained-ui-readback.json",
+    "source": "root-provided exact copy, /private/tmp/root-graduation-ordinary-ui-retained-readback-20261110.json",
+    "boundary": "controlled fixture exposure; actual UI review/promotion, not fresh model competence"
+  },
+  "not_qualified": [
+    "general autonomy or universal agent judgment",
+    "live breadth: real identity providers, provider accounts, connectors, sends or spend",
+    "performance/comparative marketing numbers without declared environment/workload/sample/source",
+    "PostgreSQL/multi-worker/soak",
+    "mobile/menubar and full deferred profile breadth"
+  ]
+}

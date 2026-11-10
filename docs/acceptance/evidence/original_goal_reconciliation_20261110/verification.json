@@ -1,0 +1,103 @@
+{
+  "schema": "atom-original-goal-reconciliation-1",
+  "status": "PASS read-only reconciliation",
+  "scope": "goals 10-18 only; goals 1-9 owned by another native session",
+  "catalog_preserved": {
+    "historical_claims": 143,
+    "goal_rows": 18,
+    "app_complete": false,
+    "goals_1_9": "owned by another native session; not re-audited or duplicated here"
+  },
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "branch_base": "4e81fa89a6378ffef3eeb81fd8a75f926df3bbe6",
+  "canonical_sources": {
+    "docs/engineering/APP_GOALS_INDEX.json": "ba88a2a1228f621f1c392cd8bc0534be455f76f2db005fb5ab10443f71d4c3a4",
+    "docs/engineering/APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json": "5c6319fc99db7cb03d17bf222d3568672d3237d83e16bad94dc0630e033dcc6d",
+    "docs/engineering/APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json": "c01679fffe14688568750c5d7d4462eac4059a4be3347c3fbc9df87f8086c014"
+  },
+  "pr_state": {
+    "merged_main_web": [
+      810,
+      812,
+      813,
+      815,
+      816,
+      818
+    ],
+    "integrated_via_pr824": [
+      817,
+      819,
+      820,
+      821,
+      822,
+      823
+    ],
+    "merged_prior": [
+      803,
+      804,
+      805
+    ],
+    "submitted": [
+      809
+    ],
+    "pending_ci_security_not_merged": [
+      {
+        "pr": 829,
+        "head": "08743676d"
+      },
+      {
+        "pr": 830,
+        "head": "e5c75c538e426fbfb563676e5672810ed9946d6a"
+      }
+    ],
+    "note": "APP_GOALS_INDEX quick_reference still labels 817/819-823 submitted; PR824 commit/readback is the current integration, and this report uses evidence packets rather than stale queue labels."
+  },
+  "classifications": {
+    "10": "bounded-pass + open at whole-app scope",
+    "11": "demonstrated-controlled-scope + missing ordinary breadth",
+    "12": "demonstrated-controlled-scope + missing served process",
+    "13": "demonstrated-controlled-scope + missing served reliability",
+    "14": "missing/contradicted/unverified",
+    "15": "regression-only at repaired board boundary; missing general exposed-app audit",
+    "16": "open + environment/external unverified",
+    "17": "unverified / no reproducible measurement",
+    "18": "deferred owner decision"
+  },
+  "highest_impact_recommendation": "TW-01",
+  "recommended_next_slice": {
+    "id": "TW-01",
+    "priority": 1,
+    "goal": 10,
+    "title": "One ordinary main-web repeated TASK-WAIT-01 journey with both event orders and final usable output",
+    "why_highest_impact": "Explicit original user requirement #1: domain-independent long-running jobs can wait for missing information for days, survive restart, continue independent useful work, and resume the same job when authorized relevant information arrives. The matrix is still open at whole-app scope.",
+    "callers_consumers": [
+      "backend/core/information_wait.py (request/receipt/recover/drain)",
+      "backend/core/generic_agent.py (ReAct information_wait)",
+      "backend/api/agent_routes.py (resume_information_wait_action)",
+      "backend/api/assignment_routes.py (_record_information_wait, source/resume routes)",
+      "backend/core/assignment_executor.py (gap/resume)",
+      "backend/core/goals/goal_run_events.py (_resume_woken_run)",
+      "backend/core/goals/goal_run_executor.py / goal_run_router.py",
+      "backend/core/hitl_resume.py"
+    ],
+    "existing_mechanism": "Existing wait/event/receipt/CAS and source-revision mechanisms; no new engine/store/schema/lifecycle.",
+    "finite_acceptance": "On one ordinary main-web surface (assignment or goal run): two missing facts settle in both event orders; the same job/execution/task IDs resume after a real process restart; repeated pauses are allowed; irrelevant/foreign/stale answers do not release work; final usable artifact is published only when current; no manual advance and no duplicate effect; current authority and source revision are revalidated. Scratch SQLite/controlled source fixture; no live provider/model or send.",
+    "no_live_action_path": "Use existing controlled source fixture and local UI/API; disable external transport leaf only in the fixture if needed. No real identity/provider/connector/send/spend.",
+    "classification": "open / highest-impact next slice"
+  },
+  "not_qualified": [
+    "general autonomy or universal agent judgment",
+    "live breadth: real identity providers, provider accounts, connectors, sends or spend",
+    "performance/comparative marketing numbers without declared environment/workload/sample/source",
+    "PostgreSQL/multi-worker/soak",
+    "mobile/menubar and full deferred profile breadth"
+  ],
+  "root_attribution": {
+    "retained_ui_readback": "root-retained-ui-readback.json",
+    "source": "root-provided exact copy, /private/tmp/root-graduation-ordinary-ui-retained-readback-20261110.json",
+    "boundary": "controlled fixture exposure; actual UI review/promotion, not fresh model competence"
+  },
+  "read_only": true,
+  "implementation_or_tests_or_browser_or_model_or_world": false,
+  "source_ci_goalindex_edits": false
+}
