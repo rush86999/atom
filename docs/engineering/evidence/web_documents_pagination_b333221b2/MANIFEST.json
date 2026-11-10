@@ -1,11 +1,27 @@
 {
   "artifacts": {
-    "README.md": "73b4782b940397fdf87a63d274b069932cd578afc62060a3b57381acab564e52",
-    "verification.json": "77959ced01eb9c48b241607cb9329c398faf9c7b49d327ddc95a4782a305ccc8"
+    "README.md": "6a24c358f20d020dc8821a58be454f5f6a15b63613e634e8221adb79722797c8",
+    "root_independent_original_130_results.json": "4db753fff8e2fa8a599719285fbbef5b0d7e3865d0ff69c377117e5263aa3dab",
+    "root_independent_probe.py": "26359c2c49bd9845a8e8ba55941d7cb75eb305138b6b84d6cb6ebbd66eba972e",
+    "root_independent_verification.json": "5d713ea3105e523a470fe13eb2c44e464816c4b66e2ae3cdf97a0a576f3e7756",
+    "root_proof_summary.json": "a442b794a0190f579cd4d3ee1877277f79ba016ca5c8d6684a11e5a76dc903ab",
+    "verification.json": "a5096a08f845f9b72bbbe260ca7e15a9ef9b6f2cebb1eca4d8d48415b24864f1"
   },
   "branch": "codex/web-documents-pagination-20261110",
   "code_commit": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
   "executed_source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "root_proof": {
+    "counts_note": "77 worker focused gate and 80 root neighborhood are different selectors; do not sum",
+    "frontend_tests_passed": 23,
+    "normal_controls_passed": 13,
+    "original_130_case_passed": 1,
+    "private_probe": "/private/tmp/root-document-pagination-fixed-independent-20261110.py",
+    "private_records": "/private/tmp/root-document-pagination-independent-20261110-d6ojl__3/",
+    "product_source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+    "source": "1605d7713116f1552d23e6a8288fd3902ce9468a",
+    "strict_packet_artifacts": 2,
+    "strict_packet_sources": 8
+  },
   "source_base": "b333221b23f925b3768ab82c2549200360a31865",
   "source_files": {
     "backend/api/document_routes.py": "94250a756d64c73021ca5aa12c0ed777ef2723aca62b977ebd21a9d79ef86e50",
