@@ -1,0 +1,670 @@
+PASS components/Workflow/__tests__/WorkflowAutomation.test.tsx (5.932 s)
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Save error Error: boom
+          at /private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:412:15
+          at step (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:77:23)
+          at Object.next (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:58:53)
+          at fulfilled (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:49:58)
+
+      413 |       }
+      414 |     } catch (e) {
+    > 415 |       console.error("Save error", e);
+          |               ^
+      416 |       toast({ title: "Error", description: "Failed to save workflow", variant: "error" });
+      417 |     } finally {
+      418 |       setLoading(false);
+
+      at components/WorkflowAutomation.tsx:415:15
+      at step (components/WorkflowAutomation.tsx:77:23)
+      at Object.next (components/WorkflowAutomation.tsx:58:53)
+      at fulfilled (components/WorkflowAutomation.tsx:49:58)
+
+    console.error
+      Error executing workflow: Error: nope
+          at /private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:476:15
+          at step (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:77:23)
+          at Object.next (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:58:53)
+          at fulfilled (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:49:58)
+
+      477 |       }
+      478 |     } catch (error) {
+    > 479 |       console.error("Error executing workflow:", error);
+          |               ^
+      480 |       toast({
+      481 |         title: "Error",
+      482 |         description: error instanceof Error ? error.message : "Failed to execute workflow",
+
+      at components/WorkflowAutomation.tsx:479:15
+      at step (components/WorkflowAutomation.tsx:77:23)
+      at Object.next (components/WorkflowAutomation.tsx:58:53)
+      at fulfilled (components/WorkflowAutomation.tsx:49:58)
+
+    console.error
+      Error cancelling execution: Error: cannot
+          at /private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:568:15
+          at step (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:77:23)
+          at Object.next (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:58:53)
+          at fulfilled (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:49:58)
+
+      569 |       }
+      570 |     } catch (error) {
+    > 571 |       console.error("Error cancelling execution:", error);
+          |               ^
+      572 |       toast({
+      573 |         title: "Error",
+      574 |         description: "Failed to cancel execution",
+
+      at components/WorkflowAutomation.tsx:571:15
+      at step (components/WorkflowAutomation.tsx:77:23)
+      at Object.next (components/WorkflowAutomation.tsx:58:53)
+      at fulfilled (components/WorkflowAutomation.tsx:49:58)
+
+    console.error
+      Error resuming execution: Error: stuck
+          at /private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:607:15
+          at step (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:77:23)
+          at Object.next (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:58:53)
+          at fulfilled (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:49:58)
+
+      608 |       }
+      609 |     } catch (error) {
+    > 610 |       console.error("Error resuming execution:", error);
+          |               ^
+      611 |       toast({
+      612 |         title: "Error",
+      613 |         description: "Failed to resume execution",
+
+      at components/WorkflowAutomation.tsx:610:15
+      at step (components/WorkflowAutomation.tsx:77:23)
+      at Object.next (components/WorkflowAutomation.tsx:58:53)
+      at fulfilled (components/WorkflowAutomation.tsx:49:58)
+
+    console.error
+      Fork Error: Error: boom
+          at /private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:656:15
+          at step (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:77:23)
+          at Object.next (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:58:53)
+          at fulfilled (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/WorkflowAutomation.tsx:49:58)
+
+      657 |       }
+      658 |     } catch (error) {
+    > 659 |       console.error("Fork Error:", error);
+          |               ^
+      660 |       toast({
+      661 |         title: "Time-Travel Failed",
+      662 |         description: "Could not fork timeline.",
+
+      at components/WorkflowAutomation.tsx:659:15
+      at step (components/WorkflowAutomation.tsx:77:23)
+      at Object.next (components/WorkflowAutomation.tsx:58:53)
+      at fulfilled (components/WorkflowAutomation.tsx:49:58)
+
+PASS tests/pages/goal-runs/detail.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS hooks/__tests__/useUserActivity.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+       97 |
+       98 |       const data: UserActivityState = await response.json();
+    >  99 |       setState(data);
+          |       ^
+      100 |
+      101 |       if (onStateChange) {
+      102 |         onStateChange(data);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:99:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+      103 |       }
+      104 |
+    > 105 |       setError(null);
+          |       ^
+      106 |     } catch (err: any) {
+      107 |       console.error('Failed to send heartbeat:', err);
+      108 |       setError(err.message);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:105:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+       97 |
+       98 |       const data: UserActivityState = await response.json();
+    >  99 |       setState(data);
+          |       ^
+      100 |
+      101 |       if (onStateChange) {
+      102 |         onStateChange(data);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:99:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+      103 |       }
+      104 |
+    > 105 |       setError(null);
+          |       ^
+      106 |     } catch (err: any) {
+      107 |       console.error('Failed to send heartbeat:', err);
+      108 |       setError(err.message);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:105:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+       97 |
+       98 |       const data: UserActivityState = await response.json();
+    >  99 |       setState(data);
+          |       ^
+      100 |
+      101 |       if (onStateChange) {
+      102 |         onStateChange(data);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:99:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+      103 |       }
+      104 |
+    > 105 |       setError(null);
+          |       ^
+      106 |     } catch (err: any) {
+      107 |       console.error('Failed to send heartbeat:', err);
+      108 |       setError(err.message);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:105:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+       97 |
+       98 |       const data: UserActivityState = await response.json();
+    >  99 |       setState(data);
+          |       ^
+      100 |
+      101 |       if (onStateChange) {
+      102 |         onStateChange(data);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:99:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+      103 |       }
+      104 |
+    > 105 |       setError(null);
+          |       ^
+      106 |     } catch (err: any) {
+      107 |       console.error('Failed to send heartbeat:', err);
+      108 |       setError(err.message);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:105:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Failed to send heartbeat: Error: HTTP 500: Internal Server Error
+          at /private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/hooks/useUserActivity.ts:95:15
+          at step (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/hooks/useUserActivity.ts:39:23)
+          at Object.next (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/hooks/useUserActivity.ts:20:53)
+          at fulfilled (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/hooks/useUserActivity.ts:11:58)
+
+      105 |       setError(null);
+      106 |     } catch (err: any) {
+    > 107 |       console.error('Failed to send heartbeat:', err);
+          |               ^
+      108 |       setError(err.message);
+      109 |     }
+      110 |   }, [enabled, userId, onStateChange]);
+
+      at hooks/useUserActivity.ts:107:15
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+       97 |
+       98 |       const data: UserActivityState = await response.json();
+    >  99 |       setState(data);
+          |       ^
+      100 |
+      101 |       if (onStateChange) {
+      102 |         onStateChange(data);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:99:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+      103 |       }
+      104 |
+    > 105 |       setError(null);
+          |       ^
+      106 |     } catch (err: any) {
+      107 |       console.error('Failed to send heartbeat:', err);
+      108 |       setError(err.message);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:105:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+PASS tests/pages/goal-runs/index.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/Automations/__tests__/ExecutionDetailView.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to ExecutionDetailView inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ExecutionDetailView (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/Automations/ExecutionDetailView.tsx:31:79)
+
+      45 |                 }
+      46 |                 const data = await response.json();
+    > 47 |                 setDetail(data);
+         |                 ^
+      48 |             } catch (err) {
+      49 |                 setError(err instanceof Error ? err.message : 'Unknown error');
+      50 |             } finally {
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Automations/ExecutionDetailView.tsx:47:17
+      at step (components/Automations/ExecutionDetailView.tsx:66:23)
+      at Object.next (components/Automations/ExecutionDetailView.tsx:47:53)
+      at fulfilled (components/Automations/ExecutionDetailView.tsx:38:58)
+
+    console.error
+      Warning: An update to ExecutionDetailView inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at ExecutionDetailView (/private/tmp/atom-web-reviewed-integration-20261110/frontend-nextjs/components/Automations/ExecutionDetailView.tsx:31:79)
+
+      49 |                 setError(err instanceof Error ? err.message : 'Unknown error');
+      50 |             } finally {
+    > 51 |                 setLoading(false);
+         |                 ^
+      52 |             }
+      53 |         };
+      54 |
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Automations/ExecutionDetailView.tsx:51:17
+      at step (components/Automations/ExecutionDetailView.tsx:66:23)
+      at Object.next (components/Automations/ExecutionDetailView.tsx:47:53)
+      at fulfilled (components/Automations/ExecutionDetailView.tsx:38:58)
+
+PASS hooks/__tests__/useUserActivity-branches.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+       97 |
+       98 |       const data: UserActivityState = await response.json();
+    >  99 |       setState(data);
+          |       ^
+      100 |
+      101 |       if (onStateChange) {
+      102 |         onStateChange(data);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:99:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+      103 |       }
+      104 |
+    > 105 |       setError(null);
+          |       ^
+      106 |     } catch (err: any) {
+      107 |       console.error('Failed to send heartbeat:', err);
+      108 |       setError(err.message);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:105:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+       97 |
+       98 |       const data: UserActivityState = await response.json();
+    >  99 |       setState(data);
+          |       ^
+      100 |
+      101 |       if (onStateChange) {
+      102 |         onStateChange(data);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:99:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+    console.error
+      Warning: An update to TestComponent inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at TestComponent (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:328:5)
+
+      103 |       }
+      104 |
+    > 105 |       setError(null);
+          |       ^
+      106 |     } catch (err: any) {
+      107 |       console.error('Failed to send heartbeat:', err);
+      108 |       setError(err.message);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at hooks/useUserActivity.ts:105:7
+      at step (hooks/useUserActivity.ts:39:23)
+      at Object.next (hooks/useUserActivity.ts:20:53)
+      at fulfilled (hooks/useUserActivity.ts:11:58)
+
+
+Test Suites: 6 passed, 6 total
+Tests:       147 passed, 147 total
+Snapshots:   0 total
+Time:        8.164 s
+Ran all test suites matching hooks/__tests__/useUserActivity.test.ts|hooks/__tests__/useUserActivity-branches.test.ts|tests/pages/goal-runs/index.test.tsx|tests/pages/goal-runs/detail.test.tsx|components/Workflow/__tests__/WorkflowAutomation.test.tsx|components/Automations/__tests__/ExecutionDetailView.test.tsx.

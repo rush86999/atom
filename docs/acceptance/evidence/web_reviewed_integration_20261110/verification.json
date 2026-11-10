@@ -1,0 +1,83 @@
+{
+  "integration_runtime_head": "b532d8c0d82a4cc476f98cae1f42c1f6c1570015",
+  "base_main": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+  "families": [
+    {
+      "pr": 819,
+      "head": "2beccb819ab1c06196bf16831c85eaf75758589b"
+    },
+    {
+      "pr": 821,
+      "head": "423abf868aa71bcd6964628af6e80a91ccf989b9"
+    },
+    {
+      "pr": 817,
+      "head": "5cbc21781f23c18259ba5937c4f4689c258955b0"
+    },
+    {
+      "pr": 820,
+      "head": "30ad48ac21b78436e7e6fc07f43aa12287680969"
+    },
+    {
+      "pr": 822,
+      "head": "cf4c7bde2346daedd5ee86c2b175ef9fdf8bda8d"
+    },
+    {
+      "pr": 823,
+      "head": "31b12792767408b52eba763dd098c07f2f38aa7f"
+    }
+  ],
+  "source_evidence_paths_verified": 160,
+  "independent_api_and_ci": {
+    "passed": 44,
+    "duration_s": 30.58,
+    "actual_exit": 0,
+    "same_source": true
+  },
+  "ui_consumers": {
+    "passed": 147,
+    "suites": 6,
+    "duration_s": 8.164,
+    "actual_exit": 0,
+    "same_source": true
+  },
+  "scope": "Bounded combined main-web candidate; not full app or graduation/model judgment completion.",
+  "original_claims": 143,
+  "original_goal_rows": 18,
+  "artifacts": {
+    "source-matrix.json": "10e86197311a8f967856025afbc21f8f022d7f301984d51295c82e2f209c2e8a",
+    "independent-api-ci-review.json": "14674857cfc369bb604c55485a63fab27a66bef5bbdba378ca5965372706f031",
+    "independent-api-ci-controls.log": "e664f6d4422b369aaedf357a43a50a45583476b2d9759ed7f16d7a46a2bc31ee",
+    "ui-consumers-review.json": "f2aa1809ee11e9c91894f2ddf6e60dfd135aefdcecaac832e9477591b5bcf126",
+    "ui-consumers-controls.log": "9f53fcc5f29cbd0a774614bd58808d556c9a6333f589e66d09e367aaa927ce6e",
+    "README.md": "c7c98787ed90cde6da348f0b3178b81d19355dc5850d40d7709e6abc01110a2f"
+  },
+  "sanitation": {
+    "source-matrix.json": {
+      "bearer_values_redacted": 0,
+      "raw_jwt_hits": 0,
+      "private_original_sha256": "10e86197311a8f967856025afbc21f8f022d7f301984d51295c82e2f209c2e8a"
+    },
+    "independent-api-ci-review.json": {
+      "bearer_values_redacted": 0,
+      "raw_jwt_hits": 0,
+      "private_original_sha256": "14674857cfc369bb604c55485a63fab27a66bef5bbdba378ca5965372706f031"
+    },
+    "independent-api-ci-controls.log": {
+      "bearer_values_redacted": 0,
+      "raw_jwt_hits": 0,
+      "private_original_sha256": "e664f6d4422b369aaedf357a43a50a45583476b2d9759ed7f16d7a46a2bc31ee"
+    },
+    "ui-consumers-review.json": {
+      "bearer_values_redacted": 0,
+      "raw_jwt_hits": 0,
+      "private_original_sha256": "f2aa1809ee11e9c91894f2ddf6e60dfd135aefdcecaac832e9477591b5bcf126"
+    },
+    "ui-consumers-controls.log": {
+      "bearer_values_redacted": 0,
+      "raw_jwt_hits": 0,
+      "private_original_sha256": "9f53fcc5f29cbd0a774614bd58808d556c9a6333f589e66d09e367aaa927ce6e"
+    }
+  },
+  "at": "2026-11-10T08:16:44.679590+00:00"
+}

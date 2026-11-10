@@ -1,0 +1,51 @@
+{
+  "world": "/private/tmp/root-reviewed-integration-heldouts-20261110-xu9k258g",
+  "capture_head": "b532d8c0d82a4cc476f98cae1f42c1f6c1570015",
+  "source_before": {
+    "backend/api/user_activity_routes.py": "4737c7b0c600ad4fc92b7552df03b50968ea7f4f6d14a372dd346d3c2e210533",
+    "backend/core/presence_override_write_service.py": "091d03936e65ce4705d10c6cbcbdf7b8780af043583f3d4cd6d790bafd4c29bf",
+    "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+    "backend/core/workflow_endpoints.py": "272dcfcbbcdceccb8c9789ce5420e7194763b457931d56fca53d5f64e4aa315c",
+    "backend/core/user_activity_service.py": "91c9416f36102043db237b7458121e82e329168bd262353409ddab1a9c8d418d"
+  },
+  "probes": {
+    "/private/tmp/root-presence-independent-20261110.py": "b2c5b4ecafc27d7b7d7db48f1876bf8c02b750920cd290323943184cb4db9b0f",
+    "/private/tmp/root-presence-supervisors-route-independent-20261110.py": "1e6c23766bc86d966634d6b30ab27618791f06da96cfd65407fea79d57f2269f",
+    "/private/tmp/root-maturity-guide-independent-20261110.py": "f2818982192c0928cc4b31243b141e0f3d1dd9daf9808695258e0ea4908588ee",
+    "/private/tmp/root-workflow-export-independent-20261110.py": "983cfd0d66fc044bafc29ce8a97e7f9b6e9f8f95d25c4029f985433ed55061d7",
+    "/private/tmp/root-workflow-export-definition-binding-20261110.py": "c45fd855e65e6e018faa3e877fd64fd3d72ff69ac7c9ed494d089b9d3215fce4"
+  },
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-reviewed-integration-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-presence-independent-20261110.py",
+    "/private/tmp/root-presence-supervisors-route-independent-20261110.py",
+    "/private/tmp/root-maturity-guide-independent-20261110.py",
+    "/private/tmp/root-workflow-export-independent-20261110.py",
+    "/private/tmp/root-workflow-export-definition-binding-20261110.py",
+    "tests/test_ci_backend_lane_contract.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 0,
+  "source_after": {
+    "backend/api/user_activity_routes.py": "4737c7b0c600ad4fc92b7552df03b50968ea7f4f6d14a372dd346d3c2e210533",
+    "backend/core/presence_override_write_service.py": "091d03936e65ce4705d10c6cbcbdf7b8780af043583f3d4cd6d790bafd4c29bf",
+    "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+    "backend/core/workflow_endpoints.py": "272dcfcbbcdceccb8c9789ce5420e7194763b457931d56fca53d5f64e4aa315c",
+    "backend/core/user_activity_service.py": "91c9416f36102043db237b7458121e82e329168bd262353409ddab1a9c8d418d"
+  },
+  "same_source": true
+}

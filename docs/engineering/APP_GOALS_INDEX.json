@@ -111,7 +111,7 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T07:33:51.949469+00:00",
+    "updated_at": "2026-11-10T08:16:44.681258+00:00",
     "as_of_main": "750f42215229fde8d516c700c6a8de0fd3a5a111",
     "app_complete": false,
     "historical_claims": 143,
@@ -145,36 +145,51 @@
       {
         "pr": 818,
         "revision": "750f42215",
-        "scope": "Reviewed native-chat learning: controlled API/component and ordinary UI operations plus restart durability. Original full browser verifier retains10 failed capture checks. Exact all13 PR checks and merged-union tree verified; post-merge CI pending."
+        "scope": "Reviewed native-chat learning: controlled API/component and ordinary UI operations plus restart durability. Original full browser verifier retains10 failed capture checks. Exact all13 PR checks and merged-union tree verified; post-merge main all12 required Actions verified green."
       }
     ],
     "submitted": [
       {
         "pr": 817,
         "head": "5cbc21781",
-        "scope": "Persistent web authority/document/training controls plus normal-install pylance dependency repair; original failing head retained. Learning-main CI union preserved27/27 ledger controls; new exact-head hosted checks pending."
+        "scope": "Reviewed web regression gates and normal-install Lance dependency; failed predecessor preserved."
       },
       {
         "pr": 819,
         "head": "2beccb819",
-        "scope": "Governed generated-workflow manual handoff; independent10 refusal/race controls and actual fresh-process roundtrip pass. Frozen source23a9a4496/evidence0560bd16a retained; new integration-head CI pending. No live model/browser/PG/soak claim."
+        "scope": "Governed manual workflow handoff; controlled API/real child-process evidence. No live model/browser/general scheduling claim."
       },
       {
         "pr": 820,
-        "head": "d264ab465",
-        "scope": "Presence override authority/state CAS, receipt and uncertain UI preservation; root3 independent controls pass,6sources/13artifacts Git-verified. New integration-head CI pending; bounded ORACLE family only."
+        "head": "30ad48ac2",
+        "scope": "Presence authority/receipt/uncertain UI plus exact restored supervisor directory. Original red CI and root negatives retained; successor root2+3 pass."
+      },
+      {
+        "pr": 821,
+        "head": "423abf868",
+        "scope": "Deterministic JSON execution export bound to executed definition and complete verified outputs; root1+7 and60 UI controls pass. Depends819."
+      },
+      {
+        "pr": 822,
+        "head": "cf4c7bde2",
+        "scope": "Activity utility visibility; original2 stale-winner failures repaired, root unchanged2 pass. Existing deterministic ranking only."
+      },
+      {
+        "pr": 823,
+        "head": "31b127927",
+        "scope": "Maturity guide current-authority scope; root real-JWT3fail1pass to4pass. No graduation policy change."
       }
     ],
     "active": [
       {
         "owner": "backend native CLI",
-        "work": "Workflow execution result export",
-        "acceptance": "Runtime1c876b5f6 binds exact executed definition and required step coverage. Independent original7 refusals and new definition-binding probe1 pass. Both historical negatives retained. JSON format only; ordinary parent-modal controls in progress; not submitted/whole artifact goal complete."
+        "work": "Ordinary generated Canvas DOCX/PPTX download through existing renderers",
+        "acceptance": "Implementation in progress; exact saved content/authority/revision, file substance, safe errors, path anchoring and actual process restart are required. No runtime acceptance or general output-goal closure yet."
       },
       {
         "owner": "frontend native CLI",
-        "work": "Activity utility ranking visibility",
-        "acceptance": "Initial05ca1e72b controlled45 tests pass but WITHHELD: independent2 controls expose a cleared-target stale winner and older-load overwrite. Same worker repairs existing consumer; no new router/store/engine and no overall GOAL02 completion."
+        "work": "Teaching/assessment/graduation ordinary product-continuation audit",
+        "acceptance": "Read-only diagnosis; distinguish intentional training-review eligibility from actual exam/promotion readiness. No new lifecycle/threshold/model judge or completed-goal claim."
       }
     ],
     "superseded": [
@@ -189,6 +204,22 @@
       }
     ],
     "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
-    "next_prepared": "Finish independent review and exact-head CI of current main-web deliveries; retain the full143-claim/18-goal audit and choose the next substantive unclosed requirement after ownership/evidence reconciliation."
+    "next_prepared": "Finish independent review and exact-head CI of current main-web deliveries; retain the full143-claim/18-goal audit and choose the next substantive unclosed requirement after ownership/evidence reconciliation.",
+    "integration_candidate": {
+      "branch": "codex/web-reviewed-integration-20261110",
+      "status": "prepared; exact combined hosted checks required before merge",
+      "family_prs": [
+        817,
+        819,
+        820,
+        821,
+        822,
+        823
+      ],
+      "verified_source_artifact_paths": 160,
+      "combined_independent_api_and_ci_passed": 44,
+      "combined_ui_consumer_passed": 147,
+      "original_denominator_unchanged": true
+    }
   }
 }
