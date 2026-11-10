@@ -1,0 +1,63 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "web guided/custom/attach creation no longer auto-replays uncertain POSTs; receipts validated and exact ids reload; frozen frontend candidate for independent review",
+  "branch": "codex/web-goal14-create-ui-join-20261110",
+  "base": "38dae97a6f9a1e00179a9ac879c14215b9983d1f",
+  "executed_source": "708d4d6a5",
+  "backend_integration_worktree_edited": false,
+  "spawn_worktree_edited": false,
+  "source_files": {
+    "frontend-nextjs/lib/agent-onboarding-api.ts": "cb38e3cf8629e418bc2e63590fce682f0b89fa16295ba4ab97ac27178fed5fdf",
+    "frontend-nextjs/components/Agents/GuidedAgentCreator.tsx": "c467db1f4237848c930930d286c5864df02cc7bbe250cc48d196c59560881e5c",
+    "frontend-nextjs/components/Agents/AgentLaunchGuide.tsx": "66b16e2340fca52213d81829a402ebbc90d26250f4139e240a7a284597f6525d",
+    "frontend-nextjs/components/canvas/AgentAttachModal.tsx": "f3b10f234096ee9c2e293f41ec5fbd2011b6a18ff84e8d5e0acf1026ec5862a1",
+    "frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx": "46d652c0e97b53cb783da180b156d25d136d42e1655af970230afbefe6e2a247",
+    "frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx": "07230571b6e2f3382b9753a9bfe617a42618c61ee470528091173bba336689e5",
+    "frontend-nextjs/components/canvas/__tests__/AgentAttachModal.test.tsx": "fd70a09aa7c522014f775608b1af0d2031c120368e57f329043ae85d7d81ad54",
+    "frontend-nextjs/lib/__tests__/agent-creation-retry.test.ts": "a89ee75e62f57d4bee99c1cf4dc3f5356ccf18d71ec8686b33088d3a550e37a2",
+    "frontend-nextjs/tests/pages/agents-creation-join.test.tsx": "4293a4516fa5c7f65ff3117434f93d0dcdd151d80894029fef673bee88fed09f",
+    "frontend-nextjs/lib/api.ts": "0bfa5a8eef267f48f0a0ccac9b5f62a6f70c850f900a3986083c47bc396d2db1",
+    "frontend-nextjs/lib/api-client.ts": "2a9ba7f747ce34d7034a172b9dd30cd712695d7b8d9e4f6c0f48a6144fe94de6",
+    "frontend-nextjs/tests/pages/agents-index.test.tsx": "982d9a0e54e9dcf21e3806e2c4336207f594b537ab1241641f17087718e240bf",
+    "COORDINATION.md": "f7dae39773dc35889a34221e0c509b3971da563c712992feee82264e7a5dc136"
+  },
+  "artifacts": {
+    "README.md": "09ea0d37d8e327ae54ce3582b5b5cdf788a3069f9644134bfbd1bac62bcda9de",
+    "TEST_RESULTS.md": "bb4fb7a7ce9a96d269e0dd3476a2b548e71a88606e1a232dfdc5fede7266308d",
+    "failure-first-interceptor.log": "57350261aa44e54e635a2887e080f14b2ab8940ad76bbdf8f0de6245b693508e",
+    "focused-after.log": "c1eaddcf33edb86793fc7c2dfce50d8d54897c61382b5d2cf0030ef29fd2ac5a",
+    "interceptor-integrity.log": "e5f149038ab361e9ed9cefda6b77701875c88adf573fd63a4bc287456644dd5e",
+    "page-join.log": "6dcf10b806bcd573e77bc5764d5c7fb46da449f089125f933f05f164ccc7b71a",
+    "source-fix.diff": "7713c8766453cb34928d571d2982ce9da64c9ec40d46bb41a4b1dd028248a920",
+    "tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.json": "1793ff987dcf12a59528bcf5df31328fa458e13f134721736a8f389587b0f55a"
+  },
+  "checks": {
+    "failure_first": "2 failed; 4 POST attempts each",
+    "interceptor_after": "8 passed",
+    "focused_frontend": "115 passed",
+    "page_join": "1 passed",
+    "tsc_errors": 0,
+    "no_auto_retry_guided": true,
+    "no_auto_retry_custom": true,
+    "operation_id_propagated": true,
+    "pending_no_agent_no_attach": true,
+    "success_false_malformed_unverified_rejected": true,
+    "exact_id_reload": true,
+    "no_optimistic_duplicate": true,
+    "student_no_promotion": true,
+    "no_scheduler_duplicate": true,
+    "no_backend_or_qualification_change": true,
+    "no_new_api_client_store_review_engine": true,
+    "no_new_dependency_or_world": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "boundaries": [
+    "frontend source only; backend/qualification base 38dae untouched",
+    "Node20 reused; node_modules linked, not copied",
+    "browser custom Hire join prepared next at this frozen build; no browser claim yet",
+    "root owns backend integration and final review; no merge"
+  ]
+}

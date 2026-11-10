@@ -1,0 +1,55 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+FAIL lib/__tests__/agent-creation-retry.test.ts (5.944 s)
+  creation POST retry safety
+    ✕ does not auto-retry a guided creation after a 503 confirmation loss (1598 ms)
+    ✕ does not auto-retry a custom hire after a 503 confirmation loss (2482 ms)
+
+  ● creation POST retry safety › does not auto-retry a guided creation after a 503 confirmation loss
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 4
+
+      60 |     ).rejects.toBeTruthy();
+      61 |
+    > 62 |     expect(posts).toBe(1);
+         |                   ^
+      63 |   });
+      64 |
+      65 |   it('does not auto-retry a custom hire after a 503 confirmation loss', async () => {
+
+      at lib/__tests__/agent-creation-retry.test.ts:62:19
+      at step (lib/__tests__/agent-creation-retry.test.ts:33:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:14:53)
+      at fulfilled (lib/__tests__/agent-creation-retry.test.ts:5:58)
+
+  ● creation POST retry safety › does not auto-retry a custom hire after a 503 confirmation loss
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 4
+
+      85 |     ).rejects.toBeTruthy();
+      86 |
+    > 87 |     expect(posts).toBe(1);
+         |                   ^
+      88 |   });
+      89 | });
+      90 |
+
+      at lib/__tests__/agent-creation-retry.test.ts:87:19
+      at step (lib/__tests__/agent-creation-retry.test.ts:33:23)
+      at Object.next (lib/__tests__/agent-creation-retry.test.ts:14:53)
+      at fulfilled (lib/__tests__/agent-creation-retry.test.ts:5:58)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 2 total
+Snapshots:   0 total
+Time:        6.523 s
+Ran all test suites matching lib/__tests__/agent-creation-retry.test.ts.

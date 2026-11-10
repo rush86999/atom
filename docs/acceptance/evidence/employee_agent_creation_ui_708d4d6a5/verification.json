@@ -1,0 +1,71 @@
+{
+  "schema": "atom-agent-creation-ui-verification-1",
+  "status": "web guided/custom/attach creation no longer auto-replays uncertain POSTs; receipts validated and exact ids reload; frozen frontend candidate for independent review",
+  "candidate": {
+    "branch": "codex/web-goal14-create-ui-join-20261110",
+    "base": "38dae97a6f9a1e00179a9ac879c14215b9983d1f",
+    "executed_source": "708d4d6a5",
+    "backend_integration_worktree_edited": false,
+    "spawn_worktree_edited": false,
+    "runtime": "Node20 + existing linked frontend node_modules; Jest/RTL/jsdom; real lib/api interceptor; no live model/provider/DB"
+  },
+  "confirmed_gap": {
+    "source": "createGuidedAgent apiClient.post and AgentLaunchGuide custom POST had no retry:false or stable operation id",
+    "mechanism": "shared lib/api.ts response interceptor auto-retries 5xx/network failures",
+    "before": "real adapter counter: 4 POST attempts each for guided and custom creation after a 503"
+  },
+  "repair": {
+    "retry": "creation helpers pass retry:false",
+    "operation_id": "per-user-intent operation_id reused only for an explicit unchanged-intent retry; never automatic transport replay",
+    "validation": "2xx success:false, missing/non-string agent_id, or non-verified verification raises CREATION_NOT_ACCEPTED/UNVERIFIED_CREATE",
+    "pending": "202 pending_approval returns pending with no agent id; no refresh/attach as created",
+    "reload": "verified success passes the exact agent_id; authoritative list/refresh shows that id once",
+    "uncertainty": "5xx/network/unverified shows honest uncertainty; no auto-POST",
+    "promotion_scheduler": "no promotion and no scheduler call added",
+    "not_touched": "Agent Studio (unmounted) and template spawn (no frontend caller) remain disabled/unqualified"
+  },
+  "controls": {
+    "no_auto_retry_guided": true,
+    "no_auto_retry_custom": true,
+    "operation_id_propagated": true,
+    "unchanged_intent_can_reconcile": true,
+    "pending_no_agent": true,
+    "pending_no_attach": true,
+    "success_false_rejected": true,
+    "malformed_wrong_target_rejected": true,
+    "unverified_rejected": true,
+    "exact_id_reload": true,
+    "no_optimistic_duplicate": true,
+    "student_no_promotion": true,
+    "no_scheduler_duplicate": true,
+    "existing_frontend_tests_retained": true
+  },
+  "results": {
+    "failure_first": {"failed": 2, "guided_posts": 4, "custom_posts": 4, "log": "failure-first-interceptor.log"},
+    "interceptor_after": {"passed": 8, "log": "interceptor-integrity.log"},
+    "focused_frontend": {"passed": 115, "log": "focused-after.log"},
+    "page_join": {"passed": 1, "log": "page-join.log"},
+    "tsc": {"errors": 0, "log": "tsc.log"}
+  },
+  "browser_join": {
+    "status": "prepared next finite step at this frozen build",
+    "scope": "ordinary custom Hire only; existing isolated world launcher/storage guard; no new model/provider call",
+    "guided_claim": "browser cannot claim served model quality from controlled transport"
+  },
+  "checks": {
+    "no_backend_change": true,
+    "no_qualification_change": true,
+    "no_new_api_client_store_or_review_engine": true,
+    "no_new_dependency_or_world": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "original_143_claims_18_goals_unchanged": true,
+    "webfirst_mobilelast": true
+  },
+  "boundaries": [
+    "frontend source only; backend/qualification base 38dae untouched",
+    "Node20 reused; node_modules linked, not copied",
+    "root owns backend integration and final review",
+    "no merge or self-acceptance"
+  ]
+}
