@@ -34576,29 +34576,77 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     async def _handle_task_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
-        """Handle task creation and management requests via unified endpoints."""
+        """Handle task creation through the shared durable UserTask service."""
         try:
-            from core.unified_task_endpoints import create_task, CreateTaskRequest, get_current_user
-            import asyncio
-            from datetime import datetime, timedelta, timezone
-            from unittest.mock import MagicMock
-            
+            from datetime import datetime, timedelta
+
+            from core.database import get_db_session
+            from core.user_task_service import (
+                TaskServiceError,
+                create_user_task,
+            )
+
+            session_user_id = (
+                session.get("user_id") if isinstance(session, dict) else None)
+            context_user_id = (
+                (context or {}).get("user_id")
+                if isinstance(context, dict) else None)
+            if not isinstance(session_user_id, str) or not session_user_id:
+                return {
+                    "success": False,
+                    "error": "task_authority_unavailable",
+                    "data": {"message": "Task creation requires an authenticated user."},
+                }
+            if (context_user_id is not None
+                    and str(context_user_id) != session_user_id):
+                return {
+                    "success": False,
+                    "error": "task_authority_unavailable",
+                    "data": {"message": "Task creation authority is inconsistent."},
+                }
+            session_id = (
+                session.get("id") or session.get("session_id")
+                if isinstance(session, dict) else None)
+            if not isinstance(session_id, str) or not session_id:
+                return {
+                    "success": False,
+                    "error": "task_authority_unavailable",
+                    "data": {"message": "Task creation requires a bound session."},
+                }
+            stored_session = None
+            sessions = getattr(self, "conversation_sessions", None)
+            if isinstance(sessions, dict):
+                stored_session = sessions.get(session_id)
+            if not isinstance(stored_session, dict):
+                manager = getattr(self, "session_manager", None)
+                if manager is not None and hasattr(manager, "get_session"):
+                    try:
+                        stored_session = manager.get_session(session_id)
+                    except Exception:
+                        stored_session = None
+            if (
+                not isinstance(stored_session, dict)
+                or str(stored_session.get("user_id") or "")
+                != str(session_user_id)
+            ):
+                return {
+                    "success": False,
+                    "error": "task_authority_unavailable",
+                    "data": {"message": "Task creation session authority is unavailable."},
+                }
+
             # 1. Use NLP to extract title and description
             title = message
             description = ""
             if "data_intelligence" in self.ai_engines and hasattr(self.ai_engines["data_intelligence"], "extract_task_details"):
-                # Hypothetical method if it exists, otherwise fallback
                 extracted = self.ai_engines["data_intelligence"].extract_task_details(message)
                 title = extracted.get("title", message)
                 description = extracted.get("description", "")
             else:
                 import re
-                # Clean up natural language prefixes
                 clean_msg = re.sub(r'^(?:please\s+)?(?:create|make|add|schedule)\s+(?:a\s+)?(?:task|todo|reminder)(?:\s+to|\s+that|\s+for|:|-)?\s*', '', message, flags=re.IGNORECASE).strip()
-                
                 if not clean_msg:
                     clean_msg = message.strip()
-                    
                 parts = clean_msg.split(":", 1)
                 if len(parts) > 1 and len(parts[0]) < 30:
                     title = parts[0].strip()
@@ -34606,57 +34654,64 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 else:
                     title = clean_msg
                     description = ""
-            
-            # Shorten title if it's too long
+
             if len(title) > 50:
                 description = title
                 title = title[:47] + "..."
-            
-            # Capitalize
+
             if title:
                 title = title[0].upper() + title[1:]
-                
-            # 2. Construct unified task request
-            task_req = CreateTaskRequest(
-                title=title or "New Task",
-                description=description,
-                dueDate=datetime.now() + timedelta(days=1), # Default to tomorrow
-                priority="medium",
-                platform="local", # Use local mock backend for chat orchestrator tests
-                status="todo"
-            )
-            
-            # Mock the FastAPI current_user dependency for internal calls
-            mock_user = MagicMock()
-            mock_user.id = session.get("user_id", "system")
-            
-            # 3. Call the unified API endpoint directly
-            result = await create_task(task_data=task_req, current_user=mock_user)
-            
-            if result.get("success"):
-                task_id = result.get("task").id if hasattr(result.get("task"), "id") else "unknown"
-                return {
-                    "success": True, 
-                    "data": {
-                        "task": task_req.dict(),
-                        "message": f"I've added '{task_req.title}' to your Tasks.",
-                        "task_id": task_id
-                    },
-                    "suggested_actions": [
-                        # URL action: a real navigation, not a prompt.
-                        # Text actions prefill the chat input on click
-                        # (frontend) — never auto-send in the user's voice.
-                        {"label": "View My Tasks", "url": "/tasks"},
-                        {"label": "Add a deadline"},
-                        {"label": "Assign to team"},
-                    ]
-                }
-            else:
-                return {"success": False, "error": "Internal task creation failed."}
-                
-        except Exception as e:
-            logger.error(f"Task handler failed: {e}")
-            return {"success": False, "error": "task_creation_failed", "data": {"message": "Failed to create task"}}
+
+            payload = {
+                "title": title or "New Task",
+                "description": description,
+                "priority": "medium",
+                "status": "todo",
+            }
+            # Do not invent a deadline. A repeated request_id with the same
+            # omitted-date body must produce the same accepted material digest
+            # rather than a fresh datetime.now() digest.
+            if isinstance(context, dict) and context.get("dueDate") is not None:
+                payload["dueDate"] = context["dueDate"]
+            request_id = (
+                context.get("request_id") if isinstance(context, dict) else None)
+            if isinstance(request_id, str) and request_id.strip():
+                payload["idempotencyKey"] = request_id.strip()
+
+            with get_db_session() as db:
+                task = create_user_task(db, session_user_id, payload)
+            task_data = task.as_dict()
+            from core.product_profile import capability_enabled
+            suggested_actions = []
+            if capability_enabled("tasks"):
+                suggested_actions = [
+                    {"label": "View My Tasks", "url": "/tasks"},
+                    {"label": "Add a deadline"},
+                    {"label": "Assign to team"},
+                ]
+            return {
+                "success": True,
+                "data": {
+                    "task": task_data,
+                    "message": f"I've added '{task.title}' to your Tasks.",
+                    "task_id": str(task.id),
+                },
+                "suggested_actions": suggested_actions,
+            }
+        except TaskServiceError as exc:
+            logger.warning("Task handler refused: %s", type(exc).__name__)
+            return {
+                "success": False,
+                "error": "task_creation_refused",
+                "data": {"message": "The task could not be created for the current user."},
+            }
+        except Exception:
+            logger.error("Task handler failed")
+            return {
+                "success": False,
+                "error": "task_creation_failed",
+                "data": {"message": "Failed to create task"},
+            }
 
     async def _handle_workflow_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
