@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "kind": "web_canvas_authority_evidence_manifest",
+  "title": "Sheets and coding canvas authority repair — 82b29cfcc",
+  "executed_source": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "source_files": {
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/canvas_sheets_service.py": "580a3a6bd5053f508666099a96bd91b2d47f4a204408931dbcfbb036b58c5842",
+    "backend/core/canvas_coding_service.py": "05e861f2eebdc872147c58f774dc5588870ad33722d87c497f33966501080aaf",
+    "backend/api/canvas_sheets_routes.py": "dc042ecb923a40545928e398289211f08d7b9a4154c7728286426e6e8c0bcd9c",
+    "backend/api/canvas_coding_routes.py": "689b1a7d1e3d3f81fcce958f09aa6ed42bf3e916d566201437ab6ad1b9380465",
+    "backend/tools/canvas_crud_tool.py": "902533ef74a24d0948dab6a9bd27bc8d337fb3b79350c62e3f0c63aac75a8627",
+    "backend/tests/api/test_web_canvas_authority.py": "45069e3b568c290fc513cad479779d4795d453a18faa906083d6199ed6977788",
+    "backend/tests/test_canvas_types_comprehensive.py": "41ece1bf043cf32c278775457388268ff75f43fd67c919a07b63dc9fd096fe85",
+    "backend/tests/test_covpush_w105_gaps_b.py": "a08d827315375f5cc998568ebb876c53ca49620e155ba25f64a01655b9cd774b",
+    "backend/tests/test_covpush_w64g_canvas_routes.py": "82e8cdf4bee79804b3a90881b48f8d08bcefb34f7c1e95d66ae64be15927dd3a"
+  },
+  "artifacts": {
+    "README.md": "93130b3560452841f06b4638704bed9a47483163f15feffd0d1b03e6594265a6",
+    "verification.json": "a2fb2881e8b5e1cb34863f2d1b547c00f791811abf2923bb59b571d817a6026e",
+    "root-independent-case-results.json": "b3dc6bca59058f96c1f5fed63c96facd26b7c0433535c791e5032c5f84f4a6ec",
+    "root-proof-summary.json": "b4fda21cc0b0be5656b5c741e9c9133440b77532c2307da48d44d2c594e66c69",
+    "independent-probe.py": "428f91f152f3c62d1b32acb344510e6034baeb7a79f9ee14290f7ab4476bbc0e",
+    "original-negative-reproduction.json": "d24087dbc803b6f0371ce8cc44500ce7a2db7a9487eac466a4def78d9bda9d9b",
+    "commands.json": "258798553c3af606d870e6a40262b8d640a8eb7d1af9a57ef2608700bc04f06e"
+  }
+}

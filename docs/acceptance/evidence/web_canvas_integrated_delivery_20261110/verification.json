@@ -1,0 +1,236 @@
+{
+  "status": "independently_verified_controlled_scope_pending_hosted_CI",
+  "candidate_before_evidence": "daa33ac513f2ee74a05c5f1e8160a66e27dfb6ca",
+  "base": "f7adab343a86f9bbf6b3a5ed8c624b08ee4538a8",
+  "merged_main": "63dab46b5e2a841bd6a6f34cad211fce1c587767",
+  "authority_source": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "restore_source": "202f997994f4a849597ec8d855ee88242e5e0953",
+  "restore_evidence": "396d442c5d75bbaf58e8367b90676737f5eda193",
+  "historical_checks": [
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/core/canvas_authority.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/core/canvas_sheets_service.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/core/canvas_coding_service.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/api/canvas_sheets_routes.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/api/canvas_coding_routes.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/tools/canvas_crud_tool.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/tests/api/test_web_canvas_authority.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/tests/test_canvas_types_comprehensive.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/tests/test_covpush_w105_gaps_b.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "backend/tests/test_covpush_w64g_canvas_routes.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "README.md",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "verification.json",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "root-independent-case-results.json",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "root-proof-summary.json",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "independent-probe.py",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "original-negative-reproduction.json",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_authority_82b29cfcc",
+      "path": "commands.json",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_ordering_b33489fe1",
+      "path": "backend/tools/canvas_crud_tool.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_ordering_b33489fe1",
+      "path": "backend/tests/api/test_web_canvas_restore_ordering.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_ordering_b33489fe1",
+      "path": "README.md",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_ordering_b33489fe1",
+      "path": "verification.json",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_visible_202f99799",
+      "path": "backend/tools/canvas_crud_tool.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_visible_202f99799",
+      "path": "backend/tests/api/test_web_canvas_restore_ordering.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_visible_202f99799",
+      "path": "backend/tests/test_oracle_direct_canvas_writes.py",
+      "kind": "historical_source",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_visible_202f99799",
+      "path": "README.md",
+      "kind": "artifact",
+      "match": true
+    },
+    {
+      "packet": "web_canvas_restore_visible_202f99799",
+      "path": "verification.json",
+      "kind": "artifact",
+      "match": true
+    }
+  ],
+  "candidate_source_identity": [
+    {
+      "path": "backend/api/canvas_coding_routes.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/api/canvas_sheets_routes.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/core/canvas_authority.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/core/canvas_coding_service.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/core/canvas_sheets_service.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/tests/api/test_web_canvas_authority.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/tests/api/test_web_canvas_restore_ordering.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/tests/test_canvas_types_comprehensive.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/tests/test_covpush_w105_gaps_b.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/tests/test_covpush_w64g_canvas_routes.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/tests/test_oracle_direct_canvas_writes.py",
+      "matches_reviewed_successor": true
+    },
+    {
+      "path": "backend/tools/canvas_crud_tool.py",
+      "matches_reviewed_successor": true
+    }
+  ],
+  "independent_review": {
+    "authority": "original real-JWT/public-ASGI peer and collision probes refuse with unchanged durable rows; 17 normal controls passed; accepted at controlled scope",
+    "restore": "original two independent real-SQL regressions failed at predecessor and pass 2/2 in 3.28s at successor; 420 affected test log inspected and all five private test-log hashes matched their published receipts",
+    "original_probe_results": ".. [100%]; 2 passed, 4 warnings in 3.28s",
+    "predecessor": "b33489fe1/29c9771fc remains withheld and preserved; historical green tests did not cover title/tied-event reader failures"
+  },
+  "limits": [
+    "SQLite controlled API/service boundary only",
+    "no browser replay, live provider, PostgreSQL concurrency or whole-app ORACLE claim",
+    "original packets retain executed-source identity; cherry-picked source equality verified instead of relabeling traces",
+    "PR depends on auth/task PR812; no required CI check bypass"
+  ],
+  "delivery": {
+    "pr": 813,
+    "target": "main",
+    "depends_on": 812,
+    "reason": "CI workflows only run for main-target pull requests. Interim diff includes the independently reviewed auth/task candidate; reconcile main after PR812 before merge.",
+    "merge_gate": "Every required exact-head check succeeds; PR812 integrated; final diff/source review; required-review-only admin override if normal merge is blocked."
+  }
+}

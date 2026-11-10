@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "kind": "canvas_restore_visible_material_verification",
+  "status": "submitted_withheld_not_accepted",
+  "executed_source": "202f99799",
+  "predecessor": "29c9771fc",
+  "authority_source_preserved": "82b29cfcc",
+  "root_negative_before": {
+    "probe": "/private/tmp/root-canvas-restore-visible-contract-20261110.py",
+    "probe_sha256": "d1f279f9b43cbf5b3c2c6128fc9da82cf0ba3c4c00f70fc2bbff189f94c2b378",
+    "source": "29c9771fc",
+    "exit": 1,
+    "result": "2 failed, 0 passed",
+    "cases": [
+      "equal body, different target title: restore returned no_change while visible title stayed current",
+      "requested body tied with contentless event: helper saw requested body, read_canvas served older body; restore returned no_change"
+    ],
+    "log_private": "/private/tmp/root-restore-visible-negative-20261110-kwv39v58/tests.log",
+    "log_sha256": "b1290e008a9dcb34beae0b3907ac2333b06649daab5aab3ad3f5c10f022b32bd",
+    "verification_private": "/private/tmp/root-restore-visible-negative-20261110-kwv39v58/verification.json",
+    "verification_sha256": "89428e93591295d045f0075ca01b9af200c38fdc102d2a92c796d34ff6565e12"
+  },
+  "our_predecessor_negative": {
+    "source": "79b47bc27",
+    "exit": 1,
+    "result": "2 failed, 2 passed",
+    "log_private": "/private/tmp/root-canvas-restore-ordering-20261110-work/pre.log",
+    "log_sha256": "ebfb2b8283b231ada9a564189dff9b136259354932da65d213158fc686a81608"
+  },
+  "postfix": {
+    "root_probe": {
+      "exit": 0,
+      "result": "2 passed",
+      "log_private": "/private/tmp/root-canvas-restore-ordering-20261110-work/rootprobe_final.log",
+      "log_sha256": "548bcfcd1c9082cf50b34577b50fb0d1cfca28e545a442379c9e59d32fa20066"
+    },
+    "new_deterministic_suite": {
+      "files": ["tests/api/test_web_canvas_restore_ordering.py"],
+      "exit": 0,
+      "result": "16 passed",
+      "log_private": "/private/tmp/root-canvas-restore-ordering-20261110-work/visible_new3.log",
+      "log_sha256": "6208e1799619b5b45b46ceae49fd4455ba6835c99357dfabbc969abcc3b82c86"
+    },
+    "focused_affected_group": {
+      "exit": 0,
+      "result": "420 passed in 123.03s",
+      "log_private": "/private/tmp/root-canvas-restore-ordering-20261110-work/final_visible.log",
+      "log_sha256": "6dd325cbbcefad9648ce742386ad3dd785b7a1ee7852223b87bd19337fb7b223"
+    }
+  },
+  "coverage": [
+    "root equal-body/different-title negative and positive",
+    "root tied contentless-event negative and positive",
+    "genuine current body+title no-change zero effect",
+    "explicit empty title restored",
+    "same-time event read returns requested body",
+    "body behind 60 event stamps remains visible",
+    "falsy bodies empty string/zero/list/dict preserved with provenance",
+    "latest submit event with body does not hide older content",
+    "ordinary read actual body audit_id/created_at",
+    "restore fresh read actual body audit_id/created_at",
+    "repeat restore no-change without second row",
+    "foreign refusal, child-process readback"
+  ],
+  "caller_impact": [
+    "read_canvas reports actual body provenance for ordinary latest body",
+    "read_canvas considers same-timestamp body rows and full history in bounded streamed batches",
+    "submit events are not content; email draft/office/type-pin normalization preserved",
+    "restore no-change compares body, resolved type/pin, and explicit title",
+    "oracle identical-material fixture updated to set the same title because title is material"
+  ],
+  "limits": [
+    "No browser, live DB, provider/model, install, deployment, PR or merge.",
+    "No broad-suite or Python 3.14 claim.",
+    "Packet is submitted and withheld; root independent review required."
+  ]
+}

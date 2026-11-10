@@ -81,6 +81,13 @@ def db(engine):
 
 @pytest.fixture
 def user(db):
+    from core.models import Tenant
+
+    if not db.query(Tenant).filter(Tenant.id == "t-1").first():
+        db.add(Tenant(
+            id="t-1", name="Route Tests", subdomain="t-w64g",
+            edition="personal", is_active=True))
+        db.commit()
     uid = f"w64g-{uuid.uuid4().hex[:8]}"
     u = User(
         id=uid, email=f"{uid}@x.com",

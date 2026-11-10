@@ -419,7 +419,8 @@ def test_direct_restore_old_identical_material_is_no_change(
     )
     _make_audit(
         db_session, canvas.id, "update",
-        details={"content": {"blocks": [{"t": "same"}]}},
+        details={"content": {"blocks": [{"t": "same"}]},
+                 "title": canvas.name},
         user_id=user.id, canvas_type="generic")
     before = _audit_count(db_session, canvas.id)
 

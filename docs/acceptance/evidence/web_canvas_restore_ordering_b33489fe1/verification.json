@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "kind": "canvas_restore_ordering_verification",
+  "executed_source": "b33489fe1",
+  "predecessor": "79b47bc27e3f6253d794927886c2982579abecb6",
+  "predecessor_authority_source": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "negative_predecessor": {
+    "command": [
+      "/usr/local/bin/python3.11",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "pytest_freezegun",
+      "-p",
+      "no:randomly",
+      "tests/api/test_web_canvas_restore_ordering.py"
+    ],
+    "exit": 1,
+    "result": "2 failed, 2 passed",
+    "failures": [
+      {
+        "test": "test_same_second_tie_restore_appends_after_authoritative_bad_edit",
+        "observed": "restore returned no_change; authoritative read remained 'bad edit'"
+      },
+      {
+        "test": "test_contentless_latest_and_genuine_nochange_append_nothing",
+        "observed": "restore appended a row instead of returning verified no_change"
+      }
+    ],
+    "raw_log_private": "/private/tmp/root-canvas-restore-ordering-20261110-work/pre.log",
+    "raw_log_sha256": "ebfb2b8283b231ada9a564189dff9b136259354932da65d213158fc686a81608"
+  },
+  "positive_postfix": {
+    "command": [
+      "/usr/local/bin/python3.11",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "pytest_freezegun",
+      "-p",
+      "no:randomly",
+      "tests/api/test_web_canvas_restore_ordering.py"
+    ],
+    "exit": 0,
+    "result": "4 passed",
+    "raw_log_private": "/private/tmp/root-canvas-restore-ordering-20261110-work/post.log",
+    "raw_log_sha256": "667cb90fafd310068e62b96c61e327b44c649bdacd816b7d05c1b98f6941b2ad"
+  },
+  "focused_affected_group": {
+    "files": [
+      "tests/api/test_web_canvas_restore_ordering.py",
+      "tests/test_canvas_version_tools.py",
+      "tests/test_oracle_direct_canvas_writes.py",
+      "tests/test_canvas_lifecycle_verified.py",
+      "tests/test_canvas_crud.py",
+      "tests/test_canvas_list_discovery.py",
+      "tests/test_canvas_legacy_update_contract.py",
+      "tests/test_canvas_present_revision_contract.py",
+      "tests/test_canvas_fork.py",
+      "tests/test_canvas_submit_receipt_contract.py",
+      "tests/test_canvas_form_producer_submit_join.py",
+      "tests/test_canvas_feedback_episode_integration.py"
+    ],
+    "exit": 0,
+    "result": "286 passed in 92.54s",
+    "raw_log_private": "/private/tmp/root-canvas-restore-ordering-20261110-work/focused.log",
+    "raw_log_sha256": "1eebd126608db66b35b0b9a1d8c60264a4496c7b79e340db94ab0817a48e595d"
+  },
+  "coverage": [
+    "same-second tied rows with explicit opaque ids: authoritative bad edit, restore appends exactly one, fresh read good",
+    "contentless latest/event-only row with genuine no-change: zero append",
+    "event-only row between versions: append-only restore with restored_from",
+    "foreign caller refusal with zero effect",
+    "fresh child-process readback"
+  ],
+  "limits": [
+    "No live DB, provider, model, browser, install, deployment, PR or merge.",
+    "No Python 3.14 or broad-suite claim.",
+    "The authority repair source 82b29cfcc and evidence 79b47bc27 are unchanged."
+  ]
+}

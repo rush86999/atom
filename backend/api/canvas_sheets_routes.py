@@ -41,9 +41,18 @@ class AddChartRequest(BaseModel):
     title: str = ""
 
 
+def _raise_service_error(result: Dict[str, Any], default_code: str, default_message: str) -> None:
+    """Map a typed service refusal to its real HTTP status."""
+    raise router.error_response(
+        error_code=result.get("error_code") or default_code,
+        message=result.get("error") or default_message,
+        status_code=int(result.get("http_status") or 400),
+    )
+
+
 @router.post("/create")
 async def create_spreadsheet(request: CreateSpreadsheetRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Create a new spreadsheet canvas."""
+    """Create a new spreadsheet canvas for the authenticated actor."""
     service = SpreadsheetCanvasService(db)
     result = service.create_spreadsheet_canvas(
         user_id=current_user.id,
@@ -55,10 +64,10 @@ async def create_spreadsheet(request: CreateSpreadsheetRequest, current_user: Us
         formulas=request.formulas
     )
     if not result.get("success"):
-        raise router.error_response(
-            error_code="SPREADSHEET_CREATE_FAILED",
-            message=result.get("error", "Failed to create spreadsheet canvas"),
-            status_code=400
+        _raise_service_error(
+            result,
+            "SPREADSHEET_CREATE_FAILED",
+            "Failed to create spreadsheet canvas",
         )
     return result
 
@@ -76,11 +85,8 @@ async def update_cell(canvas_id: str, request: UpdateCellRequest, current_user: 
         formula=request.formula
     )
     if not result.get("success"):
-        raise router.error_response(
-            error_code="CELL_UPDATE_FAILED",
-            message=result.get("error", "Failed to update cell"),
-            status_code=400
-        )
+        _raise_service_error(
+            result, "CELL_UPDATE_FAILED", "Failed to update cell")
     return result
 
 
@@ -96,27 +102,21 @@ async def add_chart(canvas_id: str, request: AddChartRequest, current_user: User
         title=request.title
     )
     if not result.get("success"):
-        raise router.error_response(
-            error_code="CHART_ADD_FAILED",
-            message=result.get("error", "Failed to add chart"),
-            status_code=400
-        )
+        _raise_service_error(
+            result, "CHART_ADD_FAILED", "Failed to add chart")
     return result
 
 
 @router.get("/{canvas_id}")
-async def get_spreadsheet(canvas_id: str, db: Session = Depends(get_db)):
-    """Get a spreadsheet canvas."""
-    from sqlalchemy import desc
-
-    from core.models import CanvasAudit
-
-    audit = db.query(CanvasAudit).filter(
-        CanvasAudit.canvas_id == canvas_id,
-        CanvasAudit.canvas_type == "sheets"
-    ).order_by(desc(CanvasAudit.created_at)).first()
-
-    if not audit:
-        raise router.not_found_error("Spreadsheet Canvas", canvas_id)
-
-    return audit.details_json or {}
+async def get_spreadsheet(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a spreadsheet canvas for the current authorized actor."""
+    service = SpreadsheetCanvasService(db)
+    result = service.get_spreadsheet(canvas_id, current_user.id)
+    if isinstance(result, dict) and result.get("error_code"):
+        _raise_service_error(
+            result, "SPREADSHEET_READ_FAILED", "Spreadsheet could not be read")
+    return result
