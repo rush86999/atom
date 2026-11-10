@@ -55,7 +55,7 @@ Implementation at `b9b3ebbb6` adds the existing Canvas general export surface:
 
 | Gate | Result | Log |
 |---|---|---|
-| Backend public-route export controls | 9 passed | `gates/backend_export_9.proof` |
+| Backend public-route export controls | 11 passed | `gates/backend_export_11.proof` |
 | CanvasPanel component controls | 47 passed | `gates/canvas_panel_47.proof` |
 | Existing office-file/co-editing selection | 32 passed, 1 pre-existing failure | `gates/office_file_compat_32pass_1pre_existing.proof` |
 | Baseline route absence | 404 / no route | `baseline/base_export_route_absent.proof` |
@@ -67,9 +67,13 @@ it is preserved, not skipped or weakened.
 
 ## Fresh process
 
-`test_export_stable_in_fresh_child_process` renders the same saved canvas in a
-separate Python process and asserts the same DOCX SHA-256 as the parent route
-response. The child uses the same scratch SQLite and real renderer, no model.
+DOCX and PPTX are separate source-bound fresh-process controls. The PPTX twin
+uses multiple slides, body, table cells and speaker notes; parent and child
+assert the same bytes/SHA-256, and the child reports the actual slide
+count/titles/body/table cells/notes. Both use the same scratch SQLite and real
+renderer with no model calls or new business/agent rows. A runtime CWD test
+exports from repo root and backend with `ATOM_OFFICE_DIR` unset and asserts
+identical bytes, exercising `core.local_paths.resolve_local_path`.
 
 ## Research
 
