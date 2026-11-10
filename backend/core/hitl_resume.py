@@ -25,15 +25,30 @@ logger = logging.getLogger(__name__)
 _GOAL_RUN_ACTIONS = {"goal_run_decision", "goal_run_checkpoint"}
 _ASSIGNMENT_ACTIONS = {"assignment_approval"}
 _CHAT_OBLIGATION_ACTIONS = {"chat_request_obligation"}
+_QUALIFICATION_ACTIONS = {"agent_qualification_review"}
 _AGENT_INFORMATION_ACTIONS = {
     "agent_information_request", "agent_missing_information"}
 
 
-def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
-    from core.database import get_db_session
+def _load_action(action_id: str, bind: Any = None) -> Optional[Dict[str, Any]]:
+    from contextlib import closing
+    from sqlalchemy.orm import sessionmaker
 
-    with get_db_session() as db:
-        action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+    if bind is not None:
+        # The caller committed the decision and handed us its bind so the
+        # qualification receipt can use the same engine/connection.
+        session_cm = closing(sessionmaker(bind=bind)())
+    else:
+        from core.database import get_db_session
+
+        # get_db_session() is itself a context manager; entering it is what
+        # creates and eventually closes the Session. Calling .close() on the
+        # generator context manager (the PR831 regression) leaves the action
+        # unread and masks the real error.
+        session_cm = get_db_session()
+    with session_cm as session:
+        action = session.query(HITLAction).filter(
+            HITLAction.id == action_id).first()
         if action is None:
             return None
         # Copy the small set of fields we need; the session closes below.
@@ -45,7 +60,7 @@ def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
             "params": dict(action.params or {}),
             "reason": action.reason,
             "status": action.status,
-            "bind": db.get_bind(),
+            "bind": session.get_bind(),
         }
 
 
@@ -75,6 +90,17 @@ def preflight_hitl_decision(
         action = _load_action(action_id)
     if action is None:
         return {"valid": False, "reason": "action_not_found"}
+    if _action_field(action, "action_type") == "agent_qualification_review":
+        from core.agent_graduation_service import (
+            validate_qualification_review_binding,
+        )
+
+        if db is not None:
+            return validate_qualification_review_binding(db, action)
+        from core.database import get_db_session
+
+        with get_db_session() as session:
+            return validate_qualification_review_binding(session, action)
     if _action_field(action, "action_type") != "goal_run_decision":
         return {"valid": True}
 
@@ -466,13 +492,14 @@ async def resume_after_hitl_decision(
     approved: bool,
     reviewer_id: Optional[str] = None,
     guidance: Optional[str] = None,
+    bind: Any = None,
 ) -> Dict[str, Any]:
     """Resume whatever the decided action was blocking.
 
     Returns ``{"handled": False}`` for ordinary governed actions that have no
     durable waiter (they already executed through their own path).
     """
-    action = _load_action(action_id)
+    action = _load_action(action_id, bind=bind)
     if action is None:
         return {"handled": False, "reason": "action not found"}
 
@@ -495,6 +522,21 @@ async def resume_after_hitl_decision(
         elif action["action_type"] in _CHAT_OBLIGATION_ACTIONS:
             result = await _resume_chat_obligation(
                 action, approved, reviewer_id, guidance)
+        elif action["action_type"] in _QUALIFICATION_ACTIONS:
+            from sqlalchemy.orm import sessionmaker
+
+            from core.agent_graduation_service import (
+                write_qualification_receipt_from_review,
+            )
+
+            Session = sessionmaker(bind=action["bind"])
+            with Session() as review_db:
+                result = write_qualification_receipt_from_review(
+                    review_db,
+                    action_id=action_id,
+                    approved=approved,
+                    reviewer_id=reviewer_id,
+                )
         elif (action.get("params") or {}).get("execution_id"):
             result = await _resume_workflow(action, approved, guidance)
         else:

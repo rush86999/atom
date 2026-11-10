@@ -1,0 +1,31 @@
+2026-11-10T13:43:29.1764704Z   ● TrainingPanel › an unconfirmed promotion shows the next action without a graduation notice
+2026-11-10T13:43:29.1765467Z 
+2026-11-10T13:43:29.1767235Z     Unable to find an element with the text: /Promotion could not be confirmed/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+2026-11-10T13:43:29.1768914Z 
+2026-11-10T13:43:29.1769207Z     Ignored nodes: comments, script, style
+2026-11-10T13:43:29.1769863Z     <body>
+2026-11-10T13:43:29.1770312Z       <div>
+2026-11-10T13:43:29.1770745Z         <div
+2026-11-10T13:43:29.1771596Z           class="flex-1 overflow-y-auto p-3 space-y-4 text-sm"
+2026-11-10T13:43:29.1772939Z           data-testid="training-panel"
+2026-11-10T13:43:29.1773612Z         >
+2026-11-10T13:43:29.1774103Z           <div
+2026-11-10T13:43:29.1903522Z   ● Qualification assessment UI › request uses only the selected task/output bundle
+2026-11-10T13:43:29.1903879Z 
+2026-11-10T13:43:29.1904224Z     TestingLibraryElementError: Unable to find an accessible element with the role "checkbox"
+2026-11-10T13:43:29.1904612Z 
+2026-11-10T13:43:29.1904753Z     Here are the accessible roles:
+2026-11-10T13:43:29.1904931Z 
+2026-11-10T13:43:29.1905032Z       paragraph:
+2026-11-10T13:43:29.1905169Z 
+2026-11-10T13:43:29.1905253Z       Name "":
+2026-11-10T13:43:29.1905496Z       <p
+2026-11-10T13:43:29.1905851Z         class="text-[10px] font-medium"
+2026-11-10T13:43:29.1906192Z       />
+2026-11-10T13:43:29.1906516Z 
+2026-11-10T13:43:29.1906727Z       --------------------------------------------------paragraph:
+2026-11-10T13:43:29.1906967Z 
+2026-11-10T13:43:29.1907059Z       Name "":
+2026-11-10T13:43:29.1907289Z       <p
+2026-11-10T13:43:29.1907814Z         class="text-[10px] text-muted-foreground"
+2026-11-10T13:43:32.9433630Z Tests:       2 failed, 135 passed, 137 total

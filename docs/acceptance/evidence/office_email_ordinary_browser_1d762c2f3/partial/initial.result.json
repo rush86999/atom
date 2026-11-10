@@ -1,0 +1,175 @@
+{
+  "downloads": {
+    "docx-initial": {
+      "api_sha256": "f3f8e0ae5ea3a7c6508df58da38ea2978acabd1032818d873b10d60b0b01f03a",
+      "api_status": 200,
+      "browser_sha256": "f3f8e0ae5ea3a7c6508df58da38ea2978acabd1032818d873b10d60b0b01f03a",
+      "button_text": "Download DOCX",
+      "bytes_equal": true,
+      "canvas_id": "9bdfe77a-c44b-44e6-8bee-8210388a9573",
+      "filename": "canvas-9bdfe77a-c44b-44e6-8bee-8210388a9573.docx",
+      "format": "docx",
+      "semantic": {
+        "paragraphs": [
+          {
+            "style": "Title",
+            "text": "Office Export DOCX"
+          },
+          {
+            "style": "Heading 1",
+            "text": "Office Export"
+          },
+          {
+            "style": "Normal",
+            "text": "Intro paragraph OLD."
+          },
+          {
+            "style": "List Bullet",
+            "text": "One"
+          },
+          {
+            "style": "List Bullet",
+            "text": "Two"
+          }
+        ],
+        "tables": [
+          [
+            [
+              "A",
+              "B"
+            ],
+            [
+              "1",
+              "2"
+            ]
+          ]
+        ]
+      },
+      "source_audit": "ef40eb09-d854-4e9b-8d15-18575ea946be",
+      "stored_content_exact": true
+    },
+    "pptx-initial": {
+      "api_sha256": "64a322f1986987a738ec496c66900996b417cd30115356c16f3333315dd08ad4",
+      "api_status": 200,
+      "browser_sha256": "64a322f1986987a738ec496c66900996b417cd30115356c16f3333315dd08ad4",
+      "button_text": "Download PPTX",
+      "bytes_equal": true,
+      "canvas_id": "1d5bbf01-c10a-490a-a61b-bb3047fa75f4",
+      "filename": "canvas-1d5bbf01-c10a-490a-a61b-bb3047fa75f4.pptx",
+      "format": "pptx",
+      "semantic": {
+        "slides": [
+          {
+            "body": "- Alpha\n- Beta",
+            "index": 0,
+            "notes": "speaker note one",
+            "tables": [],
+            "title": "Intro"
+          },
+          {
+            "body": "",
+            "index": 1,
+            "notes": "speaker note two",
+            "tables": [
+              [
+                [
+                  "A",
+                  "B"
+                ],
+                [
+                  "1",
+                  "2"
+                ]
+              ]
+            ],
+            "title": "Data"
+          }
+        ]
+      },
+      "source_audit": "7a311a96-d9eb-4498-a1f5-27ecca9ab4ab",
+      "stored_content_exact": true
+    }
+  },
+  "note": "DOCX/PPTX initial downloads succeeded and semantically matched; Save Changes click then detached/timeout. Root readback proves edit committed.",
+  "schema": "initial-partial-episode",
+  "source_head": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
+  "steps": [
+    {
+      "checks": {
+        "db_in_run": true,
+        "ok": true
+      },
+      "name": "backend_health",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "email": true,
+        "status": true,
+        "token": true
+      },
+      "name": "admin_api_login",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "doc_content_saved": true,
+        "doc_created": true,
+        "slide_created": true,
+        "slide_outline_saved": true
+      },
+      "name": "api_seeded_supported_canvases",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "login_ok": true,
+        "onboarding_durable": true
+      },
+      "name": "ordinary_ui_login_and_onboarding",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "bytes_equal": true,
+        "filename_ext": true,
+        "package_semantic": true,
+        "stored_exact": true,
+        "visible_button": true
+      },
+      "name": "docx-initial_download",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "has_old_paragraph": true,
+        "heading_count": true,
+        "table_cells": true
+      },
+      "name": "docx_two_headings_and_table",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "bytes_equal": true,
+        "filename_ext": true,
+        "package_semantic": true,
+        "stored_exact": true,
+        "visible_button": true
+      },
+      "name": "pptx-initial_download",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "body_has_alpha": true,
+        "notes_both": true,
+        "table": true,
+        "titles": true,
+        "two_slides": true
+      },
+      "name": "pptx_slides_body_notes",
+      "status": "PASS"
+    }
+  ]
+}

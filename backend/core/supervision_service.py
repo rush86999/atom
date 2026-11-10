@@ -53,6 +53,10 @@ class InterventionResult:
         self.session_state = session_state
 
 
+class SupervisionDirtyCallerWorkError(ValueError):
+    """The caller transaction has unrelated pending work."""
+
+
 class SupervisionOutcome:
     """Outcome of supervision session"""
     def __init__(
@@ -63,7 +67,9 @@ class SupervisionOutcome:
         intervention_count: int,
         supervisor_rating: int,
         feedback: str,
-        confidence_boost: Optional[float] = None
+        confidence_boost: Optional[float] = None,
+        promoted: bool = False,
+        promotion: Optional[Dict[str, Any]] = None,
     ):
         self.session_id = session_id
         self.success = success
@@ -72,6 +78,8 @@ class SupervisionOutcome:
         self.supervisor_rating = supervisor_rating
         self.feedback = feedback
         self.confidence_boost = confidence_boost
+        self.promoted = promoted
+        self.promotion = promotion
 
 
 class SupervisionService:
@@ -314,7 +322,8 @@ class SupervisionService:
         self,
         session_id: str,
         supervisor_rating: int,  # 1-5 stars
-        feedback: str
+        feedback: str,
+        actor_id: Optional[str] = None,
     ) -> SupervisionOutcome:
         """
         Complete supervision session and record outcomes.
@@ -327,6 +336,12 @@ class SupervisionService:
         Returns:
             SupervisionOutcome with session summary
         """
+        from core.agent_decision_write_service import caller_work_pending
+
+        if caller_work_pending(self.db):
+            raise SupervisionDirtyCallerWorkError(
+                "Supervision completion refused: the caller transaction has "
+                "unrelated pending work. Commit or roll it back first.")
         session = self.db.query(SupervisionSession).filter(
             SupervisionSession.id == session_id
         ).first()
@@ -363,20 +378,45 @@ class SupervisionService:
             AgentRegistry.id == session.agent_id
         ).first()
 
+        promoted = False
+        promotion = None
         if agent:
             old_confidence = agent.confidence_score
             agent.confidence_score = min(1.0, agent.confidence_score + confidence_boost)
             actual_boost = agent.confidence_score - old_confidence
 
-            # Check for promotion to AUTONOMOUS
+            # Confidence can complete truthfully; the tier change goes
+            # through the shared qualification/CAS gate.
             promoted = False
-            if agent.confidence_score >= 0.9 and agent.status == AgentStatus.SUPERVISED.value:
-                agent.status = AgentStatus.AUTONOMOUS.value
-                promoted = True
-                logger.info(
-                    f"Agent {agent.id} promoted from SUPERVISED to AUTONOMOUS "
-                    f"(confidence: {agent.confidence_score:.3f})"
+            promotion = None
+            if (agent.confidence_score >= 0.9
+                    and agent.status == AgentStatus.SUPERVISED.value):
+                self.db.commit()
+                from core.agent_graduation_service import (
+                    commit_qualified_transition,
                 )
+
+                try:
+                    promotion = commit_qualified_transition(
+                        self.db,
+                        agent_id=agent.id,
+                        target_level="AUTONOMOUS",
+                        actor_id=actor_id or getattr(agent, "user_id", None),
+                        readiness={"ready": True, "gaps": []},
+                        source="supervision_completion",
+                        promotion_type="automatic",
+                    )
+                except Exception as exc:  # noqa: BLE001 — completion stays truthful
+                    logger.warning(
+                        "Supervision promotion gate failed for %s: %s",
+                        agent.id, type(exc).__name__)
+                    promotion = {
+                        "status": "not_applied",
+                        "reason": "gate_error",
+                    }
+                promoted = promotion.get("status") in (
+                    "verified", "already_applied")
+                self.db.refresh(agent)
 
             logger.info(
                 f"Session {session_id} completed. "
@@ -448,7 +488,9 @@ class SupervisionService:
             intervention_count=session.intervention_count,
             supervisor_rating=supervisor_rating,
             feedback=feedback,
-            confidence_boost=confidence_boost
+            confidence_boost=confidence_boost,
+            promoted=promoted,
+            promotion=promotion,
         )
 
     async def get_active_sessions(

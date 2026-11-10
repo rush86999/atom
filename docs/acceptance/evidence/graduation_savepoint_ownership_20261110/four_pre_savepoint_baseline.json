@@ -1,0 +1,50 @@
+{
+  "world": "/private/tmp/root-graduation-pre-savepoint-four-baseline-20261110-oy3dfl37",
+  "source_before": {
+    ".github/workflows/ci.yml": "dd984ac3c56e5ed437f9a4331a90d00c229344b83872f44fc15a69f562b18cc0",
+    "backend/tests/fixtures/ci_backend_additions.json": "8d0e1583c4cd1c8c1ec30eaa2ea741000d7d0e74cb03f0dfa63609281ec3100e",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/database.py": "38caf209a82ab71d26e292d146d0d55271757846236d795209b72141868085b3",
+    "backend/core/agent_decision_write_service.py": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276"
+  },
+  "capture_head": "6da3374abd2fdd2d88df5cfae1635f4d495301d8",
+  "probe_sha256": "54ebdae9648b887003a540f4dea3aee81b06f9b68d6f2774d20a46b24ca1c395",
+  "frozen_fixture_sha256": "dbb2cd14e025b038d5f2cd4b058c38bf348e16edbc2cbc55b3c352401d8da09a",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-graduation-qualification-join-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale",
+    "tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote]",
+    "tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_success",
+    "tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_creates_history",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 1,
+  "source_after": {
+    ".github/workflows/ci.yml": "dd984ac3c56e5ed437f9a4331a90d00c229344b83872f44fc15a69f562b18cc0",
+    "backend/tests/fixtures/ci_backend_additions.json": "8d0e1583c4cd1c8c1ec30eaa2ea741000d7d0e74cb03f0dfa63609281ec3100e",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/database.py": "38caf209a82ab71d26e292d146d0d55271757846236d795209b72141868085b3",
+    "backend/core/agent_decision_write_service.py": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276"
+  },
+  "at": "2026-11-10T12:48:21.242795+00:00",
+  "same_source": true
+}

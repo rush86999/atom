@@ -1,0 +1,14 @@
+{
+  "candidate_parent": "94981999d749a9d2df82736d643257dcd607e1fb",
+  "main_parent": "5df5ffa67d494cb4ec0f0923d3de36b99032d478",
+  "result": "96 passed",
+  "local_log": "/private/tmp/root-pr833-main5df-independent-70hkiaog/gate.log",
+  "log_sha256": "655869e3b3b8197a97d8f519d931cd715453f6de2f62a91c1424e5a576c0afdc",
+  "scope": [
+    "CI lane preservation",
+    "custom agent null/empty identity",
+    "independent null mutations",
+    "graduation qualification public consumer join"
+  ],
+  "limits": "No guided/main integration, served quality or universal graduation claim."
+}

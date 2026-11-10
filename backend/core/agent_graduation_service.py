@@ -10,7 +10,10 @@ Based on 2025-2026 research on memory for autonomous LLM agents.
 
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime
+import hashlib
+import json
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -26,12 +29,20 @@ from core.personal_scope import (
 from core.service_factory import get_episode_service
 from core.sandbox_executor import get_sandbox_executor, get_graduation_exam_executor
 from core.models import (
+    AgentEpisode,
+    AgentExecution,
     AgentRegistry,
     AgentStatus,
+    Artifact,
     Episode,
     EpisodeSegment,
+    GraduationExam,
+    HITLAction,
+    HITLActionStatus,
+    PromotionHistory,
     SupervisionSession,
     SkillExecution,
+    User,
 )
 
 logger = logging.getLogger(__name__)
@@ -823,7 +834,9 @@ class AgentGraduationService:
         """
         # Scope lookup itself can autoflush: refuse pending caller material
         # before issuing any query, not merely before the final commit.
-        if self.db.new or self.db.dirty or self.db.deleted:
+        from core.agent_decision_write_service import caller_work_pending
+
+        if caller_work_pending(self.db):
             return {"status": "not_applied", "verification": {"effect": "none"}}
         try:
             agent = self.get_agent_in_scope(agent_id, tenant_id, workspace_id)
@@ -848,7 +861,7 @@ class AgentGraduationService:
         from core.models import UserRole
         from core import agent_decision_write_service as writes
 
-        if self.db.new or self.db.dirty or self.db.deleted:
+        if caller_work_pending(self.db):
             return {"status": "not_applied", "verification": {"effect": "none"}}  # Never flush unrelated caller work as a promotion.
         actor = writes._resolve_actor(
             self.db, SimpleNamespace(id=validated_by),
@@ -862,7 +875,8 @@ class AgentGraduationService:
                                    error_code="VALIDATION_ERROR")
         request = writes.graduation_request(
             operation_id=operation_id, agent_id=agent_id, target_status=target_status,
-            actor=actor, tenant_id=tenant_id, workspace_id=workspace_id)
+            actor=actor, tenant_id=tenant_id, workspace_id=workspace_id,
+            assessment_receipt_id=agent.last_exam_id)
         replay = writes.replay_graduation(self.db, request=request, actor=actor)
         if replay is not None:
             return replay
@@ -914,6 +928,19 @@ class AgentGraduationService:
         ):
             return {"status": "not_applied", "verification": {"effect": "none"}}
 
+        qualification_gate = evaluate_qualification_gate(
+            self.db, reviewed, target_name)
+        if not qualification_gate.get("allowed"):
+            return {
+                "status": "unresolved",
+                "verification": {"effect": "none"},
+                "assessment": qualification_gate,
+            }
+        cas_predicates, cas_error = qualification_cas_predicates(
+            self.db, reviewed, qualification_gate)
+        if cas_error is not None:
+            return cas_error
+
         if target_status == AgentStatus.AUTONOMOUS.value:
             from core.governance import DynamicGovernanceManager, GovernanceLayer
 
@@ -949,15 +976,51 @@ class AgentGraduationService:
         previous_status = reviewed.status
         configuration = dict(reviewed.configuration or {})
         configuration.update(promoted_at=datetime.now().isoformat(), promoted_by=validated_by)
+        receipt_id = (
+            qualification_gate.get("receipt_id")
+            if qualification_gate.get("state") == "valid"
+            else reviewed.last_exam_id
+        )
+        promotion_count = int(getattr(reviewed, "promotion_count", 0) or 0) + 1
+        promotion_history = PromotionHistory(
+            id=str(uuid.uuid4()),
+            agent_id=str(reviewed.id),
+            tenant_id=resolve_tenant_id(reviewed),
+            from_level=str(previous_status or ""),
+            to_level=target_status,
+            promotion_type="automatic",
+            readiness_score=float(readiness.get("score") or 0.0),
+            exam_id=receipt_id if qualification_gate.get("state") == "valid" else None,
+            promoted_by=str(validated_by),
+            justification=(
+                "public graduation; assessment="
+                f"{qualification_gate.get('state')}"
+                + (
+                    "; owner_reason="
+                    + str((qualification_gate.get("exception") or {}).get("reason"))
+                    if (qualification_gate.get("exception") or {}).get("reason")
+                    else ""
+                )),
+            promoted_at=datetime.now(),
+        )
 
         decision = None
         try:
-            if self.db.new or self.db.dirty or self.db.deleted:
+            if caller_work_pending(self.db):
                 return {"status": "not_applied", "verification": {"effect": "none"}}
+            predicates.extend(cas_predicates)
             decision = writes.commit_graduation(
                 self.db, reviewed=reviewed, actor=actor, request=request,
                 predicates=predicates, claim_params=claim_params,
-                target_status=target_status, configuration=configuration)
+                target_status=target_status, configuration=configuration,
+                last_exam_id=receipt_id,
+                promotion_count=promotion_count,
+                promotion_history=promotion_history,
+                extra_success={
+                    "assessment": qualification_gate,
+                    "promotion_history_id": promotion_history.id,
+                },
+                audit_extra={"assessment": qualification_gate})
             if decision.get("status") != "verified":
                 return decision
             self.db.expire(agent)
@@ -997,7 +1060,6 @@ class AgentGraduationService:
             # try/except because a notification failure must NEVER roll back
             # or obscure a successful promotion.
             try:
-                import asyncio
                 from core.notification_service import NotificationService
                 notif_svc = NotificationService(self.db)
                 agent_name = getattr(agent, "name", "Your agent")
@@ -1022,18 +1084,21 @@ class AgentGraduationService:
                     "agent_id": agent_id,
                     "new_maturity": new_maturity,
                 }
-                try:
-                    loop = get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                loop.run_until_complete(
-                    notif_svc.send_notification(
-                        user_id=user_id,
-                        notification_type="agent_graduated",
-                        data=payload,
-                    )
+                # We are already inside the promotion coroutine and the
+                # promotion is durably committed. Await the internal
+                # notification normally; never create/drive a second loop.
+                notification = await notif_svc.send_notification(
+                    user_id=user_id,
+                    notification_type="agent_graduated",
+                    data=payload,
                 )
+                if not (notification or {}).get("success"):
+                    logger.warning(
+                        "Graduation notification not delivered for agent %s "
+                        "(promotion already committed): %s",
+                        agent_id,
+                        (notification or {}).get("error") or "notification_failed",
+                    )
             except Exception as notif_exc:
                 logger.warning(
                     "Graduation notification failed for agent %s (promotion already committed): %s",
@@ -1593,3 +1658,1704 @@ class AgentGraduationService:
         }
 
 
+
+
+# ===========================================================================
+# Scoped capability qualification: strict gate, durable review receipt, CAS
+# ===========================================================================
+
+QUALIFICATION_RECEIPT_KIND = "capability_qualification"
+QUALIFICATION_ASSESSMENT_SCOPE = "held_out_capability"
+QUALIFICATION_REVIEW_ACTION = "agent_qualification_review"
+QUALIFICATION_REVIEW_SCHEMA = "atom-agent-qualification-review-1"
+QUALIFICATION_EVIDENCE_KINDS = {"agent_episode", "agent_execution", "artifact", "episode_segment"}
+
+
+class QualificationReviewError(Exception):
+    def __init__(self, state: str, message: str, **details: Any):
+        super().__init__(message)
+        self.state = state
+        self.message = message
+        self.details = details
+
+
+def _next_tier(current: str) -> Optional[str]:
+    order = ["student", "intern", "supervised", "autonomous"]
+    value = str(current or "").strip().lower()
+    if value not in order:
+        return None
+    index = order.index(value)
+    return order[index + 1] if index + 1 < len(order) else None
+
+
+def _scope_matches(record: Any, tenant_id: str, workspace_id: str) -> bool:
+    rec_tenant = str(getattr(record, "tenant_id", None) or "")
+    rec_workspace = str(getattr(record, "workspace_id", None) or "")
+    want_tenant = str(tenant_id or "")
+    want_workspace = str(workspace_id or "")
+    if rec_tenant != want_tenant:
+        # Personal/legacy rows may carry NULL/"" for the default scope.
+        if not (rec_tenant in ("", PERSONAL_TENANT_ID) and
+                want_tenant in ("", PERSONAL_TENANT_ID)):
+            return False
+    if rec_workspace != want_workspace:
+        if not (rec_workspace in ("", PERSONAL_WORKSPACE_ID) and
+                want_workspace in ("", PERSONAL_WORKSPACE_ID)):
+            return False
+    return True
+
+
+def _canonical_evidence_material(kind: str, record: Any) -> Dict[str, Any]:
+    if kind == "agent_episode":
+        return {
+            "kind": kind,
+            "id": str(record.id),
+            "agent_id": str(record.agent_id),
+            "tenant_id": record.tenant_id,
+            "workspace_id": record.workspace_id,
+            "task_description": record.task_description,
+            "maturity_at_time": record.maturity_at_time,
+            "outcome": record.outcome,
+            "success": bool(record.success),
+            "status": record.status,
+            "started_at": str(record.started_at),
+            "completed_at": str(record.completed_at),
+            "human_intervention_count": record.human_intervention_count,
+            "constitutional_score": record.constitutional_score,
+            "confidence_score": record.confidence_score,
+        }
+    if kind == "agent_execution":
+        return {
+            "kind": kind,
+            "id": str(record.id),
+            "agent_id": str(record.agent_id),
+            "tenant_id": record.tenant_id,
+            "workspace_id": record.workspace_id,
+            "status": record.status,
+            "input_summary": record.input_summary,
+            "result_summary": record.result_summary,
+            "output_summary": record.output_summary,
+            "completed_at": str(record.completed_at),
+        }
+    if kind == "artifact":
+        return {
+            "kind": kind,
+            "id": str(record.id),
+            "agent_id": str(record.agent_id),
+            "tenant_id": record.tenant_id,
+            "workspace_id": record.workspace_id,
+            "canvas_id": record.canvas_id,
+            "name": record.name,
+            "type": record.type,
+            "content": record.content,
+            "version": record.version,
+        }
+    if kind == "episode_segment":
+        return {
+            "kind": kind,
+            "id": str(record.id),
+            "episode_id": str(record.episode_id),
+            "segment_type": record.segment_type,
+            "sequence_order": record.sequence_order,
+            "content": record.content,
+            "created_at": str(record.created_at),
+        }
+    raise QualificationReviewError(
+        "unsupported_evidence", f"Unsupported evidence kind: {kind}")
+
+
+def _load_evidence_record(
+    db: Session, kind: str, evidence_id: str, agent: AgentRegistry,
+) -> Any:
+    if kind == "agent_episode":
+        record = (
+            db.query(AgentEpisode)
+            .filter(AgentEpisode.id == str(evidence_id),
+                    AgentEpisode.agent_id == str(agent.id))
+            .populate_existing()
+            .first()
+        )
+        if record is not None and str(record.status or "").lower() != "completed":
+            return None
+        return record
+    if kind == "agent_execution":
+        record = (
+            db.query(AgentExecution)
+            .filter(AgentExecution.id == str(evidence_id),
+                    AgentExecution.agent_id == str(agent.id))
+            .populate_existing()
+            .first()
+        )
+        if record is not None and str(record.status or "").lower() != "completed":
+            return None
+        return record
+    if kind == "artifact":
+        record = (
+            db.query(Artifact)
+            .filter(Artifact.id == str(evidence_id),
+                    Artifact.agent_id == str(agent.id))
+            .populate_existing()
+            .first()
+        )
+        return record
+    if kind == "episode_segment":
+        from core.models import EpisodeSegment
+
+        record = (
+            db.query(EpisodeSegment)
+            .filter(EpisodeSegment.id == str(evidence_id))
+            .populate_existing()
+            .first()
+        )
+        return record
+    raise QualificationReviewError(
+        "unsupported_evidence", f"Unsupported evidence kind: {kind}")
+
+
+def validate_qualification_evidence(
+    db: Session,
+    agent: AgentRegistry,
+    evidence_refs: Any,
+    *,
+    tenant_id: str,
+    workspace_id: str,
+    rubric_version: str,
+) -> tuple:
+    """Return (ok, normalized_refs, source_revision, error).
+
+    Evidence is server-validated durable scoped work, not a client score or
+    metadata flag. The digest is recomputed from the current record.
+    """
+    if not isinstance(evidence_refs, list) or not evidence_refs:
+        return False, [], None, {
+            "state": "unresolved_missing",
+            "message": "At least one durable held-out evidence record is required.",
+        }
+    normalized: List[Dict[str, Any]] = []
+    has_task = False
+    has_output = False
+    for raw in evidence_refs:
+        if not isinstance(raw, dict):
+            return False, [], None, {
+                "state": "unresolved_scope",
+                "message": "Each evidence ref must be an object.",
+            }
+        kind = str(raw.get("kind") or "").strip()
+        evidence_id = str(raw.get("id") or "").strip()
+        if kind not in QUALIFICATION_EVIDENCE_KINDS or not evidence_id:
+            return False, [], None, {
+                "state": "unresolved_scope",
+                "message": "Evidence kind/id is missing or unsupported.",
+            }
+        try:
+            record = _load_evidence_record(db, kind, evidence_id, agent)
+        except QualificationReviewError as exc:
+            return False, [], None, {
+                "state": exc.state, "message": exc.message}
+        scope_record = record
+        parent_episode = None
+        if kind == "episode_segment" and record is not None:
+            parent_episode = (
+                db.query(AgentEpisode)
+                .filter(AgentEpisode.id == str(record.episode_id),
+                        AgentEpisode.agent_id == str(agent.id))
+                .populate_existing()
+                .first()
+            )
+            scope_record = parent_episode
+        if scope_record is None or not _scope_matches(
+                scope_record, tenant_id, workspace_id):
+            return False, [], None, {
+                "state": "unresolved_scope",
+                "message": (
+                    f"Evidence {kind}:{evidence_id} is missing, changed or "
+                    "outside the agent's current scope."),
+            }
+        digest = hashlib.sha256(
+            json.dumps(
+                _canonical_evidence_material(kind, record),
+                sort_keys=True, default=str,
+            ).encode("utf-8")
+        ).hexdigest()
+        expected = str(raw.get("sha256") or "").strip()
+        if expected and expected != digest:
+            return False, [], None, {
+                "state": "unresolved_stale",
+                "message": (
+                    f"Evidence {kind}:{evidence_id} changed since review; "
+                    "request a fresh qualification review."),
+            }
+        task_preview = ""
+        output_preview = ""
+        if kind == "agent_episode":
+            version_token = str(getattr(record, "updated_at", "") or "")
+            snapshot = {
+                "agent_id": str(record.agent_id),
+                "tenant_id": record.tenant_id,
+                "workspace_id": record.workspace_id,
+                "status": record.status,
+                "task_description": record.task_description,
+                "outcome": record.outcome,
+                "success": bool(record.success),
+                "completed_at": (
+                    None if record.completed_at is None
+                    else str(record.completed_at)),
+                "human_intervention_count": record.human_intervention_count,
+                "constitutional_score": record.constitutional_score,
+                "confidence_score": record.confidence_score,
+            }
+            task_preview = str(record.task_description or "")
+            has_task = has_task or bool(task_preview.strip())
+        elif kind == "agent_execution":
+            version_token = str(getattr(record, "completed_at", "") or "")
+            snapshot = {
+                "agent_id": str(record.agent_id),
+                "tenant_id": record.tenant_id,
+                "workspace_id": record.workspace_id,
+                "status": record.status,
+                "input_summary": record.input_summary,
+                "result_summary": record.result_summary,
+                "output_summary": record.output_summary,
+                "completed_at": (
+                    None if record.completed_at is None
+                    else str(record.completed_at)),
+            }
+            task_preview = str(record.input_summary or "")
+            output_preview = str(
+                record.result_summary or record.output_summary or "")
+            has_task = has_task or bool(task_preview.strip())
+            has_output = has_output or bool(output_preview.strip())
+        elif kind == "artifact":
+            version_token = str(getattr(record, "updated_at", "") or "")
+            snapshot = {
+                "agent_id": str(record.agent_id),
+                "tenant_id": record.tenant_id,
+                "workspace_id": record.workspace_id,
+                "content": record.content,
+                "version": record.version,
+            }
+            output_preview = str(record.content or "")
+            has_output = has_output or bool(output_preview.strip())
+        else:  # episode_segment
+            version_token = str(getattr(record, "created_at", "") or "")
+            snapshot = {
+                "episode_id": str(record.episode_id),
+                "segment_type": record.segment_type,
+                "sequence_order": record.sequence_order,
+                "content": record.content,
+                "created_at": str(record.created_at),
+                "parent_agent_id": str(
+                    getattr(parent_episode, "agent_id", "") or ""),
+                "parent_tenant_id": getattr(parent_episode, "tenant_id", None),
+                "parent_workspace_id": getattr(
+                    parent_episode, "workspace_id", None),
+                "parent_status": getattr(parent_episode, "status", None),
+                "parent_task_description": str(
+                    getattr(parent_episode, "task_description", "") or ""),
+            }
+            task_preview = str(
+                getattr(parent_episode, "task_description", "") or "")
+            output_preview = str(record.content or "")
+            has_task = has_task or bool(task_preview.strip())
+            has_output = has_output or bool(output_preview.strip())
+        normalized.append({
+            "kind": kind,
+            "id": evidence_id,
+            "sha256": digest,
+            "version_token": version_token,
+            "snapshot": snapshot,
+            "task_preview": task_preview[:500],
+            "output_preview": output_preview[:500],
+        })
+    if not has_task or not has_output:
+        return False, [], None, {
+            "state": "unresolved_missing",
+            "message": (
+                "Capability qualification requires inspectable task/context "
+                "AND actual durable output; historical statistics alone are "
+                "not qualification evidence."),
+        }
+    normalized.sort(key=lambda item: (item["kind"], item["id"]))
+    source_revision = hashlib.sha256(
+        json.dumps(
+            {"refs": normalized, "rubric_version": rubric_version},
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    return True, normalized, source_revision, None
+
+
+def _qualification_next_action(
+    state: str, message: str, *, action_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    payload = {
+        "state": state,
+        "code": state,
+        "message": message,
+        "next_action": (
+            "Request a human qualification review for this exact agent, "
+            "tier and evidence scope."
+            if state != "configuration_required"
+            else "Fix the graduation assessment policy configuration; "
+                 "a malformed policy is never treated as not-required."
+        ),
+    }
+    if action_id:
+        payload["review_action_id"] = action_id
+        payload["next_action"] = "Await the existing qualification review decision."
+    return payload
+
+
+def _policy_bundle_or_error(db: Session) -> tuple:
+    from core.promotion_policy_service import (
+        AssessmentPolicyError, get_assessment_policy,
+    )
+
+    try:
+        return get_assessment_policy(db), None
+    except AssessmentPolicyError as exc:
+        return None, {
+            "allowed": False,
+            "required": True,
+            "state": "configuration_required",
+            "message": exc.message,
+            "next_action": _qualification_next_action(
+                "configuration_required", exc.message),
+        }
+
+
+def _nonempty_str(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def find_qualification_receipt(
+    db: Session,
+    agent: AgentRegistry,
+    target_level: str,
+    policy_bundle: Dict[str, Any],
+    *,
+    receipt_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Resolve the exact protected pointer; never borrow another latest row."""
+    policy = policy_bundle["policy"]
+    pointer = str(receipt_id or getattr(agent, "last_exam_id", None) or "")
+    if not pointer:
+        return {"ok": False, "state": "unresolved_missing",
+                "message": "No scoped capability qualification receipt is recorded."}
+    receipt = (
+        db.query(GraduationExam)
+        .filter(GraduationExam.id == pointer,
+                GraduationExam.agent_id == str(agent.id))
+        .populate_existing()
+        .first()
+    )
+    if receipt is None:
+        return {"ok": False, "state": "unresolved_missing",
+                "message": "The protected qualification pointer is missing or foreign."}
+    tenant_id = resolve_tenant_id(agent)
+    workspace_id = resolve_workspace_id(agent)
+    metadata = dict(receipt.metadata_json or {})
+    if not _nonempty_str(receipt.tenant_id) or str(receipt.tenant_id) != str(tenant_id):
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The receipt tenant binding is missing or outside the current scope."}
+    receipt_workspace = metadata.get("workspace_id")
+    if not _nonempty_str(receipt_workspace) or str(receipt_workspace) != str(workspace_id):
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The receipt workspace binding is missing or outside the current scope."}
+    if metadata.get("receipt_kind") != QUALIFICATION_RECEIPT_KIND:
+        return {"ok": False, "state": "unresolved_missing",
+                "message": "The pointer names a legacy/history exam, not a capability qualification."}
+    if (metadata.get("candidate_capability_qualified") is not True
+            or receipt.passed is not True):
+        return {"ok": False, "state": "unresolved_failed",
+                "message": "The recorded qualification did not pass."}
+    if not _nonempty_str(receipt.target_level) or str(
+            receipt.target_level).lower() != str(target_level).lower():
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The receipt target tier binding is missing or different."}
+    if not _nonempty_str(receipt.current_level) or str(
+            receipt.current_level).lower() != str(agent.status or "").lower():
+        return {"ok": False, "state": "unresolved_stale",
+                "message": "The receipt source tier binding is missing or changed."}
+    if not _nonempty_str(metadata.get("policy_revision")) or (
+            metadata.get("policy_revision") != policy.revision):
+        return {"ok": False, "state": "unresolved_stale",
+                "message": "The assessment policy revision changed after the receipt."}
+    if not _nonempty_str(metadata.get("policy_digest")) or (
+            metadata.get("policy_digest") != policy_bundle.get("digest")):
+        return {"ok": False, "state": "unresolved_stale",
+                "message": "The assessment policy content changed after the receipt."}
+    if not _nonempty_str(metadata.get("rubric_version")) or (
+            metadata.get("rubric_version") != policy.rubric_version):
+        return {"ok": False, "state": "unresolved_stale",
+                "message": "The held-out rubric changed after the receipt."}
+    if metadata.get("rubric_criteria") != [
+            item.model_dump() for item in policy.rubric_criteria]:
+        return {"ok": False, "state": "unresolved_stale",
+                "message": "The held-out rubric criteria changed after the receipt."}
+    if not _nonempty_str(metadata.get("source_revision")):
+        return {"ok": False, "state": "unresolved_stale",
+                "message": "The receipt source revision binding is missing."}
+    evidence_refs = metadata.get("evidence_refs")
+    if not isinstance(evidence_refs, list) or not evidence_refs:
+        return {"ok": False, "state": "unresolved_missing",
+                "message": "The receipt evidence binding is missing."}
+    ok, normalized, source_revision, error = validate_qualification_evidence(
+        db, agent, evidence_refs,
+        tenant_id=tenant_id, workspace_id=workspace_id,
+        rubric_version=str(metadata.get("rubric_version") or ""),
+    )
+    if not ok:
+        return {"ok": False, **(error or {})}
+    if source_revision != metadata.get("source_revision"):
+        return {"ok": False, "state": "unresolved_stale",
+                "message": "The held-out evidence source changed after the receipt."}
+    reviewed_by = metadata.get("reviewed_by")
+    if not _nonempty_str(reviewed_by):
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The receipt has no durable reviewer identity."}
+    review_action_id = metadata.get("review_action_id")
+    if not _nonempty_str(review_action_id):
+        return {"ok": False, "state": "unresolved_failed",
+                "message": "The receipt has no approved human review binding."}
+    review = (
+        db.query(HITLAction)
+        .filter(HITLAction.id == str(review_action_id))
+        .populate_existing()
+        .first()
+    )
+    if review is None:
+        return {"ok": False, "state": "unresolved_failed",
+                "message": "The approved human review no longer exists."}
+    if str(review.status or "") != HITLActionStatus.APPROVED.value:
+        return {"ok": False, "state": "unresolved_failed",
+                "message": "The human review is no longer approved."}
+    if str(review.action_type or "") != QUALIFICATION_REVIEW_ACTION:
+        return {"ok": False, "state": "unresolved_failed",
+                "message": "The receipt points at the wrong review kind."}
+    if str(review.agent_id or "") != str(agent.id):
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The human review belongs to a different agent."}
+    if not _scope_matches(review, tenant_id, workspace_id):
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The human review is outside the current scope."}
+    review_params = dict(review.params or {})
+    for key in ("policy_revision", "policy_digest", "rubric_version",
+                "source_revision", "target_level", "current_level"):
+        if review_params.get(key) != metadata.get(key):
+            return {"ok": False, "state": "unresolved_stale",
+                    "message": f"The human review {key} binding changed."}
+    if str(review.reviewed_by or "") != str(reviewed_by):
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The human review reviewer binding changed."}
+    if review.reviewed_at is None:
+        return {"ok": False, "state": "unresolved_failed",
+                "message": "The human review has no durable decision time."}
+    if not _reviewer_is_authorized(db, str(reviewed_by), agent):
+        return {"ok": False, "state": "unresolved_scope",
+                "message": "The human reviewer no longer has current authority/scope."}
+    receipt_fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "id": str(receipt.id),
+                "created_at": str(receipt.created_at),
+                "metadata": metadata,
+            },
+            sort_keys=True, default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    review_fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "id": str(review.id),
+                "status": str(review.status or ""),
+                "action_type": str(review.action_type or ""),
+                "agent_id": str(review.agent_id or ""),
+                "tenant_id": str(review.tenant_id or ""),
+                "workspace_id": str(review.workspace_id or ""),
+                "reviewed_by": str(review.reviewed_by or ""),
+                "reviewed_at": str(review.reviewed_at or ""),
+                "params": review_params,
+            },
+            sort_keys=True, default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    return {
+        "ok": True,
+        "state": "valid",
+        "receipt": receipt,
+        "metadata": metadata,
+        "receipt_id": str(receipt.id),
+        "reviewed_by": reviewed_by,
+        "review_action_id": str(review_action_id),
+        "source_revision": source_revision,
+        "receipt_fingerprint": receipt_fingerprint,
+        "review_fingerprint": review_fingerprint,
+    }
+
+
+def _durable_scope_matches(value: Any, expected: str) -> bool:
+    """Durable HITL scope columns are authority material.
+
+    Only an exact string match counts: a moved row, a missing (None) value,
+    or a wrong-type value (integer/container) is never reusable.
+    """
+    return isinstance(value, str) and value == str(expected or "")
+
+
+def _pending_review_is_current(
+    db: Session,
+    row: HITLAction,
+    agent: AgentRegistry,
+    target_level: str,
+    policy_bundle: Dict[str, Any],
+    tenant_id: str,
+    workspace_id: str,
+) -> bool:
+    """Only a pending review matching the complete current material counts."""
+    if str(row.agent_id or "") != str(agent.id):
+        return False
+    if not _durable_scope_matches(row.tenant_id, tenant_id):
+        return False
+    if not _durable_scope_matches(row.workspace_id, workspace_id):
+        return False
+    params = dict(row.params or {})
+    policy = policy_bundle["policy"]
+    expected = {
+        "schema": QUALIFICATION_REVIEW_SCHEMA,
+        "agent_id": str(agent.id),
+        "current_level": str(agent.status or "").lower(),
+        "target_level": str(target_level or "").upper(),
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "policy_revision": policy_bundle["revision"],
+        "policy_digest": policy_bundle.get("digest"),
+        "rubric_version": policy.rubric_version,
+        "rubric_criteria": [
+            item.model_dump() for item in policy.rubric_criteria],
+    }
+    if any(params.get(key) != value for key, value in expected.items()):
+        return False
+    ok, _normalized, source_revision, _error = validate_qualification_evidence(
+        db, agent, params.get("evidence_refs"),
+        tenant_id=tenant_id, workspace_id=workspace_id,
+        rubric_version=policy.rubric_version,
+    )
+    return bool(ok and params.get("source_revision") == source_revision)
+
+
+def evaluate_qualification_gate(
+    db: Session,
+    agent: AgentRegistry,
+    target_level: str,
+    *,
+    manual: bool = False,
+) -> Dict[str, Any]:
+    """The one gate every upward writer calls.
+
+    Separates experience readiness (caller) from capability qualification
+    (this gate). Missing/failed/stale/wrong-scope receipts are unresolved;
+    only an explicit owner-scoped exception may allow unassessed progression,
+    and it never claims candidate capability qualification.
+    """
+    policy_bundle, error = _policy_bundle_or_error(db)
+    if error is not None:
+        return error
+    policy = policy_bundle["policy"]
+    revision = policy_bundle["revision"]
+    required = policy.tier_required(target_level)
+    base = {
+        "required": bool(required),
+        "policy_revision": revision,
+        "policy_digest": policy_bundle.get("digest"),
+        "policy_source": policy_bundle.get("source"),
+        "policy_row_updated_at": policy_bundle.get("row_updated_at"),
+        "candidate_capability_qualified": False,
+    }
+    if not required:
+        return {
+            **base, "allowed": True, "state": "not_required",
+            "message": "The owner policy does not require a capability qualification for this tier.",
+            "next_action": None,
+        }
+
+    exception = None
+    if manual:
+        exception = policy.scoped_exception("manual", agent)
+    if exception is None:
+        # System is an explicit owner-listed agent id, never inferred from a
+        # mutable category/name/module path.
+        exception = policy.scoped_exception("system", agent)
+    if exception is None:
+        exception = policy.scoped_exception("legacy", agent)
+    if exception is not None:
+        return {
+            **base, "allowed": True, "state": exception.state,
+            "exception": {
+                "kind": exception.state,
+                "reason": exception.reason,
+                "agent_ids": list(exception.agent_ids),
+                "domains": list(exception.domains),
+            },
+            "message": (
+                "Explicit owner-scoped exception allows an unassessed "
+                "transition; it does not claim candidate capability qualification."),
+            "next_action": None,
+        }
+
+    receipt = find_qualification_receipt(
+        db, agent, target_level, policy_bundle)
+    if receipt.get("ok"):
+        return {
+            **base, "allowed": True, "state": "valid",
+            "receipt_id": receipt["receipt_id"],
+            "reviewed_by": receipt["reviewed_by"],
+            "review_action_id": receipt.get("review_action_id"),
+            "source_revision": receipt["source_revision"],
+            "receipt_fingerprint": receipt.get("receipt_fingerprint"),
+            "review_fingerprint": receipt.get("review_fingerprint"),
+            "candidate_capability_qualified": True,
+            "message": "A passed scoped capability qualification receipt is recorded.",
+            "next_action": None,
+        }
+
+    pending_rows = (
+        db.query(HITLAction)
+        .filter(
+            HITLAction.action_type == QUALIFICATION_REVIEW_ACTION,
+            HITLAction.agent_id == str(agent.id),
+            HITLAction.status == HITLActionStatus.PENDING.value,
+        )
+        .order_by(HITLAction.created_at.desc())
+        .all()
+    )
+    tenant_id = resolve_tenant_id(agent)
+    workspace_id = resolve_workspace_id(agent)
+    pending = next((
+        row for row in pending_rows
+        if _pending_review_is_current(
+            db, row, agent, target_level, policy_bundle,
+            tenant_id, workspace_id)
+    ), None)
+    action_id = str(pending.id) if pending is not None else None
+    state = str(receipt.get("state") or "unresolved_missing")
+    message = str(receipt.get("message") or "Capability qualification is unresolved.")
+    return {
+        **base, "allowed": False, "state": state,
+        "message": message,
+        "review_action_id": action_id,
+        "next_action": _qualification_next_action(
+            state, message, action_id=action_id),
+    }
+
+
+def list_qualification_evidence_bundles(
+    db: Session,
+    agent: AgentRegistry,
+    target_level: str,
+    tenant_id: str,
+    workspace_id: str,
+    *,
+    limit: int = 10,
+) -> Dict[str, Any]:
+    """Eligible reviewable work: inspectable task/context + actual output.
+
+    History-only episodes are deliberately excluded; the UI must not
+    relabel recent statistical history as held-out output.
+    """
+    from core.models import EpisodeSegment
+    from core.promotion_policy_service import get_assessment_policy
+
+    policy_bundle = get_assessment_policy(db)
+    policy = policy_bundle["policy"]
+    rubric = [item.model_dump() for item in policy.rubric_criteria]
+    episodes = (
+        db.query(AgentEpisode)
+        .filter(AgentEpisode.agent_id == str(agent.id),
+                AgentEpisode.status == "completed")
+        .order_by(AgentEpisode.started_at.desc())
+        .limit(max(limit * 5, 25))
+        .all()
+    )
+    items = []
+    for episode in episodes:
+        task = str(episode.task_description or "").strip()
+        output = ""
+        refs = [{"kind": "agent_episode", "id": str(episode.id)}]
+        if episode.execution_id:
+            execution = (
+                db.query(AgentExecution)
+                .filter(AgentExecution.id == str(episode.execution_id),
+                        AgentExecution.agent_id == str(agent.id))
+                .populate_existing()
+                .first()
+            )
+            if execution is not None:
+                execution_task = str(execution.input_summary or "").strip()
+                execution_output = str(
+                    execution.result_summary or execution.output_summary or ""
+                ).strip()
+                if execution_task and execution_output:
+                    task = task or execution_task
+                    output = execution_output
+                    refs.append(
+                        {"kind": "agent_execution", "id": str(execution.id)})
+        if not output:
+            segments = (
+                db.query(EpisodeSegment)
+                .filter(EpisodeSegment.episode_id == str(episode.id))
+                .order_by(EpisodeSegment.sequence_order)
+                .all()
+            )
+            for segment in segments:
+                if str(segment.content or "").strip():
+                    output = str(segment.content)
+                    refs.append(
+                        {"kind": "episode_segment", "id": str(segment.id)})
+                    break
+        if not output and episode.session_id:
+            artifacts = (
+                db.query(Artifact)
+                .filter(Artifact.agent_id == str(agent.id),
+                        Artifact.session_id == str(episode.session_id))
+                .all()
+            )
+            for artifact in artifacts:
+                if str(artifact.content or "").strip():
+                    output = str(artifact.content)
+                    refs.append(
+                        {"kind": "artifact", "id": str(artifact.id)})
+                    break
+        if not task or not output:
+            continue
+        ok, normalized, source_revision, _error = validate_qualification_evidence(
+            db, agent, refs,
+            tenant_id=tenant_id, workspace_id=workspace_id,
+            rubric_version=policy.rubric_version,
+        )
+        if not ok:
+            continue
+        items.append({
+            "bundle_id": f"bundle:{episode.id}",
+            "episode_id": str(episode.id),
+            "task_preview": task[:500],
+            "output_preview": output[:500],
+            "evidence_refs": refs,
+            "source_revision": source_revision,
+        })
+        if len(items) >= limit:
+            break
+    return {
+        "agent_id": str(agent.id),
+        "target_level": str(target_level or "").upper(),
+        "rubric_version": policy.rubric_version,
+        "rubric_criteria": rubric,
+        "items": items,
+    }
+
+
+def request_qualification_review(
+    db: Session,
+    *,
+    agent: AgentRegistry,
+    target_level: str,
+    evidence_refs: Any,
+    rubric_version: Optional[str],
+    requested_by: str,
+    tenant_id: str,
+    workspace_id: str,
+    note: Optional[str] = None,
+    actor: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Create the existing HITL review row; no new queue/lifecycle."""
+    target = str(target_level or "").strip().upper()
+    current = str(agent.status or "").strip().lower()
+    if _next_tier(current) != target.lower():
+        raise QualificationReviewError(
+            "invalid_target",
+            f"Target {target} is not the next tier after {current}.",
+        )
+    policy_bundle, error = _policy_bundle_or_error(db)
+    if error is not None:
+        raise QualificationReviewError(
+            "configuration_required", error["message"])
+    policy = policy_bundle["policy"]
+    rubric = str(rubric_version or policy.rubric_version)
+    ok, normalized, source_revision, evidence_error = validate_qualification_evidence(
+        db, agent, evidence_refs,
+        tenant_id=tenant_id, workspace_id=workspace_id,
+        rubric_version=rubric,
+    )
+    if not ok:
+        raise QualificationReviewError(
+            str((evidence_error or {}).get("state") or "unresolved_scope"),
+            str((evidence_error or {}).get("message") or "Invalid evidence."),
+        )
+    rubric_criteria = [item.model_dump() for item in policy.rubric_criteria]
+    expected_pending = {
+        "schema": QUALIFICATION_REVIEW_SCHEMA,
+        "agent_id": str(agent.id),
+        "current_level": current,
+        "target_level": target,
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "policy_revision": policy_bundle["revision"],
+        "policy_digest": policy_bundle.get("digest"),
+        "rubric_version": rubric,
+        "rubric_criteria": rubric_criteria,
+        "source_revision": source_revision,
+        "evidence_refs": normalized,
+        "requested_by": str(requested_by or ""),
+    }
+    existing = (
+        db.query(HITLAction)
+        .filter(
+            HITLAction.action_type == QUALIFICATION_REVIEW_ACTION,
+            HITLAction.agent_id == str(agent.id),
+            HITLAction.status == HITLActionStatus.PENDING.value,
+        )
+        .order_by(HITLAction.created_at.desc())
+        .all()
+    )
+    for row in existing:
+        # Durable row scope is authority material, not just params: a peer
+        # moving tenant/workspace (or a missing/wrong-type value) must never
+        # make a foreign/moved row reusable.
+        if str(row.agent_id or "") != str(agent.id):
+            continue
+        if not _durable_scope_matches(row.tenant_id, tenant_id):
+            continue
+        if not _durable_scope_matches(row.workspace_id, workspace_id):
+            continue
+        params = dict(row.params or {})
+        # Exact duplicate only: a policy/rubric/scope/source/evidence or
+        # requester change must produce a fresh review, never reuse a stale
+        # pending row that would fail closed on approval.
+        if all(params.get(key) == value for key, value in expected_pending.items()):
+            return {
+                "action_id": str(row.id),
+                "state": "pending_review",
+                "target_level": target,
+                "source_revision": source_revision,
+                "idempotent": True,
+            }
+    params = {
+        "schema": QUALIFICATION_REVIEW_SCHEMA,
+        "agent_id": str(agent.id),
+        "agent_name": str(agent.name or ""),
+        "target_level": target,
+        "current_level": current,
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "policy_revision": policy_bundle["revision"],
+        "policy_digest": policy_bundle.get("digest"),
+        "rubric_version": rubric,
+        "rubric_criteria": rubric_criteria,
+        "source_revision": source_revision,
+        "evidence_refs": normalized,
+        "evidence": [
+            {
+                "kind": ref["kind"],
+                "id": ref["id"],
+                "task_preview": ref.get("task_preview") or "",
+                "output_preview": ref.get("output_preview") or "",
+            }
+            for ref in normalized
+        ],
+        "requested_by": str(requested_by or ""),
+        "requested_at": datetime.now().isoformat(),
+        "note": str(note or "")[:1000],
+    }
+    if actor is not None:
+        from core.agent_decision_write_service import _claim_actor
+
+        if not _claim_actor(db, actor):
+            raise QualificationReviewError(
+                "authority_changed",
+                "The requester's current active authority/scope changed; "
+                "refresh and retry.")
+    action = HITLAction(
+        id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        agent_id=str(agent.id),
+        user_id=str(requested_by or ""),
+        action_type=QUALIFICATION_REVIEW_ACTION,
+        platform="internal",
+        params=params,
+        reason=(
+            f"Capability qualification review: {agent.name or agent.id} "
+            f"{current} -> {target.lower()}"),
+        context_snapshot={
+            "required_role": "team_lead",
+            "agent_id": str(agent.id),
+            "tenant_id": str(tenant_id or ""),
+            "workspace_id": str(workspace_id or ""),
+            "qualification_review": True,
+        },
+        status=HITLActionStatus.PENDING.value,
+    )
+    db.add(action)
+    db.commit()
+    db.refresh(action)
+    return {
+        "action_id": str(action.id),
+        "state": "pending_review",
+        "target_level": target,
+        "source_revision": source_revision,
+        "idempotent": False,
+    }
+
+
+def _reviewer_is_authorized(db: Session, reviewer_id: str,
+                            agent: AgentRegistry) -> bool:
+    from core.models import UserRole
+    from core.rbac_service import Permission, RBACService
+    from core.security.rbac import role_level
+
+    reviewer = db.query(User).filter(User.id == str(reviewer_id)).first()
+    if reviewer is None or not bool(reviewer.is_active):
+        return False
+    if str(reviewer.status or "") != "active":
+        return False
+    # Match the existing approvals route floor exactly: AGENT_MANAGE.
+    if not RBACService.check_permission(reviewer, Permission.AGENT_MANAGE):
+        return False
+    if not _scope_matches(reviewer, resolve_tenant_id(agent),
+                          resolve_workspace_id(agent)):
+        # ADMIN+ may cross workspaces inside the tenant, matching the shared
+        # agent visibility policy.
+        if not (str(reviewer.tenant_id or "") == str(agent.tenant_id or "")
+                and role_level(reviewer.role) >= role_level(UserRole.ADMIN)):
+            return False
+    return True
+
+
+def write_qualification_receipt_from_review(
+    db: Session,
+    *,
+    action_id: str,
+    approved: bool,
+    reviewer_id: Optional[str],
+) -> Dict[str, Any]:
+    """Idempotently write the append-only GraduationExam receipt for a review."""
+    action = (
+        db.query(HITLAction)
+        .filter(HITLAction.id == str(action_id))
+        .populate_existing()
+        .first()
+    )
+    if action is None:
+        return {"handled": False, "reason": "action_not_found"}
+    if str(action.action_type or "") != QUALIFICATION_REVIEW_ACTION:
+        return {"handled": False, "reason": "not_a_qualification_review"}
+    params = dict(action.params or {})
+    agent = (
+        db.query(AgentRegistry)
+        .filter(AgentRegistry.id == str(params.get("agent_id") or ""))
+        .populate_existing()
+        .first()
+    )
+    if agent is None:
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_scope", "error": "agent_not_found"}
+    tenant_id = resolve_tenant_id(agent)
+    workspace_id = resolve_workspace_id(agent)
+    if not _scope_matches(action, tenant_id, workspace_id):
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_scope", "error": "review_scope_mismatch"}
+    receipt_id = f"qualification:{action.id}"
+    existing = db.query(GraduationExam).filter(
+        GraduationExam.id == receipt_id).first()
+    if existing is not None:
+        return {"handled": True, "resumed": True, "idempotent": True,
+                "receipt_id": receipt_id,
+                "state": str((existing.metadata_json or {}).get("state") or "valid")}
+
+    if not approved:
+        receipt = GraduationExam(
+            id=receipt_id,
+            agent_id=str(agent.id),
+            tenant_id=tenant_id,
+            target_level=str(params.get("target_level") or ""),
+            current_level=str(params.get("current_level") or ""),
+            readiness_score=0.0,
+            zero_intervention_ratio=0.0,
+            avg_constitutional_score=0.0,
+            avg_confidence_score=float(agent.confidence_score or 0.0),
+            success_rate=0.0,
+            episodes_analyzed=0,
+            edge_case_results={"decision": "rejected"},
+            edge_cases_passed=0,
+            edge_cases_total=0,
+            constitutional_violations=[],
+            constitutional_check_passed=False,
+            passed=False,
+            promoted=False,
+            failure_reason="human_review_rejected",
+            metadata_json={
+                "receipt_kind": QUALIFICATION_RECEIPT_KIND,
+                "assessment_scope": QUALIFICATION_ASSESSMENT_SCOPE,
+                "candidate_capability_qualified": False,
+                "state": "unresolved_failed",
+                "review_action_id": str(action.id),
+                "reviewed_by": str(reviewer_id or ""),
+                "reviewed_at": datetime.now().isoformat(),
+                "policy_revision": params.get("policy_revision"),
+                "rubric_version": params.get("rubric_version"),
+                "source_revision": params.get("source_revision"),
+                "evidence_refs": params.get("evidence_refs") or [],
+            },
+            created_at=datetime.now(),
+        )
+        db.add(receipt)
+        db.commit()
+        return {"handled": True, "resumed": True, "receipt_id": receipt_id,
+                "state": "unresolved_failed"}
+
+    if not reviewer_id or not _reviewer_is_authorized(
+            db, str(reviewer_id), agent):
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_scope",
+                "error": "current_reviewer_authority_required"}
+    policy_bundle, error = _policy_bundle_or_error(db)
+    if error is not None:
+        return {"handled": True, "resumed": False,
+                "state": "configuration_required", "error": error["message"]}
+    policy = policy_bundle["policy"]
+    if params.get("policy_revision") != policy_bundle["revision"]:
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_stale", "error": "policy_changed"}
+    if params.get("policy_digest") != policy_bundle.get("digest"):
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_stale", "error": "policy_content_changed"}
+    if params.get("rubric_version") != policy.rubric_version:
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_stale", "error": "rubric_changed"}
+    if params.get("rubric_criteria") != [
+            item.model_dump() for item in policy.rubric_criteria]:
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_stale", "error": "rubric_criteria_changed"}
+    if str(agent.status or "").lower() != str(params.get("current_level") or "").lower():
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_stale", "error": "agent_tier_changed"}
+    if _next_tier(str(agent.status or "")) != str(
+            params.get("target_level") or "").lower():
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_scope", "error": "target_not_next_tier"}
+    ok, normalized, source_revision, evidence_error = validate_qualification_evidence(
+        db, agent, params.get("evidence_refs"),
+        tenant_id=tenant_id, workspace_id=workspace_id,
+        rubric_version=str(params.get("rubric_version") or ""),
+    )
+    if not ok:
+        return {"handled": True, "resumed": False,
+                "state": str((evidence_error or {}).get("state") or "unresolved_stale"),
+                "error": str((evidence_error or {}).get("message") or "evidence_changed")}
+    if source_revision != params.get("source_revision"):
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_stale", "error": "source_changed"}
+
+    receipt = GraduationExam(
+        id=receipt_id,
+        agent_id=str(agent.id),
+        tenant_id=tenant_id,
+        target_level=str(params.get("target_level") or ""),
+        current_level=str(params.get("current_level") or ""),
+        readiness_score=0.0,
+        zero_intervention_ratio=0.0,
+        avg_constitutional_score=0.0,
+        avg_confidence_score=float(agent.confidence_score or 0.0),
+        success_rate=0.0,
+        episodes_analyzed=0,
+        edge_case_results={
+            "evaluator": "human_review",
+            "rubric_version": params.get("rubric_version"),
+            "rubric_criteria": params.get("rubric_criteria") or [],
+            "evidence": params.get("evidence") or [],
+            "criteria": {
+                "trajectory": "reviewed",
+                "tool_use": "reviewed",
+                "final_response": "reviewed",
+                "safety": "reviewed",
+                "efficiency": "informational",
+            },
+            "evidence_refs": normalized,
+        },
+        edge_cases_passed=len(normalized),
+        edge_cases_total=len(normalized),
+        constitutional_violations=[],
+        constitutional_check_passed=True,
+        passed=True,
+        promoted=False,
+        failure_reason=None,
+        metadata_json={
+            "receipt_kind": QUALIFICATION_RECEIPT_KIND,
+            "assessment_scope": QUALIFICATION_ASSESSMENT_SCOPE,
+            "candidate_capability_qualified": True,
+            "state": "valid",
+            "review_action_id": str(action.id),
+            "reviewed_by": str(reviewer_id),
+            "reviewed_at": datetime.now().isoformat(),
+            "policy_revision": policy_bundle["revision"],
+            "policy_digest": policy_bundle.get("digest"),
+            "rubric_version": policy.rubric_version,
+            "rubric_criteria": params.get("rubric_criteria") or [],
+            "source_revision": source_revision,
+            "evidence_refs": normalized,
+            "evidence": params.get("evidence") or [],
+            "tenant_id": tenant_id,
+            "workspace_id": workspace_id,
+            "agent_name": str(agent.name or ""),
+            "target_level": str(params.get("target_level") or ""),
+            "current_level": str(params.get("current_level") or ""),
+        },
+        created_at=datetime.now(),
+    )
+    prior_last_exam_id = agent.last_exam_id
+    prior_status = str(agent.status or "")
+    db.add(receipt)
+    db.flush()
+    from sqlalchemy import update as sa_update
+    predicate = (
+        AgentRegistry.last_exam_id.is_(None)
+        if prior_last_exam_id is None
+        else AgentRegistry.last_exam_id == prior_last_exam_id
+    )
+    changed = db.execute(
+        sa_update(AgentRegistry)
+        .where(
+            AgentRegistry.id == str(agent.id),
+            AgentRegistry.tenant_id == agent.tenant_id,
+            AgentRegistry.workspace_id == agent.workspace_id,
+            AgentRegistry.status == prior_status,
+            predicate,
+        )
+        .values(last_exam_id=receipt.id)
+    )
+    if changed.rowcount != 1:
+        db.rollback()
+        return {"handled": True, "resumed": False,
+                "state": "unresolved_stale",
+                "error": "agent_changed_before_receipt_pointer"}
+    db.commit()
+    return {"handled": True, "resumed": True, "receipt_id": receipt_id,
+            "state": "valid"}
+
+
+def _receipt_reviewer_for_pointer(db: Session, agent: AgentRegistry) -> Optional[str]:
+    pointer = str(getattr(agent, "last_exam_id", None) or "")
+    if not pointer:
+        return None
+    receipt = (
+        db.query(GraduationExam)
+        .filter(GraduationExam.id == pointer,
+                GraduationExam.agent_id == str(agent.id))
+        .populate_existing()
+        .first()
+    )
+    if receipt is None:
+        return None
+    metadata = dict(receipt.metadata_json or {})
+    if metadata.get("receipt_kind") != QUALIFICATION_RECEIPT_KIND:
+        return None
+    return str(metadata.get("reviewed_by") or "") or None
+
+
+
+
+def _guard_eq(column: Any, value: Any):
+    return column.is_(None) if value is None else column == value
+
+
+def qualification_cas_predicates(
+    db: Session, agent: AgentRegistry, gate: Dict[str, Any],
+) -> tuple:
+    """Build exact policy/receipt/review/evidence CAS guards.
+
+    The guards are evaluated in the same conditional UPDATE as the tier
+    change. Policy guards apply to EVERY allowed state (including
+    not_required/manual/system/legacy exceptions), so an owner-policy
+    revocation between gate and effect cannot bypass. Receipt/review guards
+    compare against the frozen fingerprints validated by the gate; a reload
+    never adopts already-mutated material as newly authoritative.
+    """
+    if not gate.get("allowed"):
+        return [], None
+    from core.promotion_policy_service import (
+        ASSESSMENT_POLICY_KEY, AssessmentPolicyError, get_assessment_policy,
+    )
+
+    try:
+        current_policy = get_assessment_policy(db)
+    except AssessmentPolicyError as exc:
+        return [], {"status": "unresolved", "verification": {"effect": "none"},
+                    "assessment": {
+                        "allowed": False, "required": True,
+                        "state": "configuration_required",
+                        "message": exc.message,
+                        "next_action": _qualification_next_action(
+                            "configuration_required", exc.message)}}
+    if current_policy.get("digest") != gate.get("policy_digest"):
+        return [], {"status": "unresolved", "verification": {"effect": "none"},
+                    "assessment": {
+                        **gate, "allowed": False, "state": "unresolved_stale",
+                        "message": "The assessment policy changed during the transition.",
+                        "next_action": _qualification_next_action(
+                            "unresolved_stale",
+                            "The assessment policy changed during the transition.")}}
+    from sqlalchemy import String, cast, exists
+
+    from core.models import RuntimeSetting
+
+    guards = []
+    if (current_policy.get("source") == "db"
+            and current_policy.get("row_updated_at") is not None):
+        guards.append(exists().where(
+            RuntimeSetting.key == ASSESSMENT_POLICY_KEY,
+            cast(RuntimeSetting.updated_at, String) == str(
+                current_policy["row_updated_at"]),
+            RuntimeSetting.value_json == current_policy["raw_value"],
+        ))
+    elif current_policy.get("source") == "default":
+        guards.append(~exists().where(
+            RuntimeSetting.key == ASSESSMENT_POLICY_KEY))
+    elif current_policy.get("source") == "env":
+        import os as _os
+
+        if _os.environ.get(ASSESSMENT_POLICY_KEY) != current_policy.get("env_raw"):
+            return [], {"status": "unresolved",
+                        "verification": {"effect": "none"},
+                        "assessment": {
+                            **gate, "allowed": False,
+                            "state": "unresolved_stale",
+                            "message": "The assessment policy changed during the transition.",
+                            "next_action": _qualification_next_action(
+                                "unresolved_stale",
+                                "The assessment policy changed during the transition.")}}
+    # Exception/not-required states are policy-only; the policy guard above
+    # is still the CAS binding for the owner exception.
+    if gate.get("state") != "valid":
+        return guards, None
+
+    receipt_id = str(gate.get("receipt_id") or "")
+    receipt = (
+        db.query(GraduationExam)
+        .filter(GraduationExam.id == receipt_id,
+                GraduationExam.agent_id == str(agent.id))
+        .populate_existing()
+        .first()
+    )
+    if receipt is None:
+        return [], {"status": "unresolved", "verification": {"effect": "none"},
+                    "assessment": {
+                        **gate, "allowed": False, "state": "unresolved_failed",
+                        "message": "The qualification receipt disappeared before commit."}}
+    receipt_metadata = dict(receipt.metadata_json or {})
+    current_receipt_fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "id": str(receipt.id),
+                "created_at": str(receipt.created_at),
+                "metadata": receipt_metadata,
+            },
+            sort_keys=True, default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    if current_receipt_fingerprint != gate.get("receipt_fingerprint"):
+        return [], {"status": "unresolved", "verification": {"effect": "none"},
+                    "assessment": {
+                        **gate, "allowed": False, "state": "unresolved_stale",
+                        "message": "The qualification receipt changed after validation.",
+                        "next_action": _qualification_next_action(
+                            "unresolved_stale",
+                            "The qualification receipt changed after validation.")}}
+    review_id = str(
+        gate.get("review_action_id")
+        or receipt_metadata.get("review_action_id") or "")
+    if not review_id:
+        return [], {"status": "unresolved", "verification": {"effect": "none"},
+                    "assessment": {
+                        **gate, "allowed": False, "state": "unresolved_failed",
+                        "message": "The qualification receipt has no review binding."}}
+    review = (
+        db.query(HITLAction)
+        .filter(HITLAction.id == review_id)
+        .populate_existing()
+        .first()
+    )
+    if review is None:
+        return [], {"status": "unresolved", "verification": {"effect": "none"},
+                    "assessment": {
+                        **gate, "allowed": False, "state": "unresolved_failed",
+                        "message": "The approved human review disappeared before commit."}}
+    review_params = dict(review.params or {})
+    current_review_fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "id": str(review.id),
+                "status": str(review.status or ""),
+                "action_type": str(review.action_type or ""),
+                "agent_id": str(review.agent_id or ""),
+                "tenant_id": str(review.tenant_id or ""),
+                "workspace_id": str(review.workspace_id or ""),
+                "reviewed_by": str(review.reviewed_by or ""),
+                "reviewed_at": str(review.reviewed_at or ""),
+                "params": review_params,
+            },
+            sort_keys=True, default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    if current_review_fingerprint != gate.get("review_fingerprint"):
+        return [], {"status": "unresolved", "verification": {"effect": "none"},
+                    "assessment": {
+                        **gate, "allowed": False, "state": "unresolved_stale",
+                        "message": "The human review changed after validation.",
+                        "next_action": _qualification_next_action(
+                            "unresolved_stale",
+                            "The human review changed after validation.")}}
+    guards.append(exists().where(
+        GraduationExam.id == receipt_id,
+        GraduationExam.agent_id == str(agent.id),
+        GraduationExam.passed.is_(True),
+        GraduationExam.created_at == receipt.created_at,
+        GraduationExam.metadata_json == receipt_metadata,
+    ))
+    guards.append(exists().where(
+        HITLAction.id == review_id,
+        HITLAction.status == HITLActionStatus.APPROVED.value,
+        HITLAction.action_type == QUALIFICATION_REVIEW_ACTION,
+        HITLAction.agent_id == str(agent.id),
+        HITLAction.reviewed_by == str(review.reviewed_by or ""),
+        HITLAction.reviewed_at == review.reviewed_at,
+        HITLAction.params == review_params,
+    ))
+    for ref in receipt_metadata.get("evidence_refs") or []:
+        kind = str(ref.get("kind") or "")
+        evidence_id = str(ref.get("id") or "")
+        token = str(ref.get("version_token") or "")
+        snap = ref.get("snapshot") or {}
+        if kind == "agent_episode":
+            condition = exists().where(
+                AgentEpisode.id == evidence_id,
+                _guard_eq(AgentEpisode.agent_id,
+                          snap.get("agent_id", str(agent.id))),
+                _guard_eq(AgentEpisode.tenant_id, snap.get("tenant_id")),
+                _guard_eq(AgentEpisode.workspace_id,
+                          snap.get("workspace_id")),
+                _guard_eq(AgentEpisode.status, snap.get("status", "completed")),
+            )
+            if token:
+                condition = condition.where(
+                    cast(AgentEpisode.updated_at, String) == token)
+            for key in ("task_description", "outcome", "success",
+                        "human_intervention_count", "constitutional_score",
+                        "confidence_score"):
+                if key in snap:
+                    condition = condition.where(
+                        _guard_eq(getattr(AgentEpisode, key), snap[key]))
+            if "completed_at" in snap:
+                condition = condition.where(
+                    _guard_eq(cast(AgentEpisode.completed_at, String),
+                              snap["completed_at"]))
+        elif kind == "agent_execution":
+            condition = exists().where(
+                AgentExecution.id == evidence_id,
+                _guard_eq(AgentExecution.agent_id,
+                          snap.get("agent_id", str(agent.id))),
+                _guard_eq(AgentExecution.tenant_id, snap.get("tenant_id")),
+                _guard_eq(AgentExecution.workspace_id,
+                          snap.get("workspace_id")),
+                _guard_eq(AgentExecution.status,
+                          snap.get("status", "completed")),
+            )
+            if token:
+                condition = condition.where(
+                    cast(AgentExecution.completed_at, String) == token)
+            for key in ("status", "input_summary", "result_summary",
+                        "output_summary"):
+                if key in snap:
+                    condition = condition.where(
+                        _guard_eq(getattr(AgentExecution, key), snap[key]))
+            if "completed_at" in snap:
+                condition = condition.where(
+                    _guard_eq(cast(AgentExecution.completed_at, String),
+                              snap["completed_at"]))
+        elif kind == "episode_segment":
+            from core.models import EpisodeSegment
+
+            condition = exists().where(
+                EpisodeSegment.id == evidence_id,
+                EpisodeSegment.episode_id == str(snap.get("episode_id") or ""),
+                _guard_eq(EpisodeSegment.content, snap.get("content")),
+                exists().where(
+                    AgentEpisode.id == str(snap.get("episode_id") or ""),
+                    _guard_eq(AgentEpisode.agent_id,
+                              snap.get("parent_agent_id")),
+                    _guard_eq(AgentEpisode.tenant_id,
+                              snap.get("parent_tenant_id")),
+                    _guard_eq(AgentEpisode.workspace_id,
+                              snap.get("parent_workspace_id")),
+                    _guard_eq(AgentEpisode.status, snap.get("parent_status")),
+                    _guard_eq(AgentEpisode.task_description,
+                              snap.get("parent_task_description")),
+                ),
+            )
+        elif kind == "artifact":
+            condition = exists().where(
+                Artifact.id == evidence_id,
+                _guard_eq(Artifact.agent_id,
+                          snap.get("agent_id", str(agent.id))),
+                _guard_eq(Artifact.tenant_id, snap.get("tenant_id")),
+                _guard_eq(Artifact.workspace_id, snap.get("workspace_id")),
+            )
+            if token:
+                condition = condition.where(
+                    cast(Artifact.updated_at, String) == token)
+            for key in ("content", "version"):
+                if key in snap:
+                    condition = condition.where(
+                        _guard_eq(getattr(Artifact, key), snap[key]))
+        else:
+            return [], {"status": "unresolved",
+                        "verification": {"effect": "none"},
+                        "assessment": {
+                            **gate, "allowed": False,
+                            "state": "unresolved_scope",
+                            "message": "Unknown evidence kind in the receipt."}}
+        guards.append(condition)
+    return guards, None
+
+
+def commit_qualified_transition(
+    db: Session,
+    *,
+    agent_id: str,
+    target_level: str,
+    actor_id: Optional[str],
+    readiness: Dict[str, Any],
+    source: str,
+    manual: bool = False,
+    operation_id: Optional[str] = None,
+    promotion_type: str = "automatic",
+    override_reason: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Canonical CAS transition used by every upward writer.
+
+    Callers must pass an already-computed experience readiness; this function
+    adds the scoped qualification gate and the protected receipt/policy CAS.
+    """
+    from core.agent_decision_write_service import caller_work_pending
+
+    if caller_work_pending(db):
+        return {"status": "not_applied", "verification": {"effect": "none"},
+                "reason": "dirty_caller_work"}
+    agent = (
+        db.query(AgentRegistry)
+        .filter(AgentRegistry.id == str(agent_id))
+        .populate_existing()
+        .first()
+    )
+    if agent is None:
+        return {"status": "not_applied", "verification": {"effect": "none"},
+                "reason": "agent_not_found"}
+    target = str(target_level or "").strip().upper()
+    if target not in AgentGraduationService.PROMOTION_SOURCES:
+        return {"status": "refused", "http_status": 422,
+                "error_code": "VALIDATION_ERROR",
+                "message": f"Unknown maturity level: {target_level}"}
+    target_status = AgentStatus[target].value
+
+    from types import SimpleNamespace
+    from core.models import UserRole
+    from core import agent_decision_write_service as writes
+
+    resolved_actor_id = actor_id or _receipt_reviewer_for_pointer(db, agent)
+    if not resolved_actor_id:
+        resolved_actor_id = getattr(agent, "user_id", None)
+    if not resolved_actor_id:
+        return {"status": "refused", "http_status": 403,
+                "error_code": "AUTHORITY_REQUIRED",
+                "message": "A current supervisor-grade actor is required."}
+    actor = writes._resolve_actor(
+        db, SimpleNamespace(id=str(resolved_actor_id)),
+        minimum_role=UserRole.TEAM_LEAD, authority_label="GRADUATION")
+    if not actor.get("ok"):
+        return {"status": "refused",
+                "http_status": int(actor.get("http_status") or 403),
+                "error_code": str(actor.get("error_code") or "AUTHORITY_REQUIRED"),
+                "message": str(actor.get("message") or "Authority required.")}
+    if not writes._agent_visible(actor, agent):
+        return {"status": "refused", "http_status": 404,
+                "error_code": "NOT_FOUND", "message": "Agent not found."}
+    try:
+        operation_id = writes._operation_id("graduate", operation_id)
+    except ValueError as exc:
+        return {"status": "refused", "http_status": 422,
+                "error_code": "VALIDATION_ERROR", "message": str(exc)}
+    # The receipt pointer is the immutable material for this operation. A
+    # different target or different receipt with the same operation id is a
+    # different request and must not replay.
+    request = writes.graduation_request(
+        operation_id=operation_id, agent_id=str(agent.id),
+        target_status=target_status, actor=actor,
+        tenant_id=resolve_tenant_id(agent), workspace_id=resolve_workspace_id(agent),
+        assessment_receipt_id=agent.last_exam_id)
+    # Replay BEFORE the obsolete pre-transition status / unconsumed-receipt
+    # checks. A successful same-operation retry after a fresh session must
+    # return already_applied, not INVALID_TRANSITION.
+    replay = writes.replay_graduation(db, request=request, actor=actor)
+    if replay is not None:
+        return replay
+
+    if str(agent.status or "") != AgentGraduationService.PROMOTION_SOURCES[target]:
+        return {"status": "refused", "http_status": 409,
+                "error_code": "INVALID_TRANSITION",
+                "message": "Invalid promotion transition."}
+    gate = evaluate_qualification_gate(db, agent, target, manual=manual)
+    if not gate.get("allowed"):
+        return {"status": "unresolved", "verification": {"effect": "none"},
+                "assessment": gate}
+    cas_predicates, cas_error = qualification_cas_predicates(db, agent, gate)
+    if cas_error is not None:
+        return cas_error
+    ready = bool(readiness.get("ready") is True or
+                 readiness.get("threshold_met") is True)
+    gaps = list(readiness.get("gaps") or [])
+    if not ready or gaps:
+        return {"status": "not_applied", "verification": {"effect": "none"},
+                "reason": "experience_readiness_unmet",
+                "readiness": {"ready": ready, "gaps": gaps}}
+
+    reviewed, raw_config, raw_schedule = writes._load_replace_source(
+        db, str(agent.id))
+    if reviewed is None or (
+        reviewed.tenant_id != agent.tenant_id
+        or reviewed.workspace_id != agent.workspace_id
+        or str(reviewed.status or "") != str(agent.status or "")
+    ):
+        return {"status": "not_applied", "verification": {"effect": "none"},
+                "reason": "stale_target"}
+    predicates, claim_params = writes._replace_agent_predicates(
+        reviewed, raw_config, raw_schedule)
+    predicates.extend(writes._agent_predicates(
+        reviewed, str(reviewed.status or "")))
+    predicates.extend(cas_predicates)
+    for field in ("module_path", "class_name", "user_id", "confidence_score",
+                  "required_role_for_autonomy"):
+        predicates.append(writes._exact(
+            getattr(AgentRegistry, field), getattr(reviewed, field)))
+    configuration = dict(reviewed.configuration or {})
+    configuration.update(
+        promoted_at=datetime.now().isoformat(),
+        promoted_by=str(actor["id"]),
+    )
+    receipt_id = (
+        gate.get("receipt_id") if gate.get("state") == "valid"
+        else reviewed.last_exam_id)
+    promotion_count = int(getattr(reviewed, "promotion_count", 0) or 0) + 1
+    justification = f"{source}; assessment={gate.get('state')}"
+    owner_reason = (gate.get("exception") or {}).get("reason")
+    if owner_reason:
+        justification += f"; owner_reason={owner_reason}"
+    if override_reason:
+        justification += f"; override={override_reason}"
+    history = PromotionHistory(
+        id=str(uuid.uuid4()),
+        agent_id=str(reviewed.id),
+        tenant_id=resolve_tenant_id(reviewed),
+        from_level=str(reviewed.status or ""),
+        to_level=target_status,
+        promotion_type=promotion_type,
+        readiness_score=float(readiness.get("score") or 0.0),
+        exam_id=receipt_id if gate.get("state") == "valid" else None,
+        promoted_by=str(actor["id"]),
+        justification=justification,
+        promoted_at=datetime.now(),
+    )
+    decision = writes.commit_graduation(
+        db, reviewed=reviewed, actor=actor, request=request,
+        predicates=predicates, claim_params=claim_params,
+        target_status=target_status, configuration=configuration,
+        last_exam_id=receipt_id, promotion_count=promotion_count,
+        promotion_history=history,
+        extra_success={"assessment": gate, "promotion_history_id": history.id},
+        audit_extra={"assessment": gate},
+    )
+    if decision.get("status") == "verified":
+        try:
+            db.expire(agent)
+        except Exception:
+            pass
+    return decision
+
+
+def _review_field(action: Any, name: str, default: Any = None) -> Any:
+    if isinstance(action, dict):
+        return action.get(name, default)
+    return getattr(action, name, default)
+
+
+def validate_qualification_review_binding(
+    db: Session, action: Any,
+) -> Dict[str, Any]:
+    """Preflight the exact review binding before a HITL row is approved."""
+    if str(_review_field(action, "action_type", "")) != QUALIFICATION_REVIEW_ACTION:
+        return {"valid": True}
+    params = dict(_review_field(action, "params", {}) or {})
+    if params.get("schema") != QUALIFICATION_REVIEW_SCHEMA:
+        return {"valid": False, "reason": "qualification_binding_invalid",
+                "message": "Qualification review schema is missing or unknown."}
+    agent = (
+        db.query(AgentRegistry)
+        .filter(AgentRegistry.id == str(params.get("agent_id") or ""))
+        .populate_existing()
+        .first()
+    )
+    if agent is None:
+        return {"valid": False, "reason": "qualification_agent_missing",
+                "message": "The reviewed agent no longer exists."}
+    tenant_id = resolve_tenant_id(agent)
+    workspace_id = resolve_workspace_id(agent)
+    if not _scope_matches(action, tenant_id, workspace_id):
+        return {"valid": False, "reason": "qualification_scope_changed",
+                "message": "The review is outside the agent's current scope."}
+    policy_bundle, error = _policy_bundle_or_error(db)
+    if error is not None:
+        return {"valid": False, "reason": "configuration_required",
+                "message": error["message"]}
+    policy = policy_bundle["policy"]
+    if params.get("policy_revision") != policy_bundle["revision"]:
+        return {"valid": False, "reason": "qualification_policy_changed",
+                "message": "The assessment policy revision changed after this review was requested."}
+    if params.get("policy_digest") != policy_bundle.get("digest"):
+        return {"valid": False, "reason": "qualification_policy_changed",
+                "message": "The assessment policy content changed after this review was requested."}
+    if params.get("rubric_version") != policy.rubric_version:
+        return {"valid": False, "reason": "qualification_rubric_changed",
+                "message": "The held-out rubric changed after this review was requested."}
+    if params.get("rubric_criteria") != [
+            item.model_dump() for item in policy.rubric_criteria]:
+        return {"valid": False, "reason": "qualification_rubric_changed",
+                "message": "The held-out rubric criteria changed after this review was requested."}
+    if str(agent.status or "").lower() != str(
+            params.get("current_level") or "").lower():
+        return {"valid": False, "reason": "qualification_tier_changed",
+                "message": "The agent's tier changed after this review was requested."}
+    if _next_tier(str(agent.status or "")) != str(
+            params.get("target_level") or "").lower():
+        return {"valid": False, "reason": "qualification_target_changed",
+                "message": "The target tier is no longer the next tier."}
+    ok, normalized, source_revision, evidence_error = validate_qualification_evidence(
+        db, agent, params.get("evidence_refs"),
+        tenant_id=tenant_id, workspace_id=workspace_id,
+        rubric_version=str(params.get("rubric_version") or ""),
+    )
+    if not ok:
+        return {"valid": False,
+                "reason": str((evidence_error or {}).get("state") or "qualification_evidence_changed"),
+                "message": str((evidence_error or {}).get("message") or "Evidence changed.")}
+    if source_revision != params.get("source_revision"):
+        return {"valid": False, "reason": "qualification_source_changed",
+                "message": "The held-out evidence source changed after this review was requested."}
+    return {"valid": True}

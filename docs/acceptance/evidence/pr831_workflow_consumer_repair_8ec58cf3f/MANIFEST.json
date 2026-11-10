@@ -1,0 +1,61 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "PR831 HITL resume regression repaired on isolated b071 worktree; five hosted workflow failures pass, graduation positives adapted to real qualification; submitted for independent review",
+  "branch": "codex/web-pr831-workflow-consumer-repair-20261110",
+  "base": "b071c8702cb1c0aed0ad70bb90a12cb343278c44",
+  "executed_source": "8ec58cf3f",
+  "root_pr831_worktree_edited": false,
+  "source_files": {
+    "backend/core/hitl_resume.py": "cde538bc2160a3148b9ace1727e11dcac5ea7b1cd107bd3b2c68ec40085db811",
+    "backend/tests/test_hitl_resume.py": "550e4c5b04d49d89838ba727363dd3f44927b169a99cb107ab2320403c9ae5a9",
+    "backend/tests/test_graduation_readiness_tenant_scoping.py": "31619e13ae278f2c31556dff4eada81c328969e061fe87348e6cb14af7391a07",
+    "COORDINATION.md": "35a61cd1954aa9c4341733698c64baf890c8800be2f4280f3ca5a49ba1a87db8",
+    "backend/core/workflow_engine.py": "510242d909525c38bf0e6a8710898c28cf7c98ad26928f8ea1b43774886f7d11",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/api/episode_routes.py": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+    "scripts/quickstart.sh": "3bf727ac031a8c42f971b8fb0ee12c414e29fe62a3919ece3f0b537d041cda71"
+  },
+  "artifacts": {
+    "README.md": "1cbdc02621935cd762a64f94e3b21745d1e957c20ab813dff49263a7d0d49123",
+    "TEST_RESULTS.md": "d132a8754ec122ba0fb95a9c38232f27edeb59000bf7f448d0f0be84cfeff753",
+    "affected-after.log": "54778d69fa4aaa5af1d6fb9d094c8a706759a28f3bb8fc4a1c3dadd216fa8e0a",
+    "ci-graduation-after.log": "9300d10b8e058291dccf60a07cf0f64604902f5a083ac8bea0edd36f53b320d7",
+    "ci-qualification-after.log": "bdd5eff176f63d7b5d591829ad68d2279630d21b8ee871189f5a8207849c8b9a",
+    "ci-quickstart-after.log": "9b0d4926744f37ffce8828cdf116fa696a2d4045ab12d6d0f884677666f3e381",
+    "ci-workflow-env-internalerror.log": "eadb27d0d820396354a19b0fcf738d0e6984b9e42871887a3d9ae9e18a3f2291",
+    "ci-workflow-full.log": "32b026296cc1012ff55baa00b9cd66ecd980a52ec94766e812b16dd9cbf70f7f",
+    "failure-first.log": "06b0f9375e555f074bf69bb0a089502943240fc992585b87131c6df4e212036a",
+    "focused-after.log": "25795d4d69394eeca809fcd6cc8ae9e59550cf2505ceb5e7ccfdc7ad4d719963",
+    "graduation-readiness-after.log": "3cef57d3e6f1e26e2f3f7eacf25773b15cc552b9f9207adf049668b8a60b914d",
+    "hitl-resume-after.log": "4c908ee5e495a02a70faed5eb269ac468b5a2f8528a739b10206ca8f72b12db8",
+    "hosted-before-excerpt.log": "fd1ca526ce805be38d6aad9fc24453a937d5bed07cf10ffe9a41dc5cee3f1d2c",
+    "sparse-checkout.txt": "0dc10d6ccc28a6cbcdc358870725134d9687f7cf506c0a7d54b25eaa1408d60d",
+    "verification.json": "25925cc81e72c162a0202a72c2309f2547a17285af76a967a62134ca0cdeb6d0"
+  },
+  "checks": {
+    "failure_first": "5 failed, 4 passed",
+    "focused_hosted_five": "5 passed",
+    "ci_workflow_full": "1032 passed, 1 skipped, 5 quickstart environment failures",
+    "ci_quickstart_after": "5 passed",
+    "ci_graduation_after": "138 passed",
+    "ci_qualification_after": "94 passed",
+    "graduation_readiness_after": "16 passed",
+    "hitl_resume_after": "10 passed",
+    "affected_after": "146 passed",
+    "hosted_five_fixed": true,
+    "separate_os_process_boundary_covered": true,
+    "graduation_gate_not_relaxed": true,
+    "no_fake_passed_receipt": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_new_dependency_script_table_migration_or_testconfig": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "no merge or self-acceptance; root review remains independent",
+    "full CI workflow selection not rerun after the test-only graduation adaptation because that file is outside the line-185 selection; union proof disclosed"
+  ],
+  "source_file_notes": {
+    "COORDINATION.md": "Hash is the executed-source 8ec58cf3f blob. The evidence successor commit updates the coordination session status line, so the evidence-tree bytes differ; this is a coordination note, not product code."
+  }
+}

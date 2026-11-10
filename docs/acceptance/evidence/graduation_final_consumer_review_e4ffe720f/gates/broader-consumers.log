@@ -1,0 +1,750 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 08:19:59 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 08:19:59 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 08:19:59 [    INFO] EscalationManager initialized
+2026-11-10 08:19:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:19:59 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 08:19:59 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 08:19:59 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 08:19:59 [    INFO] EscalationManager initialized
+2026-11-10 08:19:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:19:59 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 08:19:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 08:19:59 [    INFO] MCP Service initialized
+
+tests/test_agent_decision_contract.py::test_workspace_admin_updates_own_agent_with_audit 
+-------------------------------- live log setup --------------------------------
+2026-11-10 08:20:00 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:01 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=update-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_agent_decision_contract.py::test_cross_tenant_and_cross_workspace_targets_are_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-10 08:20:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-10 08:20:02 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/promote "HTTP/1.1 404 Not Found"
+2026-11-10 08:20:02 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/promote "HTTP/1.1 404 Not Found"
+2026-11-10 08:20:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a2 "HTTP/1.1 200 OK"
+2026-11-10 08:20:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-10 08:20:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 200 OK"
+2026-11-10 08:20:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  1%]
+tests/test_agent_decision_contract.py::test_non_manager_roles_cannot_update_or_promote[member-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-10 08:20:02 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  1%]
+tests/test_agent_decision_contract.py::test_non_manager_roles_cannot_update_or_promote[lead-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:03 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-10 08:20:03 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  2%]
+tests/test_agent_decision_contract.py::test_empty_and_matching_updates_are_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:04 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+2026-11-10 08:20:04 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_agent_decision_contract.py::test_stale_peer_edit_before_update_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:05 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=stale-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_agent_decision_contract.py::test_update_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:05 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 200 OK"
+2026-11-10 08:20:05 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 200 OK"
+2026-11-10 08:20:05 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 409 Conflict"
+2026-11-10 08:20:05 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  3%]
+tests/test_agent_decision_contract.py::test_unqualified_manual_promotion_is_not_an_authority_bypass 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:06 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=unqualified "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-10 08:20:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-10 08:20:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-two "HTTP/1.1 200 OK"
+2026-11-10 08:20:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/promote?operation_id=stale-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_decision_contract.py::test_promote_replay_refutes_changed_qualification_material[last_exam_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:08 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=qualification-material "HTTP/1.1 200 OK"
+2026-11-10 08:20:08 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=qualification-material "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  5%]
+tests/test_agent_decision_contract.py::test_promote_replay_refutes_changed_qualification_material[promotion_count] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=qualification-material "HTTP/1.1 200 OK"
+2026-11-10 08:20:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=qualification-material "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  6%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[deactivate-update] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:09 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[deactivate-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:10 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[tenant_move-update] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:11 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[tenant_move-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:12 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[update] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:12 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=rollback-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:13 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=rollback-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  9%]
+tests/test_agent_decision_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:14 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  9%]
+tests/test_agent_decision_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:15 [   ERROR] agent decision outcome unknown: operation_id=agent:update:lost-confirmation target=a1 error_class=RuntimeError
+PASSED                                                                   [ 10%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:16 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:16 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:17 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 12%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:18 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 12%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:19 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 13%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:19 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 13%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:20 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 14%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:21 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 14%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:22 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 15%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:22 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:23 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_actor_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:24 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_prior_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:25 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_result_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:25 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:26 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:27 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 19%]
+tests/test_agent_decision_contract.py::test_raw_capabilities_are_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:28 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=cap-secret "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_agent_decision_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:28 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 401 Unauthorized"
+2026-11-10 08:20:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 20%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_documented_example_denies_with_reasons PASSED [ 20%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregulated_action_allows PASSED [ 21%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_missing_context_counts_as_violation PASSED [ 22%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_duplicate_policy_id_rejected PASSED [ 22%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregister_policy PASSED [ 23%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_defaults_mirror_readiness_thresholds PASSED [ 23%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_layers_match_doc PASSED [ 24%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_for_action_mapping PASSED [ 24%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_strategic_pass_requires_human PASSED [ 25%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_operational_pass_is_automated PASSED [ 25%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_denied_has_no_human_step PASSED [ 26%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_inferred_when_omitted PASSED [ 27%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_autonomous_pass_withholds_promotion_for_human 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:28 [    INFO] Agent agent-1 PASSED the autonomous legacy exam; no promotion or qualification pointer write
+PASSED                                                                   [ 27%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_supervised_pass_requires_qualification_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:28 [    INFO] Agent agent-unqualified passed the supervised legacy exam; legacy statistics never qualify
+PASSED                                                                   [ 28%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_policy_deny_fails_exam_with_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:28 [    INFO] Agent agent-1 failed legacy graduation exam: unknown reason | Governance policy denied: readiness_score 0.9 below min_readiness_score 0.95
+PASSED                                                                   [ 28%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_denied_on_weak_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:29 [ WARNING] Autonomous promotion DENIED by governance policy for graduate: episode_count 40 below min_episodes 50; readiness_score 0.92 below min_readiness_score 0.95
+PASSED                                                                   [ 29%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_allowed_on_strong_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:30 [    INFO] Agent graduate promoted to AUTONOMOUS by supervisor
+2026-11-10 08:20:30 [ WARNING] Graduation notification failed for agent graduate (promotion already committed): object NoneType can't be used in 'await' expression
+PASSED                                                                   [ 29%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_lower_tier_requires_readiness PASSED [ 30%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[foreign_target] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:30 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=f3f699ea-2d35-422d-86ce-b101e4187d4b "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[foreign_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:30 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=704c24a6-84d7-43e1-aeba-4350e1f2ed3f "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 31%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[foreign_episode] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:30 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=9ae666c9-672e-4a6d-9b14-ed6cffdbae8c "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 32%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[missing_episode] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:30 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=2bd61227-2a51-49e6-badc-eb2f3bba1d00 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 32%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[mixed_scope] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:30 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=1c4af40f-a07f-4a04-a7eb-d037269a106d "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[unknown_agent] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=absent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[empty] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=54ff916d-2f27-4103-b9eb-18d4291c04c7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_graduation_exam_boundary.py::test_public_exam_preflights_scope_and_cannot_pass_no_results[valid] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=dd20792d-a1b8-49db-958f-729681e64ad8 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_graduation_exam_boundary.py::test_exam_rechecks_scope_after_an_awaited_case[episode] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=204396c9-0b39-4912-ad14-f5a178ad1aa7 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 35%]
+tests/test_graduation_exam_boundary.py::test_exam_rechecks_scope_after_an_awaited_case[target] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=1bbcd9fe-210f-4cb4-a13d-0be2da6c02a9 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 35%]
+tests/test_graduation_exam_boundary.py::test_exam_allows_real_installation_only_review_without_claiming_candidate_quality 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/exam?agent_id=8d868284-65c0-4ac8-af52-5d81c16cba48 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_graduation_exam_boundary.py::test_service_refusal_never_passes_even_after_one_successful_review PASSED [ 37%]
+tests/test_graduation_exam.py::TestExamResult::test_exam_result_creation_passed PASSED [ 37%]
+tests/test_graduation_exam.py::TestExamResult::test_exam_result_creation_failed PASSED [ 38%]
+tests/test_graduation_exam.py::TestExamResult::test_exam_result_to_dict PASSED [ 38%]
+tests/test_graduation_exam.py::TestExamResult::test_exam_result_with_failure_reason PASSED [ 39%]
+tests/test_graduation_exam.py::TestPromotionResult::test_promotion_result_creation_success PASSED [ 39%]
+tests/test_graduation_exam.py::TestPromotionResult::test_promotion_result_creation_failure PASSED [ 40%]
+tests/test_graduation_exam.py::TestPromotionResult::test_promotion_result_to_dict PASSED [ 40%]
+tests/test_graduation_exam.py::TestGraduationExamServiceInit::test_graduation_exam_service_init_with_db PASSED [ 41%]
+tests/test_graduation_exam.py::TestCalculateReadinessScore::test_calculate_readiness_score_for_student PASSED [ 41%]
+tests/test_graduation_exam.py::TestCalculateReadinessScore::test_calculate_readiness_score_custom_episode_count PASSED [ 42%]
+tests/test_graduation_exam.py::TestExecuteGraduationExam::test_execute_graduation_exam_agent_not_found PASSED [ 43%]
+tests/test_graduation_exam.py::TestExecuteGraduationExam::test_execute_graduation_exam_already_autonomous PASSED [ 43%]
+tests/test_graduation_exam.py::TestExecuteGraduationExam::test_execute_graduation_exam_student_to_intern 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Agent agent-002 passed the intern legacy exam; legacy statistics never qualify
+PASSED                                                                   [ 44%]
+tests/test_graduation_exam.py::TestExecuteGraduationExam::test_execute_graduation_exam_with_target_level 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Agent agent-003 passed the supervised legacy exam; legacy statistics never qualify
+PASSED                                                                   [ 44%]
+tests/test_graduation_exam.py::TestEdgeCaseSimulation::test_edge_case_simulation_all_passed PASSED [ 45%]
+tests/test_graduation_exam.py::TestEdgeCaseSimulation::test_edge_case_simulation_with_failures PASSED [ 45%]
+tests/test_graduation_exam.py::TestConstitutionalCheck::test_constitutional_check_passed PASSED [ 46%]
+tests/test_graduation_exam.py::TestConstitutionalCheck::test_constitutional_check_failed PASSED [ 46%]
+tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_without_qualification_never_dispatches PASSED [ 47%]
+tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Agent agent-001 manually promoted from intern to supervised by admin-user: Testing manual promotion
+PASSED                                                                   [ 48%]
+tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_creates_history 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Agent agent-002 manually promoted from supervised to autonomous by admin-user: Testing manual promotion with history
+PASSED                                                                   [ 48%]
+tests/test_graduation_exam.py::TestManualPromotion::test_manual_demotion 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [ WARNING] Agent agent-003 demoted from autonomous to supervised by admin-user: Performance degradation detected
+PASSED                                                                   [ 49%]
+tests/test_graduation_exam.py::TestGetNextLevel::test_get_next_level_student_to_intern PASSED [ 49%]
+tests/test_graduation_exam.py::TestGetNextLevel::test_get_next_level_intern_to_supervised PASSED [ 50%]
+tests/test_graduation_exam.py::TestGetNextLevel::test_get_next_level_supervised_to_autonomous PASSED [ 50%]
+tests/test_graduation_exam.py::TestGetNextLevel::test_get_next_level_autonomous_returns_autonomous PASSED [ 51%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_start_supervision_creates_session 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Started supervision session None for SUPERVISED agent agent_supervised_123
+PASSED                                                                   [ 51%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_start_supervision_validates_agent_exists PASSED [ 52%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_start_supervision_initializes_monitoring 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Started supervision session None for SUPERVISED agent agent_supervised_123
+PASSED                                                                   [ 53%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_start_supervision_rejects_student_agents PASSED [ 53%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_get_active_sessions_returns_list PASSED [ 54%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_get_active_sessions_filters_by_workspace PASSED [ 54%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_get_active_sessions_no_workspace_filter PASSED [ 55%]
+tests/core/test_supervision_service.py::TestSupervisionLifecycle::test_get_supervision_history_returns_list PASSED [ 55%]
+tests/core/test_supervision_service.py::TestMonitoring::test_monitor_execution_tracks_operations 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Starting monitoring for supervision session session_123
+PASSED                                                                   [ 56%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 08:20:31 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-423' coro=<<async_generator_athrow without __name__>()>>
+
+tests/core/test_supervision_service.py::TestMonitoring::test_monitor_execution_detects_status_changes 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Starting monitoring for supervision session session_123
+PASSED                                                                   [ 56%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 08:20:31 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-425' coro=<<async_generator_athrow without __name__>()>>
+
+tests/core/test_supervision_service.py::TestMonitoring::test_monitor_execution_captures_execution_time 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Starting monitoring for supervision session session_123
+PASSED                                                                   [ 57%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 08:20:31 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-427' coro=<<async_generator_athrow without __name__>()>>
+
+tests/core/test_supervision_service.py::TestMonitoring::test_monitor_execution_handles_agent_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Starting monitoring for supervision session session_123
+PASSED                                                                   [ 58%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 08:20:31 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-429' coro=<<async_generator_athrow without __name__>()>>
+
+tests/core/test_supervision_service.py::TestMonitoring::test_monitor_execution_updates_session_state 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Starting monitoring for supervision session session_123
+2026-11-10 08:20:31 [    INFO] Supervision session session_123 is no longer running
+2026-11-10 08:20:31 [    INFO] Monitoring completed for supervision session session_123
+PASSED                                                                   [ 58%]
+tests/core/test_supervision_service.py::TestMonitoring::test_monitor_execution_execution_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Starting monitoring for supervision session session_123
+2026-11-10 08:20:31 [    INFO] Supervision session session_123 is no longer running
+2026-11-10 08:20:31 [    INFO] Monitoring completed for supervision session session_123
+PASSED                                                                   [ 59%]
+tests/core/test_supervision_service.py::TestMonitoring::test_monitor_execution_logs_agent_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Starting monitoring for supervision session session_123
+PASSED                                                                   [ 59%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 08:20:31 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-433' coro=<<async_generator_athrow without __name__>()>>
+
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_stops_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:31 [    INFO] Intervention pause in session session_123: Pause execution for review
+PASSED                                                                   [ 60%]
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_logs_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention correct in session session_123: Fix the calculation error
+PASSED                                                                   [ 60%]
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_notifies_user 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention correct in session session_123: Use the correct API endpoint
+PASSED                                                                   [ 61%]
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_validates_permission PASSED [ 61%]
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_safety_violation 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention terminate in session session_123: Safety violation: attempting unauthorized data access
+PASSED                                                                   [ 62%]
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_user_request 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention correct in session session_123: User requested: Use different parameters
+PASSED                                                                   [ 62%]
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_automatic_trigger 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention pause in session session_123: Automatic pause: Confidence dropped below threshold
+PASSED                                                                   [ 63%]
+tests/core/test_supervision_service.py::TestIntervention::test_trigger_intervention_escalation_logic 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention pause in session session_123: First intervention
+2026-11-10 08:20:32 [    INFO] Intervention correct in session session_123: Second intervention
+PASSED                                                                   [ 64%]
+tests/core/test_supervision_service.py::TestIntervention::test_multiple_interventions_same_session 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention pause in session session_123: First pause
+2026-11-10 08:20:32 [    INFO] Intervention correct in session session_123: Apply correction
+PASSED                                                                   [ 64%]
+tests/core/test_supervision_service.py::TestWebSocketCommunication::test_supervision_event_broadcasts_message PASSED [ 65%]
+tests/core/test_supervision_service.py::TestWebSocketCommunication::test_supervision_event_json_serialization PASSED [ 65%]
+tests/core/test_supervision_service.py::TestWebSocketCommunication::test_supervision_event_error_handling PASSED [ 66%]
+tests/core/test_supervision_service.py::TestWebSocketCommunication::test_supervision_event_action_types PASSED [ 66%]
+tests/core/test_supervision_service.py::TestWebSocketCommunication::test_supervision_event_result_types PASSED [ 67%]
+tests/core/test_supervision_service.py::TestWebSocketCommunication::test_monitor_with_autonomous_fallback PASSED [ 67%]
+tests/core/test_supervision_service.py::TestWebSocketCommunication::test_websocket_message_format_validation PASSED [ 68%]
+tests/core/test_supervision_service.py::TestSafetyGuardrails::test_supervision_rejects_student_maturity PASSED [ 69%]
+tests/core/test_supervision_service.py::TestSafetyGuardrails::test_supervision_requires_supervisable_maturity PASSED [ 69%]
+tests/core/test_supervision_service.py::TestSafetyGuardrails::test_intervention_requires_valid_session PASSED [ 70%]
+tests/core/test_supervision_service.py::TestSafetyGuardrails::test_intervention_requires_running_session PASSED [ 70%]
+tests/core/test_supervision_service.py::TestSafetyGuardrails::test_intervention_validates_intervention_type PASSED [ 71%]
+tests/core/test_supervision_service.py::TestSafetyGuardrails::test_guardrails_prevent_unsafe_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Intervention terminate in session session_123: Unsafe action detected
+PASSED                                                                   [ 71%]
+tests/core/test_supervision_service.py::TestSafetyGuardrails::test_confidence_boost_calculation PASSED [ 72%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 08:20:32 [    INFO] EscalationManager initialized
+2026-11-10 08:20:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:20:32 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 08:20:32 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 08:20:32 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 08:20:32 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 72%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_updates_agent_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Session session_123 completed. Confidence boost: 0.100 (0.750 → 0.850), Promoted: False
+2026-11-10 08:20:32 [    INFO] EscalationManager initialized
+2026-11-10 08:20:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:20:32 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 08:20:32 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 08:20:32 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 08:20:32 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 73%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_promotes_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Session session_123 completed. Confidence boost: 0.100 (0.890 → 0.990), Promoted: True
+2026-11-10 08:20:32 [    INFO] EscalationManager initialized
+2026-11-10 08:20:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:20:32 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 08:20:32 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 08:20:32 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 08:20:32 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 74%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_does_not_promote_without_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Session session_123 completed. Confidence boost: 0.100 (0.890 → 0.990), Promoted: False
+2026-11-10 08:20:32 [    INFO] EscalationManager initialized
+2026-11-10 08:20:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:20:32 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 08:20:32 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 08:20:32 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 08:20:32 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 74%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_creates_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 08:20:32 [    INFO] EscalationManager initialized
+2026-11-10 08:20:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:20:32 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 08:20:32 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 08:20:32 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 08:20:32 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 75%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_validates_session_status PASSED [ 75%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_episode_creation 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 08:20:32 [    INFO] EscalationManager initialized
+2026-11-10 08:20:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:20:32 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 08:20:32 [    INFO] Initiated two-way learning for session session_123
+PASSED                                                                   [ 76%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_two_way_learning 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 08:20:32 [    INFO] EscalationManager initialized
+2026-11-10 08:20:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:20:32 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 08:20:32 [    INFO] Initiated two-way learning for session session_123
+PASSED                                                                   [ 76%]
+tests/core/test_supervision_service.py::TestAutonomousSupervisorFallback::test_start_supervision_with_fallback_uses_human 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Started supervision session None with user supervisor
+PASSED                                                                   [ 77%]
+tests/core/test_supervision_service.py::TestAutonomousSupervisorFallback::test_start_supervision_with_fallback_falls_back_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [ WARNING] No autonomous supervisor found for agent_supervised_123, queuing execution
+PASSED                                                                   [ 77%]
+tests/core/test_supervision_service.py::TestAutonomousSupervisorFallback::test_monitor_with_autonomous_supervisor 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Autonomous supervision event: action (session: session_123)
+PASSED                                                                   [ 78%]
+tests/core/test_supervision_service.py::TestEdgeCases::test_monitor_execution_handles_missing_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Starting monitoring for supervision session session_123
+2026-11-10 08:20:32 [    INFO] Supervision session session_123 is no longer running
+2026-11-10 08:20:32 [    INFO] Monitoring completed for supervision session session_123
+PASSED                                                                   [ 79%]
+tests/core/test_supervision_service.py::TestEdgeCases::test_monitor_execution_handles_database_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Starting monitoring for supervision session session_123
+2026-11-10 08:20:32 [   ERROR] Error monitoring agent execution: Database connection lost
+PASSED                                                                   [ 79%]
+------------------------------ live log teardown -------------------------------
+2026-11-10 08:20:32 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-480' coro=<<async_generator_athrow without __name__>()>>
+
+tests/core/test_supervision_service.py::TestEdgeCases::test_intervention_handles_invalid_session_id PASSED [ 80%]
+tests/core/test_supervision_service.py::TestEdgeCases::test_complete_supervision_handles_invalid_session PASSED [ 80%]
+tests/core/test_supervision_service.py::TestEdgeCases::test_confidence_boost_capped_at_maximum PASSED [ 81%]
+tests/core/test_supervision_service.py::TestEdgeCases::test_confidence_boost_with_many_interventions PASSED [ 81%]
+tests/core/test_supervision_service.py::TestEdgeCases::test_supervision_history_with_no_sessions PASSED [ 82%]
+tests/core/test_supervision_service.py::TestEdgeCases::test_supervision_history_orders_by_start_time PASSED [ 82%]
+tests/test_student_training_service.py::TestTrainingDurationEstimate::test_training_duration_estimate_creation PASSED [ 83%]
+tests/test_student_training_service.py::TestTrainingDurationEstimate::test_training_duration_estimate_fields PASSED [ 83%]
+tests/test_student_training_service.py::TestTrainingOutcome::test_training_outcome_creation PASSED [ 84%]
+tests/test_student_training_service.py::TestTrainingOutcome::test_training_outcome_performance_calculation PASSED [ 85%]
+tests/test_student_training_service.py::TestStudentTrainingServiceInit::test_service_initialization PASSED [ 85%]
+tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:20:32 [    INFO] Duplicate training trigger for agent-001: returning open proposal <Mock name='mock.query().filter().order_by().first().id' id='5755691728'> (status=<Mock name='mock.query().filter().order_by().first().status' id='5755693520'>, open_session=False) instead of creating a clone
+FAILED                                                                   [ 86%]
+tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_agent_not_found PASSED [ 86%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_success FAILED [ 87%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_with_modifications FAILED [ 87%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_proposal_not_found FAILED [ 88%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_invalid_status FAILED [ 88%]
+tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_promotes_to_intern FAILED [ 89%]
+tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_confidence_boost FAILED [ 90%]
+tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_session_not_found PASSED [ 90%]
+tests/test_student_training_service.py::TestTrainingDurationEstimation::test_estimate_training_duration_success PASSED [ 91%]
+tests/test_student_training_service.py::TestTrainingDurationEstimation::test_estimate_training_duration_agent_not_found PASSED [ 91%]
+tests/test_student_training_service.py::TestTrainingHistory::test_get_training_history_success PASSED [ 92%]
+tests/test_student_training_service.py::TestTrainingHistory::test_get_training_history_empty PASSED [ 92%]
+tests/test_caller_transaction_ownership.py::test_outer_flushed_work_survives_savepoint_end[commit] PASSED [ 93%]
+tests/test_caller_transaction_ownership.py::test_outer_flushed_work_survives_savepoint_end[rollback] PASSED [ 93%]
+tests/test_caller_transaction_ownership.py::test_outer_flushed_work_survives_savepoint_end[close] PASSED [ 94%]
+tests/test_caller_transaction_ownership.py::test_inner_only_work_tracks_commit_or_discard[commit] PASSED [ 95%]
+tests/test_caller_transaction_ownership.py::test_inner_only_work_tracks_commit_or_discard[rollback] PASSED [ 95%]
+tests/test_caller_transaction_ownership.py::test_inner_only_work_tracks_commit_or_discard[close] PASSED [ 96%]
+tests/test_caller_transaction_ownership.py::test_nested_child_release_cannot_escape_parent_rollback[commit] PASSED [ 96%]
+tests/test_caller_transaction_ownership.py::test_nested_child_release_cannot_escape_parent_rollback[rollback] PASSED [ 97%]
+tests/test_caller_transaction_ownership.py::test_nested_child_release_cannot_escape_parent_rollback[close] PASSED [ 97%]
+tests/test_caller_transaction_ownership.py::test_clean_savepoint_and_new_transaction_have_no_pending_writes PASSED [ 98%]
+tests/test_caller_transaction_ownership.py::test_begin_nested_implicit_flush_keeps_outer_caller_ownership PASSED [ 98%]
+tests/test_caller_transaction_ownership.py::test_session_commit_with_open_savepoint_clears_finished_outer_work PASSED [ 99%]
+tests/test_caller_transaction_ownership.py::test_session_close_with_open_savepoint_rolls_back_caller_work PASSED [100%]
+
+=================================== FAILURES ===================================
+______ TestTrainingProposalCreation.test_create_training_proposal_success ______
+tests/test_student_training_service.py:197: in test_create_training_proposal_success
+    assert proposal.agent_id == "agent-001"
+E   AssertionError: assert <Mock name='mock.query().filter().order_by().first().agent_id' id='5755688592'> == 'agent-001'
+E    +  where <Mock name='mock.query().filter().order_by().first().agent_id' id='5755688592'> = <Mock name='mock.query().filter().order_by().first()' id='5755698320'>.agent_id
+------------------------------ Captured log call -------------------------------
+INFO     core.student_training_service:student_training_service.py:468 Duplicate training trigger for agent-001: returning open proposal <Mock name='mock.query().filter().order_by().first().id' id='5755691728'> (status=<Mock name='mock.query().filter().order_by().first().status' id='5755693520'>, open_session=False) instead of creating a clone
+__________ TestTrainingSessionLifecycle.test_approve_training_success __________
+tests/test_student_training_service.py:259: in test_approve_training_success
+    session = await service.approve_training(
+core/student_training_service.py:674: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:340: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:234: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:229: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+____ TestTrainingSessionLifecycle.test_approve_training_with_modifications _____
+tests/test_student_training_service.py:287: in test_approve_training_with_modifications
+    session = await service.approve_training(
+core/student_training_service.py:674: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:340: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:234: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:229: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+____ TestTrainingSessionLifecycle.test_approve_training_proposal_not_found _____
+tests/test_student_training_service.py:304: in test_approve_training_proposal_not_found
+    await service.approve_training(
+core/student_training_service.py:674: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:340: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:234: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:229: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+
+During handling of the above exception, another exception occurred:
+tests/test_student_training_service.py:303: in test_approve_training_proposal_not_found
+    with pytest.raises(ValueError, match="Proposal .* not found"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'Proposal .* not found'
+E    Input: 'The current user is not active'
+______ TestTrainingSessionLifecycle.test_approve_training_invalid_status _______
+tests/test_student_training_service.py:318: in test_approve_training_invalid_status
+    await service.approve_training(
+core/student_training_service.py:674: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:340: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:234: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:229: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+
+During handling of the above exception, another exception occurred:
+tests/test_student_training_service.py:317: in test_approve_training_invalid_status
+    with pytest.raises(ValueError, match="Proposal must be in PENDING_APPROVAL status"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'Proposal must be in PENDING_APPROVAL status'
+E    Input: 'The current user is not active'
+_______ TestTrainingCompletion.test_complete_training_promotes_to_intern _______
+tests/test_student_training_service.py:382: in test_complete_training_promotes_to_intern
+    result = await service.complete_training_session(
+core/student_training_service.py:1155: in complete_training_session
+    evidence = self.get_session_evidence(session)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:1043: in get_session_evidence
+    "success_ratio": (successes / episodes) if episodes else 0.0,
+                      ^^^^^^^^^^^^^^^^^^^^
+E   TypeError: unsupported operand type(s) for /: 'Mock' and 'Mock'
+________ TestTrainingCompletion.test_complete_training_confidence_boost ________
+tests/test_student_training_service.py:403: in test_complete_training_confidence_boost
+    result = await service.complete_training_session(
+core/student_training_service.py:1155: in complete_training_session
+    evidence = self.get_session_evidence(session)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:1043: in get_session_evidence
+    "success_ratio": (successes / episodes) if episodes else 0.0,
+                      ^^^^^^^^^^^^^^^^^^^^
+E   TypeError: unsupported operand type(s) for /: 'Mock' and 'Mock'
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+api/episode_routes.py:417
+  <scratch>:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+../../root-py311-plugins/pytest_freezegun.py:17: 362 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_two_way_learning
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:589: RuntimeWarning: coroutine 'EpisodeSegmentationService.create_supervision_episode' was never awaited
+    self._mock_side_effect = value
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_two_way_learning
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:589: RuntimeWarning: coroutine 'SupervisionService._process_supervision_feedback' was never awaited
+    self._mock_side_effect = value
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_success
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_success
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_with_modifications
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_proposal_not_found
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_invalid_status
+FAILED tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_promotes_to_intern
+FAILED tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_confidence_boost
+=========================== warnings summary (final) ===========================
+../../../../usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ast.py:50
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ast.py:50: RuntimeWarning: coroutine 'EpisodeSegmentationService.create_supervision_episode' was never awaited
+    return compile(source, filename, mode, flags,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ast.py:50
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ast.py:50: RuntimeWarning: coroutine 'SupervisionService._process_supervision_feedback' was never awaited
+    return compile(source, filename, mode, flags,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 7 failed, 174 passed, 372 warnings in 52.82s =================

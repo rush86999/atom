@@ -1,0 +1,85 @@
+{
+  "schema": "atom-pr831-workflow-repair-verification-1",
+  "status": "PR831 HITL resume regression repaired on isolated b071 worktree; five hosted workflow failures pass, graduation positives adapted to real qualification; submitted for independent review",
+  "candidate": {
+    "branch": "codex/web-pr831-workflow-consumer-repair-20261110",
+    "base": "b071c8702cb1c0aed0ad70bb90a12cb343278c44",
+    "executed_source": "8ec58cf3f",
+    "root_pr831_worktree_edited": false,
+    "runtime": "real scratch SQLite + FastAPI routes + scratch JWT; no live DB/model/provider/credential/spend/send/download/deployment"
+  },
+  "confirmed_finding": {
+    "hosted_backend_core": "5 failed, 1032 passed, 1 skipped on b071c8702",
+    "failures": [
+      "test_public_workflow_approval_is_visible_decidable_and_resumes_once",
+      "test_scheduled_real_workflow_approval_join",
+      "test_public_workflow_rejection_leaves_zero_effect",
+      "test_changed_material_after_review_does_not_execute",
+      "test_scheduled_approval_join_survives_a_separate_process_restart"
+    ],
+    "symptom": "decision returned 200 but resume raised _GeneratorContextManager ... no attribute close; workflow stayed PAUSED with Maturity check failed. Required: supervised"
+  },
+  "root_cause": {
+    "file": "backend/core/hitl_resume.py",
+    "function": "_load_action",
+    "regression": "PR831 replaced 'with get_db_session() as db' with a bare get_db_session() assignment; the generator context manager is not a Session, so query() failed and the finally block masked it as close()",
+    "fix": "enter get_db_session() as a context manager; close the bind-scoped Session with closing(sessionmaker(bind=bind)())"
+  },
+  "contract_preserved": {
+    "maturity": "workflow governance still requires SUPERVISED for the paused action; no threshold lowered",
+    "review_binding": "durable HITL row is re-read; changed material does not authorize the new payload and creates a fresh pending review",
+    "approval": "approved workflow resumes once and dispatches once",
+    "rejection": "rejected workflow reaches FAILED with zero outputs and zero dispatch",
+    "separate_process": "a fresh OS process starts the persisted scheduler, the real engine pauses, parent decides/resumes, and a second fresh process does not re-fire the spent job",
+    "graduation": "production qualification gate unchanged; test positives now use the real request -> approval -> receipt path"
+  },
+  "test_only_adaptations": {
+    "hitl_resume_lambdas": "monkeypatched _load_action accepts the optional bind kwarg added by PR831",
+    "graduation_positives": "seed a real scoped AgentExecution, request the real qualification review, approve it through the public approvals route, verify the receipt, then promote",
+    "negatives_retained": [
+      "missing qualification is rejected",
+      "exact tenant/workspace scope is enforced",
+      "episode floor blocks then allows after real qualification"
+    ],
+    "no_fake_receipt": true,
+    "no_broad_exemption": true,
+    "no_maturity_or_evidence_relaxation": true
+  },
+  "results": {
+    "failure_first": {"failed": 5, "passed": 4, "log": "failure-first.log"},
+    "focused_hosted_five": {"passed": 5, "log": "focused-after.log"},
+    "ci_workflow_full": {"failed": 5, "passed": 1032, "skipped": 1, "log": "ci-workflow-full.log"},
+    "ci_workflow_env_internalerror": {"log": "ci-workflow-env-internalerror.log", "reason": "freeze_time plugin not registered"},
+    "ci_quickstart_after": {"passed": 5, "log": "ci-quickstart-after.log"},
+    "ci_graduation_after": {"passed": 138, "log": "ci-graduation-after.log"},
+    "ci_qualification_after": {"passed": 94, "log": "ci-qualification-after.log"},
+    "graduation_readiness_after": {"passed": 16, "log": "graduation-readiness-after.log"},
+    "hitl_resume_after": {"passed": 10, "log": "hitl-resume-after.log"},
+    "affected_after": {"passed": 146, "log": "affected-after.log"}
+  },
+  "quickstart_environment_seam": {
+    "cause": "tracked scripts/quickstart.sh absent from the own sparse worktree",
+    "materialized_with": "git sparse-checkout add scripts/quickstart.sh",
+    "root_worktree_edited": false,
+    "runtime_changed": false,
+    "exact_five_pass": true,
+    "union_proof": "1032 unchanged passes from the full selection + five workflow failures fixed before that run + five quickstart controls now pass"
+  },
+  "checks": {
+    "hosted_five_fixed": true,
+    "separate_os_process_boundary_covered": true,
+    "changed_material_new_pending_review": true,
+    "rejection_zero_effect": true,
+    "approval_resumes_once": true,
+    "graduation_gate_not_relaxed": true,
+    "no_fake_passed_receipt": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_new_dependency_script_table_migration_or_testconfig": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "no merge or self-acceptance; root review remains independent",
+    "full CI workflow selection not rerun after the test-only graduation adaptation because that file is outside the line-185 selection; union proof is disclosed"
+  ]
+}
