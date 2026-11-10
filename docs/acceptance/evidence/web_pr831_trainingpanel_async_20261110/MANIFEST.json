@@ -1,0 +1,66 @@
+{
+  "schema": "atom-pr831-trainingpanel-async-1",
+  "status": "PASS test-only CI unblock; no product change",
+  "product_source": "346b9a6c5a230812ed8ab08ac814483e8cf9b1f9",
+  "base_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "pr_merge_commit": "0267d57233110cf03f8bdfeae89c86d9c917d387",
+  "changed_file": "frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx",
+  "test_file_before_sha256": "25186c86008db9b9518087ba090845494ad75d7ecc2985b844bb4987e4a8f2ab",
+  "test_file_after_sha256": "5083fc7c25815f40e3f09ccc5963f971f0ea34d65bc00d8aa3a1f114042f1a4d",
+  "component_changed": false,
+  "component_sha256": "f72b9aac6160a112c5ece154f2eecc81b146e9d462f919c6f0173dcbb8260869",
+  "ci_selection": [
+    "lib/__tests__/api/maturity-api.test.ts",
+    "tests/pages/approvals-page.test.tsx",
+    "components/canvas/__tests__/TrainingPanel.test.tsx",
+    "lib/__tests__/api-interceptors.test.ts",
+    "components/Agents/__tests__/AgentMaturityGuide.test.tsx",
+    "components/Agents/__tests__/SelfDirectedPathwayCard.test.tsx"
+  ],
+  "before": {
+    "result": "2 failed / 135 passed / 137 total",
+    "failed_cases": [
+      "TrainingPanel \u203a an unconfirmed promotion shows the next action without a graduation notice",
+      "Qualification assessment UI \u203a request uses only the selected task/output bundle"
+    ],
+    "root_log_sha256": "029fc02cbfa1736e8ac29ff1a253d3ac8aa7739e785f6ad22e37fcc6a56c8a87",
+    "excerpt": "before-failure-excerpt.log"
+  },
+  "after": {
+    "trainingpanel": "33 passed",
+    "six_file_ci_selection": "137 passed",
+    "trainingpanel_repeats": [
+      "33 passed",
+      "33 passed",
+      "33 passed"
+    ],
+    "tsc": "exit 0 (--noEmit --skipLibCheck)"
+  },
+  "deferred_controls": [
+    "unconfirmed promotion: initial unknown disabled, no dispatch, then resolved valid one click, rejection next action and no graduation notice",
+    "selected bundle: initial picker shell has zero checkboxes/disabled request, no dispatch, then two checkboxes and one selected-bundle request",
+    "failed/stale twins: initial unknown no dispatch, then resolved label and blocked controls",
+    "session completion waits for enabled control"
+  ],
+  "no_skips_xfails_or_assertion_weakening": true,
+  "artifacts": {
+    "README.md": "1481e3467411ee9684568df938168aa16f8d8d0ecbab9d730f025b0055b8c834",
+    "after-sixfile-137.log": "f19066a2f514d0b0bc424a55cd5b90db72cbc66b73e2554c00242f17fbde67af",
+    "after-trainingpanel-33.log": "e2fdc14ca409d6759e515ae6e49b38f52ef9fcf0a856f19401040139a0cb1b87",
+    "after-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "before-failure-excerpt.log": "e56211db827e6f669204f1a503179f2c0c8e7457f26f12cd1b7aaf52b0a99697",
+    "before-failure-summary.json": "5dc549286a850716f0b9836358c6ce7419473d9c8de8d0f8a5d57ffe560d9cf5",
+    "repeat-1.log": "a638bfd2e1b0f1dbe2d112d7498ae7bf6de622ef42ee7f580bb788fc15be0498",
+    "repeat-2.log": "4746cc2e3f3ed6d7afbc7b30f44f65951fabe2b34a175b14333e724416bffa8e",
+    "repeat-3.log": "75b099df1761574ebc34ff3ec52c9db5b011f5980cecde1d5b01bf77b45f4196",
+    "source-identity.json": "07d5afb416cdfbe3c9aae74eef8cada02c83e1771e7ed71aaabd27c48c9c901c",
+    "test-only-diff.patch": "c8d539aea4eb35a301eebe2b72dbf7cdd6522e67a27c83b37cee7b9d74f1162c",
+    "verification.json": "2c411bd10d5e56fc1f33570929027a6a9cc2933402c776f1888ddb1fe9840d98"
+  },
+  "exclusions": [
+    "no product component change",
+    "no backend/model/provider/browser campaign",
+    "no live DB/install/PR edit/merge",
+    "no full-goal or whole-app acceptance claim"
+  ]
+}

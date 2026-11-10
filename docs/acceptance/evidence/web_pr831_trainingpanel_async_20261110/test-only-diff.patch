@@ -1,0 +1,180 @@
+diff --git a/frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx b/frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx
+index beffeb66b..099658245 100644
+--- a/frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx
++++ b/frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx
+@@ -305,6 +305,9 @@ describe('TrainingPanel', () => {
+     });
+     render(<TrainingPanel canvasId="cv-1" />);
+     await waitFor(() => screen.getByTestId('complete-session-button'));
++    await waitFor(() =>
++      expect(screen.getByTestId('complete-session-button')).not.toBeDisabled()
++    );
+ 
+     fireEvent.change(screen.getByTestId('complete-feedback-input'), {
+       target: { value: 'Solid supervised pass' },
+@@ -362,6 +365,9 @@ describe('TrainingPanel', () => {
+     await waitFor(() => screen.getByTestId('promote-agent-button'));
+ 
+     expect(await screen.findByTestId('readiness-score')).toHaveTextContent('41/100');
++    await waitFor(() =>
++      expect(screen.getByTestId('promote-agent-button')).not.toBeDisabled()
++    );
+     fireEvent.click(screen.getByTestId('promote-agent-button'));
+ 
+     await waitFor(() =>
+@@ -374,11 +380,34 @@ describe('TrainingPanel', () => {
+ 
+   test('an unconfirmed promotion shows the next action without a graduation notice', async () => {
+     jest.spyOn(window, 'confirm').mockReturnValue(true);
++    let resolveReadiness: (value: unknown) => void = () => {};
++    mockApi.getGraduationReadiness.mockReturnValue(new Promise((resolve) => {
++      resolveReadiness = resolve;
++    }));
+     mockApi.promoteAgent.mockRejectedValue(new Error(
+       'Promotion could not be confirmed. Refresh the agent status; do not repeat the request.'
+     ));
+     render(<TrainingPanel canvasId="cv-1" />);
+-    fireEvent.click(await screen.findByTestId('promote-agent-button'));
++
++    // Initial unknown readiness is not an actionable promotion.
++    const initialButton = await screen.findByTestId('promote-agent-button');
++    expect(initialButton).toBeDisabled();
++    fireEvent.click(initialButton);
++    expect(mockApi.promoteAgent).not.toHaveBeenCalled();
++
++    await act(async () => {
++      resolveReadiness({
++        ready: false,
++        score: 41,
++        gaps: ['needs more clean runs'],
++        recommendation: 'Keep training',
++        assessment: { allowed: true, required: true, state: 'valid' },
++      });
++    });
++    await waitFor(() =>
++      expect(screen.getByTestId('promote-agent-button')).not.toBeDisabled()
++    );
++    fireEvent.click(screen.getByTestId('promote-agent-button'));
+     await waitFor(() => expect(screen.getByText(/Promotion could not be confirmed/)).toBeInTheDocument());
+     expect(screen.queryByText(/graduated to INTERN/)).not.toBeInTheDocument();
+     expect(mockApi.promoteAgent).toHaveBeenCalledTimes(1);
+@@ -688,14 +717,30 @@ describe('Qualification assessment UI', () => {
+     expect(screen.getByTestId('promote-agent-button')).toBeDisabled();
+   });
+ 
+-  it.each(['unresolved_failed', 'unresolved_stale'])(
++  it.each([
++    ['unresolved_failed', 'Review did not pass'],
++    ['unresolved_stale', 'Review needs refresh'],
++  ])(
+     '%s offers the explicit review action and stays blocked',
+-    async (state) => {
+-      mockApi.getGraduationReadiness.mockResolvedValue(readiness({
+-        assessment: assessment({ state }),
++    async (state, label) => {
++      let resolveReadiness: (value: unknown) => void = () => {};
++      mockApi.getGraduationReadiness.mockReturnValue(new Promise((resolve) => {
++        resolveReadiness = resolve;
+       }));
+       render(<TrainingPanel canvasId="cv-1" />);
+-      expect(await screen.findByTestId('request-qualification-review')).toBeInTheDocument();
++
++      // Unknown-first must not offer a dispatchable review action.
++      const initialRequest = await screen.findByTestId('request-qualification-review');
++      expect(initialRequest).toBeDisabled();
++      fireEvent.click(initialRequest);
++      expect(mockApi.requestQualificationReview).not.toHaveBeenCalled();
++
++      await act(async () => {
++        resolveReadiness(readiness({ assessment: assessment({ state }) }));
++      });
++      await waitFor(() =>
++        expect(screen.getByTestId('qualification-state')).toHaveTextContent(label)
++      );
+       expect(screen.getByTestId('request-qualification-review')).toBeDisabled();
+       expect(screen.getByTestId('promote-agent-button')).toBeDisabled();
+     },
+@@ -733,37 +778,56 @@ describe('Qualification assessment UI', () => {
+   });
+ 
+   it('request uses only the selected task/output bundle', async () => {
+-    mockApi.getGraduationReadiness.mockResolvedValue(readiness({
+-      assessment_evidence: [
+-        {
+-          bundle_id: 'bundle:1',
+-          episode_id: 'ep-1',
+-          task_preview: 'Review invoice 1',
+-          output_preview: 'Decision: approve',
+-          evidence_refs: [
+-            { kind: 'agent_episode', id: 'ep-1' },
+-            { kind: 'agent_execution', id: 'exec-1' },
+-          ],
+-          source_revision: 'src-1',
+-        },
+-        {
+-          bundle_id: 'bundle:2',
+-          episode_id: 'ep-2',
+-          task_preview: 'Review invoice 2',
+-          output_preview: 'Decision: deny',
+-          evidence_refs: [
+-            { kind: 'agent_episode', id: 'ep-2' },
+-            { kind: 'agent_execution', id: 'exec-2' },
+-          ],
+-          source_revision: 'src-2',
+-        },
+-      ],
++    let resolveReadiness: (value: unknown) => void = () => {};
++    mockApi.getGraduationReadiness.mockReturnValue(new Promise((resolve) => {
++      resolveReadiness = resolve;
+     }));
+     mockApi.requestQualificationReview.mockResolvedValue({ action_id: 'review-1' });
+     render(<TrainingPanel canvasId="cv-1" />);
+-    const picker = await screen.findByTestId('qualification-evidence-picker');
++
++    // The picker shell appears while readiness is still in flight, but it has
++    // no evidence controls and no dispatchable request until the bundle loads.
++    const initialPicker = await screen.findByTestId('qualification-evidence-picker');
++    expect(within(initialPicker).queryAllByRole('checkbox')).toHaveLength(0);
++    const initialRequest = screen.getByTestId('request-qualification-review');
++    expect(initialRequest).toBeDisabled();
++    fireEvent.click(initialRequest);
++    expect(mockApi.requestQualificationReview).not.toHaveBeenCalled();
++
++    await act(async () => {
++      resolveReadiness(readiness({
++        assessment_evidence: [
++          {
++            bundle_id: 'bundle:1',
++            episode_id: 'ep-1',
++            task_preview: 'Review invoice 1',
++            output_preview: 'Decision: approve',
++            evidence_refs: [
++              { kind: 'agent_episode', id: 'ep-1' },
++              { kind: 'agent_execution', id: 'exec-1' },
++            ],
++            source_revision: 'src-1',
++          },
++          {
++            bundle_id: 'bundle:2',
++            episode_id: 'ep-2',
++            task_preview: 'Review invoice 2',
++            output_preview: 'Decision: deny',
++            evidence_refs: [
++              { kind: 'agent_episode', id: 'ep-2' },
++              { kind: 'agent_execution', id: 'exec-2' },
++            ],
++            source_revision: 'src-2',
++          },
++        ],
++      }));
++    });
++    await waitFor(() => {
++      const picker = screen.getByTestId('qualification-evidence-picker');
++      expect(within(picker).getAllByRole('checkbox')).toHaveLength(2);
++    });
++    const picker = screen.getByTestId('qualification-evidence-picker');
+     const checkboxes = within(picker).getAllByRole('checkbox');
+-    expect(checkboxes).toHaveLength(2);
+     fireEvent.click(checkboxes[0]);
+     const request = screen.getByTestId('request-qualification-review');
+     await waitFor(() => expect(request).not.toBeDisabled());
