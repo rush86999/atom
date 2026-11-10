@@ -9,7 +9,7 @@
     "backend/core/hitl_resume.py": "cde538bc2160a3148b9ace1727e11dcac5ea7b1cd107bd3b2c68ec40085db811",
     "backend/tests/test_hitl_resume.py": "550e4c5b04d49d89838ba727363dd3f44927b169a99cb107ab2320403c9ae5a9",
     "backend/tests/test_graduation_readiness_tenant_scoping.py": "31619e13ae278f2c31556dff4eada81c328969e061fe87348e6cb14af7391a07",
-    "COORDINATION.md": "0fed434128b97e3f062c5cf0a6a40f4db41c5a5424361fb2c103182ce427c18f",
+    "COORDINATION.md": "35a61cd1954aa9c4341733698c64baf890c8800be2f4280f3ca5a49ba1a87db8",
     "backend/core/workflow_engine.py": "510242d909525c38bf0e6a8710898c28cf7c98ad26928f8ea1b43774886f7d11",
     "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
     "backend/api/episode_routes.py": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
@@ -54,5 +54,8 @@
     "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
     "no merge or self-acceptance; root review remains independent",
     "full CI workflow selection not rerun after the test-only graduation adaptation because that file is outside the line-185 selection; union proof disclosed"
-  ]
+  ],
+  "source_file_notes": {
+    "COORDINATION.md": "Hash is the executed-source 8ec58cf3f blob. The evidence successor commit updates the coordination session status line, so the evidence-tree bytes differ; this is a coordination note, not product code."
+  }
 }
