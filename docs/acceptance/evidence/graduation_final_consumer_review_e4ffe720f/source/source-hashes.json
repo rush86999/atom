@@ -1,0 +1,70 @@
+{
+  "broader_run": {
+    "capture_head": "e4ffe720f14d2fdf2b77147c6fc1dfbf1627fcdc",
+    "same_source": true,
+    "source_after": {
+      ".github/workflows/ci.yml": "fd108471851a6d0449449e718188625fed5dae41bb4fb281c448dd4d569d6ba2",
+      "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5",
+      "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+      "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+      "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+      "backend/tests/fixtures/ci_backend_additions.json": "72257f8dbbc9b52494e55e50fc091214e84cbd12b47981b21a68d397e20b9760",
+      "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940"
+    },
+    "source_before": {
+      ".github/workflows/ci.yml": "fd108471851a6d0449449e718188625fed5dae41bb4fb281c448dd4d569d6ba2",
+      "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5",
+      "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+      "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+      "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+      "backend/tests/fixtures/ci_backend_additions.json": "72257f8dbbc9b52494e55e50fc091214e84cbd12b47981b21a68d397e20b9760",
+      "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940"
+    }
+  },
+  "current_hashes": {
+    ".github/workflows/ci.yml": "fd108471851a6d0449449e718188625fed5dae41bb4fb281c448dd4d569d6ba2",
+    "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/tests/fixtures/ci_backend_additions.json": "72257f8dbbc9b52494e55e50fc091214e84cbd12b47981b21a68d397e20b9760",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/tests/test_agent_decision_contract.py": "7bbff6b3b1b30facb5335b87178d863f32d42c7a811fcdc43ffa56d2657f54d0",
+    "backend/tests/test_caller_transaction_ownership.py": "204bd368cc4e540b209ab4406781cf5c81b9c058ff4a510bc2154cd3b69cd1cb",
+    "backend/tests/test_graduation_exam.py": "e80492d6aaaa24f020dec5edd6a241640e3aa377026873f9379e6aa5e1310d61"
+  },
+  "current_vs_121_source_after": {
+    "all_same": true,
+    "files": {
+      ".github/workflows/ci.yml": true,
+      "backend/core/agent_decision_write_service.py": true,
+      "backend/core/agent_graduation_service.py": true,
+      "backend/core/database.py": true,
+      "backend/core/promotion_policy_service.py": true,
+      "backend/tests/fixtures/ci_backend_additions.json": true,
+      "backend/tests/fixtures/ci_backend_before_parallel.json": true,
+      "backend/tests/test_agent_decision_contract.py": true,
+      "backend/tests/test_caller_transaction_ownership.py": true,
+      "backend/tests/test_graduation_exam.py": true
+    }
+  },
+  "final_121_proof": {
+    "actual_exit": 0,
+    "capture_head": "f8155821f2142a49e1c0cdd61bcc32976297341b",
+    "rerun": false,
+    "same_source": true,
+    "source_after": {
+      ".github/workflows/ci.yml": "fd108471851a6d0449449e718188625fed5dae41bb4fb281c448dd4d569d6ba2",
+      "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5",
+      "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+      "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+      "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+      "backend/tests/fixtures/ci_backend_additions.json": "72257f8dbbc9b52494e55e50fc091214e84cbd12b47981b21a68d397e20b9760",
+      "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+      "backend/tests/test_agent_decision_contract.py": "7bbff6b3b1b30facb5335b87178d863f32d42c7a811fcdc43ffa56d2657f54d0",
+      "backend/tests/test_caller_transaction_ownership.py": "204bd368cc4e540b209ab4406781cf5c81b9c058ff4a510bc2154cd3b69cd1cb",
+      "backend/tests/test_graduation_exam.py": "e80492d6aaaa24f020dec5edd6a241640e3aa377026873f9379e6aa5e1310d61"
+    }
+  },
+  "reviewed_head": "e4ffe720f14d2fdf2b77147c6fc1dfbf1627fcdc"
+}
