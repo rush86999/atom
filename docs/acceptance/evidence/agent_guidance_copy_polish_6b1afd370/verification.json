@@ -1,0 +1,54 @@
+{
+  "schema": "atom-agent-guidance-copy-verification-2",
+  "status": "copy follow-up uses plain review language, preserves recorded owner exceptions, and places copy/profile/tier regressions in the existing frontend CI step; frozen for independent review",
+  "candidate": {
+    "branch": "codex/agent-copy-guidance-20261110",
+    "base_current_main": "914b9470d254293369475cd9f0fecdbf76acd650",
+    "executed_source": "6b1afd370fb6cb9ccd097378128e16b68980ed6a",
+    "prior_copy_source": "1afb29abd / 534e33ec6",
+    "ui_branch_mutated": false
+  },
+  "requested_polish": {
+    "plain_language": "review of the employee's actual work for the role",
+    "owner_exceptions": "normal promotion needs readiness plus review; allowed owner exception is recorded with its reason; domain selectors do not create exemptions",
+    "ci": "three copy/profile/tier test files added to the existing Agents release-surface frontend step",
+    "runtime_policy_changed": false
+  },
+  "controls": {
+    "plain_review_language": true,
+    "owner_exception_recorded_with_reason": true,
+    "no_domain_selector_exemption_promise": true,
+    "no_automatic_graduation_claim": true,
+    "no_all_action_approval_claim": true,
+    "no_score_only_promotion": true,
+    "no_server_secret_env_names": true,
+    "core_connectors_explicitly_deferred": true,
+    "full_profile_connectors_keep_setup": true,
+    "existing_frontend_step_extended": true,
+    "no_new_ci_job_or_check_name": true,
+    "prior_frontend_steps_preserved": true,
+    "pr838_receipt_checks_not_dropped": true,
+    "no_runtime_policy_change": true,
+    "no_browser_or_graduation_campaign_rerun": true,
+    "no_live_db_model_provider_credential_send_spend": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "results": {
+    "focused_copy_profile_tier_agents_page": {
+      "passed": 54,
+      "log": "focused-at-6b1afd370.log"
+    },
+    "tsc": {
+      "errors": 0,
+      "log": "tsc-at-6b1afd370.log"
+    },
+    "yaml_parse": "valid",
+    "diff_check": "clean"
+  },
+  "boundaries": [
+    "frontend copy/tests and one existing CI step only",
+    "no maturity/authority/action-policy/connector runtime change",
+    "frozen UI branch and PR838 receipt tests untouched",
+    "root owns integration/final review; no merge"
+  ]
+}
