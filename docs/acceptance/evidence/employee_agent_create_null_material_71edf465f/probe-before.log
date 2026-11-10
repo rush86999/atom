@@ -1,0 +1,38 @@
+FFFF..                                                                   [100%]
+=================================== FAILURES ===================================
+________ test_null_to_empty_request_is_changed_material[configuration] _________
+../../root-agent-create-null-identity-probe-20261110.py:16: in test_null_to_empty_request_is_changed_material
+    assert replay.status_code==409,replay.text
+E   AssertionError: {"success":true,"data":{"agent_id":"cfcf5a00-9635-5e27-8e15-ad6d3c82050b","agent_status":"student","agent_name":"Null exact material","category":"operations","tenant_id":"company","workspace_id":"ws-a","verification":{"status":"already_applied","effect":"committed","audit_id":"agent:create:null-material-configuration","replay":"do_not_repeat"},"operation_id":"agent:create:null-material-configuration","audit_id":"agent:create:null-material-configuration"},"timestamp":"2026-11-10T15:29:51.820379+00:00","message":"Custom agent Null exact material created successfully"}
+E   assert 201 == 409
+E    +  where 201 = <Response [201 Created]>.status_code
+_______ test_null_to_empty_request_is_changed_material[schedule_config] ________
+../../root-agent-create-null-identity-probe-20261110.py:16: in test_null_to_empty_request_is_changed_material
+    assert replay.status_code==409,replay.text
+E   AssertionError: {"success":true,"data":{"agent_id":"23dd53ea-bb61-5917-bc85-dfc56e086e3c","agent_status":"student","agent_name":"Null exact material","category":"operations","tenant_id":"company","workspace_id":"ws-a","verification":{"status":"already_applied","effect":"committed","audit_id":"agent:create:null-material-schedule_config","replay":"do_not_repeat"},"operation_id":"agent:create:null-material-schedule_config","audit_id":"agent:create:null-material-schedule_config"},"timestamp":"2026-11-10T15:29:52.546756+00:00","message":"Custom agent Null exact material created successfully"}
+E   assert 201 == 409
+E    +  where 201 = <Response [201 Created]>.status_code
+______ test_stored_null_to_empty_refutes_original_receipt[configuration] _______
+../../root-agent-create-null-identity-probe-20261110.py:28: in test_stored_null_to_empty_refutes_original_receipt
+    assert replay.status_code==503,replay.text
+E   AssertionError: {"success":true,"data":{"agent_id":"0126ffbe-90b9-53d1-b55a-8cd732555fcc","agent_status":"student","agent_name":"Stored null exact material","category":"operations","tenant_id":"company","workspace_id":"ws-a","verification":{"status":"already_applied","effect":"committed","audit_id":"agent:create:stored-null-configuration","replay":"do_not_repeat"},"operation_id":"agent:create:stored-null-configuration","audit_id":"agent:create:stored-null-configuration"},"timestamp":"2026-11-10T15:29:53.487358+00:00","message":"Custom agent Stored null exact material created successfully"}
+E   assert 201 == 503
+E    +  where 201 = <Response [201 Created]>.status_code
+_____ test_stored_null_to_empty_refutes_original_receipt[schedule_config] ______
+../../root-agent-create-null-identity-probe-20261110.py:28: in test_stored_null_to_empty_refutes_original_receipt
+    assert replay.status_code==503,replay.text
+E   AssertionError: {"success":true,"data":{"agent_id":"ec7d9ac6-4c53-53c4-8f00-113d5f92d569","agent_status":"student","agent_name":"Stored null exact material","category":"operations","tenant_id":"company","workspace_id":"ws-a","verification":{"status":"already_applied","effect":"committed","audit_id":"agent:create:stored-null-schedule_config","replay":"do_not_repeat"},"operation_id":"agent:create:stored-null-schedule_config","audit_id":"agent:create:stored-null-schedule_config"},"timestamp":"2026-11-10T15:29:54.305315+00:00","message":"Custom agent Stored null exact material created successfully"}
+E   assert 201 == 503
+E    +  where 201 = <Response [201 Created]>.status_code
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17: 12 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-agent-create-null-identity-probe-20261110.py::test_null_to_empty_request_is_changed_material[configuration]
+FAILED ../../root-agent-create-null-identity-probe-20261110.py::test_null_to_empty_request_is_changed_material[schedule_config]
+FAILED ../../root-agent-create-null-identity-probe-20261110.py::test_stored_null_to_empty_refutes_original_receipt[configuration]
+FAILED ../../root-agent-create-null-identity-probe-20261110.py::test_stored_null_to_empty_refutes_original_receipt[schedule_config]
+4 failed, 2 passed, 12 warnings in 7.80s

@@ -1,0 +1,63 @@
+{
+  "schema": "atom-agent-create-null-material-verification-1",
+  "status": "public custom-create exact NULL/{} material preserved; changed request conflicts, post-commit mutation refutes, unchanged values replay; submitted for independent review",
+  "candidate": {
+    "branch": "codex/web-goal14-agent-create-null-repair-20261110",
+    "base": "b36bd760b1fa060e43f9468c0f47109ec84270f0",
+    "executed_source": "71edf465f",
+    "original_pr833_branch_and_evidence_untouched": true,
+    "runtime": "real scratch SQLite + FastAPI route + scratch JWT; no live DB/model/provider/credential/spend/send/download/deployment"
+  },
+  "confirmed_finding": {
+    "source": "b36bd760b",
+    "symptom": "null configuration or schedule_config and {} on the same operation id replayed 201 already_applied instead of 409",
+    "root_cause": "request digest and _create_state_material both used 'or {}', collapsing None and {}",
+    "probe_before": "4 failed, 2 passed in this environment; root retained probe showed the two changed-request failures"
+  },
+  "repair": {
+    "request_digest": "_create_config_digest(configuration) and _create_schedule_digest(schedule_config) bind the exact submitted value; None and {} differ",
+    "stored_state": "the create inserts sqlalchemy.null() for an omitted field, preserving SQL NULL instead of the column default {}",
+    "readback": "_stored_json_value maps a pre-flush Null expression and readback None to None; dict values remain exact",
+    "replay": "same request/material -> already_applied; changed request -> 409 OPERATION_CONFLICT; changed stored state -> 503 AGENT_COMMITTED_UNVERIFIED"
+  },
+  "controls": {
+    "changed_request_null_to_empty": true,
+    "changed_request_empty_to_null": true,
+    "postcommit_stored_null_to_empty_refutes": true,
+    "postcommit_stored_empty_to_null_refutes": true,
+    "unchanged_null_replays_once": true,
+    "unchanged_empty_replays_once": true,
+    "scheduler_only_first_verified_create": true,
+    "forged_body_identity_scope_tier_ignored": true,
+    "concurrent_actor_demotion_refused": true,
+    "member_forbidden": true,
+    "changed_name_conflicts": true
+  },
+  "results": {
+    "probe_before": {"failed": 4, "passed": 2, "log": "probe-before.log"},
+    "probe_after": {"passed": 6, "log": "probe-after.log"},
+    "create_controls_after": {"passed": 15, "log": "create-controls-after.log"},
+    "affected_after": {"passed": 216, "failed": 1, "log": "affected-after.log"}
+  },
+  "baseline_failure_identity": {
+    "failure": "tests/test_agent_confidence_baseline.py::TestConfidenceBaseline::test_marketplace_declared_intern_gets_score_in_band",
+    "reason": "pre-existing source-literal assertion against untouched core/agent_marketplace_service.py",
+    "candidate_added_failures": 0
+  },
+  "checks": {
+    "null_and_empty_request_distinct": true,
+    "null_and_empty_stored_state_distinct": true,
+    "postcommit_mutation_refuted": true,
+    "unchanged_values_replay": true,
+    "scheduler_no_duplicate": true,
+    "scope_and_authority_controls_unchanged": true,
+    "no_new_dependency_table_or_migration": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "no merge or self-acceptance; root review remains independent",
+    "original PR833 branch and evidence were not modified"
+  ]
+}

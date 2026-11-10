@@ -1,0 +1,212 @@
+diff --git a/backend/core/agent_decision_write_service.py b/backend/core/agent_decision_write_service.py
+index 92768df28..4da7aabb3 100644
+--- a/backend/core/agent_decision_write_service.py
++++ b/backend/core/agent_decision_write_service.py
+@@ -30,7 +30,7 @@ import uuid
+ from datetime import datetime, timezone
+ from typing import Any, Callable, Dict, Optional
+ 
+-from sqlalchemy import text, update
++from sqlalchemy import null, text, update
+ from sqlalchemy.exc import IntegrityError
+ from sqlalchemy.orm import Session
+ 
+@@ -774,6 +774,20 @@ def _create_schedule_digest(value: Any) -> str:
+     return _fingerprint("agent-schedule", _canonical(value))
+ 
+ 
++def _stored_json_value(value: Any) -> Any:
++    """Return the physical JSON material, preserving an explicit NULL.
++
++    ``create_agent`` inserts ``null()`` for a request that omitted the field
++    so NULL and ``{}`` stay distinct. Before flush the ORM attribute is a
++    SQL ``Null`` expression; after readback it is ``None``.
++    """
++    from sqlalchemy.sql.elements import Null
++
++    if value is None or isinstance(value, Null):
++        return None
++    return value
++
++
+ def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
+     return {
+         "id": str(agent.id),
+@@ -787,9 +801,9 @@ def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
+             None if agent.description is None else str(agent.description)),
+         "category": str(agent.category or ""),
+         "configuration_digest": _create_config_digest(
+-            agent.configuration or {}),
++            _stored_json_value(agent.configuration)),
+         "schedule_digest": _create_schedule_digest(
+-            agent.schedule_config or {}),
++            _stored_json_value(agent.schedule_config)),
+         "module_path": str(agent.module_path or ""),
+         "class_name": str(agent.class_name or ""),
+         "status": str(agent.status or ""),
+@@ -847,8 +861,8 @@ def create_agent(
+             field="operation_id")
+ 
+     target_id = str(uuid.uuid5(uuid.NAMESPACE_URL, operation_id))
+-    configuration_digest = _create_config_digest(configuration or {})
+-    schedule_digest = _create_schedule_digest(schedule_config or {})
++    configuration_digest = _create_config_digest(configuration)
++    schedule_digest = _create_schedule_digest(schedule_config)
+     request_material = {
+         "name": str(name or ""),
+         "category": str(category or ""),
+@@ -889,8 +903,9 @@ def create_agent(
+         name=str(name or ""),
+         description=description,
+         category=str(category or ""),
+-        configuration=configuration,
+-        schedule_config=schedule_config,
++        configuration=null() if configuration is None else configuration,
++        schedule_config=(
++            null() if schedule_config is None else schedule_config),
+         module_path="core.generic_agent",
+         class_name="GenericAgent",
+         status=AgentStatus.STUDENT.value,
+diff --git a/backend/tests/api/test_agent_create_goal14.py b/backend/tests/api/test_agent_create_goal14.py
+index e5e470ece..a322dbd50 100644
+--- a/backend/tests/api/test_agent_create_goal14.py
++++ b/backend/tests/api/test_agent_create_goal14.py
+@@ -200,3 +200,138 @@ def test_custom_create_replay_with_changed_material_conflicts(world):
+         assert db.query(func.count(AuditLog.id)).filter(
+             AuditLog.id == "agent:create:create-op-bound").scalar() == 1
+         assert db.get(AgentRegistry, agent_id).name == "Bound Create"
++
++
++@pytest.mark.parametrize("field", ["configuration", "schedule_config"])
++@pytest.mark.parametrize(
++    ("first", "changed", "label"),
++    [(None, {}, "null-to-empty"), ({}, None, "empty-to-null")],
++)
++def test_custom_create_null_empty_request_change_conflicts(
++        world, field, first, changed, label):
++    """A changed request must conflict even when it normalizes to one row.
++
++    NULL and {} are different reviewed material. The request digest binds
++    the exact submitted value, so changing only this field cannot replay the
++    original receipt.
++    """
++    client = _client(world)
++    token = _token(world, "admin")
++    operation_id = f"null-empty-request-{field}-{label}"
++    body = {
++        "name": "Exact Request",
++        "category": "operations",
++        "configuration": None,
++        "schedule_config": None,
++    }
++    body[field] = first
++    first_response = _post(client, token, body, operation_id=operation_id)
++    assert first_response.status_code == 201, first_response.text
++
++    body[field] = changed
++    replay = _post(client, token, body, operation_id=operation_id)
++    assert replay.status_code == 409, replay.text
++    assert replay.json()["detail"]["error"]["code"] == "OPERATION_CONFLICT"
++
++
++@pytest.mark.parametrize("field", ["configuration", "schedule_config"])
++@pytest.mark.parametrize(
++    ("first", "changed", "label"),
++    [(None, {}, "null-to-empty"), ({}, None, "empty-to-null")],
++)
++def test_custom_create_stored_null_empty_mutation_refutes(
++        world, field, first, changed, label):
++    """A post-commit material change refutes the original receipt.
++
++    The create stores NULL for an omitted field and {} for an explicit empty
++    object. Mutating the stored value in the other direction is a real
++    state change, so replay must return committed_unverified instead of
++    claiming the original operation is already applied.
++    """
++    client = _client(world)
++    token = _token(world, "admin")
++    operation_id = f"null-empty-stored-{field}-{label}"
++    body = {
++        "name": "Stored Exact",
++        "category": "operations",
++        "configuration": None,
++        "schedule_config": None,
++    }
++    body[field] = first
++    first_response = _post(client, token, body, operation_id=operation_id)
++    assert first_response.status_code == 201, first_response.text
++    agent_id = first_response.json()["data"]["agent_id"]
++
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, agent_id)
++        setattr(agent, field, changed)
++        db.commit()
++
++    replay = _post(client, token, body, operation_id=operation_id)
++    assert replay.status_code == 503, replay.text
++    assert replay.json()["detail"]["error"]["code"] == (
++        "AGENT_COMMITTED_UNVERIFIED")
++
++
++@pytest.mark.parametrize("value", [None, {}])
++def test_custom_create_unchanged_null_empty_replays_once(world, value):
++    """The exact same NULL or {} request replays without a second effect."""
++    client = _client(world)
++    token = _token(world, "admin")
++    operation_id = "unchanged-" + ("null" if value is None else "empty")
++    body = {
++        "name": "Unchanged Exact",
++        "category": "operations",
++        "configuration": value,
++        "schedule_config": value,
++    }
++    first_response = _post(client, token, body, operation_id=operation_id)
++    assert first_response.status_code == 201, first_response.text
++    agent_id = first_response.json()["data"]["agent_id"]
++
++    replay = _post(client, token, body, operation_id=operation_id)
++    assert replay.status_code == 201, replay.text
++    assert replay.json()["data"]["verification"]["status"] == "already_applied"
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, agent_id)
++        if value is None:
++            assert agent.configuration is None
++            assert agent.schedule_config is None
++        else:
++            assert agent.configuration == {}
++            assert agent.schedule_config == {}
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:{operation_id}").scalar() == 1
++
++
++def test_custom_create_scheduler_runs_only_on_first_verified_create(
++        world, monkeypatch):
++    client = _client(world)
++    token = _token(world, "admin")
++    calls = []
++
++    class FakeScheduler:
++        def schedule_agent(self, agent_id, schedule_config):
++            calls.append((agent_id, dict(schedule_config)))
++
++    from core.scheduler import AgentScheduler
++
++    monkeypatch.setattr(AgentScheduler, "get_instance", lambda: FakeScheduler())
++    body = {
++        "name": "Scheduled Create",
++        "category": "operations",
++        "configuration": {},
++        "schedule_config": {"active": True, "cron": "0 * * * *"},
++    }
++    operation_id = "scheduled-create"
++    first_response = _post(client, token, body, operation_id=operation_id)
++    assert first_response.status_code == 201, first_response.text
++    replay = _post(client, token, body, operation_id=operation_id)
++    assert replay.status_code == 201, replay.text
++    assert len(calls) == 1
++
++    changed = dict(body)
++    changed["schedule_config"] = {"active": True, "cron": "1 * * * *"}
++    conflict = _post(client, token, changed, operation_id=operation_id)
++    assert conflict.status_code == 409, conflict.text
++    assert len(calls) == 1
