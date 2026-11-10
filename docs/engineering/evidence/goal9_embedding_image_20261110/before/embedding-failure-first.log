@@ -1,0 +1,79 @@
+
+tests/test_goal9_embedding_attempts.py::test_embedding_dispatch_admits_and_settles_exact_attempt
+-------------------------------- live log setup --------------------------------
+2026-11-10 17:15:21 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 17:15:21 [    INFO] EscalationManager initialized
+2026-11-10 17:15:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:21 [    INFO] EscalationManager initialized
+2026-11-10 17:15:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 17:15:21 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:22 [    INFO] EscalationManager initialized
+2026-11-10 17:15:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:22 [    INFO] LocalOnlyGuard initialized
+2026-11-10 17:15:22 [    INFO] Attempting embedding with provider: openai (model: text-embedding-3-small)
+FAILED                                                                   [ 20%]
+tests/test_goal9_embedding_attempts.py::test_embedding_without_usage_keeps_unknown_liability
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:23 [    INFO] EscalationManager initialized
+2026-11-10 17:15:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:23 [    INFO] Attempting embedding with provider: openai (model: text-embedding-3-small)
+FAILED                                                                   [ 40%]
+tests/test_goal9_embedding_attempts.py::test_embedding_missing_price_refuses_before_dispatch
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:24 [    INFO] EscalationManager initialized
+2026-11-10 17:15:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:24 [    INFO] Attempting embedding with provider: openai (model: controlled-unpriced-embedding)
+FAILED                                                                   [ 60%]
+tests/test_goal9_embedding_attempts.py::test_embedding_batch_is_one_physical_attempt
+-------------------------------- live log call ---------------------------------
+2026-11-10 17:15:25 [    INFO] EscalationManager initialized
+2026-11-10 17:15:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 17:15:25 [    INFO] Attempting batch embedding with provider: openai (model: text-embedding-3-small, count: 2)
+FAILED                                                                   [ 80%]
+tests/test_goal9_embedding_attempts.py::test_embedding_provider_classes_disable_sdk_retries FAILED [100%]
+
+=================================== FAILURES ===================================
+<scratch>:76: AssertionError: []
+<scratch>:98: IndexError: list index out of range
+<scratch>:112: Failed: DID NOT RAISE <class 'Exception'>
+<scratch>:132: assert 0 == 1
+<scratch>:150: AssertionError: [{'api_key': 'scratch-key'}, {'api_key': 'scratch-key', 'base_url': 'https://api.jina.ai/v1'}]
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 10 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_goal9_embedding_attempts.py::test_embedding_dispatch_admits_and_settles_exact_attempt
+FAILED tests/test_goal9_embedding_attempts.py::test_embedding_without_usage_keeps_unknown_liability
+FAILED tests/test_goal9_embedding_attempts.py::test_embedding_missing_price_refuses_before_dispatch
+FAILED tests/test_goal9_embedding_attempts.py::test_embedding_batch_is_one_physical_attempt
+FAILED tests/test_goal9_embedding_attempts.py::test_embedding_provider_classes_disable_sdk_retries
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 failed, 15 warnings in 21.49s ========================
