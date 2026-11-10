@@ -65,23 +65,27 @@ def require_active_actor(db: Any, user_id: Optional[str]) -> Dict[str, Any]:
             status_code=int(actor.get("http_status") or 403),
             code="CANVAS_ACTOR_REFUSED",
         )
-    tenant_id = str(actor.get("tenant_id") or "").strip()
-    if not tenant_id:
-        # Never invent "default": a missing tenant scope is missing authority.
-        raise CanvasAuthorityError(
-            "Acting user has no tenant scope",
-            status_code=403,
-            code="CANVAS_ACTOR_SCOPE_MISSING",
-        )
+    # Raw actor fields stay untouched for the shared exact snapshot/claim.
+    # Personal Edition resource lookup uses the documented NULL->default
+    # fallback from the authoritative User row; never infer from target data.
     from core.models import Tenant
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 
-    if db.query(Tenant.id).filter(Tenant.id == tenant_id).first() is None:
+    user = actor.get("user")
+    effective_tenant = resolve_tenant_id(user)
+    effective_workspace = resolve_workspace_id(user)
+    if db.query(Tenant.id).filter(
+            Tenant.id == effective_tenant).first() is None:
         raise CanvasAuthorityError(
-            "Acting user's tenant is unavailable",
+            "Acting user's effective tenant is unavailable",
             status_code=403,
             code="CANVAS_ACTOR_SCOPE_MISSING",
         )
-    return actor
+    return {
+        **actor,
+        "effective_tenant_id": effective_tenant,
+        "effective_workspace_id": effective_workspace,
+    }
 
 
 def require_canvas_read(
@@ -300,11 +304,21 @@ def reserve_canvas_id(
             status_code=409,
             code="CANVAS_ID_CONFLICT",
         )
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    effective_tenant = (
+        actor.get("effective_tenant_id")
+        or resolve_tenant_id(actor.get("user"))
+    )
+    effective_workspace = (
+        actor.get("effective_workspace_id")
+        or resolve_workspace_id(actor.get("user"))
+    )
     db.add(
         Canvas(
             id=str(canvas_id),
-            tenant_id=str(actor["tenant_id"]),
-            workspace_id=actor.get("workspace_id"),
+            tenant_id=str(effective_tenant),
+            workspace_id=str(effective_workspace),
             created_by=str(actor["id"]),
             name=str(title or "Canvas"),
             canvas_type=str(canvas_type),

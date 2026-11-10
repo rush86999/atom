@@ -1059,9 +1059,15 @@ def _resolve_export_job(db: Session, canvas_id: str, actor: Dict[str, Any]):
         return {"canvas": None, "record": None, "binding": None,
                 "error": "canvas_missing"}
     factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
     runs = GoalRunService(
-        workspace_id=str(actor.get("workspace_id") or ""),
-        tenant_id=str(actor.get("tenant_id") or ""),
+        workspace_id=str(
+            actor.get("effective_workspace_id")
+            or resolve_workspace_id(actor.get("user"))),
+        tenant_id=str(
+            actor.get("effective_tenant_id")
+            or resolve_tenant_id(actor.get("user"))),
         session_factory=factory)
     lifecycle = TaskLifecycle(runs)
     goal_run_id = str(getattr(canvas, "goal_run_id", "") or "").strip()
