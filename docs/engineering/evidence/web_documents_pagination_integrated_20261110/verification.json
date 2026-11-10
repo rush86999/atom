@@ -1,0 +1,251 @@
+{
+  "status": "independently_verified_at_controlled_scope_pending_hosted_CI",
+  "base_dependency": 812,
+  "base_auth_task_head": "f7adab343a86f9bbf6b3a5ed8c624b08ee4538a8",
+  "merged_main_guidance": "63dab46b5e2a841bd6a6f34cad211fce1c587767",
+  "reviewed_product": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "capture_head": "0b0bbaa35e5c08e14946c6922cbda75b4f4716f2",
+  "source_identity": [
+    {
+      "path": "backend/api/document_routes.py",
+      "matches_reviewed_product": true
+    },
+    {
+      "path": "backend/core/lancedb_handler.py",
+      "matches_reviewed_product": true
+    },
+    {
+      "path": "backend/tests/api/test_document_library_pagination.py",
+      "matches_reviewed_product": true
+    },
+    {
+      "path": "backend/tests/core/test_lancedb_handler_bughunt2.py",
+      "matches_reviewed_product": true
+    },
+    {
+      "path": "backend/tests/test_covpush_ingestion_lancedb.py",
+      "matches_reviewed_product": true
+    },
+    {
+      "path": "backend/tests/test_covpush_w90_core_services.py",
+      "matches_reviewed_product": true
+    },
+    {
+      "path": "frontend-nextjs/pages/documents.tsx",
+      "matches_reviewed_product": true
+    },
+    {
+      "path": "frontend-nextjs/tests/pages/documents.test.tsx",
+      "matches_reviewed_product": true
+    }
+  ],
+  "historical_source_artifact_checks": [
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "backend/api/document_routes.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "backend/core/lancedb_handler.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "backend/tests/api/test_document_library_pagination.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "backend/tests/core/test_lancedb_handler_bughunt2.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "backend/tests/test_covpush_ingestion_lancedb.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "backend/tests/test_covpush_w90_core_services.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "frontend-nextjs/pages/documents.tsx",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "frontend-nextjs/tests/pages/documents.test.tsx",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "README.md",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "root_independent_original_130_results.json",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "root_independent_probe.py",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "root_independent_verification.json",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "root_proof_summary.json",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_b333221b2",
+      "path": "verification.json",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "backend/api/document_routes.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "backend/core/lancedb_handler.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "backend/tests/api/test_document_library_pagination.py",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "frontend-nextjs/pages/documents.tsx",
+      "match": true
+    },
+    {
+      "kind": "source",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "frontend-nextjs/tests/pages/documents.test.tsx",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "README.md",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "browser_harness.py",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "mechanical/cookie_parser_mechanical.py",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "mechanical/cookie_parser_mechanical_result.json",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "mechanical/harness_mechanical.py",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "mechanical/harness_mechanical_result.json",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "root_independent_review.json",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "screenshots/01-signup.png",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "screenshots/02-dashboard.png",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "screenshots/03-documents-page1.png",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "screenshots/04-documents-page2.png",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "screenshots/05-documents-reload.png",
+      "match": true
+    },
+    {
+      "kind": "artifact",
+      "packet": "web_documents_pagination_browser_0263c715",
+      "path": "verification.json",
+      "match": true
+    }
+  ],
+  "independent_checks": {
+    "backend_pagination": 13,
+    "frontend_documents": 23,
+    "original_130_document_probe": "all 130 unique in exact global order; overlap/missing zero; truthful total; foreign rows absent",
+    "browser": "85/85 from retained actual UI/HTTP/SDK/store observations, independently reevaluated; screenshot reviewed; ports closed"
+  },
+  "evidence_identity": "Captured sources remain original; cherry-pick equality verified, not relabelled as a browser rerun. Page1/reload screenshot bytes identical because same render; distinct DOM/API checkpoints prove navigation.",
+  "limits": [
+    "development main web runtime, HTTP loopback",
+    "130 rows seeded through handler; not 130 normal uploads or extraction proof",
+    "no concurrent-write snapshot guarantee",
+    "reload intentionally returns page1",
+    "earlier harness cookie-parser failure preserved, not a passing full capture",
+    "all required exact-head CI + final main dependency reconciliation before merge"
+  ]
+}
