@@ -435,6 +435,14 @@ def _state_material(
     return material
 
 
+def _promotion_state_material(agent: AgentRegistry) -> Dict[str, Any]:
+    """One result snapshot for promotion commit and exact-operation replay."""
+    material = _state_material(agent)
+    material["last_exam_id"] = agent.last_exam_id
+    material["promotion_count"] = int(getattr(agent, "promotion_count", 0) or 0)
+    return material
+
+
 def _state_digest(material: Dict[str, Any]) -> str:
     return _fingerprint("agent-state", _canonical(material))
 
@@ -696,7 +704,10 @@ def _replay(
                     db, str(metadata.get("target_id") or ""))
                 target_ok = (
                     current is not None
-                    and _state_digest(_state_material(current))
+                    and _state_digest(
+                        _promotion_state_material(current)
+                        if audit_expected["action"] == _ACTION_PROMOTE
+                        else _state_material(current))
                     == audit_expected["result_digest"]
                 )
                 data = (
@@ -954,15 +965,8 @@ def promote_agent(
     )
     new_promotion_count = int(getattr(agent, "promotion_count", 0) or 0) + 1
 
-    def _promote_material(current: AgentRegistry) -> Dict[str, Any]:
-        material = _state_material(current)
-        material["last_exam_id"] = current.last_exam_id
-        material["promotion_count"] = int(
-            getattr(current, "promotion_count", 0) or 0)
-        return material
-
     result_status = AgentStatus.AUTONOMOUS.value
-    prior_material = _promote_material(agent)
+    prior_material = _promotion_state_material(agent)
     result_material = _state_material(agent, status=result_status)
     result_material["last_exam_id"] = receipt_id
     result_material["promotion_count"] = new_promotion_count
@@ -1037,7 +1041,7 @@ def promote_agent(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: (
             (now := _load_agent(db, agent_id)) is not None
-            and _state_digest(_promote_material(now))
+            and _state_digest(_promotion_state_material(now))
             == expected["result_digest"]),
         success_data={
             "agent_status": result_status,
