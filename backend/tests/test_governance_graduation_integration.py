@@ -187,7 +187,10 @@ class TestConductExamGovernanceWiring:
     """conduct_exam must consult the governance manager: policy DENY fails
     the exam; STRATEGIC pass withholds the promotion."""
 
-    def _run_conduct_exam(self, target_level, readiness_overrides=None, current_level="supervised"):
+    def _run_conduct_exam(
+        self, target_level, readiness_overrides=None, current_level="supervised",
+        agent_id="agent-1",
+    ):
         """Drive GraduationExamService.execute_graduation_exam with every
         stage mocked to PASS, so only the governance gate decides the
         outcome."""
@@ -205,12 +208,15 @@ class TestConductExamGovernanceWiring:
             failure_reason=None, metadata_json=None,
         )
         agent = SimpleNamespace(
+            id=agent_id,
             status=current_level, promotion_count=0, last_promotion_at=None,
             last_exam_id=None, exam_eligible_at=None,
         )
 
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = agent
+        # Qualification gate's pending-review query returns no rows.
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         service = GraduationExamService(db)
 
         with patch.object(service, "_run_edge_case_simulations", return_value={"all_passed": True}), \
@@ -221,7 +227,7 @@ class TestConductExamGovernanceWiring:
              patch("core.graduation_exam.GraduationExam", return_value=exam_row):
             episode_svc.return_value.get_graduation_readiness.return_value = readiness
             result = service.execute_graduation_exam(
-                agent_id="agent-1",
+                agent_id=agent_id,
                 tenant_id="t-1",
                 promoted_by="supervisor-1",
                 target_level=target_level,
@@ -240,6 +246,7 @@ class TestConductExamGovernanceWiring:
         result, agent, _ = self._run_conduct_exam(
             "supervised",
             current_level="intern",
+            agent_id="agent-unqualified",
             readiness_overrides=dict(
                 readiness_score=0.85, zero_intervention_ratio=0.7,
                 avg_constitutional_score=0.9, avg_confidence_score=0.75,
