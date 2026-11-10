@@ -81,6 +81,7 @@ export interface AgentMaturityGuide {
     receipt_id?: string;
     review_action_id?: string;
     candidate_capability_qualified?: boolean;
+    exception?: { kind?: string; reason?: string } | null;
     next_action?: {
       state?: string;
       code?: string;

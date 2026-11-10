@@ -61,6 +61,7 @@ export interface QualificationAssessment {
   policy_revision?: string;
   policy_digest?: string;
   candidate_capability_qualified?: boolean;
+  exception?: { kind?: string; reason?: string } | null;
   next_action?: {
     state?: string;
     code?: string;

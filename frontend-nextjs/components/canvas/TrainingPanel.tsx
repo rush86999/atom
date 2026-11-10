@@ -1183,6 +1183,11 @@ export function TrainingPanel({
                       Receipt: {assessment.receipt_id}
                     </p>
                   )}
+                  {assessment.exception?.reason && (
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                      Owner exception: {assessment.exception.reason}
+                    </p>
+                  )}
                   {assessmentNextAction && (
                     <p className="text-[10px] text-muted-foreground">{assessmentNextAction}</p>
                   )}

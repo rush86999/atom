@@ -120,6 +120,11 @@ export function AgentMaturityGuideDialog({ agentId, open, onOpenChange }: AgentM
                   {guide.assessment.required === false ? " · not required by owner policy" : ""}
                   {guide.assessment.candidate_capability_qualified ? " · qualified" : ""}
                 </p>
+                {guide.assessment.exception?.reason && (
+                  <p className="text-amber-700 dark:text-amber-400">
+                    Owner exception: {guide.assessment.exception.reason}
+                  </p>
+                )}
                 {(guide.assessment.next_action?.next_action || guide.assessment.message) && (
                   <p className="text-gray-500">
                     {guide.assessment.next_action?.next_action || guide.assessment.message}

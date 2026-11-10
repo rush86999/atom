@@ -33,6 +33,8 @@ from core.database import Base, get_db
 from core.models import (
     AgentEpisode,
     AgentExecution,
+    Artifact,
+    EpisodeSegment,
     AgentProposal,
     AgentRegistry,
     AuditLog,
@@ -41,6 +43,7 @@ from core.models import (
     HITLActionStatus,
     PromotionHistory,
     RuntimeSetting,
+    SupervisionSession,
     Tenant,
     TrainingSession,
     User,
@@ -53,6 +56,11 @@ from core.promotion_policy_service import (
 )
 from core.student_training_service import StudentTrainingService, TrainingOutcome
 from core.graduation_exam import GraduationExamService
+from core.supervision_service import (
+    SupervisionDirtyCallerWorkError,
+    SupervisionService,
+)
+from core.agent_context_resolver import AgentContextResolver
 from api.agent_onboarding_routes import router as onboarding_router
 from api.agent_routes import router as agent_router
 from api.episode_routes import router as episode_router
@@ -125,6 +133,25 @@ class World:
                     started_at=started + timedelta(minutes=i),
                     completed_at=started + timedelta(minutes=i + 5),
                 ))
+            db.add(Artifact(
+                id="artifact-1", tenant_id=COMPANY, workspace_id=WS_A,
+                agent_id=AGENT, name="Held-out output", type="markdown",
+                content="actual artifact output for held-out work",
+                version=1,
+            ))
+            db.add(EpisodeSegment(
+                id="seg-1", episode_id="ep-00", segment_type="execution",
+                sequence_order=1, content="actual segment output",
+            ))
+            db.add(AgentEpisode(
+                id="ep-history", agent_id=AGENT, tenant_id=COMPANY,
+                workspace_id=WS_A, task_description="history-only episode",
+                maturity_at_time="student", constitutional_score=0.9,
+                human_intervention_count=0, confidence_score=0.62,
+                outcome="success", success=True, status="completed",
+                started_at=started - timedelta(minutes=10),
+                completed_at=started - timedelta(minutes=5),
+            ))
             for i in range(sessions):
                 db.add(AgentProposal(
                     id=f"proposal-{i}", tenant_id=COMPANY, user_id=SUPERVISOR,
@@ -182,13 +209,13 @@ def call(client, method, path, token_value, **kwargs):
     return {"status": r.status_code, "json": body}
 
 
-def request_review(client, token_value, evidence=None):
+def request_review(client, token_value, evidence=None, target="INTERN"):
     return call(
         client, "POST", "/api/episodes/graduation/qualification/request",
         token_value,
         json={
             "agent_id": AGENT,
-            "target_maturity": "INTERN",
+            "target_maturity": target,
             "evidence_refs": evidence or [
                 {"kind": "agent_episode", "id": "ep-00"},
                 {"kind": "agent_execution", "id": "exec-00"},
@@ -215,10 +242,10 @@ def promote(client, token_value, operation_id=None, target="INTERN"):
     )
 
 
-def qualify(world: World):
+def qualify(world: World, target="INTERN"):
     client = world.client()
     sup, admin = world.token(SUPERVISOR), world.token(ADMIN)
-    requested = request_review(client, sup)
+    requested = request_review(client, sup, target=target)
     assert requested["status"] == 200, requested
     action_id = requested["json"]["data"]["action_id"]
     approved = approve(client, admin, action_id)
@@ -597,6 +624,7 @@ def test_legacy_exception_is_explicit_and_unassessed(world, monkeypatch):
         "tiers": {"intern": True, "supervised": True, "autonomous": True},
         "exceptions": {
             "legacy": {"allowed": True, "agent_ids": [AGENT], "domains": [],
+                       "reason": "Owner-approved legacy continuity for this exact agent.",
                        "state": "legacy_unassessed"},
             "manual": {"allowed": False, "agent_ids": [], "domains": [],
                        "state": "manual_override"},
@@ -618,6 +646,8 @@ def test_legacy_exception_is_explicit_and_unassessed(world, monkeypatch):
         assert agent.status == "intern"
         assert history.exam_id is None
         assert result["json"]["data"]["assessment"]["state"] == "legacy_unassessed"
+        assert result["json"]["data"]["assessment"]["exception"]["reason"] == (
+            "Owner-approved legacy continuity for this exact agent.")
         assert result["json"]["data"]["assessment"][
             "candidate_capability_qualified"] is False
 
@@ -637,6 +667,7 @@ def test_manual_promotion_requires_explicit_exception(world, monkeypatch):
             "legacy": {"allowed": False, "agent_ids": [], "domains": [],
                        "state": "legacy_unassessed"},
             "manual": {"allowed": True, "agent_ids": [AGENT], "domains": [],
+                       "reason": "Owner-approved manual continuity for this exact agent.",
                        "state": "manual_override"},
             "system": {"allowed": False, "agent_ids": [], "domains": [],
                        "state": "system_exempt"},
@@ -768,6 +799,8 @@ def _legacy_policy(allowed=True):
         "tiers": {"intern": True, "supervised": True, "autonomous": True},
         "exceptions": {
             "legacy": {"allowed": allowed, "agent_ids": [AGENT], "domains": [],
+                       **({"reason": "Owner-approved legacy continuity for this exact agent."}
+                          if allowed else {}),
                        "state": "legacy_unassessed"},
             "manual": {"allowed": False, "agent_ids": [], "domains": [],
                        "state": "manual_override"},
@@ -776,6 +809,10 @@ def _legacy_policy(allowed=True):
         },
         "evaluator": "human_review",
         "rubric_version": "heldout-v1",
+        "rubric_criteria": [
+            {"id": "task_context", "label": "Task/context is inspectable"},
+            {"id": "actual_output", "label": "Actual output is present"},
+        ],
         "source_revision": "agent-evidence-v1",
     }
 
@@ -895,3 +932,308 @@ def test_history_only_episode_is_not_qualification(world):
         assert db.query(func.count(HITLAction.id)).scalar() == 0
     assert promote(client, sup)["status"] == 409
 
+
+def test_artifact_output_is_qualification(world):
+    client = world.client()
+    sup, admin = world.token(SUPERVISOR), world.token(ADMIN)
+    requested = request_review(
+        client, sup,
+        evidence=[
+            {"kind": "agent_episode", "id": "ep-00"},
+            {"kind": "artifact", "id": "artifact-1"},
+        ],
+    )
+    assert requested["status"] == 200, requested
+    assert approve(
+        client, admin, requested["json"]["data"]["action_id"])["status"] == 200
+    promoted = promote(client, sup)
+    assert promoted["status"] == 200, promoted
+    assert promoted["json"]["data"]["promoted"] is True
+
+
+def test_evidence_endpoint_excludes_history_only(world):
+    client = world.client()
+    sup = world.token(SUPERVISOR)
+    response = call(
+        client, "GET",
+        f"/api/episodes/graduation/qualification/evidence/{AGENT}?target_maturity=INTERN",
+        sup,
+    )
+    assert response["status"] == 200, response
+    data = response["json"]["data"]
+    assert data["rubric_criteria"]
+    assert data["items"]
+    for item in data["items"]:
+        assert item["task_preview"]
+        assert item["output_preview"]
+        assert item["evidence_refs"]
+    assert all(item["episode_id"] != "ep-history" for item in data["items"])
+    readiness = call(
+        client, "GET",
+        f"/api/episodes/graduation/readiness/{AGENT}?target_maturity=INTERN",
+        sup,
+    )
+    assert readiness["status"] == 200
+    assert readiness["json"]["assessment_evidence"]
+    assert all(
+        item["episode_id"] != "ep-history"
+        for item in readiness["json"]["assessment_evidence"]
+    )
+
+
+def test_peer_evidence_scope_move_before_dml_refuses(tmp_path, monkeypatch):
+    from core import agent_decision_write_service as writes
+
+    cases = {
+        "agent_episode": (
+            [{"kind": "agent_episode", "id": "ep-00"},
+             {"kind": "agent_execution", "id": "exec-00"}],
+            "episode",
+        ),
+        "agent_execution": (
+            [{"kind": "agent_episode", "id": "ep-00"},
+             {"kind": "agent_execution", "id": "exec-00"}],
+            "execution",
+        ),
+        "artifact": (
+            [{"kind": "agent_episode", "id": "ep-00"},
+             {"kind": "artifact", "id": "artifact-1"}],
+            "artifact",
+        ),
+        "segment_parent_reassign": (
+            [{"kind": "agent_episode", "id": "ep-00"},
+             {"kind": "episode_segment", "id": "seg-1"}],
+            "segment_reassign",
+        ),
+        "segment_parent_scope": (
+            [{"kind": "agent_episode", "id": "ep-00"},
+             {"kind": "episode_segment", "id": "seg-1"}],
+            "episode",
+        ),
+    }
+    for name, (evidence, move) in cases.items():
+        case_dir = tmp_path / name
+        case_dir.mkdir(parents=True, exist_ok=True)
+        world = World(case_dir)
+        client = world.client()
+        sup, admin = world.token(SUPERVISOR), world.token(ADMIN)
+        requested = request_review(client, sup, evidence=evidence)
+        assert requested["status"] == 200, (name, requested)
+        assert approve(
+            client, admin, requested["json"]["data"]["action_id"])["status"] == 200
+        original = writes.commit_graduation
+
+        def wrapper(*args, **kwargs):
+            with world.Session() as peer:
+                if move == "episode":
+                    episode = peer.get(AgentEpisode, "ep-00")
+                    episode.tenant_id = OTHER
+                    episode.workspace_id = WS_B
+                elif move == "execution":
+                    execution = peer.get(AgentExecution, "exec-00")
+                    execution.tenant_id = OTHER
+                    execution.workspace_id = WS_B
+                elif move == "artifact":
+                    artifact = peer.get(Artifact, "artifact-1")
+                    artifact.tenant_id = OTHER
+                    artifact.workspace_id = WS_B
+                else:
+                    segment = peer.get(EpisodeSegment, "seg-1")
+                    segment.episode_id = "ep-history"
+                peer.commit()
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(writes, "commit_graduation", wrapper)
+        result = promote(client, sup)
+        assert result["status"] == 409, (name, result)
+        with world.Session() as db:
+            assert db.get(AgentRegistry, AGENT).status == "student"
+            if move == "episode":
+                assert str(db.get(AgentEpisode, "ep-00").tenant_id) == OTHER
+            elif move == "execution":
+                assert str(db.get(AgentExecution, "exec-00").tenant_id) == OTHER
+            elif move == "artifact":
+                assert str(db.get(Artifact, "artifact-1").tenant_id) == OTHER
+            else:
+                assert db.get(EpisodeSegment, "seg-1").episode_id == "ep-history"
+        monkeypatch.setattr(writes, "commit_graduation", original)
+
+
+def _supervision_session(db, session_id):
+    db.add(SupervisionSession(
+        id=session_id, tenant_id=COMPANY, workspace_id=WS_A,
+        agent_id=AGENT, agent_name="Scratch Student",
+        supervisor_id=SUPERVISOR, trigger_context={}, status="running",
+        started_at=datetime.now(timezone.utc) - timedelta(minutes=10),
+        intervention_count=0,
+    ))
+
+
+def test_supervision_completion_requires_qualification(tmp_path, monkeypatch):
+    async def no_secondary_feedback(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        SupervisionService, "_process_supervision_feedback",
+        no_secondary_feedback)
+    world = World(tmp_path)
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        agent.status = "supervised"
+        agent.confidence_score = 0.95
+        _supervision_session(db, "sup-1")
+        db.commit()
+    with world.Session() as db:
+        blocked = asyncio.run(
+            SupervisionService(db).complete_supervision(
+                "sup-1", 5, "reviewed", actor_id=SUPERVISOR))
+    assert blocked.promoted is False
+    assert blocked.promotion["assessment"]["state"] == "unresolved_missing"
+    with world.Session() as db:
+        assert db.get(AgentRegistry, AGENT).status == "supervised"
+        assert db.query(func.count(GraduationExam.id)).scalar() == 0
+
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        agent.status = "supervised"
+        agent.confidence_score = 0.95
+        _supervision_session(db, "sup-2")
+        db.commit()
+    qualify(world, target="AUTONOMOUS")
+    with world.Session() as db:
+        allowed = asyncio.run(
+            SupervisionService(db).complete_supervision(
+                "sup-2", 5, "reviewed", actor_id=SUPERVISOR))
+    assert allowed.promoted is True
+    with world.Session() as db:
+        assert db.get(AgentRegistry, AGENT).status == "autonomous"
+
+
+def test_existing_system_student_is_not_healed_even_with_flag(world):
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        agent.name = "Chat Assistant"
+        agent.category = "system"
+        agent.status = "student"
+        agent.is_system_agent = False
+        db.commit()
+        AgentContextResolver(db)._get_or_create_system_default()
+        assert db.get(AgentRegistry, AGENT).status == "student"
+
+    # The dedicated server flag is provenance, not an exemption: a flagged
+    # existing STUDENT row (including a revoked/legacy one) stays STUDENT.
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        agent.is_system_agent = True
+        db.commit()
+        AgentContextResolver(db)._get_or_create_system_default()
+        assert db.get(AgentRegistry, AGENT).status == "student"
+
+    # A genuinely new trusted initial system agent is born INTERN; it does
+    # not heal an existing row.
+    with world.Session() as db:
+        agent = db.get(AgentRegistry, AGENT)
+        agent.name = "Not The Default"
+        db.commit()
+        created = AgentContextResolver(db)._get_or_create_system_default()
+        assert created is not None
+        assert created.name == "Chat Assistant"
+        assert created.status == "intern"
+        assert created.is_system_agent is True
+        # A later revocation of the new system agent is not silently waived.
+        created.status = "student"
+        db.commit()
+        AgentContextResolver(db)._get_or_create_system_default()
+        assert db.get(AgentRegistry, created.id).status == "student"
+
+
+def test_supervision_entry_preserves_caller_work(tmp_path, monkeypatch):
+    async def no_secondary_feedback(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        SupervisionService, "_process_supervision_feedback",
+        no_secondary_feedback)
+    for kind in ("dirty", "new", "deleted", "flushed"):
+        case_dir = tmp_path / kind
+        case_dir.mkdir(parents=True, exist_ok=True)
+        world = World(case_dir)
+        with world.Session() as db:
+            agent = db.get(AgentRegistry, AGENT)
+            agent.status = "supervised"
+            agent.confidence_score = 0.95
+            _supervision_session(db, f"sup-{kind}")
+            db.commit()
+        with world.Session() as db:
+            if kind == "dirty":
+                pending = db.get(User, MEMBER)
+                pending.first_name = "caller-dirty"
+            elif kind == "new":
+                pending = AgentRegistry(
+                    id=f"caller-new-{uuid.uuid4().hex[:6]}",
+                    name="Caller New", category="test", role="agent",
+                    type="personal", capabilities=[], module_path="test",
+                    class_name="Test", tenant_id=COMPANY, workspace_id=WS_A,
+                    status="student", enabled=True,
+                )
+                db.add(pending)
+            else:
+                pending = db.get(User, MEMBER)
+                if kind == "deleted":
+                    db.delete(pending)
+                else:
+                    pending.first_name = "caller-flushed"
+            if kind == "flushed":
+                # Model already-flushed caller work: Session.dirty is empty,
+                # but the transaction still holds the caller's write.
+                db.flush()
+            with pytest.raises(SupervisionDirtyCallerWorkError):
+                asyncio.run(
+                    SupervisionService(db).complete_supervision(
+                        f"sup-{kind}", 5, "reviewed", actor_id=SUPERVISOR))
+            with world.Session() as peer:
+                if kind in ("dirty", "flushed"):
+                    assert peer.get(User, MEMBER).first_name != "caller-dirty"
+                    assert peer.get(User, MEMBER).first_name != "caller-flushed"
+                elif kind == "new":
+                    assert peer.get(AgentRegistry, pending.id) is None
+                else:
+                    assert peer.get(User, MEMBER) is not None
+                assert peer.get(AgentRegistry, AGENT).status == "supervised"
+            db.rollback()
+
+
+
+def test_enabled_exception_requires_nonblank_owner_reason(world, monkeypatch):
+    policy = _legacy_policy(True)
+    policy["exceptions"]["legacy"].pop("reason", None)
+    monkeypatch.setenv(ASSESSMENT_POLICY_KEY, json.dumps(policy))
+    with world.Session() as db:
+        with pytest.raises(AssessmentPolicyError) as exc:
+            get_assessment_policy(db)
+        assert exc.value.state == "configuration_required"
+    assert promote(world.client(), world.token(SUPERVISOR))["status"] == 409
+
+    policy = _legacy_policy(True)
+    policy["exceptions"]["legacy"]["reason"] = "   "
+    monkeypatch.setenv(ASSESSMENT_POLICY_KEY, json.dumps(policy))
+    with world.Session() as db:
+        with pytest.raises(AssessmentPolicyError):
+            get_assessment_policy(db)
+
+
+def test_blank_policy_identity_and_rubric_are_invalid(world, monkeypatch):
+    for mutate in (
+        lambda p: p.__setitem__("revision", "   "),
+        lambda p: p.__setitem__("rubric_version", "   "),
+        lambda p: p.__setitem__("source_revision", "   "),
+        lambda p: p["rubric_criteria"][0].__setitem__("id", "   "),
+        lambda p: p["rubric_criteria"][0].__setitem__("label", "   "),
+    ):
+        policy = _legacy_policy(False)
+        mutate(policy)
+        monkeypatch.setenv(ASSESSMENT_POLICY_KEY, json.dumps(policy))
+        with world.Session() as db:
+            with pytest.raises(AssessmentPolicyError) as exc:
+                get_assessment_policy(db)
+            assert exc.value.state == "configuration_required"

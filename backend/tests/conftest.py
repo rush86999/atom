@@ -2064,6 +2064,7 @@ def experience_only_qualification_exception(monkeypatch):
                     "a1",
                 ],
                 "domains": [],
+                "reason": "Test-only explicit legacy continuity exception for named fixture agents.",
                 "state": "legacy_unassessed",
             },
             "manual": {

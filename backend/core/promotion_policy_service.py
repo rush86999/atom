@@ -33,6 +33,8 @@ from pydantic import (
     StrictBool,
     StrictStr,
     ValidationError,
+    field_validator,
+    model_validator,
 )
 
 logger = logging.getLogger(__name__)
@@ -205,6 +207,15 @@ class _ScopedException(BaseModel):
     allowed: StrictBool = False
     agent_ids: List[StrictStr] = Field(default_factory=list)
     domains: List[StrictStr] = Field(default_factory=list)
+    reason: Optional[StrictStr] = None
+
+    @model_validator(mode="after")
+    def _reason_required_when_allowed(self):
+        if self.allowed:
+            if not isinstance(self.reason, str) or not self.reason.strip():
+                raise ValueError(
+                    "an enabled owner exception requires a nonblank reason")
+        return self
 
 
 class _LegacyException(_ScopedException):
@@ -241,6 +252,13 @@ class RubricCriterion(BaseModel):
     id: StrictStr = Field(min_length=1, max_length=80)
     label: StrictStr = Field(min_length=1, max_length=200)
 
+    @field_validator("id", "label")
+    @classmethod
+    def _nonblank(cls, value: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("rubric criterion id/label must be nonblank")
+        return value
+
 
 DEFAULT_RUBRIC_CRITERIA = [
     {"id": "task_context",
@@ -276,6 +294,13 @@ class AssessmentPolicy(BaseModel):
                                  for item in DEFAULT_RUBRIC_CRITERIA])
     source_revision: StrictStr = Field(
         default="agent-evidence-v1", min_length=1, max_length=120)
+
+    @field_validator("revision", "rubric_version", "source_revision")
+    @classmethod
+    def _nonblank_identity(cls, value: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("policy identity fields must be nonblank")
+        return value
 
     def tier_required(self, target_level: str) -> bool:
         tier = str(target_level or "").strip().lower()

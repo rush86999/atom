@@ -19,7 +19,11 @@ from core.database import get_db
 from core.auth import get_current_user, User
 from core.models import AgentExecution, SupervisionSession, UserRole
 from core.security.rbac import user_meets_role
-from core.supervision_service import SupervisionService, SupervisionEvent
+from core.supervision_service import (
+    SupervisionDirtyCallerWorkError,
+    SupervisionService,
+    SupervisionEvent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +257,8 @@ async def complete_supervision_session(
         outcome = await supervision_service.complete_supervision(
             session_id=session_id,
             supervisor_rating=supervisor_rating,
-            feedback=feedback
+            feedback=feedback,
+            actor_id=current_user.id,
         )
 
         return {
@@ -261,9 +266,16 @@ async def complete_supervision_session(
             "session_id": outcome.session_id,
             "duration_seconds": outcome.duration_seconds,
             "intervention_count": outcome.intervention_count,
-            "confidence_boost": outcome.confidence_boost
+            "confidence_boost": outcome.confidence_boost,
+            "promoted": outcome.promoted,
+            "promotion": outcome.promotion,
         }
 
+    except SupervisionDirtyCallerWorkError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "DIRTY_CALLER_WORK", "message": str(e)},
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

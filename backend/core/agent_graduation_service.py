@@ -994,7 +994,13 @@ class AgentGraduationService:
             promoted_by=str(validated_by),
             justification=(
                 "public graduation; assessment="
-                f"{qualification_gate.get('state')}"),
+                f"{qualification_gate.get('state')}"
+                + (
+                    "; owner_reason="
+                    + str((qualification_gate.get("exception") or {}).get("reason"))
+                    if (qualification_gate.get("exception") or {}).get("reason")
+                    else ""
+                )),
             promoted_at=datetime.now(),
         )
 
@@ -1882,6 +1888,10 @@ def validate_qualification_evidence(
         if kind == "agent_episode":
             version_token = str(getattr(record, "updated_at", "") or "")
             snapshot = {
+                "agent_id": str(record.agent_id),
+                "tenant_id": record.tenant_id,
+                "workspace_id": record.workspace_id,
+                "status": record.status,
                 "task_description": record.task_description,
                 "outcome": record.outcome,
                 "success": bool(record.success),
@@ -1897,6 +1907,9 @@ def validate_qualification_evidence(
         elif kind == "agent_execution":
             version_token = str(getattr(record, "completed_at", "") or "")
             snapshot = {
+                "agent_id": str(record.agent_id),
+                "tenant_id": record.tenant_id,
+                "workspace_id": record.workspace_id,
                 "status": record.status,
                 "input_summary": record.input_summary,
                 "result_summary": record.result_summary,
@@ -1911,10 +1924,11 @@ def validate_qualification_evidence(
             has_task = has_task or bool(task_preview.strip())
             has_output = has_output or bool(output_preview.strip())
         elif kind == "artifact":
-            version_token = (
-                f"{getattr(record, 'version', '')}:"
-                f"{getattr(record, 'updated_at', '')}")
+            version_token = str(getattr(record, "updated_at", "") or "")
             snapshot = {
+                "agent_id": str(record.agent_id),
+                "tenant_id": record.tenant_id,
+                "workspace_id": record.workspace_id,
                 "content": record.content,
                 "version": record.version,
             }
@@ -1928,6 +1942,12 @@ def validate_qualification_evidence(
                 "sequence_order": record.sequence_order,
                 "content": record.content,
                 "created_at": str(record.created_at),
+                "parent_agent_id": str(
+                    getattr(parent_episode, "agent_id", "") or ""),
+                "parent_tenant_id": getattr(parent_episode, "tenant_id", None),
+                "parent_workspace_id": getattr(
+                    parent_episode, "workspace_id", None),
+                "parent_status": getattr(parent_episode, "status", None),
                 "parent_task_description": str(
                     getattr(parent_episode, "task_description", "") or ""),
             }
@@ -2221,6 +2241,7 @@ def evaluate_qualification_gate(
             **base, "allowed": True, "state": exception.state,
             "exception": {
                 "kind": exception.state,
+                "reason": exception.reason,
                 "agent_ids": list(exception.agent_ids),
                 "domains": list(exception.domains),
             },
@@ -2930,8 +2951,12 @@ def qualification_cas_predicates(
         if kind == "agent_episode":
             condition = exists().where(
                 AgentEpisode.id == evidence_id,
-                AgentEpisode.agent_id == str(agent.id),
-                AgentEpisode.status == "completed",
+                _guard_eq(AgentEpisode.agent_id,
+                          snap.get("agent_id", str(agent.id))),
+                _guard_eq(AgentEpisode.tenant_id, snap.get("tenant_id")),
+                _guard_eq(AgentEpisode.workspace_id,
+                          snap.get("workspace_id")),
+                _guard_eq(AgentEpisode.status, snap.get("status", "completed")),
             )
             if token:
                 condition = condition.where(
@@ -2949,8 +2974,13 @@ def qualification_cas_predicates(
         elif kind == "agent_execution":
             condition = exists().where(
                 AgentExecution.id == evidence_id,
-                AgentExecution.agent_id == str(agent.id),
-                AgentExecution.status == "completed",
+                _guard_eq(AgentExecution.agent_id,
+                          snap.get("agent_id", str(agent.id))),
+                _guard_eq(AgentExecution.tenant_id, snap.get("tenant_id")),
+                _guard_eq(AgentExecution.workspace_id,
+                          snap.get("workspace_id")),
+                _guard_eq(AgentExecution.status,
+                          snap.get("status", "completed")),
             )
             if token:
                 condition = condition.where(
@@ -2971,11 +3001,26 @@ def qualification_cas_predicates(
                 EpisodeSegment.id == evidence_id,
                 EpisodeSegment.episode_id == str(snap.get("episode_id") or ""),
                 _guard_eq(EpisodeSegment.content, snap.get("content")),
+                exists().where(
+                    AgentEpisode.id == str(snap.get("episode_id") or ""),
+                    _guard_eq(AgentEpisode.agent_id,
+                              snap.get("parent_agent_id")),
+                    _guard_eq(AgentEpisode.tenant_id,
+                              snap.get("parent_tenant_id")),
+                    _guard_eq(AgentEpisode.workspace_id,
+                              snap.get("parent_workspace_id")),
+                    _guard_eq(AgentEpisode.status, snap.get("parent_status")),
+                    _guard_eq(AgentEpisode.task_description,
+                              snap.get("parent_task_description")),
+                ),
             )
         elif kind == "artifact":
             condition = exists().where(
                 Artifact.id == evidence_id,
-                Artifact.agent_id == str(agent.id),
+                _guard_eq(Artifact.agent_id,
+                          snap.get("agent_id", str(agent.id))),
+                _guard_eq(Artifact.tenant_id, snap.get("tenant_id")),
+                _guard_eq(Artifact.workspace_id, snap.get("workspace_id")),
             )
             if token:
                 condition = condition.where(
@@ -3123,6 +3168,9 @@ def commit_qualified_transition(
         else reviewed.last_exam_id)
     promotion_count = int(getattr(reviewed, "promotion_count", 0) or 0) + 1
     justification = f"{source}; assessment={gate.get('state')}"
+    owner_reason = (gate.get("exception") or {}).get("reason")
+    if owner_reason:
+        justification += f"; owner_reason={owner_reason}"
     if override_reason:
         justification += f"; override={override_reason}"
     history = PromotionHistory(
