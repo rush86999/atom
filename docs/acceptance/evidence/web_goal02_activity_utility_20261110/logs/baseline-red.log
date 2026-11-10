@@ -1,0 +1,308 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+FAIL tests/pages/goal-runs/index.test.tsx
+  GoalRunsIndexPage
+    ✕ shows the goal utility target, winner and ranked/withheld runs on Activity (1025 ms)
+    ✓ renders runs with status badges and counters (34 ms)
+    ✓ shows the goal title, not a bare UUID (2026-09-10 journey fix) (10 ms)
+    ✓ falls back to the goal id when the goal fetch has no title (10 ms)
+    ✓ shows the waiting badge for sleeping runs (40 ms)
+    ✓ empty state explains where runs come from and offers the start CTA (31 ms)
+    ✓ supervisor sees the New goal run affordance (7 ms)
+    ✓ member sees the start affordance — role-based everyday work (6 ms)
+    ✓ viewer does not see the start affordance (backend would 403) (5 ms)
+    ✓ unknown role stays fail-open (backend enforces) (5 ms)
+    waitingLabel
+      ✓ labels human checkpoints
+      ✓ reads event names as words (1 ms)
+      ✓ returns null for active runs
+    guidanceFor active run
+      ✓ names the current step so a long run is legible
+      ✓ flags an active run with no current step (1 ms)
+
+  ● GoalRunsIndexPage › shows the goal utility target, winner and ranked/withheld runs on Activity
+
+    Unable to find an element by: [data-testid="activity-utility-summary"]
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"container mx-auto py-8 max-w-4xl"[39m
+          [33mdata-testid[39m=[32m"goal-runs-page"[39m
+        [36m>[39m
+          [36m<title>[39m
+            [0mActivity[0m
+          [36m</title>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between mb-6 gap-3 flex-wrap"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"text-2xl font-semibold flex items-center gap-2"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-target h-6 w-6"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"12"[39m
+                  [33mcy[39m=[32m"12"[39m
+                  [33mr[39m=[32m"10"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"12"[39m
+                  [33mcy[39m=[32m"12"[39m
+                  [33mr[39m=[32m"6"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"12"[39m
+                  [33mcy[39m=[32m"12"[39m
+                  [33mr[39m=[32m"2"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m Activity[0m
+            [36m</h1>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-2"[39m
+            [36m>[39m
+              [36m<a[39m
+                [33mclass[39m=[32m"text-sm text-blue-600 hover:underline"[39m
+                [33mhref[39m=[32m"/execution-history"[39m
+              [36m>[39m
+                [0mExecution history[0m
+              [36m</a>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md"[39m
+              [36m>[39m
+                [0mHide finished[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary-600 text-white hover:bg-primary-700 h-9 px-3 rounded-md"[39m
+                [33mdata-testid[39m=[32m"new-goal-run"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-rocket h-4 w-4"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0m New goal run[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-muted-foreground mb-3"[39m
+            [33mdata-testid[39m=[32m"goal-runs-summary"[39m
+          [36m>[39m
+            [0m0[0m
+            [0m active · [0m
+            [0m2[0m
+            [0m finished[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"grid gap-3"[39m
+            [33mdata-testid[39m=[32m"goal-runs-list"[39m
+          [36m>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m"block"[39m
+              [33mhref[39m=[32m"/goal-runs/run-1"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"rounded-lg border bg-card text-card-foreground shadow-sm hover:border-primary/50 transition-colors"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex flex-col space-y-1.5 p-6 pb-2"[39m
+                [36m>[39m
+                  [36m<h3[39m
+                    [33mclass[39m=[32m"font-semibold tracking-tight text-base flex items-center gap-2 flex-wrap"[39m
+                  [36m>[39m
+                    [36m<div[39m
+                      [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-circle-check h-3 w-3"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<circle[39m
+                          [33mcx[39m=[32m"12"[39m
+                          [33mcy[39m=[32m"12"[39m
+                          [33mr[39m=[32m"10"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m9 12 2 2 4-4"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                      [0machieved[0m
+                    [36m</div>[39m
+                    [36m<span[39m
+                      [33mdata-testid[39m=[32m"run-goal-title"[39m
+                    [36m>[39m
+                      [0mPrepare a quote[0m
+                    [36m</span>[39m
+                    [36m<div[39m
+                      [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+                    [36m>[39m
+                      [0msales[0m
+                    [36m</div>[39m
+                  [36m</h3>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"p-6 pt-0 text-sm text-muted-foreground"[39m
+                [36m>[39m
+                  [36m<p>[39m
+                    [0m2[0m
+                    [0m step[0m
+                    [0ms[0m
+                    [0m ·[0m
+                    [0m [0m
+                    [0m1[0m
+                    [0m replan[0m
+                    [0m ·[0m
+                    [0m [0m
+                    [0m0[0m
+                    [0m logged decisions[0m
+                  [36m</p>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</a>[39m
+            [36m<a[39m
+              [33mclass[39m=[32m"block"[39m
+              [33mhref[39m=[32m"/goal-runs/run-2"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"rounded-lg border bg-card text-card-foreground shadow-sm hover:border-primary/50 transition-colors"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"flex flex-col space-y-1.5 p-6 pb-2"[39m
+                [36m>[39m
+                  [36m<h3[39m
+                    [33mclass[39m=[32m"font-semibold tracking-tight text-base flex items-center gap-2 flex-wrap"[39m
+                  [36m>[39m
+                    [36m<div[39m
+                      [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80"[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-circle-x h-3 w-3"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<circle[39m
+                          [33mcx[39m=[32m"12"[39m
+                          [33mcy[39m=[32m"12"[39m
+                          [33mr[39m=[32m"10"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m15 9-6 6"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m9 9 6 6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                      [0mfailed[0m
+                    [36m</div>[39m
+                    [36m<span[39m
+                      [33mdata-testid[39m=[32m"run-goal-title"[39m
+                    [36m>[39m
+                      [0mPrepare a quote[0m
+                    [36m</span>[39m
+                    [36m<div[39m
+                      [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+                    [36m>[39m
+                      [0msales[0m
+                    [36m</div>[39m
+                  [36m</h3>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"p-6 pt-0 text-sm text-muted-foreground"[39m
+                [36m>[39m
+                  [36m<p>[39m
+                    [0m9[0m
+                    [0m step[0m
+                    [0ms[0m
+                    [0m ·[0m
+                    [0m [0m
+                    [0m1[0m
+                    [0m replan[0m
+                    [0m ·[0m
+                    [0m [0m
+                    [0m0[0m
+                    [0m logged decisions[0m
+                  [36m</p>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+            [36m</a>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+      114 |     render(<GoalRunsIndexPage />);
+      115 |
+    > 116 |     const summary = await waitFor(() =>
+          |                                  ^
+      117 |       screen.getByTestId("activity-utility-summary"));
+      118 |     expect(summary.textContent).toContain("Steps executed");
+      119 |     expect(summary.textContent).toContain("lower is better");
+
+      at waitForWrapper (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at tests/pages/goal-runs/index.test.tsx:116:34
+      at step (tests/pages/goal-runs/index.test.tsx:77:23)
+      at Object.next (tests/pages/goal-runs/index.test.tsx:58:53)
+      at tests/pages/goal-runs/index.test.tsx:52:71
+      at __awaiter (tests/pages/goal-runs/index.test.tsx:48:12)
+      at Object.<anonymous> (tests/pages/goal-runs/index.test.tsx:87:84)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 14 passed, 15 total
+Snapshots:   0 total
+Time:        2.458 s
+Ran all test suites matching tests/pages/goal-runs/index.test.tsx.
