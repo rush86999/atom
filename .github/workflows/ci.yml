@@ -417,6 +417,16 @@ jobs:
 
           '
 
+      - name: Run reviewed web authority and library regression controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci_reviewed_web.db"
+          ATOM_DATA_DIR: "${{ runner.temp }}/atom-reviewed-web"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/api/test_web_canvas_authority.py tests/api/test_web_canvas_restore_ordering.py tests/api/test_document_library_pagination.py tests/api/test_web_training_proposal_authority.py -q --tb=short --timeout=300 --timeout-method=thread
+
   backend-oracle:
     runs-on: ubuntu-latest
     defaults:
