@@ -1,0 +1,64 @@
+
+tests/test_goal9_budget_ledger_negative.py::test_production_llm_settlement_does_not_reach_configured_ledger 
+-------------------------------- live log setup --------------------------------
+2026-11-10 08:50:20 [    INFO] EscalationManager initialized
+2026-11-10 08:50:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:50:20 [    INFO] EscalationManager initialized
+2026-11-10 08:50:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 08:50:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 08:50:20 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:50:20 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 08:50:20 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 12%]
+tests/test_goal9_budget_ledger_negative.py::test_harness_settlement_twin_shows_latent_non_atomic_admission PASSED [ 25%]
+tests/test_goal9_budget_ledger_negative.py::test_normal_budget_valid_twin PASSED [ 37%]
+tests/test_goal9_budget_ledger_negative.py::test_configured_hard_stop_unreadable_budget_currently_fails_open 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:50:22 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+PASSED                                                                   [ 50%]
+tests/test_goal9_budget_ledger_negative.py::test_configured_hard_stop_failed_admission_exception_currently_allows 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:50:23 [   ERROR] [BudgetEnforcementService] Error checking budget: ledger unavailable
+PASSED                                                                   [ 62%]
+tests/test_goal9_budget_ledger_negative.py::test_production_consumer_hard_stop_failed_admission_currently_allows 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:50:24 [   ERROR] [BudgetEnforcementService] Error checking budget: ledger unavailable
+PASSED                                                                   [ 75%]
+tests/test_goal9_budget_ledger_negative.py::test_settlement_pricing_error_records_zero_not_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 08:50:24 [ WARNING] Could not attribute LLM cost: pricing unavailable
+PASSED                                                                   [ 87%]
+tests/test_goal9_budget_ledger_negative.py::test_alert_only_observe_semantics_remain_allowed PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 16 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 8 passed, 21 warnings in 21.47s ========================

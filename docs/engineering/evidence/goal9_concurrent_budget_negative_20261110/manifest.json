@@ -1,0 +1,29 @@
+{
+  "branch": "codex/goal9-concurrent-budget-admission-20261110",
+  "ci_pr_merge": false,
+  "counterexample_preserved": "90+7+7 harness twin (each 97 fits, joint 104); explicitly not production",
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "evidence_files": {
+    "README.md": "9429897297f4995feae82b8891c3f3f802128b9a4d178b7eecf5ebc96850b0af",
+    "gates/affected-selection.log": "bd18fc3f4e65da117bae7f084f305cd2f7f32467506a0c5c6b4adf7eb22fe189",
+    "gates/negative-focused.log": "a9b994477da1cbd288b7fd1871a04daf705f0fa102fb9dedb1604323f773d6fd",
+    "gates/source-before-after.json": "c2cde7ac13aa804f0accaec168adcac6f28491b6236b8fdffbe585972f44b490",
+    "source/source-hashes.json": "9f4f05d50e77691d85cf3899d4e6b528ae2b6a6473b80f6c14032c5d307b099a",
+    "source/test.diff": "be7407637291bd794f9db88c28796bfb831422f891bb020d2be231252cebabdd"
+  },
+  "findings": {
+    "durable_race_confirmed": false,
+    "hard_stop_failed_admission_fail_open": true,
+    "hard_stop_unreadable_fail_open": true,
+    "observe_warn_semantics_preserved": true,
+    "reason": "production settlement writes in-memory llm_usage_tracker, not TokenUsage/ACU ledger; in-memory budget unset",
+    "settlement_error_zero_unknown_conflation": true
+  },
+  "goal_scope": "143 claims / 18 goals preserved; root decision required",
+  "kind": "goal9_concurrent_budget_negative_evidence",
+  "product_changed": false,
+  "provider_model_live_db": false,
+  "status": "negative_confirmed_no_product_repair",
+  "test_only_fix": "concurrent-check test lambda persist keyword compatibility; not a product repair/race proof"
+}
