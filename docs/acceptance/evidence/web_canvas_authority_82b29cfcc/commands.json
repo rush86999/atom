@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "kind": "web_canvas_authority_commands",
+  "source": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "normal_conftest": {
+    "command": [
+      "/usr/local/bin/python3.11",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "pytest_freezegun",
+      "-p",
+      "no:randomly",
+      "tests/api/test_web_canvas_authority.py"
+    ],
+    "exit": 0,
+    "result": "17 passed, 39 warnings in 30.65s",
+    "raw_log_private": "/private/tmp/root-canvas-independent-20261110-r95023op/normal.log"
+  },
+  "original_independent_probe": {
+    "command": [
+      "/usr/local/bin/python3.11",
+      "-m",
+      "pytest",
+      "-q",
+      "--noconftest",
+      "-p",
+      "no:randomly",
+      "/private/tmp/root-canvas-authority-fixed-independent-20261110.py"
+    ],
+    "exit": 0,
+    "result": "1 passed in 2.88s",
+    "raw_log_private": "/private/tmp/root-canvas-independent-20261110-r95023op/original.log"
+  },
+  "notes": [
+    "Raw logs, scratch DBs and tokens remain private under /private/tmp and are not committed.",
+    "No Python 3.14, broad-suite, browser or live-provider claim is made."
+  ]
+}
