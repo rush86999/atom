@@ -1,0 +1,59 @@
+{
+  "base_commit": "0733a4d109edce9f4e757a7de434ecd18df32d7b",
+  "ci_steps": [
+    "Run per-physical-attempt reservation controls"
+  ],
+  "claim": "Every actual paid physical transport attempt in streaming, gateway chat_completion and ordinary generate_response nested retries has its own server-owned attempt identity, actual route binding, conservative pre-dispatch bound and durable actual/unknown settlement; accounting refusal stops before dispatch with no hidden fallback.",
+  "date": "2026-11-10",
+  "evidence_files": {
+    "README.md": "fe6e8aae6cb59db1bc61d00f70d7ab279730557fdcaafaca9db1e558e00b853d",
+    "gates/affected.log": "46fcd4434b28a9b31ca68905e109f9d17dc5d3f46538e7158409903799cd69bf",
+    "gates/ci-lane-contract.log": "553d9ae9d34a23092ce99413985456aa9069c0e5d2442c9441e88eb718de3351",
+    "gates/focused.log": "615b5355fe287f232b7c4360722acab94ff165c6bd5cd8f4e318ab424d13138b",
+    "gates/physical-controls.log": "de9056c12aa64991a59bf5aed0e4e602b28284581089bdced04a37ab61f2d606",
+    "gates/root-prerequisite-probes.log": "8bfae61f0cc9e03a4e2bae55d2f842906b4fc8f1135a15ab8742c9a5eb25c85b",
+    "prerequisite/root-estimated-flag-negative.log": "6178949889ce18969edc3c1c0a513ca96158afcf21196562e20ae4bf7282a454",
+    "prerequisite/root-estimated-flag-probe.py": "f0438d138c3b5afe7f97c28ea0c0fb7feb1268d450a99d80db7573df4628cd6b",
+    "retained_negative/pre-fix-physical-negative.log": "d73bc92763feeea7ca2791eb9c786de774377d848792af9c34f3f823b783d878",
+    "source/fix.diff": "a113097af15b17798c02ccf6f5cf2aef89e5ef3909e6a96d08b38984a554df80",
+    "source/source-hashes.json": "fc89c1522c52c100dddd477f4bce4c0eec9093dabf893bd161d6610c7d469d72"
+  },
+  "gates": {
+    "affected": "478 passed",
+    "ci_lane_contract": "27 passed",
+    "focused": "268 passed",
+    "physical_controls": "25 passed",
+    "postgres_runtime_qualified": false,
+    "pre_fix_negative": "12 failed / 11 passed on 0733",
+    "root_prerequisite_probes": "11 passed",
+    "scratch": "SQLite + doubled transport only"
+  },
+  "not_claimed": [
+    "universal strict cap for every provider/SDK-internal retry",
+    "authoritative streaming usage settlement (unknown liability instead)",
+    "multimodal image token bound (explicit unknown; hard_stop refuses)",
+    "PostgreSQL runtime concurrency qualification",
+    "goal3 document lifecycle (separate work order)"
+  ],
+  "open_gates": [
+    "SDK-internal retry configuration audit across provider clients",
+    "generate_structured_response nested-retry parity",
+    "authoritative streaming usage if/when providers expose it through the transport"
+  ],
+  "prerequisite": {
+    "commit": "4559f24a9988fa891776883257507affc41b9f82",
+    "note": "reviewed estimated-flag/byte-bound contract incorporated in the new helper",
+    "owner": "root"
+  },
+  "research": [
+    "https://github.com/tryAGI/Tiktoken/blob/main/data/README.md",
+    "https://tokenreference.com/tokenizers/cl100k_base",
+    "https://docs.litellm.ai/docs/completion/token_usage",
+    "https://developers.openai.com/api/docs/guides/images-vision"
+  ],
+  "retained_negatives": [
+    "retained_negative/pre-fix-physical-negative.log",
+    "prerequisite/root-estimated-flag-negative.log"
+  ],
+  "schema": "goal9_physical_attempts"
+}

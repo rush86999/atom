@@ -1,0 +1,47 @@
+{
+  "base_commit": "0733a4d109edce9f4e757a7de434ecd18df32d7b",
+  "branch": "codex/goal9-physical-attempts-20261110",
+  "date": "2026-11-10",
+  "files": {
+    ".github/workflows/ci.yml": {
+      "after_sha256": "89913ac29c5f07d2a24496e20996872bcd52b61ba6beb95fbb2422d6dcc457d7",
+      "before_sha256": "7e53abbfcb62ad3121bcd91c6093a91197b8f4891a039f6db7a07433c3f572b5",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "d17b1a1cc2fa68a402ab1f53c0d68fbc88b2a14edf49c09cb5ab81c363ae23db",
+      "before_sha256": "cbb6f77544cd25e9eb903b870812d8e51567d54e57c292715670128c39987833",
+      "changed": true
+    },
+    "backend/tests/fixtures/ci_backend_additions.json": {
+      "after_sha256": "24c97d09bd2d5746bdfaae2220acebe4afcf4139b43e248933b6d94ffbafe05a",
+      "before_sha256": "1a42c5f3bd54103fc26184a8b2dbf8cd575ea01596929588e6af053f3cff7949",
+      "changed": true
+    },
+    "backend/tests/test_goal9_atomic_cap.py": {
+      "after_sha256": "d2dc73340493a41a74216e420efd9078dbff61bfba0e2bd25c7eb1ff4f486678",
+      "before_sha256": "97cf8e535605d7d31c485197beba3bb9c8de02883b0fd797bce1780355f90138",
+      "changed": true
+    },
+    "backend/tests/test_goal9_physical_attempts.py": {
+      "after_sha256": "78f1ff9941784eced3fbeb7f37d6c3039b527f26bbe84ab8c9da12ee86b9a046",
+      "before_sha256": null,
+      "changed": true
+    }
+  },
+  "note": "Per-physical-attempt admission/settlement for streaming, gateway chat_completion and ordinary generate_response nested retries; tokenizer-agnostic UTF-8 byte text bound (reviewed prerequisite 4559f24a contract); explicit unknown image bound; additive CI gate",
+  "prerequisite": {
+    "commit": "4559f24a9988fa891776883257507affc41b9f82",
+    "incorporated_not_cherry_picked": true,
+    "owner": "root",
+    "pr835_head": "ba2a1acd553fdc8a6e26c6bc8dfc0643062e8ea8"
+  },
+  "product_files_changed": [
+    ".github/workflows/ci.yml",
+    "backend/core/llm/byok_handler.py",
+    "backend/tests/fixtures/ci_backend_additions.json",
+    "backend/tests/test_goal9_atomic_cap.py",
+    "backend/tests/test_goal9_physical_attempts.py"
+  ],
+  "schema": "goal9_physical_attempts_source"
+}

@@ -813,6 +813,17 @@ class _DurableUsageIntentUnavailable(RuntimeError):
     """A paid dispatch was refused because its durable intent could not persist."""
 
 
+class _AccountingBlockedError(RuntimeError):
+    """A physical attempt could not be admitted for accounting reasons.
+
+    Distinct from a provider failure by design: a missing/refused
+    reservation (unknown pricing under hard_stop, invalid configured price,
+    or an unavailable ledger) must stop the request before dispatch. It must
+    never look like a failed provider and trigger a hidden provider/model
+    fallback that spends without an authorized bound.
+    """
+
+
 class _StreamInactivityError(RuntimeError):
     """A streaming response produced no chunk for longer than the idle bound.
 
@@ -844,6 +855,15 @@ class _StreamRequestState:
       one free->paid sibling retry per free pair. Both are bounded separately
       and never restart the sweep.
     * ``attempts`` — per-pair dispatch counter for attribution and evidence.
+    * ``request_id`` / ``attempt_seq`` — one server-owned job identity and a
+      request-wide monotonically increasing sequence. Every physical paid
+      transport attempt (initial, self-heal, paid sibling, reasoning-budget
+      retry, ranked-route hop) reserves/settles under
+      ``f"{request_id}:{attempt_seq}"`` so nested frames can never reuse one
+      authorization for a different route.
+    * ``accounting_blocked`` — a reservation could not be admitted. Later
+      frames must not dispatch or fall back; the request stops with the
+      accounting refusal instead of spending unauthorized.
 
     This is state, not a router: every candidate still passes the existing
     policy, catalogue, pin, capability and local-only gates.
@@ -854,6 +874,14 @@ class _StreamRequestState:
     self_heal_used: Set[Tuple[str, str]] = field(default_factory=set)
     paid_retry_used: Set[Tuple[str, str]] = field(default_factory=set)
     attempts: Dict[Tuple[str, str], int] = field(default_factory=dict)
+    request_id: str = ""
+    attempt_seq: int = 0
+    accounting_blocked: bool = False
+
+    def next_attempt_id(self) -> Tuple[str, str]:
+        """Server-owned ``(request_id, attempt_id)`` for one physical call."""
+        self.attempt_seq += 1
+        return self.request_id, f"{self.request_id}:{self.attempt_seq}"
 
     def mark_attempt(self, provider_id: str, model: str) -> None:
         pair = (str(provider_id or ""), str(model or ""))
@@ -1105,6 +1133,93 @@ def _usage_value(usage: Any, *names: str) -> int:
         return max(int(value or 0), 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _payload_token_upper(
+    provider_id: Optional[str], model: Optional[str], text: Any) -> int:
+    """Proven token upper bound for ONE text payload fragment.
+
+    ``core.llm.prompt_budget.count_tokens`` returns
+    ``(token_count, estimated)``. ``estimated=True`` means the count came from
+    the chars/4 heuristic — it is NEVER a bound (the pre-fix estimator treated
+    the flag as "exact" and used the nominal count for the heuristic branch,
+    under-reserving unicode prompts by ~8x).
+
+    No brand/provider mapping in this repo proves a served model's tokenizer
+    (o200k is not mathematically monotone against cl100k, and a provider id is
+    not a model contract), so the only bound used is the UTF-8 byte length:
+    every supported byte/char-aligned text tokenizer emits at most one token
+    per input byte, therefore ``tokens <= utf-8 bytes``. This deliberately
+    over-reserves rather than guessing a smaller "exact" count; under
+    hard_stop that can refuse a call near the cap, which is the safe
+    direction. Unknown *pricing* is handled separately (explicit refusal),
+    never as a fabricated zero.
+    """
+    text = "" if text is None else str(text)
+    if not text:
+        return 0
+    from core.llm.prompt_budget import count_tokens
+
+    counted, _estimated = count_tokens(text)
+    # Reviewed finite contract (root prerequisite 4559f24a): keep the
+    # model-independent UTF-8 floor for EITHER flag value. `estimated=True`
+    # means the count is a chars/4 heuristic and must never lower this bound.
+    return max(int(counted or 0), len(text.encode("utf-8")), 1)
+
+
+def _serialized_payload_for_bound(
+    messages: Any, extra_kwargs: Optional[Dict[str, Any]] = None) -> str:
+    """Serialize the ACTUAL chat payload for the reservation bound.
+
+    Roles, tool/function schemas, stop sequences and the request body shape
+    all consume tokens. Inline image data is replaced with a fixed marker (a
+    base64 blob is not tokenized proportionally by any provider); a bounded
+    per-image allowance is added by the caller instead.
+    """
+    def _sanitize(value: Any) -> Any:
+        if isinstance(value, list):
+            return [_sanitize(item) for item in value]
+        if isinstance(value, dict):
+            clean = {}
+            for key, item in value.items():
+                if key == "image_url":
+                    url = item.get("url") if isinstance(item, dict) else item
+                    clean[key] = {
+                        "url": "<inline-image>"
+                        if isinstance(url, str) and url.startswith("data:")
+                        else url,
+                    }
+                else:
+                    clean[key] = _sanitize(item)
+            return clean
+        return value
+
+    payload: Dict[str, Any] = {"messages": _sanitize(messages)}
+    if extra_kwargs:
+        payload["request"] = _sanitize(extra_kwargs)
+    try:
+        return json.dumps(payload, ensure_ascii=False, default=str)
+    except Exception:
+        return str(payload)
+
+
+def _has_inline_image(messages: Any) -> bool:
+    """True when the request carries a multimodal image part.
+
+    There is no proven upper bound here for an arbitrary image/resolution/
+    provider combination, so such a request is admitted with an explicit
+    UNKNOWN bound: hard_stop refuses it before dispatch, while no-limit or
+    observe modes still run with the unknown liability retained. A fixed
+    per-image token allowance would be a fabricated bound.
+    """
+    for message in messages or []:
+        content = message.get("content") if isinstance(message, dict) else None
+        if isinstance(content, list):
+            for part in content:
+                if (isinstance(part, dict)
+                        and part.get("type") in {"image_url", "input_image"}):
+                    return True
+    return False
 
 
 # Completion cap for plain (non-streaming) completions — same rationale as
@@ -4183,37 +4298,36 @@ class BYOKHandler:
         input_texts,
         max_output_tokens: Optional[int],
         schema_text: Optional[str] = None,
+        extra_text: Optional[str] = None,
     ) -> Optional[float]:
-        """Conservative configured USD bound for one paid attempt.
+        """Conservative configured USD bound for ONE paid physical attempt.
 
-        Inputs use the existing token counter (exact when tiktoken is
-        available); the fallback uses UTF-8 byte length as an upper bound,
-        plus explicit message/schema overhead. Output uses the request's
-        completion cap. The pricing contract then estimates the cost; a
-        missing price returns None so hard-stop refuses rather than silently
-        under-reserving.
+        Input tokens use a per-model upper bound: the provider family
+        tokenizer for proven OpenAI ids, otherwise the UTF-8 byte bound that
+        any byte/char-aligned tokenizer cannot exceed. ``input_texts`` should
+        carry the ACTUAL serialized payload (messages/roles/tool schemas); the
+        callers pass ``_serialized_payload_for_bound``. ``schema_text`` and
+        ``extra_text`` add tool schema / request-body fragments. A missing or
+        invalid price returns None so hard-stop refuses rather than silently
+        under-reserving or admitting a fabricated zero.
         """
         try:
-            from core.llm.prompt_budget import count_tokens
-
             if isinstance(input_texts, str):
                 input_texts = [input_texts]
             input_tokens_upper = 0
+            input_texts = list(input_texts or [])
             for text in input_texts:
-                text = str(text or "")
-                counted, exact = count_tokens(text)
-                if not exact:
-                    counted = max(counted, len(text.encode("utf-8")))
-                input_tokens_upper += counted
+                input_tokens_upper += _payload_token_upper(
+                    provider_id, model, text)
             input_tokens_upper += int(os.getenv(
                 "ATOM_LLM_RESERVATION_OVERHEAD_TOKENS", "256"))
             input_tokens_upper += 8 * max(1, len(input_texts))
             if schema_text:
-                schema_count, schema_exact = count_tokens(str(schema_text))
-                if not schema_exact:
-                    schema_count = max(
-                        schema_count, len(str(schema_text).encode("utf-8")))
-                input_tokens_upper += schema_count
+                input_tokens_upper += _payload_token_upper(
+                    provider_id, model, schema_text)
+            if extra_text:
+                input_tokens_upper += _payload_token_upper(
+                    provider_id, model, extra_text)
             input_tokens_upper = max(1, input_tokens_upper)
 
             output_tokens = max(
@@ -4250,6 +4364,173 @@ class BYOKHandler:
             return bound
         except Exception:
             return None
+
+    def _admit_physical_attempt(
+        self,
+        *,
+        request_id: str,
+        attempt_id: str,
+        provider_id: str,
+        model: str,
+        messages: Any,
+        max_output_tokens: Optional[int],
+        agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+        extra_kwargs: Optional[Dict[str, Any]] = None,
+        schema_text: Optional[str] = None,
+    ) -> Optional[float]:
+        """Reserve/authorize ONE physical paid transport attempt before dispatch.
+
+        The bound is computed from the ACTUAL payload the transport will send
+        (serialized messages/roles, request body, schema) and the request's
+        real output cap. Under configured hard_stop a missing/unknown price,
+        invalid price or unavailable ledger raises before any provider call.
+        Accounting refusal is deliberately NOT a provider failure: callers
+        must stop the request rather than fall back to another route.
+        """
+        payload = _serialized_payload_for_bound(messages, extra_kwargs)
+        bound = self._estimate_reservation_bound(
+            provider_id, model, [payload],
+            max_output_tokens,
+            schema_text=schema_text,
+        )
+        if _has_inline_image(messages):
+            # No proven bound exists for arbitrary image/resolution/provider
+            # combinations. Explicit unknown (not a fabricated allowance):
+            # hard_stop refuses before dispatch; observe/no-limit modes run
+            # with the unknown liability retained.
+            logger.warning(
+                "[reservation] multimodal request for %s/%s has no proven "
+                "image token bound; admitting as explicit unknown",
+                provider_id, model)
+            bound = None
+        try:
+            from core.spend_aggregation_service import begin_llm_usage
+
+            begin_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                execution_id=execution_id,
+                chain_id=chain_id,
+                request_id=request_id,
+                attempt_id=attempt_id,
+                reserved_cost_usd=bound,
+                enforce_budget=True,
+            )
+        except Exception as intent_err:
+            raise _AccountingBlockedError(
+                f"physical attempt admission refused for "
+                f"{provider_id}/{model} ({type(intent_err).__name__})"
+            ) from intent_err
+        return bound
+
+    def _settle_physical_response(
+        self,
+        *,
+        provider_id: str,
+        model: str,
+        response: Any,
+        request_id: str,
+        attempt_id: str,
+        agent_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        chain_id: Optional[str] = None,
+        unknown: bool = False,
+    ) -> Optional[float]:
+        """Settle ONE physical response under its exact attempt identity.
+
+        Uses the response's authoritative usage when present; missing usage
+        becomes explicit unknown liability (never a fabricated free). Does
+        not duplicate the caller's in-memory tracker/feedback writes.
+        """
+        usage = _response_usage(response)
+        if usage is None:
+            prompt_tokens = completion_tokens = 0
+            cost: Optional[float] = None
+        else:
+            prompt_tokens = _usage_value(usage, "prompt_tokens", "input_tokens")
+            completion_tokens = _usage_value(
+                usage, "completion_tokens", "output_tokens")
+            cost = None
+            try:
+                fetcher = get_pricing_fetcher()
+                cost = fetcher.estimate_cost(
+                    model, prompt_tokens, completion_tokens)
+                if cost is None:
+                    cost = get_llm_cost(model, prompt_tokens, completion_tokens)
+            except Exception:
+                cost = None
+            cost = _valid_cost(cost)
+        if unknown:
+            # No proven bound/price existed for this attempt shape (e.g.
+            # multimodal image tokens). The settlement is explicit unknown
+            # liability, never a guess derived from a partial estimate.
+            cost = None
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                cost_usd=cost,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                execution_id=execution_id,
+                chain_id=chain_id,
+                request_id=request_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as settle_err:
+            logger.error(
+                "LLM durable usage settlement failed (%s)",
+                type(settle_err).__name__)
+        return cost
+
+    def _settle_stream_attempt(
+        self,
+        *,
+        provider_id: str,
+        model: str,
+        request_id: str,
+        attempt_id: str,
+        reserved_bound: Optional[float],
+        agent_id: Optional[str] = None,
+    ) -> None:
+        """Settle a successful stream attempt as actual-free or unknown.
+
+        Streaming providers do not expose authoritative usage on this path,
+        so the settlement is explicit unknown liability (the conservative
+        reservation stays on the ledger and is not silently released). The
+        one exception is a trusted numeric-zero bound: authoritative
+        known-free settles at 0.0.
+        """
+        cost = 0.0 if reserved_bound == 0.0 else None
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                cost_usd=cost,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                request_id=request_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as settle_err:
+            logger.error(
+                "LLM stream settlement failed (%s)",
+                type(settle_err).__name__)
 
     def _record_provider_usage(
         self,
@@ -6793,8 +7074,11 @@ class BYOKHandler:
             # otherwise every retry stacked another image or another copy of
             # the user's text onto the same conversation.
             _pristine_messages = [dict(m) for m in messages] if messages else None
+            _request_has_image = bool(image_payload) or _has_inline_image(
+                messages)
             _settlement_request_id = str(uuid.uuid4())
-            _settlement_attempt = 0
+            _settlement_attempts = [0]
+            _accounting_blocked = False
             for provider_id, model in options:
                 if provider_id in failed_providers:
                     continue
@@ -6965,39 +7249,34 @@ class BYOKHandler:
 
                     # Durable paid-liability intent BEFORE dispatch. If it
                     # cannot be persisted, do not dispatch (fail closed).
-                    _settlement_attempt += 1
+                    _settlement_attempts[0] += 1
                     _attempt_id = (
-                        f"{_settlement_request_id}:{_settlement_attempt}")
-                    _reservation_bound = self._estimate_reservation_bound(
-                        provider_id, model,
-                        [str(m.get("content") or "") for m in messages],
-                        _cap)
+                        f"{_settlement_request_id}:"
+                        f"{_settlement_attempts[0]}")
                     try:
-                        from core.spend_aggregation_service import (
-                            begin_llm_usage,
-                        )
-
-                        begin_llm_usage(
-                            provider_id=provider_id,
-                            model_name=model,
-                            agent_id=agent_id,
-                            workspace_id=getattr(self, "workspace_id", None),
-                            tenant_id=getattr(self, "tenant_id", None),
-                            execution_id=execution_id,
-                            chain_id=chain_id,
+                        _reservation_bound = self._admit_physical_attempt(
                             request_id=_settlement_request_id,
                             attempt_id=_attempt_id,
-                            reserved_cost_usd=_reservation_bound,
-                            enforce_budget=True,
+                            provider_id=provider_id,
+                            model=model,
+                            messages=messages,
+                            max_output_tokens=_cap,
+                            agent_id=agent_id,
+                            execution_id=execution_id,
+                            chain_id=chain_id,
+                            extra_kwargs={
+                                k: v for k, v in _req_kwargs.items()
+                                if k not in ("messages", "model")
+                            },
                         )
-                    except Exception as intent_err:
+                    except _AccountingBlockedError:
                         _release_once()
                         logger.error(
                             "Durable usage intent unavailable; refusing "
-                            "dispatch of %s/%s (%s)",
-                            provider_id, model, type(intent_err).__name__)
+                            "dispatch of %s/%s", provider_id, model)
                         # A ledger/scope failure is not a provider failure:
                         # do not silently fall through to another route.
+                        _accounting_blocked = True
                         break
 
                     try:
@@ -7183,7 +7462,8 @@ class BYOKHandler:
                                 usage, "prompt_tokens", "input_tokens"),
                             completion_tokens=_usage_value(
                                 usage, "completion_tokens", "output_tokens"),
-                            cost_usd=observed_cost,
+                            cost_usd=(
+                                None if _request_has_image else observed_cost),
                             agent_id=agent_id,
                             workspace_id=getattr(self, "workspace_id", None),
                             tenant_id=getattr(self, "tenant_id", None),
@@ -7240,6 +7520,9 @@ class BYOKHandler:
                     return result
 
                 except Exception as attempt_err:
+                    if isinstance(attempt_err, _AccountingBlockedError):
+                        _accounting_blocked = True
+                        break
                     if isinstance(attempt_err, _EmptyCompletionError):
                         self._bench_model(provider_id, model)
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
@@ -7277,15 +7560,49 @@ class BYOKHandler:
                         try:
                             _t_kwargs = dict(_req_kwargs)
                             _t_kwargs["temperature"] = _locked_value
+                            _settlement_attempts[0] += 1
+                            _t_attempt_id = (
+                                f"{_settlement_request_id}:"
+                                f"{_settlement_attempts[0]}")
+                            self._admit_physical_attempt(
+                                request_id=_settlement_request_id,
+                                attempt_id=_t_attempt_id,
+                                provider_id=provider_id,
+                                model=model,
+                                messages=messages,
+                                max_output_tokens=_t_kwargs.get(
+                                    "max_tokens")
+                                or _DEFAULT_COMPLETION_MAX_TOKENS,
+                                agent_id=agent_id,
+                                execution_id=execution_id,
+                                chain_id=chain_id,
+                                extra_kwargs={
+                                    k: v for k, v in _t_kwargs.items()
+                                    if k not in ("messages", "model")
+                                },
+                            )
                             response = await _to_thread_safe(
                                 client.chat.completions.create, **_t_kwargs)
                             self._capture_echoed_model(response)
                             self._stash_last_reasoning(response)
                             result = response.choices[0].message.content
                             if not _visible_content_missing(result):
+                                self._settle_physical_response(
+                                    provider_id=provider_id,
+                                    model=model,
+                                    response=response,
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_t_attempt_id,
+                                    agent_id=agent_id,
+                                    execution_id=execution_id,
+                                    chain_id=chain_id,
+                                        unknown=_request_has_image,
+                                )
                                 self._last_used_model = model
                                 self._last_used_provider = provider_id
                                 return result
+                        except _AccountingBlockedError:
+                            raise
                         except Exception as _temp_retry_err:
                             logger.warning(
                                 f"temperature={_locked_value} retry also "
@@ -7314,15 +7631,37 @@ class BYOKHandler:
                                 f"retrying with {fallback_model}"
                             )
                             try:
-                                response = await _to_thread_safe(
-                                    client.chat.completions.create,
-                                    model=fallback_model,
-                                    messages=messages,
-                                    temperature=_required_temperature(
+                                _fb_kwargs = {
+                                    "model": fallback_model,
+                                    "messages": messages,
+                                    "temperature": _required_temperature(
                                         provider_id, fallback_model,
                                         temperature),
-                                    max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
+                                    "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
+                                }
+                                _settlement_attempts[0] += 1
+                                _fb_attempt_id = (
+                                    f"{_settlement_request_id}:"
+                                    f"{_settlement_attempts[0]}")
+                                self._admit_physical_attempt(
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_fb_attempt_id,
+                                    provider_id=provider_id,
+                                    model=fallback_model,
+                                    messages=messages,
+                                    max_output_tokens=_fb_kwargs[
+                                        "max_tokens"],
+                                    agent_id=agent_id,
+                                    execution_id=execution_id,
+                                    chain_id=chain_id,
+                                    extra_kwargs={
+                                        k: v for k, v in _fb_kwargs.items()
+                                        if k not in ("messages", "model")
+                                    },
                                 )
+                                response = await _to_thread_safe(
+                                    client.chat.completions.create,
+                                    **_fb_kwargs)
                                 self._capture_echoed_model(response)
                                 self._stash_last_reasoning(response)
                                 result = response.choices[0].message.content
@@ -7330,12 +7669,25 @@ class BYOKHandler:
                                     raise _EmptyCompletionError(
                                         f"fallback {fallback_model} returned no visible content"
                                     )
+                                self._settle_physical_response(
+                                    provider_id=provider_id,
+                                    model=fallback_model,
+                                    response=response,
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_fb_attempt_id,
+                                    agent_id=agent_id,
+                                    execution_id=execution_id,
+                                    chain_id=chain_id,
+                                        unknown=_request_has_image,
+                                )
                                 self._last_used_model = fallback_model
                                 self._last_used_provider = provider_id
                                 logger.info(
                                     f"Fallback succeeded: {provider_id}/{fallback_model}"
                                 )
                                 return result
+                            except _AccountingBlockedError:
+                                raise
                             except Exception as fb_err:
                                 logger.warning(
                                     f"Fallback {fallback_model} also failed: {fb_err}"
@@ -7415,6 +7767,29 @@ class BYOKHandler:
                                     f"patch={heal_result.rule} keys={heal_result.patched_keys}"
                                 )
                                 try:
+                                    _settlement_attempts[0] += 1
+                                    _heal_attempt_id = (
+                                        f"{_settlement_request_id}:"
+                                        f"{_settlement_attempts[0]}")
+                                    self._admit_physical_attempt(
+                                        request_id=_settlement_request_id,
+                                        attempt_id=_heal_attempt_id,
+                                        provider_id=provider_id,
+                                        model=model,
+                                        messages=messages,
+                                        max_output_tokens=(
+                                            heal_result.patched_kwargs.get(
+                                                "max_tokens")
+                                            or _DEFAULT_COMPLETION_MAX_TOKENS),
+                                        agent_id=agent_id,
+                                        execution_id=execution_id,
+                                        chain_id=chain_id,
+                                        extra_kwargs={
+                                            k: v for k, v in
+                                            heal_result.patched_kwargs.items()
+                                            if k not in ("messages", "model")
+                                        },
+                                    )
                                     response = await _to_thread_safe(
                                         client.chat.completions.create,
                                         **heal_result.patched_kwargs
@@ -7450,15 +7825,30 @@ class BYOKHandler:
                                         success=True, cost=None, latency_ms=latency_ms,
                                         routing_result_id=decision_id_for_feedback,
                                     )
+                                    self._settle_physical_response(
+                                        provider_id=provider_id,
+                                        model=model,
+                                        response=response,
+                                        request_id=_settlement_request_id,
+                                        attempt_id=_heal_attempt_id,
+                                        agent_id=agent_id,
+                                        execution_id=execution_id,
+                                        chain_id=chain_id,
+                                        unknown=_request_has_image,
+                                    )
                                     self._last_used_model = model
                                     self._last_used_provider = provider_id
                                     return result
+                                except _AccountingBlockedError:
+                                    raise
                                 except Exception as retry_err:
                                     logger.warning(
                                         f"[SelfHeal] retry FAILED for {provider_id}/{model}: "
                                         f"{retry_err} (rule={heal_result.rule})"
                                     )
                                     last_error = retry_err
+                        except _AccountingBlockedError:
+                            raise
                         except Exception:
                             logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
 
@@ -7478,14 +7868,36 @@ class BYOKHandler:
                         paid_model = _opencode_paid_fallback_model(model)
                         if paid_model and paid_model != model:
                             try:
-                                response = await _to_thread_safe(
-                                    client.chat.completions.create,
+                                _paid_kwargs = {
+                                    "model": paid_model,
+                                    "messages": messages,
+                                    "temperature": _required_temperature(
+                                        provider_id, paid_model, temperature),
+                                    "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
+                                }
+                                _settlement_attempts[0] += 1
+                                _paid_attempt_id = (
+                                    f"{_settlement_request_id}:"
+                                    f"{_settlement_attempts[0]}")
+                                self._admit_physical_attempt(
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_paid_attempt_id,
+                                    provider_id=provider_id,
                                     model=paid_model,
                                     messages=messages,
-                                    temperature=_required_temperature(
-                                        provider_id, paid_model, temperature),
-                                    max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
+                                    max_output_tokens=_paid_kwargs[
+                                        "max_tokens"],
+                                    agent_id=agent_id,
+                                    execution_id=execution_id,
+                                    chain_id=chain_id,
+                                    extra_kwargs={
+                                        k: v for k, v in _paid_kwargs.items()
+                                        if k not in ("messages", "model")
+                                    },
                                 )
+                                response = await _to_thread_safe(
+                                    client.chat.completions.create,
+                                    **_paid_kwargs)
                                 self._capture_echoed_model(response)
                                 self._stash_last_reasoning(response)
                                 result = response.choices[0].message.content
@@ -7516,9 +7928,22 @@ class BYOKHandler:
                                     success=True, cost=None, latency_ms=latency_ms,
                                     routing_result_id=decision_id_for_feedback,
                                 )
+                                self._settle_physical_response(
+                                    provider_id=provider_id,
+                                    model=paid_model,
+                                    response=response,
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_paid_attempt_id,
+                                    agent_id=agent_id,
+                                    execution_id=execution_id,
+                                    chain_id=chain_id,
+                                        unknown=_request_has_image,
+                                )
                                 self._last_used_model = paid_model
                                 self._last_used_provider = provider_id
                                 return result
+                            except _AccountingBlockedError:
+                                raise
                             except Exception as paid_err:
                                 logger.warning(
                                     f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
@@ -7540,6 +7965,11 @@ class BYOKHandler:
                     )
                     continue # Try next provider
             
+            if _accounting_blocked:
+                raise _AccountingBlockedError(
+                    "budget authorization unavailable for this request; no "
+                    "provider was dispatched without an authorized bound")
+
             logger.error(f"All providers failed. Last error: {last_error}")
 
             # LAST-RESORT CATALOG SWEEP for the non-stream path (2026-10-03,
@@ -7612,6 +8042,25 @@ class BYOKHandler:
                             _sp, _sm, _sweep_kwargs["max_tokens"])
                         if _reasoning_body:
                             _sweep_kwargs["extra_body"] = _reasoning_body
+                        _settlement_attempts[0] += 1
+                        _sweep_attempt_id = (
+                            f"{_settlement_request_id}:"
+                            f"{_settlement_attempts[0]}")
+                        self._admit_physical_attempt(
+                            request_id=_settlement_request_id,
+                            attempt_id=_sweep_attempt_id,
+                            provider_id=_sp,
+                            model=_sm,
+                            messages=_sweep_kwargs["messages"],
+                            max_output_tokens=_sweep_kwargs["max_tokens"],
+                            agent_id=agent_id,
+                            execution_id=execution_id,
+                            chain_id=chain_id,
+                            extra_kwargs={
+                                k: v for k, v in _sweep_kwargs.items()
+                                if k not in ("messages", "model")
+                            },
+                        )
                         response = await _to_thread_safe(
                             _client.chat.completions.create, **_sweep_kwargs)
                         self._capture_echoed_model(response)
@@ -7619,6 +8068,17 @@ class BYOKHandler:
                         if _visible_content_missing(_sweep_result):
                             raise _EmptyCompletionError(
                                 _sweep_result or "")
+                        self._settle_physical_response(
+                            provider_id=_sp,
+                            model=_sm,
+                            response=response,
+                            request_id=_settlement_request_id,
+                            attempt_id=_sweep_attempt_id,
+                            agent_id=agent_id,
+                            execution_id=execution_id,
+                            chain_id=chain_id,
+                                        unknown=_request_has_image,
+                        )
                         logger.warning(
                             "completion ladder sweep SUCCEEDED on %s/%s",
                             _sp, _sm)
@@ -7678,6 +8138,16 @@ class BYOKHandler:
                 f"failed. Last error: {_cause}. Check provider status or "
                 "credentials in Settings and try again.")
 
+        except _AccountingBlockedError as accounting_err:
+            logger.error(
+                "LLM generation blocked by accounting refusal: %s",
+                accounting_err)
+            return (
+                "I couldn't generate a response — this request could not be "
+                "authorized against the configured budget/pricing (unknown "
+                "or invalid model price, or the budget ledger is "
+                "unavailable). Check the model pricing and budget "
+                "configuration, then retry.")
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
             logger.error(f"LLM Generation failed: {e}", exc_info=True)
@@ -10603,41 +11073,18 @@ class BYOKHandler:
                 break
         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
         # The learning-router decision id is optional (None when the router is
-        # off). Settlement still needs a unique server-owned request identity:
-        # reusing "None:stream:request" made every stream collide on the
-        # ledger's unique attempt_id.
-        _stream_identity = (
-            stream_decision_id or f"stream-{uuid.uuid4().hex}")
-        # Streaming token/cost usage is not currently exposed by every
-        # provider stream. Reserve a conservative configured bound before the
-        # stream; it remains an active liability until authoritative
-        # reconciliation (never auto-released as zero).
-        _stream_reservation_bound = self._estimate_reservation_bound(
-            provider_id, model,
-            [str(m.get("content") or "") for m in messages],
-            max_tokens or _DEFAULT_COMPLETION_MAX_TOKENS)
-        try:
-            from core.spend_aggregation_service import begin_llm_usage
+        # off). Settlement still needs a unique server-owned request identity.
+        # One request-owned identity + sequence spans every nested frame
+        # (provider loop, self-heal, paid sibling, ranked-route hop, sweep) so
+        # each PHYSICAL transport call reserves under its own attempt id and
+        # can never reuse another route's authorization.
+        if not state.request_id:
+            state.request_id = (
+                stream_decision_id or f"stream-{uuid.uuid4().hex}")
+        _stream_identity = state.request_id
 
-            begin_llm_usage(
-                provider_id=provider_id,
-                model_name=model,
-                agent_id=agent_id,
-                workspace_id=getattr(self, "workspace_id", None),
-                tenant_id=getattr(self, "tenant_id", None),
-                request_id=_stream_identity,
-                attempt_id=f"{_stream_identity}:stream:request",
-                reserved_cost_usd=_stream_reservation_bound,
-                enforce_budget=True,
-            )
-        except Exception as stream_settle_err:
-            logger.error(
-                "Stream usage reservation failed (%s)",
-                type(stream_settle_err).__name__)
-            # No durable reservation: do not start the stream. Never silently
-            # stream an unaccounted paid call.
-            raise RuntimeError(
-                "durable stream usage reservation unavailable") from None
+        # No request-level reservation: admission happens immediately before
+        # each physical paid transport call (see _admit_physical_attempt).
 
         # P4 prompt-taint gate (shadow by default; blocks under enforce).
         _taint_block = self._llm_taint_check(
@@ -10847,6 +11294,33 @@ class BYOKHandler:
                 # This pair actually reaches transport. The request-wide
                 # ledger is what later ranked-route/sweep hops consult.
                 state.mark_attempt(attempt_provider_id, model)
+                _stream_request_id, _stream_attempt_id = (
+                    state.next_attempt_id())
+                try:
+                    _stream_attempt_bound = self._admit_physical_attempt(
+                        request_id=_stream_request_id,
+                        attempt_id=_stream_attempt_id,
+                        provider_id=attempt_provider_id,
+                        model=model,
+                        messages=messages,
+                        max_output_tokens=_attempt_max_tokens,
+                        agent_id=agent_id,
+                        extra_kwargs={
+                            k: v for k, v in create_kwargs.items()
+                            if k not in ("messages", "model")
+                        },
+                    )
+                except _AccountingBlockedError as _admit_err:
+                    self._release_model_attempt(
+                        attempt_provider_id, model, holder=_claim_holder,
+                        token=_claim_token)
+                    logger.error(
+                        "Stream physical-attempt admission refused for "
+                        "%s/%s; no dispatch (%s)",
+                        attempt_provider_id, model, type(_admit_err).__name__)
+                    state.accounting_blocked = True
+                    last_error = _admit_err
+                    break
                 try:
                     _connect_s = _stream_connect_timeout_seconds()
                     if _connect_s and _connect_s > 0:
@@ -10987,12 +11461,32 @@ class BYOKHandler:
                         "(finish_reason=%s); caller will fall back",
                         attempt_provider_id, model, _stream_finish_reason)
 
+                # Durable settlement of THIS physical stream attempt. Stream
+                # usage is not authoritative on this path, so the settlement
+                # is explicit unknown liability (or 0.0 for a trusted
+                # numeric-zero bound); the conservative reservation is never
+                # silently released.
+                self._settle_stream_attempt(
+                    provider_id=attempt_provider_id,
+                    model=model,
+                    request_id=_stream_request_id,
+                    attempt_id=_stream_attempt_id,
+                    reserved_bound=_stream_attempt_bound,
+                    agent_id=agent_id,
+                )
+
                 # Success! Return from the function
                 return
 
             except Exception as e:
                 last_error = e
                 logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
+
+                # Accounting refusal is not a provider failure: no hidden
+                # fallback, no unauthorized spend.
+                if isinstance(e, _AccountingBlockedError):
+                    state.accounting_blocked = True
+                    break
 
                 # Classify BEFORE deciding what to do next: a rejected
                 # credential and an unsupported model look alike in a status
@@ -11123,6 +11617,24 @@ class BYOKHandler:
                             )
                             try:
                                 state.mark_attempt(attempt_provider_id, model)
+                                _heal_request_id, _heal_attempt_id = (
+                                    state.next_attempt_id())
+                                _heal_bound = self._admit_physical_attempt(
+                                    request_id=_heal_request_id,
+                                    attempt_id=_heal_attempt_id,
+                                    provider_id=attempt_provider_id,
+                                    model=model,
+                                    messages=messages,
+                                    max_output_tokens=(
+                                        heal_result.patched_kwargs.get(
+                                            "max_tokens") or max_tokens),
+                                    agent_id=agent_id,
+                                    extra_kwargs={
+                                        k: v for k, v in
+                                        heal_result.patched_kwargs.items()
+                                        if k not in ("messages", "model")
+                                    },
+                                )
                                 stream = await client.chat.completions.create(
                                     **heal_result.patched_kwargs
                                 )
@@ -11179,7 +11691,17 @@ class BYOKHandler:
                                     success=True, cost=None, latency_ms=latency_ms,
                                     routing_result_id=stream_decision_id,
                                 )
+                                self._settle_stream_attempt(
+                                    provider_id=attempt_provider_id,
+                                    model=model,
+                                    request_id=_heal_request_id,
+                                    attempt_id=_heal_attempt_id,
+                                    reserved_bound=_heal_bound,
+                                    agent_id=agent_id,
+                                )
                                 return
+                            except _AccountingBlockedError:
+                                raise
                             except Exception as retry_err:
                                 logger.warning(
                                     f"[SelfHeal-stream] retry FAILED for "
@@ -11187,6 +11709,8 @@ class BYOKHandler:
                                     f"(rule={heal_result.rule})"
                                 )
                                 last_error = retry_err
+                    except _AccountingBlockedError:
+                        raise
                     except Exception:
                         logger.debug("[SelfHeal-stream] healer raised; skipping", exc_info=True)
 
@@ -11226,6 +11750,23 @@ class BYOKHandler:
                                     {k: v for k, v in extra_kwargs.items() if v is not None}
                                 )
                             state.mark_attempt(attempt_provider_id, paid_model)
+                            _paid_request_id, _paid_attempt_id = (
+                                state.next_attempt_id())
+                            _paid_bound = self._admit_physical_attempt(
+                                request_id=_paid_request_id,
+                                attempt_id=_paid_attempt_id,
+                                provider_id=attempt_provider_id,
+                                model=paid_model,
+                                messages=messages,
+                                max_output_tokens=(
+                                    retry_kwargs.get("max_tokens")
+                                    or _DEFAULT_COMPLETION_MAX_TOKENS),
+                                agent_id=agent_id,
+                                extra_kwargs={
+                                    k: v for k, v in retry_kwargs.items()
+                                    if k not in ("messages", "model")
+                                },
+                            )
                             stream = await client.chat.completions.create(**retry_kwargs)
                             logger.info(
                                 f"OpenCode Go free-model stream retry started on paid model "
@@ -11275,7 +11816,17 @@ class BYOKHandler:
                                 success=True, cost=None, latency_ms=latency_ms,
                                 routing_result_id=stream_decision_id,
                             )
+                            self._settle_stream_attempt(
+                                provider_id=attempt_provider_id,
+                                model=paid_model,
+                                request_id=_paid_request_id,
+                                attempt_id=_paid_attempt_id,
+                                reserved_bound=_paid_bound,
+                                agent_id=agent_id,
+                            )
                             return
+                        except _AccountingBlockedError:
+                            raise
                         except Exception as retry_err:
                             logger.warning(
                                 f"OpenCode Go free-model stream retry FAILED on paid model "
@@ -11342,6 +11893,20 @@ class BYOKHandler:
         # independent providers and fail on all of them: none of them was
         # asked for a model it serves.
         if state.visible_yielded:
+            return
+
+        # Accounting refusal is not a provider failure. Never replay an
+        # unauthorized physical request on a ranked route or a catalogue
+        # sweep: surface the bounded refusal instead.
+        if state.accounting_blocked:
+            logger.error(
+                "accounting refusal for %s/%s — no route/sweep replay",
+                provider_id, model)
+            yield (
+                "\n\n[Error: LLM budget authorization is unavailable for "
+                "this request (unknown or invalid model price, or the budget "
+                "ledger could not be read). Check the model pricing and "
+                "budget configuration, then retry.]")
             return
 
         _next_routes = list(fallback_routes or [])
@@ -11510,6 +12075,8 @@ class BYOKHandler:
         extra_kwargs: Optional[Dict[str, Any]] = None,
         _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
         explicit_route: Optional[bool] = None,
+        _settlement_request_id: Optional[str] = None,  # job identity (internal)
+        _attempt_seq: Optional[List[int]] = None,  # shared physical counter
     ) -> Dict[str, Any]:
         """Non-streaming chat completion with fallback + self-heal (gateway).
 
@@ -11586,8 +12153,12 @@ class BYOKHandler:
                 prompt_str = content if isinstance(content, str) else str(content)
                 break
         decision_id = self._stash_decision_features(prompt_str, task_type)
-        _settlement_request_id = str(decision_id or uuid.uuid4())
-        _settlement_attempt = 0
+        if not _settlement_request_id:
+            _settlement_request_id = str(decision_id or uuid.uuid4())
+        if _attempt_seq is None:
+            _attempt_seq = [0]
+        _accounting_blocked = False
+        _request_has_image = _has_inline_image(messages)
 
         # P4 prompt-taint gate (shadow by default; GatewayBlockedError maps to
         # a 4xx by the gateway's error mapping).
@@ -11673,41 +12244,35 @@ class BYOKHandler:
                         attempt_provider_id, model,
                     )
                     continue
-                _settlement_attempt += 1
-                _attempt_id = (
-                    f"{_settlement_request_id}:{_settlement_attempt}")
-                _chat_reservation_bound = self._estimate_reservation_bound(
-                    attempt_provider_id, model,
-                    [str(m.get("content") or "") for m in messages],
-                    _attempt_kwargs.get("max_tokens")
-                    or _DEFAULT_COMPLETION_MAX_TOKENS)
+                _attempt_seq[0] += 1
+                _attempt_id = f"{_settlement_request_id}:{_attempt_seq[0]}"
                 try:
-                    from core.spend_aggregation_service import (
-                        begin_llm_usage,
-                    )
-
-                    begin_llm_usage(
-                        provider_id=attempt_provider_id,
-                        model_name=model,
-                        agent_id=agent_id,
-                        workspace_id=getattr(self, "workspace_id", None),
-                        tenant_id=getattr(self, "tenant_id", None),
+                    _chat_reservation_bound = self._admit_physical_attempt(
                         request_id=_settlement_request_id,
                         attempt_id=_attempt_id,
-                        reserved_cost_usd=_chat_reservation_bound,
-                        enforce_budget=True,
+                        provider_id=attempt_provider_id,
+                        model=model,
+                        messages=messages,
+                        max_output_tokens=(
+                            _attempt_kwargs.get("max_tokens")
+                            or _DEFAULT_COMPLETION_MAX_TOKENS),
+                        agent_id=agent_id,
+                        extra_kwargs={
+                            k: v for k, v in _attempt_kwargs.items()
+                            if k not in ("messages", "model")
+                        },
                     )
-                except Exception as intent_err:
+                except _AccountingBlockedError:
                     self._release_model_attempt(
                         attempt_provider_id, model, holder=_claim_holder,
                         token=_claim_token)
                     logger.error(
                         "Durable usage intent unavailable; refusing "
-                        "completion dispatch of %s/%s (%s)",
-                        attempt_provider_id, model,
-                        type(intent_err).__name__)
+                        "completion dispatch of %s/%s",
+                        attempt_provider_id, model)
                     # Accounting/scope failure must not trigger a hidden
                     # fallback to another provider/model.
+                    _accounting_blocked = True
                     break
                 try:
                     response = await client.chat.completions.create(**_attempt_kwargs)
@@ -11783,7 +12348,9 @@ class BYOKHandler:
                             model_name=model,
                             prompt_tokens=prompt_tokens or 0,
                             completion_tokens=completion_tokens or 0,
-                            cost_usd=cost,
+                            # A multimodal attempt has no proven image bound;
+                            # keep its settlement explicitly unknown.
+                            cost_usd=(None if _request_has_image else cost),
                             agent_id=agent_id,
                             workspace_id=getattr(self, "workspace_id", None),
                             tenant_id=getattr(self, "tenant_id", None),
@@ -11842,6 +12409,9 @@ class BYOKHandler:
                 }
 
             except Exception as e:
+                if isinstance(e, _AccountingBlockedError):
+                    _accounting_blocked = True
+                    break
                 if isinstance(e, _EmptyCompletionError):
                     self._bench_model(attempt_provider_id, model)
                 last_error = e
@@ -11867,6 +12437,24 @@ class BYOKHandler:
                         "model": _direct_api_model_name(attempt_provider_id, model),
                     }
                     try:
+                        _attempt_seq[0] += 1
+                        _t1_attempt_id = (
+                            f"{_settlement_request_id}:{_attempt_seq[0]}")
+                        _t1_bound = self._admit_physical_attempt(
+                            request_id=_settlement_request_id,
+                            attempt_id=_t1_attempt_id,
+                            provider_id=attempt_provider_id,
+                            model=model,
+                            messages=messages,
+                            max_output_tokens=(
+                                _retry_at_1.get("max_tokens")
+                                or _DEFAULT_COMPLETION_MAX_TOKENS),
+                            agent_id=agent_id,
+                            extra_kwargs={
+                                k: v for k, v in _retry_at_1.items()
+                                if k not in ("messages", "model")
+                            },
+                        )
                         response = await client.chat.completions.create(
                             **_retry_at_1)
                         _choice = (response.choices[0]
@@ -11877,6 +12465,15 @@ class BYOKHandler:
                             raise _EmptyCompletionError(
                                 f"temperature retry on {model} returned no completion payload"
                             )
+                        self._settle_physical_response(
+                            provider_id=attempt_provider_id,
+                            model=model,
+                            response=response,
+                            request_id=_settlement_request_id,
+                            attempt_id=_t1_attempt_id,
+                            agent_id=agent_id,
+                            unknown=_request_has_image,
+                        )
                         self._clear_model_cooldown(attempt_provider_id, model)
                         last_error = None
                         self._last_used_model = model
@@ -11904,6 +12501,8 @@ class BYOKHandler:
                                 "total_tokens": getattr(_usage, "total_tokens", 0) or 0,
                             },
                         }
+                    except _AccountingBlockedError:
+                        raise
                     except Exception as _t1_err:
                         logger.warning(
                             f"temperature=1 retry also failed: {_t1_err}")
@@ -11957,6 +12556,25 @@ class BYOKHandler:
                                     "model": _direct_api_model_name(
                                         attempt_provider_id, model),
                                 }
+                                _attempt_seq[0] += 1
+                                _heal_attempt_id = (
+                                    f"{_settlement_request_id}:"
+                                    f"{_attempt_seq[0]}")
+                                self._admit_physical_attempt(
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_heal_attempt_id,
+                                    provider_id=attempt_provider_id,
+                                    model=model,
+                                    messages=messages,
+                                    max_output_tokens=(
+                                        healed_kwargs.get("max_tokens")
+                                        or _DEFAULT_COMPLETION_MAX_TOKENS),
+                                    agent_id=agent_id,
+                                    extra_kwargs={
+                                        k: v for k, v in healed_kwargs.items()
+                                        if k not in ("messages", "model")
+                                    },
+                                )
                                 healed_response = await client.chat.completions.create(**healed_kwargs)
                                 self._capture_echoed_model(healed_response)
                                 healed_choice = healed_response.choices[0] if getattr(healed_response, "choices", None) else None
@@ -11993,6 +12611,15 @@ class BYOKHandler:
                                     success=True, cost=heal_cost, latency_ms=0.0,
                                     routing_result_id=decision_id,
                                 )
+                                self._settle_physical_response(
+                                    provider_id=attempt_provider_id,
+                                    model=model,
+                                    response=healed_response,
+                                    request_id=_settlement_request_id,
+                                    attempt_id=_heal_attempt_id,
+                                    agent_id=agent_id,
+                                    unknown=_request_has_image,
+                                )
                                 self._last_used_model = model
                                 self._last_used_provider = attempt_provider_id
                                 return {
@@ -12015,12 +12642,16 @@ class BYOKHandler:
                                         "total_tokens": hp + hc,
                                     },
                                 }
+                            except _AccountingBlockedError:
+                                raise
                             except Exception as retry_err:
                                 logger.warning(
                                     f"[SelfHeal] retry FAILED for {attempt_provider_id}/{model}: {retry_err} "
                                     f"(rule={heal_result.rule})"
                                 )
                                 last_error = retry_err
+                    except _AccountingBlockedError:
+                        raise
                     except Exception:
                         logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
 
@@ -12047,6 +12678,25 @@ class BYOKHandler:
                                 k: v for k, v in base_kwargs.items() if k != "model"
                             }
                             retry_kwargs["model"] = paid_model
+                            _attempt_seq[0] += 1
+                            _paid_attempt_id = (
+                                f"{_settlement_request_id}:"
+                                f"{_attempt_seq[0]}")
+                            self._admit_physical_attempt(
+                                request_id=_settlement_request_id,
+                                attempt_id=_paid_attempt_id,
+                                provider_id=attempt_provider_id,
+                                model=paid_model,
+                                messages=messages,
+                                max_output_tokens=(
+                                    retry_kwargs.get("max_tokens")
+                                    or _DEFAULT_COMPLETION_MAX_TOKENS),
+                                agent_id=agent_id,
+                                extra_kwargs={
+                                    k: v for k, v in retry_kwargs.items()
+                                    if k not in ("messages", "model")
+                                },
+                            )
                             paid_response = await client.chat.completions.create(**retry_kwargs)
                             self._capture_echoed_model(paid_response)
                             p_choice = (
@@ -12115,6 +12765,15 @@ class BYOKHandler:
                                 success=True, cost=paid_cost, latency_ms=latency_ms,
                                 routing_result_id=decision_id,
                             )
+                            self._settle_physical_response(
+                                provider_id=attempt_provider_id,
+                                model=paid_model,
+                                response=paid_response,
+                                request_id=_settlement_request_id,
+                                attempt_id=_paid_attempt_id,
+                                agent_id=agent_id,
+                                unknown=_request_has_image,
+                            )
                             self._last_used_model = paid_model
                             self._last_used_provider = attempt_provider_id
                             logger.info(
@@ -12141,6 +12800,8 @@ class BYOKHandler:
                                     "total_tokens": (pp or 0) + (pc or 0),
                                 },
                             }
+                        except _AccountingBlockedError:
+                            raise
                         except Exception as paid_err:
                             logger.warning(
                                 f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
@@ -12165,7 +12826,7 @@ class BYOKHandler:
         # dead, walk the untried providers' catalog-served models directly
         # (no re-ranking — BPC + the learning router were what kept dead
         # rungs on top). One pass, no nested sweeps.
-        if _allow_ladder_sweep:
+        if _allow_ladder_sweep and not _accounting_blocked:
             try:
                 from core.llm.model_route_registry import (
                     get_provider_model_catalog,
@@ -12206,9 +12867,21 @@ class BYOKHandler:
                         temperature=temperature, max_tokens=max_tokens,
                         task_type=task_type, agent_id=agent_id,
                         extra_kwargs=extra_kwargs, _allow_ladder_sweep=False,
+                        _settlement_request_id=_settlement_request_id,
+                        _attempt_seq=_attempt_seq,
                     )
+                except _AccountingBlockedError:
+                    raise
                 except Exception as _sweep_call_err:
                     last_error = _sweep_call_err
+
+        if _accounting_blocked:
+            raise AllProvidersFailedError(
+                "LLM budget authorization is unavailable for this request "
+                "(unknown or invalid model price, or the budget ledger could "
+                "not be read). No provider was dispatched without an "
+                "authorized bound."
+            ) from last_error
 
         raise AllProvidersFailedError(
             f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}"

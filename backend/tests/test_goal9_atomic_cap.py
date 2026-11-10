@@ -475,7 +475,9 @@ def test_budget_revision_after_reservation_keeps_liability(host):
                 "active")
 
 
-def test_reservation_bound_covers_unicode_schema_and_output(host, monkeypatch):
+@pytest.mark.parametrize("estimated", [False, True])
+def test_reservation_bound_covers_unicode_schema_and_output(
+        host, monkeypatch, estimated):
     from core.llm import byok_handler, prompt_budget
 
     recorded = {}
@@ -491,9 +493,11 @@ def test_reservation_bound_covers_unicode_schema_and_output(host, monkeypatch):
         byok_handler, "get_pricing_fetcher", lambda: _Pricing())
     # Force the non-exact fallback: the helper must use UTF-8 bytes, not a
     # nominal chars/4 estimate.
+    # count_tokens returns (count, estimated). Both the real-tokenizer and
+    # heuristic flags must retain the model-independent UTF-8 text bound.
     monkeypatch.setattr(
         prompt_budget, "count_tokens",
-        lambda text: (max(1, len(str(text or "")) // 4), False))
+        lambda text: (max(1, len(str(text or "")) // 4), estimated))
     handler = object.__new__(byok_handler.BYOKHandler)
     bound = handler._estimate_reservation_bound(
         "openai", "gpt-4o-mini",
