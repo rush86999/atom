@@ -1,0 +1,83 @@
+
+tests/test_teach_thread_reply.py::TestJournalStandingLesson::test_supervised_agent_receives_teacher_lesson 
+-------------------------------- live log setup --------------------------------
+2026-11-10 02:53:30 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 02:53:31 [    INFO] EscalationManager initialized
+2026-11-10 02:53:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:53:31 [    INFO] EscalationManager initialized
+2026-11-10 02:53:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 02:53:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 02:53:31 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  6%]
+tests/test_teach_thread_reply.py::TestJournalStandingLesson::test_graduated_agent_receives_correction_lesson PASSED [ 12%]
+tests/test_teach_thread_reply.py::TestJournalStandingLesson::test_identical_lesson_does_not_stack PASSED [ 18%]
+tests/test_teach_thread_reply.py::TestJournalStandingLesson::test_missing_agent_is_a_noop PASSED [ 25%]
+tests/test_teach_thread_reply.py::TestTeachEndpointAnyTier::test_teach_supervised_agent_journals_standing_guidance 
+-------------------------------- live log call ---------------------------------
+2026-11-10 02:53:35 [    INFO] MCP Service initialized
+2026-11-10 02:53:35 [    INFO] Learning skipped for hire-9: status supervised (not STUDENT)
+2026-11-10 02:53:35 [    INFO] HTTP Request: POST http://testserver/api/agents/hire-9/teach "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_teach_thread_reply.py::TestChatTeachingCircuit::test_commented_rejection_reaches_operating_agent_any_tier PASSED [ 37%]
+tests/test_teach_thread_reply.py::TestChatTeachingCircuit::test_row_without_agent_id_falls_back_to_pair PASSED [ 43%]
+tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_thread_id_sends_graph_reply_not_new_mail FAILED [ 50%]
+tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_unknown_thread_fails_without_send FAILED [ 56%]
+tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_attachments_with_thread_are_refused_not_dropped FAILED [ 62%]
+tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_standalone_send_still_uses_send_email FAILED [ 68%]
+tests/test_teach_thread_reply.py::TestResolveReplySurfacesThreadId::test_thread_match_returns_conversation_id PASSED [ 75%]
+tests/test_teach_thread_reply.py::TestResolveReplySurfacesThreadId::test_mixed_thread_prefills_external_sender PASSED [ 81%]
+tests/test_teach_thread_reply.py::TestResolveReplySurfacesThreadId::test_unknown_domain_keeps_newest_non_self_sender PASSED [ 87%]
+tests/test_teach_thread_reply.py::TestReplyOverridesPayload::test_reply_to_email_carries_message_overrides PASSED [ 93%]
+tests/test_teach_thread_reply.py::TestPlanSchema::test_action_plan_accepts_thread_fields PASSED [100%]
+
+=================================== FAILURES ===================================
+_____ TestCanvasThreadReply.test_thread_id_sends_graph_reply_not_new_mail ______
+tests/test_teach_thread_reply.py:219: in test_thread_id_sends_graph_reply_not_new_mail
+    assert result["success"] is True
+E   assert False is True
+_________ TestCanvasThreadReply.test_unknown_thread_fails_without_send _________
+tests/test_teach_thread_reply.py:237: in test_unknown_thread_fails_without_send
+    assert result["status"] == "failed"
+           ^^^^^^^^^^^^^^^^
+E   KeyError: 'status'
+__ TestCanvasThreadReply.test_attachments_with_thread_are_refused_not_dropped __
+tests/test_teach_thread_reply.py:258: in test_attachments_with_thread_are_refused_not_dropped
+    assert result["blocked_by"] == "email_policy"
+           ^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'blocked_by'
+_______ TestCanvasThreadReply.test_standalone_send_still_uses_send_email _______
+tests/test_teach_thread_reply.py:265: in test_standalone_send_still_uses_send_email
+    assert result["success"] is True
+E   assert False is True
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_thread_id_sends_graph_reply_not_new_mail
+FAILED tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_unknown_thread_fails_without_send
+FAILED tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_attachments_with_thread_are_refused_not_dropped
+FAILED tests/test_teach_thread_reply.py::TestCanvasThreadReply::test_standalone_send_still_uses_send_email
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 4 failed, 12 passed, 5 warnings in 26.12s ===================
