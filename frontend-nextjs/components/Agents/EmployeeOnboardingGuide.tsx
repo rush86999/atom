@@ -102,10 +102,12 @@ export function EmployeeOnboardingGuide() {
                                 <>Create an employee, then run it on real tasks.</>
                             )}{' '}
                             Clean runs build experience toward the next stage, but
-                            they do not promote an employee by themselves. A promotion
-                            also needs the readiness requirements for that stage and a
-                            current scoped qualification review of the employee&apos;s
-                            actual work. Domain rules can still require human review.
+                            they do not promote an employee by themselves. Normal
+                            promotion also needs the readiness requirements for that
+                            stage and a review of the employee&apos;s actual work for
+                            the role. An allowed owner exception is recorded with its
+                            reason; domain selectors do not create exemptions. Domain
+                            rules can still require human review.
                         </p>
                     </section>
 

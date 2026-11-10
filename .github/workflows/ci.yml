@@ -875,7 +875,7 @@ jobs:
         run: npx jest components/assignments/__tests__/AssignmentPanel.test.tsx --runInBand --no-coverage
       - name: Agents release-surface regression tests
         # Core profile must not advertise deferred Marketplace/Automations.
-        run: npx jest tests/pages/agents-index.test.tsx --runInBand --no-coverage
+        run: npx jest tests/pages/agents-index.test.tsx components/Agents/__tests__/AgentLaunchGuide.test.tsx components/Agents/__tests__/EmployeeOnboardingGuide.test.tsx components/Agents/__tests__/GuidedAgentCreator.test.tsx --runInBand --no-coverage
       - name: Release-surface regression tests
         # Documents must not advertise deferred search; the card follows the
         # existing product-profile capability and keeps a supported next action.

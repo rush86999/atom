@@ -106,6 +106,12 @@ describe('AgentLaunchGuide', () => {
     expect(screen.getByTestId('connect-zoho-cta')).toBeInTheDocument();
     expect(screen.getByTestId('connect-outlook-cta')).toBeInTheDocument();
     expect(screen.getByTestId('create-agent-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('launch-step-train')).toHaveTextContent(
+      /review of the employee.s actual work for the role/i
+    );
+    expect(screen.getByTestId('launch-step-train')).toHaveTextContent(
+      /owner exception/i
+    );
     // Ingestion actions stay visible but gated until the employee exists.
     expect(screen.getByTestId('sync-zoho-cta')).toBeDisabled();
   });

@@ -203,9 +203,11 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
                 <p className="mt-1">
                   Right now it watches and learns from your feedback and approved
                   work. Regular use builds experience toward the next stage, but
-                  promotion is not automatic: the readiness requirements for that
-                  stage and a current scoped qualification review of the
-                  employee&apos;s actual work must both be satisfied. At{' '}
+                  promotion is not automatic: normally the readiness requirements
+                  for that stage and a review of the employee&apos;s actual work for
+                  the role must both be satisfied. An allowed owner exception is
+                  recorded with its reason; domain selectors do not create
+                  exemptions. At{' '}
                   <strong>Intern</strong> it drafts for you; at{' '}
                   <strong>Supervised</strong> it handles routine work under policy.
                   <strong> Autonomous</strong> is the product goal, with domain

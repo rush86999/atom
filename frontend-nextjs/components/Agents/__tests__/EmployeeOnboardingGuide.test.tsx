@@ -19,12 +19,14 @@ describe('EmployeeOnboardingGuide truthful lifecycle copy', () => {
     localStorage.clear();
   });
 
-  it('requires readiness and a scoped qualification review, not automatic graduation', () => {
+  it('requires readiness and a review of actual work, not automatic graduation', () => {
     renderGuide();
     const lifecycle = screen.getByTestId('agent-guide-lifecycle');
     expect(lifecycle).toHaveTextContent(/readiness requirements/i);
-    expect(lifecycle).toHaveTextContent(/scoped qualification review/i);
-    expect(lifecycle).toHaveTextContent(/actual work/i);
+    expect(lifecycle).toHaveTextContent(/review of the employee's actual work for the role/i);
+    expect(lifecycle).toHaveTextContent(/owner exception/i);
+    expect(lifecycle).toHaveTextContent(/recorded with its reason/i);
+    expect(lifecycle).toHaveTextContent(/domain selectors do not create exemptions/i);
     expect(lifecycle).toHaveTextContent(/domain rules can still require human review/i);
     expect(lifecycle).not.toHaveTextContent(/every clean run builds confidence/i);
     expect(lifecycle).not.toHaveTextContent(/automatically as they earn trust/i);

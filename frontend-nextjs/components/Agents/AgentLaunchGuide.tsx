@@ -729,7 +729,7 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
                     <ul className="text-xs text-gray-500 dark:text-gray-400 list-disc pl-4 space-y-0.5">
                         <li>New employees are trainees: they start read-only and show you what they plan to do before any change.</li>
                         <li>Run tasks with the Run button; approve their training plans under <Link href="/approvals" className="text-blue-600 underline">Approvals</Link>.</li>
-                        <li>Readiness and a current scoped qualification review of actual work are both required before promotion. A score alone does not promote.</li>
+                        <li>Normal promotion needs readiness and a review of the employee&rsquo;s actual work for the role. An allowed owner exception is recorded with its reason; domain selectors do not create exemptions. A score alone does not promote.</li>
                     </ul>
                     <div className="pt-1">
                         <PlayCircle className="inline w-3.5 h-3.5 mr-1 text-gray-400" />
