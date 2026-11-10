@@ -1,0 +1,34 @@
+# Sanitized excerpt of the root-private c3 backend-core log.
+# raw_bytes=921573 raw_sha256=f3d2e7652f475d89afdeaf2598c5fe6dcb63cfcfeed6fbf65a29c66954332a01
+# selected_lines=30 (17 pre-dispatch intent NameErrors + 13 FAILED ids)
+
+2026-11-10T15:48:30.5819366Z 2026-11-10 15:48:30 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash-free (NameError)
+2026-11-10T15:48:30.7420413Z 2026-11-10 15:48:30 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/mimo-v2.5-free (NameError)
+2026-11-10T15:48:30.8975975Z 2026-11-10 15:48:30 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash-free (NameError)
+2026-11-10T15:48:31.0550583Z 2026-11-10 15:48:31 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash-free (NameError)
+2026-11-10T15:48:31.2142416Z 2026-11-10 15:48:31 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:48:31.3863111Z 2026-11-10 15:48:31 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:48:32.1620867Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:48:32.1624071Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-pro (NameError)
+2026-11-10T15:48:32.2137073Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:48:32.2662899Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-pro (NameError)
+2026-11-10T15:48:32.7236560Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-pro (NameError)
+2026-11-10T15:48:32.7721512Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:48:32.8211162Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:48:32.8687899Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:48:32.9182993Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of openai/gpt-4o (NameError)
+2026-11-10T15:48:32.9188713Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/kimi-k2.7-code (NameError)
+2026-11-10T15:48:32.9709266Z 2026-11-10 15:48:32 [   ERROR] Durable usage intent unavailable; refusing dispatch of opencode-go/deepseek-v4-flash (NameError)
+2026-11-10T15:55:56.9662182Z FAILED tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_free_model_balance_error_retries_paid - assert "I couldn't g...nd try again." == 'Paid model response'
+2026-11-10T15:55:56.9665413Z FAILED tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_unlisted_free_model_falls_back_to_cheapest_paid - assert "I couldn't g...nd try again." == 'cheapest paid'
+2026-11-10T15:55:56.9668151Z FAILED tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_free_model_balance_error_paid_also_fails - IndexError: list index out of range
+2026-11-10T15:55:56.9669177Z FAILED tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_free_model_non_balance_error_no_paid_retry - AssertionError: assert 0 == 1
+2026-11-10T15:55:56.9673608Z FAILED tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_paid_model_balance_error_retries_free_tier_no_self_retry - IndexError: list index out of range
+2026-11-10T15:55:56.9674779Z FAILED tests/test_covpush_w27_opencode_retry.py::TestFreeToPaidRetry::test_paid_model_balance_error_free_tier_succeeds - assert "I couldn't g...nd try again." == 'free tier answer'
+2026-11-10T15:55:56.9677442Z FAILED tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_default_bpc_prefers_flash_value - assert "I couldn't g...nd try again." == 'answered-by:...seek-v4-flash'
+2026-11-10T15:55:56.9680167Z FAILED tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_fast_cap_excludes_pro - assert "I couldn't g...nd try again." == 'answered-by:...seek-v4-flash'
+2026-11-10T15:55:56.9683070Z FAILED tests/test_deepseek_harness_gaps.py::TestStageSteeringRealBPC::test_quality_floor_selects_pro - assert "I couldn't g...nd try again." == 'answered-by:deepseek-v4-pro'
+2026-11-10T15:55:56.9685918Z FAILED tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_quality_raises_quality_floor - assert "I couldn't g...nd try again." == 'q'
+2026-11-10T15:55:56.9688526Z FAILED tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_fast_caps_quality - assert "I couldn't g...nd try again." == 'f'
+2026-11-10T15:55:56.9691113Z FAILED tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_concrete_model_name_pins_candidate_order - assert "I couldn't g...nd try again." == 'gpt-4o answer'
+2026-11-10T15:55:56.9694310Z FAILED tests/test_deepseek_harness_gaps.py::TestGenerateResponseModelTypeSteering::test_unknown_concrete_model_keeps_ranked_order - assert "I couldn't g...nd try again." == 'x'
