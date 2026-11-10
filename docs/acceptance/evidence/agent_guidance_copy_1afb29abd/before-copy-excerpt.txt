@@ -1,0 +1,24 @@
+                            Every clean run builds confidence; employees graduate
+                            Student → Intern → Supervised → Autonomous
+                            automatically as they earn trust.
+                        </p>
+                    </section>
+
+                    <section data-testid="agent-guide-supervision">
+const CONFIG_HINTS: Record<string, string> = {
+    zoho: 'Needs ZOHO_CLIENT_ID / ZOHO_CLIENT_SECRET on the server first.',
+    microsoft: 'Needs MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET on the server first.',
+    google: 'Needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on the server first.',
+    slack: 'Needs SLACK_CLIENT_ID / SLACK_CLIENT_SECRET on the server first.',
+    salesforce: 'Needs SALESFORCE_CLIENT_ID / SALESFORCE_CLIENT_SECRET on the server first.',
+    notion: 'Needs NOTION_CLIENT_ID / NOTION_CLIENT_SECRET on the server first.',
+};
+--
+                                        {CONFIG_HINTS[app.oauth || '']}
+                                    </span>
+                                )
+                            )}
+                            {app.blurb && <span className="text-xs text-gray-400 basis-full sm:basis-auto">{app.blurb}</span>}
+                            <span className="sr-only">Step {idx + 1}</span>
+                        </div>
+                    );
