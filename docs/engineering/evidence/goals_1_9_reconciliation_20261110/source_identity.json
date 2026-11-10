@@ -1,0 +1,27 @@
+{
+  "canonical_sources": {
+    "APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json": "5c6319fc99db7cb03d17bf222d3568672d3237d83e16bad94dc0630e033dcc6d",
+    "APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json": "c01679fffe14688568750c5d7d4462eac4059a4be3347c3fbc9df87f8086c014",
+    "APP_GOALS_INDEX.json": "ba88a2a1228f621f1c392cd8bc0534be455f76f2db005fb5ab10443f71d4c3a4"
+  },
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "no_source_edits": true,
+  "pending_byte_parity": {
+    "PR829_email_test": "present",
+    "PR829_normalizer": "409cede1ec7de78bef66b48a133d1ac5cd124bb6465ca3c4453bb8817b8408ed matches reviewed repair",
+    "PR830_TrainingPanel_test": "25186c86008db9b9518087ba090845494ad75d7ecc2985b844bb4987e4a8f2ab matches reviewed repair"
+  },
+  "pending_prs": {
+    "829": {
+      "head": "08743676d57ec95eeae4351cc58abfdada5c32c3",
+      "merge": "7b46979d0d9b9faad857a0e5c7bdeedc90e6e091"
+    },
+    "830": {
+      "head": "e5c75c538e426fbfb563676e5672810ed9946d6a",
+      "merge": "38087c9cd9eab2909d3c9b17c3447beb14fd62a6"
+    }
+  },
+  "report_only_branch": true,
+  "schema": "goals_1_9_source_identity"
+}

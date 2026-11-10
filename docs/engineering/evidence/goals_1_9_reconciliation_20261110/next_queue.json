@@ -1,0 +1,119 @@
+{
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "not_next": [
+    "goals 10-18 and security fix (other native worker)",
+    "ORACLE-01 whole-app mutation",
+    "served model/provider quality",
+    "PostgreSQL/soak/performance/marketing",
+    "mobile"
+  ],
+  "pending_prs": {
+    "829": {
+      "head": "08743676d57ec95eeae4351cc58abfdada5c32c3",
+      "merge": "7b46979d0d9b9faad857a0e5c7bdeedc90e6e091"
+    },
+    "830": {
+      "head": "e5c75c538e426fbfb563676e5672810ed9946d6a",
+      "merge": "38087c9cd9eab2909d3c9b17c3447beb14fd62a6"
+    }
+  },
+  "queue": [
+    {
+      "do_not": [
+        "relax enforcement modes",
+        "skip/xfail",
+        "add a parallel budget engine",
+        "claim PostgreSQL/concurrency from SQLite"
+      ],
+      "existing_mechanism": [
+        "BudgetEnforcementService.check_budget_before_action_sync",
+        "SpendAggregationService.update_tenant_spend(persist=False)",
+        "TenantSetting['billing'] limit/mode",
+        "TokenUsage.cost_usd ledger"
+      ],
+      "failure_first_acceptance": {
+        "action": "2 (or 10) concurrent authorized admissions each insert $10 TokenUsage after check",
+        "current_expected_failure": "all admitted at $95; total spend > $100",
+        "env": "scratch SQLite only",
+        "fixed_assertion": "admitted count/remaining budget keeps ledger+reservation <= $100; release/reconcile on failure",
+        "live_spend": false,
+        "new_authority": false,
+        "provider": false,
+        "seed": "tenant limit $100, current $95 via TokenUsage, hard_stop"
+      },
+      "goal": 9,
+      "id": "BUDGET-CONCURRENT-SPEND-01",
+      "priority": 1,
+      "title": "Atomic concurrent-spend admission/reservation",
+      "trigger_callers": [
+        "AgentGovernanceService._check_budget_sync/_async (agent_governance_service.py ~786/805)",
+        "AtomMetaAgent._check_budget_before_react (~1996)",
+        "GenericAgent (~1368)",
+        "MCP/agent action admission"
+      ],
+      "why": "Preflight reads TokenUsage spend and returns allowed without reserving; spend is recorded after execution. Concurrent actions can pass at 95/100 and exceed the cap. Existing concurrent test covers checks, not spend admission."
+    },
+    {
+      "existing_mechanism": [
+        "api/document_routes.py",
+        "document_stored_export_ui_491ac1612",
+        "document_delete_truth_20261106",
+        "agent4_upload_open_reload_20261106",
+        "LanceDB chunk-family cleanup"
+      ],
+      "failure_first_acceptance": {
+        "assert": [
+          "upload exact doc id visible",
+          "search finds exact current content",
+          "export bytes/content match public readback",
+          "delete removes base+chunk family and search no longer returns",
+          "reload/list absent",
+          "scope/authority preserved"
+        ],
+        "env": "scratch HTTP/DB, no browser campaign required",
+        "new_authority": false,
+        "provider": false
+      },
+      "goal": 3,
+      "id": "DOC-JOINED-LIFECYCLE-01",
+      "priority": 2,
+      "title": "Joined ordinary document upload -> search -> export -> delete -> reload",
+      "trigger_callers": [
+        "frontend-nextjs/pages/documents.tsx upload/search/delete",
+        "POST /api/documents/upload",
+        "GET /api/documents/search",
+        "GET /api/documents/{doc_id}/export",
+        "DELETE /api/documents/{doc_id}"
+      ],
+      "why": "Individual piece packets exist; the same-document joined ordinary boundary is unproven and the audit gap remains at ordinary breadth."
+    },
+    {
+      "existing_mechanism": [
+        "PR803 c8f8183e8",
+        "PR812 e2cbff5b9",
+        "SSO candidate b27551a9c (not main)"
+      ],
+      "failure_first_acceptance": {
+        "assert": "password reset/restart session exact; SSO callback/session/cookie/DB identity agreement",
+        "env": "scratch/loopback only if owner authorizes controlled issuer",
+        "external_idp": false,
+        "note": "Do not add new identity authority",
+        "provider": false
+      },
+      "goal": 1,
+      "id": "ACCOUNT-RECOVERY-SSO-01",
+      "priority": 3,
+      "status": "deferred_provider_or_owner_authority",
+      "title": "Ordinary recovery/SSO breadth",
+      "trigger_callers": [
+        "frontend recovery/login pages",
+        "backend/api/auth_routes.py",
+        "NextAuth callback/session"
+      ],
+      "why": "PR803/804/812 cover bounded recovery/session/skills; SSO candidate b27551a9c is not main and needs a controlled issuer/owner authority."
+    }
+  ],
+  "schema": "goals_1_9_next_queue",
+  "status": "proposed_only_root_decision_required"
+}

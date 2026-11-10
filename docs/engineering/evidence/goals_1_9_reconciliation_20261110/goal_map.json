@@ -1,0 +1,186 @@
+{
+  "classification_vocabulary": [
+    "verified",
+    "scope-limited",
+    "regression-only",
+    "missing",
+    "contradicted",
+    "unqualified"
+  ],
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "denominator": {
+    "goal_map_rows": 18,
+    "historical_claims": 143,
+    "rescored": false
+  },
+  "goals": [
+    {
+      "classification": "scope-limited",
+      "code_consumers": [
+        "backend/api/auth_routes.py",
+        "backend/core/auth.py",
+        "frontend-nextjs/pages/login",
+        "frontend-nextjs/pages/settings-account",
+        "NextAuth"
+      ],
+      "gap": "Full ordinary recovery/OAuth/SSO; fresh-profile/sign-out and process-restart beyond tested seam; provider identity setup.",
+      "goal": "Setup and ordinary account use",
+      "number": 1,
+      "strongest_evidence": [
+        "PR803 c8f8183e8 recovery/session authority",
+        "PR804 20bf3dd93 skills",
+        "PR812 e2cbff5b9 web auth/task persistence",
+        "SSO candidate b27551a9c NOT main"
+      ]
+    },
+    {
+      "classification": "unqualified",
+      "code_consumers": [
+        "backend/core/llm/byok_handler",
+        "backend/core/byok_cost_optimizer",
+        "backend/core/llm routing"
+      ],
+      "gap": "Served multi-model quality/automatic selection beyond controlled routes; broad model quality cannot be unit-gated.",
+      "goal": "BYOK and suitable model selection",
+      "number": 2,
+      "strongest_evidence": [
+        "main BYOK/routing commits 94e9d2128, cdc8b9e9b, df57dc4fd, 4d6ad8412",
+        "controlled auto-selection matrix"
+      ]
+    },
+    {
+      "classification": "scope-limited",
+      "code_consumers": [
+        "backend/api/document_routes.py",
+        "backend/core/vfs/auto_document_ingestion",
+        "frontend-nextjs/pages/documents.tsx",
+        "frontend-nextjs/pages/documents/[docId].tsx"
+      ],
+      "gap": "Joined ordinary upload->search->export->delete->reload lifecycle as one boundary; export/grounding breadth; /search capability/deferred state.",
+      "goal": "Authorized common data and search",
+      "number": 3,
+      "strongest_evidence": [
+        "PR756 343594621 stored export",
+        "PR781 8d04a1664 document browser",
+        "PR813 24de76a7f",
+        "PR815 6f8c2a480 pagination",
+        "PR804 20bf3dd93",
+        "packets document_stored_export_ui_491ac1612, document_delete_truth_20261106, agent4_upload_open_reload_20261106, document_export_authority_20261107"
+      ]
+    },
+    {
+      "classification": "scope-limited",
+      "code_consumers": [
+        "backend/core/canvas_sheets_service.py",
+        "backend/api/canvas_routes.py",
+        "frontend canvas sheet editor"
+      ],
+      "gap": "Full-population/reconciliation at ordinary served boundary; restart/export values; general model judgment.",
+      "goal": "Spreadsheet and calculation",
+      "number": 4,
+      "strongest_evidence": [
+        "PR813 24de76a7f sheets/coding authority",
+        "PR801 89527616e legacy updates",
+        "G5 episodes"
+      ]
+    },
+    {
+      "classification": "scope-limited",
+      "code_consumers": [
+        "frontend-nextjs/components/canvas/CanvasPanel.tsx",
+        "backend/api/canvas_routes.py",
+        "office export services"
+      ],
+      "gap": "Remaining canvas families and ordinary reopen/export beyond tested DOCX/PPTX/email slices; title/count-only evidence insufficient.",
+      "goal": "Canvas and editable outputs",
+      "number": 5,
+      "strongest_evidence": [
+        "PR813 24de76a7f",
+        "PR800 5944700f4 editable presentations",
+        "PR799 d542b3862",
+        "PR798 4a4a83089",
+        "Office packet pending PR829",
+        "email UI packet 013209bfa pending branch/PR829"
+      ]
+    },
+    {
+      "classification": "scope-limited",
+      "code_consumers": [
+        "backend/core/student_training_service.py",
+        "backend/core/agent_governance_service.py",
+        "memory/playbook consumers"
+      ],
+      "gap": "Served/general consumption after restart; generated-code promotion; MEM-07 remains finite local.",
+      "goal": "Teaching and reusable agent capability",
+      "number": 6,
+      "strongest_evidence": [
+        "PR818 750f42215 reviewed learning",
+        "PR816 310e72aec authority/expiry",
+        "PR810 63dab46b5 README",
+        "MEM-07 finite local"
+      ]
+    },
+    {
+      "classification": "unqualified",
+      "code_consumers": [
+        "backend/core/agent_graduation_service.py",
+        "backend/core/graduation_exam.py",
+        "backend/core/agent_decision_write_service.py"
+      ],
+      "gap": "New held-out/served-domain qualification and general adaptive judgment; broad capability/model judgment not unit-provable.",
+      "goal": "Assessment and unfamiliar work",
+      "number": 7,
+      "strongest_evidence": [
+        "PR816 310e72aec",
+        "graduation candidate/controls pending PR830 (121 proof 31ub0c6n source-equal)",
+        "G5 API a9cdac474"
+      ]
+    },
+    {
+      "classification": "scope-limited",
+      "code_consumers": [
+        "backend/api/goal_run_routes.py",
+        "backend/core/async_turn_continuation.py",
+        "goal/task services"
+      ],
+      "gap": "Served/cross-surface/event-order continuation beyond accepted episodes; TASK-WAIT-01 (goal 10) owned by other worker.",
+      "goal": "Durable employee objectives",
+      "number": 8,
+      "strongest_evidence": [
+        "PR812 e2cbff5b9 task persistence",
+        "PR818 750f42215",
+        "accepted bounded wait/progress/restart/reply episodes"
+      ]
+    },
+    {
+      "classification": "scope-limited",
+      "code_consumers": [
+        "backend/core/budget_enforcement_service.py",
+        "backend/core/spend_aggregation_service.py",
+        "backend/core/agent_governance_service.py",
+        "backend/core/agent_execution_service.py"
+      ],
+      "gap": "Concurrent spend not reserved: preflight reads spend and returns allowed; spend is recorded after execution; existing concurrent test covers checks, not spend admission. Failure degradation/PostgreSQL also open.",
+      "goal": "Runtime configured-budget enforcement",
+      "number": 9,
+      "strongest_evidence": [
+        "PR722 5b9610b56 budget enforcement",
+        "142 focused + 323 shared controls",
+        "backend/tests/integration/budget/test_concurrent_budget_checks.py covers concurrent checks, not spend admission"
+      ]
+    }
+  ],
+  "no_goal_verified_reason": "Original goal-map rows remain broader than accepted bounded evidence; historical baseline-verified claims are not a new whole-goal acceptance.",
+  "pending_prs": {
+    "829": {
+      "head": "08743676d57ec95eeae4351cc58abfdada5c32c3",
+      "merge": "7b46979d0d9b9faad857a0e5c7bdeedc90e6e091"
+    },
+    "830": {
+      "head": "e5c75c538e426fbfb563676e5672810ed9946d6a",
+      "merge": "38087c9cd9eab2909d3c9b17c3447beb14fd62a6"
+    }
+  },
+  "schema": "goals_1_9_reconciliation"
+}

@@ -1,0 +1,24 @@
+{
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "denominator": "143 claims / 18 goals preserved",
+  "evidence_files": {
+    "README.md": "0f9f6242e6d8d37c5a3bb1ad6945818105ef28406bc5fcbd8870ce7a9702436e",
+    "goal_map.json": "55455f9e93b9e46b0e9cc311953bca68651ea0e1085c0484676bf3c481da832f",
+    "next_queue.json": "eabd642ce6b0ee7286153e204aca12d2263e15c011f00930ec5281ffcb755faa",
+    "source_identity.json": "2b39ee35407122cb21bfa493aa6bc356e123dcfe9ebc579f3d84a731ae3051cd"
+  },
+  "kind": "goals_1_9_read_only_reconciliation",
+  "no_implementation_tests_browser_model_provider_livedb_ci_goaledit_merge": true,
+  "pending_prs": {
+    "829": {
+      "head": "08743676d57ec95eeae4351cc58abfdada5c32c3",
+      "merge": "7b46979d0d9b9faad857a0e5c7bdeedc90e6e091"
+    },
+    "830": {
+      "head": "e5c75c538e426fbfb563676e5672810ed9946d6a",
+      "merge": "38087c9cd9eab2909d3c9b17c3447beb14fd62a6"
+    }
+  },
+  "report_only": true
+}
