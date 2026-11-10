@@ -1,0 +1,6 @@
+PASS components/canvas/__tests__/CanvasPanel.test.tsx (13.057 s)
+
+Test Suites: 1 passed, 1 total
+Tests:       47 passed, 47 total
+Snapshots:   0 total
+Time:        13.562 s

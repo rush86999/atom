@@ -59,6 +59,8 @@ def _canvas_authority_doubles(monkeypatch):
         "id": "unit-actor",
         "tenant_id": "default",
         "workspace_id": "default",
+        "effective_tenant_id": "default",
+        "effective_workspace_id": "default",
         "status": "active",
         "is_active": True,
     }

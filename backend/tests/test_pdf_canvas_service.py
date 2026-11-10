@@ -18,7 +18,10 @@ from core.database import Base
 from core.models import Canvas, CanvasAudit
 from core.pdf_canvas_service import PdfCanvasService
 
-TABLES = [Canvas.__table__, CanvasAudit.__table__]
+from core.models import Tenant, User
+
+TABLES = [Canvas.__table__, CanvasAudit.__table__,
+          Tenant.__table__, User.__table__]
 
 USER = "user-1"
 OTHER = "user-2"
@@ -31,6 +34,15 @@ def db(tmp_path, monkeypatch):
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine, tables=TABLES)
     session = sessionmaker(bind=engine)()
+    session.add(Tenant(id="default", name="Default",
+                       subdomain="pdf-service", edition="personal",
+                       is_active=True))
+    session.add(User(
+        id=USER, tenant_id="default", workspace_id="default",
+        email=f"{USER}@example.invalid", hashed_password="x",
+        first_name="U", last_name="Ser", role="member",
+        status="active", is_active=True))
+    session.commit()
     yield session
     session.close()
 

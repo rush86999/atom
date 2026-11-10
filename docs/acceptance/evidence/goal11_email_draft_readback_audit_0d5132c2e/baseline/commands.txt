@@ -1,0 +1,12 @@
+Source: origin/main 0d5132c2e (resolved current)
+Worktree: /private/tmp/atom-goal11-email-draft-audit-20261110
+
+Command:
+  cd backend
+  TESTING=0 DATABASE_URL=sqlite:///<scratch>/audit.db ATOM_DATA_DIR=<scratch>/data \
+    PYTHONPATH=<root-plugin-path>:.<python> \
+    /usr/local/bin/python3.11 <probe>/atom-goal11-email-draft-audit-20261110-probe.py <scratch>/audit.db
+
+Actual exit: 0 (probe completed; product refusals printed in result.summary.json)
+Probe ran real public routers (email + generic canvas) with real JWT and scratch SQLite.
+No provider/send/model/browser call.

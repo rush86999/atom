@@ -1,0 +1,10 @@
+INFO:     127.0.0.1:63315 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/context HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62934 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/context HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62932 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/agents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63309 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62932 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62934 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/capability HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62932 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/logic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62932 - "OPTIONS /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/export/office?format=docx&expected_audit_id=ff79f334-bff2-4117-b784-2b375b53cdf4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62934 - "GET /api/canvas/159081e9-8a82-417f-b755-6248bbef5212/export/office?format=docx&expected_audit_id=ff79f334-bff2-4117-b784-2b375b53cdf4 HTTP/1.1" 403 Forbidden
+

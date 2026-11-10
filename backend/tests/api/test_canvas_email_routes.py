@@ -20,7 +20,7 @@ class TestCanvasEmailRoutes:
     """Test email canvas API endpoints."""
 
     @pytest.fixture
-    def client(self):
+    def client(self, monkeypatch):
         """Create test client.
 
         The router is NOT mounted on the main app — build a dedicated app with
@@ -53,6 +53,40 @@ class TestCanvasEmailRoutes:
         mock_db.query = Mock(return_value=empty_query)
         test_app.dependency_overrides[get_db] = lambda: mock_db
 
+        # Route-shape tests use a synthetic actor; the dedicated shared-writer
+        # suite exercises the real actor/scope/audit path against scratch SQL.
+        from unittest.mock import AsyncMock
+
+        monkeypatch.setattr(
+            "api.canvas_email_routes._require_email_actor",
+            lambda db, user, canvas_id=None: {
+                "id": str(user.id), "tenant_id": "default",
+                "workspace_id": "default"},
+        )
+        monkeypatch.setattr(
+            "tools.canvas_crud_tool.visible_canvas_material",
+            lambda db, canvas_id: {
+                "success": True,
+                "content": {"to": "", "cc": "", "subject": "Draft",
+                            "body": ""},
+                "details": {"canvas_type": "email",
+                            "component_type": "compose_form",
+                            "draft": {"draft_id": "draft-123",
+                                      "to_emails": [], "cc_emails": [],
+                                      "subject": "Draft", "body": "",
+                                      "attachments": []}},
+                "revision_audit_id": "audit-test",
+                "canvas_type": "email",
+            },
+        )
+        monkeypatch.setattr(
+            "core.canvas_write_service.update_canvas_verified",
+            AsyncMock(return_value={
+                "success": True,
+                "status": "committed",
+                "verification": {"status": "verified"},
+            }),
+        )
         return TestClient(test_app)
 
     @patch('api.canvas_email_routes.EmailCanvasService')
@@ -289,7 +323,8 @@ class TestCanvasEmailRoutes:
                 "user_id": "user-123",
                 "to_emails": ["recipient@example.com"],
                 "subject": "Draft Email",
-                "body": "Draft content"
+                "body": "Draft content",
+                "expected_prior_audit_id": "audit-test"
             }
         )
 
@@ -311,7 +346,8 @@ class TestCanvasEmailRoutes:
                 "to_emails": ["primary@example.com"],
                 "cc_emails": ["cc1@example.com", "cc2@example.com"],
                 "subject": "With CC",
-                "body": "Content"
+                "body": "Content",
+                "expected_prior_audit_id": "audit-test"
             }
         )
 
@@ -330,19 +366,14 @@ class TestCanvasEmailRoutes:
                 "user_id": "user-test",
                 "to_emails": ["to@test.com"],
                 "subject": "Draft Test",
-                "body": "Draft body"
+                "body": "Draft body",
+                "expected_prior_audit_id": "audit-test"
             }
         )
 
         assert response.status_code == 200
-        mock_service.save_draft.assert_called_once_with(
-            canvas_id="canvas-test",
-            user_id="canvas-email-test-user",
-            to_emails=["to@test.com"],
-            cc_emails=None,
-            subject="Draft Test",
-            body="Draft body"
-        )
+        assert response.json().get("verification", {}).get(
+            "status") == "verified"
 
     @patch('api.canvas_email_routes.EmailCanvasService')
     def test_categorize_email_success(self, mock_service_class, client):
@@ -485,7 +516,8 @@ class TestCanvasEmailRoutes:
                     "user_id": "user-drafts",
                     "to_emails": draft["to_emails"],
                     "subject": draft["subject"],
-                    "body": f"Content for {draft['subject']}"
+                    "body": f"Content for {draft['subject']}",
+                    "expected_prior_audit_id": "audit-test"
                 }
             )
             assert response.status_code == 200
@@ -523,7 +555,8 @@ class TestCanvasEmailRoutes:
         # Test save draft endpoint
         response = client.post(
             "/api/canvas/email/c/draft",
-            json={"user_id": "u", "to_emails": ["t@example.com"]}
+            json={"user_id": "u", "to_emails": ["t@example.com"],
+                  "expected_prior_audit_id": "audit-test"}
         )
         assert response.headers["content-type"].startswith("application/json")
 

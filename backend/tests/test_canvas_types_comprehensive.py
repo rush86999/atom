@@ -195,6 +195,10 @@ class TestDocumentationCanvas:
 class TestEmailCanvas:
     """Tests for Email Canvas."""
 
+    @pytest.fixture(autouse=True)
+    def _authority_rows(self, db_session):
+        _ensure_canvas_user(db_session)
+
     def test_create_email_canvas(self, db_session: Session):
         """Test creating an email canvas."""
         service = EmailCanvasService(db_session)
@@ -243,16 +247,14 @@ class TestEmailCanvas:
         )
         canvas_id = create_result["canvas_id"]
 
-        draft_result = service.save_draft(
-            canvas_id=canvas_id,
-            user_id="test-user",
-            to_emails=["recipient@example.com"],
-            subject="Draft Subject",
-            body="Draft body"
-        )
-
-        assert draft_result["success"] is True
-        assert "draft_id" in draft_result
+        with pytest.raises(RuntimeError, match="retired"):
+            service.save_draft(
+                canvas_id=canvas_id,
+                user_id="test-user",
+                to_emails=["recipient@example.com"],
+                subject="Draft Subject",
+                body="Draft body"
+            )
 
 
 class TestSpreadsheetCanvas:

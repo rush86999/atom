@@ -1,0 +1,9 @@
+
+========================================================================
+WORLD STORAGE PREFLIGHT FAILED
+========================================================================
+worlds root does not exist and is not a symlink: /private/tmp/atom-goal11-office-browser-20261110/backend/data/acceptance_worlds
+  Refusing to run: the first mkdir would create a new tree
+  that is not the verified one.
+
+EXIT:1

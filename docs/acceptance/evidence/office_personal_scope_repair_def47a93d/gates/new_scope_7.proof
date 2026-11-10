@@ -1,0 +1,96 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 06:05:46 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:05:46 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:05:46 [    INFO] EscalationManager initialized
+2026-11-10 06:05:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:05:46 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:05:46 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:05:46 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:05:46 [    INFO] EscalationManager initialized
+2026-11-10 06:05:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:05:46 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:05:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:05:47 [    INFO] MCP Service initialized
+
+tests/test_personal_scope_authority.py::test_bootstrap_null_raw_scope_exports_default_canvas 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:05:47 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:05:48 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-d89d7e00b9/export/office?format=docx&expected_audit_id=audit-0b97687baa "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_personal_scope_authority.py::test_null_actor_foreign_real_tenant_workspace_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:05:48 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-564636484b/export/office?format=docx&expected_audit_id=audit-c5f3b48e4e "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 28%]
+tests/test_personal_scope_authority.py::test_inactive_unknown_and_missing_default_tenant_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:05:49 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-0cd4379062/export/office?format=docx&expected_audit_id=audit-f95be6d43a "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 42%]
+tests/test_personal_scope_authority.py::test_null_raw_scope_transition_cas_refuses[default] PASSED [ 57%]
+tests/test_personal_scope_authority.py::test_null_raw_scope_transition_cas_refuses[] PASSED [ 71%]
+tests/test_personal_scope_authority.py::test_real_opaque_scope_is_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:05:52 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-6408d3a9c4/export/office?format=docx&expected_audit_id=audit-571c9293b4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_personal_scope_authority.py::test_coding_and_sheets_create_use_effective_default_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:05:53 [    INFO] Created coding canvas 7a53a415-4941-49fc-9377-da51f0d5c960: example/repo
+2026-11-10 06:05:53 [    INFO] Created spreadsheet canvas d21d6b91-fc9f-4fd9-99a2-dda374c0b354: Scope sheet
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 7 passed, 5 warnings in 21.16s ========================
