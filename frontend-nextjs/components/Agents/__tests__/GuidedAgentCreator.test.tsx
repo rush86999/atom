@@ -21,9 +21,11 @@ import * as api from '@/lib/agent-onboarding-api';
 jest.mock('@/lib/agent-onboarding-api', () => ({
   createGuidedAgent: jest.fn(),
   getAutomationSuggestions: jest.fn(),
+  newCreationOperationId: jest.fn(() => 'ui-intent-1'),
 }));
 
 const mockedCreate = api.createGuidedAgent as jest.Mock;
+const mockedNewOperationId = api.newCreationOperationId as jest.Mock;
 const mockedSuggestions = api.getAutomationSuggestions as jest.Mock;
 
 const renderCreator = (props: any = {}) =>
@@ -39,6 +41,7 @@ const renderCreator = (props: any = {}) =>
 describe('GuidedAgentCreator', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedNewOperationId.mockReturnValue('ui-intent-1');
     mockedSuggestions.mockResolvedValue({
       history_summary: {},
       suggestions: [
@@ -76,15 +79,19 @@ describe('GuidedAgentCreator', () => {
     expect(mockedCreate).not.toHaveBeenCalled();
   });
 
-  it('shows success state with STUDENT maturity expectations', async () => {
+  it('shows success state with STUDENT maturity expectations and exact id', async () => {
+    const onAgentCreated = jest.fn();
     mockedCreate.mockResolvedValue({
       agent_id: 'agent-1',
       name: 'Invoice Watchdog',
       category: 'Finance',
       maturity: 'student',
       created_by: 'employee',
+      operation_id: 'agent:create:intent-1',
+      audit_id: 'agent:create:intent-1',
+      verification: { status: 'verified', effect: 'committed' },
     });
-    renderCreator();
+    renderCreator({ onAgentCreated });
 
     await userEvent.type(screen.getByTestId('guided-goal-input'), 'watch invoices and flag overdue ones');
     await userEvent.click(screen.getByTestId('guided-create-button'));
@@ -94,15 +101,21 @@ describe('GuidedAgentCreator', () => {
     expect(screen.getByText(/Invoice Watchdog is here/)).toBeInTheDocument();
     expect(success.textContent).toContain('Student');
     expect(success.textContent).toContain('When will it be useful?');
+    expect(onAgentCreated).toHaveBeenCalledWith('agent-1');
+    expect(mockedCreate).toHaveBeenCalledWith(
+      'watch invoices and flag overdue ones', undefined,
+      { operationId: expect.any(String) }
+    );
   });
 
-  it('shows pending-approval state for agent-initiated creation', async () => {
+  it('shows pending-approval state without a created-agent callback', async () => {
+    const onAgentCreated = jest.fn();
     mockedCreate.mockResolvedValue({
       status: 'pending_approval',
       hitl_action_id: 'hitl-1',
       reason: 'Trust policy requires human approval',
     });
-    renderCreator();
+    renderCreator({ onAgentCreated });
 
     await userEvent.type(screen.getByTestId('guided-goal-input'), 'watch invoices and flag overdue ones');
     await userEvent.click(screen.getByTestId('guided-create-button'));
@@ -110,6 +123,24 @@ describe('GuidedAgentCreator', () => {
     const pending = await screen.findByTestId('guided-pending');
     expect(pending).toBeInTheDocument();
     expect(pending.textContent).toContain('Trust policy requires human approval');
+    expect(onAgentCreated).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an unverified creation without claiming success', async () => {
+    const onAgentCreated = jest.fn();
+    mockedCreate.mockRejectedValue({
+      code: 'UNVERIFIED_CREATE',
+      message: 'not verified',
+    });
+    renderCreator({ onAgentCreated });
+
+    await userEvent.type(screen.getByTestId('guided-goal-input'), 'watch invoices and flag overdue ones');
+    await userEvent.click(screen.getByTestId('guided-create-button'));
+
+    expect(await screen.findByTestId('guided-error')).toHaveTextContent(
+      /could not be verified/i
+    );
+    expect(onAgentCreated).not.toHaveBeenCalled();
   });
 
   it('surfaces API errors instead of failing silently', async () => {

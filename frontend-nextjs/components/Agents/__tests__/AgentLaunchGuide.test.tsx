@@ -28,6 +28,7 @@ const mockApiClient = {
 jest.mock('../../../lib/api', () => ({
   __esModule: true,
   apiClient: mockApiClient,
+  default: mockApiClient,
 }));
 
 const mockApi = {
@@ -185,7 +186,19 @@ describe('AgentLaunchGuide', () => {
   test('hire flow posts the role category and notifies parent', async () => {
     const onAgentsChanged = jest.fn();
     mockApiClient.post.mockResolvedValue({
-      data: { success: true, data: { agent_id: 'new-1' } },
+      data: {
+        success: true,
+        data: {
+          agent_id: 'new-1',
+          agent_name: 'Sales Development Rep',
+          category: 'Sales',
+          tenant_id: 'company',
+          workspace_id: 'ws-a',
+          operation_id: 'agent:create:hire-intent-1',
+          audit_id: 'agent:create:hire-intent-1',
+          verification: { status: 'verified', effect: 'committed' },
+        },
+      },
     });
 
     const user = userEvent.setup();
@@ -202,10 +215,40 @@ describe('AgentLaunchGuide', () => {
     await waitFor(() => {
       expect(mockApiClient.post).toHaveBeenCalledWith(
         '/api/agents/custom',
-        expect.objectContaining({ category: 'Sales', name: 'Sales Development Rep' })
+        expect.objectContaining({ category: 'Sales', name: 'Sales Development Rep' }),
+        expect.objectContaining({
+          retry: false,
+          params: { operation_id: expect.any(String) },
+        })
       );
-      expect(onAgentsChanged).toHaveBeenCalled();
+      expect(onAgentsChanged).toHaveBeenCalledWith('new-1');
     });
+  });
+
+  test('does not report a malformed/unverified hire as created', async () => {
+    const onAgentsChanged = jest.fn();
+    mockApiClient.post.mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          agent_id: 'new-unverified',
+          operation_id: 'agent:create:hire-intent-2',
+          verification: { status: 'committed_unverified', effect: 'committed' },
+        },
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<AgentLaunchGuide agents={[]} onAgentsChanged={onAgentsChanged} />);
+
+    await screen.findByTestId('create-agent-cta');
+    await user.click(screen.getByTestId('create-agent-cta'));
+    await user.click(screen.getByTestId('launch-agent-submit'));
+
+    await waitFor(() => {
+      expect(mockApiClient.post).toHaveBeenCalledTimes(1);
+    });
+    expect(onAgentsChanged).not.toHaveBeenCalled();
   });
 
   test('sync is scoped to the role employee and reports ingested counts', async () => {

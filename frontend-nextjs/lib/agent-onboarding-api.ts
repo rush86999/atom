@@ -4,7 +4,20 @@ import { apiClient } from './api-client';
 // api/agent_onboarding_routes.py). Self-serve agent creation, history-mined
 // automation suggestions, and agent maturity guidance.
 
-export interface GuidedAgentResult {
+export interface AgentVerification {
+  status?: string;
+  effect?: string;
+  audit_id?: string;
+  replay?: string;
+}
+
+export interface AgentCreationReceipt {
+  operation_id?: string;
+  audit_id?: string;
+  verification?: AgentVerification;
+}
+
+export interface GuidedAgentResult extends AgentCreationReceipt {
   agent_id: string;
   name: string;
   category: string;
@@ -17,6 +30,53 @@ export interface GuidedAgentPending {
   status: 'pending_approval';
   hitl_action_id: string | null;
   reason: string;
+}
+
+export interface CustomAgentResult extends AgentCreationReceipt {
+  agent_id: string;
+  agent_name?: string;
+  category?: string;
+  tenant_id?: string;
+  workspace_id?: string;
+}
+
+export function newCreationOperationId(): string {
+  const cryptoObj =
+    typeof globalThis !== 'undefined' ? (globalThis as any).crypto : undefined;
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    return cryptoObj.randomUUID();
+  }
+  return `ui-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function unwrapCreationEnvelope(res: any, label: string): any {
+  const envelope = res?.data;
+  if (envelope && envelope.success === false) {
+    const err: any = new Error(`${label} was not accepted`);
+    err.code = 'CREATION_NOT_ACCEPTED';
+    err.response = res;
+    throw err;
+  }
+  return envelope?.data ?? envelope;
+}
+
+function assertVerifiedCreation(data: any, label: string): any {
+  if (!data || typeof data.agent_id !== 'string' || !data.agent_id.trim()) {
+    const err: any = new Error(`${label} returned no exact agent id`);
+    err.code = 'UNVERIFIED_CREATE';
+    err.data = data;
+    throw err;
+  }
+  const status = data?.verification?.status;
+  if (status !== 'verified' && status !== 'already_applied') {
+    const err: any = new Error(
+      `${label} was not verified; reconcile before retrying`
+    );
+    err.code = 'UNVERIFIED_CREATE';
+    err.data = data;
+    throw err;
+  }
+  return data;
 }
 
 export interface AutomationSuggestion {
@@ -96,10 +156,52 @@ export interface AgentMaturityGuide {
 
 export async function createGuidedAgent(
   goal: string,
-  context?: string
+  context?: string,
+  options?: { operationId?: string }
 ): Promise<GuidedAgentResult | GuidedAgentPending> {
-  const res = await apiClient.post('/api/agents/guided', { goal, context });
-  return res.data?.data ?? res.data;
+  const operationId = options?.operationId;
+  const res = await apiClient.post(
+    '/api/agents/guided',
+    { goal, context },
+    {
+      ...(operationId ? { params: { operation_id: operationId } } : {}),
+      // A create is not idempotent at the transport layer. A 503 or a lost
+      // network confirmation may already have committed; never replay it
+      // automatically. The same operation id can be reused only when the
+      // user explicitly retries the unchanged intent.
+      retry: false,
+    }
+  );
+  const data = unwrapCreationEnvelope(res, 'Agent creation');
+  if (data?.status === 'pending_approval') {
+    return {
+      status: 'pending_approval',
+      hitl_action_id: data.hitl_action_id ?? null,
+      reason: data.reason || 'Human approval required',
+    };
+  }
+  return assertVerifiedCreation(data, 'Agent creation') as GuidedAgentResult;
+}
+
+export async function createCustomAgent(
+  payload: {
+    name: string;
+    description?: string;
+    category: string;
+    configuration?: Record<string, unknown>;
+    schedule_config?: Record<string, unknown> | null;
+  },
+  options?: { operationId?: string }
+): Promise<CustomAgentResult> {
+  const operationId = options?.operationId;
+  const res = await apiClient.post('/api/agents/custom', payload, {
+    ...(operationId ? { params: { operation_id: operationId } } : {}),
+    // Same no-auto-replay rule as guided creation: a lost confirmation is
+    // uncertain, not permission to POST the hire again.
+    retry: false,
+  });
+  const data = unwrapCreationEnvelope(res, 'Employee hire');
+  return assertVerifiedCreation(data, 'Employee hire') as CustomAgentResult;
 }
 
 export async function getAutomationSuggestions(
