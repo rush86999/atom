@@ -289,3 +289,191 @@ describe("DocumentsPage", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pagination / invalidation / stale-response controls
+// ---------------------------------------------------------------------------
+
+const pagedDoc = (id: string, index: number) => ({
+  id,
+  title: id,
+  text_preview: `${id} preview`,
+  created_at: `2026-01-${String(index + 1).padStart(2, "0")}T10:00:00Z`,
+});
+
+const pageResponse = (
+  ids: string[],
+  offset: number,
+  total: number,
+  hasMore: boolean,
+) => ({
+  status: 200,
+  data: {
+    success: true,
+    data: ids.map((id, i) => pagedDoc(id, offset + i)),
+    metadata: {
+      total,
+      count: ids.length,
+      limit: 100,
+      offset,
+      has_more: hasMore,
+      ...(hasMore ? { next_offset: offset + ids.length } : {}),
+      ...(offset > 0 ? { previous_offset: Math.max(0, offset - 100) } : {}),
+    },
+  },
+});
+
+const mockPagedGet = (
+  first: string[] = ["newest", "older"],
+  second: string[] = ["oldest"],
+  total = 130,
+) => {
+  mockGet.mockImplementation(async (_url: string, opts?: any) => {
+    const offset = opts?.params?.offset ?? 0;
+    return offset === 0
+      ? pageResponse(first, 0, total, total > first.length)
+      : pageResponse(second, 100, total, false);
+  });
+};
+
+describe("DocumentsPage pagination", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    apiImpl(mockPost, () => ({ status: 200, data: { success: true } }));
+  });
+
+  test("next and previous reach older and newest documents with range/page controls", async () => {
+    mockPagedGet();
+    render(<DocumentsPage />);
+
+    await screen.findByText("newest");
+    expect(screen.getByTestId("documents-range")).toHaveTextContent("Showing 1–2 of 130");
+    expect(screen.getByTestId("documents-page")).toHaveTextContent("Page 1 of 2");
+    expect(screen.getByTestId("documents-previous")).toBeDisabled();
+    expect(screen.getByTestId("documents-next")).toBeEnabled();
+
+    fireEvent.click(screen.getByTestId("documents-next"));
+    await screen.findByText("oldest");
+    expect(mockGet).toHaveBeenLastCalledWith(
+      "/api/documents",
+      expect.objectContaining({ params: { limit: 100, offset: 100 } }),
+    );
+    expect(screen.getByTestId("documents-range")).toHaveTextContent("Showing 101–101 of 130");
+    expect(screen.getByTestId("documents-page")).toHaveTextContent("Page 2 of 2");
+    expect(screen.getByTestId("documents-next")).toBeDisabled();
+    expect(screen.getByTestId("documents-previous")).toBeEnabled();
+
+    fireEvent.click(screen.getByTestId("documents-previous"));
+    await screen.findByText("newest");
+    expect(mockGet).toHaveBeenLastCalledWith(
+      "/api/documents",
+      expect.objectContaining({ params: { limit: 100, offset: 0 } }),
+    );
+  });
+
+  test("upload resets a later page to the first page", async () => {
+    mockPagedGet();
+    render(<DocumentsPage />);
+    await screen.findByText("newest");
+    fireEvent.click(screen.getByTestId("documents-next"));
+    await screen.findByText("oldest");
+
+    mockGet.mockImplementation(async (_url: string, opts?: any) => {
+      const offset = opts?.params?.offset ?? 0;
+      if (offset === 0) {
+        return pageResponse(["uploaded", "newest"], 0, 131, true);
+      }
+      return pageResponse(["oldest"], 100, 131, false);
+    });
+
+    const input = uploadInput(document.body);
+    fireEvent.change(input, { target: { files: [makeFile("fresh.txt")] } });
+    await screen.findByText("uploaded");
+    expect(mockGet).toHaveBeenLastCalledWith(
+      "/api/documents",
+      expect.objectContaining({ params: { limit: 100, offset: 0 } }),
+    );
+    expect(screen.getByTestId("documents-page")).toHaveTextContent("Page 1 of 2");
+  });
+
+  test("deleting elsewhere empties a later page and falls back to the previous page", async () => {
+    mockPagedGet();
+    render(<DocumentsPage />);
+    await screen.findByText("newest");
+    fireEvent.click(screen.getByTestId("documents-next"));
+    await screen.findByText("oldest");
+
+    mockGet.mockImplementation(async (_url: string, opts?: any) => {
+      const offset = opts?.params?.offset ?? 0;
+      if (offset === 0) {
+        return pageResponse(["remaining"], 0, 100, false);
+      }
+      return pageResponse([], 100, 100, false);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Refresh/ }));
+    await screen.findByText("remaining");
+    expect(mockGet).toHaveBeenLastCalledWith(
+      "/api/documents",
+      expect.objectContaining({ params: { limit: 100, offset: 0 } }),
+    );
+    expect(screen.getByTestId("documents-page")).toHaveTextContent("Page 1 of 1");
+    expect(screen.getByTestId("documents-next")).toBeDisabled();
+  });
+
+  test("a stale later-page response cannot overwrite a fresh upload refresh", async () => {
+    let resolveStale: ((value: any) => void) | undefined;
+    const stalePromise = new Promise((resolve) => {
+      resolveStale = resolve;
+    });
+    let firstPageCalls = 0;
+    mockGet.mockImplementation(async (_url: string, opts?: any) => {
+      const offset = opts?.params?.offset ?? 0;
+      if (offset === 100) {
+        return stalePromise as any;
+      }
+      firstPageCalls += 1;
+      return firstPageCalls === 1
+        ? pageResponse(["newest"], 0, 130, true)
+        : pageResponse(["fresh-upload"], 0, 131, true);
+    });
+
+    render(<DocumentsPage />);
+    await screen.findByText("newest");
+    fireEvent.click(screen.getByTestId("documents-next"));
+
+    const input = uploadInput(document.body);
+    fireEvent.change(input, { target: { files: [makeFile("race.txt")] } });
+    await screen.findByText("fresh-upload");
+
+    resolveStale?.(pageResponse(["stale-page"], 100, 130, false));
+    await waitFor(() =>
+      expect(screen.queryByText("stale-page")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("fresh-upload")).toBeInTheDocument();
+  });
+
+  test("a listing error is shown with retry instead of a false empty library", async () => {
+    mockGet.mockResolvedValue({
+      status: 503,
+      data: {
+        detail: {
+          error: "DOCUMENT_LISTING_UNAVAILABLE",
+          message: "Document listing is temporarily unavailable. Retry shortly.",
+        },
+      },
+    });
+    render(<DocumentsPage />);
+    await screen.findByTestId("documents-error");
+    expect(screen.getByText(/temporarily unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText("No documents uploaded yet.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Retry/ })).toBeInTheDocument();
+  });
+
+  test("empty libraries do not render pagination controls", async () => {
+    mockGet.mockResolvedValue(pageResponse([], 0, 0, false));
+    render(<DocumentsPage />);
+    await screen.findByText("No documents uploaded yet.");
+    expect(screen.queryByTestId("documents-pagination")).not.toBeInTheDocument();
+  });
+});
