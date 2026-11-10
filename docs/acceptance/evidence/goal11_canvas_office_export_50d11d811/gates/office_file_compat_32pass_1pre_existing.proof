@@ -1,0 +1,161 @@
+
+----------------------------- live log collection ------------------------------
+
+tests/test_office_canvas_binding.py::test_office_path_key_matches_relative_and_absolute 
+-------------------------------- live log setup --------------------------------
+2026-11-10 04:36:28 [    INFO] EscalationManager initialized
+2026-11-10 04:36:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:36:28 [    INFO] EscalationManager initialized
+2026-11-10 04:36:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:36:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 04:36:28 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/test_office_canvas_binding.py::test_office_draft_binds_absolute_path 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:28 [    INFO] MCP Service initialized
+2026-11-10 04:36:28 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 04:36:28 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 04:36:28 [    INFO] No token storage file found, starting empty
+2026-11-10 04:36:29 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 04:36:29 [    INFO] EscalationManager initialized
+2026-11-10 04:36:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:36:29 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 04:36:29 [    INFO] EscalationManager initialized
+2026-11-10 04:36:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:36:29 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 04:36:29 [    INFO] Slack Enhanced Service initialized
+2026-11-10 04:36:29 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 04:36:29 [    INFO] EscalationManager initialized
+2026-11-10 04:36:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:36:29 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 04:36:29 [    INFO] EscalationManager initialized
+2026-11-10 04:36:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:36:29 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 04:36:29 [    INFO] Slack Enhanced Service initialized
+2026-11-10 04:36:29 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [  6%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_matches_legacy_relative_binding PASSED [  9%]
+tests/test_office_canvas_binding.py::test_ensure_canvas_for_file_reuses_and_repairs_legacy_row PASSED [ 12%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_skips_deleted_canvas PASSED [ 15%]
+tests/test_office_canvas_binding.py::test_notify_file_canvases_still_reaches_the_live_canvas PASSED [ 18%]
+tests/test_office_canvas_binding.py::test_ensure_canvas_for_file_ignores_tombstoned_binding PASSED [ 21%]
+tests/test_office_canvas_binding.py::test_broadcast_file_update_refuses_deleted_canvas PASSED [ 24%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_xlsx_snapshot_has_grid PASSED [ 27%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_docx_snapshot_joins_all_paragraphs PASSED [ 30%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_pptx_snapshot_lists_slides PASSED [ 33%]
+tests/test_office_canvas_coediting.py::TestStructuredContent::test_sync_result_includes_snapshot 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:30 [    INFO] WorkbookRuntime initialized: engine=libreoffice
+2026-11-10 04:36:31 [    INFO] Rendered book.xlsx to HTML via LibreOffice
+2026-11-10 04:36:31 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 04:36:31 [    INFO] EscalationManager initialized
+2026-11-10 04:36:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 04:36:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 04:36:31 [    INFO] LanceDBHandler initialized. ID: 5705201744. LANCEDB_AVAILABLE: True
+2026-11-10 04:36:31 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 04:36:31 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpzluhin0n.xlsx
+2026-11-10 04:36:31 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 04:36:31 [    INFO] Connecting to LanceDB at <scratch-path> with storage_options=None
+2026-11-10 04:36:31 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 36%]
+tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_edit_preserves_table_and_styles PASSED [ 39%]
+tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_appended_lines_added_with_paragraph PASSED [ 42%]
+tests/test_office_canvas_coediting.py::TestPptxSync::test_slide_text_edit_round_trips PASSED [ 45%]
+tests/test_office_canvas_coediting.py::TestPptxSync::test_add_slide_creates_slide PASSED [ 48%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[xlsx_file-office_excel-xlsx] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:32 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 04:36:32 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp7_g6c2bu.xlsx
+PASSED                                                                   [ 51%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[docx_file-office_word-docx] PASSED [ 54%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[pptx_file-office_pptx-pptx] PASSED [ 57%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_broadcast_reaches_both_channels 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:32 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 04:36:32 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp3yh1i34i.xlsx
+PASSED                                                                   [ 60%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_present_creates_bound_canvas_row 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_ddad1fd3e864'. type='canvas:update'
+2026-11-10 04:36:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+PASSED                                                                   [ 63%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_present_reuses_existing_binding 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_e616f2b3a8cb'. type='canvas:update'
+2026-11-10 04:36:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 04:36:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_e616f2b3a8cb'. type='canvas:update'
+2026-11-10 04:36:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+PASSED                                                                   [ 66%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_explicit_canvas_id_respected FAILED [ 69%]
+tests/test_office_canvas_coediting.py::TestPresentPersistence::test_canvas_types_per_format 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_f25ca8ac0743'. type='canvas:update'
+2026-11-10 04:36:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 04:36:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_2fc1ed014f0e'. type='canvas:update'
+2026-11-10 04:36:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+PASSED                                                                   [ 72%]
+tests/test_office_canvas_coediting.py::TestNotifyFileCanvases::test_agent_write_notifies_bound_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:33 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 04:36:33 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpey5ii4s_.xlsx
+PASSED                                                                   [ 75%]
+tests/test_office_canvas_coediting.py::TestNotifyFileCanvases::test_unbound_files_notify_nothing PASSED [ 78%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_write_excel_cell_notifies PASSED [ 81%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_failed_write_does_not_notify PASSED [ 84%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_modify_word_notifies PASSED [ 87%]
+tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_modify_pptx_notifies PASSED [ 90%]
+tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_cell_edit_refreshes_canvas_content 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:34 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 04:36:34 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpnsacsaix.xlsx
+PASSED                                                                   [ 93%]
+tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_broadcast_persists_html_for_rest_clients 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:34 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 04:36:34 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpwcddazwt.xlsx
+PASSED                                                                   [ 96%]
+tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_magicmock_db_is_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-10 04:36:34 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 04:36:34 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpc_xnr85j.xlsx
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+___________ TestPresentPersistence.test_explicit_canvas_id_respected ___________
+tests/test_office_canvas_coediting.py:379: in test_explicit_canvas_id_respected
+    assert resp.json()["canvas_id"] == cid
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'canvas_id'
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_office_canvas_binding.py::test_office_draft_binds_absolute_path
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_office_canvas_coediting.py::TestPresentPersistence::test_explicit_canvas_id_respected
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 1 failed, 32 passed, 6 warnings in 23.07s ===================
