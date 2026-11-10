@@ -1,5 +1,7 @@
 # Agent Maturity & Governance — Concept Guide
 
+> **Historical reference:** Start with [Agent training and graduation](../agents/TRAINING_AND_GRADUATION.md) for the current source-linked overview. Older examples and automatic/unrestricted-autonomy claims below are not current operating guarantees.
+
 > **Purpose**: Understand how Atom controls what agents can do, and how they earn more autonomy over time.
 > **Audience**: New users, admins, architects
 > **Read time**: ~10 minutes
