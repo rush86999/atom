@@ -69,14 +69,14 @@ filesystem artifact path, or core-profile enablement.
 
 | Gate | Result | Log |
 |---|---|---|
-| Export suite | 10 passed | `gates/export_suite_10.txt` |
-| Combined handoff + export backend | 40 passed | `gates/combined_40.txt` |
-| Affected workflow regression | 135 passed | `gates/affected_135.txt` |
-| Frontend Execution Details/page/generator | 42 passed | `gates/frontend_42.txt` |
-| Root export negatives replayed locally | 7 passed | `gates/root_export_negatives_local_7.txt` |
+| Export suite | 10 passed | `gates/export_suite_10.proof` |
+| Combined handoff + export backend | 40 passed | `gates/combined_40.proof` |
+| Affected workflow regression | 135 passed | `gates/affected_135.proof` |
+| Frontend Execution Details/page/generator | 42 passed | `gates/frontend_42.proof` |
+| Root export negatives replayed locally | 7 passed | `gates/root_export_negatives_local_7.proof` |
 
 Boundary probe at base `7fd05261c`: export route returned **404** and Execution
-Details returned raw results keys only (`boundary/base_export_404_and_raw_results.txt`).
+Details returned raw results keys only (`boundary/base_export_404_and_raw_results.proof`).
 
 Root negative run at `70cc3b7e7`: `actual_exit 1`, all 7 export probes failed
 (`root_controls/root_export_negatives_70cc.*`). The repair derives coverage from
