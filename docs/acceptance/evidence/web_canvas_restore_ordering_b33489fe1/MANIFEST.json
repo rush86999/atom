@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "canvas_restore_ordering_evidence_manifest",
+  "title": "Canvas restore ordering repair — b33489fe1",
+  "executed_source": "b33489fe1",
+  "source_files": {
+    "backend/tools/canvas_crud_tool.py": "e0e326637bcb6eed0403ffb58144c9340ce895c30453da45c6ce7dc826e824cf",
+    "backend/tests/api/test_web_canvas_restore_ordering.py": "9942890dc94aa2733d39ad8ec4be9d5d9b21e470569325aaa33f5e5abd8748ee"
+  },
+  "artifacts": {
+    "README.md": "f739f69211d939393818043774d6139223e7b0735cd2b72dcb37653bc0f62ce2",
+    "verification.json": "76937d7864785fa9a1cc3ea3cfed51ddb1cdb2663697d0b436791933f3265f35"
+  }
+}
