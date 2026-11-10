@@ -11,7 +11,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 import uuid
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from core.models import (
@@ -24,10 +24,32 @@ from core.models import (
     ProposalType,
     TrainingSession,
     TriggerSource,
+    User,
+    UserStatus,
+    UserRole,
 )
+from core.personal_scope import (
+    PERSONAL_TENANT_ID,
+    PERSONAL_WORKSPACE_ID,
+    resolve_tenant_id,
+    resolve_workspace_id,
+)
+from core.security.rbac import user_meets_role
 from core import role_template_registry
 
 logger = logging.getLogger(__name__)
+
+
+class TrainingProposalNotFound(ValueError):
+    """Missing, wrong-type or out-of-scope proposal (no existence leak)."""
+
+
+class TrainingAuthorityError(ValueError):
+    """The current actor is not an active supervisor for this proposal."""
+
+
+class TrainingProposalConflict(ValueError):
+    """Proposal is terminal, stale or changed by a competing decision."""
 
 
 class InsufficientTrainingEvidenceError(ValueError):
@@ -178,6 +200,218 @@ class StudentTrainingService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    @staticmethod
+    def _raw_exact(column, value: Any):
+        if value is None:
+            return column.is_(None)
+        return column == str(value)
+
+    def _current_actor(self, user_id: str) -> User:
+        """Resolve the current active User row for scoped reads."""
+        actor_id = str(user_id or "").strip()
+        if not actor_id:
+            raise TrainingAuthorityError("An authenticated user is required")
+        actor = (
+            self.db.query(User)
+            .filter(User.id == actor_id)
+            .populate_existing()
+            .first()
+        )
+        if actor is None:
+            raise TrainingAuthorityError("An authenticated user is required")
+        status = str(getattr(actor.status, "value", actor.status) or "")
+        if status != UserStatus.ACTIVE.value or getattr(actor, "is_active", False) is not True:
+            raise TrainingAuthorityError("The current user is not active")
+        return actor
+
+    def _current_supervisor(self, user_id: str) -> User:
+        """Resolve the current active TEAM_LEAD+ User row for a decision."""
+        actor = self._current_actor(user_id)
+        if not user_meets_role(actor, UserRole.TEAM_LEAD):
+            raise TrainingAuthorityError(
+                "Insufficient permissions. Required role: team_lead or higher")
+        return actor
+
+    @staticmethod
+    def _agent_in_actor_scope(agent: AgentRegistry, proposal: AgentProposal, actor: User) -> bool:
+        """Agent is authoritative; proposal.user_id is legacy compatibility.
+
+        A non-null proposal tenant that contradicts a non-null agent tenant is
+        refused. A null/unknown side falls back to the known side; both null
+        remain the legacy Personal/default scope.
+        """
+        agent_tenant = str(getattr(agent, "tenant_id", None) or "").strip()
+        proposal_tenant = str(getattr(proposal, "tenant_id", None) or "").strip()
+        if agent_tenant and proposal_tenant and agent_tenant != proposal_tenant:
+            return False
+        authoritative_tenant = agent_tenant or proposal_tenant
+        actor_tenant = resolve_tenant_id(actor)
+        if actor_tenant == PERSONAL_TENANT_ID:
+            if authoritative_tenant not in ("", PERSONAL_TENANT_ID):
+                return False
+        elif authoritative_tenant != actor_tenant:
+            return False
+        agent_workspace = str(getattr(agent, "workspace_id", None) or "").strip()
+        if agent_workspace and agent_workspace != resolve_workspace_id(actor):
+            return False
+        return True
+
+    def _scope_predicates(self, actor: User):
+        actor_tenant = resolve_tenant_id(actor)
+        actor_workspace = resolve_workspace_id(actor)
+        # Effective tenant mirrors _agent_in_actor_scope: agent first, then
+        # proposal. A null agent does not hide a foreign proposal tenant.
+        effective_tenant = func.coalesce(
+            func.nullif(AgentRegistry.tenant_id, ""),
+            AgentProposal.tenant_id,
+        )
+        if actor_tenant == PERSONAL_TENANT_ID:
+            tenant_predicate = or_(
+                effective_tenant.is_(None),
+                effective_tenant == "",
+                effective_tenant == PERSONAL_TENANT_ID,
+            )
+        else:
+            tenant_predicate = effective_tenant == actor_tenant
+        workspace_scope = (
+            PERSONAL_WORKSPACE_ID
+            if actor_workspace == PERSONAL_WORKSPACE_ID else actor_workspace)
+        workspace_predicate = or_(
+            AgentRegistry.workspace_id.is_(None),
+            AgentRegistry.workspace_id == "",
+            AgentRegistry.workspace_id == workspace_scope,
+        )
+        # A contradictory non-null proposal/agent tenant is never a read
+        # grant. Null/unknown on either side remains the legacy fallback.
+        agreement_predicate = or_(
+            AgentProposal.tenant_id.is_(None),
+            AgentProposal.tenant_id == "",
+            AgentRegistry.tenant_id.is_(None),
+            AgentRegistry.tenant_id == "",
+            AgentProposal.tenant_id == AgentRegistry.tenant_id,
+        )
+        return tenant_predicate, workspace_predicate, agreement_predicate
+
+    def list_training_proposals(
+        self,
+        user_id: str,
+        *,
+        agent_id: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[AgentProposal]:
+        """Active-user scoped read list; foreign/reviewer scope is excluded."""
+        actor = self._current_actor(user_id)
+        tenant_predicate, workspace_predicate, agreement_predicate = self._scope_predicates(actor)
+        query = (
+            self.db.query(AgentProposal)
+            .join(AgentRegistry, AgentRegistry.id == AgentProposal.agent_id)
+            .filter(
+                AgentProposal.proposal_type == ProposalType.WORKFLOW.value,
+                tenant_predicate,
+                workspace_predicate,
+                agreement_predicate,
+            )
+        )
+        if agent_id:
+            query = query.filter(AgentProposal.agent_id == agent_id)
+        if status_filter:
+            query = query.filter(AgentProposal.status == status_filter)
+        return query.order_by(AgentProposal.created_at.desc()).limit(limit).all()
+
+    def get_training_proposal(
+        self,
+        proposal_id: str,
+        user_id: str,
+        *,
+        require_supervisor: bool = False,
+    ) -> tuple[AgentProposal, AgentRegistry, User]:
+        """Authorized proposal + authoritative agent + current active actor.
+
+        Reads use active-user scope (the owner/member read contract); review
+        callers pass ``require_supervisor=True`` for the decision gate.
+        """
+        actor = (
+            self._current_supervisor(user_id)
+            if require_supervisor else self._current_actor(user_id)
+        )
+        proposal = (
+            self.db.query(AgentProposal)
+            .filter(
+                AgentProposal.id == str(proposal_id),
+                AgentProposal.proposal_type == ProposalType.WORKFLOW.value,
+            )
+            .first()
+        )
+        if proposal is None:
+            raise TrainingProposalNotFound(
+                f"Proposal {proposal_id} not found")
+        agent = (
+            self.db.query(AgentRegistry)
+            .filter(AgentRegistry.id == proposal.agent_id)
+            .first()
+        )
+        if agent is None or not self._agent_in_actor_scope(agent, proposal, actor):
+            # No existence leak for a foreign or unbound proposal.
+            raise TrainingProposalNotFound(
+                f"Proposal {proposal_id} not found")
+        return proposal, agent, actor
+
+    def _claim_supervisor(self, actor: User) -> bool:
+        """Conditional no-op User claim; a peer role/scope/status move wins."""
+        from sqlalchemy import update
+
+        status = str(getattr(actor.status, "value", actor.status) or "")
+        statement = (
+            update(User)
+            .where(
+                User.id == str(actor.id),
+                User.is_active.is_(True),
+                User.status == status,
+                User.role == actor.role,
+                self._raw_exact(User.tenant_id, actor.tenant_id),
+                self._raw_exact(User.workspace_id, actor.workspace_id),
+            )
+            .values(updated_at=User.updated_at)
+        )
+        with self.db.no_autoflush:
+            result = self.db.execute(statement)
+        return result.rowcount == 1
+
+    def _claim_agent_target(self, agent: AgentRegistry) -> bool:
+        """Freeze the authoritative Agent tenant/workspace/owner/status."""
+        from sqlalchemy import update
+
+        statement = (
+            update(AgentRegistry)
+            .where(
+                AgentRegistry.id == str(agent.id),
+                self._raw_exact(AgentRegistry.tenant_id, agent.tenant_id),
+                self._raw_exact(AgentRegistry.workspace_id, agent.workspace_id),
+                self._raw_exact(AgentRegistry.user_id, agent.user_id),
+                self._raw_exact(AgentRegistry.status, agent.status),
+            )
+            .values(status=AgentRegistry.status)
+        )
+        with self.db.no_autoflush:
+            result = self.db.execute(statement)
+        return result.rowcount == 1
+
+    @staticmethod
+    def _is_expired(proposal: AgentProposal, now: datetime) -> bool:
+        expires_at = getattr(proposal, "expires_at", None)
+        if expires_at is None:
+            return False
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return expires_at <= now
+
+    @staticmethod
+    def _datetime_exact(column, value):
+        if value is None:
+            return column.is_(None)
+        return column == value
 
     async def create_training_proposal(
         self,
@@ -431,23 +665,23 @@ After completing this training, the agent will be able to handle similar tasks a
         Returns:
             Created training session
         """
-        proposal = self.db.query(AgentProposal).filter(
-            AgentProposal.id == proposal_id
-        ).first()
-
-        if not proposal:
-            raise ValueError(f"Proposal {proposal_id} not found")
+        # Authority + scope are resolved from the current active User and the
+        # authoritative Agent row; proposal.user_id is legacy and not used.
+        proposal, agent, actor = self.get_training_proposal(
+            proposal_id, user_id, require_supervisor=True)
 
         if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
-            raise ValueError(
-                f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
-            )
+            raise TrainingProposalConflict(
+                "Proposal must be in PENDING_APPROVAL status, "
+                f"current: {proposal.status}")
+        if self._is_expired(proposal, datetime.now(timezone.utc)):
+            raise TrainingProposalConflict("Proposal expired")
 
         # Apply modifications if provided. IMPORTANT: JSONColumn is not backed
         # by MutableDict, so in-place mutations to proposal.proposal_data are
         # NOT detected by SQLAlchemy's change tracking. Re-assign the dict to
         # force the ORM to flush.
-        updated_data = dict(proposal.proposal_data)
+        updated_data = dict(proposal.proposal_data or {})
         if modifications:
             if "duration_override_hours" in modifications:
                 updated_data["user_override_duration_hours"] = modifications[
@@ -472,10 +706,63 @@ After completing this training, the agent will be able to handle similar tasks a
 
         updated_data["training_start_date"] = start_date.isoformat()
         updated_data["training_end_date"] = end_date.isoformat()
-        proposal.proposal_data = updated_data  # re-assign so ORM detects change
+
+        # Conditional actor claim, then exact-material proposal claim. A peer
+        # role/scope move or proposal material/status change makes one of
+        # these match zero rows, so no session can be created from stale data.
+        if not self._claim_supervisor(actor):
+            self.db.rollback()
+            raise TrainingAuthorityError(
+                "Supervisor authority changed before approval")
+        if not self._claim_agent_target(agent):
+            self.db.rollback()
+            raise TrainingProposalConflict(
+                "Agent scope changed before approval")
+
+        from sqlalchemy import update
+        from sqlalchemy.exc import IntegrityError
+
+        statement = (
+            update(AgentProposal)
+            .where(
+                AgentProposal.id == str(proposal.id),
+                AgentProposal.proposal_type == ProposalType.WORKFLOW.value,
+                AgentProposal.status == ProposalStatus.PENDING_APPROVAL.value,
+                AgentProposal.agent_id == proposal.agent_id,
+                AgentProposal.tenant_id == proposal.tenant_id,
+                self._datetime_exact(AgentProposal.expires_at, proposal.expires_at),
+                # SQLite's DateTime storage does not round-trip the loaded
+                # datetime for equality; the exact material JSON + identity
+                # columns are the portable CAS.
+                AgentProposal.proposal_data == proposal.proposal_data,
+            )
+            .values(
+                status=ProposalStatus.APPROVED.value,
+                approved_by=str(actor.id),
+                approved_at=start_date,
+                reviewed_at=start_date,
+                proposal_data=updated_data,
+            )
+        )
+        result = self.db.execute(statement)
+        if result.rowcount != 1:
+            self.db.rollback()
+            raise TrainingProposalConflict(
+                "Proposal changed or was already reviewed")
+        # Keep the in-session object consistent for callers/tests that hold
+        # it; the database row is still authoritative.
         proposal.status = ProposalStatus.APPROVED.value
-        proposal.approved_by = user_id
-        proposal.approved_at = datetime.now()
+        proposal.approved_by = str(actor.id)
+        proposal.approved_at = start_date
+        proposal.reviewed_at = start_date
+        proposal.proposal_data = updated_data
+        self.db.expire(proposal)
+        proposal = self.db.query(AgentProposal).filter(
+            AgentProposal.id == proposal_id).first()
+        if proposal is None:
+            self.db.rollback()
+            raise TrainingProposalNotFound(
+                f"Proposal {proposal_id} not found")
 
         # Create training session
         # NOTE: tenant_id is NOT NULL on TrainingSession; inherit from the
@@ -486,11 +773,11 @@ After completing this training, the agent will be able to handle similar tasks a
             agent_id=proposal.agent_id,
             agent_name=proposal.agent_name,
             status="scheduled",
-            supervisor_id=user_id,
+            supervisor_id=str(actor.id),
             # The evidence window opens here: only work the agent records
             # AFTER approval counts toward this session's completion.
             started_at=datetime.now(),
-            total_tasks=len(proposal.proposal_data.get("learning_objectives", []))
+            total_tasks=len((proposal.proposal_data or {}).get("learning_objectives", []))
         )
 
         # Mentor-proposed lesson: a CONCRETE first-session plan the supervisor
@@ -511,14 +798,19 @@ After completing this training, the agent will be able to handle similar tasks a
         # Nested under "lesson_plan" so listing/canvas readers agree on shape.
         session.supervisor_guidance = {"lesson_plan": session.supervisor_guidance.get("lesson_plan")} if isinstance(session.supervisor_guidance, dict) and "lesson_plan" in session.supervisor_guidance else {"lesson_plan": dict(session.supervisor_guidance or {})}
 
-        self.db.add(session)
-        self.db.flush()  # materialize session.id before the canvas references it
+        try:
+            self.db.add(session)
+            self.db.flush()  # materialize session.id before the canvas references it
 
-        # Mini-canvas: the visual review surface for this supervised pass
-        if agent is not None:
-            self.ensure_session_canvas(session, agent, proposal)
+            # Mini-canvas: the visual review surface for this supervised pass
+            if agent is not None:
+                self.ensure_session_canvas(session, agent, proposal)
 
-        self.db.commit()
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise TrainingProposalConflict(
+                "A training session already exists for this proposal")
         self.db.refresh(session)
 
         # Phase 2: spawn the role's typed-canvas set (best-effort, never
@@ -532,6 +824,62 @@ After completing this training, the agent will be able to handle similar tasks a
         )
 
         return session
+
+    def reject_training(
+        self,
+        proposal_id: str,
+        user_id: str,
+        reason: str = "",
+    ) -> AgentProposal:
+        """Reject a training proposal under current supervisor + agent scope."""
+        proposal, agent, actor = self.get_training_proposal(
+            proposal_id, user_id, require_supervisor=True)
+        if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
+            raise TrainingProposalConflict(
+                "Proposal must be in PENDING_APPROVAL status, "
+                f"current: {proposal.status}")
+
+        if not self._claim_supervisor(actor):
+            self.db.rollback()
+            raise TrainingAuthorityError(
+                "Supervisor authority changed before rejection")
+        if not self._claim_agent_target(agent):
+            self.db.rollback()
+            raise TrainingProposalConflict(
+                "Agent scope changed before rejection")
+
+        from sqlalchemy import update
+
+        now = datetime.now()
+        statement = (
+            update(AgentProposal)
+            .where(
+                AgentProposal.id == str(proposal.id),
+                AgentProposal.proposal_type == ProposalType.WORKFLOW.value,
+                AgentProposal.status == ProposalStatus.PENDING_APPROVAL.value,
+                AgentProposal.agent_id == proposal.agent_id,
+                AgentProposal.tenant_id == proposal.tenant_id,
+                self._datetime_exact(AgentProposal.expires_at, proposal.expires_at),
+                AgentProposal.proposal_data == proposal.proposal_data,
+            )
+            .values(
+                status=ProposalStatus.REJECTED.value,
+                approver_id=str(actor.id),
+                approved_by=str(actor.id),
+                approved_at=now,
+                reviewed_at=now,
+                approval_reason=reason,
+            )
+        )
+        result = self.db.execute(statement)
+        if result.rowcount != 1:
+            self.db.rollback()
+            raise TrainingProposalConflict(
+                "Proposal changed or was already reviewed")
+        self.db.commit()
+        self.db.expire(proposal)
+        return self.db.query(AgentProposal).filter(
+            AgentProposal.id == proposal_id).first()
 
     async def start_training(
         self,

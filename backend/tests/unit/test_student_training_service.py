@@ -115,6 +115,18 @@ def db():
                 pass
 
 
+@pytest.fixture(autouse=True)
+def _training_authority_user(db):
+    if db.get(User, "admin-user") is None:
+        db.add(User(
+            id="admin-user", email="admin-user@example.invalid",
+            hashed_password="h", first_name="Admin", last_name="User",
+            role="team_lead", status="active", is_active=True,
+            tenant_id=None, workspace_id=None,
+        ))
+        db.commit()
+
+
 @pytest.fixture
 def training_service(db):
     """Create StudentTrainingService instance."""

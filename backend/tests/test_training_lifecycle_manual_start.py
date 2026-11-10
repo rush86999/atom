@@ -53,6 +53,18 @@ def db(monkeypatch):
         engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def _training_supervisor(db):
+    if db.get(User, "supervisor-1") is None:
+        db.add(User(
+            id="supervisor-1", email="supervisor-1@example.invalid",
+            hashed_password="h", first_name="Supervisor", last_name="One",
+            role=UserRole.TEAM_LEAD.value, status="active", is_active=True,
+            tenant_id="default", workspace_id="default",
+        ))
+        db.commit()
+
+
 def _student(db):
     row = AgentRegistry(
         id="student-1", name="New Hire", category="Operations",
