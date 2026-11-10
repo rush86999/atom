@@ -327,6 +327,21 @@ class AssessmentPolicy(BaseModel):
                 "disable a specific tier")
         return value
 
+    @field_validator("rubric_criteria")
+    @classmethod
+    def _rubric_criteria_nonempty_unique(
+        cls, value: List[RubricCriterion],
+    ) -> List[RubricCriterion]:
+        if not value:
+            raise ValueError(
+                "rubric_criteria must contain at least one criterion")
+        ids = [item.id for item in value]
+        if len(ids) != len(set(ids)):
+            raise ValueError(
+                "rubric_criteria ids must be unique; ambiguous or duplicate "
+                "criterion ids are not a valid qualification basis")
+        return value
+
     def tier_required(self, target_level: str) -> bool:
         tier = str(target_level or "").strip().lower()
         if tier not in ("intern", "supervised", "autonomous"):

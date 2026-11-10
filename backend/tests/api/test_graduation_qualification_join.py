@@ -1496,3 +1496,225 @@ def test_tier_gate_false_remains_supported(world, monkeypatch):
         resolved = get_assessment_policy(db)["policy"]
         assert resolved.tier_required("intern") is False
         assert resolved.tier_required("supervised") is True
+
+
+def test_personal_bootstrap_raw_null_admin_qualification_flow(
+    world, monkeypatch, tmp_path,
+):
+    """Actual Personal bootstrap: raw-NULL admin, default-scope candidate.
+
+    The admin user created by ``ensure_admin_user`` has tenant_id=None and
+    workspace_id=None. Personal scope resolves those to "default"; the
+    public qualification path must still work end-to-end. A foreign-scoped
+    actor must not see the candidate, and an inactive raw-NULL actor is
+    refused.
+    """
+    from contextlib import contextmanager
+
+    from core import admin_bootstrap
+    from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
+
+    @contextmanager
+    def bootstrap_session():
+        db = world.Session()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    monkeypatch.setattr(admin_bootstrap, "get_db_session", bootstrap_session)
+    monkeypatch.setenv("ADMIN_PASSWORD", "scratch-admin-password")
+    monkeypatch.setenv(
+        "ATOM_BOOTSTRAP_PASSWORD_FILE", str(tmp_path / "admin-pw.txt"))
+    admin_bootstrap.ensure_admin_user()
+
+    started = datetime.now(timezone.utc) - timedelta(days=1)
+    candidate_id = "personal-candidate"
+    with world.Session() as db:
+        admin = db.query(User).filter(User.email == "admin@example.com").one()
+        assert admin.tenant_id is None
+        assert admin.workspace_id is None
+        assert admin.role == "workspace_admin"
+        demo = db.query(AgentRegistry).filter_by(
+            name=admin_bootstrap.DEMO_AGENT_NAME).one()
+        assert demo.tenant_id == PERSONAL_TENANT_ID
+        assert demo.workspace_id == PERSONAL_WORKSPACE_ID
+
+        db.add(AgentRegistry(
+            id=candidate_id, name="Personal Candidate", category="operations",
+            role="agent", type="personal", capabilities=[],
+            module_path="core.generic_agent", class_name="GenericAgent",
+            user_id=admin.id, workspace_id=PERSONAL_WORKSPACE_ID,
+            tenant_id=PERSONAL_TENANT_ID, status="student", enabled=True,
+            confidence_score=0.62,
+            configuration={"learning": {"role": "operations", "log": []}},
+        ))
+        for index in range(10):
+            db.add(AgentExecution(
+                id=f"personal-exec-{index:02d}", agent_id=candidate_id,
+                tenant_id=PERSONAL_TENANT_ID,
+                workspace_id=PERSONAL_WORKSPACE_ID,
+                status="completed",
+                input_summary=f"personal held-out task {index}",
+                result_summary=f"personal actual durable output {index}",
+                completed_at=started + timedelta(minutes=index + 5),
+            ))
+            db.add(AgentEpisode(
+                id=f"personal-ep-{index:02d}", agent_id=candidate_id,
+                tenant_id=PERSONAL_TENANT_ID,
+                workspace_id=PERSONAL_WORKSPACE_ID,
+                execution_id=f"personal-exec-{index:02d}",
+                task_description=f"personal held-out work {index}",
+                maturity_at_time="student", constitutional_score=0.9,
+                human_intervention_count=0, confidence_score=0.62,
+                outcome="success", success=True, status="completed",
+                started_at=started + timedelta(minutes=index),
+                completed_at=started + timedelta(minutes=index + 5),
+            ))
+        db.commit()
+        admin_id = admin.id
+
+    client = world.client()
+    token = world.token(admin_id)
+    evidence = call(
+        client, "GET",
+        f"/api/episodes/graduation/qualification/evidence/{candidate_id}"
+        "?target_maturity=INTERN",
+        token,
+    )
+    assert evidence["status"] == 200, evidence
+    items = evidence["json"]["data"]["items"]
+    assert items
+    refs = items[0]["evidence_refs"]
+
+    request_body = {
+        "agent_id": candidate_id,
+        "target_maturity": "INTERN",
+        "evidence_refs": refs,
+        "rubric_version": "heldout-v1",
+    }
+    requested = call(
+        client, "POST", "/api/episodes/graduation/qualification/request",
+        token, json=request_body,
+    )
+    assert requested["status"] == 200, requested
+    action_id = requested["json"]["data"]["action_id"]
+
+    approved = call(
+        client, "POST", f"/api/agents/approvals/{action_id}", token,
+        json={"decision": "approved", "feedback": "personal raw-null review"},
+    )
+    assert approved["status"] == 200, approved
+
+    promoted = call(
+        client, "POST",
+        f"/api/episodes/graduation/promote?agent_id={candidate_id}"
+        "&new_maturity=INTERN",
+        token,
+    )
+    assert promoted["status"] == 200, promoted
+    assert promoted["json"]["data"]["promoted"] is True
+    with world.Session() as db:
+        assert db.get(AgentRegistry, candidate_id).status == "intern"
+
+    # A foreign-scoped actor cannot see or request the Personal candidate.
+    foreign_token = world.token("foreign-sup")
+    foreign_evidence = call(
+        client, "GET",
+        f"/api/episodes/graduation/qualification/evidence/{candidate_id}"
+        "?target_maturity=INTERN",
+        foreign_token,
+    )
+    assert foreign_evidence["status"] == 404, foreign_evidence
+    foreign_request = call(
+        client, "POST", "/api/episodes/graduation/qualification/request",
+        foreign_token, json=request_body,
+    )
+    assert foreign_request["status"] == 404, foreign_request
+
+    # An inactive raw-NULL actor is refused even with a previously valid JWT.
+    with world.Session() as db:
+        db.get(User, admin_id).status = "inactive"
+        db.commit()
+    inactive = call(
+        client, "POST", "/api/episodes/graduation/qualification/request",
+        token, json=request_body,
+    )
+    assert inactive["status"] == 401, inactive
+
+
+def test_empty_rubric_criteria_is_configuration_required(world, monkeypatch):
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    policy["rubric_criteria"] = []
+    _set_db_policy(world, policy)
+    with world.Session() as db:
+        with pytest.raises(AssessmentPolicyError) as exc:
+            get_assessment_policy(db)
+    assert exc.value.state == "configuration_required"
+    assert "rubric_criteria" in exc.value.message
+    assert "at least one" in exc.value.message
+
+
+def test_duplicate_rubric_criterion_ids_is_configuration_required(
+    world, monkeypatch,
+):
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    policy["rubric_criteria"] = [
+        {"id": "correctness", "label": "Check result against evidence"},
+        {"id": "correctness", "label": "Check safety"},
+    ]
+    _set_db_policy(world, policy)
+    with world.Session() as db:
+        with pytest.raises(AssessmentPolicyError) as exc:
+            get_assessment_policy(db)
+    assert exc.value.state == "configuration_required"
+    assert "rubric_criteria" in exc.value.message
+    assert "unique" in exc.value.message
+
+
+def test_distinct_owner_rubric_criteria_remain_supported(world, monkeypatch):
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    policy["rubric_criteria"] = [
+        {"id": "correctness", "label": "Check result against evidence"},
+        {"id": "safety", "label": "Check safety"},
+    ]
+    _set_db_policy(world, policy)
+    with world.Session() as db:
+        resolved = get_assessment_policy(db)["policy"]
+        assert [item.id for item in resolved.rubric_criteria] == [
+            "correctness", "safety"]
+        assert [item.label for item in resolved.rubric_criteria] == [
+            "Check result against evidence", "Check safety"]
+
+
+def test_public_qualification_refuses_invalid_rubric_policy(
+    world, monkeypatch,
+):
+    monkeypatch.delenv(ASSESSMENT_POLICY_KEY, raising=False)
+    with world.Session() as db:
+        policy = get_assessment_policy(db)["policy"].model_dump()
+    policy["rubric_criteria"] = []
+    _set_db_policy(world, policy)
+    client = world.client()
+    sup = world.token(SUPERVISOR)
+
+    readiness = call(
+        client, "GET",
+        f"/api/episodes/graduation/readiness/{AGENT}?target_maturity=INTERN",
+        sup,
+    )
+    assert readiness["status"] == 200, readiness
+    assert readiness["json"]["assessment"]["allowed"] is False
+    assert readiness["json"]["assessment"]["state"] == "configuration_required"
+
+    requested = request_review(client, sup)
+    assert requested["status"] == 503, requested
+    assert requested["json"]["detail"]["state"] == "configuration_required"
+    with world.Session() as db:
+        assert db.query(func.count(HITLAction.id)).scalar() == 0
