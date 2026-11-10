@@ -1063,16 +1063,28 @@ class TestAtomMetaAgentGaps:
         custom = await agent.spawn_agent("custom",
                                          custom_params={"name": "MyAgent"})
         assert custom.name == "MyAgent"
-        # persist with provided db
-        gov = ama.AgentGovernanceService.return_value
-        gov.register_or_update_agent = MagicMock(return_value=NS(id="reg-1"))
-        persisted = await agent.spawn_agent("custom", custom_params={"name": "P"},
-                                            persist=True, db=MagicMock())
+        # persist with provided db: shared decision writer, authenticated actor
+        actor = NS(id="actor-1")
+        decision = AsyncMock(return_value={
+            "status": "verified", "data": {"agent_id": "reg-1"}})
+        agent.spawn_agent_decision = decision
+        db = MagicMock()
+        db.get.return_value = NS(id="reg-1")
+        persisted = await agent.spawn_agent(
+            "custom", custom_params={"name": "P"},
+            persist=True, db=db, actor=actor)
         assert persisted.id == "reg-1"
         # persist without db -> fresh session
-        persisted = await agent.spawn_agent("custom", custom_params={"name": "P2"},
-                                            persist=True, db=None)
+        session = sl.return_value.__enter__.return_value
+        session.get.return_value = NS(id="reg-1")
+        persisted = await agent.spawn_agent(
+            "custom", custom_params={"name": "P2"},
+            persist=True, db=None, actor=actor)
         assert persisted.id == "reg-1"
+        # no authenticated actor -> fail closed, no silent default scope
+        with pytest.raises(ValueError, match="authenticated actor"):
+            await agent.spawn_agent(
+                "custom", custom_params={"name": "P3"}, persist=True)
 
     async def test_query_memory_scopes(self, meta_agent):
         agent, sl, ama = meta_agent

@@ -1244,11 +1244,45 @@ class TestExecuteToolLocalTools:
     async def test_spawn_agent(self, svc, monkeypatch):
         atom = MagicMock()
         atom.spawn_agent = AsyncMock(return_value={"spawned": True})
-        monkeypatch.setattr("core.atom_meta_agent.get_atom_agent", lambda ws: atom)
+        monkeypatch.setattr(
+            "core.atom_meta_agent.get_scoped_atom_agent",
+            lambda ws, tenant_id=None, user=None: atom)
         result = await svc.execute_tool(
             "local-tools", "spawn_agent", {"template": "researcher"}, {"workspace_id": "ws"}
         )
         assert result == {"spawned": True}
+
+    @pytest.mark.asyncio
+    async def test_spawn_agent_rejects_contradictory_context(
+            self, svc, monkeypatch):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        user = SimpleNamespace(
+            id="u1", workspace_id="ws-a", tenant_id="company",
+            role="workspace_admin", status="active", is_active=True)
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = user
+
+        class _CM:
+            def __enter__(self):
+                return db
+
+            def __exit__(self, *args):
+                return False
+
+        monkeypatch.setattr("core.database.SessionLocal", lambda: _CM())
+        calls = []
+        monkeypatch.setattr(
+            "core.atom_meta_agent.get_scoped_atom_agent",
+            lambda *args, **kwargs: calls.append((args, kwargs)) or MagicMock())
+        result = await svc.execute_tool(
+            "local-tools", "spawn_agent", {"template": "researcher"},
+            {"workspace_id": "ws-b", "tenant_id": "other", "user_id": "u1"},
+        )
+        assert result["error"]
+        assert result["persisted"] is False
+        assert calls == []
 
     @pytest.mark.asyncio
     async def test_list_workflows_no_dir(self, svc, monkeypatch):

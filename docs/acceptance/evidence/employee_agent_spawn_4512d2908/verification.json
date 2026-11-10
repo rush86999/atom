@@ -1,0 +1,80 @@
+{
+  "schema": "atom-spawn-create-verification-1",
+  "status": "public spawned-agent creation bound to caller scope, exact material and shared receipt; frozen candidate for independent review",
+  "candidate": {
+    "branch": "codex/web-goal14-spawn-20261110",
+    "base": "492e41ea1d2e04be13f2f0eb265e6109852c0b60",
+    "executed_source": "4512d2908",
+    "root_integration_worktree_edited": false,
+    "frozen_pr833_pr831_worktrees_edited": false,
+    "runtime": "real scratch SQLite + FastAPI route + real JWT; static Atom templates, no live product model/provider"
+  },
+  "confirmed_gaps": {
+    "scope": "route called get_atom_agent() with default Atom workspace/tenant instead of the authenticated user scope",
+    "material": "persist dropped template configuration/capabilities and used module/class upsert, collapsing persisted spawns",
+    "receipt": "no operation id, AuditLog receipt, replay, current-actor claim or readback",
+    "ephemeral": "in-memory agent used default Atom scope and response did not distinguish non-durable status",
+    "side_effect": "ordinary spawn called reset_maturity on synthetic atom_specialty_init",
+    "mcp": "persist=False used get_atom_agent(workspace) without tenant/user; persistent context could construct a foreign Atom"
+  },
+  "repair": {
+    "route_scope": "resolve_workspace_id(user)/resolve_tenant_id(user) and get_scoped_atom_agent; no default alias",
+    "durable": "spawn_agent_decision uses shared create_agent with exact template/config/capabilities, current actor, STUDENT/NEW_AGENT_CONFIDENCE, receipt, replay and readback",
+    "identity": "distinct create-only operation identity; no module/class upsert collapse",
+    "ephemeral": "caller-scoped in-memory object; no row/audit; honest not_persisted response",
+    "side_effect": "no ordinary atom_specialty_init reset",
+    "mcp": "scoped ephemeral and persistent paths; context workspace/tenant validated against the authenticated user, contradiction refused before Atom construction; persistent no-actor fails closed",
+    "parent_policy": "no acting-parent authority invented from custom JSON"
+  },
+  "controls": {
+    "ordinary_scope": true,
+    "foreign_admin_scope": true,
+    "personal_null_scope_matches_writer": true,
+    "ephemeral_personal_scope": true,
+    "forged_custom_material_ignored": true,
+    "distinct_operation_identity": true,
+    "exact_replay_idempotent": true,
+    "changed_material_conflict": true,
+    "concurrent_actor_demotion_refused": true,
+    "null_empty_configuration_exact": true,
+    "rollback_no_effect": true,
+    "readback_uncertainty": true,
+    "ephemeral_nondurable": true,
+    "specialty_init_not_reset": true,
+    "mcp_context_contradiction_refused": true,
+    "existing_consumers_retained": true
+  },
+  "results": {
+    "failure_first_base492": {"failed": 10, "passed": 1, "log": "failure-first-base492.log"},
+    "personal_scope_before": {"failed": 2, "passed": 11, "log": "personal-scope-before.log"},
+    "focused_after": {"passed": 13, "log": "focused-after.log"},
+    "spawn_mcp_focused": {"passed": 16, "log": "spawn-mcp-focused.log"},
+    "spawn_consumers_focused": {"passed": 41, "log": "spawn-consumers-focused.log"},
+    "affected_after": {"passed": 888, "skipped": 6, "deselected": 9, "log": "affected-after.log"},
+    "ci_lane_contract": {"passed": 41, "log": "ci-lane-contract.log"},
+    "baseline_pre_existing": {"failed": 7, "log": "baseline-pre-existing-7.log"},
+    "environment_seams": {"log": "affected-environment-seams.log", "reason": "two fpdf-missing tests; same on baseline"}
+  },
+  "ci": {
+    "additive_step": "Run spawned agent authority and receipt controls",
+    "workflow": ".github/workflows/ci.yml",
+    "manifest": "backend/tests/fixtures/ci_backend_additions.json",
+    "immutable_baseline_changed": false,
+    "lane_contract_green": true,
+    "main_ci_claim": "not made; PR is stacked on guided 492e41ea1 until root retargets"
+  },
+  "checks": {
+    "no_new_table_or_store": true,
+    "no_budget_or_byok_file_change": true,
+    "no_new_dependency": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "static/server templates; no live model or provider call",
+    "root integration and frozen guided/PR833/PR831 worktrees untouched",
+    "no merge or self-acceptance; root review remains independent"
+  ]
+}

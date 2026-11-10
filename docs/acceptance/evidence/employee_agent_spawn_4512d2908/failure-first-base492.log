@@ -1,0 +1,239 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 12:27:13 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 12:27:13 [    INFO] MCP Service initialized
+
+tests/api/test_agent_spawn_goal14.py::test_spawn_persist_true_uses_caller_scope_and_exact_material 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:27:14 [    INFO] EscalationManager initialized
+2026-11-10 12:27:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:27:14 [    INFO] EscalationManager initialized
+2026-11-10 12:27:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:27:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:27:14 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:14 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 12:27:14 [    INFO] EscalationManager initialized
+2026-11-10 12:27:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:27:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:27:14 [    INFO] LanceDBHandler initialized. ID: 5753036880. LANCEDB_AVAILABLE: True
+2026-11-10 12:27:14 [    INFO] Template manager initialized with 28 templates
+2026-11-10 12:27:15 [    INFO] EscalationManager initialized
+2026-11-10 12:27:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:27:15 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:27:15 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 12:27:15 [    INFO] Registered new agent: Finance Analyst
+2026-11-10 12:27:15 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:15 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-op-1 "HTTP/1.1 200 OK"
+FAILED                                                                   [  9%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_distinct_operations_create_distinct_agents 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:16 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:16 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-distinct-a "HTTP/1.1 200 OK"
+2026-11-10 12:27:16 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:16 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-distinct-b "HTTP/1.1 200 OK"
+FAILED                                                                   [ 18%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_duplicate_exact_operation_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:16 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:16 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-dup "HTTP/1.1 200 OK"
+2026-11-10 12:27:16 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:16 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-dup "HTTP/1.1 200 OK"
+FAILED                                                                   [ 27%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_changed_material_same_operation_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:17 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:17 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-changed "HTTP/1.1 200 OK"
+2026-11-10 12:27:17 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:17 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-changed "HTTP/1.1 200 OK"
+FAILED                                                                   [ 36%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_foreign_admin_uses_own_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:18 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:18 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-foreign "HTTP/1.1 200 OK"
+FAILED                                                                   [ 45%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_custom_params_cannot_forge_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:18 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:18 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-forged "HTTP/1.1 200 OK"
+FAILED                                                                   [ 54%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_concurrent_authority_change_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:19 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:19 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-race "HTTP/1.1 200 OK"
+FAILED                                                                   [ 63%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_inactive_or_member_is_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:20 [ WARNING] Rejected token for non-active user inactive (status=inactive)
+2026-11-10 12:27:20 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-inactive "HTTP/1.1 401 Unauthorized"
+2026-11-10 12:27:20 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-member "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 72%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_null_and_empty_template_material_is_exact 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:21 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:21 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-null "HTTP/1.1 200 OK"
+FAILED                                                                   [ 81%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_rollback_and_readback_uncertainty 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:21 [    INFO] Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+2026-11-10 12:27:21 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-rollback "HTTP/1.1 200 OK"
+FAILED                                                                   [ 90%]
+tests/api/test_agent_spawn_goal14.py::test_spawn_persist_false_is_honest_nondurable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:27:22 [    INFO] Created ephemeral agent: spawned_finance_analyst_5ef6c431
+2026-11-10 12:27:22 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-ephemeral "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_spawn_persist_true_uses_caller_scope_and_exact_material _________
+tests/api/test_agent_spawn_goal14.py:134: in test_spawn_persist_true_uses_caller_scope_and_exact_material
+    assert data["operation_id"] == "agent:create:spawn-op-1"
+           ^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'operation_id'
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.lancedb_handler:lancedb_handler.py:2435 Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:225 LanceDBHandler initialized. ID: 5753036880. LANCEDB_AVAILABLE: True
+INFO     core.workflow_template_system:workflow_template_system.py:172 Template manager initialized with 28 templates
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     enhanced_ai_workflow_endpoints:enhanced_ai_workflow_endpoints.py:277 RealAIWorkflowService modernized with unified LLMService.
+INFO     enhanced_ai_workflow_endpoints:enhanced_ai_workflow_endpoints.py:277 RealAIWorkflowService modernized with unified LLMService.
+INFO     core.agent_governance_service:agent_governance_service.py:399 Registered new agent: Finance Analyst
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-op-1 "HTTP/1.1 200 OK"
+____________ test_spawn_distinct_operations_create_distinct_agents _____________
+tests/api/test_agent_spawn_goal14.py:171: in test_spawn_distinct_operations_create_distinct_agents
+    assert first_id != second_id
+E   AssertionError: assert '21a1c9d8-50c6-4889-8963-8458095453a5' != '21a1c9d8-50c6-4889-8963-8458095453a5'
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-distinct-a "HTTP/1.1 200 OK"
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-distinct-b "HTTP/1.1 200 OK"
+______________ test_spawn_duplicate_exact_operation_is_idempotent ______________
+tests/api/test_agent_spawn_goal14.py:192: in test_spawn_duplicate_exact_operation_is_idempotent
+    assert replay.json()["data"]["verification"]["status"] == "already_applied"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'verification'
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-dup "HTTP/1.1 200 OK"
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-dup "HTTP/1.1 200 OK"
+_____________ test_spawn_changed_material_same_operation_conflicts _____________
+tests/api/test_agent_spawn_goal14.py:214: in test_spawn_changed_material_same_operation_conflicts
+    assert changed.status_code == 409, changed.text
+E   AssertionError: {"success":true,"data":{"agent_id":"21a1c9d8-50c6-4889-8963-8458095453a5","agent_name":"Finance Analyst","category":"Finance","persisted":true},"timestamp":"2026-11-10T17:27:17.487245+00:00","message":"Agent Finance Analyst spawned successfully"}
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-changed "HTTP/1.1 200 OK"
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-changed "HTTP/1.1 200 OK"
+___________________ test_spawn_foreign_admin_uses_own_scope ____________________
+tests/api/test_agent_spawn_goal14.py:232: in test_spawn_foreign_admin_uses_own_scope
+    assert agent.tenant_id == "other"
+           ^^^^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'tenant_id'
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-foreign "HTTP/1.1 200 OK"
+_______________ test_spawn_custom_params_cannot_forge_authority ________________
+tests/api/test_agent_spawn_goal14.py:267: in test_spawn_custom_params_cannot_forge_authority
+    assert agent.name == "Forged Spawn"
+           ^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'name'
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-forged "HTTP/1.1 200 OK"
+______________ test_spawn_concurrent_authority_change_is_refused _______________
+tests/api/test_agent_spawn_goal14.py:296: in test_spawn_concurrent_authority_change_is_refused
+    assert response.status_code == 409, response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"21a1c9d8-50c6-4889-8963-8458095453a5","agent_name":"Finance Analyst","category":"Finance","persisted":true},"timestamp":"2026-11-10T17:27:19.743274+00:00","message":"Agent Finance Analyst spawned successfully"}
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-race "HTTP/1.1 200 OK"
+_____________ test_spawn_null_and_empty_template_material_is_exact _____________
+tests/api/test_agent_spawn_goal14.py:347: in test_spawn_null_and_empty_template_material_is_exact
+    assert db.get(AgentRegistry, null_id).configuration is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'configuration'
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-null "HTTP/1.1 200 OK"
+_________________ test_spawn_rollback_and_readback_uncertainty _________________
+tests/api/test_agent_spawn_goal14.py:384: in test_spawn_rollback_and_readback_uncertainty
+    assert response.status_code == 409, response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"21a1c9d8-50c6-4889-8963-8458095453a5","agent_name":"Finance Analyst","category":"Finance","persisted":true},"timestamp":"2026-11-10T17:27:21.974422+00:00","message":"Agent Finance Analyst spawned successfully"}
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2871 Persisted spawned agent: 21a1c9d8-50c6-4889-8963-8458095453a5
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-rollback "HTTP/1.1 200 OK"
+________________ test_spawn_persist_false_is_honest_nondurable _________________
+tests/api/test_agent_spawn_goal14.py:418: in test_spawn_persist_false_is_honest_nondurable
+    assert data["verification"] == {
+           ^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'verification'
+------------------------------ Captured log call -------------------------------
+INFO     core.atom_meta_agent:atom_meta_agent.py:2890 Created ephemeral agent: spawned_finance_analyst_5ef6c431
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/spawn?operation_id=spawn-ephemeral "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 22 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/api/test_agent_spawn_goal14.py::test_spawn_persist_true_uses_caller_scope_and_exact_material
+  /private/tmp/atom-goal14-spawn-baseline2-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_persist_true_uses_caller_scope_and_exact_material
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_distinct_operations_create_distinct_agents
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_duplicate_exact_operation_is_idempotent
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_changed_material_same_operation_conflicts
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_foreign_admin_uses_own_scope
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_custom_params_cannot_forge_authority
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_concurrent_authority_change_is_refused
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_null_and_empty_template_material_is_exact
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_rollback_and_readback_uncertainty
+FAILED tests/api/test_agent_spawn_goal14.py::test_spawn_persist_false_is_honest_nondurable
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 10 failed, 1 passed, 28 warnings in 24.10s ==================

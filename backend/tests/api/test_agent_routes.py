@@ -439,7 +439,7 @@ def test_spawn_custom_agent(
     mock_agent.name = "Spawned Agent"
     mock_agent.category = "finance"
 
-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
+    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
         mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
         mock_atom.return_value = mock_atom_instance
@@ -1239,9 +1239,28 @@ def test_spawn_agent_persist_true(
     mock_agent.name = "Persisted Agent"
     mock_agent.category = "finance"
 
-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
+    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
-        mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
+        mock_atom_instance.spawn_agent_decision = AsyncMock(return_value={
+            "status": "verified",
+            "data": {
+                "agent_id": "persisted-agent-123",
+                "agent_name": "Persisted Agent",
+                "category": "finance",
+                "tenant_id": "default",
+                "workspace_id": "default",
+                "operation_id": "agent:create:test",
+                "audit_id": "agent:create:test",
+                "verification": {
+                    "status": "verified",
+                    "effect": "committed",
+                    "audit_id": "agent:create:test",
+                },
+            },
+            "operation_id": "agent:create:test",
+            "audit_id": "agent:create:test",
+            "target_id": "persisted-agent-123",
+        })
         mock_atom.return_value = mock_atom_instance
 
         response = client.post("/api/agents/spawn", json=request_data)
@@ -1266,7 +1285,7 @@ def test_spawn_agent_unknown_template(
     }
 
     # Should handle gracefully
-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
+    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
         mock_atom_instance.spawn_agent.side_effect = Exception("Template not found")
         mock_atom.return_value = mock_atom_instance
@@ -2290,9 +2309,28 @@ def test_spawn_agent_persist_true(
     mock_agent.name = "Persisted Agent"
     mock_agent.category = "finance"
 
-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
+    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
-        mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
+        mock_atom_instance.spawn_agent_decision = AsyncMock(return_value={
+            "status": "verified",
+            "data": {
+                "agent_id": "persisted-agent-123",
+                "agent_name": "Persisted Agent",
+                "category": "finance",
+                "tenant_id": "default",
+                "workspace_id": "default",
+                "operation_id": "agent:create:test",
+                "audit_id": "agent:create:test",
+                "verification": {
+                    "status": "verified",
+                    "effect": "committed",
+                    "audit_id": "agent:create:test",
+                },
+            },
+            "operation_id": "agent:create:test",
+            "audit_id": "agent:create:test",
+            "target_id": "persisted-agent-123",
+        })
         mock_atom.return_value = mock_atom_instance
 
         response = client.post("/api/agents/spawn", json=request_data)
@@ -2317,7 +2355,7 @@ def test_spawn_agent_unknown_template(
     }
 
     # Should handle gracefully
-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
+    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
         mock_atom_instance.spawn_agent.side_effect = Exception("Template not found")
         mock_atom.return_value = mock_atom_instance

@@ -888,7 +888,9 @@ class TestSpawnAgent:
         result = await agent.spawn_agent("finance_analyst")
         assert result.id.startswith("spawned_finance_analyst_")
         assert result.id in agent.spawned_agents
-        agent.graduation_service.reset_maturity.assert_called()
+        # Ordinary spawn must not mutate the synthetic atom_specialty_init
+        # capability row; the agent's capabilities live on its own row.
+        agent.graduation_service.reset_maturity.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_spawn_custom(self, meta_agent):
@@ -908,21 +910,36 @@ class TestSpawnAgent:
         db = MagicMock()
         registered = SimpleNamespace(id="reg-1", name="Registered", category="c",
                                      module_path="m", class_name="k", description="d")
-        gov = MagicMock()
-        gov.register_or_update_agent.return_value = registered
-        with patch("core.atom_meta_agent.AgentGovernanceService", return_value=gov):
-            result = await agent.spawn_agent("hr_assistant", persist=True, db=db)
+        actor = SimpleNamespace(id="actor-1")
+        agent.spawn_agent_decision = AsyncMock(return_value={
+            "status": "verified", "data": {"agent_id": "reg-1"}})
+        db.get.return_value = registered
+        result = await agent.spawn_agent(
+            "hr_assistant", persist=True, db=db, actor=actor)
         assert result == registered
+        agent.spawn_agent_decision.assert_awaited_once()
+        assert agent.spawn_agent_decision.call_args.kwargs["actor"] is actor
+        assert agent.spawn_agent_decision.call_args.kwargs["db"] is db
 
     @pytest.mark.asyncio
     async def test_spawn_persist_new_session(self, meta_agent):
         agent, sl = meta_agent
         registered = SimpleNamespace(id="reg-2", name="Registered")
-        gov = MagicMock()
-        gov.register_or_update_agent.return_value = registered
-        with patch("core.atom_meta_agent.AgentGovernanceService", return_value=gov):
-            result = await agent.spawn_agent("sales_assistant", persist=True)
+        actor = SimpleNamespace(id="actor-1")
+        session = sl.return_value.__enter__.return_value
+        session.get.return_value = registered
+        agent.spawn_agent_decision = AsyncMock(return_value={
+            "status": "verified", "data": {"agent_id": "reg-2"}})
+        result = await agent.spawn_agent(
+            "sales_assistant", persist=True, actor=actor)
         assert result == registered
+        agent.spawn_agent_decision.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_spawn_persist_requires_actor(self, meta_agent):
+        agent, _ = meta_agent
+        with pytest.raises(ValueError, match="authenticated actor"):
+            await agent.spawn_agent("sales_assistant", persist=True)
 
 
 class TestQueryMemoryAndGuidance:
