@@ -1,0 +1,57 @@
+
+tests/test_goal9_token_usage_upgrade.py::test_pre_upgrade_sqlite_token_usage_upgrades_via_startup_hook
+-------------------------------- live log setup --------------------------------
+2026-11-10 09:55:44 [    INFO] EscalationManager initialized
+2026-11-10 09:55:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:55:44 [    INFO] EscalationManager initialized
+2026-11-10 09:55:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:55:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:55:44 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:55:44 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 33%]
+tests/test_goal9_token_usage_upgrade.py::test_partial_upgrade_preserves_pricing_status_and_custom_index
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:55:44 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
+PASSED                                                                   [ 66%]
+tests/test_goal9_token_usage_upgrade.py::test_failed_upgrade_is_recorded_and_retryable
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:55:44 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available: ddl unavailable
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 3 passed, 11 warnings in 17.24s ========================

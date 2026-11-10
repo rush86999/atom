@@ -33,6 +33,13 @@ CREATE INDEX ix_token_usage_pricing_status ON token_usage (pricing_status);
 --   NOT NULL on agent_id/tenant_id/model_name requires the standard table
 --   rebuild (Alembic batch_alter_table or a create-copy-swap with the
 --   existing data). cost_usd was already nullable in SQLite.
+--
+--   The application's supported SQLite startup path already does this
+--   rebuild: core.sqlite_schema_repair.repair_known_drift() ->
+--   ensure_token_usage_upgrade(), called before Base.metadata.create_all.
+--   That hook is what backend/tests/test_goal9_token_usage_upgrade.py
+--   exercises on a real pre-upgrade fixture. The DDL below remains the
+--   owner-applied PostgreSQL equivalent; it is not applied live.
 
 -- Down (reversible; only if no NULLs/unknown rows remain in the reverted
 -- columns):

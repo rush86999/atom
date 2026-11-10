@@ -1591,7 +1591,7 @@ class TokenUsage(Base):
     total_tokens = Column(Integer, default=0)
     billed = Column(Boolean, default=False)
     # None = unpriced/unknown liability; 0.0 = known free.
-    cost_usd = Column(Float, nullable=True, default=0.0)
+    cost_usd = Column(Float, nullable=True)
     # Explicit authority for the cost meaning; unknown is never treated as
     # known-free even when the numeric column is 0.
     pricing_status = Column(String(20), nullable=False, default="priced", index=True)

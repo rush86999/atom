@@ -5,33 +5,42 @@
   "date": "2026-11-10",
   "deferred": "atomic concurrent reservation; check alone non-atomic; no new cap claim",
   "evidence_files": {
-    "README.md": "63091acde6b8d9468b14cfebe5a9e9603edcfcf399855b145de1d4a6ec32a7cd",
-    "gates/affected.log": "684543997aee86011f0826c17cb4dbb74245e477a2762d1ef514ce9d30e9b235",
-    "gates/focused.log": "73987ef7c71def0058995db09f8c6c17c0f2545922b977495204e5615c599beb",
-    "migration.sql": "29ac3e0eda1f3cc9cc1d331cb501c27052c695572229b78bc1e7b81c48af2a6f",
+    "README.md": "541ddcb44e4332e20d772f4bb122ca688809e5bc4759c9ed4a4d0dcf22d36dd1",
+    "gates/affected.log": "fbdf5d5dcfd2d2bf7c9ee67638f3bcc9adf61f8985ef35f2c0fc5c7594f57c0c",
+    "gates/focused.log": "bae48bec11f33eb7999730094a64012c84f42c626bbd7857934763b098833b79",
+    "gates/upgrade.log": "ace1f9a3d1af934948b7c5f8966baf381f6af71a40d539025e0626a75d93176c",
+    "migration.sql": "d6ced725868634f707f1955a3fb1137267cce5c6a34eac2e559d700128d76431",
+    "migration_lineage.md": "e910c4e6e6987f1047d891dddac47c21726d273d8aef2791e40c65c58cc04d77",
+    "retained_negative/partial-upgrade-review.json": "81466fe4413aa9761090c5e5ee5b636e5351de3d23257c869f5f150a9f3ea53e",
     "retained_negative/pre-fix-negative.log": "a9b994477da1cbd288b7fd1871a04daf705f0fa102fb9dedb1604323f773d6fd",
     "retained_negative/pre-fix.test.py": "409be71dd0a9a5333d57cf5afb7cb22ad91c5c049e45889dd1d8054097d454a8",
-    "source/fix.diff": "ca1879205d9623aea4cf5ced636bee59c1b35fe3ef15df03cf1304b70677195b",
-    "source/source-hashes.json": "0f9753fd0289b42f155961e29059c06e54ca3da7c719c2c95f5f4590460bbe2e"
+    "retained_negative/structured-intent-loop-review.json": "0032a085890a3611c03f5b8a3e0935f6919ac3b6b6a50699b1178d72b33cb3ae",
+    "source/fix.diff": "16db9c597f861e10392a11e3428770ef8dbd06fb5cda5c3ef66fecd4eb051683",
+    "source/source-hashes.json": "7fa041bd12fcefb50107b6acbc7eab3f856b17619374d851d5e85ce348c40b68"
   },
   "gates": {
-    "affected": "201 passed",
-    "focused": "13 passed",
+    "affected": "266 passed",
+    "focused": "29 passed",
     "provider_model_live_db": false,
-    "scratch": "SQLite only"
+    "scratch": "SQLite only",
+    "upgrade": "3 passed"
   },
   "in_memory_tracker": "diagnostic/cache only",
   "kind": "goal9_durable_settlement_hardstop",
-  "migration": "migration.sql, reversible DDL, not applied",
+  "migration": "migration.sql, reversible DDL, not applied; SQLite uses startup hook",
+  "migration_lineage": "42 revisions / 42 heads; no revision mentions token_usage; no merge head invented; see migration_lineage.md",
   "product_changes": [
     "nullable agent/tenant/model + provider/request/attempt id + pricing_status on TokenUsage",
-    "record_llm_usage idempotent settlement in dedicated session",
-    "settlement from BYOK usage paths + stream unknown",
-    "hard-stop fail-closed on unreadable/unpriced; observe/warn preserved",
-    "governance refusal status code preservation"
+    "durable pre-dispatch unknown/paid-liability intent in TokenUsage; no dispatch if it cannot persist",
+    "exact-binding database CAS settles the pending intent once; actual settlement survives stale writers; replay idempotent; conflicts/scope contradictions refuse",
+    "settlement from BYOK usage paths + stream unknown + known-free contract + server-owned structured identity",
+    "hard-stop fail-closed on unreadable/unpriced/unattributed/degraded/upgrade-unavailable; NULL cost non-free is liability",
+    "governance refusal status code preservation",
+    "SQLite startup upgrade rebuilds legacy token_usage preserving rows/IDs/FKs/custom columns/indexes and partial pricing_status; retryable failure marker"
   ],
   "retained_negative": "retained_negative/pre-fix.test.py + pre-fix-negative.log (verbatim from b0a5c04e)",
   "root_review_required": true,
   "status": "tested_candidate_ready_for_root_review",
-  "target_main": "0d5132c2e060a5f2ac338bca143c5e138e607658"
+  "target_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "upgrade_path": "existing startup hook repair_known_drift() -> ensure_token_usage_upgrade(); full + partial-schema pre-upgrade SQLite fixtures"
 }

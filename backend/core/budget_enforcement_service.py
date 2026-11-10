@@ -113,10 +113,61 @@ class BudgetEnforcementService:
             # An unreadable mode is not evidence of observe-only policy.
             # Preserve the historical soft-stop default for that case.
             enforcement_mode = BudgetEnforcementMode.SOFT_STOP
+        # A lost settlement write is unpriced spend, not a successful budget
+        # outcome. Hard stop refuses until restart/reconciliation; observe and
+        # warn modes keep their documented semantics.
+        try:
+            from core.spend_aggregation_service import settlement_failure_reason
+
+            _settlement_failure = settlement_failure_reason()
+        except Exception:
+            _settlement_failure = None
+        if _settlement_failure and enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+            logger.warning(
+                "[BudgetEnforcementService] Durable settlement degraded for "
+                "tenant %s: %s", tenant_id, _settlement_failure)
+            return {
+                "allowed": False,
+                "reason": (
+                    "Budget status unavailable; a durable usage settlement "
+                    "write failed and hard_stop refuses until it is "
+                    "reconciled."),
+                "enforcement_mode": enforcement_mode,
+                "status_code": "BUDGET_STATUS_UNAVAILABLE",
+                "current_spend_usd": 0.0,
+                "budget_limit_usd": 0.0,
+                "utilization_percent": 0.0,
+            }
+        # A ledger whose schema upgrade failed cannot represent non-agent or
+        # unknown-cost rows. Hard stop must not operate on it as if healthy.
+        try:
+            from core.sqlite_schema_repair import (
+                token_usage_upgrade_failure_reason,
+            )
+
+            _upgrade_failure = token_usage_upgrade_failure_reason()
+        except Exception:
+            _upgrade_failure = None
+        if _upgrade_failure and enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+            logger.warning(
+                "[BudgetEnforcementService] Durable ledger upgrade "
+                "unavailable for tenant %s: %s", tenant_id, _upgrade_failure)
+            return {
+                "allowed": False,
+                "reason": (
+                    "Budget status unavailable; the durable usage ledger "
+                    "upgrade failed and hard_stop refuses until it is "
+                    "repaired."),
+                "enforcement_mode": enforcement_mode,
+                "status_code": "BUDGET_STATUS_UNAVAILABLE",
+                "current_spend_usd": 0.0,
+                "budget_limit_usd": 0.0,
+                "utilization_percent": 0.0,
+            }
         try:
             # Get current spend from SpendAggregationService
             spend_result = self.spend_service.update_tenant_spend(
-                tenant_id, persist=False)
+                tenant_id, persist=False, include_liabilities=True)
 
             if "error" in spend_result:
                 logger.warning(
@@ -147,13 +198,37 @@ class BudgetEnforcementService:
             current_spend = spend_result.get("current_spend_usd", 0.0)
             budget_limit = spend_result.get("budget_limit_usd", 0.0)
             utilization = spend_result.get("utilization_percent", 0.0)
+            # Unknown-cost liabilities travel WITH the spend read; a read
+            # failure already surfaced as spend_result["error"] above.
+            unattributed_rows = spend_result.get(
+                "unattributed_unpriced_rows", 0)
+            if not isinstance(unattributed_rows, int):
+                unattributed_rows = 0
+            # Unattributed unknown usage must not vanish because it has no
+            # tenant id. A hard stop refuses; observe/warn modes continue.
+            if unattributed_rows:
+                logger.warning(
+                    "[BudgetEnforcementService] %s unattributed unpriced "
+                    "usage row(s)", unattributed_rows)
+                if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+                    return {
+                        "allowed": False,
+                        "reason": (
+                            f"{unattributed_rows} unattributed unpriced "
+                            "usage row(s) require reconciliation; hard_stop "
+                            "refuses until cost/scope is resolved."),
+                        "enforcement_mode": enforcement_mode,
+                        "status_code": "BUDGET_UNATTRIBUTED_USAGE",
+                        "unattributed_usage_rows": unattributed_rows,
+                        "current_spend_usd": current_spend,
+                        "budget_limit_usd": budget_limit,
+                        "utilization_percent": utilization
+                    }
 
             # Unknown pricing is a liability, not zero-cost work. A hard stop
             # refuses until it is reconciled; observe/warn modes may continue.
-            try:
-                unpriced_rows = self.spend_service.get_unpriced_usage(
-                    tenant_id)
-            except Exception:
+            unpriced_rows = spend_result.get("unpriced_usage_rows", 0)
+            if not isinstance(unpriced_rows, int):
                 unpriced_rows = 0
             if unpriced_rows:
                 logger.warning(

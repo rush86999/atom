@@ -10,23 +10,28 @@
       "changed": true
     },
     "backend/core/budget_enforcement_service.py": {
-      "after_sha256": "ac189b391430a5dbaf77999610417dc8a620cd93e32c5d856448b272f116117c",
+      "after_sha256": "6a28d39ef3020a6a320212c1cc8bead5d79ea312a82c95d6bcc00245b9f4bbb6",
       "before_sha256": "17495d4454c25c4dc161a40970ba896a7f9b8ac8849ff6dccd6dfecbd2648dc4",
       "changed": true
     },
     "backend/core/llm/byok_handler.py": {
-      "after_sha256": "4bb2ef679bb763bdc196c2134f6c6ffe56dc3997b97f0811141359ef10b08ac7",
+      "after_sha256": "768fe04febc170bea282db06d026fce1617531ea5ec997104252031a298c07e4",
       "before_sha256": "0ccc3eca8a65c7f23e2aeb90881f5c6dd0994dd65ec66ecc6ced57633de32063",
       "changed": true
     },
     "backend/core/models.py": {
-      "after_sha256": "a3a03bf75d4f0122c11b5606c377443afd7d5780cb25c5a85697ec15ceded933",
+      "after_sha256": "1286442ff5236bf3ac23eff6ea541934e414f4855a533bc5ce67e9a4450d8c00",
       "before_sha256": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
       "changed": true
     },
     "backend/core/spend_aggregation_service.py": {
-      "after_sha256": "6f6e51c9dd96eaa2c1ddccf3eee040764ddab6b571e5193853547820c507fe32",
+      "after_sha256": "c97a22a32221d71e5d7926b4a18252e07096d3c5129ddbef932e1f0a3b1c99d0",
       "before_sha256": "884992ce9d211ddfcf06c28fc5d56e81424c241a6f9f5aa0a91d67af405243b3",
+      "changed": true
+    },
+    "backend/core/sqlite_schema_repair.py": {
+      "after_sha256": "e157d0cde091506d811dc244b9cc3448bfcc9582e91c154e4bbb37f51c0db106",
+      "before_sha256": "46a2420f2bc9d3a575631214fa515af317bb4425cf98c32490528aea5365b174",
       "changed": true
     },
     "backend/tests/test_goal9_budget_ledger_negative.py": {
@@ -35,20 +40,28 @@
       "changed": true
     },
     "backend/tests/test_goal9_durable_settlement.py": {
-      "after_sha256": "1599c68ea39184496f777eea21b4b74e3f7688852131a7748d85755fe2814e52",
+      "after_sha256": "1048e9e06d3a8452c3653a8f6a8a63a5ca5da77f69c10b2fccf428915a20164e",
+      "before_sha256": null,
+      "changed": true
+    },
+    "backend/tests/test_goal9_token_usage_upgrade.py": {
+      "after_sha256": "7a617bcfa6a2c182d0a5caa89d46dbf26cb028fc78a8fa16fc8a32538187e98a",
       "before_sha256": null,
       "changed": true
     }
   },
   "migration_ddl": "migration.sql",
-  "note": "TokenUsage authoritative; in-memory diagnostic; atomic reservation deferred",
+  "migration_lineage": "migration_lineage.md",
+  "note": "TokenUsage authoritative; durable pre-dispatch unknown intent + exact-binding CAS settlement; in-memory diagnostic; atomic budget reservation deferred",
   "product_files_changed": [
     "backend/core/models.py",
     "backend/core/spend_aggregation_service.py",
     "backend/core/budget_enforcement_service.py",
     "backend/core/agent_governance_service.py",
-    "backend/core/llm/byok_handler.py"
+    "backend/core/llm/byok_handler.py",
+    "backend/core/sqlite_schema_repair.py"
   ],
   "schema": "goal9_durable_settlement_hardstop_source",
-  "test_only_negative_retained": "retained_negative/pre-fix.test.py"
+  "test_only_negative_retained": "retained_negative/pre-fix.test.py + retained_negative/partial-upgrade-review.json + retained_negative/structured-intent-loop-review.json",
+  "upgrade_path": "core.sqlite_schema_repair.repair_known_drift() -> ensure_token_usage_upgrade(), before Base.metadata.create_all (backend/main_api_app.py:478)"
 }

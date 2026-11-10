@@ -808,6 +808,10 @@ class _ModelAttemptInFlight(RuntimeError):
     """Another request is currently dispatching this provider/model pair."""
 
 
+class _DurableUsageIntentUnavailable(RuntimeError):
+    """A paid dispatch was refused because its durable intent could not persist."""
+
+
 class _StreamInactivityError(RuntimeError):
     """A streaming response produced no chunk for longer than the idle bound.
 
@@ -4167,11 +4171,14 @@ class BYOKHandler:
         attempt_id: Optional[str] = None,
         execution_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
+        known_free: bool = False,
     ) -> tuple[int, int, Optional[float]]:
         usage = _response_usage(response)
         if usage is None:
             # The response carried no usage. Do not silently drop the
-            # attempt: record an explicit unpriced liability (never 0).
+            # attempt: record an explicit unpriced liability (never 0)
+            # unless a trusted caller supplied a known-free contract, in
+            # which case authoritative 0 is correct even without usage.
             try:
                 from core.spend_aggregation_service import record_llm_usage
 
@@ -4180,7 +4187,7 @@ class BYOKHandler:
                     model_name=model,
                     prompt_tokens=0,
                     completion_tokens=0,
-                    cost_usd=None,
+                    cost_usd=0.0 if known_free else None,
                     agent_id=agent_id,
                     workspace_id=getattr(self, "workspace_id", None),
                     tenant_id=(tenant_id or getattr(self, "tenant_id", None)),
@@ -4191,8 +4198,9 @@ class BYOKHandler:
                 )
             except Exception as settle_err:
                 logger.error(
-                    "LLM unknown-usage settlement failed: %s", settle_err)
-            return 0, 0, None
+                    "LLM unknown-usage settlement failed (%s)",
+                    type(settle_err).__name__)
+            return 0, 0, (0.0 if known_free else None)
         input_tokens = _usage_value(usage, "prompt_tokens", "input_tokens")
         output_tokens = _usage_value(
             usage, "completion_tokens", "output_tokens")
@@ -4213,6 +4221,10 @@ class BYOKHandler:
                     savings_usd = max(0.0, reference_cost - cost)
         except Exception as cost_err:
             logger.warning(f"Could not attribute LLM cost: {cost_err}")
+        if known_free:
+            # Trusted free contract, not a model-name/brand assumption.
+            # Authoritative: the free contract wins over a pricing estimate.
+            cost = 0.0
         complexity_value = (
             getattr(complexity, "value", None) or complexity or "moderate")
         try:
@@ -4253,7 +4265,9 @@ class BYOKHandler:
                 attempt_id=attempt_id,
             )
         except Exception as settle_err:
-            logger.error("LLM durable usage settlement failed: %s", settle_err)
+            logger.error(
+                "LLM durable usage settlement failed (%s)",
+                type(settle_err).__name__)
         self._track_rate_usage(
             provider_id,
             input_tokens=input_tokens,
@@ -6850,6 +6864,35 @@ class BYOKHandler:
                             provider_id, model, holder=_claim_holder,
                             token=_claim_token)
 
+                    # Durable paid-liability intent BEFORE dispatch. If it
+                    # cannot be persisted, do not dispatch (fail closed).
+                    _settlement_attempt += 1
+                    _attempt_id = (
+                        f"{_settlement_request_id}:{_settlement_attempt}")
+                    try:
+                        from core.spend_aggregation_service import (
+                            begin_llm_usage,
+                        )
+
+                        begin_llm_usage(
+                            provider_id=provider_id,
+                            model_name=model,
+                            agent_id=agent_id,
+                            workspace_id=getattr(self, "workspace_id", None),
+                            tenant_id=getattr(self, "tenant_id", None),
+                            execution_id=execution_id,
+                            chain_id=chain_id,
+                            request_id=_settlement_request_id,
+                            attempt_id=_attempt_id,
+                        )
+                    except Exception as intent_err:
+                        _release_once()
+                        logger.error(
+                            "Durable usage intent unavailable; refusing "
+                            "dispatch of %s/%s (%s)",
+                            provider_id, model, type(intent_err).__name__)
+                        continue
+
                     try:
                         response = await _to_thread_safe(
                             client.chat.completions.create,
@@ -6879,7 +6922,6 @@ class BYOKHandler:
                     self._clear_model_cooldown(provider_id, model)
 
                     if not getattr(response, "choices", None):
-                        _settlement_attempt += 1
                         _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
                             self._record_provider_usage(
                                 provider_id,
@@ -6887,13 +6929,12 @@ class BYOKHandler:
                                 response,
                                 agent_id=agent_id,
                                 chain_id=chain_id,
+                                execution_id=execution_id,
                                 complexity=complexity,
                                 is_managed_service=is_managed,
                                 include_savings=True,
                                 request_id=_settlement_request_id,
-                                attempt_id=(
-                                    f"{_settlement_request_id}:"
-                                    f"{_settlement_attempt}"),
+                                attempt_id=_attempt_id,
                             )
                         )
                         raise _EmptyCompletionError(
@@ -6901,7 +6942,6 @@ class BYOKHandler:
                     result = response.choices[0].message.content
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
                     if _visible_content_missing(result):
-                        _settlement_attempt += 1
                         _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
                             self._record_provider_usage(
                                 provider_id,
@@ -6909,13 +6949,12 @@ class BYOKHandler:
                                 response,
                                 agent_id=agent_id,
                                 chain_id=chain_id,
+                                execution_id=execution_id,
                                 complexity=complexity,
                                 is_managed_service=is_managed,
                                 include_savings=True,
                                 request_id=_settlement_request_id,
-                                attempt_id=(
-                                    f"{_settlement_request_id}:"
-                                    f"{_settlement_attempt}"),
+                                attempt_id=_attempt_id,
                             )
                         )
                         # An empty visible payload is a FAILED attempt, not a
@@ -8720,6 +8759,12 @@ class BYOKHandler:
             route_trace_id = route_trace_id or (
                 f"structured-{uuid.uuid4().hex[:12]}"
             )
+            # Server-owned settlement identity created ONCE per structured
+            # call, before the provider loop. Never derived from a caller
+            # header/trace (two no-trace or pinned calls must not collapse
+            # onto the same unique attempt_id), and never regenerated on a
+            # replay of the same settlement.
+            _structured_settlement_request_id = str(uuid.uuid4())
             if self._structured_route_trace_enabled():
                 logger.info(
                     "[structured-route-trace] %s",
@@ -9120,6 +9165,36 @@ class BYOKHandler:
                                 await asyncio.sleep(0.25)
                             _attempted_any = True
                             _attempt_count += 1
+                            _structured_attempt_id = (
+                                f"{_structured_settlement_request_id}:"
+                                f"{_attempt_count}")
+                            try:
+                                from core.spend_aggregation_service import (
+                                    begin_llm_usage,
+                                )
+
+                                begin_llm_usage(
+                                    provider_id=provider_id,
+                                    model_name=model,
+                                    agent_id=agent_id,
+                                    workspace_id=getattr(
+                                        self, "workspace_id", None),
+                                    tenant_id=getattr(self, "tenant_id", None),
+                                    chain_id=chain_id,
+                                    request_id=(
+                                        _structured_settlement_request_id),
+                                    attempt_id=_structured_attempt_id,
+                                )
+                            except Exception as intent_err:
+                                _release_once()
+                                logger.error(
+                                    "Durable usage intent unavailable; "
+                                    "refusing structured dispatch of %s/%s "
+                                    "(%s)", provider_id, model,
+                                    type(intent_err).__name__)
+                                raise _DurableUsageIntentUnavailable(
+                                    "durable usage intent unavailable"
+                                ) from None
                             # PLAN-ATTEMPT ATTRIBUTION, BEFORE THE
                             # BLOCKING CALL (verifier work order, round
                             # 19): the completion trace below emits only
@@ -9223,10 +9298,8 @@ class BYOKHandler:
                                     chain_id=chain_id,
                                     complexity=complexity,
                                     is_managed_service=is_managed,
-                                    request_id=route_trace_id,
-                                    attempt_id=(
-                                        f"{route_trace_id or 'structured'}:"
-                                        f"{_attempt_count}"),
+                                    request_id=_structured_settlement_request_id,
+                                    attempt_id=_structured_attempt_id,
                                 )
                             )
                             if _structured_output_missing(result):
@@ -9240,6 +9313,14 @@ class BYOKHandler:
                             break
                         except Exception as _attempt_err:
                             if isinstance(_attempt_err, _ModelAttemptInFlight):
+                                raise
+                            if isinstance(
+                                    _attempt_err,
+                                    _DurableUsageIntentUnavailable):
+                                # Do not retry/re-dispatch: the durable
+                                # liability intent is unavailable. Propagate
+                                # out of the request-recovery loop so this
+                                # candidate is not retried forever.
                                 raise
                             _err_txt = str(_attempt_err).lower()
                             try:
@@ -10370,7 +10451,12 @@ class BYOKHandler:
             )
         except Exception as stream_settle_err:
             logger.error(
-                "Stream usage settlement failed: %s", stream_settle_err)
+                "Stream usage settlement failed (%s)",
+                type(stream_settle_err).__name__)
+            # No durable unknown/paid-liability intent: do not start the
+            # stream. Never silently stream an unaccounted paid call.
+            raise RuntimeError(
+                "durable stream usage intent unavailable") from None
 
         # P4 prompt-taint gate (shadow by default; blocks under enforce).
         _taint_block = self._llm_taint_check(
@@ -11406,6 +11492,33 @@ class BYOKHandler:
                         attempt_provider_id, model,
                     )
                     continue
+                _settlement_attempt += 1
+                _attempt_id = (
+                    f"{_settlement_request_id}:{_settlement_attempt}")
+                try:
+                    from core.spend_aggregation_service import (
+                        begin_llm_usage,
+                    )
+
+                    begin_llm_usage(
+                        provider_id=attempt_provider_id,
+                        model_name=model,
+                        agent_id=agent_id,
+                        workspace_id=getattr(self, "workspace_id", None),
+                        tenant_id=getattr(self, "tenant_id", None),
+                        request_id=_settlement_request_id,
+                        attempt_id=_attempt_id,
+                    )
+                except Exception as intent_err:
+                    self._release_model_attempt(
+                        attempt_provider_id, model, holder=_claim_holder,
+                        token=_claim_token)
+                    logger.error(
+                        "Durable usage intent unavailable; refusing "
+                        "completion dispatch of %s/%s (%s)",
+                        attempt_provider_id, model,
+                        type(intent_err).__name__)
+                    continue
                 try:
                     response = await client.chat.completions.create(**_attempt_kwargs)
                 finally:
@@ -11417,7 +11530,6 @@ class BYOKHandler:
 
                 choice = response.choices[0] if getattr(response, "choices", None) else None
                 if not _completion_has_payload(choice):
-                    _settlement_attempt += 1
                     _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
                         self._record_provider_usage(
                             attempt_provider_id,
@@ -11427,9 +11539,7 @@ class BYOKHandler:
                             complexity=self.analyze_query_complexity(
                                 prompt_str, task_type),
                             request_id=_settlement_request_id,
-                            attempt_id=(
-                                f"{_settlement_request_id}:"
-                                f"{_settlement_attempt}"),
+                            attempt_id=_attempt_id,
                         )
                     )
                     self._bench_model(attempt_provider_id, model)
@@ -11474,7 +11584,6 @@ class BYOKHandler:
                         )
                     except Exception as cost_err:
                         logger.warning(f"Could not record LLM usage: {cost_err}")
-                    _settlement_attempt += 1
                     try:
                         from core.spend_aggregation_service import record_llm_usage
 
@@ -11488,14 +11597,12 @@ class BYOKHandler:
                             workspace_id=getattr(self, "workspace_id", None),
                             tenant_id=getattr(self, "tenant_id", None),
                             request_id=_settlement_request_id,
-                            attempt_id=(
-                                f"{_settlement_request_id}:"
-                                f"{_settlement_attempt}"),
+                            attempt_id=_attempt_id,
                         )
                     except Exception as settle_err:
                         logger.error(
-                            "LLM durable usage settlement failed: %s",
-                            settle_err)
+                            "LLM durable usage settlement failed (%s)",
+                            type(settle_err).__name__)
 
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                 self._record_auth_success(attempt_provider_id, model)

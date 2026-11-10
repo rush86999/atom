@@ -1,269 +1,308 @@
 
-tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses 
+tests/test_goal9_token_usage_upgrade.py::test_pre_upgrade_sqlite_token_usage_upgrades_via_startup_hook
 -------------------------------- live log setup --------------------------------
-2026-11-10 09:13:31 [    INFO] AgentTaskRegistry initialized
+2026-11-10 10:22:03 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:32 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:13:32 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:03 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
 PASSED                                                                   [  0%]
-tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent 
+tests/test_goal9_token_usage_upgrade.py::test_partial_upgrade_preserves_pricing_status_and_custom_index
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:13:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:03 [    INFO] schema repair: rebuilt token_usage for nullable/unknown settlement
 PASSED                                                                   [  0%]
-tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately 
+tests/test_goal9_token_usage_upgrade.py::test_failed_upgrade_is_recorded_and_retryable
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:13:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:03 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
 PASSED                                                                   [  1%]
-tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger 
+tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:04 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:04 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  1%]
-tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound 
+tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:35 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:05 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:05 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  1%]
+tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:06 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:06 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  2%]
-tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity 
+tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:36 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:13:36 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:06 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:06 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  2%]
-tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses 
+tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:37 [ WARNING] Could not attribute LLM cost: pricing unavailable
-2026-11-10 09:13:37 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+2026-11-10 10:22:07 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  3%]
-tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [  3%]
-tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes 
+tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
-2026-11-10 09:13:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 10:22:08 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:08 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  3%]
+tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:09 [ WARNING] Could not attribute LLM cost: pricing unavailable
+2026-11-10 10:22:09 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [  3%]
+tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [  4%]
+tests/test_goal9_durable_settlement.py::test_known_free_contract_is_authoritative_zero_without_usage PASSED [  4%]
+tests/test_goal9_durable_settlement.py::test_hard_stop_unpriced_read_failure_refuses
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:11 [   ERROR] [SpendAggregationService] Error updating spend: unpriced read unavailable
+2026-11-10 10:22:11 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unpriced read unavailable
 PASSED                                                                   [  4%]
-tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded 
+tests/test_goal9_durable_settlement.py::test_upgrade_failure_keeps_hard_stop_closed
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:39 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [  4%]
-tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:13:40 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+2026-11-10 10:22:12 [   ERROR] token_usage upgrade failed; hard-stop will refuse until it is available (RuntimeError)
+2026-11-10 10:22:12 [ WARNING] [BudgetEnforcementService] Durable ledger upgrade unavailable for tenant tenant-goal9: upgrade_failed:RuntimeError
 PASSED                                                                   [  5%]
-tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [  5%]
-tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [  6%]
-tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[allowed] 
+tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:42 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+2026-11-10 10:22:12 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 10:22:12 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+PASSED                                                                   [  5%]
+tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:13 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  6%]
-tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[capability_denied] 
+tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:13:43 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+2026-11-10 10:22:14 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [  6%]
+tests/test_goal9_durable_settlement.py::test_unresolved_scope_unknown_is_visible_to_hardstop
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:15 [ WARNING] [BudgetEnforcementService] 1 unattributed unpriced usage row(s)
+PASSED                                                                   [  6%]
+tests/test_goal9_durable_settlement.py::test_trusted_handler_scope_carrier
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:15 [    INFO] EscalationManager initialized
+2026-11-10 10:22:15 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+2026-11-10 10:22:15 [    INFO] LLM Cost Attributed: controlled-model - $0.010000 (Saved: $0.000000)
 PASSED                                                                   [  7%]
-tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[hard_stop] PASSED [  7%]
-tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[reviewable_hard_stop] PASSED [  8%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[explicit] PASSED [  8%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] PASSED [  9%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] PASSED [  9%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[personal_null] PASSED [ 10%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] PASSED [ 10%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] PASSED [ 11%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[legacy_unbound] PASSED [ 11%]
-tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[unconfigured] PASSED [ 12%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-async] PASSED [ 12%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync] PASSED [ 13%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync_in_async] PASSED [ 13%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-async] PASSED [ 14%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync] PASSED [ 14%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync_in_async] PASSED [ 15%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-async] PASSED [ 15%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync] PASSED [ 16%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync_in_async] PASSED [ 16%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-async] PASSED [ 17%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync] PASSED [ 17%]
-tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync_in_async] PASSED [ 18%]
-tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-False] PASSED [ 18%]
-tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-True] PASSED [ 19%]
-tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-False] 
+tests/test_goal9_durable_settlement.py::test_llm_service_scope_carrier_and_unresolved_refusal
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:02 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
-2026-11-10 09:14:02 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
-PASSED                                                                   [ 19%]
-tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-True] 
+2026-11-10 10:22:16 [    INFO] EscalationManager initialized
+2026-11-10 10:22:16 [    INFO] CognitiveTierService initialized for workspace: ws-goal9
+PASSED                                                                   [  7%]
+tests/test_goal9_durable_settlement.py::test_settlement_persistence_failure_does_not_fake_success
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
-2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
-PASSED                                                                   [ 20%]
-tests/test_budget_caller_transaction_contract.py::test_explicit_rollup_writer_still_persists_cache PASSED [ 20%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementServiceInit::test_init_with_db PASSED [ 21%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementServiceInit::test_context_manager_closes_db PASSED [ 21%]
+2026-11-10 10:22:17 [   ERROR] durable LLM settlement degraded: settlement_write_failed:RuntimeError
+2026-11-10 10:22:17 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 10:22:17 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:17 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+2026-11-10 10:22:17 [ WARNING] [BudgetEnforcementService] Durable settlement degraded for tenant tenant-goal9: settlement_write_failed:RuntimeError
+PASSED                                                                   [  7%]
+tests/test_goal9_durable_settlement.py::test_structured_no_trace_calls_get_distinct_server_identities
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:18 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 10:22:18 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 10:22:18 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-e901493dc26a attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 10:22:18 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-e901493dc26a attempt=1
+2026-11-10 10:22:18 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:18 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 10:22:18 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-fc03aae9e45b attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 10:22:18 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-fc03aae9e45b attempt=1
+2026-11-10 10:22:18 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  8%]
+tests/test_goal9_durable_settlement.py::test_durable_intent_survives_restart_when_settlement_write_fails
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:19 [    INFO] Structured generation (free, Managed): openai/gpt-4o-mini
+2026-11-10 10:22:19 [    INFO] [structured-dispatch] openai/gpt-4o-mini route=structured-52e813ba413c attempt=1 prompt_chars=22 cap=6000 instructor_retries=default
+2026-11-10 10:22:19 [    INFO] [structured-trace] openai/gpt-4o-mini cap=6000 dur=0.0s finish=stop content_present=True tool_calls_present=False result_type=_FakeResult route=structured-52e813ba413c attempt=1
+2026-11-10 10:22:19 [   ERROR] LLM durable usage settlement failed (RuntimeError)
+2026-11-10 10:22:19 [    INFO] LLM Cost Attributed: gpt-4o-mini - $7.000000 (Saved: $0.000000)
+2026-11-10 10:22:19 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+2026-11-10 10:22:19 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [  8%]
+tests/test_goal9_durable_settlement.py::test_no_provider_dispatch_when_durable_intent_cannot_persist
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:19 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 10:22:19 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of openai/gpt-4o-mini (RuntimeError)
+2026-11-10 10:22:19 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 10:22:19 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+PASSED                                                                   [  9%]
+tests/test_goal9_durable_settlement.py::test_settle_exact_intent_once
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:20 [   ERROR] durable LLM settlement degraded: settlement_write_failed:ValueError
+PASSED                                                                   [  9%]
+tests/test_goal9_durable_settlement.py::test_pending_cas_two_sessions_actual_survives_stale_writers PASSED [  9%]
+tests/test_goal9_durable_settlement.py::test_null_cost_nonunknown_status_is_liability_not_free
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:22 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 10%]
+tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [ 10%]
+tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [ 10%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[allowed]
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:24 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [ 11%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[capability_denied]
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:25 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+PASSED                                                                   [ 11%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[hard_stop] PASSED [ 12%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[reviewable_hard_stop] PASSED [ 12%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[explicit] PASSED [ 12%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] PASSED [ 13%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] PASSED [ 13%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[personal_null] PASSED [ 13%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] PASSED [ 14%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] PASSED [ 14%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[legacy_unbound] PASSED [ 15%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[unconfigured] PASSED [ 15%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-async] PASSED [ 15%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync] PASSED [ 16%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync_in_async] PASSED [ 16%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-async] PASSED [ 16%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync] PASSED [ 17%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync_in_async] PASSED [ 17%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-async] PASSED [ 18%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync] PASSED [ 18%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync_in_async] PASSED [ 18%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-async] PASSED [ 19%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync] PASSED [ 19%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync_in_async] PASSED [ 19%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-False] PASSED [ 20%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-True] PASSED [ 20%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-False]
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:45 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-10 10:22:45 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 21%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-True]
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:45 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-10 10:22:45 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 21%]
+tests/test_budget_caller_transaction_contract.py::test_explicit_rollup_writer_still_persists_cache PASSED [ 21%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementServiceInit::test_init_with_db PASSED [ 22%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementServiceInit::test_context_manager_closes_db PASSED [ 22%]
 tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementServiceInit::test_close_closes_db PASSED [ 22%]
-tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_within_limit 
+tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_within_limit PASSED [ 23%]
+tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_exceeds_limit PASSED [ 23%]
+tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fractional_amounts_propagate PASSED [ 24%]
+tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fleet_aggregate_limit
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 22%]
-tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_exceeds_limit 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 23%]
-tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fractional_amounts_propagate 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 23%]
-tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fleet_aggregate_limit 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-2026-11-10 09:14:03 [ WARNING] Fleet aggregate budget exceeded for chain chain-1: $60.00 >= $50.00
+2026-11-10 10:22:46 [ WARNING] Fleet aggregate budget exceeded for chain chain-1: $60.00 >= $50.00
 PASSED                                                                   [ 24%]
-tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fail_open_on_spend_error 
+tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fail_open_on_spend_error
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
-2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: aggregation unavailable
+2026-11-10 10:22:46 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
+2026-11-10 10:22:46 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: aggregation unavailable
 PASSED                                                                   [ 24%]
-tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_unexpected_exception_fails_open 
+tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_unexpected_exception_fails_open
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
-2026-11-10 09:14:03 [   ERROR] [BudgetEnforcementService] Error checking budget: db exploded
+2026-11-10 10:22:46 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
+2026-11-10 10:22:46 [   ERROR] [BudgetEnforcementService] Error checking budget: db exploded
 PASSED                                                                   [ 25%]
-tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_utilization_boundary 
+tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_utilization_boundary PASSED [ 25%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_with_valid_override_allows PASSED [ 25%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_without_override_blocks PASSED [ 26%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_tenant_not_found PASSED [ 26%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_persists_setting
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 25%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_with_valid_override_allows 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 26%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_without_override_blocks 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 26%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_tenant_not_found PASSED [ 27%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_persists_setting 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Budget override set for tenant tenant-1 by user admin-1, expires at 2026-11-10T15:14:03.860005+00:00
+2026-11-10 10:22:46 [    INFO] [BudgetEnforcementService] Budget override set for tenant tenant-1 by user admin-1, expires at 2026-11-10T16:22:46.597719+00:00
 PASSED                                                                   [ 27%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_rollback_on_error 
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_rollback_on_error
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [   ERROR] [BudgetEnforcementService] Error setting override: DB error
+2026-11-10 10:22:46 [   ERROR] [BudgetEnforcementService] Error setting override: DB error
+PASSED                                                                   [ 27%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_expired_override_blocks PASSED [ 27%]
+tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_soft_stop_notifies
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:46 [    INFO] [BudgetEnforcementService] Soft-stop enforced for tenant tenant-1
 PASSED                                                                   [ 28%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_expired_override_blocks 
+tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_hard_stop_cancels_episodes
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 10:22:46 [    INFO] [BudgetEnforcementService] Hard-stop enforced for tenant tenant-1: 3 episodes cancelled
 PASSED                                                                   [ 28%]
-tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_soft_stop_notifies 
+tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_alert_only_takes_no_action
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Soft-stop enforced for tenant tenant-1
-PASSED                                                                   [ 29%]
-tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_hard_stop_cancels_episodes 
+2026-11-10 10:22:46 [    INFO] [BudgetEnforcementService] Alert-only mode for tenant tenant-1, no enforcement action taken
+PASSED                                                                   [ 28%]
+tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_tenant_not_found PASSED [ 29%]
+tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_reads_setting PASSED [ 29%]
+tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_defaults_to_soft_stop
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Hard-stop enforced for tenant tenant-1: 3 episodes cancelled
-PASSED                                                                   [ 29%]
-tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_alert_only_takes_no_action 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Alert-only mode for tenant tenant-1, no enforcement action taken
+2026-11-10 10:22:46 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant tenant-1, defaulting to soft_stop
 PASSED                                                                   [ 30%]
-tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_tenant_not_found PASSED [ 30%]
-tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_reads_setting PASSED [ 31%]
-tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_defaults_to_soft_stop 
+tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_malformed_json_defaults
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant tenant-1, defaulting to soft_stop
+2026-11-10 10:22:46 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 30%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_active_episode_allowed_to_complete PASSED [ 30%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_no_active_episode_blocked PASSED [ 31%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_has_active_episodes_db_error_fails_closed_to_no_active
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:46 [   ERROR] [BudgetEnforcementService] Error checking active episodes: lock timeout
 PASSED                                                                   [ 31%]
-tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_malformed_json_defaults 
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_has_active_episodes_counts_running PASSED [ 31%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_with_future_expiry_valid PASSED [ 32%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_with_past_expiry_invalid PASSED [ 32%]
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_missing_or_malformed_expiry_invalid
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
-PASSED                                                                   [ 32%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_active_episode_allowed_to_complete 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 32%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_no_active_episode_blocked 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 10:22:46 [ WARNING] [BudgetEnforcementService] Error validating override: Invalid isoformat string: 'not-a-date'
 PASSED                                                                   [ 33%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_has_active_episodes_db_error_fails_closed_to_no_active 
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_clear_enforcement_state_removes_override
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [   ERROR] [BudgetEnforcementService] Error checking active episodes: lock timeout
+2026-11-10 10:22:46 [    INFO] [BudgetEnforcementService] Cleared enforcement override for tenant tenant-1 (billing cycle reset)
 PASSED                                                                   [ 33%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_has_active_episodes_counts_running PASSED [ 34%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_with_future_expiry_valid PASSED [ 34%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_with_past_expiry_invalid PASSED [ 35%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_missing_or_malformed_expiry_invalid 
+tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_clear_enforcement_state_without_override_noop PASSED [ 33%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_insufficient_budget_error PASSED [ 34%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_budget_not_found_error PASSED [ 34%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_concurrent_modification_error PASSED [ 34%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_alert_only_still_allows PASSED [ 35%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_hard_stop_blocks_everything PASSED [ 35%]
+tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_soft_stop_blocks_new_episodes PASSED [ 36%]
+tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_zero_budget_means_unconfigured_allows PASSED [ 36%]
+tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_zero_remaining_blocks PASSED [ 36%]
+tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_just_under_limit_allowed PASSED [ 37%]
+tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_allowed_under_budget PASSED [ 37%]
+tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_hard_stop_blocks_all PASSED [ 37%]
+tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_alert_only_allows_over_budget PASSED [ 38%]
+tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentFleetAggregate::test_fleet_aggregate_cap_blocks_concurrent_checks
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error validating override: Invalid isoformat string: 'not-a-date'
-PASSED                                                                   [ 35%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_clear_enforcement_state_removes_override 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Cleared enforcement override for tenant tenant-1 (billing cycle reset)
-PASSED                                                                   [ 36%]
-tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_clear_enforcement_state_without_override_noop PASSED [ 36%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_insufficient_budget_error PASSED [ 37%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_budget_not_found_error PASSED [ 37%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_concurrent_modification_error PASSED [ 38%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_alert_only_still_allows 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
+2026-11-10 10:22:49 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794324169928521000: $100.00 >= $100.00
 PASSED                                                                   [ 38%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_hard_stop_blocks_everything 
+tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentFleetAggregate::test_fleet_aggregate_under_cap_allows PASSED [ 39%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop PASSED [ 39%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [ 39%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 39%]
-tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_soft_stop_blocks_new_episodes 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 39%]
-tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_zero_budget_means_unconfigured_allows 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 10:22:50 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
 PASSED                                                                   [ 40%]
-tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_zero_remaining_blocks 
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [ 40%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [ 40%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-PASSED                                                                   [ 40%]
-tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_just_under_limit_allowed 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 10:22:50 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
 PASSED                                                                   [ 41%]
-tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_allowed_under_budget PASSED [ 41%]
-tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_hard_stop_blocks_all PASSED [ 42%]
-tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_alert_only_allows_over_budget PASSED [ 42%]
-tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentFleetAggregate::test_fleet_aggregate_cap_blocks_concurrent_checks 
+tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [ 41%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok PASSED [ 42%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [ 42%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
-PASSED                                                                   [ 43%]
-tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentFleetAggregate::test_fleet_aggregate_under_cap_allows PASSED [ 43%]
-tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop PASSED [ 44%]
-tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [ 44%]
-tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop 
+2026-11-10 10:22:50 [ WARNING] Budget pre-check failed (fail-open): DB down
+PASSED                                                                   [ 42%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [ 43%]
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
-PASSED                                                                   [ 45%]
-tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [ 45%]
-tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [ 46%]
-tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
-PASSED                                                                   [ 46%]
-tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [ 47%]
-tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok PASSED [ 47%]
-tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [ 48%]
-tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:07 [ WARNING] Budget pre-check failed (fail-open): DB down
-PASSED                                                                   [ 48%]
-tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [ 49%]
-tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied 
--------------------------------- live log call ---------------------------------
-2026-11-10 09:14:07 [    INFO] Agent TestAgent (agent-1) starting task: do something
-2026-11-10 09:14:07 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_start execution=d260b2d1-22bd-4f59-8c71-ac824fdef91d): (sqlite3.OperationalError) no such table: saas_audit_logs
+2026-11-10 10:22:50 [    INFO] Agent TestAgent (agent-1) starting task: do something
+2026-11-10 10:22:50 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_start execution=0721a247-4e22-40e2-b6bf-0d44dfe572c4): (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('d362f96c-2f26-4318-bdf3-1216796896be', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.510231', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 1, None)]
+[parameters: ('46fc1371-47da-4080-a777-ff6af5db85c3', 'agent_action', 'low', 'none', '2026-11-10 15:22:50.705705', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "0721a247-4e22-40e2-b6bf-0d44dfe572c4"}', 1, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 Traceback (most recent call last):
   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
@@ -330,37 +369,37 @@ Traceback (most recent call last):
     cursor.execute(statement, parameters)
 sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('d362f96c-2f26-4318-bdf3-1216796896be', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.510231', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 1, None)]
+[parameters: ('46fc1371-47da-4080-a777-ff6af5db85c3', 'agent_action', 'low', 'none', '2026-11-10 15:22:50.705705', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "0721a247-4e22-40e2-b6bf-0d44dfe572c4"}', 1, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:14:07 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
-[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
-FROM runtime_settings 
+2026-11-10 10:22:50 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:14:07 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
-[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
-FROM runtime_settings 
+2026-11-10 10:22:50 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at
+FROM runtime_settings
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:14:07 [    INFO] EscalationManager initialized
-2026-11-10 09:14:07 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 09:14:07 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
-[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
-FROM model_catalog 
+2026-11-10 10:22:50 [    INFO] EscalationManager initialized
+2026-11-10 10:22:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 10:22:50 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id
+FROM model_catalog
 WHERE model_catalog.exclude_from_general_routing = 1]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:14:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 09:14:07 [    INFO] LanceDBHandler initialized. ID: 6380316816. LANCEDB_AVAILABLE: True
-2026-11-10 09:14:07 [    INFO] Lazy loading LanceDB connection...
-2026-11-10 09:14:07 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
-2026-11-10 09:14:07 [    INFO] LanceDB connected successfully
-2026-11-10 09:14:07 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
-2026-11-10 09:14:07 [ WARNING] Failed to generate self-critique: object Mock can't be used in 'await' expression
-2026-11-10 09:14:07 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_complete execution=d260b2d1-22bd-4f59-8c71-ac824fdef91d): (sqlite3.OperationalError) no such table: saas_audit_logs
+2026-11-10 10:22:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 10:22:50 [    INFO] LanceDBHandler initialized. ID: 6368966800. LANCEDB_AVAILABLE: True
+2026-11-10 10:22:50 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 10:22:50 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 10:22:50 [    INFO] LanceDB connected successfully
+2026-11-10 10:22:50 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
+2026-11-10 10:22:50 [ WARNING] Failed to generate self-critique: object Mock can't be used in 'await' expression
+2026-11-10 10:22:50 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_complete execution=0721a247-4e22-40e2-b6bf-0d44dfe572c4): (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('e9ac1300-7b3e-4f01-9678-ea18c24b1206', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.599051', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 0, None)]
+[parameters: ('b152b5b9-8e61-444e-9d93-3d6159fa7b06', 'agent_action', 'low', 'none', '2026-11-10 15:22:50.746966', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "0721a247-4e22-40e2-b6bf-0d44dfe572c4"}', 0, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 Traceback (most recent call last):
   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
@@ -427,124 +466,188 @@ Traceback (most recent call last):
     cursor.execute(statement, parameters)
 sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('e9ac1300-7b3e-4f01-9678-ea18c24b1206', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.599051', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 0, None)]
+[parameters: ('b152b5b9-8e61-444e-9d93-3d6159fa7b06', 'agent_action', 'low', 'none', '2026-11-10 15:22:50.746966', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "0721a247-4e22-40e2-b6bf-0d44dfe572c4"}', 0, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:14:07 [   ERROR] AUDIT COMPLETENESS CHECK FAILED for d260b2d1-22bd-4f59-8c71-ac824fdef91d: (sqlite3.OperationalError) no such table: saas_audit_logs
-[SQL: SELECT count(*) AS count_1 
-FROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message 
-FROM saas_audit_logs 
+2026-11-10 10:22:50 [   ERROR] AUDIT COMPLETENESS CHECK FAILED for 0721a247-4e22-40e2-b6bf-0d44dfe572c4: (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: SELECT count(*) AS count_1
+FROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message
+FROM saas_audit_logs
 WHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]
-[parameters: ('agent_action', 'llm_call', '%"agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"%')]
+[parameters: ('agent_action', 'llm_call', '%"agent_execution_id": "0721a247-4e22-40e2-b6bf-0d44dfe572c4"%')]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:14:07 [   ERROR] AUDIT GAP for execution d260b2d1-22bd-4f59-8c71-ac824fdef91d: {'complete': False, 'execution_id': 'd260b2d1-22bd-4f59-8c71-ac824fdef91d', 'expected_events': 0, 'actual_events': 0, 'error': '(sqlite3.OperationalError) no such table: saas_audit_logs\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message \nFROM saas_audit_logs \nWHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]\n[parameters: (\'agent_action\', \'llm_call\', \'%"agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"%\')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)'}
-PASSED                                                                   [ 49%]
-tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget 
+2026-11-10 10:22:50 [   ERROR] AUDIT GAP for execution 0721a247-4e22-40e2-b6bf-0d44dfe572c4: {'complete': False, 'execution_id': '0721a247-4e22-40e2-b6bf-0d44dfe572c4', 'expected_events': 0, 'actual_events': 0, 'error': '(sqlite3.OperationalError) no such table: saas_audit_logs\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message \nFROM saas_audit_logs \nWHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]\n[parameters: (\'agent_action\', \'llm_call\', \'%"agent_execution_id": "0721a247-4e22-40e2-b6bf-0d44dfe572c4"%\')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)'}
+PASSED                                                                   [ 43%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget PASSED [ 43%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget PASSED [ 44%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [ 44%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [ 45%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_has_safe_default_when_reason_missing PASSED [ 45%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-async] PASSED [ 45%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-sync] PASSED [ 46%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-sync_in_async] PASSED [ 46%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-async] PASSED [ 46%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-sync] PASSED [ 47%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-sync_in_async] PASSED [ 47%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-async] PASSED [ 48%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-sync] PASSED [ 48%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-sync_in_async] PASSED [ 48%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-async] PASSED [ 49%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-sync] PASSED [ 49%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-sync_in_async] PASSED [ 50%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-async] PASSED [ 50%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-sync] PASSED [ 50%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-sync_in_async] PASSED [ 51%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-async] PASSED [ 51%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-sync] PASSED [ 51%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-sync_in_async] PASSED [ 52%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-async] PASSED [ 52%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-sync] PASSED [ 53%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-sync_in_async] PASSED [ 53%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-async] PASSED [ 53%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-sync] PASSED [ 54%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-sync_in_async] PASSED [ 54%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-async] PASSED [ 54%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-sync] PASSED [ 55%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-sync_in_async] PASSED [ 55%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-async] PASSED [ 56%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-sync] PASSED [ 56%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-sync_in_async] PASSED [ 56%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-async] PASSED [ 57%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-sync] PASSED [ 57%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-sync_in_async] PASSED [ 57%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-async] PASSED [ 58%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-sync] PASSED [ 58%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-sync_in_async] PASSED [ 59%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-async] PASSED [ 59%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-sync] PASSED [ 59%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-sync_in_async] PASSED [ 60%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-async] PASSED [ 60%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-sync] PASSED [ 60%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-sync_in_async] PASSED [ 61%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-async] PASSED [ 61%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-sync] PASSED [ 62%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-sync_in_async] PASSED [ 62%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-async] PASSED [ 62%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-sync] PASSED [ 63%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-sync_in_async] PASSED [ 63%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-async] PASSED [ 63%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync] PASSED [ 64%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync_in_async] PASSED [ 64%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-async] PASSED [ 65%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync] PASSED [ 65%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync_in_async] PASSED [ 65%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-async] PASSED [ 66%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-sync] PASSED [ 66%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-sync_in_async] PASSED [ 66%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-async] PASSED [ 67%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-sync] PASSED [ 67%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-sync_in_async] PASSED [ 68%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-async] PASSED [ 68%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync] PASSED [ 68%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync_in_async] PASSED [ 69%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-async] PASSED [ 69%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync] PASSED [ 69%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync_in_async] PASSED [ 70%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-async] PASSED [ 70%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-sync] PASSED [ 71%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-sync_in_async] PASSED [ 71%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-async] PASSED [ 71%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-sync] PASSED [ 72%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-sync_in_async] PASSED [ 72%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-async] PASSED [ 72%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-sync] PASSED [ 73%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-sync_in_async] PASSED [ 73%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-async] PASSED [ 74%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-sync] PASSED [ 74%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-sync_in_async] PASSED [ 74%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-async] PASSED [ 75%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-sync] PASSED [ 75%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-sync_in_async] PASSED [ 75%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-async] PASSED [ 76%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-sync] PASSED [ 76%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-sync_in_async] PASSED [ 77%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-async] PASSED [ 77%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-sync] PASSED [ 77%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-sync_in_async] PASSED [ 78%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-async] PASSED [ 78%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-sync] PASSED [ 78%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-sync_in_async] PASSED [ 79%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-async] PASSED [ 79%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-sync] PASSED [ 80%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-sync_in_async] PASSED [ 80%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-async] PASSED [ 80%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-sync] PASSED [ 81%]
+tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-sync_in_async] PASSED [ 81%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_check_budget_returns_false_when_under_limit PASSED [ 81%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_check_budget_returns_true_when_exceeded
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] <Mock name='mock.get_unpriced_usage()' id='6380575312'> unpriced usage row(s) for tenant tenant-unset
-PASSED                                                                   [ 50%]
-tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget 
+2026-11-10 10:22:52 [ WARNING] Budget exceeded or will be exceeded. Limit: $100.00, Spent: $95.00, Remaining: $5.00, Estimated: $10.00. Continuing anyway (personal use = user responsibility).
+PASSED                                                                   [ 82%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_get_current_spend_usd_aggregates_costs PASSED [ 82%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_get_budget_forecast_predicts_exhaustion PASSED [ 83%]
+tests/test_personal_budget.py::TestPersonalBudgetAlerts::test_send_budget_alert_at_threshold
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] <Mock name='mock.get_unpriced_usage()' id='6383470480'> unpriced usage row(s) for tenant tenant-unset
-PASSED                                                                   [ 50%]
-tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [ 51%]
-tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [ 51%]
-tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_has_safe_default_when_reason_missing PASSED [ 52%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-async] PASSED [ 52%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-sync] PASSED [ 53%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-student-sync_in_async] PASSED [ 53%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-async] PASSED [ 54%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-sync] PASSED [ 54%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-intern-sync_in_async] PASSED [ 55%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-async] PASSED [ 55%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-sync] PASSED [ 56%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-supervised-sync_in_async] PASSED [ 56%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-async] PASSED [ 57%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-sync] PASSED [ 57%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-hard_stop-autonomous-sync_in_async] PASSED [ 58%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-async] PASSED [ 58%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-sync] PASSED [ 59%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-student-sync_in_async] PASSED [ 59%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-async] PASSED [ 60%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-sync] PASSED [ 60%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-intern-sync_in_async] PASSED [ 61%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-async] PASSED [ 61%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-sync] PASSED [ 62%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-supervised-sync_in_async] PASSED [ 62%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-async] PASSED [ 63%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-sync] PASSED [ 63%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-soft_stop-autonomous-sync_in_async] PASSED [ 64%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-async] PASSED [ 64%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-sync] PASSED [ 65%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-student-sync_in_async] PASSED [ 65%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-async] PASSED [ 66%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-sync] PASSED [ 66%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-intern-sync_in_async] PASSED [ 67%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-async] PASSED [ 67%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-sync] PASSED [ 68%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-supervised-sync_in_async] PASSED [ 68%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-async] PASSED [ 69%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-sync] PASSED [ 69%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-approval-autonomous-sync_in_async] PASSED [ 70%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-async] PASSED [ 70%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-sync] PASSED [ 71%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-student-sync_in_async] PASSED [ 71%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-async] PASSED [ 72%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-sync] PASSED [ 72%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-intern-sync_in_async] PASSED [ 73%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-async] PASSED [ 73%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-sync] PASSED [ 74%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-supervised-sync_in_async] PASSED [ 74%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-async] PASSED [ 75%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-sync] PASSED [ 75%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[False-alert_only-autonomous-sync_in_async] PASSED [ 76%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-async] PASSED [ 76%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync] PASSED [ 77%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync_in_async] PASSED [ 77%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-async] PASSED [ 78%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync] PASSED [ 78%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync_in_async] PASSED [ 79%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-async] PASSED [ 79%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-sync] PASSED [ 80%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-supervised-sync_in_async] PASSED [ 80%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-async] PASSED [ 81%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-sync] PASSED [ 81%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-hard_stop-autonomous-sync_in_async] PASSED [ 82%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-async] PASSED [ 82%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync] PASSED [ 83%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync_in_async] PASSED [ 83%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-async] PASSED [ 84%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync] PASSED [ 84%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync_in_async] PASSED [ 85%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-async] PASSED [ 85%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-sync] PASSED [ 86%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-supervised-sync_in_async] PASSED [ 86%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-async] PASSED [ 87%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-sync] PASSED [ 87%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-soft_stop-autonomous-sync_in_async] PASSED [ 88%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-async] PASSED [ 88%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-sync] PASSED [ 89%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-student-sync_in_async] PASSED [ 89%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-async] PASSED [ 90%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-sync] PASSED [ 90%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-intern-sync_in_async] PASSED [ 91%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-async] PASSED [ 91%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-sync] PASSED [ 92%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-supervised-sync_in_async] PASSED [ 92%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-async] PASSED [ 93%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-sync] PASSED [ 93%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-approval-autonomous-sync_in_async] PASSED [ 94%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-async] PASSED [ 94%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-sync] PASSED [ 95%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-student-sync_in_async] PASSED [ 95%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-async] PASSED [ 96%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-sync] PASSED [ 96%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-intern-sync_in_async] PASSED [ 97%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-async] PASSED [ 97%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-sync] PASSED [ 98%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-supervised-sync_in_async] PASSED [ 98%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-async] PASSED [ 99%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-sync] PASSED [ 99%]
-tests/test_governance_budget_decision_matrix.py::test_budget_and_maturity_decisions_compose[True-alert_only-autonomous-sync_in_async] PASSED [100%]
+2026-11-10 10:22:52 [ WARNING] 🚨 BUDGET ALERT: 85.0% of monthly budget used. Spent: $85.00 of $100.00. Remaining: $15.00.
+PASSED                                                                   [ 83%]
+tests/test_personal_budget.py::TestPersonalBudgetAlerts::test_send_budget_alert_below_threshold PASSED [ 83%]
+tests/test_personal_budget.py::TestPersonalBudgetAlerts::test_budget_alert_logs_warning PASSED [ 84%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_no_stripe_integration PASSED [ 84%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_no_payment_processing PASSED [ 84%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_no_hard_stop_blocking PASSED [ 85%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_budget_warnings_only PASSED [ 85%]
+tests/test_personal_budget.py::TestSingleTenantArchitecture::test_budget_is_global_not_per_tenant PASSED [ 86%]
+tests/test_personal_budget.py::TestSingleTenantArchitecture::test_no_tenant_id_in_budget_queries PASSED [ 86%]
+tests/test_personal_budget.py::TestSingleTenantArchitecture::test_no_tenant_isolation_in_budget_tracking PASSED [ 86%]
+tests/test_personal_budget.py::TestBudgetServiceSingleton::test_personal_budget_service_singleton PASSED [ 87%]
+tests/test_personal_budget.py::TestBudgetServiceSingleton::test_singleton_reuses_instance PASSED [ 87%]
+tests/test_personal_budget.py::TestBudgetForecasting::test_forecast_status_on_track PASSED [ 87%]
+tests/test_personal_budget.py::TestBudgetForecasting::test_forecast_status_at_risk PASSED [ 88%]
+tests/test_personal_budget.py::TestBudgetForecasting::test_forecast_status_exceeded PASSED [ 88%]
+tests/test_personal_budget.py::TestSpendRecording::test_record_spend_logs_information PASSED [ 89%]
+tests/test_personal_budget.py::TestSpendRecording::test_record_spend_without_execution_id PASSED [ 89%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_both_sources PASSED [ 89%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_acu_only PASSED [ 90%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_byok_only PASSED [ 90%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_no_rows_zeros PASSED [ 90%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_date_range_boundary_inclusive PASSED [ 91%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_outside_range_excluded PASSED [ 91%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_other_tenant_excluded PASSED [ 92%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_acu_query_exception_tolerated
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:54 [ WARNING] [SpendAggregationService] Error querying BYOK costs: acu broken
+PASSED                                                                   [ 92%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_byok_query_exception_tolerated
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:54 [ WARNING] [SpendAggregationService] Error querying BYOK costs: byok broken
+PASSED                                                                   [ 92%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetTotalSpend::test_outer_exception_error_dict
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:54 [   ERROR] [SpendAggregationService] Error calculating spend for tenant t-1: combine() argument 1 must be datetime.date, not str
+PASSED                                                                   [ 93%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetFleetSpend::test_aggregates_chain PASSED [ 93%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetFleetSpend::test_no_rows_zero PASSED [ 93%]
+tests/test_covpush_w104_spend_aggregation.py::TestGetFleetSpend::test_exception_returns_zero
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:54 [ WARNING] [SpendAggregationService] Error calculating fleet spend for chain chain-1: broken
+PASSED                                                                   [ 94%]
+tests/test_covpush_w104_spend_aggregation.py::TestBudgetLimitFromSetting::test_limit_parsed PASSED [ 94%]
+tests/test_covpush_w104_spend_aggregation.py::TestBudgetLimitFromSetting::test_limit_none_value PASSED [ 95%]
+tests/test_covpush_w104_spend_aggregation.py::TestBudgetLimitFromSetting::test_non_dict_json PASSED [ 95%]
+tests/test_covpush_w104_spend_aggregation.py::TestBudgetLimitFromSetting::test_invalid_json PASSED [ 95%]
+tests/test_covpush_w104_spend_aggregation.py::TestBudgetLimitFromSetting::test_no_row PASSED [ 96%]
+tests/test_covpush_w104_spend_aggregation.py::TestBudgetLimitFromSetting::test_exception_returns_zero PASSED [ 96%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_tenant_not_found PASSED [ 96%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_spend_persisted_on_tenant PASSED [ 97%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_utilization_with_tenant_budget PASSED [ 97%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_utilization_zero_budget PASSED [ 98%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_budget_from_setting_fallback PASSED [ 98%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_lifetime_spend PASSED [ 98%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_created_at_none_uses_2025_default PASSED [ 99%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_exception_rollback
+-------------------------------- live log call ---------------------------------
+2026-11-10 10:22:57 [   ERROR] [SpendAggregationService] Error updating spend: broken
+PASSED                                                                   [ 99%]
+tests/test_covpush_w104_spend_aggregation.py::TestUpdateTenantSpend::test_returns_rounded_values PASSED [100%]
 
 =============================== warnings summary ===============================
 ../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
@@ -583,7 +686,7 @@ api/admin_routes.py:1017
   <scratch>:1017: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
     conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
 
-../../root-py311-plugins/pytest_freezegun.py:17: 402 warnings
+../../root-py311-plugins/pytest_freezegun.py:17: 532 warnings
   <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -608,4 +711,4 @@ api/admin_routes.py:1017
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====================== 201 passed, 415 warnings in 57.30s ======================
+================= 266 passed, 545 warnings in 75.31s (0:01:15) =================
