@@ -1,0 +1,22 @@
+  console.log
+    MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/agent-creation-retry.test.ts
+  creation POST retry safety
+    ✓ does not auto-retry a guided creation after a 503 confirmation loss (22 ms)
+    ✓ does not auto-retry a custom hire after a 503 confirmation loss (3 ms)
+  creation response integrity
+    ✓ returns a guided verified result and preserves the receipt (2 ms)
+    ✓ returns guided pending without inventing an agent id (4 ms)
+    ✓ rejects a 2xx success:false instead of treating it as verified (3 ms)
+    ✓ rejects a 2xx guided response with no exact agent id (2 ms)
+    ✓ rejects a 2xx guided response without verified verification (1 ms)
+    ✓ returns a custom verified result and rejects malformed/unverified 2xx (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       8 passed, 8 total
+Snapshots:   0 total
+Time:        1.059 s
+Ran all test suites matching lib/__tests__/agent-creation-retry.test.ts.

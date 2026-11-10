@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -13,7 +13,10 @@ import {
   type AgentRegistryEntry,
   type CanvasAgent,
 } from "@/lib/canvas-api";
-import { createGuidedAgent } from "@/lib/agent-onboarding-api";
+import {
+  createGuidedAgent,
+  newCreationOperationId,
+} from "@/lib/agent-onboarding-api";
 
 /**
  * Attach a hire to a canvas — step 2 of the canvas journey
@@ -41,6 +44,7 @@ export function AgentAttachModal({
   // Inline "create a new agent" form
   const [creating, setCreating] = useState(false);
   const [goal, setGoal] = useState("");
+  const createOperationId = useRef<string | null>(null);
   const [creatingAgent, setCreatingAgent] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -80,6 +84,10 @@ export function AgentAttachModal({
     }
   }, [canvasId, onAttached, onOpenChange]);
 
+  useEffect(() => {
+    createOperationId.current = null;
+  }, [goal, open]);
+
   const handleCreate = useCallback(async () => {
     if (goal.trim().length < 5) {
       setCreateError("Describe the job in a few more words so we can design the right agent.");
@@ -87,8 +95,11 @@ export function AgentAttachModal({
     }
     setCreatingAgent(true);
     setCreateError(null);
+    const operationId = createOperationId.current ?? newCreationOperationId();
+    createOperationId.current = operationId;
     try {
-      const res = await createGuidedAgent(goal.trim());
+      const res = await createGuidedAgent(
+        goal.trim(), undefined, { operationId });
       if ("agent_id" in res && res.agent_id) {
         await attach(res.agent_id);
       } else {
@@ -97,7 +108,14 @@ export function AgentAttachModal({
         setCreateError("This agent needs approval before it can be attached — approve it from the Agents page, then attach it here.");
       }
     } catch (e: any) {
-      setCreateError(e?.response?.data?.error?.message || e?.message || "Failed to create the agent. Please try again.");
+      const status = e?.response?.status;
+      if (e?.code === "UNVERIFIED_CREATE") {
+        setCreateError("The agent could not be verified. Refresh before retrying; the same intent will reconcile.");
+      } else if (status === undefined || status >= 500) {
+        setCreateError("The creation outcome is uncertain. Retry to reconcile the same intent; do not create a second agent.");
+      } else {
+        setCreateError(e?.response?.data?.error?.message || e?.message || "Failed to create the agent. Please try again.");
+      }
     } finally {
       setCreatingAgent(false);
     }

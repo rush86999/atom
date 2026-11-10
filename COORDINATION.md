@@ -449,6 +449,23 @@ or PR833 branch/evidence.
 
 Status: repair complete on isolated branch; evidence packet under docs/acceptance/evidence/pr831_workflow_consumer_repair_8ec58cf3f. No live DB/model/provider/send/spend/deploy/deps.
 
+---
+
+## Session: Goal14 web Agents creation UI join (2026-11-10)
+
+Branch `codex/web-goal14-create-ui-join-20261110`, based on guided integrated
+`38dae97a6f9a1e00179a9ac879c14215b9983d1f`. Spawn WT/PR remain frozen; root
+integration WTs are untouched.
+
+Files owned: `frontend-nextjs/lib/agent-onboarding-api.ts`,
+`components/Agents/GuidedAgentCreator.tsx`,
+`components/Agents/AgentLaunchGuide.tsx`,
+`components/canvas/AgentAttachModal.tsx`, their component/page tests, and the
+new real-interceptor creation test. No backend, qualification, API-client,
+store or review-engine change. No live model/provider/DB.
+
+Status: coherent frontend candidate; browser/API custom Hire join follows at
+this frozen build. Root review remains independent.
 
 ## Historical main checkpoint retained during spawn integration
 

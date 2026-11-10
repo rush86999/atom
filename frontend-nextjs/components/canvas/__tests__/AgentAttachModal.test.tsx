@@ -14,7 +14,10 @@ import {
   attachCanvasAgent,
   listAttachableAgents,
 } from "@/lib/canvas-api";
-import { createGuidedAgent } from "@/lib/agent-onboarding-api";
+import {
+  createGuidedAgent,
+  newCreationOperationId,
+} from "@/lib/agent-onboarding-api";
 
 jest.mock("@/lib/canvas-api", () => ({
   __esModule: true,
@@ -25,11 +28,13 @@ jest.mock("@/lib/canvas-api", () => ({
 jest.mock("@/lib/agent-onboarding-api", () => ({
   __esModule: true,
   createGuidedAgent: jest.fn(),
+  newCreationOperationId: jest.fn(() => "ui-intent-1"),
 }));
 
 const mockedList = listAttachableAgents as jest.Mock;
 const mockedAttach = attachCanvasAgent as jest.Mock;
 const mockedCreate = createGuidedAgent as jest.Mock;
+const mockedNewOperationId = newCreationOperationId as jest.Mock;
 
 const AGENTS = [
   { id: "a-1", name: "Alex", category: "finance", status: "student" },
@@ -54,6 +59,7 @@ function renderModal(overrides: Partial<Parameters<typeof AgentAttachModal>[0]> 
 describe("AgentAttachModal", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    mockedNewOperationId.mockReturnValue("ui-intent-1");
     mockedList.mockResolvedValue(AGENTS);
   });
 
@@ -91,6 +97,9 @@ describe("AgentAttachModal", () => {
     mockedCreate.mockResolvedValue({
       agent_id: "a-new", name: "New Hire", category: "sales", maturity: "student",
       created_by: "employee",
+      operation_id: "agent:create:intent-1",
+      audit_id: "agent:create:intent-1",
+      verification: { status: "verified", effect: "committed" },
     });
     mockedAttach.mockResolvedValue({
       agents: [{ agent_id: "a-new", name: "New Hire", canvas_id: "c-1" }],
@@ -103,7 +112,9 @@ describe("AgentAttachModal", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /create & attach/i }));
 
-    await waitFor(() => expect(mockedCreate).toHaveBeenCalledWith("Track overdue invoices"));
+    await waitFor(() => expect(mockedCreate).toHaveBeenCalledWith(
+      "Track overdue invoices", undefined, { operationId: expect.any(String) }
+    ));
     await waitFor(() => expect(mockedAttach).toHaveBeenCalledWith("c-1", "a-new"));
   });
 
@@ -122,6 +133,25 @@ describe("AgentAttachModal", () => {
     expect(
       await screen.findByText(/needs approval before it can be attached/i),
     ).toBeInTheDocument();
+    expect(mockedAttach).not.toHaveBeenCalled();
+  });
+
+  it("does not attach when creation is unverified", async () => {
+    mockedCreate.mockRejectedValue({
+      code: "UNVERIFIED_CREATE",
+      message: "not verified",
+    });
+    renderModal();
+
+    fireEvent.click(await screen.findByRole("button", { name: /create a new agent/i }));
+    fireEvent.change(await screen.findByLabelText(/what should this agent do/i), {
+      target: { value: "Track overdue invoices" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /create & attach/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(/could not be verified/i),
+    );
     expect(mockedAttach).not.toHaveBeenCalled();
   });
 

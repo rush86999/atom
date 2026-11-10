@@ -1,0 +1,1103 @@
+diff --git a/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx b/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx
+index 45bf60520..aafb1781a 100644
+--- a/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx
++++ b/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx
+@@ -27,6 +27,10 @@ import {
+ } from '@/components/ui/dialog';
+ import { useToast } from '@/components/ui/use-toast';
+ import { apiClient } from '@/lib/api';
++import {
++    createCustomAgent,
++    newCreationOperationId,
++} from '@/lib/agent-onboarding-api';
+ import { notifyIngestionUpdated } from '@/lib/ingestion-events';
+ import { listTrainingProposals } from '@/lib/maturity-api';
+ 
+@@ -42,7 +46,7 @@ interface LaunchAgent {
+ 
+ interface AgentLaunchGuideProps {
+     agents: LaunchAgent[];
+-    onAgentsChanged?: () => void;
++    onAgentsChanged?: (agentId?: string) => void;
+ }
+ 
+ interface TokenInfo {
+@@ -239,11 +243,20 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+ 
+     // Create-agent dialog
+     const [createOpen, setCreateOpen] = useState(false);
++    const hireOperationId = useRef<string | null>(null);
+     const [creating, setCreating] = useState(false);
+     const role = ROLES[roleId];
++
+     const [newName, setNewName] = useState(role.agentName);
+     const [newDescription, setNewDescription] = useState(role.description);
+ 
++    // A changed role/name/description/open state is a new hire intent. The
++    // operation id is reused only for an explicit retry of the same intent,
++    // never for an automatic transport replay.
++    useEffect(() => {
++        hireOperationId.current = null;
++    }, [roleId, newName, newDescription, createOpen]);
++
+     // Ingestion actions
+     const [busySource, setBusySource] = useState<string | null>(null);
+     const [autoSyncEnabled, setAutoSyncEnabled] = useState<Record<string, boolean>>({});
+@@ -383,27 +396,47 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
+ 
+     const createEmployee = async () => {
+         setCreating(true);
++        const operationId = hireOperationId.current ?? newCreationOperationId();
++        hireOperationId.current = operationId;
+         try {
+-            await apiClient.post('/api/agents/custom', {
++            const created = await createCustomAgent({
+                 name: newName.trim(),
+                 description: newDescription.trim(),
+                 category: role.label,
+                 configuration: {},
+                 schedule_config: {},
+-            });
++            }, { operationId });
+             toast({
+                 title: `${role.label} employee hired`,
+                 description: `${newName.trim()} starts as a trainee — connect data next so it has context to learn from.`,
+                 duration: 6000,
+             });
+             setCreateOpen(false);
+-            onAgentsChanged?.();
++            onAgentsChanged?.(created.agent_id);
+         } catch (err: any) {
++            const status = err?.response?.status;
++            const networkCodes = [
++                'ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT',
++                'ECONNRESET', 'ENOTFOUND',
++            ];
++            const uncertain =
++                err?.code === 'UNVERIFIED_CREATE' ||
++                status >= 500 ||
++                networkCodes.includes(err?.code);
+             const message =
+-                err?.response?.data?.error?.message ||
+-                err?.response?.data?.detail ||
+-                'Could not create the employee. Is the backend running?';
+-            toast({ title: 'Failed to create employee', description: message, variant: 'error' });
++                err?.code === 'UNVERIFIED_CREATE'
++                    ? 'The hire could not be verified. Refresh the list before retrying; the same intent will reconcile.'
++                    : uncertain
++                    ? 'The hire outcome is uncertain. Use Hire again to reconcile the same intent; do not create a second employee.'
++                    : err?.response?.data?.error?.message ||
++                      err?.response?.data?.detail ||
++                      err?.message ||
++                      'Could not create the employee. Is the backend running?';
++            toast({
++                title: uncertain ? 'Hire outcome uncertain' : 'Failed to create employee',
++                description: message,
++                variant: 'error',
++            });
+         } finally {
+             setCreating(false);
+         }
+diff --git a/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx b/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx
+index 5fa370531..7e4480201 100644
+--- a/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx
++++ b/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx
+@@ -1,4 +1,4 @@
+-import React, { useCallback, useEffect, useState } from 'react';
++import React, { useCallback, useEffect, useRef, useState } from 'react';
+ import Link from 'next/link';
+ import {
+   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+@@ -14,12 +14,13 @@ import {
+   GuidedAgentPending,
+   createGuidedAgent,
+   getAutomationSuggestions,
++  newCreationOperationId,
+ } from '@/lib/agent-onboarding-api';
+ 
+ interface GuidedAgentCreatorProps {
+   open: boolean;
+   onOpenChange: (open: boolean) => void;
+-  onAgentCreated?: () => void; // e.g. refresh the agent list
++  onAgentCreated?: (agentId?: string) => void; // e.g. refresh the agent list
+   initialGoal?: string | null; // prefilled from a suggestion card
+ }
+ 
+@@ -39,11 +40,19 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
+   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+   const [result, setResult] = useState<GuidedAgentResult | GuidedAgentPending | null>(null);
+   const [error, setError] = useState<string | null>(null);
++  const creationOperationId = useRef<string | null>(null);
+ 
+   useEffect(() => {
+     if (open && initialGoal) setGoal(initialGoal);
+   }, [open, initialGoal]);
+ 
++  // A changed goal/context is a new intent. The previous operation id must
++  // not bind the new material; an unchanged explicit retry keeps it so the
++  // backend can reconcile instead of creating a second agent.
++  useEffect(() => {
++    creationOperationId.current = null;
++  }, [goal, context]);
++
+   useEffect(() => {
+     if (!open || suggestions.length || suggestionsLoading) return;
+     setSuggestionsLoading(true);
+@@ -58,6 +67,7 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
+     setContext('');
+     setResult(null);
+     setError(null);
++    creationOperationId.current = null;
+   }, []);
+ 
+   const handleClose = (next: boolean) => {
+@@ -72,13 +82,36 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
+     }
+     setIsCreating(true);
+     setError(null);
++    const operationId = creationOperationId.current ?? newCreationOperationId();
++    creationOperationId.current = operationId;
+     try {
+-      const res = await createGuidedAgent(goal.trim(), context.trim() || undefined);
++      const res = await createGuidedAgent(
++        goal.trim(),
++        context.trim() || undefined,
++        { operationId }
++      );
+       setResult(res);
+-      onAgentCreated?.();
++      // Only a verified result with an exact id represents a created agent.
++      // A 202 pending review has no agent; do not refresh as if one exists.
++      if ('agent_id' in res && res.agent_id) {
++        onAgentCreated?.(res.agent_id);
++      }
+     } catch (e: any) {
+       const body = e?.response?.data;
+-      setError(body?.error?.message || body?.detail || body?.message || 'Failed to create the agent. Please try again.');
++      const status = e?.response?.status;
++      const networkCodes = [
++        'ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND',
++      ];
++      if (e?.code === 'UNVERIFIED_CREATE') {
++        setError('The agent could not be verified. Refresh the list before retrying; the same intent will reconcile.');
++      } else if (status >= 500 || networkCodes.includes(e?.code)) {
++        setError('The creation outcome is uncertain. Retry to reconcile the same intent; do not create a second agent.');
++      } else {
++        setError(
++          body?.error?.message || body?.detail || body?.message ||
++          e?.message || 'Failed to create the agent. Please try again.'
++        );
++      }
+     } finally {
+       setIsCreating(false);
+     }
+diff --git a/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx b/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx
+index 10ffe3bae..0babf516d 100644
+--- a/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx
++++ b/frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx
+@@ -28,6 +28,7 @@ const mockApiClient = {
+ jest.mock('../../../lib/api', () => ({
+   __esModule: true,
+   apiClient: mockApiClient,
++  default: mockApiClient,
+ }));
+ 
+ const mockApi = {
+@@ -185,7 +186,19 @@ describe('AgentLaunchGuide', () => {
+   test('hire flow posts the role category and notifies parent', async () => {
+     const onAgentsChanged = jest.fn();
+     mockApiClient.post.mockResolvedValue({
+-      data: { success: true, data: { agent_id: 'new-1' } },
++      data: {
++        success: true,
++        data: {
++          agent_id: 'new-1',
++          agent_name: 'Sales Development Rep',
++          category: 'Sales',
++          tenant_id: 'company',
++          workspace_id: 'ws-a',
++          operation_id: 'agent:create:hire-intent-1',
++          audit_id: 'agent:create:hire-intent-1',
++          verification: { status: 'verified', effect: 'committed' },
++        },
++      },
+     });
+ 
+     const user = userEvent.setup();
+@@ -202,10 +215,40 @@ describe('AgentLaunchGuide', () => {
+     await waitFor(() => {
+       expect(mockApiClient.post).toHaveBeenCalledWith(
+         '/api/agents/custom',
+-        expect.objectContaining({ category: 'Sales', name: 'Sales Development Rep' })
++        expect.objectContaining({ category: 'Sales', name: 'Sales Development Rep' }),
++        expect.objectContaining({
++          retry: false,
++          params: { operation_id: expect.any(String) },
++        })
+       );
+-      expect(onAgentsChanged).toHaveBeenCalled();
++      expect(onAgentsChanged).toHaveBeenCalledWith('new-1');
++    });
++  });
++
++  test('does not report a malformed/unverified hire as created', async () => {
++    const onAgentsChanged = jest.fn();
++    mockApiClient.post.mockResolvedValue({
++      data: {
++        success: true,
++        data: {
++          agent_id: 'new-unverified',
++          operation_id: 'agent:create:hire-intent-2',
++          verification: { status: 'committed_unverified', effect: 'committed' },
++        },
++      },
++    });
++
++    const user = userEvent.setup();
++    render(<AgentLaunchGuide agents={[]} onAgentsChanged={onAgentsChanged} />);
++
++    await screen.findByTestId('create-agent-cta');
++    await user.click(screen.getByTestId('create-agent-cta'));
++    await user.click(screen.getByTestId('launch-agent-submit'));
++
++    await waitFor(() => {
++      expect(mockApiClient.post).toHaveBeenCalledTimes(1);
+     });
++    expect(onAgentsChanged).not.toHaveBeenCalled();
+   });
+ 
+   test('sync is scoped to the role employee and reports ingested counts', async () => {
+diff --git a/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx b/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx
+index 92066d2d7..1181bfce5 100644
+--- a/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx
++++ b/frontend-nextjs/components/Agents/__tests__/GuidedAgentCreator.test.tsx
+@@ -21,9 +21,11 @@ import * as api from '@/lib/agent-onboarding-api';
+ jest.mock('@/lib/agent-onboarding-api', () => ({
+   createGuidedAgent: jest.fn(),
+   getAutomationSuggestions: jest.fn(),
++  newCreationOperationId: jest.fn(() => 'ui-intent-1'),
+ }));
+ 
+ const mockedCreate = api.createGuidedAgent as jest.Mock;
++const mockedNewOperationId = api.newCreationOperationId as jest.Mock;
+ const mockedSuggestions = api.getAutomationSuggestions as jest.Mock;
+ 
+ const renderCreator = (props: any = {}) =>
+@@ -39,6 +41,7 @@ const renderCreator = (props: any = {}) =>
+ describe('GuidedAgentCreator', () => {
+   beforeEach(() => {
+     jest.clearAllMocks();
++    mockedNewOperationId.mockReturnValue('ui-intent-1');
+     mockedSuggestions.mockResolvedValue({
+       history_summary: {},
+       suggestions: [
+@@ -76,15 +79,19 @@ describe('GuidedAgentCreator', () => {
+     expect(mockedCreate).not.toHaveBeenCalled();
+   });
+ 
+-  it('shows success state with STUDENT maturity expectations', async () => {
++  it('shows success state with STUDENT maturity expectations and exact id', async () => {
++    const onAgentCreated = jest.fn();
+     mockedCreate.mockResolvedValue({
+       agent_id: 'agent-1',
+       name: 'Invoice Watchdog',
+       category: 'Finance',
+       maturity: 'student',
+       created_by: 'employee',
++      operation_id: 'agent:create:intent-1',
++      audit_id: 'agent:create:intent-1',
++      verification: { status: 'verified', effect: 'committed' },
+     });
+-    renderCreator();
++    renderCreator({ onAgentCreated });
+ 
+     await userEvent.type(screen.getByTestId('guided-goal-input'), 'watch invoices and flag overdue ones');
+     await userEvent.click(screen.getByTestId('guided-create-button'));
+@@ -94,15 +101,21 @@ describe('GuidedAgentCreator', () => {
+     expect(screen.getByText(/Invoice Watchdog is here/)).toBeInTheDocument();
+     expect(success.textContent).toContain('Student');
+     expect(success.textContent).toContain('When will it be useful?');
++    expect(onAgentCreated).toHaveBeenCalledWith('agent-1');
++    expect(mockedCreate).toHaveBeenCalledWith(
++      'watch invoices and flag overdue ones', undefined,
++      { operationId: expect.any(String) }
++    );
+   });
+ 
+-  it('shows pending-approval state for agent-initiated creation', async () => {
++  it('shows pending-approval state without a created-agent callback', async () => {
++    const onAgentCreated = jest.fn();
+     mockedCreate.mockResolvedValue({
+       status: 'pending_approval',
+       hitl_action_id: 'hitl-1',
+       reason: 'Trust policy requires human approval',
+     });
+-    renderCreator();
++    renderCreator({ onAgentCreated });
+ 
+     await userEvent.type(screen.getByTestId('guided-goal-input'), 'watch invoices and flag overdue ones');
+     await userEvent.click(screen.getByTestId('guided-create-button'));
+@@ -110,6 +123,24 @@ describe('GuidedAgentCreator', () => {
+     const pending = await screen.findByTestId('guided-pending');
+     expect(pending).toBeInTheDocument();
+     expect(pending.textContent).toContain('Trust policy requires human approval');
++    expect(onAgentCreated).not.toHaveBeenCalled();
++  });
++
++  it('surfaces an unverified creation without claiming success', async () => {
++    const onAgentCreated = jest.fn();
++    mockedCreate.mockRejectedValue({
++      code: 'UNVERIFIED_CREATE',
++      message: 'not verified',
++    });
++    renderCreator({ onAgentCreated });
++
++    await userEvent.type(screen.getByTestId('guided-goal-input'), 'watch invoices and flag overdue ones');
++    await userEvent.click(screen.getByTestId('guided-create-button'));
++
++    expect(await screen.findByTestId('guided-error')).toHaveTextContent(
++      /could not be verified/i
++    );
++    expect(onAgentCreated).not.toHaveBeenCalled();
+   });
+ 
+   it('surfaces API errors instead of failing silently', async () => {
+diff --git a/frontend-nextjs/components/canvas/AgentAttachModal.tsx b/frontend-nextjs/components/canvas/AgentAttachModal.tsx
+index 327d81670..11a49e2e9 100644
+--- a/frontend-nextjs/components/canvas/AgentAttachModal.tsx
++++ b/frontend-nextjs/components/canvas/AgentAttachModal.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import React, { useCallback, useEffect, useState } from "react";
++import React, { useCallback, useEffect, useRef, useState } from "react";
+ import {
+   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+ } from "@/components/ui/dialog";
+@@ -13,7 +13,10 @@ import {
+   type AgentRegistryEntry,
+   type CanvasAgent,
+ } from "@/lib/canvas-api";
+-import { createGuidedAgent } from "@/lib/agent-onboarding-api";
++import {
++  createGuidedAgent,
++  newCreationOperationId,
++} from "@/lib/agent-onboarding-api";
+ 
+ /**
+  * Attach a hire to a canvas — step 2 of the canvas journey
+@@ -41,6 +44,7 @@ export function AgentAttachModal({
+   // Inline "create a new agent" form
+   const [creating, setCreating] = useState(false);
+   const [goal, setGoal] = useState("");
++  const createOperationId = useRef<string | null>(null);
+   const [creatingAgent, setCreatingAgent] = useState(false);
+   const [createError, setCreateError] = useState<string | null>(null);
+ 
+@@ -80,6 +84,10 @@ export function AgentAttachModal({
+     }
+   }, [canvasId, onAttached, onOpenChange]);
+ 
++  useEffect(() => {
++    createOperationId.current = null;
++  }, [goal, open]);
++
+   const handleCreate = useCallback(async () => {
+     if (goal.trim().length < 5) {
+       setCreateError("Describe the job in a few more words so we can design the right agent.");
+@@ -87,8 +95,11 @@ export function AgentAttachModal({
+     }
+     setCreatingAgent(true);
+     setCreateError(null);
++    const operationId = createOperationId.current ?? newCreationOperationId();
++    createOperationId.current = operationId;
+     try {
+-      const res = await createGuidedAgent(goal.trim());
++      const res = await createGuidedAgent(
++        goal.trim(), undefined, { operationId });
+       if ("agent_id" in res && res.agent_id) {
+         await attach(res.agent_id);
+       } else {
+@@ -97,7 +108,14 @@ export function AgentAttachModal({
+         setCreateError("This agent needs approval before it can be attached — approve it from the Agents page, then attach it here.");
+       }
+     } catch (e: any) {
+-      setCreateError(e?.response?.data?.error?.message || e?.message || "Failed to create the agent. Please try again.");
++      const status = e?.response?.status;
++      if (e?.code === "UNVERIFIED_CREATE") {
++        setCreateError("The agent could not be verified. Refresh before retrying; the same intent will reconcile.");
++      } else if (status === undefined || status >= 500) {
++        setCreateError("The creation outcome is uncertain. Retry to reconcile the same intent; do not create a second agent.");
++      } else {
++        setCreateError(e?.response?.data?.error?.message || e?.message || "Failed to create the agent. Please try again.");
++      }
+     } finally {
+       setCreatingAgent(false);
+     }
+diff --git a/frontend-nextjs/components/canvas/__tests__/AgentAttachModal.test.tsx b/frontend-nextjs/components/canvas/__tests__/AgentAttachModal.test.tsx
+index 6f85f2057..6725e4b40 100644
+--- a/frontend-nextjs/components/canvas/__tests__/AgentAttachModal.test.tsx
++++ b/frontend-nextjs/components/canvas/__tests__/AgentAttachModal.test.tsx
+@@ -14,7 +14,10 @@ import {
+   attachCanvasAgent,
+   listAttachableAgents,
+ } from "@/lib/canvas-api";
+-import { createGuidedAgent } from "@/lib/agent-onboarding-api";
++import {
++  createGuidedAgent,
++  newCreationOperationId,
++} from "@/lib/agent-onboarding-api";
+ 
+ jest.mock("@/lib/canvas-api", () => ({
+   __esModule: true,
+@@ -25,11 +28,13 @@ jest.mock("@/lib/canvas-api", () => ({
+ jest.mock("@/lib/agent-onboarding-api", () => ({
+   __esModule: true,
+   createGuidedAgent: jest.fn(),
++  newCreationOperationId: jest.fn(() => "ui-intent-1"),
+ }));
+ 
+ const mockedList = listAttachableAgents as jest.Mock;
+ const mockedAttach = attachCanvasAgent as jest.Mock;
+ const mockedCreate = createGuidedAgent as jest.Mock;
++const mockedNewOperationId = newCreationOperationId as jest.Mock;
+ 
+ const AGENTS = [
+   { id: "a-1", name: "Alex", category: "finance", status: "student" },
+@@ -54,6 +59,7 @@ function renderModal(overrides: Partial<Parameters<typeof AgentAttachModal>[0]>
+ describe("AgentAttachModal", () => {
+   beforeEach(() => {
+     jest.resetAllMocks();
++    mockedNewOperationId.mockReturnValue("ui-intent-1");
+     mockedList.mockResolvedValue(AGENTS);
+   });
+ 
+@@ -91,6 +97,9 @@ describe("AgentAttachModal", () => {
+     mockedCreate.mockResolvedValue({
+       agent_id: "a-new", name: "New Hire", category: "sales", maturity: "student",
+       created_by: "employee",
++      operation_id: "agent:create:intent-1",
++      audit_id: "agent:create:intent-1",
++      verification: { status: "verified", effect: "committed" },
+     });
+     mockedAttach.mockResolvedValue({
+       agents: [{ agent_id: "a-new", name: "New Hire", canvas_id: "c-1" }],
+@@ -103,7 +112,9 @@ describe("AgentAttachModal", () => {
+     });
+     fireEvent.click(screen.getByRole("button", { name: /create & attach/i }));
+ 
+-    await waitFor(() => expect(mockedCreate).toHaveBeenCalledWith("Track overdue invoices"));
++    await waitFor(() => expect(mockedCreate).toHaveBeenCalledWith(
++      "Track overdue invoices", undefined, { operationId: expect.any(String) }
++    ));
+     await waitFor(() => expect(mockedAttach).toHaveBeenCalledWith("c-1", "a-new"));
+   });
+ 
+@@ -125,6 +136,25 @@ describe("AgentAttachModal", () => {
+     expect(mockedAttach).not.toHaveBeenCalled();
+   });
+ 
++  it("does not attach when creation is unverified", async () => {
++    mockedCreate.mockRejectedValue({
++      code: "UNVERIFIED_CREATE",
++      message: "not verified",
++    });
++    renderModal();
++
++    fireEvent.click(await screen.findByRole("button", { name: /create a new agent/i }));
++    fireEvent.change(await screen.findByLabelText(/what should this agent do/i), {
++      target: { value: "Track overdue invoices" },
++    });
++    fireEvent.click(screen.getByRole("button", { name: /create & attach/i }));
++
++    await waitFor(() =>
++      expect(screen.getByRole("alert")).toHaveTextContent(/could not be verified/i),
++    );
++    expect(mockedAttach).not.toHaveBeenCalled();
++  });
++
+   it("rejects too-short goals without calling the API", async () => {
+     renderModal();
+     fireEvent.click(await screen.findByRole("button", { name: /create a new agent/i }));
+diff --git a/frontend-nextjs/lib/__tests__/agent-creation-retry.test.ts b/frontend-nextjs/lib/__tests__/agent-creation-retry.test.ts
+new file mode 100644
+index 000000000..6c2b37812
+--- /dev/null
++++ b/frontend-nextjs/lib/__tests__/agent-creation-retry.test.ts
+@@ -0,0 +1,235 @@
++/**
++ * Creation POST retry safety — real shared interceptor + adapter counter.
++ *
++ * This exercises lib/api.ts's real response interceptor (no axios mock):
++ * a lost/503 creation confirmation must not be auto-POSTed again, because the
++ * first request may have committed. The adapter counts actual POST attempts.
++ */
++import apiClient from '../api';
++import {
++  createCustomAgent,
++  createGuidedAgent,
++} from '../agent-onboarding-api';
++
++jest.setTimeout(20000);
++
++type Adapter = (config: any) => Promise<any>;
++
++const originalAdapter = (apiClient.defaults as any).adapter as Adapter;
++
++function reject503(config: any) {
++  const error: any = new Error('Request failed with status code 503');
++  error.isAxiosError = true;
++  error.config = config;
++  error.response = {
++    status: 503,
++    statusText: 'Service Unavailable',
++    data: { detail: 'temporarily unavailable' },
++    headers: {},
++    config,
++  };
++  return error;
++}
++
++describe('creation POST retry safety', () => {
++  let errorSpy: jest.SpyInstance;
++  let logSpy: jest.SpyInstance;
++
++  beforeEach(() => {
++    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
++    logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
++  });
++
++  afterEach(() => {
++    (apiClient.defaults as any).adapter = originalAdapter;
++    errorSpy.mockRestore();
++    logSpy.mockRestore();
++  });
++
++  it('does not auto-retry a guided creation after a 503 confirmation loss', async () => {
++    let posts = 0;
++    let seen: any = null;
++    (apiClient.defaults as any).adapter = async (config: any) => {
++      if (
++        String(config.method || '').toLowerCase() === 'post' &&
++        String(config.url || '').includes('/api/agents/guided')
++      ) {
++        posts += 1;
++        seen = config;
++      }
++      throw reject503(config);
++    };
++
++    await expect(
++      createGuidedAgent(
++        'watch invoices and flag overdue ones',
++        undefined,
++        { operationId: 'guided-intent-1' }
++      )
++    ).rejects.toBeTruthy();
++
++    expect(posts).toBe(1);
++    expect(seen?.params?.operation_id).toBe('guided-intent-1');
++    expect(seen?.retry).toBe(false);
++  });
++
++  it('does not auto-retry a custom hire after a 503 confirmation loss', async () => {
++    let posts = 0;
++    let seen: any = null;
++    (apiClient.defaults as any).adapter = async (config: any) => {
++      if (
++        String(config.method || '').toLowerCase() === 'post' &&
++        String(config.url || '').includes('/api/agents/custom')
++      ) {
++        posts += 1;
++        seen = config;
++      }
++      throw reject503(config);
++    };
++
++    await expect(
++      createCustomAgent(
++        {
++          name: 'Sales Development Rep',
++          description: 'Hire for sales',
++          category: 'Sales',
++          configuration: {},
++          schedule_config: {},
++        },
++        { operationId: 'hire-intent-1' }
++      )
++    ).rejects.toBeTruthy();
++
++    expect(posts).toBe(1);
++    expect(seen?.params?.operation_id).toBe('hire-intent-1');
++    expect(seen?.retry).toBe(false);
++  });
++});
++
++describe('creation response integrity', () => {
++  afterEach(() => {
++    (apiClient.defaults as any).adapter = originalAdapter;
++  });
++
++  function respond(payload: any, status = 200) {
++    (apiClient.defaults as any).adapter = async (config: any) => ({
++      data: payload,
++      status,
++      statusText: 'OK',
++      headers: {},
++      config,
++    });
++  }
++
++  it('returns a guided verified result and preserves the receipt', async () => {
++    respond({
++      success: true,
++      data: {
++        agent_id: 'agent-verified',
++        name: 'Verified Agent',
++        category: 'Operations',
++        maturity: 'student',
++        created_by: 'employee',
++        operation_id: 'agent:create:intent-1',
++        audit_id: 'agent:create:intent-1',
++        verification: { status: 'verified', effect: 'committed' },
++      },
++    });
++    const result = await createGuidedAgent(
++      'watch invoices and flag overdue ones', undefined,
++      { operationId: 'intent-1' }
++    );
++    expect('agent_id' in result && result.agent_id).toBe('agent-verified');
++    expect('operation_id' in result && result.operation_id).toBe(
++      'agent:create:intent-1'
++    );
++    expect('verification' in result && result.verification?.status).toBe(
++      'verified'
++    );
++  });
++
++  it('returns guided pending without inventing an agent id', async () => {
++    respond({
++      success: true,
++      data: {
++        status: 'pending_approval',
++        hitl_action_id: 'hitl-1',
++        reason: 'Trust policy requires human approval',
++      },
++    }, 202);
++    const result = await createGuidedAgent(
++      'watch invoices and flag overdue ones'
++    );
++    expect('status' in result && result.status).toBe('pending_approval');
++    expect('agent_id' in result).toBe(false);
++  });
++
++  it('rejects a 2xx success:false instead of treating it as verified', async () => {
++    respond({ success: false, data: { agent_id: 'agent-false' } });
++    await expect(
++      createGuidedAgent('watch invoices and flag overdue ones')
++    ).rejects.toMatchObject({ code: 'CREATION_NOT_ACCEPTED' });
++  });
++
++  it('rejects a 2xx guided response with no exact agent id', async () => {
++    respond({
++      success: true,
++      data: { verification: { status: 'verified', effect: 'committed' } },
++    });
++    await expect(
++      createGuidedAgent('watch invoices and flag overdue ones')
++    ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
++  });
++
++  it('rejects a 2xx guided response without verified verification', async () => {
++    respond({
++      success: true,
++      data: {
++        agent_id: 'agent-unverified',
++        name: 'Maybe',
++        category: 'Ops',
++        maturity: 'student',
++        created_by: 'employee',
++        verification: { status: 'committed_unverified', effect: 'committed' },
++      },
++    });
++    await expect(
++      createGuidedAgent('watch invoices and flag overdue ones')
++    ).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
++  });
++
++  it('returns a custom verified result and rejects malformed/unverified 2xx', async () => {
++    respond({
++      success: true,
++      data: {
++        agent_id: 'custom-verified',
++        agent_name: 'Custom Verified',
++        category: 'Sales',
++        operation_id: 'agent:create:hire-1',
++        audit_id: 'agent:create:hire-1',
++        verification: { status: 'verified', effect: 'committed' },
++      },
++    });
++    const ok = await createCustomAgent(
++      {
++        name: 'Custom Verified', category: 'Sales',
++        configuration: {}, schedule_config: {},
++      },
++      { operationId: 'hire-1' }
++    );
++    expect(ok.agent_id).toBe('custom-verified');
++
++    respond({ success: false, data: { agent_id: 'ignored' } });
++    await expect(createCustomAgent({
++      name: 'No', category: 'Sales', configuration: {}, schedule_config: {},
++    })).rejects.toMatchObject({ code: 'CREATION_NOT_ACCEPTED' });
++
++    respond({
++      success: true,
++      data: { agent_id: 'custom-unverified' },
++    });
++    await expect(createCustomAgent({
++      name: 'No', category: 'Sales', configuration: {}, schedule_config: {},
++    })).rejects.toMatchObject({ code: 'UNVERIFIED_CREATE' });
++  });
++});
+diff --git a/frontend-nextjs/lib/agent-onboarding-api.ts b/frontend-nextjs/lib/agent-onboarding-api.ts
+index 27dc71edd..14384536d 100644
+--- a/frontend-nextjs/lib/agent-onboarding-api.ts
++++ b/frontend-nextjs/lib/agent-onboarding-api.ts
+@@ -4,7 +4,20 @@ import { apiClient } from './api-client';
+ // api/agent_onboarding_routes.py). Self-serve agent creation, history-mined
+ // automation suggestions, and agent maturity guidance.
+ 
+-export interface GuidedAgentResult {
++export interface AgentVerification {
++  status?: string;
++  effect?: string;
++  audit_id?: string;
++  replay?: string;
++}
++
++export interface AgentCreationReceipt {
++  operation_id?: string;
++  audit_id?: string;
++  verification?: AgentVerification;
++}
++
++export interface GuidedAgentResult extends AgentCreationReceipt {
+   agent_id: string;
+   name: string;
+   category: string;
+@@ -19,6 +32,53 @@ export interface GuidedAgentPending {
+   reason: string;
+ }
+ 
++export interface CustomAgentResult extends AgentCreationReceipt {
++  agent_id: string;
++  agent_name?: string;
++  category?: string;
++  tenant_id?: string;
++  workspace_id?: string;
++}
++
++export function newCreationOperationId(): string {
++  const cryptoObj =
++    typeof globalThis !== 'undefined' ? (globalThis as any).crypto : undefined;
++  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
++    return cryptoObj.randomUUID();
++  }
++  return `ui-${Date.now()}-${Math.random().toString(36).slice(2)}`;
++}
++
++function unwrapCreationEnvelope(res: any, label: string): any {
++  const envelope = res?.data;
++  if (envelope && envelope.success === false) {
++    const err: any = new Error(`${label} was not accepted`);
++    err.code = 'CREATION_NOT_ACCEPTED';
++    err.response = res;
++    throw err;
++  }
++  return envelope?.data ?? envelope;
++}
++
++function assertVerifiedCreation(data: any, label: string): any {
++  if (!data || typeof data.agent_id !== 'string' || !data.agent_id.trim()) {
++    const err: any = new Error(`${label} returned no exact agent id`);
++    err.code = 'UNVERIFIED_CREATE';
++    err.data = data;
++    throw err;
++  }
++  const status = data?.verification?.status;
++  if (status !== 'verified' && status !== 'already_applied') {
++    const err: any = new Error(
++      `${label} was not verified; reconcile before retrying`
++    );
++    err.code = 'UNVERIFIED_CREATE';
++    err.data = data;
++    throw err;
++  }
++  return data;
++}
++
+ export interface AutomationSuggestion {
+   title: string;
+   description: string;
+@@ -96,10 +156,52 @@ export interface AgentMaturityGuide {
+ 
+ export async function createGuidedAgent(
+   goal: string,
+-  context?: string
++  context?: string,
++  options?: { operationId?: string }
+ ): Promise<GuidedAgentResult | GuidedAgentPending> {
+-  const res = await apiClient.post('/api/agents/guided', { goal, context });
+-  return res.data?.data ?? res.data;
++  const operationId = options?.operationId;
++  const res = await apiClient.post(
++    '/api/agents/guided',
++    { goal, context },
++    {
++      ...(operationId ? { params: { operation_id: operationId } } : {}),
++      // A create is not idempotent at the transport layer. A 503 or a lost
++      // network confirmation may already have committed; never replay it
++      // automatically. The same operation id can be reused only when the
++      // user explicitly retries the unchanged intent.
++      retry: false,
++    }
++  );
++  const data = unwrapCreationEnvelope(res, 'Agent creation');
++  if (data?.status === 'pending_approval') {
++    return {
++      status: 'pending_approval',
++      hitl_action_id: data.hitl_action_id ?? null,
++      reason: data.reason || 'Human approval required',
++    };
++  }
++  return assertVerifiedCreation(data, 'Agent creation') as GuidedAgentResult;
++}
++
++export async function createCustomAgent(
++  payload: {
++    name: string;
++    description?: string;
++    category: string;
++    configuration?: Record<string, unknown>;
++    schedule_config?: Record<string, unknown> | null;
++  },
++  options?: { operationId?: string }
++): Promise<CustomAgentResult> {
++  const operationId = options?.operationId;
++  const res = await apiClient.post('/api/agents/custom', payload, {
++    ...(operationId ? { params: { operation_id: operationId } } : {}),
++    // Same no-auto-replay rule as guided creation: a lost confirmation is
++    // uncertain, not permission to POST the hire again.
++    retry: false,
++  });
++  const data = unwrapCreationEnvelope(res, 'Employee hire');
++  return assertVerifiedCreation(data, 'Employee hire') as CustomAgentResult;
+ }
+ 
+ export async function getAutomationSuggestions(
+diff --git a/frontend-nextjs/tests/pages/agents-creation-join.test.tsx b/frontend-nextjs/tests/pages/agents-creation-join.test.tsx
+new file mode 100644
+index 000000000..6c00bcb78
+--- /dev/null
++++ b/frontend-nextjs/tests/pages/agents-creation-join.test.tsx
+@@ -0,0 +1,199 @@
++/**
++ * Agents page creation→reload join.
++ *
++ * The real GuidedAgentCreator is mounted by the page; the authoritative list
++ * fetch must show the exact returned agent id after a verified create. This
++ * complements the component tests (which mock the helper) and the real
++ * interceptor counterprobe (which proves no transport auto-replay).
++ */
++import React from "react";
++import { render, screen, fireEvent, waitFor } from "@testing-library/react";
++import AgentsDashboard from "@/pages/agents/index";
++
++const mockToast = jest.fn();
++
++jest.mock("next/router", () => ({
++  useRouter: () => ({
++    push: jest.fn(),
++    replace: jest.fn(),
++    prefetch: jest.fn(),
++    back: jest.fn(),
++    reload: jest.fn(),
++    pathname: "/agents",
++    query: {},
++    asPath: "/agents",
++    events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
++  }),
++}));
++
++jest.mock("@/components/ui/use-toast", () => ({
++  useToast: () => ({ toast: mockToast }),
++}));
++
++jest.mock("@/hooks/useWebSocket", () => ({
++  useWebSocket: () => ({
++    isConnected: false,
++    subscribe: jest.fn(),
++    onMessage: jest.fn(),
++  }),
++}));
++
++jest.mock("@/hooks/useProviderStatus", () => ({
++  useProviderStatus: () => ({ configured: true, loading: false }),
++}));
++
++jest.mock("@/components/Agents/AgentCard", () => ({
++  __esModule: true,
++  default: ({ agent }: any) => (
++    <div data-testid={`agent-card-${agent.id}`}>{agent.name}</div>
++  ),
++}));
++
++jest.mock("@/components/Agents/AgentTerminal", () => ({
++  __esModule: true,
++  default: () => <div data-testid="agent-terminal" />,
++}));
++
++jest.mock("@/components/Agents/MaturityProgression", () => ({
++  MaturityProgression: () => <div data-testid="maturity-progression" />,
++}));
++
++jest.mock("@/components/Agents/MaturityApprovalPanel", () => ({
++  __esModule: true,
++  default: () => <div data-testid="maturity-approval" />,
++}));
++
++jest.mock("@/components/Agents/EmployeeOnboardingGuide", () => ({
++  EmployeeOnboardingGuide: () => null,
++}));
++
++jest.mock("@/components/Agents/AgentLaunchGuide", () => ({
++  __esModule: true,
++  default: () => null,
++}));
++
++jest.mock("@/components/Agents/AutomationSuggestionsPanel", () => ({
++  AutomationSuggestionsPanel: () => null,
++}));
++
++jest.mock("@/components/Agents/AgentMaturityGuide", () => ({
++  AgentMaturityGuideDialog: () => null,
++}));
++
++jest.mock("@/components/Agents/AgentJobWaitPanel", () => ({
++  __esModule: true,
++  default: () => null,
++}));
++
++jest.mock("@/components/ReasoningChainViewer", () => ({
++  __esModule: true,
++  default: () => null,
++}));
++
++jest.mock("@/lib/agent-onboarding-api", () => ({
++  __esModule: true,
++  createGuidedAgent: jest.fn(),
++  getAutomationSuggestions: jest.fn(),
++  newCreationOperationId: jest.fn(() => "ui-intent-1"),
++}));
++
++import * as onboardingApi from "@/lib/agent-onboarding-api";
++
++const okJson = (body: any) => ({
++  ok: true,
++  status: 200,
++  statusText: "OK",
++  json: async () => body,
++});
++
++describe("Agents creation → authoritative reload join", () => {
++  const originalFetch = global.fetch;
++  let mockFetch: jest.Mock;
++
++  beforeEach(() => {
++    jest.clearAllMocks();
++    localStorage.clear();
++    localStorage.setItem("auth_token", "tok");
++    (onboardingApi.getAutomationSuggestions as jest.Mock).mockResolvedValue({
++      history_summary: {},
++      suggestions: [],
++    });
++    (onboardingApi.newCreationOperationId as jest.Mock).mockReturnValue(
++      "ui-intent-1"
++    );
++    mockFetch = jest.fn();
++    global.fetch = mockFetch;
++  });
++
++  afterEach(() => {
++    global.fetch = originalFetch;
++  });
++
++  it("shows the exact verified agent after guided creation refreshes the list", async () => {
++    const create = onboardingApi.createGuidedAgent as jest.Mock;
++    let created = false;
++    create.mockImplementation(async () => {
++      created = true;
++      return {
++        agent_id: "new-guided-1",
++        name: "Guided One",
++        category: "Ops",
++        maturity: "student",
++        created_by: "employee",
++        operation_id: "agent:create:intent-1",
++        audit_id: "agent:create:intent-1",
++        verification: { status: "verified", effect: "committed" },
++      };
++    });
++    mockFetch.mockImplementation((url: any) => {
++      const u = String(url);
++      if (u.includes("/graduation-progress")) {
++        const id = u.split("/")[u.split("/").length - 2];
++        return Promise.resolve(okJson({
++          success: true,
++          data: {
++            agent_id: id, current_tier: "student", next_tier: "intern",
++            next_threshold_episodes: 10, episodes_to_next: 10,
++            episode_count: 0, criteria: {},
++          },
++        }));
++      }
++      if (u.includes("/api/agents/")) {
++        return Promise.resolve(okJson({
++          success: true,
++          data: created ? [{
++            id: "new-guided-1",
++            name: "Guided One",
++            description: "Created by the guided flow",
++            category: "Ops",
++            status: "student",
++          }] : [],
++        }));
++      }
++      return Promise.resolve(okJson({ success: true, data: [] }));
++    });
++
++    render(<AgentsDashboard />);
++    await waitFor(() =>
++      expect(screen.getByText(/No agents found/)).toBeInTheDocument()
++    );
++
++    fireEvent.click(screen.getByTestId("describe-job-button"));
++    fireEvent.change(screen.getByTestId("guided-goal-input"), {
++      target: { value: "watch invoices and flag overdue ones" },
++    });
++    fireEvent.click(screen.getByTestId("guided-create-button"));
++
++    await waitFor(() =>
++      expect(create).toHaveBeenCalledWith(
++        "watch invoices and flag overdue ones",
++        undefined,
++        { operationId: "ui-intent-1" }
++      )
++    );
++    await waitFor(() =>
++      expect(screen.getByTestId("agent-card-new-guided-1")).toBeInTheDocument()
++    );
++    expect(screen.getAllByTestId("agent-card-new-guided-1")).toHaveLength(1);
++  });
++});

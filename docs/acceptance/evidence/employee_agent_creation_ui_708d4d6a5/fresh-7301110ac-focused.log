@@ -1,0 +1,767 @@
+PASS tests/pages/agents-index.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      334 |                 const ids = data.map((i: any) => i.id);
+      335 |                 registryIdsRef.current = ids;
+    > 336 |                 setRegistryIdsState(ids);
+          |                 ^
+      337 |             }
+      338 |         } catch {
+      339 |             setRegistryIdsState(null); // fall back to preference defaults
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:336:17
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      344 |         try {
+      345 |             const proposals = await listTrainingProposals();
+    > 346 |             setPendingTraining(Array.isArray(proposals) ? proposals.length : 0);
+          |             ^
+      347 |         } catch {
+      348 |             setPendingTraining(null);
+      349 |         }
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:346:13
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      317 |                     if (!(id in next)) next[id] = active.has(id);
+      318 |                 });
+    > 319 |                 setConnections(next);
+          |                 ^
+      320 |             }
+      321 |             if (configRes.status === 'fulfilled') {
+      322 |                 setServerConfigured(configRes.value?.data || {});
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:319:17
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      320 |             }
+      321 |             if (configRes.status === 'fulfilled') {
+    > 322 |                 setServerConfigured(configRes.value?.data || {});
+          |                 ^
+      323 |             }
+      324 |         } catch {
+      325 |             // Leave steps unchecked rather than blocking the page.
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:322:17
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      184 |                 // Accept either the wrapped shape or a bare array for safety.
+      185 |                 const data = Array.isArray(json) ? json : (json.data ?? []);
+    > 186 |                 setAgents(data.map(normalizeAgent));
+          |                 ^
+      187 |             } else if (res.status === 401 || res.status === 403) {
+      188 |                 // Token no longer valid (expired/revoked) — clear it and go
+      189 |                 // to login, same behavior as the axios 401 interceptor.
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/agents/index.tsx:186:17
+      at step (pages/agents/index.tsx:77:23)
+      at Object.next (pages/agents/index.tsx:58:53)
+      at fulfilled (pages/agents/index.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      212 |             setError(`Failed to load agents: ${err.message || String(err)}. Check console for details.`);
+      213 |         } finally {
+    > 214 |             if (seq === agentsFetchSeq.current) setIsLoading(false);
+          |                                                 ^
+      215 |         }
+      216 |     }, [routerPush]);
+      217 |
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/agents/index.tsx:214:49
+      at step (pages/agents/index.tsx:77:23)
+      at Object.next (pages/agents/index.tsx:58:53)
+      at fulfilled (pages/agents/index.tsx:49:58)
+
+    console.error
+      Agents fetch error: Error: network down
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:259:31
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-mock/build/index.js:305:39
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-mock/build/index.js:312:13
+          at mockConstructor (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-mock/build/index.js:57:19)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:171:31
+          at step (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:77:23)
+          at Object.next (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:58:53)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:52:71
+          at new Promise (<anonymous>)
+          at __awaiter (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:48:12)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:158:37
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:253:9
+          at commitHookEffectListMount (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+          at commitPassiveMountOnFiber (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+          at commitPassiveMountEffects_complete (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+          at commitPassiveMountEffects_begin (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+          at commitPassiveMountEffects (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+          at flushPassiveEffectsImpl (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+          at flushPassiveEffects (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+          at flushActQueue (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react/cjs/react.development.js:2667:24)
+          at act (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react/cjs/react.development.js:2582:11)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/act-compat.js:46:25
+          at renderRoot (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:189:26)
+          at render (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:291:10)
+          at renderAgents (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:45:23)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:275:25
+          at step (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:40:23)
+          at Object.next (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:21:53)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:15:71
+          at new Promise (<anonymous>)
+          at __awaiter (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:11:12)
+          at Object.<anonymous> (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:273:40)
+          at Promise.finally.completed (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+          at _callCircusTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+          at _runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at run (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+          at jestAdapter (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:343:7)
+
+      209 |         } catch (err: any) {
+      210 |             if (seq !== agentsFetchSeq.current) return;
+    > 211 |             console.error("Agents fetch error:", err);
+          |                     ^
+      212 |             setError(`Failed to load agents: ${err.message || String(err)}. Check console for details.`);
+      213 |         } finally {
+      214 |             if (seq === agentsFetchSeq.current) setIsLoading(false);
+
+      at pages/agents/index.tsx:211:21
+      at step (pages/agents/index.tsx:77:23)
+      at Object.throw (pages/agents/index.tsx:58:53)
+      at rejected (pages/agents/index.tsx:50:65)
+
+    console.error
+      Agents fetch error: Error: network down
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:291:35
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-mock/build/index.js:305:39
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-mock/build/index.js:312:13
+          at mockConstructor (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-mock/build/index.js:57:19)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:171:31
+          at step (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:77:23)
+          at Object.next (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:58:53)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:52:71
+          at new Promise (<anonymous>)
+          at __awaiter (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:48:12)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:158:37
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:253:9
+          at commitHookEffectListMount (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+          at commitPassiveMountOnFiber (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+          at commitPassiveMountEffects_complete (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+          at commitPassiveMountEffects_begin (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+          at commitPassiveMountEffects (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+          at flushPassiveEffectsImpl (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+          at flushPassiveEffects (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+          at flushActQueue (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react/cjs/react.development.js:2667:24)
+          at act (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/react/cjs/react.development.js:2582:11)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/act-compat.js:46:25
+          at renderRoot (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:189:26)
+          at render (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:291:10)
+          at renderAgents (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:45:23)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:305:7
+          at step (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:40:23)
+          at Object.next (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:21:53)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:15:71
+          at new Promise (<anonymous>)
+          at __awaiter (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:11:12)
+          at Object.<anonymous> (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/tests/pages/agents-index.test.tsx:282:56)
+          at Promise.finally.completed (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+          at _callCircusTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+          at _runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at run (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+          at jestAdapter (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:343:7)
+
+      209 |         } catch (err: any) {
+      210 |             if (seq !== agentsFetchSeq.current) return;
+    > 211 |             console.error("Agents fetch error:", err);
+          |                     ^
+      212 |             setError(`Failed to load agents: ${err.message || String(err)}. Check console for details.`);
+      213 |         } finally {
+      214 |             if (seq === agentsFetchSeq.current) setIsLoading(false);
+
+      at pages/agents/index.tsx:211:21
+      at step (pages/agents/index.tsx:77:23)
+      at Object.throw (pages/agents/index.tsx:58:53)
+      at rejected (pages/agents/index.tsx:50:65)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      334 |                 const ids = data.map((i: any) => i.id);
+      335 |                 registryIdsRef.current = ids;
+    > 336 |                 setRegistryIdsState(ids);
+          |                 ^
+      337 |             }
+      338 |         } catch {
+      339 |             setRegistryIdsState(null); // fall back to preference defaults
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:336:17
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      344 |         try {
+      345 |             const proposals = await listTrainingProposals();
+    > 346 |             setPendingTraining(Array.isArray(proposals) ? proposals.length : 0);
+          |             ^
+      347 |         } catch {
+      348 |             setPendingTraining(null);
+      349 |         }
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:346:13
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      317 |                     if (!(id in next)) next[id] = active.has(id);
+      318 |                 });
+    > 319 |                 setConnections(next);
+          |                 ^
+      320 |             }
+      321 |             if (configRes.status === 'fulfilled') {
+      322 |                 setServerConfigured(configRes.value?.data || {});
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:319:17
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentLaunchGuide (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:231:42)
+          at div
+          at div
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      320 |             }
+      321 |             if (configRes.status === 'fulfilled') {
+    > 322 |                 setServerConfigured(configRes.value?.data || {});
+          |                 ^
+      323 |             }
+      324 |         } catch {
+      325 |             // Leave steps unchecked rather than blocking the page.
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/AgentLaunchGuide.tsx:322:17
+      at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+      at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+      at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      184 |                 // Accept either the wrapped shape or a bare array for safety.
+      185 |                 const data = Array.isArray(json) ? json : (json.data ?? []);
+    > 186 |                 setAgents(data.map(normalizeAgent));
+          |                 ^
+      187 |             } else if (res.status === 401 || res.status === 403) {
+      188 |                 // Token no longer valid (expired/revoked) — clear it and go
+      189 |                 // to login, same behavior as the axios 401 interceptor.
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/agents/index.tsx:186:17
+      at step (pages/agents/index.tsx:77:23)
+      at Object.next (pages/agents/index.tsx:58:53)
+      at fulfilled (pages/agents/index.tsx:49:58)
+
+    console.error
+      Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at AgentsDashboard (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/pages/agents/index.tsx:74:45)
+
+      212 |             setError(`Failed to load agents: ${err.message || String(err)}. Check console for details.`);
+      213 |         } finally {
+    > 214 |             if (seq === agentsFetchSeq.current) setIsLoading(false);
+          |                                                 ^
+      215 |         }
+      216 |     }, [routerPush]);
+      217 |
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at pages/agents/index.tsx:214:49
+      at step (pages/agents/index.tsx:77:23)
+      at Object.next (pages/agents/index.tsx:58:53)
+      at fulfilled (pages/agents/index.tsx:49:58)
+
+PASS components/Agents/__tests__/GuidedAgentCreator.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to GuidedAgentCreator inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at GuidedAgentCreator (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx:35:42)
+
+      58 |     setSuggestionsLoading(true);
+      59 |     getAutomationSuggestions(3)
+    > 60 |       .then((res) => setSuggestions(res?.suggestions ?? []))
+         |                      ^
+      61 |       .catch(() => setSuggestions([])) // inspiration is optional — never block creation
+      62 |       .finally(() => setSuggestionsLoading(false));
+      63 |   }, [open, suggestions.length, suggestionsLoading]);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/GuidedAgentCreator.tsx:60:22
+
+    console.error
+      Warning: An update to GuidedAgentCreator inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at GuidedAgentCreator (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx:35:42)
+
+      60 |       .then((res) => setSuggestions(res?.suggestions ?? []))
+      61 |       .catch(() => setSuggestions([])) // inspiration is optional — never block creation
+    > 62 |       .finally(() => setSuggestionsLoading(false));
+         |                      ^
+      63 |   }, [open, suggestions.length, suggestionsLoading]);
+      64 |
+      65 |   const reset = useCallback(() => {
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/GuidedAgentCreator.tsx:62:22
+
+PASS components/Agents/__tests__/AgentLaunchGuide.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/canvas/__tests__/AgentAttachModal.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/api-interceptors.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Error: Not implemented: navigation (except hash changes)
+          at module.exports (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+          at navigateFetch (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+          at exports.navigate (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+          at LocationImpl._locationObjectNavigate (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:30:5)
+          at LocationImpl._locationObjectSetterNavigate (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:24:17)
+          at LocationImpl.set href [as href] (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:46:10)
+          at Location.set href [as href] (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/lib/api.ts:141:31
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/lib/__tests__/api-interceptors.test.ts:207:18
+          at step (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/lib/__tests__/api-interceptors.test.ts:91:23)
+          at Object.next (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/lib/__tests__/api-interceptors.test.ts:72:53)
+          at /private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/lib/__tests__/api-interceptors.test.ts:66:71
+          at new Promise (<anonymous>)
+          at __awaiter (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/lib/__tests__/api-interceptors.test.ts:62:12)
+          at Object.<anonymous> (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/lib/__tests__/api-interceptors.test.ts:203:49)
+          at Promise.finally.completed (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+          at _callCircusTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+          at _runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+          at /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at run (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+          at jestAdapter (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules/jest-runner/build/index.js:343:7) {
+        type: 'not implemented'
+      }
+
+      139 |           localStorage.removeItem("auth_token");
+      140 |           localStorage.removeItem("token");
+    > 141 |           window.location.href = `/login?callbackUrl=${encodeURIComponent(loginCallbackPath())}`;
+          |                               ^
+      142 |         }
+      143 |       }
+      144 |     }
+
+      at VirtualConsole.<anonymous> (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/@jest/environment-jsdom-abstract/build/index.js:87:23)
+      at module.exports (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:12:26)
+      at navigateFetch (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+      at exports.navigate (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+      at LocationImpl._locationObjectNavigate (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:30:5)
+      at LocationImpl._locationObjectSetterNavigate (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:24:17)
+      at LocationImpl.set href [as href] (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:46:10)
+      at Location.set href [as href] (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+      at lib/api.ts:141:31
+      at lib/__tests__/api-interceptors.test.ts:207:18
+      at step (lib/__tests__/api-interceptors.test.ts:91:23)
+      at Object.next (lib/__tests__/api-interceptors.test.ts:72:53)
+      at lib/__tests__/api-interceptors.test.ts:66:71
+      at __awaiter (lib/__tests__/api-interceptors.test.ts:62:12)
+      at Object.<anonymous> (lib/__tests__/api-interceptors.test.ts:203:49)
+
+    console.error
+      [API Error] {
+        code: undefined,
+        status: 503,
+        message: undefined,
+        url: '/api/example'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Function.<anonymous> (lib/__tests__/api-interceptors.test.ts:293:14)
+      at lib/api.ts:172:38
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at Function.exports.apiClient.fetch (lib/api.ts:216:12)
+      at lib/__tests__/api-interceptors.test.ts:295:42
+      at step (lib/__tests__/api-interceptors.test.ts:91:23)
+      at Object.next (lib/__tests__/api-interceptors.test.ts:72:53)
+      at lib/__tests__/api-interceptors.test.ts:66:71
+      at __awaiter (lib/__tests__/api-interceptors.test.ts:62:12)
+      at Object.<anonymous> (lib/__tests__/api-interceptors.test.ts:286:90)
+
+    console.error
+      [API Error] {
+        code: undefined,
+        status: 503,
+        message: undefined,
+        url: '/api/example'
+      }
+
+      79 |     if (error.response?.status !== 404) {
+      80 |       // Log technical error for debugging (not user-facing)
+    > 81 |       console.error('[API Error]', {
+         |               ^
+      82 |         code: error.code,
+      83 |         status: error.response?.status,
+      84 |         message: error.message,
+
+      at lib/api.ts:81:15
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at lib/api.ts:73:20
+      at Function.<anonymous> (lib/__tests__/api-interceptors.test.ts:308:14)
+      at lib/api.ts:172:38
+      at step (lib/api.ts:44:23)
+      at Object.next (lib/api.ts:25:53)
+      at lib/api.ts:19:71
+      at __awaiter (lib/api.ts:15:12)
+      at Function.exports.apiClient.fetch (lib/api.ts:216:12)
+      at lib/__tests__/api-interceptors.test.ts:310:42
+      at step (lib/__tests__/api-interceptors.test.ts:91:23)
+      at Object.next (lib/__tests__/api-interceptors.test.ts:72:53)
+      at lib/__tests__/api-interceptors.test.ts:66:71
+      at __awaiter (lib/__tests__/api-interceptors.test.ts:62:12)
+      at Object.<anonymous> (lib/__tests__/api-interceptors.test.ts:301:77)
+
+PASS tests/pages/agents-creation-join.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/agent-creation-retry.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 7 passed, 7 total
+Tests:       132 passed, 132 total
+Snapshots:   0 total
+Time:        5.145 s
+Ran all test suites matching lib/__tests__/agent-creation-retry.test.ts|lib/__tests__/api-interceptors.test.ts|components/Agents/__tests__/AgentLaunchGuide.test.tsx|components/Agents/__tests__/GuidedAgentCreator.test.tsx|components/canvas/__tests__/AgentAttachModal.test.tsx|tests/pages/agents-index.test.tsx|tests/pages/agents-creation-join.test.tsx.

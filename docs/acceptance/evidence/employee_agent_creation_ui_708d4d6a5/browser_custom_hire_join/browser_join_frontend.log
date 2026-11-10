@@ -1,0 +1,243 @@
+▲ Next.js 16.2.2 (webpack)
+- Local:         http://localhost:3173
+- Network:       http://192.168.50.104:3173
+✓ Ready in 1575ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+- Experiments (use with caution):
+  ✓ externalDir
+
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+○ Compiling /login ...
+ GET /login 200 in 4.7s (proxy.ts: 74ms)
+ GET /login 200 in 28ms (next.js: 3ms, proxy.ts: 9ms, application-code: 16ms)
+○ Compiling /canvas/[id] ...
+ GET /canvas/00000000-0000-4000-8000-000000000000 200 in 4.5s (next.js: 4.4s, proxy.ts: 5ms, application-code: 42ms)
+ GET /login 200 in 75ms (next.js: 37ms, proxy.ts: 9ms, application-code: 29ms)
+⚠ Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "127.0.0.1".
+Cross-origin access to Next.js dev resources is blocked by default for safety.
+
+To allow this host in development, add it to "allowedDevOrigins" in next.config.js and restart the dev server:
+
+// next.config.js
+module.exports = {
+  allowedDevOrigins: ['127.0.0.1'],
+}
+
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /api/auth/session 200 in 665ms (next.js: 634ms, proxy.ts: 8ms, application-code: 24ms)
+ GET /api/auth/session 200 in 16ms (next.js: 3ms, proxy.ts: 3ms, application-code: 10ms)
+[?25h
+▲ Next.js 16.2.2 (webpack)
+- Local:         http://localhost:3173
+- Network:       http://192.168.50.104:3173
+✓ Ready in 509ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+- Experiments (use with caution):
+  ✓ externalDir
+
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+○ Compiling /login ...
+ GET /login 200 in 3.3s (next.js: 3.2s, proxy.ts: 20ms, application-code: 76ms)
+○ Compiling /canvas/[id] ...
+ GET /canvas/00000000-0000-4000-8000-000000000000 200 in 6.9s (next.js: 6.9s, proxy.ts: 7ms, application-code: 39ms)
+ GET /login 200 in 116ms (next.js: 32ms, proxy.ts: 8ms, application-code: 76ms)
+ GET /api/auth/session 200 in 809ms (next.js: 774ms, proxy.ts: 12ms, application-code: 22ms)
+ GET /api/auth/session 200 in 20ms (next.js: 6ms, proxy.ts: 4ms, application-code: 10ms)
+ GET /api/auth/providers 200 in 14ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /api/auth/csrf 200 in 10ms (next.js: 3ms, proxy.ts: 3ms, application-code: 3ms)
+ POST /api/auth/callback/credentials 200 in 28ms (next.js: 4ms, proxy.ts: 3ms, application-code: 20ms)
+ GET /api/auth/session 200 in 13ms (next.js: 2ms, proxy.ts: 2ms, application-code: 8ms)
+ GET /_next/data/development/dashboard.json 200 in 969ms (next.js: 916ms, proxy.ts: 3ms, application-code: 50ms)
+○ Compiling /agents ...
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=10'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+ GET /agents 200 in 10.7s (next.js: 10.6s, proxy.ts: 9ms, application-code: 44ms)
+ GET /api/auth/session 200 in 58ms (next.js: 19ms, proxy.ts: 6ms, application-code: 33ms)
+ GET /api/auth/session 200 in 27ms (next.js: 5ms, proxy.ts: 5ms, application-code: 18ms)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=50'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=10'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+[?25h
+▲ Next.js 16.2.2 (webpack)
+- Local:         http://localhost:3173
+- Network:       http://192.168.50.104:3173
+✓ Ready in 519ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+- Experiments (use with caution):
+  ✓ externalDir
+
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+○ Compiling /login ...
+ GET /login 200 in 1784ms (next.js: 1688ms, proxy.ts: 73ms, application-code: 22ms)
+○ Compiling /canvas/[id] ...
+ GET /canvas/00000000-0000-4000-8000-000000000000 200 in 5.9s (next.js: 5.9s, proxy.ts: 5ms, application-code: 41ms)
+ GET /login 200 in 50ms (next.js: 25ms, proxy.ts: 11ms, application-code: 14ms)
+ GET /api/auth/session 200 in 656ms (next.js: 627ms, proxy.ts: 6ms, application-code: 23ms)
+ GET /api/auth/session 200 in 16ms (next.js: 2ms, proxy.ts: 3ms, application-code: 11ms)
+ GET /api/auth/providers 200 in 12ms (next.js: 3ms, proxy.ts: 3ms, application-code: 6ms)
+ GET /api/auth/csrf 200 in 8ms (next.js: 2ms, proxy.ts: 3ms, application-code: 3ms)
+ POST /api/auth/callback/credentials 200 in 26ms (next.js: 3ms, proxy.ts: 4ms, application-code: 19ms)
+ GET /api/auth/session 200 in 14ms (next.js: 2ms, proxy.ts: 3ms, application-code: 9ms)
+ GET /_next/data/development/dashboard.json 200 in 1154ms (next.js: 1103ms, proxy.ts: 7ms, application-code: 44ms)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=10'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+○ Compiling /agents ...
+ GET /agents 200 in 11.5s (next.js: 11.5s, proxy.ts: 1975µs, application-code: 53ms)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=50'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+ GET /api/auth/session 200 in 65ms (next.js: 20ms, proxy.ts: 5ms, application-code: 40ms)
+ GET /api/auth/session 200 in 26ms (next.js: 5ms, proxy.ts: 2ms, application-code: 19ms)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=50'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=10'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+ GET /agents 304 in 62ms (next.js: 5ms, proxy.ts: 9ms, application-code: 48ms)
+ GET /api/auth/session 200 in 30ms (next.js: 4ms, proxy.ts: 2ms, application-code: 23ms)
+ GET /api/auth/session 200 in 30ms (next.js: 9ms, proxy.ts: 3ms, application-code: 18ms)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=50'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+[browser] [API Error] {
+  code: [32m'ERR_CANCELED'[39m,
+  message: [32m'canceled'[39m,
+  status: [90mundefined[39m,
+  url: [32m'/api/maturity/proposals?status_filter=pending_approval&limit=10'[39m
+} 
+    at console.error (pages/_app.tsx:59:7)
+    at eval (lib/api.ts:81:15)
+    at async apiClient.fetch (lib/api.ts:172:22)
+    at async listActionProposals (lib/maturity-api.ts:709:15)
+  57 |         w.__atomErrors.push(`console.error: ${args.map(a => (a instanceof Error ? a.stack ...
+  58 |       } catch { /* never break the caller */ }
+> 59 |       origError(...args);
+     |       ^
+  60 |     };
+  61 |   }
+  62 | (pages/_app.tsx:59:7)
+[?25h
