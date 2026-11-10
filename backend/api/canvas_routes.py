@@ -814,58 +814,85 @@ def _normalize_office_zip(body: bytes) -> bytes:
 
 def _validate_docx_package(body: bytes, source_text: str,
                            title: Optional[str] = None) -> None:
-    """Compare the actual DOCX blocks to the canonical markdown compiler."""
+    """Compare the DOCX body, in XML order, to the canonical renderer blocks.
+
+    Group-presence checks are not enough: a document whose sections were
+    reordered, whose heading depth was changed, or whose table moved keeps the
+    same groups/labels and would still look "valid". This rebuilds the exact
+    ordered block sequence the existing ``_markdown_blocks`` compiler emits and
+    compares it to the body sequence of the actual package.
+    """
     from docx import Document
+    from docx.oxml.ns import qn
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
 
     from core.office_service import _markdown_blocks
 
     document = Document(io.BytesIO(body))
-    actual_headings = []
-    actual_bullets = []
-    actual_paragraphs = []
-    for paragraph in document.paragraphs:
-        text = paragraph.text.strip()
-        if not text:
-            continue
-        style = (paragraph.style.name or "").lower()
-        if style == "title" or style.startswith("heading"):
-            actual_headings.append(text)
-        elif "list bullet" in style:
-            actual_bullets.append(text)
-        else:
-            actual_paragraphs.append(text)
-    actual_tables = [
-        [[cell.text.strip() for cell in row.cells] for row in table.rows]
-        for table in document.tables
-    ]
+    actual = []
+    for child in document.element.body.iterchildren():
+        if child.tag == qn("w:p"):
+            paragraph = Paragraph(child, document)
+            text = paragraph.text
+            style = (paragraph.style.name or "").strip()
+            lowered = style.lower()
+            heading = re.fullmatch(r"heading ([1-9])", lowered)
+            if lowered == "title":
+                actual.append(("title", text))
+            elif heading:
+                actual.append(("heading", int(heading.group(1)), text))
+            elif "list bullet" in lowered:
+                actual.append(("bullet", text))
+            else:
+                actual.append(("paragraph", text))
+        elif child.tag == qn("w:tbl"):
+            table = Table(child, document)
+            actual.append((
+                "table",
+                tuple(
+                    tuple(cell.text for cell in row.cells)
+                    for row in table.rows
+                ),
+            ))
 
-    expected_headings = []
-    expected_bullets = []
-    expected_paragraphs = []
-    expected_tables = []
-    for kind, payload in _markdown_blocks(source_text):
+    blocks = list(_markdown_blocks(source_text))
+    first_heading = next(
+        (payload[1] for kind, payload in blocks
+         if kind == "heading" and payload[1]),
+        "",
+    )
+    expected = []
+    if title and str(title).strip().lower() != str(first_heading).strip().lower():
+        expected.append(("title", str(title)))
+    for kind, payload in blocks:
         if kind == "heading":
-            if payload[1]:
-                expected_headings.append(payload[1])
+            level, text = payload
+            if text:
+                expected.append(("heading", int(level), text))
         elif kind == "bullets":
-            expected_bullets.extend(payload)
+            for item in payload:
+                expected.append(("bullet", item))
         elif kind == "table":
-            expected_tables.append(payload)
+            rows = payload
+            width = max(len(row) for row in rows)
+            expected.append((
+                "table",
+                tuple(
+                    tuple(row[index] if index < len(row) else ""
+                          for index in range(width))
+                    for row in rows
+                ),
+            ))
         else:
-            if str(payload).strip():
-                expected_paragraphs.append(str(payload).strip())
-    first_heading = expected_headings[0] if expected_headings else ""
-    if title and str(title).strip().lower() != first_heading.strip().lower():
-        expected_headings.insert(0, str(title).strip())
+            text = str(payload or "").strip()
+            if text:
+                expected.append(("paragraph", text))
 
-    if actual_headings != expected_headings:
-        raise ValueError("rendered DOCX headings do not match the saved source")
-    if actual_bullets != expected_bullets:
-        raise ValueError("rendered DOCX bullets do not match the saved source")
-    if actual_paragraphs != expected_paragraphs:
-        raise ValueError("rendered DOCX paragraphs do not match the saved source")
-    if actual_tables != expected_tables:
-        raise ValueError("rendered DOCX tables do not match the saved source")
+    if actual != expected:
+        raise ValueError(
+            "rendered DOCX body does not match the exact ordered blocks of "
+            "the saved source")
 
 
 def _validate_pptx_package(body: bytes, source_text: str) -> None:
@@ -999,23 +1026,84 @@ async def export_generated_canvas_office(
         material.get("details"), dict) else {}
     assignment = details.get("assignment") if isinstance(
         details.get("assignment"), dict) else {}
-    requirements = (
-        details.get("business_requirements")
-        or assignment.get("business_requirements") or [])
-    artifact_scope = "unscoped_canvas_draft"
-    if requirements:
-        artifact_scope = "assignment_bound"
+    top_present = "business_requirements" in details
+    nested_present = "business_requirements" in assignment
+
+    def _normalized_requirements(raw):
+        """Validate one representation exactly, or refuse without weakening."""
+        if not isinstance(raw, list):
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_requirements_malformed",
+                "message": "business requirements must be a list of bindings",
+            })
+        if not raw:
+            return []
+        malformed = [
+            index for index, item in enumerate(raw)
+            if not isinstance(item, dict) or not item
+        ]
+        if malformed:
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_requirements_malformed",
+                "message": "a business requirement has no valid binding",
+                "indices": malformed,
+            })
         try:
             from core.employee_business_outcomes import (
-                business_requirement_views,
+                normalize_business_requirements,
             )
-            unresolved = [
-                view for view in business_requirement_views(
-                    assignment or {"business_requirements": requirements})
-                if str(view.get("status") or "") != "satisfied"
-            ]
-        except Exception:
-            unresolved = [{"label": "required business result"}]
+            return normalize_business_requirements(raw)
+        except Exception as exc:  # noqa: BLE001 — fail closed, no internals
+            logger.warning(
+                "Canvas export business requirement unreadable (class=%s)",
+                type(exc).__name__)
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_requirements_unreadable",
+                "message": "a business requirement binding is unsupported or "
+                           "malformed",
+            }) from exc
+
+    top_requirements = (
+        _normalized_requirements(details.get("business_requirements"))
+        if top_present else None
+    )
+    nested_requirements = (
+        _normalized_requirements(assignment.get("business_requirements"))
+        if nested_present else None
+    )
+    if top_requirements is not None and nested_requirements is not None:
+        def _by_requirement_id(items):
+            return sorted(items, key=lambda item: item["requirement_id"])
+
+        if _by_requirement_id(top_requirements) != _by_requirement_id(
+                nested_requirements):
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_requirements_contradictory",
+                "message": "top-level and assignment business requirements "
+                           "disagree; the export is refused rather than "
+                           "weakening either set",
+            })
+    requirements = (
+        top_requirements if top_requirements is not None
+        else nested_requirements)
+    artifact_scope = "unscoped_canvas_draft"
+    if requirements:
+        from core.employee_business_outcomes import business_requirement_views
+
+        merged_assignment = dict(assignment)
+        merged_assignment["business_requirements"] = requirements
+        views = business_requirement_views(merged_assignment)
+        if len(views) != len(requirements):
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_requirements_unreadable",
+                "message": "the business requirement receipts could not be "
+                           "evaluated exactly",
+            })
+        artifact_scope = "assignment_bound"
+        unresolved = [
+            view for view in views
+            if str(view.get("status") or "") != "satisfied"
+        ]
         if unresolved:
             raise HTTPException(status_code=409, detail={
                 "error": "canvas_export_business_result_required",
@@ -1098,13 +1186,20 @@ async def export_generated_canvas_office(
 
     # Recheck actor/scope/source immediately before delivery. A concurrent
     # save or authority change must not return bytes for the earlier revision.
+    # Independent scoped session on the SAME engine: never trust the cached
+    # request ORM identity, and never expire/rollback unrelated caller work.
+    from sqlalchemy.orm import Session as SqlSession
+    fresh_db = SqlSession(bind=db.get_bind())
     try:
-        actor = require_active_actor(db, str(current_user.id))
-        require_canvas_read(db, canvas_id, actor)
-    except CanvasAuthorityError as exc:
-        raise HTTPException(status_code=exc.status_code, detail={
-            "error": exc.code, "message": str(exc)}) from exc
-    latest_material = visible_canvas_material(db, canvas_id)
+        try:
+            actor = require_active_actor(fresh_db, str(current_user.id))
+            require_canvas_read(fresh_db, canvas_id, actor)
+        except CanvasAuthorityError as exc:
+            raise HTTPException(status_code=exc.status_code, detail={
+                "error": exc.code, "message": str(exc)}) from exc
+        latest_material = visible_canvas_material(fresh_db, canvas_id)
+    finally:
+        fresh_db.close()
     if (not latest_material.get("success")
             or str(latest_material.get("revision_audit_id") or "") != revision_id
             or canvas_content_digest(latest_material.get("content")) != source_digest):

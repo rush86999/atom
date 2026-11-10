@@ -412,24 +412,187 @@ def test_export_renderer_error_never_echoes_local_paths(world, monkeypatch):
     assert detail["stage"] == "render"
 
 
-def test_export_refuses_unresolved_assignment_business_result(world):
-    canvas_id, audit_id = world.create_canvas()
+def _set_audit_details(world, canvas_id, **values):
     with world.Session() as db:
         row = db.query(CanvasAudit).filter(
             CanvasAudit.canvas_id == canvas_id).one()
-        details = dict(row.details_json)
-        details["assignment"] = {
-            "business_requirements": [{
-                "label": "verified quote total",
-                "status": "pending",
-                "next_action": "calculate the authorized quote",
-            }]
-        }
+        details = dict(row.details_json or {})
+        details.update(values)
         row.details_json = details
         db.commit()
+
+
+def _requirement():
+    return {
+        "requirement_id": "result-quote-1",
+        "operation": "quote_calculation",
+        "subject": "PO-0090",
+        "label": "quote calculation",
+    }
+
+
+def _verified_quote_step():
+    return {
+        "step_id": "quote-step-1",
+        "adapter": "quote.calculate",
+        "status": "applied",
+        "result": {
+            "value": 1200,
+            "unit": "USD",
+            "verification": {"status": "verified"},
+        },
+    }
+
+
+def test_export_refuses_unresolved_assignment_business_result(world):
+    canvas_id, audit_id = world.create_canvas()
+    _set_audit_details(
+        world, canvas_id,
+        assignment={"business_requirements": [_requirement()]})
     response = _export(world.client(), canvas_id, "docx",
                        expected_audit_id=audit_id)
     assert response.status_code == 409
     assert response.json()["detail"]["error"] == (
         "canvas_export_business_result_required")
     assert response.headers.get("x-atom-business-result") is None
+
+
+def test_nonempty_business_requirements_cannot_vanish(world):
+    canvas_id, audit_id = world.create_canvas()
+    # The exact root shape: a truthy assignment with no requirements must not
+    # shadow the top-level non-empty requirement set.
+    _set_audit_details(
+        world, canvas_id,
+        business_requirements=[{
+            "label": "invoice reconciliation",
+            "operation": "invoice.reconcile",
+            "subject_identity": {"po_id": "PO-0090"},
+        }],
+        assignment={"run_id": "scratch-job"},
+    )
+    shadowed = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert shadowed.status_code == 409, shadowed.text
+    assert shadowed.headers.get("x-atom-business-result") is None
+
+
+@pytest.mark.parametrize("shape", ["malformed", "non_list", "unknown",
+                                   "contradictory"])
+def test_malformed_or_contradictory_business_requirements_fail_closed(
+        world, shape):
+    canvas_id, audit_id = world.create_canvas()
+    requirement = _requirement()
+    if shape == "malformed":
+        _set_audit_details(
+            world, canvas_id, business_requirements=[None])
+    elif shape == "non_list":
+        _set_audit_details(
+            world, canvas_id, business_requirements={"operation":
+                                                     "quote_calculation"})
+    elif shape == "unknown":
+        _set_audit_details(
+            world, canvas_id,
+            business_requirements=[{
+                "requirement_id": "result-invoice-1",
+                "operation": "invoice.reconcile",
+                "subject_identity": {"po_id": "PO-0090"},
+            }])
+    else:
+        _set_audit_details(
+            world, canvas_id,
+            business_requirements=[requirement],
+            assignment={"business_requirements": [{
+                **_requirement(),
+                "requirement_id": "result-quote-2",
+            }]})
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 409, response.text
+    assert response.headers.get("x-atom-business-result") is None
+    assert response.json()["detail"]["error"].startswith(
+        "canvas_export_business_requirements_")
+
+
+@pytest.mark.parametrize("representation", ["top_level", "nested"])
+def test_valid_bound_business_result_still_exports_with_receipts(
+        world, representation):
+    canvas_id, audit_id = world.create_canvas()
+    requirement = _requirement()
+    steps = [_verified_quote_step()]
+    if representation == "top_level":
+        _set_audit_details(
+            world, canvas_id,
+            business_requirements=[requirement],
+            assignment={"run_id": "scratch-job", "steps": steps})
+    else:
+        _set_audit_details(
+            world, canvas_id,
+            assignment={"run_id": "scratch-job",
+                        "business_requirements": [requirement],
+                        "steps": steps})
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 200, response.text
+    assert response.headers["x-atom-business-result"] == (
+        "required_results_verified")
+    assert response.headers["x-atom-artifact-scope"] == "assignment_bound"
+
+
+@pytest.mark.parametrize("corruption", ["section_order", "heading_level"])
+def test_renderer_cannot_reorder_or_demote_exported_docx(
+        world, monkeypatch, corruption):
+    from core.office_service import WordManager
+
+    canvas_id, audit_id = world.create_canvas(
+        content="# First\n\nSection A.\n\n## Second\n\nSection B.\n")
+    original = WordManager.create_from_markdown
+
+    def corrupt(self, path, *args, **kwargs):
+        result = original(self, path, *args, **kwargs)
+        document = Document(path)
+        if corruption == "section_order":
+            paragraph = next(
+                p for p in document.paragraphs if p.text == "Section A.")
+            heading = next(
+                p for p in document.paragraphs if p.text == "Second")
+            body = document.element.body
+            body.remove(paragraph._p)
+            body.insert(list(body).index(heading._p) + 1, paragraph._p)
+        else:
+            next(p for p in document.paragraphs
+                 if p.text == "Second").style = document.styles["Heading 1"]
+        document.save(path)
+        return result
+
+    monkeypatch.setattr(WordManager, "create_from_markdown", corrupt)
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code == 422, response.text
+    assert response.headers.get("x-atom-business-result") is None
+    assert response.headers.get("content-disposition") is None
+
+
+def test_export_rechecks_revoked_actor_with_fresh_authoritative_state(
+        world, monkeypatch):
+    from core.office_service import WordManager
+    from core.models import User as UserRow
+
+    canvas_id, audit_id = world.create_canvas()
+    original = WordManager.create_from_markdown
+
+    def revoke_during_render(self, path, *args, **kwargs):
+        result = original(self, path, *args, **kwargs)
+        with world.Session() as peer:
+            peer.query(UserRow).filter(UserRow.id == world.user).update(
+                {"is_active": False, "status": "disabled"},
+                synchronize_session=False)
+            peer.commit()
+        return result
+
+    monkeypatch.setattr(
+        WordManager, "create_from_markdown", revoke_during_render)
+    response = _export(world.client(), canvas_id, "docx",
+                       expected_audit_id=audit_id)
+    assert response.status_code in (401, 403, 404), response.text
+    assert response.headers.get("content-disposition") is None
+    assert not response.content.startswith(b"PK")
