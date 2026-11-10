@@ -1937,7 +1937,6 @@ async def restore_canvas_version(
     try:
         from core.database import get_db_session
         from core.models import Canvas, CanvasAudit
-        from sqlalchemy import desc
 
         with get_db_session() as db:
             # Authorized scope snapshot, captured before the final check.
@@ -1985,12 +1984,11 @@ async def restore_canvas_version(
                 return {"success": False, "write_outcome": write_outcome,
                         "error": "Version carries no restorable content"}
 
-            latest = (
-                db.query(CanvasAudit)
-                .filter(CanvasAudit.canvas_id == canvas_id)
-                .order_by(desc(CanvasAudit.created_at))
-                .first()
-            )
+            # Use the established created_at,id ordering helper. The previous
+            # local query ordered only by created_at, so same-second rows tied
+            # and the no-op guard could mistake an older row for the current
+            # revision that read_canvas actually serves.
+            latest = _latest_canvas_audit(db, canvas_id)
             if not latest:
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
@@ -2000,8 +1998,22 @@ async def restore_canvas_version(
 
             latest_details = dict(latest.details_json or {})
 
-            # No-op guard: the requested version IS the current content.
-            latest_body = latest_details.get("content", latest_details.get("data"))
+            # No-op guard uses the content ACTUALLY VISIBLE to a read, not an
+            # event stamp with no body. latest_canvas_content_audit is the
+            # existing shared content-history helper used by lifecycle reads.
+            visible_audit = latest_canvas_content_audit(db, canvas_id)
+            visible_details = (
+                dict(visible_audit.details_json or {})
+                if visible_audit is not None else {})
+            latest_body = visible_details.get("content", visible_details.get("data"))
+            if latest_body is None and visible_audit is None:
+                # Legacy body may exist only on the Canvas row; read_canvas
+                # falls back there when the audit history has no body row.
+                latest_body = (
+                    canvas_row.content
+                    if canvas_row is not None and canvas_row.content is not None
+                    else None
+                )
             if latest_body is not None and content == latest_body:
                 return {
                     "success": True,
