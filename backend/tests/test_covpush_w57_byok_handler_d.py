@@ -34,6 +34,38 @@ def _route_catalog(monkeypatch, tmp_path):
     })
 
 
+@pytest.fixture(autouse=True)
+def _durable_usage_scope(monkeypatch, tmp_path):
+    """The doubled transport still uses real scoped budget admission.
+
+    These constructor-bypass handlers declare ws1/tenant. Seed that actual
+    scratch authority instead of weakening strict non-default scope checks
+    or mocking the durable intent writer.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import core.database as database
+    from core.models import Base, Tenant, Workspace
+    from core.spend_aggregation_service import clear_settlement_failure
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'w57-durable-usage.db'}",
+        connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    with Session() as db:
+        db.add(Tenant(id="tenant", name="Transport test", subdomain="w57-tenant"))
+        db.add(Workspace(id="ws1", name="Transport test", tenant_id="tenant"))
+        db.commit()
+    monkeypatch.setattr(database, "SessionLocal", Session)
+    clear_settlement_failure()
+    try:
+        yield
+    finally:
+        clear_settlement_failure()
+        engine.dispose()
+
+
 def _resp(content="ok", finish="stop", usage=None):
     return SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content=content),
