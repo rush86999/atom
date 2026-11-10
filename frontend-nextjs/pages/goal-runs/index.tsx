@@ -88,23 +88,45 @@ export default function GoalRunsIndexPage() {
     const [utilityGoals, setUtilityGoals] = useState<Goal[]>([]);
     const [utilityErrors, setUtilityErrors] = useState<Record<string, string>>({});
     const [utilityLoading, setUtilityLoading] = useState(false);
-    const utilityRequest = useRef(0);
+    const [goalMetadataError, setGoalMetadataError] = useState<string | null>(null);
+    const activityRequest = useRef(0);
 
     const load = useCallback(async (silent = false) => {
+        // One generation per Activity load, assigned before any await. A
+        // superseded load may finish later, but it cannot write any run/goal/
+        // utility/loading/error state over the newer whole-page result.
+        const requestId = ++activityRequest.current;
         if (!silent) setLoading(true);
         try {
-            const [rows, goals] = await Promise.all([
+            const [runsResult, goalsResult] = await Promise.allSettled([
                 listGoalRuns({ includeTerminal }),
-                listGoals({ includeTerminal: true }).catch((): Goal[] => []),
+                listGoals({ includeTerminal: true }),
             ]);
-            setRuns(rows);
-            setGoalTitles(Object.fromEntries(goals.map((g) => [g.id, g.title])));
+            if (requestId !== activityRequest.current) return;
+
+            if (runsResult.status === "rejected") {
+                if (!silent) {
+                    setError(runsResult.reason?.message || "Failed to load goal runs");
+                }
+                return;
+            }
+            setRuns(runsResult.value);
             setError(null);
 
+            if (goalsResult.status === "rejected") {
+                // A metadata failure is not "no goals": preserve known titles
+                // and utility state, and surface the distinct failure.
+                setGoalMetadataError(
+                    "Goal metadata is unavailable; utility targets may be stale.");
+                return;
+            }
+            setGoalMetadataError(null);
+            const goals = goalsResult.value;
+            setGoalTitles(Object.fromEntries(goals.map((g) => [g.id, g.title])));
+
             const targetGoals = goals.filter((goal) => goal.utility_target);
-            const requestId = ++utilityRequest.current;
-            setUtilityGoals(targetGoals);
             if (!targetGoals.length) {
+                setUtilityGoals([]);
                 setUtilityByGoal({});
                 setUtilityErrors({});
                 setUtilityLoading(false);
@@ -117,15 +139,15 @@ export default function GoalRunsIndexPage() {
                     utility: await getGoalUtility(goal.id),
                 })),
             );
-            if (requestId !== utilityRequest.current) return;
+            if (requestId !== activityRequest.current) return;
+
             const targetIds = new Set(targetGoals.map((goal) => goal.id));
             const nextErrors: Record<string, string> = {};
             settled.forEach((result, index) => {
-                const goalId = targetGoals[index].id;
                 if (result.status === "rejected") {
                     // Preserve the legitimate last known ranking. The UI marks
                     // it stale and never presents the old winner as fresh.
-                    nextErrors[goalId] = utilityErrorText(result.reason);
+                    nextErrors[targetGoals[index].id] = utilityErrorText(result.reason);
                 }
             });
             setUtilityByGoal((previous) => {
@@ -134,16 +156,40 @@ export default function GoalRunsIndexPage() {
                     if (previous[goalId]) next[goalId] = previous[goalId];
                 });
                 settled.forEach((result, index) => {
-                    if (result.status === "fulfilled" && result.value.utility.target) {
-                        next[result.value.goalId] = result.value.utility;
+                    const goalId = targetGoals[index].id;
+                    if (result.status === "fulfilled") {
+                        if (result.value.utility.target) {
+                            next[goalId] = result.value.utility;
+                        } else {
+                            // Authoritative fresh read cleared the target.
+                            delete next[goalId];
+                        }
+                    }
+                });
+                return next;
+            });
+            setUtilityGoals((previous) => {
+                const next: Goal[] = [];
+                targetGoals.forEach((goal, index) => {
+                    const result = settled[index];
+                    if (result.status === "fulfilled") {
+                        if (result.value.utility.target) {
+                            next.push({ ...goal, utility_target: result.value.utility.target });
+                        }
+                    } else {
+                        // Failed read: keep the metadata target card and mark
+                        // it stale; do not turn a read failure into no-target.
+                        next.push(goal);
                     }
                 });
                 return next;
             });
             setUtilityErrors(nextErrors);
         } catch (e: any) {
+            if (requestId !== activityRequest.current) return;
             if (!silent) setError(e?.message || "Failed to load goal runs");
         } finally {
+            if (requestId !== activityRequest.current) return;
             if (!silent) setLoading(false);
             setUtilityLoading(false);
         }
@@ -205,6 +251,13 @@ export default function GoalRunsIndexPage() {
                 />
             )}
 
+            {goalMetadataError ? (
+                <p className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800"
+                   data-testid="activity-goal-metadata-error">
+                    {goalMetadataError}
+                </p>
+            ) : null}
+
             {utilityGoals.length ? (
                 <div className="mb-6 space-y-3" data-testid="activity-utility-summary">
                     <div>
@@ -259,7 +312,7 @@ export default function GoalRunsIndexPage() {
                                         <p className="text-xs text-muted-foreground"
                                            data-testid="activity-utility-count">
                                             {utility.eligible_count} eligible
-                                            {utility.winner && !error
+                                            {utility.winner && !error && !goalMetadataError
                                                 ? ` · winner ${utility.winner}`
                                                 : ""}
                                         </p>
@@ -281,7 +334,8 @@ export default function GoalRunsIndexPage() {
                                                         <span className="font-mono">
                                                             {entry.id}
                                                         </span>
-                                                        {entry.id === utility?.winner && !error ? (
+                                                        {entry.id === utility?.winner && !error
+                                                            && !goalMetadataError ? (
                                                             <Badge variant="secondary"
                                                                    data-testid="activity-utility-winner">
                                                                 best
