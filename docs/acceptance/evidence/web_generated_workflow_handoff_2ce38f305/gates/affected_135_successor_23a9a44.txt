@@ -1,0 +1,617 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 01:40:53 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 01:40:53 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 01:40:53 [    INFO] EscalationManager initialized
+2026-11-10 01:40:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:53 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 01:40:53 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 01:40:53 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 01:40:53 [    INFO] EscalationManager initialized
+2026-11-10 01:40:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:53 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 01:40:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 01:40:53 [    INFO] MCP Service initialized
+2026-11-10 01:40:54 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 01:40:54 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 01:40:54 [    INFO] No token storage file found, starting empty
+2026-11-10 01:40:54 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 01:40:55 [    INFO] CUDA not available, will use CPU for reranking
+
+tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs::test_search_not_shadowed_by_workflow_id_route 
+-------------------------------- live log setup --------------------------------
+2026-11-10 01:40:56 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs::test_execution_details_do_not_500_on_missing_triggered_by PASSED [  1%]
+tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs::test_cancel_foreign_execution_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: cancel_execution on WorkflowExecution
+PASSED                                                                   [  2%]
+tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs::test_cancel_own_execution_ok 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-10 01:40:56 [    INFO] Cancelled execution exec-3
+PASSED                                                                   [  2%]
+tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs::test_search_workflows_returns_rows_without_500 PASSED [  3%]
+tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs::test_workflow_definition_resolves_workflow_id_key PASSED [  4%]
+tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs::test_workflow_list_uses_workflow_id_key PASSED [  5%]
+tests/test_r79_workflow_dynamic_rows.py::test_list_workflows_with_step_based_rows_returns_200 PASSED [  5%]
+tests/test_r79_workflow_dynamic_rows.py::test_list_workflows_mixed_rows_returns_200 PASSED [  6%]
+tests/test_r79_workflow_dynamic_rows.py::test_get_workflow_by_id_step_based_returns_200 PASSED [  7%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_list_with_filters_sort_and_stats PASSED [  8%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_list_missing_file_returns_empty PASSED [  8%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_list_filter_by_status_category_search PASSED [  9%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_list_error_path 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [   ERROR] Error fetching mobile workflows: bad json
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to fetch mobile workflows
+PASSED                                                                   [ 10%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_details_with_recent_executions PASSED [ 11%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_details_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] API Error: NOT_FOUND - Workflow not found: no-such-wf
+PASSED                                                                   [ 11%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_not_found_and_inactive 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] API Error: NOT_FOUND - Workflow not found: nope
+2026-11-10 01:40:56 [ WARNING] API Error: VALIDATION_ERROR - Cannot trigger workflow with status: paused
+PASSED                                                                   [ 12%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_async_starts_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [    INFO] Mobile trigger: workflow=dynamic_dd187ff0, execution=exec_20261110_014056_617311
+PASSED                                                                   [ 13%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_critical_step_gate_403 PASSED [ 14%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_sync_completes PASSED [ 14%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_handler_error_bodies 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [   ERROR] Error fetching mobile workflows: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to fetch mobile workflows
+2026-11-10 01:40:56 [   ERROR] Error fetching mobile workflow details: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to fetch mobile workflow details
+2026-11-10 01:40:56 [   ERROR] Error fetching execution details: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to fetch execution details
+2026-11-10 01:40:56 [   ERROR] Error fetching workflow executions: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to fetch workflow executions
+2026-11-10 01:40:56 [   ERROR] Error fetching execution logs: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to fetch execution logs
+2026-11-10 01:40:56 [   ERROR] Error fetching execution steps: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to fetch execution steps
+2026-11-10 01:40:56 [   ERROR] Error searching workflows: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to search workflows
+PASSED                                                                   [ 15%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_cancel_engine_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [   ERROR] Error cancelling execution: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to cancel execution
+PASSED                                                                   [ 16%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_sync_timeout PASSED [ 17%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [   ERROR] Error triggering workflow: boom
+2026-11-10 01:40:56 [ WARNING] API Error: INTERNAL_ERROR - Failed to trigger workflow
+PASSED                                                                   [ 17%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_execution_details_and_logs_and_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] API Error: NOT_FOUND - Workflow not found: wf-1
+PASSED                                                                   [ 18%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_execution_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] API Error: NOT_FOUND - WorkflowExecution not found: nope
+PASSED                                                                   [ 19%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_cancel_not_running_and_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] API Error: VALIDATION_ERROR - Cannot cancel execution with status: completed
+2026-11-10 01:40:56 [ WARNING] API Error: NOT_FOUND - WorkflowExecution not found: nope
+PASSED                                                                   [ 20%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_workflows_executions_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [ WARNING] API Error: NOT_FOUND - Workflow not found: no-wf
+PASSED                                                                   [ 20%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_search_empty_and_with_results PASSED [ 21%]
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_load_workflow_definition_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [   ERROR] Error loading workflow x: bad
+PASSED                                                                   [ 22%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_session_state_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [   ERROR] Error pausing debug session: db down
+2026-11-10 01:40:56 [   ERROR] Error resuming debug session: db down
+2026-11-10 01:40:56 [   ERROR] Error completing debug session: db down
+PASSED                                                                   [ 22%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_create_session_error_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:56 [   ERROR] Error creating debug session: db down
+PASSED                                                                   [ 23%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_breakpoint_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Added breakpoint e6d48f31-6fc7-4cc5-b805-0e105777e2c0 on node node-1
+2026-11-10 01:40:57 [   ERROR] Error adding breakpoint: down
+2026-11-10 01:40:57 [    INFO] Removed breakpoint e6d48f31-6fc7-4cc5-b805-0e105777e2c0
+PASSED                                                                   [ 24%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_toggle_and_get_breakpoints_filters 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Added breakpoint 00fc15cd-735c-4e47-9bba-9a07f29e7af6 on node node-1
+2026-11-10 01:40:57 [    INFO] Toggled breakpoint 00fc15cd-735c-4e47-9bba-9a07f29e7af6 to disabled=True
+2026-11-10 01:40:57 [    INFO] Toggled breakpoint 00fc15cd-735c-4e47-9bba-9a07f29e7af6 to disabled=False
+PASSED                                                                   [ 25%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_check_breakpoint_hit_scenarios 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Added breakpoint 862b0330-6997-4ee3-8afa-98ba96783585 on node node-1
+2026-11-10 01:40:57 [    INFO] Added breakpoint 9dd880be-7278-40fe-9571-5062225f0c38 on node node-1
+2026-11-10 01:40:57 [    INFO] Added breakpoint 304a08dc-2497-4ae3-ad08-9652c3c4646a on node node-cond
+PASSED                                                                   [ 25%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_check_breakpoint_hit_error 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error checking breakpoint: boom
+PASSED                                                                   [ 26%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_step_control_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Stepped into node child-1, call stack depth: 1
+2026-11-10 01:40:57 [    INFO] Stepped out to node None, call stack depth: 0
+2026-11-10 01:40:57 [ WARNING] Cannot step out: call stack is empty for session eabfce90-0808-4e57-b2f8-92cdae81ece0
+PASSED                                                                   [ 27%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_trace_paths PASSED [ 28%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_trace_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error creating trace: down
+PASSED                                                                   [ 28%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_variable_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Modified variable new_var in session 0b935688-36d5-45c8-b5e2-07e7ae9b7fc1
+PASSED                                                                   [ 29%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_variable_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error modifying variable: down
+2026-11-10 01:40:57 [   ERROR] Error creating variable snapshot: down
+PASSED                                                                   [ 30%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_bulk_modify_skips_missing_name 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Modified variable a in session 77e9dc46-f199-4b61-9448-28d5ead0cb55
+PASSED                                                                   [ 31%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_export_import_session 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Added breakpoint 37138948-08f0-491b-8810-053cbf3de7f0 on node node-1
+2026-11-10 01:40:57 [    INFO] Exported debug session a62b8f5e-4478-4337-8203-75c66b6a09aa
+2026-11-10 01:40:57 [    INFO] Created debug session 1b8abcf2-9e74-467f-bbd5-d3ebef0612d6 for workflow wf-1
+2026-11-10 01:40:57 [    INFO] Added breakpoint b5b50e13-5518-4a7a-8fc8-26dd70c94656 on node node-1
+2026-11-10 01:40:57 [    INFO] Imported debug session as 1b8abcf2-9e74-467f-bbd5-d3ebef0612d6
+2026-11-10 01:40:57 [    INFO] Created debug session f96d7762-82ee-49ee-b1e3-e2868b91b857 for workflow wf-1
+2026-11-10 01:40:57 [    INFO] Imported debug session as f96d7762-82ee-49ee-b1e3-e2868b91b857
+2026-11-10 01:40:57 [   ERROR] Error importing session: 'session_name'
+PASSED                                                                   [ 31%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_export_error 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error exporting session: boom
+PASSED                                                                   [ 32%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_performance_profiling 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Started performance profiling for session 685ac2e7-dfca-48e2-b376-e9ec196199b5
+PASSED                                                                   [ 33%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_perf_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error starting performance profiling: down
+PASSED                                                                   [ 34%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_collaborators 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Added collaborator u2 with permission operator to session cc6b279c-e870-404d-b927-8c5b67ded451
+2026-11-10 01:40:57 [    INFO] Removed collaborator u2 from session cc6b279c-e870-404d-b927-8c5b67ded451
+PASSED                                                                   [ 34%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_collaborator_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error adding collaborator: down
+2026-11-10 01:40:57 [   ERROR] Error getting collaborators: boom
+2026-11-10 01:40:57 [   ERROR] Error checking collaborator permission: boom
+PASSED                                                                   [ 35%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_trace_streaming 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Created trace stream trace_sess-1_exec-1_2099dad1 for execution exec-1
+2026-11-10 01:40:57 [    INFO] Trace stream update (no WebSocket): trace_sess-1_exec-1_2099dad1
+2026-11-10 01:40:57 [    INFO] Closed trace stream trace_sess-1_exec-1_2099dad1
+2026-11-10 01:40:57 [    INFO] Closed trace stream trace_sess-1_exec-1_2099dad1
+2026-11-10 01:40:57 [   ERROR] Error streaming trace update: boom
+2026-11-10 01:40:57 [   ERROR] Error closing trace stream: boom
+PASSED                                                                   [ 36%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_run_async_websocket_paths PASSED [ 37%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_websocket_notify_helpers PASSED [ 37%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_linearize_and_enrich 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Workflow contains cycle; falling back to insertion order. Nodes in cycle: ['a', 'b']
+PASSED                                                                   [ 38%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_load_save_error_paths PASSED [ 39%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_crud_routes PASSED [ 40%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_edit_rule_based 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [ WARNING] AI editor not available, using rule-based parsing
+2026-11-10 01:40:57 [ WARNING] AI editor not available, using rule-based parsing
+2026-11-10 01:40:57 [ WARNING] AI editor not available, using rule-based parsing
+2026-11-10 01:40:57 [ WARNING] AI editor not available, using rule-based parsing
+2026-11-10 01:40:57 [ WARNING] AI editor not available, using rule-based parsing
+2026-11-10 01:40:57 [ WARNING] AI editor not available, using rule-based parsing
+PASSED                                                                   [ 40%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_edit_ai_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [ WARNING] AI parsing low confidence: 0.1. Command: add a slack step
+2026-11-10 01:40:57 [   ERROR] Error editing workflow with AI: ai exploded
+2026-11-10 01:40:57 [ WARNING] AI editor not available, using rule-based parsing
+2026-11-10 01:40:57 [   ERROR] Error editing workflow with AI: fallback failed
+2026-11-10 01:40:57 [   ERROR] Fallback parsing also failed: fallback failed
+PASSED                                                                   [ 41%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_conductor_execute PASSED [ 42%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_execute_workflow 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Template manager initialized with 28 templates
+2026-11-10 01:40:57 [   ERROR] Workflow execution failed: boom
+PASSED                                                                   [ 42%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_template_definition_lookup 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Template manager initialized with 28 templates
+PASSED                                                                   [ 43%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_resume_workflow PASSED [ 44%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_execution_history_and_details 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Template manager initialized with 28 templates
+2026-11-10 01:40:57 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 01:40:57 [    INFO] Initialized openrouter client using BYOK credential
+2026-11-10 01:40:57 [    INFO] EscalationManager initialized
+2026-11-10 01:40:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:57 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 01:40:57 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+PASSED                                                                   [ 45%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_schedule_routes 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Template manager initialized with 28 templates
+2026-11-10 01:40:57 [   ERROR] Scheduling failed: boom
+2026-11-10 01:40:57 [   ERROR] Failed to reload scheduler: boom
+PASSED                                                                   [ 45%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_schedule_critical_gate PASSED [ 46%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_row_to_dict_helpers PASSED [ 47%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps::test_remove_toggle_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Added breakpoint bc0d9eb6-9902-41d1-a851-1274fa90ce75 on node node-1
+2026-11-10 01:40:57 [   ERROR] Error removing breakpoint: down
+2026-11-10 01:40:57 [   ERROR] Error toggling breakpoint: down
+PASSED                                                                   [ 48%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps::test_complete_trace_error_path 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error completing trace: down
+PASSED                                                                   [ 48%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps::test_perf_report_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Error recording step timing: boom
+2026-11-10 01:40:57 [   ERROR] Error generating performance report: boom
+PASSED                                                                   [ 49%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps::test_run_async_websocket_running_loop PASSED [ 50%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps::test_remove_collaborator_error 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Added collaborator u2 with permission viewer to session 1c7fd1b0-b18d-4d38-9356-eca5d96e86dc
+2026-11-10 01:40:57 [   ERROR] Error removing collaborator: down
+PASSED                                                                   [ 51%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps::test_ai_editor_unavailable_import 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [ WARNING] AI workflow editor not available: import of ai.workflow_nlu_editor halted; None in sys.modules
+PASSED                                                                   [ 51%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps::test_load_workflows_decode_error_branch PASSED [ 52%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps::test_template_error_and_edit_reasoning 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Template manager initialized with 28 templates
+PASSED                                                                   [ 53%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps::test_engine_error_and_db_error_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [   ERROR] Failed to read persisted execution history
+Traceback (most recent call last):
+  File "<scratch-path> line 2521, in get_workflow_executions
+    db = next(get_db())
+         ^^^^^^^^^^^^^^
+  File "<scratch-path> line 2196, in _bad_db
+    raise RuntimeError("db down")
+RuntimeError: db down
+2026-11-10 01:40:57 [   ERROR] Failed to read persisted execution details
+Traceback (most recent call last):
+  File "<scratch-path> line 2561, in get_execution_details
+    db = next(get_db())
+         ^^^^^^^^^^^^^^
+  File "<scratch-path> line 2204, in _bad_db2
+    raise RuntimeError("db down")
+RuntimeError: db down
+PASSED                                                                   [ 54%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps2::test_active_sessions_and_state_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Paused debug session 2cfa0cb2-d7e5-46ff-89e3-119ecc26531d
+2026-11-10 01:40:57 [    INFO] Resumed debug session 2cfa0cb2-d7e5-46ff-89e3-119ecc26531d
+2026-11-10 01:40:57 [    INFO] Completed debug session 2cfa0cb2-d7e5-46ff-89e3-119ecc26531d
+PASSED                                                                   [ 54%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps2::test_evaluate_condition_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [ WARNING] Failed to evaluate condition 'x >': bad expr
+PASSED                                                                   [ 55%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps2::test_import_session_with_variables 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Exported debug session 85ed6fc7-2564-47fe-82a1-b5c094959c8f
+2026-11-10 01:40:57 [    INFO] Created debug session e5ba8f05-8338-4477-ac78-df90dcb7f086 for workflow wf-1
+2026-11-10 01:40:57 [    INFO] Imported debug session as e5ba8f05-8338-4477-ac78-df90dcb7f086
+PASSED                                                                   [ 56%]
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerLastGaps2::test_notify_closures_execute PASSED [ 57%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps2::test_load_workflows_generic_exception PASSED [ 57%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps2::test_template_definition_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Template manager initialized with 28 templates
+PASSED                                                                   [ 58%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps2::test_edit_no_reasoning_message PASSED [ 59%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps2::test_conductor_engine_available PASSED [ 60%]
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsLastGaps2::test_executions_dedup_continue PASSED [ 60%]
+tests/api/test_atom_agent_endpoints.py::TestIntentClassification::test_classify_intent_create_workflow 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:57 [    INFO] Initialized openrouter client using BYOK credential
+2026-11-10 01:40:57 [    INFO] EscalationManager initialized
+2026-11-10 01:40:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:57 [    INFO] Initialized openrouter client using BYOK credential
+2026-11-10 01:40:57 [    INFO] EscalationManager initialized
+2026-11-10 01:40:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 01:40:57 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-10 01:40:58 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 01:40:58 [    INFO] Initialized openrouter client using BYOK credential
+2026-11-10 01:40:58 [    INFO] EscalationManager initialized
+2026-11-10 01:40:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 01:40:58 [    INFO] LanceDBHandler initialized. ID: 6317440784. LANCEDB_AVAILABLE: True
+2026-11-10 01:40:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 01:40:58 [    INFO] Connecting to LanceDB at <scratch-path> with storage_options=None
+2026-11-10 01:40:58 [    INFO] LanceDB connected successfully
+2026-11-10 01:40:58 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-10 01:40:58 [    INFO] Hybrid search: keyword leg found 0 nodes
+PASSED                                                                   [ 61%]
+tests/api/test_atom_agent_endpoints.py::TestIntentClassification::test_classify_intent_list_workflows 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:58 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-10 01:40:58 [    INFO] Hybrid search: keyword leg found 0 nodes
+PASSED                                                                   [ 62%]
+tests/api/test_atom_agent_endpoints.py::TestIntentClassification::test_classify_intent_run_workflow 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:58 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-10 01:40:58 [    INFO] Hybrid search: keyword leg found 0 nodes
+PASSED                                                                   [ 62%]
+tests/api/test_atom_agent_endpoints.py::TestIntentClassification::test_classify_intent_schedule_workflow 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:58 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-10 01:40:58 [    INFO] Hybrid search: keyword leg found 0 nodes
+PASSED                                                                   [ 63%]
+tests/api/test_atom_agent_endpoints.py::TestIntentClassification::test_fallback_intent_classification_workflow_keywords PASSED [ 64%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_create_workflow_success PASSED [ 65%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_create_workflow_failure PASSED [ 65%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_list_workflows PASSED [ 66%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_list_workflows_empty PASSED [ 67%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_run_workflow_success PASSED [ 68%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_run_workflow_not_found PASSED [ 68%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_run_workflow_missing_ref PASSED [ 69%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_schedule_workflow_success PASSED [ 70%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_cancel_schedule_success PASSED [ 71%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlers::test_handle_get_status PASSED [ 71%]
+tests/api/test_atom_agent_endpoints.py::TestExecuteGeneratedWorkflow::test_execute_generated_success PASSED [ 72%]
+tests/api/test_atom_agent_endpoints.py::TestExecuteGeneratedWorkflow::test_execute_generated_not_found PASSED [ 73%]
+tests/api/test_atom_agent_endpoints.py::TestExecuteGeneratedWorkflow::test_execute_generated_automation_engine_unavailable PASSED [ 74%]
+tests/api/test_atom_agent_endpoints.py::TestContextReferenceResolution::test_workflow_reference_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:58 [   ERROR] Error in chat agent: 'Depends' object has no attribute 'id'
+2026-11-10 01:40:58 [   ERROR] Internal error: 'Depends' object has no attribute 'id'
+Traceback (most recent call last):
+  File "<scratch-path> line 547, in chat_with_agent
+    request.user_id = current_user.id
+                      ^^^^^^^^^^^^^^^
+AttributeError: 'Depends' object has no attribute 'id'
+PASSED                                                                   [ 74%]
+tests/api/test_atom_agent_endpoints.py::TestAdditionalHandlerCoverage::test_handle_get_history_missing_workflow_ref PASSED [ 75%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_schedule_workflow_missing_params PASSED [ 76%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_schedule_workflow_not_found PASSED [ 77%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_schedule_workflow_parse_failure PASSED [ 77%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_run_workflow_automation_engine_unavailable PASSED [ 78%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_run_workflow_execution_failure PASSED [ 79%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_cancel_schedule_by_schedule_id PASSED [ 80%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_cancel_schedule_not_found PASSED [ 80%]
+tests/api/test_atom_agent_endpoints.py::TestWorkflowHandlerComprehensive::test_handle_cancel_schedule_by_workflow_ref PASSED [ 81%]
+tests/api/test_atom_agent_endpoints.py::TestExecuteGeneratedWorkflowComprehensive::test_execute_generated_workflow_execution_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:58 [   ERROR] Execution failed: Execution error
+2026-11-10 01:40:58 [   ERROR] Internal error: Execution error
+Traceback (most recent call last):
+  File "<scratch-path> line 1701, in execute_generated_workflow
+    results = await engine.execute_workflow_definition(workflow, request.input_data, execution_id=execution_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 2240, in _execute_mock_call
+    raise effect
+Exception: Execution error
+PASSED                                                                   [ 82%]
+tests/api/test_atom_agent_endpoints.py::TestExecuteGeneratedWorkflowComprehensive::test_execute_generated_invalid_json_payload PASSED [ 82%]
+tests/api/test_atom_agent_endpoints.py::TestChatHistoryPersistenceComprehensive::test_save_chat_interaction_with_workflow_id 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:58 [    INFO] save_chat_interaction called: session_id=session_001, intent=CREATE_WORKFLOW
+PASSED                                                                   [ 83%]
+tests/test_workflow_scheduler_recovery.py::test_paused_schedule_survives_restart_without_firing 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:58 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 01:40:58 [    INFO] Scheduler started
+2026-11-10 01:40:58 [    INFO] WorkflowScheduler started
+2026-11-10 01:40:58 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-10 01:40:58 [    INFO] WorkflowScheduler shutdown
+2026-11-10 01:40:58 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 01:40:58 [    INFO] Scheduler started
+2026-11-10 01:40:58 [    INFO] WorkflowScheduler started
+2026-11-10 01:40:58 [    INFO] Scheduler has been shut down
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler shutdown
+2026-11-10 01:40:59 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 84%]
+tests/test_workflow_scheduler_recovery.py::test_cancelled_schedule_survives_restart_without_firing 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 01:40:59 [    INFO] Scheduler started
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler started
+2026-11-10 01:40:59 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-10 01:40:59 [    INFO] Removed job job_wf-cancelled_1794292859.092356
+2026-11-10 01:40:59 [    INFO] Removed job job_wf-cancelled_1794292859.092356
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler shutdown
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 01:40:59 [    INFO] Scheduler started
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler started
+2026-11-10 01:40:59 [    INFO] Scheduler has been shut down
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler shutdown
+2026-11-10 01:40:59 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 85%]
+tests/test_workflow_scheduler_recovery.py::test_fired_once_schedule_does_not_duplicate_after_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 01:40:59 [    INFO] Scheduler started
+2026-11-10 01:40:59 [    INFO] WorkflowScheduler started
+2026-11-10 01:40:59 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-10 01:40:59 [    INFO] Removed job job_wf-once_1794292859.814341
+2026-11-10 01:40:59 [    INFO] Running job "_counted_fire (trigger: date[2026-11-10 06:40:59 UTC], next run at: 2026-11-10 06:40:59 UTC)" (scheduled at 2026-11-10 06:40:59.914312+00:00)
+2026-11-10 01:40:59 [    INFO] Job "_counted_fire (trigger: date[2026-11-10 06:40:59 UTC], next run at: 2026-11-10 06:40:59 UTC)" executed successfully
+2026-11-10 01:41:00 [    INFO] WorkflowScheduler shutdown
+2026-11-10 01:41:00 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 01:41:00 [    INFO] Scheduler started
+2026-11-10 01:41:00 [    INFO] WorkflowScheduler started
+2026-11-10 01:41:00 [    INFO] Scheduler has been shut down
+2026-11-10 01:41:01 [    INFO] WorkflowScheduler shutdown
+2026-11-10 01:41:01 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 85%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_success PASSED [ 86%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_empty_list PASSED [ 87%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_no_waiting_steps PASSED [ 88%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_context_json PASSED [ 88%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_input_data_json PASSED [ 89%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_context_and_input PASSED [ 90%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_created_at PASSED [ 91%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_anonymous_401 PASSED [ 91%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_success PASSED [ 92%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_legacy_waiting_marker PASSED [ 93%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:41:01 [   ERROR] Failed to resume workflow: boom
+PASSED                                                                   [ 94%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_success PASSED [ 94%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_no_comments PASSED [ 95%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_unknown_execution_404 PASSED [ 96%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_not_waiting_400 PASSED [ 97%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_decision_422 PASSED [ 97%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_step_id_422 PASSED [ 98%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_bad_decision_422 PASSED [ 99%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_anonymous_401 PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_not_found_and_inactive
+  <home>:311: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_trigger_error_500
+  /usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py:1335: RuntimeWarning: coroutine 'Event.wait' was never awaited
+    return self._fallback_getattr(key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage::test_cancel_not_running_and_not_found
+  <home>:664: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_websocket_notify_helpers
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/weakref.py:456: RuntimeWarning: coroutine 'WorkflowDebugger.stream_trace_with_manager.<locals>._stream' was never awaited
+    wr = ref(key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_websocket_notify_helpers
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/weakref.py:456: RuntimeWarning: coroutine 'WorkflowDebugger.notify_variable_changed.<locals>._notify' was never awaited
+    wr = ref(key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_websocket_notify_helpers
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/weakref.py:456: RuntimeWarning: coroutine 'WorkflowDebugger.notify_breakpoint_hit.<locals>._notify' was never awaited
+    wr = ref(key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_websocket_notify_helpers
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/weakref.py:456: RuntimeWarning: coroutine 'WorkflowDebugger.notify_session_paused.<locals>._notify' was never awaited
+    wr = ref(key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_websocket_notify_helpers
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/weakref.py:456: RuntimeWarning: coroutine 'WorkflowDebugger.notify_session_resumed.<locals>._notify' was never awaited
+    wr = ref(key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_api_wave.py::TestWorkflowDebuggerCoverage::test_websocket_notify_helpers
+  /usr/local/Cellar/<email>/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/weakref.py:456: RuntimeWarning: coroutine 'WorkflowDebugger.notify_step_completed.<locals>._notify' was never awaited
+    wr = ref(key)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_crud_routes
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_crud_routes
+  <scratch-path> PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    _validate_workflow_dag(workflow.dict())
+
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_crud_routes
+tests/test_covpush_api_wave.py::TestWorkflowEndpointsCoverage::test_crud_routes
+  <scratch-path> PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    workflow_dict = workflow.dict()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============== 135 passed, 154 deselected, 19 warnings in 26.71s ===============

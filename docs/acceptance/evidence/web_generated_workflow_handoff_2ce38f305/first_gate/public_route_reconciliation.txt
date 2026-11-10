@@ -1,0 +1,168 @@
+ROUTE_RESOLUTION [{"path": "/api/v1/workflows/workflows", "name": "get_workflows", "methods": ["GET"]}, {"path": "/api/v1/workflows/workflows", "name": "create_workflow", "methods": ["POST"]}]
+GENERATE 200 {"workflow_id":"ai_wf_f1eb598b574d","blueprint_id":"8d4966a0-6d6d-4f6e-ac87-a0f156d89ab6","name":"Gate manual trigger design","architecture_name":"Gate manual trigger design","description":"One real compiled trigger step for reconciliation.","execution_mode":"one_off","status":"designed","start_step":"start","nodes":[{"id":"start","type":"trigger","name":"Manual start","capability_required":null,"dependencies":[],"metadata":{"trigger_event":"manual"},"action":{"kind":"read"}}],"steps":[{"step_id":"start","step_type":"trigger","description":"Manual start","parameters":{"trigger_event":"manual","capability_required":null,"design_action":{"kind":"read"},"hitl":false},"next_steps":[]}],"triggers":[{"node_id":"start","trigger_event":"manual","schedule":"","condition":""}],"required_integrations":[],"missing_capabilities":[],"hitl_gates":[],"execution_ready":true,"execution_blockers":[],"step_count":1,"definition_digest":"71a749784eb78afd6f74e4affc60c7f30b7c4c19a5842a99033c768d0843dba9","blueprint":{"architecture_name":"Gate manual trigger design","description":"One real compiled trigger step for reconciliation.","execution_mode":"one_off","nodes":[{"id":"start","type":"trigger","name":"Manual start","capability_required":null,"dependencies":[],"metadata":{"trigger_event":"manual"},"action":{"kind":"read"}}],"start_step":"start","triggers":[{"node_id":"start","trigger_event":"manual","schedule":"","condition":""}],"required_integrations":[],"missing_capabilities":[]},"created_at":"2026-11-10T05:28:31","updated_at":null,"provenance":{"profile":"workflow_blueprint","route_reasoning":"scratch transport double","source":"model","generated_at":"2026-11-10T05:28:31.817477+00:00"},"route_reasoning":"scratch transport double","model_generated":true,"registration":{"registered":true}}
+DEPLOY_ROUTE 404 {"detail":"Not Found"}
+EXECUTE 500 {"detail":"Internal error"}
+F
+=================================== FAILURES ===================================
+_______________________ test_public_route_reconciliation _______________________
+
+    def test_public_route_reconciliation():
+        engine = create_engine(
+            os.environ["DATABASE_URL"], connect_args={"check_same_thread": False})
+        Base.metadata.create_all(engine)
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+    
+        @contextmanager
+        def fresh_session():
+            db = Session()
+            try:
+                yield db
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
+            finally:
+                db.close()
+    
+        database_module.SessionLocal = Session
+        database_module.get_db_session = fresh_session
+        import advanced_workflow_orchestrator as orchestrator_module
+        orchestrator_module.get_db_session = fresh_session
+    
+        seed = Session()
+        seed.add(Tenant(id="tenant-gate", name="Gate Tenant",
+                        subdomain="gate-tenant"))
+        seed.add(Workspace(id="ws-gate", name="Gate Workspace",
+                           tenant_id="tenant-gate"))
+        seed.add(User(
+            id="user-gate", tenant_id="tenant-gate", workspace_id="ws-gate",
+            first_name="Gate", last_name="User", role="super_admin",
+            status="active", is_active=True))
+        seed.add(AgentRegistry(
+            id="agent-gate", name="Gate Agent", category="Operations",
+            module_path="core.agents.queen_agent", class_name="QueenAgent",
+            confidence_score=0.95, status="active", tenant_id="tenant-gate",
+            workspace_id="ws-gate", enabled=True, is_system_agent=False,
+            required_role_for_autonomy="team_lead"))
+        seed.commit()
+        seed.close()
+    
+        def override_get_db():
+            db = Session()
+            try:
+                yield db
+            finally:
+                db.close()
+    
+        async def override_current_user():
+            db = Session()
+            try:
+                return db.query(User).filter(User.id == "user-gate").one()
+            finally:
+                db.close()
+    
+        database_module.get_db = override_get_db
+        auth_module.get_current_user = override_current_user
+    
+        from core.llm_service import LLMService
+        from ai.nlp_engine import RouteClassification
+        from ai.nlp_engine import RouteCategory
+    
+        draft = {
+            "architecture_name": "Gate manual trigger design",
+            "description": "One real compiled trigger step for reconciliation.",
+            "execution_mode": "one_off",
+            "nodes": [{
+                "id": "start",
+                "type": "trigger",
+                "name": "Manual start",
+                "metadata": {"trigger_event": "manual"},
+            }],
+            "required_integrations": [],
+            "missing_capabilities": [],
+        }
+    
+        async def fake_structured_response(self, **kwargs):
+            model = kwargs.get("response_model")
+            if model is RouteClassification:
+                return RouteClassification(
+                    category=RouteCategory.ONE_OFF,
+                    reasoning="scratch transport double", confidence=1.0)
+            return WorkflowBlueprintDraft.model_validate(draft)
+    
+        LLMService.generate_structured_response = fake_structured_response
+    
+        from core.workflow_endpoints import router as workflow_router
+        from core.workflow_endpoints import WORKFLOWS_FILE
+        from advanced_workflow_api import router as advanced_router
+        from api.agent_governance_routes import router as governance_router
+    
+        # Fresh scratch catalog, anchored outside the live world.
+        catalog = Path("<scratch-path>
+        catalog.parent.mkdir(parents=True, exist_ok=True)
+        catalog.write_text("[]\n")
+        import core.workflow_endpoints as wfe
+        wfe.WORKFLOWS_FILE = str(catalog)
+    
+        app = FastAPI()
+        app.include_router(workflow_router, prefix="/api/v1/workflows")
+        app.include_router(advanced_router)
+        app.include_router(governance_router)
+        client = TestClient(app)
+    
+        literal_routes = [
+            {"path": getattr(r, "path", ""),
+             "name": getattr(r, "name", ""),
+             "methods": sorted(getattr(r, "methods", []) or [])}
+            for r in app.routes
+            if getattr(r, "path", "") == "/api/v1/workflows/workflows"
+        ]
+        print("ROUTE_RESOLUTION", json.dumps(literal_routes))
+    
+        gen = client.post(
+            "/api/v1/workflows/generate-from-agent",
+            json={"prompt": "design a workflow with a manual start"},
+        )
+        print("GENERATE", gen.status_code, gen.text[:2000])
+        assert gen.status_code == 200, gen.text
+        gen_body = gen.json()
+        workflow_id = gen_body["workflow_id"]
+        digest = gen_body["definition_digest"]
+        assert gen_body["status"] == "designed"
+        assert digest and digest != "sha256:scratch-probe"
+    
+        read = client.get(f"/api/v1/workflows/generated/{workflow_id}")
+        assert read.status_code == 200, read.text
+        assert read.json()["definition_digest"] == digest
+        assert read.json()["execution_ready"] is True
+    
+        before = client.get("/api/v1/workflows/workflows")
+        assert before.status_code == 200, before.text
+        assert [w.get("id") for w in before.json()] == []
+    
+        deploy = client.post(
+            f"/api/v1/workflows/{workflow_id}/deploy",
+            json={"definition_digest": digest, "agent_id": "agent-gate"},
+        )
+        print("DEPLOY_ROUTE", deploy.status_code, deploy.text[:300])
+        assert deploy.status_code == 404
+    
+        execution = {"workflow_id": workflow_id,
+                     "input_data": {"probe": True}}
+        executed = client.post("/api/v1/workflows/execute", json=execution)
+        print("EXECUTE", executed.status_code, executed.text[:2000])
+>       assert executed.status_code == 200, executed.text
+E       AssertionError: {"detail":"Internal error"}
+E       assert 500 == 200
+E        +  where 500 = <Response [500 Internal Server Error]>.status_code
+
+../../root_workflow_first_gate_test.py:176: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  core.lancedb_handler:lancedb_handler.py:2008 LanceDB not initialized, chat history disabled
+ERROR    advanced_workflow_api:advanced_workflow_api.py:113 Advanced workflow execution failed: 1 validation error for WorkflowExecutionResponse
+error_message
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_type
+=========================== short test summary info ============================
+FAILED ../../root_workflow_first_gate_test.py::test_public_route_reconciliation
+1 failed in 4.92s

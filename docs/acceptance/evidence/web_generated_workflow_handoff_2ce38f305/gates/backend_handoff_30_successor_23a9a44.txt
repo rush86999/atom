@@ -1,0 +1,501 @@
+
+tests/test_generated_workflow_handoff.py::test_ready_positive_deploy_run_and_restart_same_process_simulation 
+-------------------------------- live log setup --------------------------------
+2026-11-10 01:39:59 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 01:39:59 [    INFO] EscalationManager initialized
+2026-11-10 01:39:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:39:59 [    INFO] EscalationManager initialized
+2026-11-10 01:39:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:39:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 01:39:59 [    INFO] AgentTaskRegistry initialized
+2026-11-10 01:39:59 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:00 [    INFO] EscalationManager initialized
+2026-11-10 01:40:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:00 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:00 [    INFO] EscalationManager initialized
+2026-11-10 01:40:00 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:00 [    INFO] Template manager initialized with 28 templates
+2026-11-10 01:40:00 [    INFO] MCP Service initialized
+2026-11-10 01:40:00 [    INFO] EscalationManager initialized
+2026-11-10 01:40:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:00 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 01:40:00 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 01:40:00 [    INFO] Registered workflow: ai_wf_448f53ad19c6 (Read-only record lookup)
+2026-11-10 01:40:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:00 [    INFO] Registered workflow: ai_wf_448f53ad19c6 (Read-only record lookup)
+2026-11-10 01:40:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_448f53ad19c6/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-10 01:40:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_448f53ad19c6/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:00 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 01:40:00 [    INFO] No token storage file found, starting empty
+2026-11-10 01:40:00 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-10 01:40:00 [    INFO] Registered workflow: ai_wf_448f53ad19c6 (Read-only record lookup)
+2026-11-10 01:40:00 [    INFO] Executing step: start - Manual start
+2026-11-10 01:40:00 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 01:40:00 [    INFO] EscalationManager initialized
+2026-11-10 01:40:00 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:00 [    INFO] EscalationManager initialized
+2026-11-10 01:40:00 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 01:40:00 [    INFO] 📸 In-Memory Snapshot created for 679841fe-a8c8-434a-996d-bcdb00b5d183 at step lookup
+2026-11-10 01:40:00 [    INFO] 📸 In-Memory Snapshot created for 679841fe-a8c8-434a-996d-bcdb00b5d183 at step start
+2026-11-10 01:40:00 [    INFO] Persisted state for workflow 679841fe-a8c8-434a-996d-bcdb00b5d183 (Status: completed)
+2026-11-10 01:40:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_448f53ad19c6/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_generated_workflow_handoff.py::test_pending_approval_is_real_scoped_and_zero_catalog 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:01 [    INFO] EscalationManager initialized
+2026-11-10 01:40:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:01 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:01 [    INFO] EscalationManager initialized
+2026-11-10 01:40:01 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:01 [    INFO] Registered workflow: ai_wf_17490d257d61 (Manual trigger design)
+2026-11-10 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_17490d257d61/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_17490d257d61/deploy "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_generated_workflow_handoff.py::test_approved_approval_consumes_exactly_once 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:01 [    INFO] EscalationManager initialized
+2026-11-10 01:40:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:01 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:01 [    INFO] EscalationManager initialized
+2026-11-10 01:40:01 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:01 [    INFO] Registered workflow: ai_wf_40d5aa25b51f (Manual trigger design)
+2026-11-10 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_40d5aa25b51f/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:01 [    INFO] Registered workflow: ai_wf_40d5aa25b51f (Manual trigger design)
+2026-11-10 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_40d5aa25b51f/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_40d5aa25b51f/deploy "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_generated_workflow_handoff.py::test_rejected_foreign_and_unbound_approvals_have_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:02 [    INFO] EscalationManager initialized
+2026-11-10 01:40:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:02 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:02 [    INFO] EscalationManager initialized
+2026-11-10 01:40:02 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:02 [    INFO] Registered workflow: ai_wf_4eff6b2adda4 (Manual trigger design)
+2026-11-10 01:40:02 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:02 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_4eff6b2adda4/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:02 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_4eff6b2adda4/deploy "HTTP/1.1 409 Conflict"
+2026-11-10 01:40:02 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_4eff6b2adda4/deploy "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 13%]
+tests/test_generated_workflow_handoff.py::test_digest_agent_and_unbound_design_bindings 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:03 [    INFO] EscalationManager initialized
+2026-11-10 01:40:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:03 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:03 [    INFO] EscalationManager initialized
+2026-11-10 01:40:03 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:03 [    INFO] Registered workflow: ai_wf_7b6490f80f0d (Manual trigger design)
+2026-11-10 01:40:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_7b6490f80f0d/deploy "HTTP/1.1 409 Conflict"
+2026-11-10 01:40:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_7b6490f80f0d/deploy "HTTP/1.1 409 Conflict"
+2026-11-10 01:40:03 [    INFO] EscalationManager initialized
+2026-11-10 01:40:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:03 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:03 [    INFO] EscalationManager initialized
+2026-11-10 01:40:03 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:03 [    INFO] Registered workflow: ai_wf_c72bbf716978 (Manual trigger design)
+2026-11-10 01:40:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_c72bbf716978/deploy "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_generated_workflow_handoff.py::test_scope_isolation_and_legacy_rows_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:04 [    INFO] EscalationManager initialized
+2026-11-10 01:40:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:04 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:04 [    INFO] EscalationManager initialized
+2026-11-10 01:40:04 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:04 [    INFO] Registered workflow: ai_wf_799b9d87d275 (Manual trigger design)
+2026-11-10 01:40:04 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:04 [    INFO] Registered workflow: ai_wf_799b9d87d275 (Manual trigger design)
+2026-11-10 01:40:04 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_799b9d87d275/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:04 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-10 01:40:04 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/ai_wf_799b9d87d275 "HTTP/1.1 404 Not Found"
+2026-11-10 01:40:04 [    INFO] Template manager initialized with 28 templates
+2026-11-10 01:40:04 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_799b9d87d275/execute "HTTP/1.1 404 Not Found"
+2026-11-10 01:40:04 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_generated_workflow_handoff.py::test_mandatory_hitl_checkpoint_survives_generated_run 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:04 [    INFO] EscalationManager initialized
+2026-11-10 01:40:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:04 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:04 [    INFO] EscalationManager initialized
+2026-11-10 01:40:04 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:04 [    INFO] Registered workflow: ai_wf_07c4a2d655c6 (Governed record write)
+2026-11-10 01:40:04 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:04 [    INFO] Registered workflow: ai_wf_07c4a2d655c6 (Governed record write)
+2026-11-10 01:40:04 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_07c4a2d655c6/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:04 [    INFO] Registered workflow: ai_wf_07c4a2d655c6 (Governed record write)
+2026-11-10 01:40:04 [    INFO] Executing step: start - Manual start
+2026-11-10 01:40:04 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-10 01:40:04 [    INFO] Created HITL action c4bc668a-c5ed-43ff-a011-58167183e0af for agent system_default_agent
+2026-11-10 01:40:04 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-10 01:40:04 [    INFO] 📸 In-Memory Snapshot created for 0a763dbc-2194-4205-954d-744377a12570 at step start
+2026-11-10 01:40:04 [    INFO] Persisted state for workflow 0a763dbc-2194-4205-954d-744377a12570 (Status: waiting_approval)
+2026-11-10 01:40:04 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_07c4a2d655c6/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_generated_workflow_handoff.py::test_literal_workflows_route_wins_over_generated_id_path 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:05 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-10 01:40:05 [    INFO] EscalationManager initialized
+2026-11-10 01:40:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:05 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:05 [    INFO] EscalationManager initialized
+2026-11-10 01:40:05 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:05 [    INFO] Registered workflow: ai_wf_1fb2c00a4aca (Manual trigger design)
+2026-11-10 01:40:05 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:05 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/ai_wf_1fb2c00a4aca "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_generated_workflow_handoff.py::test_existing_deployed_material_keeps_the_winner 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:06 [    INFO] EscalationManager initialized
+2026-11-10 01:40:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:06 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:06 [    INFO] EscalationManager initialized
+2026-11-10 01:40:06 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:06 [    INFO] Registered workflow: ai_wf_636d11f652c3 (Manual trigger design)
+2026-11-10 01:40:06 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:06 [    INFO] Registered workflow: ai_wf_636d11f652c3 (Manual trigger design)
+2026-11-10 01:40:06 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_636d11f652c3/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:06 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_636d11f652c3/deploy "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_generated_workflow_handoff.py::test_post_commit_uncertainty_is_reported_not_rolled_back 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:06 [    INFO] EscalationManager initialized
+2026-11-10 01:40:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:06 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:06 [    INFO] EscalationManager initialized
+2026-11-10 01:40:06 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:06 [    INFO] Registered workflow: ai_wf_804e78e6077f (Manual trigger design)
+2026-11-10 01:40:06 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:06 [   ERROR] Generated workflow catalog write failed: simulated post-commit readback failure
+2026-11-10 01:40:06 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_804e78e6077f/deploy "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_generated_workflow_handoff.py::test_recurring_deploy_never_schedules_and_explicit_schedule_is_separate 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:07 [    INFO] EscalationManager initialized
+2026-11-10 01:40:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:07 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:07 [    INFO] EscalationManager initialized
+2026-11-10 01:40:07 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:07 [    INFO] Registered workflow: ai_wf_b9c0895682b3 (Recurring trigger design)
+2026-11-10 01:40:07 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:07 [    INFO] Registered workflow: ai_wf_b9c0895682b3 (Recurring trigger design)
+2026-11-10 01:40:07 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_b9c0895682b3/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:07 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_b9c0895682b3/schedule "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_generated_workflow_handoff.py::test_corrupt_catalog_refuses_deploy_and_preserves_bytes 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:08 [    INFO] EscalationManager initialized
+2026-11-10 01:40:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:08 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:08 [    INFO] EscalationManager initialized
+2026-11-10 01:40:08 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:08 [    INFO] Registered workflow: ai_wf_69f94a51f9cc (Manual trigger design)
+2026-11-10 01:40:08 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:08 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_69f94a51f9cc/deploy "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 40%]
+tests/test_generated_workflow_handoff.py::test_wrong_shape_catalog_refuses_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:09 [    INFO] EscalationManager initialized
+2026-11-10 01:40:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:09 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:09 [    INFO] EscalationManager initialized
+2026-11-10 01:40:09 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:09 [    INFO] Registered workflow: ai_wf_fabbf84fca71 (Manual trigger design)
+2026-11-10 01:40:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_fabbf84fca71/deploy "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 43%]
+tests/test_generated_workflow_handoff.py::test_corrupt_catalog_refuses_legacy_create_writer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 46%]
+tests/test_generated_workflow_handoff.py::test_lock_failure_refuses_write 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:10 [    INFO] EscalationManager initialized
+2026-11-10 01:40:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:10 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:10 [    INFO] EscalationManager initialized
+2026-11-10 01:40:10 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:10 [    INFO] Registered workflow: ai_wf_a8dbc2d72a89 (Manual trigger design)
+2026-11-10 01:40:10 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:10 [   ERROR] Generated workflow write refused unavailable lock: catalog lock could not be acquired; no write was attempted
+2026-11-10 01:40:10 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_a8dbc2d72a89/deploy "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+tests/test_generated_workflow_handoff.py::test_post_commit_readback_failure_is_unknown_not_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:11 [    INFO] EscalationManager initialized
+2026-11-10 01:40:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:11 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:11 [    INFO] EscalationManager initialized
+2026-11-10 01:40:11 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:11 [    INFO] Registered workflow: ai_wf_756864be7b7e (Manual trigger design)
+2026-11-10 01:40:11 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:11 [   ERROR] Generated workflow catalog write failed: simulated post-commit failure
+2026-11-10 01:40:11 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_756864be7b7e/deploy "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 53%]
+tests/test_generated_workflow_handoff.py::test_already_deployed_replay_verifies_exact_bindings 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:12 [    INFO] EscalationManager initialized
+2026-11-10 01:40:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:12 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:12 [    INFO] EscalationManager initialized
+2026-11-10 01:40:12 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:12 [    INFO] Registered workflow: ai_wf_70f94debe23d (Manual trigger design)
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:12 [    INFO] Registered workflow: ai_wf_70f94debe23d (Manual trigger design)
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_70f94debe23d/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_70f94debe23d/deploy "HTTP/1.1 409 Conflict"
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_70f94debe23d/deploy "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/test_generated_workflow_handoff.py::test_already_deployed_replay_verifies_consumed_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:12 [    INFO] EscalationManager initialized
+2026-11-10 01:40:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:12 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:12 [    INFO] EscalationManager initialized
+2026-11-10 01:40:12 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:12 [    INFO] Registered workflow: ai_wf_89205f567852 (Manual trigger design)
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_89205f567852/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:12 [    INFO] Registered workflow: ai_wf_89205f567852 (Manual trigger design)
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_89205f567852/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_89205f567852/deploy "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 60%]
+tests/test_generated_workflow_handoff.py::test_paused_legacy_edit_preserves_concurrent_deploy 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-10 01:40:13 [    INFO] EscalationManager initialized
+2026-11-10 01:40:13 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:13 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:13 [    INFO] EscalationManager initialized
+2026-11-10 01:40:13 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:13 [    INFO] Registered workflow: ai_wf_673b3c692f7c (Manual trigger design)
+2026-11-10 01:40:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:13 [    INFO] Registered workflow: ai_wf_673b3c692f7c (Manual trigger design)
+2026-11-10 01:40:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_673b3c692f7c/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/legacy-edit-1/edit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_generated_workflow_handoff.py::test_paused_legacy_edit_refuses_stale_same_row 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:14 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-10 01:40:14 [    INFO] EscalationManager initialized
+2026-11-10 01:40:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:14 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:14 [    INFO] EscalationManager initialized
+2026-11-10 01:40:14 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:14 [    INFO] Registered workflow: ai_wf_6e6341e6d14f (Manual trigger design)
+2026-11-10 01:40:14 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:14 [    INFO] Registered workflow: ai_wf_6e6341e6d14f (Manual trigger design)
+2026-11-10 01:40:14 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_6e6341e6d14f/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:14 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/legacy-edit-1/edit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_generated_workflow_handoff.py::test_actor_demoted_before_commit_refuses_without_write 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:15 [    INFO] EscalationManager initialized
+2026-11-10 01:40:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:15 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:15 [    INFO] EscalationManager initialized
+2026-11-10 01:40:15 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:15 [    INFO] Registered workflow: ai_wf_ee575a7f1cf3 (Manual trigger design)
+2026-11-10 01:40:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_ee575a7f1cf3/deploy "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 70%]
+tests/test_generated_workflow_handoff.py::test_executor_demoted_before_commit_refuses_without_write 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:15 [    INFO] EscalationManager initialized
+2026-11-10 01:40:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:15 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:15 [    INFO] EscalationManager initialized
+2026-11-10 01:40:15 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:15 [    INFO] Registered workflow: ai_wf_71cae4af6230 (Manual trigger design)
+2026-11-10 01:40:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_71cae4af6230/deploy "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 73%]
+tests/test_generated_workflow_handoff.py::test_already_deployed_replay_refuses_revoked_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:16 [    INFO] EscalationManager initialized
+2026-11-10 01:40:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:16 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:16 [    INFO] EscalationManager initialized
+2026-11-10 01:40:16 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:16 [    INFO] Registered workflow: ai_wf_be42fe8c44de (Manual trigger design)
+2026-11-10 01:40:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:16 [    INFO] Registered workflow: ai_wf_be42fe8c44de (Manual trigger design)
+2026-11-10 01:40:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_be42fe8c44de/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_be42fe8c44de/deploy "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 76%]
+tests/test_generated_workflow_handoff.py::test_authority_claim_holds_db_lock_across_catalog_write 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:17 [    INFO] EscalationManager initialized
+2026-11-10 01:40:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:17 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:17 [    INFO] EscalationManager initialized
+2026-11-10 01:40:17 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:17 [    INFO] Registered workflow: ai_wf_ee57d01fdbb8 (Manual trigger design)
+2026-11-10 01:40:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:17 [    INFO] Registered workflow: ai_wf_ee57d01fdbb8 (Manual trigger design)
+2026-11-10 01:40:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_ee57d01fdbb8/deploy "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_generated_workflow_handoff.py::test_sql_claim_commit_failure_keeps_file_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:18 [    INFO] EscalationManager initialized
+2026-11-10 01:40:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:18 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:18 [    INFO] EscalationManager initialized
+2026-11-10 01:40:18 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:18 [    INFO] Registered workflow: ai_wf_38324b9419c7 (Manual trigger design)
+2026-11-10 01:40:18 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:18 [    INFO] Registered workflow: ai_wf_38324b9419c7 (Manual trigger design)
+2026-11-10 01:40:18 [   ERROR] Deployment stored but authority claim commit failed: simulated SQL commit failure
+2026-11-10 01:40:18 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_38324b9419c7/deploy "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_generated_workflow_handoff.py::test_actual_fresh_process_roundtrip 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:19 [    INFO] EscalationManager initialized
+2026-11-10 01:40:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:19 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:19 [    INFO] EscalationManager initialized
+2026-11-10 01:40:19 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:19 [    INFO] Registered workflow: ai_wf_fdb2d8e0ced6 (Read-only record lookup)
+2026-11-10 01:40:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:19 [    INFO] Registered workflow: ai_wf_fdb2d8e0ced6 (Read-only record lookup)
+2026-11-10 01:40:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_fdb2d8e0ced6/deploy "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_generated_workflow_handoff.py::test_generated_execution_readback_refuses_foreign_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:27 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:27 [    INFO] Registered workflow: ai_wf_a9385c7119d9 (Read-only record lookup)
+2026-11-10 01:40:27 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:27 [    INFO] Registered workflow: ai_wf_a9385c7119d9 (Read-only record lookup)
+2026-11-10 01:40:27 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_a9385c7119d9/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:27 [    INFO] Registered workflow: ai_wf_a9385c7119d9 (Read-only record lookup)
+2026-11-10 01:40:27 [    INFO] Executing step: start - Manual start
+2026-11-10 01:40:27 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 01:40:27 [    INFO] 📸 In-Memory Snapshot created for 4fdca8e2-1d29-4580-8b85-922f10c6f6e6 at step lookup
+2026-11-10 01:40:27 [    INFO] 📸 In-Memory Snapshot created for 4fdca8e2-1d29-4580-8b85-922f10c6f6e6 at step start
+2026-11-10 01:40:27 [    INFO] Persisted state for workflow 4fdca8e2-1d29-4580-8b85-922f10c6f6e6 (Status: completed)
+2026-11-10 01:40:27 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_a9385c7119d9/execute "HTTP/1.1 200 OK"
+2026-11-10 01:40:27 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/ai_wf_a9385c7119d9/executions "HTTP/1.1 404 Not Found"
+2026-11-10 01:40:27 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/4fdca8e2-1d29-4580-8b85-922f10c6f6e6 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 90%]
+tests/test_generated_workflow_handoff.py::test_generated_execution_metadata_unavailable_is_not_legacy_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:27 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:27 [    INFO] Registered workflow: ai_wf_1977a8239d69 (Read-only record lookup)
+2026-11-10 01:40:27 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:40:27 [    INFO] Registered workflow: ai_wf_1977a8239d69 (Read-only record lookup)
+2026-11-10 01:40:27 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_1977a8239d69/deploy "HTTP/1.1 200 OK"
+2026-11-10 01:40:27 [    INFO] Registered workflow: ai_wf_1977a8239d69 (Read-only record lookup)
+2026-11-10 01:40:27 [    INFO] Executing step: start - Manual start
+2026-11-10 01:40:27 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:27 [    INFO] EscalationManager initialized
+2026-11-10 01:40:27 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 01:40:27 [    INFO] 📸 In-Memory Snapshot created for 96528d97-cbab-4fc4-809a-e8925ed4fd52 at step lookup
+2026-11-10 01:40:27 [    INFO] 📸 In-Memory Snapshot created for 96528d97-cbab-4fc4-809a-e8925ed4fd52 at step start
+2026-11-10 01:40:27 [    INFO] Persisted state for workflow 96528d97-cbab-4fc4-809a-e8925ed4fd52 (Status: completed)
+2026-11-10 01:40:27 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_1977a8239d69/execute "HTTP/1.1 200 OK"
+2026-11-10 01:40:27 [ WARNING] Could not resolve workflow scope ai_wf_1977a8239d69: simulated authority lookup outage
+2026-11-10 01:40:27 [ WARNING] Could not resolve workflow scope ai_wf_1977a8239d69: simulated authority lookup outage
+2026-11-10 01:40:27 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/ai_wf_1977a8239d69/executions "HTTP/1.1 404 Not Found"
+2026-11-10 01:40:27 [ WARNING] Could not resolve workflow scope ai_wf_1977a8239d69: simulated authority lookup outage
+2026-11-10 01:40:27 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/96528d97-cbab-4fc4-809a-e8925ed4fd52 "HTTP/1.1 404 Not Found"
+2026-11-10 01:40:27 [ WARNING] Could not resolve workflow scope ai_wf_1977a8239d69: simulated authority lookup outage
+2026-11-10 01:40:27 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/workflows/executions/96528d97-cbab-4fc4-809a-e8925ed4fd52 "HTTP/1.1 200 OK"
+2026-11-10 01:40:27 [ WARNING] Could not resolve workflow scope ai_wf_1977a8239d69: simulated authority lookup outage
+2026-11-10 01:40:27 [ WARNING] Could not resolve workflow scope ai_wf_1977a8239d69: simulated authority lookup outage
+2026-11-10 01:40:28 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 01:40:28 [    INFO] Slack Enhanced Service initialized
+PASSED                                                                   [ 93%]
+tests/test_generated_workflow_handoff.py::test_positive_legacy_scope_twin_survives_unknown_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:28 [ WARNING] Could not resolve workflow scope legacy-scope-1: simulated authority lookup outage
+2026-11-10 01:40:28 [    INFO] Slack Enhanced Service initialized
+2026-11-10 01:40:28 [ WARNING] Could not resolve workflow scope legacy-scope-1: simulated authority lookup outage
+PASSED                                                                   [ 96%]
+tests/test_generated_workflow_handoff.py::test_contradictory_generated_scope_metadata_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:40:29 [    INFO] EscalationManager initialized
+2026-11-10 01:40:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:40:29 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:40:29 [    INFO] EscalationManager initialized
+2026-11-10 01:40:29 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:29 [    INFO] Registered workflow: ai_wf_1e4cb59d1c4a (Read-only record lookup)
+2026-11-10 01:40:29 [    INFO] Registered workflow: ai_wf_1e4cb59d1c4a (Read-only record lookup)
+2026-11-10 01:40:29 [    INFO] Registered workflow: ai_wf_1e4cb59d1c4a (Read-only record lookup)
+2026-11-10 01:40:29 [    INFO] Executing step: start - Manual start
+2026-11-10 01:40:29 [    INFO] Executing step: lookup - Lookup record
+2026-11-10 01:40:29 [    INFO] EscalationManager initialized
+2026-11-10 01:40:29 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:29 [    INFO] EscalationManager initialized
+2026-11-10 01:40:29 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:40:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=ws-a
+2026-11-10 01:40:29 [    INFO] 📸 In-Memory Snapshot created for 405592c2-fc1c-411b-b2df-09fd8aad15e1 at step lookup
+2026-11-10 01:40:29 [    INFO] 📸 In-Memory Snapshot created for 405592c2-fc1c-411b-b2df-09fd8aad15e1 at step start
+2026-11-10 01:40:29 [    INFO] Persisted state for workflow 405592c2-fc1c-411b-b2df-09fd8aad15e1 (Status: completed)
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_generated_workflow_handoff.py::test_ready_positive_deploy_run_and_restart_same_process_simulation
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_generated_workflow_handoff.py::test_corrupt_catalog_refuses_legacy_create_writer
+tests/test_generated_workflow_handoff.py::test_paused_legacy_edit_preserves_concurrent_deploy
+tests/test_generated_workflow_handoff.py::test_paused_legacy_edit_refuses_stale_same_row
+  <scratch-path> PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    _validate_workflow_dag(workflow.dict())
+
+tests/test_generated_workflow_handoff.py::test_corrupt_catalog_refuses_legacy_create_writer
+tests/test_generated_workflow_handoff.py::test_paused_legacy_edit_preserves_concurrent_deploy
+tests/test_generated_workflow_handoff.py::test_paused_legacy_edit_refuses_stale_same_row
+  <scratch-path> PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    workflow_dict = workflow.dict()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 30 passed, 12 warnings in 46.48s =======================

@@ -1,0 +1,77 @@
+🧪 pytest detected: honoring explicit non-dev test DB (sqlite:///<scratch-path>
+provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+LanceDB not initialized, chat history disabled
+
+tests/test_generated_workflow_handoff.py::test_actual_fresh_process_roundtrip 
+-------------------------------- live log setup --------------------------------
+2026-11-10 01:38:02 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-10 01:38:02 [    INFO] EscalationManager initialized
+2026-11-10 01:38:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:38:02 [    INFO] EscalationManager initialized
+2026-11-10 01:38:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:38:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 01:38:02 [    INFO] AgentTaskRegistry initialized
+2026-11-10 01:38:02 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+-------------------------------- live log call ---------------------------------
+2026-11-10 01:38:03 [    INFO] EscalationManager initialized
+2026-11-10 01:38:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:38:03 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 01:38:03 [    INFO] EscalationManager initialized
+2026-11-10 01:38:03 [    INFO] CognitiveTierService initialized for workspace: ws-a
+2026-11-10 01:38:03 [    INFO] Template manager initialized with 28 templates
+2026-11-10 01:38:03 [    INFO] MCP Service initialized
+2026-11-10 01:38:03 [    INFO] EscalationManager initialized
+2026-11-10 01:38:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 01:38:03 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 01:38:03 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-10 01:38:03 [    INFO] Registered workflow: ai_wf_6096e623cb11 (Read-only record lookup)
+2026-11-10 01:38:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-10 01:38:03 [    INFO] Registered workflow: ai_wf_6096e623cb11 (Read-only record lookup)
+2026-11-10 01:38:03 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows/ai_wf_6096e623cb11/deploy "HTTP/1.1 200 OK"
+FRESH_CHILD_RUN:{"definition_digest": "45c47cd67009de9fc13b25c3ba5c9826324b25b66165bbfc99df034436f5ce26", "deploy_status": null, "execution_id": "2a34bcf4-bf5f-47bc-a67a-776a6f5f5d19", "execution_ids": ["2a34bcf4-bf5f-47bc-a67a-776a6f5f5d19"], "execution_results": [{"execution_time_ms": 0.06508827209472656, "status": "completed", "step_id": "start", "trigger": "manual"}, {"execution_time_ms": 26.691675186157227, "matches": [], "status": "completed", "step_id": "lookup"}], "execution_status": "completed", "mode": "run", "model_calls": false, "operation_id": "deploy_acc20aade93a71650eb75322", "owner_user_id": "user-a", "scheduler_jobs": [], "workflow_id": "ai_wf_6096e623cb11", "workflow_ids": ["ai_wf_6096e623cb11"]}
+FRESH_CHILD_VERIFY:{"definition_digest": "45c47cd67009de9fc13b25c3ba5c9826324b25b66165bbfc99df034436f5ce26", "deploy_status": "already_deployed", "execution_id": "2a34bcf4-bf5f-47bc-a67a-776a6f5f5d19", "execution_ids": ["2a34bcf4-bf5f-47bc-a67a-776a6f5f5d19"], "execution_results": {"lookup": {"execution_time_ms": 26.691675186157227, "matches": [], "status": "completed"}, "start": {"execution_time_ms": 0.06508827209472656, "status": "completed", "trigger": "manual"}}, "execution_status": "completed", "mode": "verify", "model_calls": false, "operation_id": "deploy_acc20aade93a71650eb75322", "owner_user_id": "user-a", "scheduler_jobs": [], "workflow_id": "ai_wf_6096e623cb11", "workflow_ids": ["ai_wf_6096e623cb11"]}
+PASSED
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 5 warnings in 24.43s ========================

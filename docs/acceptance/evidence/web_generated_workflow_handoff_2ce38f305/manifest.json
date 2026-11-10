@@ -1,0 +1,109 @@
+{
+  "evidence_files": {
+    "README.md": "359aa8f8acd5774965300a88edda4c3077483dfd4142d83ee679e99bb0ccbb28",
+    "first_gate/public_route_reconciliation.py": "da05ed3d230b28388d5c1e41dcdae456edb2c1b8ef0b91fcf68935629e84b19a",
+    "first_gate/public_route_reconciliation.txt": "8e3153302366fdb2327e35c22600a9adef890b96b73457b3b40cdfdc7769a733",
+    "fresh_process/fresh_process_child_results.txt": "22ce260ce40f579735e361d79c6ab42c3bebd31449584d72864608c6ab280e23",
+    "fresh_process/fresh_process_roundtrip.py": "b6294833fef86740187182db50961238d854f260899317215fa1a0008d520e89",
+    "gates/affected_135_frozen_2ce.txt": "f41c61fb5aa0d491421d0ae0e83873567a151c368788050a375cf6065f1f25d3",
+    "gates/affected_135_successor_23a9a44.txt": "eb787e900b2fe45a9fdb0561fc4536c9c764c1f65d1dd12c2a3ce512a38925f8",
+    "gates/backend_handoff_25_frozen_2ce.txt": "64066a63011e35c0c55b5e7ee8ba583883de29afa3eb1e47f07b22d87b4dc39a",
+    "gates/backend_handoff_30_successor_23a9a44.txt": "bd5818e806f3a9d99b1b1751034c3bf356acd8d6bfbf9f377a39a2019c8cd26e",
+    "gates/frontend_48_frozen_2ce.txt": "736c09e06db05e7565b76783fff93d3d25a03662d0f4938360e8dec839b9dd2b",
+    "gates/frontend_48_successor_23a9a44.txt": "d80eb878dcce0235832f31b05ef0087beaeb942b649eab02c32f6f6a9cb4c7b6",
+    "gates/local_root_probes_10_successor.txt": "be6740adf0b8c5a0ce6537a257ddb597b26d2a7c4237c1682815f70914566194",
+    "research/PRIMARY_LINKS.md": "a079cc8635df99f8986ef5a885d68a74a9494eb87e2bba6988d36548be998ebb",
+    "root_controls/root_7_accept_2ce.controls.txt": "e6bd65c1506265ed50742c3c70ec47cc51de3fd2a82e19872358899c7f7a6ee8",
+    "root_controls/root_7_accept_2ce.review.json": "f97fe0d3fbf694b6e07c8143b82232d4bbb96e7f9fd89cffb3f1063a83aa6493",
+    "root_controls/root_g6f_10_pass_successor.controls.txt": "3d6017e0207f560b6af11732938388f55fc0caa55672481f90f2f902bbbe5cbb",
+    "root_controls/root_g6f_10_pass_successor.review.json": "a1d31806ed9a815d2c65912d886446da22f85524d4f686dbd6d313bdace30188",
+    "root_controls/root_uzsv_10th_metadata_outage_fail.controls.txt": "3be734fcfab9f2ff3aa22d2f4cb5793a8446107c8a0b3ffab7aab57663ca2a07",
+    "root_controls/root_uzsv_10th_metadata_outage_fail.review.json": "f3a7fd44901d4367c494c3584a0ef6b6c7ebf2f8fad16d14e2dbe60048a42bbe",
+    "root_controls/root_zzy_9_with_2_scope_fails.controls.txt": "81bd8079e32bcbcafdeea230741740a6c132bdcd8182ae39b8a9574d9b29249f",
+    "root_controls/root_zzy_9_with_2_scope_fails.review.json": "4305818a37918a5d803541ff42c8b6de0fad9fd1eb5f29dfe0c73127205b167a"
+  },
+  "fresh_process": {
+    "child_model_calls": false,
+    "exactly_one_execution_row": true,
+    "handler": "real supported read-only entity lookup (GraphRAGEngine canonical_search)",
+    "mocked_execute": false,
+    "normalization": "list/dict by exact step_id; only execution_time_ms excluded as documented volatile timing; status/errors/matches/business values compared exactly",
+    "real_os_processes": true,
+    "same_execution_and_operation_and_owner": true,
+    "scheduler_jobs": [],
+    "third_fresh_read": true
+  },
+  "frozen_base": {
+    "commit": "2ce38f305e740ff034af70a5ded7e029db024b09",
+    "files": {
+      "backend/advanced_workflow_api.py": "4153b3da72692f7e8c206cbdea674b87fc1c14d3c2819f10e25b45b0ec3ceb59",
+      "backend/ai/workflow_scheduler.py": "0e4e8ba6713f878ee062c8d1d291c067a78e064886b892e4519d65cdc3648567",
+      "backend/core/workflow_endpoints.py": "e95ba3352ed5a8ded53cccc19f97cf93bf374a125f73412d37f49094ce179436",
+      "backend/tests/test_generated_workflow_handoff.py": "544f1fd57a03ea6405a70c4db085b2e0e2c55ab395e58cf04167969d1a79c6bf"
+    },
+    "meaning": "Runtime + tests checkpoint accepted for the critical race controls (7/7); not overall handoff acceptance.",
+    "root_controls": "7/7 PASS (critical race only); original gl09/wzy negatives preserved."
+  },
+  "gates": {
+    "frozen_base_2ce": {
+      "affected_workflow_regression": "135 passed",
+      "backend_handoff": "25 passed",
+      "frontend_parent_child_scheduler": "48 passed"
+    },
+    "root_independent": {
+      "root_7_accept_2ce": "7/7 PASS, same_source true",
+      "root_g6f_10_pass_successor": "10/10 PASS, actual_exit 0, same_source true",
+      "root_uzsv_10th_metadata_outage": "actual_exit 1; metadata-outage control leaked",
+      "root_zzy_9_scope_gap": "actual_exit 1; 7 pass + 2 foreign history/details leaks"
+    },
+    "successor_23a9a44": {
+      "affected_workflow_regression": "135 passed",
+      "backend_handoff": "30 passed",
+      "frontend_parent_child_scheduler": "48 passed",
+      "local_root_controls": "10 passed"
+    }
+  },
+  "kind": "web_generated_workflow_handoff_evidence_manifest",
+  "non_claims": [
+    "No served-model or model-quality claim; generation used controlled model transport only.",
+    "No browser/UI-runtime or whole-app ORACLE claim.",
+    "No PostgreSQL, multi-worker, soak, performance or production deployment claim.",
+    "Legacy workflow isolation is not newly certified; only new generated rows are strict.",
+    "Root independent re-acceptance of this successor and PR/merge review remain pending."
+  ],
+  "packet": "docs/acceptance/evidence/web_generated_workflow_handoff_2ce38f305/",
+  "sanitation": {
+    "absolute_paths_redacted_to": "<scratch-path>",
+    "notes": "Only sanitized text logs and structured review proof are included; no DB files, cookies, tokens, credentials or live account data.",
+    "raw_credentials_included": false,
+    "raw_database_included": false,
+    "secrets_or_tokens_removed": true
+  },
+  "successor": {
+    "commit": "23a9a44968845e86e0ac4cfc0e1705de9da2d0f7",
+    "meaning": "Minimal runtime generated-read scope repair plus test-only fresh-process proof and evidence.",
+    "runtime_changes": [
+      {
+        "frozen_base_sha256": "e95ba3352ed5a8ded53cccc19f97cf93bf374a125f73412d37f49094ce179436",
+        "path": "backend/core/workflow_endpoints.py",
+        "reason": "Generated execution history/details scope resolution; unknown authority refuses instead of implicit legacy/global; durable execution server-bound scope fallback; contradictory metadata fails closed.",
+        "successor_sha256": "75f5aa09d9c4300ac368566e880f03b1354310e2efb20104ac1bfe8eb4bef824"
+      }
+    ],
+    "runtime_scope_repair_commit_message": "fix(workflows): scope generated execution readback and prove fresh-process replay",
+    "test_only_changes": {
+      "backend/tests/helpers/fresh_process_workflow_roundtrip.py": {
+        "successor_sha256": "b6294833fef86740187182db50961238d854f260899317215fa1a0008d520e89"
+      },
+      "backend/tests/test_generated_workflow_handoff.py": {
+        "frozen_base_sha256": "544f1fd57a03ea6405a70c4db085b2e0e2c55ab395e58cf04167969d1a79c6bf",
+        "successor_sha256": "5146fe29300275ae4a989d50e0e51dc56f039619bd0485dda6dcb753105d1934"
+      },
+      "docs/acceptance/evidence/web_generated_workflow_handoff_2ce38f305/": "this packet"
+    },
+    "unchanged_runtime": {
+      "backend/advanced_workflow_api.py": "4153b3da72692f7e8c206cbdea674b87fc1c14d3c2819f10e25b45b0ec3ceb59",
+      "backend/ai/workflow_scheduler.py": "0e4e8ba6713f878ee062c8d1d291c067a78e064886b892e4519d65cdc3648567"
+    }
+  }
+}
