@@ -1,0 +1,18 @@
+{
+  "status": "accepted_controlled_development_browser_scope_pending_delivery",
+  "source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "evidence_head": "0b0bbaa35e5c08e14946c6922cbda75b4f4716f2",
+  "harness_sha256": "0263c715960029a1550f78bacdc3ac790641153b63c2aa0a72ffbd04f2ce3bd4",
+  "independent_evaluation": "85/85 exact same evaluator applied to retained observations; all true",
+  "visual_review": "reload screenshot inspected; Knowledge Base and ordered synthetic document cards rendered",
+  "SQL_readback": "one matching signed-up active/onboarded user at the captured workspace; separate app-seeded user retained, not miscounted as duplicate",
+  "services": "ports18390/18391 independently closed; cleanup.private.json retained",
+  "limits": [
+    "130 synthetic rows were seeded directly through the real LanceDB handler; this is not 130 ordinary uploads or a semantic-extraction proof.",
+    "HTTP loopback only; no TLS or deployed-production-transport claim.",
+    "Controlled local app/issuer-free document fixture; no live DB/provider/model/embedding/download.",
+    "The Documents UI intentionally fetches offset 0 on mount; reload shows page 1 with total 130 and does not claim offset persistence.",
+    "No concurrent-write snapshot guarantee; ordering is created_at string desc then opaque id desc."
+  ],
+  "original_failure_retained": "worldnewpiy5f;53pagination checks only, canonical/store not captured; not relabelled a pass"
+}

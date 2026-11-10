@@ -1,0 +1,55 @@
+{
+  "all_checks_true": true,
+  "artifacts": {
+    "README.md": "86e6efc351f1a94062e7df91cbe0730d331be77df65df9318fda02db75a6798d",
+    "browser_harness.py": "0263c715960029a1550f78bacdc3ac790641153b63c2aa0a72ffbd04f2ce3bd4",
+    "mechanical/cookie_parser_mechanical.py": "98d135b74054163f934260adf2685320ceb7378c979b919a37a2ebdd978a40fd",
+    "mechanical/cookie_parser_mechanical_result.json": "da2d356b298868c921f22af081cd0e1473988aca9b6e65f82ef786c7ea7929e2",
+    "mechanical/harness_mechanical.py": "953cd33fd20f77b3793358ca1c775f204b7eec252bae2a07518e9ba9ef70a4e1",
+    "mechanical/harness_mechanical_result.json": "cfd3aebaa092676b9fc17d74f168ba45239bf57b64aad0330f02df374dda26cc",
+    "root_independent_review.json": "13037efd27fe89074c07c1665d982d4cca10d698c244ece672e10dae32c9e2cd",
+    "screenshots/01-signup.png": "e9370e545f18666232f24d553b050a14bb8f405a1fae444a4e4fbaff330e86d5",
+    "screenshots/02-dashboard.png": "c8d047b66f7ac0062f7f13968fe9d92f27190173eff0de21f6960d521a6a33c2",
+    "screenshots/03-documents-page1.png": "b30571cb6531ca1dc1ac019394d40a13d27b87c0d78cfa3a620d48e50d81e230",
+    "screenshots/04-documents-page2.png": "f4bd2155d746966ec3f4f44fd974098baafc3c19328ed02caa4adc4606135f47",
+    "screenshots/05-documents-reload.png": "b30571cb6531ca1dc1ac019394d40a13d27b87c0d78cfa3a620d48e50d81e230",
+    "verification.json": "f331781d95278805ec017197e2572521032bc6f474429f8ea27e7acfd9dec194"
+  },
+  "capture_head": "0b0bbaa35e5c08e14946c6922cbda75b4f4716f2",
+  "check_count": 85,
+  "development_runtime": true,
+  "executed_source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "failed_run_not_pass": {
+    "canonical_captured": false,
+    "harness_sha256": "1b0208fc3be51a8fff3fce49d89dac5ad41d713f203a2059f35ce46ff8ddd694",
+    "not_pass": true,
+    "pagination_observations": 53,
+    "store_health_captured": false,
+    "world": "/private/tmp/root-web-doc-pagination-world-newpiy5f"
+  },
+  "harness_sha256": "0263c715960029a1550f78bacdc3ac790641153b63c2aa0a72ffbd04f2ce3bd4",
+  "mode": "dev",
+  "optimized_build": false,
+  "raw_auth_material_published": false,
+  "root_independent_review": "root_independent_review.json",
+  "screenshots_sanitized": true,
+  "secret_scan": {
+    "bearer_hits": 0,
+    "external_email_hits": 0,
+    "jwt_hits": 0,
+    "known_non_secret_placeholders": [
+      "distinct-unused-backend-key (fixed unused frontend JWT_SECRET in the harness)",
+      "capture@example.com (non-delivering SMTP placeholder)"
+    ],
+    "private_values_checked": 11,
+    "real_secret_hits": 0,
+    "screenshots_identity_panel_redacted": true
+  },
+  "source_files": {
+    "backend/api/document_routes.py": "94250a756d64c73021ca5aa12c0ed777ef2723aca62b977ebd21a9d79ef86e50",
+    "backend/core/lancedb_handler.py": "480bd9018cdd1c1114a00bd6de1399ed0b993005a3ecdddf7338c297ee7aac45",
+    "backend/tests/api/test_document_library_pagination.py": "5ae33223d69adc48bd83ddbdc458ce18b97ce0c61f939bcb453fd36bae5333e1",
+    "frontend-nextjs/pages/documents.tsx": "e344c437f38a5430b0273e2930fd2f7a21d0e007c59b0f4b1f9fcab35f9a46a4",
+    "frontend-nextjs/tests/pages/documents.test.tsx": "3fb1d0b404e868dc3ffb4774e933ab9bb23c1f6370771a579e4aa6a9816033fc"
+  }
+}
