@@ -5,6 +5,7 @@ with discovery, JWKS, authorization redirect, token exchange and userinfo. The
 tests therefore exercise the product's real network callback path, including
 ID-token signature/issuer/audience/nonce verification.
 """
+import base64
 import hashlib
 import json
 import logging
@@ -41,6 +42,9 @@ from scripts.controlled_oidc_provider import OIDCProvider, _pem
 CLIENT_ID = "atom-acceptance-client"
 CLIENT_SECRET = "atom-acceptance-secret"
 CALLBACK = "http://testserver/api/auth/sso/oidc/callback"
+WEB_ORIGIN = "http://testserver"
+WEB_CALLBACK = WEB_ORIGIN + "/api/auth/sso/oidc/web/callback"
+WEB_LANDING = WEB_ORIGIN + "/auth/sso/callback"
 
 
 def _seed_tenant(db):
@@ -131,6 +135,20 @@ def provider():
         p.stop()
 
 
+@pytest.fixture()
+def web_provider():
+    p = _new_web_provider()
+    try:
+        yield p
+    finally:
+        p.stop()
+
+
+@pytest.fixture()
+def web_app_url(monkeypatch):
+    _web_app_url(monkeypatch)
+
+
 @pytest.fixture(autouse=True)
 def _clear_oidc_caches(monkeypatch):
     monkeypatch.setattr(sso_oidc_routes, "_discovery_cache", {})
@@ -166,7 +184,10 @@ def _provider_redirect(location):
 
 def _callback(client, callback_url):
     parsed = urlparse(callback_url)
-    return client.get(parsed.path + ("?" + parsed.query if parsed.query else ""))
+    return client.get(
+        parsed.path + ("?" + parsed.query if parsed.query else ""),
+        follow_redirects=False,
+    )
 
 
 def _callback_token(resp):
@@ -188,6 +209,89 @@ def _new_provider(mode="valid", **kwargs):
     )
     defaults.update(kwargs)
     return OIDCProvider(mode=mode, **defaults).start()
+
+
+class _WebOIDCProvider(OIDCProvider):
+    """Controlled issuer that really validates PKCE S256."""
+
+    def __init__(self, **kwargs):
+        self._pkce_challenges = {}
+        super().__init__(**kwargs)
+
+    @property
+    def discovery(self):
+        metadata = super().discovery
+        metadata["code_challenge_methods_supported"] = ["S256"]
+        return metadata
+
+    def authorize(self, query):
+        location = super().authorize(query)
+        parsed = urlparse(location)
+        code = (parse_qs(parsed.query).get("code") or [""])[0]
+        if code:
+            self._pkce_challenges[code] = {
+                "challenge": (query.get("code_challenge") or [""])[0],
+                "method": (query.get("code_challenge_method") or [""])[0],
+            }
+        return location
+
+    def token(self, form):
+        code = (form.get("code") or [""])[0]
+        record = self._pkce_challenges.pop(code, None)
+        verifier = (form.get("code_verifier") or [""])[0]
+        if not record or record["method"] != "S256" or not record["challenge"]:
+            return 400, {"error": "invalid_request"}
+        challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode("utf-8")).digest()
+        ).rstrip(b"=").decode("ascii")
+        if not verifier or challenge != record["challenge"]:
+            return 400, {"error": "invalid_grant"}
+        return super().token(form)
+
+
+def _new_web_provider(**kwargs):
+    defaults = dict(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri=WEB_CALLBACK,
+        email="sso.user@example.com",
+        given_name="Sso",
+        family_name="User",
+    )
+    defaults.update(kwargs)
+    return _WebOIDCProvider(**defaults).start()
+
+
+def _web_login(client, return_to="/dashboard"):
+    return client.get(
+        "/api/auth/sso/oidc/web/login",
+        params={"return_to": return_to},
+        follow_redirects=False,
+    )
+
+
+def _web_exchange(client, code, origin=WEB_ORIGIN):
+    return client.post(
+        "/api/auth/sso/oidc/web/exchange",
+        json={"code": code},
+        headers={"Origin": origin},
+    )
+
+
+def _web_callback_code(callback_url):
+    parsed = urlparse(callback_url)
+    assert parsed.scheme == "http" and parsed.netloc == "testserver"
+    assert parsed.path == "/auth/sso/callback"
+    return (parse_qs(parsed.query).get("code") or [None])[0]
+
+
+def _web_app_url(monkeypatch):
+    monkeypatch.setattr(
+        sso_oidc_routes,
+        "get_config",
+        lambda: SimpleNamespace(
+            server=SimpleNamespace(app_url=WEB_ORIGIN)),
+    )
 
 
 def _rewrite_id_token(monkeypatch, provider, mutate_claims):
@@ -424,6 +528,107 @@ def _fresh_session_client(Session, base_url="http://testserver"):
 
     app.dependency_overrides[get_db] = _get_db
     return TestClient(app, base_url=base_url)
+
+
+_CHILD_WEB_EXCHANGE_SCRIPT = '''\
+import json
+import sys
+from types import SimpleNamespace
+
+from fastapi import Depends, FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import api.sso_oidc_routes as routes
+from api.sso_oidc_routes import router
+from core.auth import get_current_user
+from core.database import get_db
+from core.models import User
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+origin = payload["origin"]
+routes.get_config = lambda: SimpleNamespace(
+    server=SimpleNamespace(app_url=origin))
+engine = create_engine(
+    f"sqlite:///{payload['db_path']}",
+    connect_args={"check_same_thread": False},
+)
+Session = sessionmaker(bind=engine)
+db = Session()
+app = FastAPI()
+app.include_router(router)
+
+def _get_db():
+    yield db
+
+@app.get("/me")
+def me(current_user: User = Depends(get_current_user)):
+    return {"id": current_user.id}
+
+app.dependency_overrides[get_db] = _get_db
+client = TestClient(app, base_url=origin)
+client.cookies.set(payload["cookie_name"], payload["cookie_value"], path="/")
+response = client.post(
+    "/api/auth/sso/oidc/web/exchange",
+    json={"code": payload["code"]},
+    headers={"Origin": origin},
+)
+summary = {
+    "exchange_status": response.status_code,
+    "me_status": None,
+    "user_id": None,
+}
+if response.status_code == 200:
+    token = response.json().get("access_token")
+    me = client.get("/me", headers={"Authorization": f"Bearer {token}"})
+    summary["me_status"] = me.status_code
+    if me.status_code == 200:
+        summary["user_id"] = me.json().get("id")
+print(json.dumps(summary))
+db.close()
+'''
+
+
+def _run_child_web_exchange(
+        tmp_path, db_path, code, cookie_name, cookie_value, origin):
+    """Exchange one handoff in a separate Python process.
+
+    Controlled process-API proof only; the child prints safe status/identity
+    fields and never prints the code, cookie, token or HTML.
+    """
+    payload = {
+        "db_path": str(db_path),
+        "code": code,
+        "cookie_name": cookie_name,
+        "cookie_value": cookie_value,
+        "origin": origin,
+    }
+    input_path = tmp_path / "child_web_exchange_input.json"
+    input_path.write_text(json.dumps(payload), encoding="utf-8")
+    os.chmod(input_path, 0o600)
+    script_path = tmp_path / "child_web_exchange.py"
+    script_path.write_text(_CHILD_WEB_EXCHANGE_SCRIPT, encoding="utf-8")
+    os.chmod(script_path, 0o600)
+    backend_dir = Path(sso_oidc_routes.__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(script_path), str(input_path)],
+        cwd=str(backend_dir),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    child_log = tmp_path / "child_web_exchange.private.log"
+    child_log.write_text(
+        (result.stdout or "") + "\n--- stderr ---\n" + (result.stderr or ""),
+        encoding="utf-8",
+    )
+    os.chmod(child_log, 0o600)
+    assert result.returncode == 0, {"child_exit": result.returncode}
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    assert lines, {"child_exit": result.returncode, "child_output": "empty"}
+    return json.loads(lines[-1])
 
 
 def _run_child_callback(
@@ -1666,3 +1871,470 @@ def test_peer_unchanged_before_state_claim_still_valid(
             provider="oidc").count() == 0
     finally:
         fresh.close()
+
+
+# ============================================================================
+# Same-origin browser web handoff (backend-only slice)
+# ============================================================================
+
+def test_web_same_origin_handoff_positive(
+        client, web_provider, web_app_url, db):
+    _save_config(client, web_provider)
+    login = _web_login(client)
+    assert login.status_code == 302
+    login_query = parse_qs(urlparse(login.headers["Location"]).query)
+    assert login_query["redirect_uri"] == [WEB_CALLBACK]
+    assert login_query["code_challenge_method"] == ["S256"]
+    assert login_query["code_challenge"][0]
+
+    raw_state = login_query["state"][0]
+    cookie_name, cookie_value = _cookie_pair(client)
+    state_row = db.query(OAuthState).filter_by(provider="oidc").one()
+    assert state_row.redirect_uri == WEB_CALLBACK
+    assert state_row.extra_data["purpose"] == "oidc_web_login"
+    assert state_row.extra_data["pkce_method"] == "S256"
+    assert state_row.state == hashlib.sha256(
+        raw_state.encode("utf-8")).hexdigest()
+    assert raw_state not in json.dumps(state_row.extra_data)
+    assert cookie_value not in json.dumps(state_row.extra_data)
+    assert "code_verifier" not in json.dumps(state_row.extra_data)
+
+    callback_url = _provider_redirect(login.headers["Location"])
+    callback = _callback(client, callback_url)
+    assert callback.status_code == 302
+    assert callback.text == ""
+    code = _web_callback_code(callback.headers["Location"])
+    assert code and len(code) >= 32
+    assert "access_token" not in callback.headers["Location"]
+    assert "id_token" not in callback.headers["Location"]
+    assert "auth_token" not in callback.headers["Location"]
+    assert "localStorage" not in callback.headers["Location"]
+
+    handoff = db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").one()
+    assert handoff.user_id
+    assert handoff.state == hashlib.sha256(
+        code.encode("utf-8")).hexdigest()
+    assert code not in json.dumps(handoff.extra_data)
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 1
+
+    exchange = _web_exchange(client, code)
+    assert exchange.status_code == 200
+    assert exchange.headers["cache-control"] == "no-store"
+    assert exchange.headers["referrer-policy"] == "no-referrer"
+    body = exchange.json()
+    assert body["token_type"] == "bearer"
+    assert body["return_to"] == "/dashboard"
+    user = db.query(User).filter(
+        User.email == "sso.user@example.com").one()
+    assert _decode(body["access_token"])["sub"] == user.id
+    assert _canonical_me_id(db, body["access_token"]) == user.id
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 0
+    assert sum(
+        1 for record in web_provider.records if record["path"] == "/token") == 1
+
+    replay = _web_exchange(client, code)
+    assert replay.status_code == 401
+
+
+@pytest.mark.parametrize("return_to", [
+    "//evil.example/path",
+    "https://evil.example/path",
+    "/\\evil.example/path",
+    "/%5Cevil.example/path",
+    "/%2F%2Fevil.example/path",
+    "/%252F%252Fevil.example/path",
+    "/dashboard%0d%0aX-Test: 1",
+    "/auth/signin",
+    "/api/auth/me",
+    "/dashboard/../auth/signin",
+])
+def test_web_login_rejects_unsafe_return_to(
+        client, web_provider, web_app_url, db, return_to):
+    _save_config(client, web_provider)
+    response = _web_login(client, return_to=return_to)
+    assert response.status_code == 400
+    assert db.query(OAuthState).count() == 0
+
+
+def test_web_login_rejects_invalid_trusted_origin(
+        client, web_provider, db, monkeypatch):
+    _save_config(client, web_provider)
+    monkeypatch.setattr(
+        sso_oidc_routes,
+        "get_config",
+        lambda: SimpleNamespace(
+            server=SimpleNamespace(
+                app_url="http://user:secret@app.example/path")),
+    )
+    response = _web_login(client)
+    assert response.status_code == 503
+    assert db.query(OAuthState).count() == 0
+
+
+def test_web_login_refuses_pkce_downgrade(
+        client, web_app_url, db):
+    class PlainOnlyProvider(_WebOIDCProvider):
+        @property
+        def discovery(self):
+            metadata = super().discovery
+            metadata["code_challenge_methods_supported"] = ["plain"]
+            return metadata
+
+    p = PlainOnlyProvider(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri=WEB_CALLBACK,
+        email="sso.user@example.com",
+        given_name="Sso",
+        family_name="User",
+    ).start()
+    try:
+        _save_config(client, p)
+        response = _web_login(client)
+        assert response.status_code == 503
+        assert db.query(OAuthState).count() == 0
+    finally:
+        p.stop()
+
+
+def test_web_exchange_requires_exact_browser_and_origin(
+        client, web_provider, web_app_url, db):
+    _save_config(client, web_provider)
+    callback = _provider_redirect(_web_login(client).headers["Location"])
+    callback_response = _callback(client, callback)
+    code = _web_callback_code(callback_response.headers["Location"])
+    cookie_name, cookie_value = _cookie_pair(client)
+
+    missing_browser = _fresh_cookie_client(client)
+    try:
+        assert _web_exchange(missing_browser, code).status_code == 401
+    finally:
+        missing_browser.close()
+
+    wrong_browser = _fresh_cookie_client(client)
+    try:
+        _set_browser_cookie(wrong_browser, cookie_name, "wrong-browser")
+        assert _web_exchange(wrong_browser, code).status_code == 401
+    finally:
+        wrong_browser.close()
+
+    assert _web_exchange(
+        client, code, origin="http://evil.example").status_code == 403
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 1
+
+    good = _web_exchange(client, code)
+    assert good.status_code == 200
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 0
+
+
+def test_web_handoff_expired_refuses_without_consuming(
+        client, web_provider, web_app_url, db):
+    _save_config(client, web_provider)
+    callback = _provider_redirect(_web_login(client).headers["Location"])
+    callback_response = _callback(client, callback)
+    code = _web_callback_code(callback_response.headers["Location"])
+    handoff = db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").one()
+    handoff.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+
+    response = _web_exchange(client, code)
+    assert response.status_code == 401
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 1
+
+
+def test_web_handoff_replay_with_cookie_refused(
+        client, web_provider, web_app_url, db):
+    _save_config(client, web_provider)
+    callback = _provider_redirect(_web_login(client).headers["Location"])
+    callback_response = _callback(client, callback)
+    code = _web_callback_code(callback_response.headers["Location"])
+    cookie_name, cookie_value = _cookie_pair(client)
+
+    first = _web_exchange(client, code)
+    assert first.status_code == 200
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 0
+
+    _set_browser_cookie(client, cookie_name, cookie_value)
+    second = _web_exchange(client, code)
+    assert second.status_code == 401
+    assert "access_token" not in second.json()
+
+
+def test_web_exchange_commit_uncertainty_returns_no_token(
+        client, web_provider, web_app_url, db, monkeypatch):
+    _save_config(client, web_provider)
+    callback = _provider_redirect(_web_login(client).headers["Location"])
+    callback_response = _callback(client, callback)
+    code = _web_callback_code(callback_response.headers["Location"])
+    real_commit = db.commit
+
+    def _fail_commit():
+        raise RuntimeError("uncertain exchange commit")
+
+    monkeypatch.setattr(db, "commit", _fail_commit)
+    try:
+        response = _web_exchange(client, code)
+    finally:
+        monkeypatch.setattr(db, "commit", real_commit)
+
+    assert response.status_code == 503
+    assert "access_token" not in response.json()
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 1
+
+
+@pytest.mark.parametrize("change", [
+    "deactivate_user",
+    "change_role",
+    "change_credential",
+    "change_workspace",
+    "disable_config",
+    "deactivate_tenant",
+    "replace_state",
+])
+def test_web_exchange_peer_authority_change_before_claim(
+        concurrency_client, web_provider, web_app_url, change):
+    client, engine, Session, _db = concurrency_client
+    _save_config(client, web_provider)
+    callback = _provider_redirect(_web_login(client).headers["Location"])
+    callback_response = _callback(client, callback)
+    code = _web_callback_code(callback_response.headers["Location"])
+    cookie_name, cookie_value = _cookie_pair(client)
+    fresh = Session()
+    try:
+        handoff = fresh.query(OAuthState).filter_by(
+            provider="oidc_web_handoff").one()
+        user_id = handoff.user_id
+    finally:
+        fresh.close()
+
+    exchange_client = _fresh_session_client(Session)
+    _set_browser_cookie(exchange_client, cookie_name, cookie_value)
+    fired = {"done": False}
+
+    def _peer_before_delete(conn, cursor, statement, parameters, context,
+                            executemany):
+        lowered = statement.lower()
+        if (fired["done"]
+                or not lowered.lstrip().startswith("delete")
+                or "oauth_states" not in lowered):
+            return
+        fired["done"] = True
+        peer = Session()
+        try:
+            if change in {
+                    "deactivate_user", "change_role",
+                    "change_credential", "change_workspace"}:
+                user = peer.query(User).filter_by(id=user_id).one()
+                if change == "deactivate_user":
+                    user.status = "suspended"
+                    user.is_active = False
+                elif change == "change_role":
+                    user.role = "admin"
+                elif change == "change_credential":
+                    user.hashed_password = "peer-reset-hash"
+                else:
+                    user.workspace_id = "peer-workspace"
+            elif change == "disable_config":
+                peer.query(SSOConfiguration).filter_by(
+                    provider="oidc").one().enabled = False
+            elif change == "deactivate_tenant":
+                peer.query(Tenant).filter_by(
+                    id=PERSONAL_TENANT_ID).one().is_active = False
+            else:
+                row = peer.query(OAuthState).filter_by(
+                    provider="oidc_web_handoff").one()
+                row.extra_data = {
+                    **row.extra_data,
+                    "return_to": "/evil",
+                }
+            peer.commit()
+        finally:
+            peer.close()
+
+    event.listen(engine, "before_cursor_execute", _peer_before_delete)
+    try:
+        response = _web_exchange(exchange_client, code)
+    finally:
+        event.remove(engine, "before_cursor_execute", _peer_before_delete)
+        exchange_client.close()
+
+    assert fired["done"] is True
+    assert response.status_code in (401, 409, 503)
+    assert "access_token" not in response.json()
+    fresh = Session()
+    try:
+        assert fresh.query(OAuthState).filter_by(
+            provider="oidc_web_handoff").count() == 1
+        if change == "deactivate_user":
+            user = fresh.query(User).filter_by(id=user_id).one()
+            assert user.status == "suspended"
+            assert user.is_active is False
+        elif change == "change_role":
+            assert fresh.query(User).filter_by(id=user_id).one().role == "admin"
+        elif change == "change_credential":
+            assert fresh.query(User).filter_by(
+                id=user_id).one().hashed_password == "peer-reset-hash"
+        elif change == "change_workspace":
+            assert fresh.query(User).filter_by(
+                id=user_id).one().workspace_id == "peer-workspace"
+        elif change == "disable_config":
+            assert fresh.query(SSOConfiguration).filter_by(
+                provider="oidc").one().enabled is False
+        elif change == "deactivate_tenant":
+            assert fresh.query(Tenant).filter_by(
+                id=PERSONAL_TENANT_ID).one().is_active is False
+        else:
+            assert fresh.query(OAuthState).filter_by(
+                provider="oidc_web_handoff").one().extra_data[
+                    "return_to"] == "/evil"
+    finally:
+        fresh.close()
+    assert sum(
+        1 for record in web_provider.records if record["path"] == "/token") == 1
+
+
+def test_concurrent_independent_web_logins_do_not_share_context(
+        client, web_provider, web_app_url, db):
+    _save_config(client, web_provider)
+    second = _fresh_cookie_client(client)
+    try:
+        first_login = _web_login(client)
+        second_login = _web_login(second)
+        assert first_login.status_code == 302
+        assert second_login.status_code == 302
+
+        first_code = _web_callback_code(
+            _callback(
+                client,
+                _provider_redirect(first_login.headers["Location"]),
+            ).headers["Location"])
+        second_code = _web_callback_code(
+            _callback(
+                second,
+                _provider_redirect(second_login.headers["Location"]),
+            ).headers["Location"])
+        assert first_code != second_code
+
+        first_exchange = _web_exchange(client, first_code)
+        second_exchange = _web_exchange(second, second_code)
+        assert first_exchange.status_code == 200
+        assert second_exchange.status_code == 200
+        assert _decode(
+            first_exchange.json()["access_token"])["sub"] == _decode(
+            second_exchange.json()["access_token"])["sub"]
+        assert db.query(User).filter(
+            User.email == "sso.user@example.com").count() == 1
+        assert db.query(OAuthState).filter_by(
+            provider="oidc_web_handoff").count() == 0
+    finally:
+        second.close()
+
+
+def test_web_callback_rejects_changed_exact_target(
+        client, web_provider, web_app_url, db):
+    _save_config(client, web_provider)
+    login = _web_login(client)
+    state_row = db.query(OAuthState).filter_by(provider="oidc").one()
+    state_row.redirect_uri = WEB_CALLBACK + "/other"
+    db.commit()
+
+    callback = _provider_redirect(login.headers["Location"])
+    response = _callback(client, callback)
+
+    assert response.status_code == 302
+    location = response.headers["Location"]
+    assert location.startswith(WEB_ORIGIN + "/login?")
+    assert "sso_error=" in location
+    assert "access_token" not in location
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 0
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+
+
+@pytest.mark.parametrize("field,value", [
+    ("pkce_verifier_encrypted", "not-a-valid-fernet-token"),
+    ("pkce_method", "plain"),
+])
+def test_web_callback_rejects_tampered_pkce_binding(
+        client, web_provider, web_app_url, db, field, value):
+    _save_config(client, web_provider)
+    login = _web_login(client)
+    state_row = db.query(OAuthState).filter_by(provider="oidc").one()
+    state_row.extra_data = {**state_row.extra_data, field: value}
+    db.commit()
+
+    callback = _provider_redirect(login.headers["Location"])
+    response = _callback(client, callback)
+
+    assert response.status_code == 302
+    location = response.headers["Location"]
+    assert location.startswith(WEB_ORIGIN + "/login?")
+    assert "sso_error=" in location
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 0
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+
+
+def test_web_exchange_requires_every_handoff_metadata_field(
+        client, web_provider, web_app_url, db):
+    _save_config(client, web_provider)
+    callback = _provider_redirect(_web_login(client).headers["Location"])
+    callback_response = _callback(client, callback)
+    code = _web_callback_code(callback_response.headers["Location"])
+    handoff = db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").one()
+    extra = dict(handoff.extra_data)
+    extra.pop("user_digest")
+    handoff.extra_data = extra
+    db.commit()
+
+    response = _web_exchange(client, code)
+
+    assert response.status_code == 401
+    assert "access_token" not in response.json()
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 1
+
+
+def test_web_handoff_exchange_survives_process_restart(
+        client, web_provider, web_app_url, db, tmp_path):
+    _save_config(client, web_provider)
+    callback = _provider_redirect(_web_login(client).headers["Location"])
+    callback_response = _callback(client, callback)
+    code = _web_callback_code(callback_response.headers["Location"])
+    cookie_name, cookie_value = _cookie_pair(client)
+    db_path = db.get_bind().url.database
+
+    summary = _run_child_web_exchange(
+        tmp_path,
+        db_path,
+        code,
+        cookie_name,
+        cookie_value,
+        WEB_ORIGIN,
+    )
+
+    assert summary["exchange_status"] == 200
+    assert summary["me_status"] == 200
+    db.expire_all()
+    user = db.query(User).filter(
+        User.email == "sso.user@example.com").one()
+    assert summary["user_id"] == user.id
+    assert db.query(OAuthState).filter_by(
+        provider="oidc_web_handoff").count() == 0
+
+
+def test_web_exchange_rejects_get(client, web_app_url):
+    response = client.get("/api/auth/sso/oidc/web/exchange")
+    assert response.status_code == 405
