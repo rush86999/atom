@@ -1,0 +1,137 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 11:02:07 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:02:07 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:02:07 [    INFO] EscalationManager initialized
+2026-11-10 11:02:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:02:07 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:02:07 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:02:07 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:02:07 [    INFO] EscalationManager initialized
+2026-11-10 11:02:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 11:02:07 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 11:02:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 11:02:07 [    INFO] MCP Service initialized
+
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_binds_current_scope_receipt_and_replay 
+-------------------------------- live log setup --------------------------------
+2026-11-10 11:02:07 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:08 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+2026-11-10 11:02:08 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 201 Created"
+PASSED                                                                   [  7%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_concurrent_deactivation_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-race "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 15%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_inactive_user_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:09 [ WARNING] Rejected token for non-active user inactive (status=inactive)
+2026-11-10 11:02:09 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-op-1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 23%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_null_empty_schedule_material_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:10 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+2026-11-10 11:02:10 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 409 Conflict"
+2026-11-10 11:02:10 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-null "HTTP/1.1 201 Created"
+PASSED                                                                   [ 30%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_scheduler_runs_only_on_first_verified_create 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:11 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+2026-11-10 11:02:11 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 201 Created"
+2026-11-10 11:02:11 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-scheduled "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_foreign_acting_agent_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:12 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-foreign-acting "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 46%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_same_scope_acting_agent_queues_scoped_review 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:12 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-review "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 53%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_is_create_only_and_preserves_existing_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:13 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-create-only "HTTP/1.1 201 Created"
+PASSED                                                                   [ 61%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_generated_blueprint_cannot_mint_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:14 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-forged-blueprint "HTTP/1.1 201 Created"
+PASSED                                                                   [ 69%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_replay_with_changed_generated_material_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:15 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 201 Created"
+2026-11-10 11:02:15 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-changed "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 76%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_readback_uncertainty_returns_503 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:15 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 84%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_commit_failure_reports_effect_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:16 [   ERROR] agent decision outcome unknown: operation_id=agent:create:guided-rollback target=e5481c05-b38e-5d0f-8e70-8bd9e2c58c52 error_class=RuntimeError
+2026-11-10 11:02:16 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-rollback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 92%]
+tests/api/test_agent_guided_create_goal14.py::test_guided_create_acting_agent_deleted_during_generation_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 11:02:17 [    INFO] HTTP Request: POST http://testserver/api/agents/guided?operation_id=guided-acting-deleted "HTTP/1.1 404 Not Found"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 26 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 13 passed, 31 warnings in 26.00s =======================

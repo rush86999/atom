@@ -16,6 +16,7 @@ AgentGovernanceService.can_perform_action_async — an autonomous agent can
 create helpers on its own, a supervised one gets an HITL approval instead.
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -28,6 +29,39 @@ from sqlalchemy.orm import Session
 from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
+
+GUIDED_CREATE_REVIEW_SCHEMA = "atom-guided-create-review-1"
+_GUIDED_CREATE_REVIEW_KEYS = (
+    "schema",
+    "goal",
+    "context",
+    "name",
+    "description",
+    "category",
+    "capabilities",
+    "configuration",
+    "template",
+    "schedule_config",
+    "acting_agent_id",
+    "created_by_user",
+    "tenant_id",
+    "workspace_id",
+)
+
+
+def guided_create_review_material(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the exact reviewed guided-create material (no digest)."""
+    return {key: params.get(key) for key in _GUIDED_CREATE_REVIEW_KEYS}
+
+
+def guided_create_review_digest(params: Dict[str, Any]) -> str:
+    """Stable digest over the reviewed intent/generated material."""
+    material = guided_create_review_material(params)
+    return hashlib.sha256(
+        json.dumps(
+            material, sort_keys=True, separators=(",", ":"), default=str
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 # Keyword → template mapping for the no-LLM fallback path. Keys are matched

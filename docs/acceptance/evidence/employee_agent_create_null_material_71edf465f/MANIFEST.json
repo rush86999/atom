@@ -1,0 +1,45 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "public custom-create exact NULL/{} material preserved; changed request conflicts, post-commit mutation refutes, unchanged values replay; submitted for independent review",
+  "branch": "codex/web-goal14-agent-create-null-repair-20261110",
+  "base": "b36bd760b1fa060e43f9468c0f47109ec84270f0",
+  "executed_source": "71edf465f",
+  "original_pr833_branch_and_evidence_untouched": true,
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "80fac432f8e3261fd26343b6b9a661a7e53b6563c44060e6960941286ba02081",
+    "backend/tests/api/test_agent_create_goal14.py": "f86761fb170f14d7c18671bcc40a57ca64c308e34af73198cf6e5ccd619ef5a1",
+    "backend/api/agent_routes.py": "53f3678d294e80e95b205aaffd5c7dbb79419704b03715aefaa394283aa31105",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/scheduler.py": "4b04ac4a04ff93dc48ea7e84032ecfedef15628674af0c49a65745a5f1d849eb"
+  },
+  "artifacts": {
+    "README.md": "f7e144c148187759c3e35f617c1fc3d43d85fc30b7e6e36e13ac7f0f195fd070",
+    "TEST_RESULTS.md": "5b1ef1cd73921baceabf6109af08e0cd4ab5a9d8e334ad4caa99eb95f8d8538f",
+    "affected-after.log": "9c095cd3fc4100c899886e778b87e7b24d7f216dbecc00274ee2e635546938fa",
+    "create-controls-after.log": "3b048fa4e6767509fe066617bbe1f2fbf4e3c201cb395752b2515b7af31ae32a",
+    "probe-after.log": "9186e61054330d97199db2faa779c40bb7a55d0e8748f5bc7b1420fff2492752",
+    "probe-before.log": "9a33000888cd4442e55b8488868f6f6220c256c612abd397c37412c6a07c6d6e",
+    "source-fix.diff": "526cdaf85e59b2bf1b1e106b7e97e09ac275c0b6af21fb9f13056f123a31d6b1",
+    "verification.json": "3918b08ed8826aa748a44667ef17e6b4c2598532f3307f21b522e5cd8d490ae4"
+  },
+  "checks": {
+    "probe_before": "4 failed, 2 passed",
+    "probe_after": "6 passed",
+    "create_controls_after": "15 passed",
+    "affected_after": "216 passed, 1 pre-existing baseline failure",
+    "changed_request_null_empty_conflicts": true,
+    "postcommit_null_empty_mutation_refutes": true,
+    "unchanged_null_empty_replays": true,
+    "scheduler_no_duplicate": true,
+    "scope_authority_controls_unchanged": true,
+    "no_new_dependency_table_or_migration": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "no merge or self-acceptance; root review remains independent",
+    "original PR833 branch and evidence were not modified"
+  ]
+}

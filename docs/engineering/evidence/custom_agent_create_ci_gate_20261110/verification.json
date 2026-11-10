@@ -1,0 +1,16 @@
+{
+  "runtime_source": "71edf465f",
+  "parent": "fb4d7f5549169b58a1601a1083207e3f0bb44a6b",
+  "ci_gate": "42passed89warnings29.27s actualexit0",
+  "independent_api": "21passed, sourceunchanged;14Gitchecks pass",
+  "all_previous_jobs_steps_preserved": true,
+  "no_runtime_change_in_ci_followup": true,
+  "source_files": {
+    ".github/workflows/ci.yml": "707365aa039e9b7533738f0c854b6961445ca31b13596d7aba74a9de5ba6bff1",
+    "backend/tests/fixtures/ci_backend_additions.json": "912e9cbbb0216577926c27b6e6ff9ff695875452f25be42f1e4a0316e601361e"
+  },
+  "artifacts": {
+    "independent-api-review.json": "49bfa138a4aa3cff5035eba06b307aa14048f250e439d8f454a3f594a8ff51c4",
+    "tests.log": "c7f2de48a158fbaee84733e0b8f75489f17945a32e44937dbf8155fdec8bf385"
+  }
+}

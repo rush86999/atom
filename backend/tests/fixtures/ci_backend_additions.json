@@ -156,5 +156,28 @@
       "ENVIRONMENT": "development"
     },
     "run": "python -m pytest tests/test_email_legacy_draft_precedence.py tests/test_email_draft_shared_writer.py tests/test_email_eml_import.py tests/test_email_canvas_attachments.py tests/test_email_attachment_tool.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run exact-material custom agent creation controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_CURRENT_TEST": "custom_agent_create_ci",
+      "DATABASE_URL": "sqlite:///test_ci_custom_agent_create.db",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/api/test_agent_create_goal14.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+  },
+  {
+    "name": "Run guided agent create authority and receipt controls",
+    "env": {
+      "TESTING": "1",
+      "PYTEST_CURRENT_TEST": "1",
+      "DATABASE_URL": "sqlite:///test_ci_guided_create.db",
+      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-guided-create",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development"
+    },
+    "run": "python -m pytest tests/api/test_agent_guided_create_goal14.py -q --tb=short --timeout=300 --timeout-method=thread\n"
   }
 ]

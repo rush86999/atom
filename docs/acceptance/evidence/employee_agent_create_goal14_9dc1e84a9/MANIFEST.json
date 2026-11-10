@@ -1,0 +1,48 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "public custom agent creation bound to current authority/material/receipt; submitted for independent verification; guided/spawn/register_or_update remain unqualified candidates",
+  "branch": "codex/web-goal14-agent-create-20261110",
+  "executed_source": "9dc1e84a9",
+  "base_main": "01b554c55045334fa562cd2858c278f5bb3e1545",
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "003577a36d5cbea3a7fdc49e44170ce4f0d6594f9cf9c1fd90a89e3e228a13d1",
+    "backend/api/agent_routes.py": "53f3678d294e80e95b205aaffd5c7dbb79419704b03715aefaa394283aa31105",
+    "backend/tests/api/test_agent_create_goal14.py": "94294c3b75c82c8a931ab02bacd8b91f5a86d6ba055287b27dc296d51157ba52",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/scheduler.py": "4b04ac4a04ff93dc48ea7e84032ecfedef15628674af0c49a65745a5f1d849eb"
+  },
+  "artifacts": {
+    "README.md": "48f9182258a2ac78a9f14a6d0cb646207d4b9fcbab7bef1f9b90e8852505d599",
+    "TEST_RESULTS.md": "d04f14e0308651443f16760631e05f1fddb7703cd50d4c06b311325c2a48bc17",
+    "routes.json": "22680dae1ece419a15d7b3225f0bcebedc06372488536bd981f2eba82db8f50b",
+    "verification.json": "afd87b66f8c92ba1a4088f7da4e2d0108df1cec11df83a7d75ad305e09445c95",
+    "failure-first.log": "802761ae8d1b82e32bbb82ed69e41e1811207639588173f529e2fd352b7653e9",
+    "focused-311.log": "e4f7694798115602246f86aab244fab89449ed4544d449a6256d115d7c599127",
+    "affected-311.log": "ac0b29f71781ec1fea04a1cafc9b36c6d820f4e82579ae01eb6d6ad74be6edcf",
+    "baseline-main-confidence.log": "95b5aad335de506549f0ce0a618a58f200fe372d79482c3768077eeff4429518"
+  },
+  "checks": {
+    "failure_first": "2 failed, 1 passed",
+    "focused_311": "4 passed",
+    "affected_311": "216 passed, 1 baseline failure",
+    "baseline_main_confidence": "1 failed on pristine origin/main",
+    "candidate_new_controls": 4,
+    "candidate_added_failures": 0,
+    "forged_body_ignored": true,
+    "current_actor_scope_bound": true,
+    "durable_audit_receipt": true,
+    "operation_identity_replay": true,
+    "changed_material_conflict": true,
+    "concurrent_actor_demotion_refused": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "scheduler execution is stubbed; no live scheduler fleet operation",
+    "no new table or migration",
+    "guided/spawn/register_or_update were reconciled but not repaired in this slice",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}

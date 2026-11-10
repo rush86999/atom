@@ -1,0 +1,82 @@
+{
+  "schema": "atom-guided-agent-create-verification-1",
+  "status": "guided public create bound to current authority, exact material and durable receipt; acting-agent references scoped; additive CI regression; submitted for independent review",
+  "candidate": {
+    "branch": "codex/web-goal14-guided-create-20261110",
+    "base": "fb4d7f5549169b58a1601a1083207e3f0bb44a6b",
+    "executed_source": "ba497c196",
+    "frozen_pr833_pr831_worktrees_edited": false,
+    "runtime": "real scratch SQLite + FastAPI route + real JWT; deterministic guided factory double; no live product model/provider/credential/spend/send/download/deployment"
+  },
+  "confirmed_finding": {
+    "route": "POST /api/agents/guided",
+    "before": [
+      "no operation id, durable AuditLog receipt or replay",
+      "concurrent actor deactivation still created the agent",
+      "NULL to {} schedule request replayed 201 instead of 409",
+      "replay scheduled the same agent again",
+      "foreign acting_agent_id queued a HITL row outside the caller's scope",
+      "acting-agent HITL params lacked exact workspace/tenant/schedule material"
+    ],
+    "failure_first": "6 failed, 1 passed"
+  },
+  "repair": {
+    "decision_writer": "guided direct create uses core.agent_decision_write_service.create_agent",
+    "server_owned_material": "STUDENT status, 0.1 confidence below the INTERN floor, current user id, authorized parent agent id, generated capabilities",
+    "authority": "current user re-read and claimed at commit; self-serve policy kept at GUEST+; no AGENT_MANAGE requirement added",
+    "scope": "created row uses the actor's resolved tenant/workspace; forged body and generated-blueprint identity/status/tier ignored",
+    "acting_agent": "explicit acting_agent_id must be visible in the caller's governance scope before the trust gate and is re-checked after generation",
+    "receipt": "one AuditLog action=agent_created in the create transaction with request/result digests and optional identity/parent/capabilities material",
+    "replay": "same operation/material already_applied; changed request 409 OPERATION_CONFLICT; changed stored state 503 AGENT_COMMITTED_UNVERIFIED",
+    "scheduler": "only after the first verified create; never on replay or conflict",
+    "create_semantics": "create-only; no name-based upsert, existing same-name agent preserved"
+  },
+  "controls": {
+    "valid_employee_twin": true,
+    "forged_body_identity_scope_tier_ignored": true,
+    "forged_generated_blueprint_authority_ignored": true,
+    "inactive_user_refused": true,
+    "concurrent_actor_deactivation_refused": true,
+    "foreign_acting_agent_refused_without_hitl": true,
+    "same_scope_acting_agent_review_scoped": true,
+    "acting_agent_deleted_during_generation_refused": true,
+    "null_empty_schedule_changed_material": true,
+    "unchanged_null_replay": true,
+    "changed_generated_material_conflict": true,
+    "scheduler_once": true,
+    "commit_rollback_effect_unknown": true,
+    "readback_uncertainty_503": true,
+    "existing_agent_data_preserved": true
+  },
+  "results": {
+    "failure_first": {"failed": 6, "passed": 1, "log": "failure-first.log"},
+    "guided_after": {"passed": 13, "log": "guided-after.log"},
+    "ci_guided_step": {"passed": 13, "log": "ci-guided-step.log"},
+    "affected_after": {"passed": 259, "log": "affected-after.log"},
+    "ci_lane_contract": {"passed": 41, "log": "ci-lane-contract.log"}
+  },
+  "ci_regression": {
+    "additive_manifest": "backend/tests/fixtures/ci_backend_additions.json",
+    "workflow": ".github/workflows/ci.yml",
+    "step": "Run guided agent create authority and receipt controls",
+    "baseline_file_changed": false,
+    "lane_contract_green": true
+  },
+  "remaining_candidates": [
+    "guided pending-approval resume: an immature acting agent queues a scoped review, but no create_agent resume handler executes creation",
+    "POST /api/agents/spawn remains the next unclosed create alias"
+  ],
+  "checks": {
+    "no_new_table_or_store": true,
+    "no_budget_or_byok_file_change": true,
+    "no_new_dependency": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "original_143_claims_18_goals_unchanged": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "guided generation is a controlled double; no live product model was called",
+    "no merge or self-acceptance; root review remains independent"
+  ]
+}

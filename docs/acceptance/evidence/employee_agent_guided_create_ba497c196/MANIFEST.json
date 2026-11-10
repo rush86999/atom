@@ -1,0 +1,59 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "guided public create bound to current authority, exact material and durable receipt; acting-agent references scoped; additive CI regression; submitted for independent review",
+  "branch": "codex/web-goal14-guided-create-20261110",
+  "base": "fb4d7f5549169b58a1601a1083207e3f0bb44a6b",
+  "executed_source": "ba497c196",
+  "frozen_pr833_pr831_worktrees_edited": false,
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "addcc198b46e1ce0dbff4105c0f871587d852c3fb707f15a653657af306f4e5e",
+    "backend/api/agent_onboarding_routes.py": "95912af2c50dcda223034e46bf00fffddb51343f4711c69b17db265ee4d8e5ad",
+    "backend/tests/api/test_agent_guided_create_goal14.py": "726c4c814bb0b9b5217fed1ebfcf54e6d2b39c09787264a423ed3d30065feb1e",
+    "backend/tests/api/test_agent_onboarding_routes.py": "a1ae2d50303389fe1e23a2de18cab1a5a75e2eadd88a4ac48f176d1d7ce4d81d",
+    ".github/workflows/ci.yml": "1b674a692ee7a68f8c8c6c9325bdc8ca7db4a2e2f80c9f156700524f3b2ab2f6",
+    "backend/tests/fixtures/ci_backend_additions.json": "5ca8174c98cbc6ef7ea4b8dbc6cf05c7f9a4743a4c103ed15ad83d634a3dbeb7",
+    "COORDINATION.md": "5868b51fdff15765c5b5efbb1efe0650e41e64cf9f18053af78618e53624fc55",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/agent_governance_service.py": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e",
+    "backend/api/agent_routes.py": "53f3678d294e80e95b205aaffd5c7dbb79419704b03715aefaa394283aa31105"
+  },
+  "artifacts": {
+    "README.md": "30e536f01315c8cf8ea52028e6a2f474da4301ab64a41cb72913c7c07f7b3829",
+    "TEST_RESULTS.md": "9cabf784d9ee8007d755e57ae52fd93fca1ee629654399e2581d4e35153fb959",
+    "affected-after.log": "649d871c8122e5d41cb75121a862fd9c7d2a3717f2a8fb439674b5576b4011e2",
+    "ci-guided-step.log": "f866ee84be375063681f724cf3fc02c5cf3bd5fd761b134f247b6aa68d364fe4",
+    "ci-lane-contract.log": "dc75d4ae2922932c9e52b8f9639e8161ae3c33ba9093a60d360b634901b9087b",
+    "failure-first.log": "bb8b9b2d32c694ab61dd31698bcaf0d81b0f277486d1cddea2021efd8d555c6c",
+    "guided-after.log": "ab19ee98bade815b06e9572690f2beb994fbc11f81281c22143001f70887ceb2",
+    "source-fix.diff": "c3a4a3b60aca6ad10517b51c831868b689ba08154361df48bda36cb935b94749",
+    "verification.json": "1097e3b4f52de48ff8bf8fd24c80e6b938829d73b49fb514eddbc056fbcfc248"
+  },
+  "checks": {
+    "failure_first": "6 failed, 1 passed",
+    "guided_after": "13 passed",
+    "ci_guided_step": "13 passed",
+    "affected_after": "259 passed",
+    "ci_lane_contract": "41 passed",
+    "valid_twin": true,
+    "forged_body_ignored": true,
+    "forged_blueprint_ignored": true,
+    "concurrent_actor_change_refused": true,
+    "foreign_acting_agent_refused": true,
+    "acting_agent_deleted_refused": true,
+    "null_empty_material": true,
+    "replay_changed_material": true,
+    "rollback_effect_unknown": true,
+    "readback_uncertainty": true,
+    "scheduler_once": true,
+    "existing_agent_preserved": true,
+    "no_new_table_or_store": true,
+    "no_budget_or_byok_file_change": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "guided generation is a controlled double; no live product model was called",
+    "no merge or self-acceptance; root review remains independent"
+  ]
+}
