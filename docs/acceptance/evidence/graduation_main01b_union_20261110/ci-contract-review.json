@@ -1,0 +1,52 @@
+{
+  "world": "/private/tmp/root-pr831-main01b-ci-union-20261110-t_okt9z_",
+  "capture_head": "4f579187b5dd2610f460ee49416e904dfff6dce0",
+  "source_before": {
+    "backend/tests/test_agent_decision_contract.py": "7bbff6b3b1b30facb5335b87178d863f32d42c7a811fcdc43ffa56d2657f54d0",
+    "backend/tests/test_graduation_exam.py": "e80492d6aaaa24f020dec5edd6a241640e3aa377026873f9379e6aa5e1310d61",
+    "backend/tests/test_caller_transaction_ownership.py": "204bd368cc4e540b209ab4406781cf5c81b9c058ff4a510bc2154cd3b69cd1cb",
+    ".github/workflows/ci.yml": "a1a915be38f844b557a844997a9e0b701e6003eb778c3c75ab83e3a8b4707c5e",
+    "backend/tests/fixtures/ci_backend_additions.json": "fb80b9c138c5d57f3452d6e0c74fc87049aac347b95f697febaf1bfce0277254",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+    "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5"
+  },
+  "source_after": {
+    "backend/tests/test_agent_decision_contract.py": "7bbff6b3b1b30facb5335b87178d863f32d42c7a811fcdc43ffa56d2657f54d0",
+    "backend/tests/test_graduation_exam.py": "e80492d6aaaa24f020dec5edd6a241640e3aa377026873f9379e6aa5e1310d61",
+    "backend/tests/test_caller_transaction_ownership.py": "204bd368cc4e540b209ab4406781cf5c81b9c058ff4a510bc2154cd3b69cd1cb",
+    ".github/workflows/ci.yml": "a1a915be38f844b557a844997a9e0b701e6003eb778c3c75ab83e3a8b4707c5e",
+    "backend/tests/fixtures/ci_backend_additions.json": "fb80b9c138c5d57f3452d6e0c74fc87049aac347b95f697febaf1bfce0277254",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+    "backend/core/agent_decision_write_service.py": "3d2badfbf3850096da4fa1aecf095f8e369f35dd25a8c67e3aaff7ba2cd7b5a5"
+  },
+  "actual_exit": 0,
+  "same_source": true,
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-graduation-clean-delivery-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_ci_backend_lane_contract.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "at": "2026-11-10T14:27:32.674478+00:00",
+  "scope": "27 CI-preservation controls only; no authentication/runtime business-journey claim",
+  "derived_from": "/private/tmp/root-pr831-main01b-ci-union-20261110-t_okt9z_/review.json"
+}
