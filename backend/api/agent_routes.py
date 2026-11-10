@@ -46,7 +46,12 @@ from core.models import (
     UserStatus,
 )
 from core.notification_manager import notification_manager
-from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID, resolve_workspace_id
+from core.personal_scope import (
+    PERSONAL_TENANT_ID,
+    PERSONAL_WORKSPACE_ID,
+    resolve_tenant_id,
+    resolve_workspace_id,
+)
 from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
 from core.websockets import manager as ws_manager
@@ -3484,28 +3489,70 @@ async def execute_atom(
 @router.post("/spawn")
 async def spawn_agent(
     req: AtomSpawnRequest,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    db: Session = Depends(get_db),
 ):
+    """Spawn a specialty agent on-demand from a template.
+
+    Durable spawn uses the authenticated caller's workspace/tenant and the
+    shared create decision writer: distinct operation ids create distinct
+    STUDENT agents with exact template/config/capabilities material, one
+    AuditLog receipt, and replay. Ephemeral spawn stays in memory and is
+    reported honestly as non-persisted.
     """
-    Spawn a specialty agent on-demand from a template.
-    """
-    from core.atom_meta_agent import get_atom_agent
-    
-    atom = get_atom_agent()
-    agent = await atom.spawn_agent(
-        template_name=req.template,
-        custom_params=req.custom_params,
-        persist=req.persist
-    )
-    
+    from core.atom_meta_agent import get_scoped_atom_agent
+
+    workspace_id = resolve_workspace_id(user)
+    tenant_id = resolve_tenant_id(user)
+    atom = get_scoped_atom_agent(workspace_id, tenant_id, user)
+
+    try:
+        if req.persist:
+            result = await atom.spawn_agent_decision(
+                template_name=req.template,
+                custom_params=req.custom_params,
+                actor=user,
+                db=db,
+                operation_id=operation_id,
+            )
+            _raise_agent_decision(result)
+            data = dict(result.get("data") or {})
+            return router.success_response(
+                data={
+                    "agent_id": data["agent_id"],
+                    "agent_name": data.get("agent_name") or "",
+                    "category": data.get("category") or "",
+                    "persisted": True,
+                    "template": req.template,
+                    "operation_id": data.get("operation_id"),
+                    "audit_id": data.get("audit_id"),
+                    "verification": data.get("verification"),
+                    "tenant_id": data.get("tenant_id"),
+                    "workspace_id": data.get("workspace_id"),
+                },
+                message=(
+                    f"Agent {data.get('agent_name') or ''} spawned "
+                    "successfully"),
+            )
+        agent = await atom.spawn_agent(
+            template_name=req.template,
+            custom_params=req.custom_params,
+            persist=False,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     return router.success_response(
         data={
             "agent_id": agent.id,
             "agent_name": agent.name,
             "category": agent.category,
-            "persisted": req.persist
+            "persisted": False,
+            "template": req.template,
+            "verification": {"status": "not_persisted", "effect": "none"},
         },
-        message=f"Agent {agent.name} spawned successfully"
+        message=f"Agent {agent.name} spawned successfully",
     )
 
 

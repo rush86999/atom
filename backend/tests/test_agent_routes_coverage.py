@@ -963,13 +963,28 @@ class TestAtomMetaAgentEndpoints:
 
     def test_spawn_agent_success(self, client: TestClient):
         """Test spawning a new agent."""
-        with patch("core.atom_meta_agent.get_atom_agent") as mock_get:
+        with patch("core.atom_meta_agent.get_scoped_atom_agent") as mock_get:
             mock_atom = MagicMock()
-            mock_agent = Mock()
-            mock_agent.id = "spawned-123"
-            mock_agent.name = "Spawned Agent"
-            mock_agent.category = "finance"
-            mock_atom.spawn_agent = AsyncMock(return_value=mock_agent)
+            mock_atom.spawn_agent_decision = AsyncMock(return_value={
+                "status": "verified",
+                "data": {
+                    "agent_id": "spawned-123",
+                    "agent_name": "Spawned Agent",
+                    "category": "finance",
+                    "tenant_id": "default",
+                    "workspace_id": "default",
+                    "operation_id": "agent:create:coverage",
+                    "audit_id": "agent:create:coverage",
+                    "verification": {
+                        "status": "verified",
+                        "effect": "committed",
+                        "audit_id": "agent:create:coverage",
+                    },
+                },
+                "operation_id": "agent:create:coverage",
+                "audit_id": "agent:create:coverage",
+                "target_id": "spawned-123",
+            })
             mock_get.return_value = mock_atom
 
             response = client.post(
@@ -989,7 +1004,7 @@ class TestAtomMetaAgentEndpoints:
 
     def test_spawn_agent_minimal(self, client: TestClient):
         """Test spawning agent with minimal params."""
-        with patch("core.atom_meta_agent.get_atom_agent") as mock_get:
+        with patch("core.atom_meta_agent.get_scoped_atom_agent") as mock_get:
             mock_atom = MagicMock()
             mock_agent = Mock()
             mock_agent.id = "spawned-minimal"

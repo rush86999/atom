@@ -409,3 +409,22 @@ touch them. No live DB/model/provider/credential/send/spend/deploy/deps.
 Status: guided direct create and approved create_agent HITL both use the
 shared decision writer; acting-agent references are scoped; the reviewed
 HITL material is digest-bound and resumes to one agent/receipt.
+
+---
+
+## Session: Goal14 spawn create authority/receipt (2026-11-10)
+
+Branch `codex/web-goal14-spawn-20261110`, stacked on guided
+`492e41ea1d2e04be13f2f0eb265e6109852c0b60`. Root integration and frozen
+PR833/PR831 worktrees are not edited.
+
+Files owned: `backend/api/agent_routes.py` (spawn route),
+`backend/core/atom_meta_agent.py` (scoped factory/spawn decision),
+`backend/integrations/mcp_service.py` (spawn tool), the spawn test file,
+related spawn consumer tests, and the additive CI step/manifest.
+
+Durable spawn uses the caller-scoped Atom instance and shared create
+decision writer; ephemeral spawn stays non-durable. Budget/BYOK files belong
+to the other worker and are not touched. No live DB/model/provider.
+
+Status: coherent candidate; root review remains independent.
