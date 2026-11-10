@@ -72,10 +72,33 @@ it('refuses an invalid explicit token without falling back to password login',as
 it.each([
  [{backendToken:''}],
  [{backendToken:'   '}],
+ [{backendToken:'\t\n'}],
  [{backendToken:'not a single token'}],
 ])('refuses malformed explicit token without dispatch %j',async(c)=>{
  expect(await createBackendCredentialsAuthorize(()=>'/backend')(c as any)).toBeNull();
- expect(fetch).not.toHaveBeenCalled();
+ expect((fetch as jest.Mock).mock.calls.length).toBe(0);
+});
+
+it.each([
+ ['undefined',{backendToken:undefined}],
+ ['null',{backendToken:null}],
+ ['number',{backendToken:42}],
+ ['object',{backendToken:{}}],
+ ['array',{backendToken:[]}],
+ ['boolean',{backendToken:true}],
+])('refuses an explicitly provided %s backendToken without password fallback',async(_name,tokenField)=>{
+ const result=await createBackendCredentialsAuthorize(()=>'/backend')({...credentials,...tokenField} as any);
+ expect(result).toBeNull();
+ expect((fetch as jest.Mock).mock.calls.length).toBe(0);
+});
+
+it('still follows the password/TOTP flow when backendToken is absent',async()=>{
+ (fetch as jest.Mock).mockResolvedValueOnce(response({access_token:'fixture-bearer'})).mockResolvedValueOnce(response(currentIdentity));
+ const user=await createBackendCredentialsAuthorize(()=>'/backend/')({...credentials});
+ expect(user).toMatchObject({id:'canonical',email:'canonical@example.invalid',role:'member'});
+ expect(fetch).toHaveBeenCalledTimes(2);
+ expect((fetch as jest.Mock).mock.calls[0][0]).toBe('/backend/api/auth/login');
+ expect((fetch as jest.Mock).mock.calls[1][0]).toBe('/backend/api/auth/me');
 });
 
 it.each([

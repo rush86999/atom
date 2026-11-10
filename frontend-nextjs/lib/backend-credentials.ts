@@ -11,16 +11,20 @@ type Credentials = {
   password?: string;
   totp_code?: string;
   /** A backend-issued bearer already obtained by the existing login/register flow. */
-  backendToken?: string;
+  backendToken?: unknown;
 } | undefined;
 
 export function createBackendCredentialsAuthorize(resolveBackend: () => string) {
   return async (credentials: Credentials) => {
-    // An explicit token is authoritative and never falls back to a password
-    // login. Validate it against the same /me boundary as the password path.
-    const hasExplicitToken = typeof credentials?.backendToken === 'string';
-    const explicitToken = hasExplicitToken ? credentials!.backendToken! : '';
-    if (hasExplicitToken && !/^\S+$/.test(explicitToken)) return null;
+    // Own-property presence is the caller's explicit choice: any provided
+    // backendToken (including undefined/null/wrong types) is authoritative and
+    // must be a valid bearer string, or the whole attempt refuses. Only an
+    // absent field may follow the unchanged email/password/TOTP flow.
+    const hasExplicitToken = Boolean(credentials) &&
+      Object.prototype.hasOwnProperty.call(credentials, 'backendToken');
+    const explicitToken = hasExplicitToken ? credentials!.backendToken : undefined;
+    if (hasExplicitToken &&
+        (typeof explicitToken !== 'string' || !/^\S+$/.test(explicitToken))) return null;
     if (!hasExplicitToken && (!credentials?.email || !credentials.password)) return null;
 
     const controller = new AbortController();
@@ -29,7 +33,7 @@ export function createBackendCredentialsAuthorize(resolveBackend: () => string) 
     const timer = setTimeout(() => controller.abort(), 10000);
     try {
       const backend = resolveBackend().replace(/\/$/, '');
-      let accessToken = explicitToken;
+      let accessToken = hasExplicitToken ? explicitToken as string : '';
       if (!hasExplicitToken) {
         const login = await fetch(`${backend}/api/auth/login`, {
           method: 'POST', redirect: 'error',

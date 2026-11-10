@@ -116,7 +116,7 @@ describe('lib/backendAuth establishWebSession', () => {
     expect(call[1].backendToken === 'issued-bearer').toBe(true);
   });
 
-  it.each(['', '   ', 'not a single token'])(
+  it.each(['', '   ', '\t\n', 'not a single token'])(
     'refuses malformed bearer %j without dispatching signIn',
     async (token) => {
       await expect(establishWebSession(token)).rejects.toThrow(
@@ -125,6 +125,20 @@ describe('lib/backendAuth establishWebSession', () => {
       expect(signIn).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['number', 42],
+    ['object', {}],
+    ['array', []],
+    ['boolean', true],
+  ])('refuses non-string bearer %s before the SDK', async (_name, token) => {
+    await expect(establishWebSession(token as any)).rejects.toThrow(
+      'Unable to establish a secure web session',
+    );
+    expect(signIn).not.toHaveBeenCalled();
+  });
 
   it.each([
     [{ ok: false, error: null }],

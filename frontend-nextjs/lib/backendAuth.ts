@@ -64,8 +64,8 @@ export async function loginWithBackend(
  * Call this only after a successful backend login/registration and before raw
  * auth_token persistence, toasts or navigation.
  */
-export async function establishWebSession(backendToken: string): Promise<void> {
-  if (!backendToken || /\s/.test(backendToken)) {
+export async function establishWebSession(backendToken: unknown): Promise<void> {
+  if (typeof backendToken !== "string" || backendToken.length === 0 || /\s/.test(backendToken)) {
     throw new Error("Unable to establish a secure web session. Please sign in again.");
   }
 
