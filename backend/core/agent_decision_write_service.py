@@ -30,7 +30,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
-from sqlalchemy import text, update
+from sqlalchemy import null, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -774,6 +774,20 @@ def _create_schedule_digest(value: Any) -> str:
     return _fingerprint("agent-schedule", _canonical(value))
 
 
+def _stored_json_value(value: Any) -> Any:
+    """Return the physical JSON material, preserving an explicit NULL.
+
+    ``create_agent`` inserts ``null()`` for a request that omitted the field
+    so NULL and ``{}`` stay distinct. Before flush the ORM attribute is a
+    SQL ``Null`` expression; after readback it is ``None``.
+    """
+    from sqlalchemy.sql.elements import Null
+
+    if value is None or isinstance(value, Null):
+        return None
+    return value
+
+
 def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
     return {
         "id": str(agent.id),
@@ -787,9 +801,9 @@ def _create_state_material(agent: AgentRegistry) -> Dict[str, Any]:
             None if agent.description is None else str(agent.description)),
         "category": str(agent.category or ""),
         "configuration_digest": _create_config_digest(
-            agent.configuration or {}),
+            _stored_json_value(agent.configuration)),
         "schedule_digest": _create_schedule_digest(
-            agent.schedule_config or {}),
+            _stored_json_value(agent.schedule_config)),
         "module_path": str(agent.module_path or ""),
         "class_name": str(agent.class_name or ""),
         "status": str(agent.status or ""),
@@ -847,8 +861,8 @@ def create_agent(
             field="operation_id")
 
     target_id = str(uuid.uuid5(uuid.NAMESPACE_URL, operation_id))
-    configuration_digest = _create_config_digest(configuration or {})
-    schedule_digest = _create_schedule_digest(schedule_config or {})
+    configuration_digest = _create_config_digest(configuration)
+    schedule_digest = _create_schedule_digest(schedule_config)
     request_material = {
         "name": str(name or ""),
         "category": str(category or ""),
@@ -889,8 +903,9 @@ def create_agent(
         name=str(name or ""),
         description=description,
         category=str(category or ""),
-        configuration=configuration,
-        schedule_config=schedule_config,
+        configuration=null() if configuration is None else configuration,
+        schedule_config=(
+            null() if schedule_config is None else schedule_config),
         module_path="core.generic_agent",
         class_name="GenericAgent",
         status=AgentStatus.STUDENT.value,

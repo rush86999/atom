@@ -200,3 +200,138 @@ def test_custom_create_replay_with_changed_material_conflicts(world):
         assert db.query(func.count(AuditLog.id)).filter(
             AuditLog.id == "agent:create:create-op-bound").scalar() == 1
         assert db.get(AgentRegistry, agent_id).name == "Bound Create"
+
+
+@pytest.mark.parametrize("field", ["configuration", "schedule_config"])
+@pytest.mark.parametrize(
+    ("first", "changed", "label"),
+    [(None, {}, "null-to-empty"), ({}, None, "empty-to-null")],
+)
+def test_custom_create_null_empty_request_change_conflicts(
+        world, field, first, changed, label):
+    """A changed request must conflict even when it normalizes to one row.
+
+    NULL and {} are different reviewed material. The request digest binds
+    the exact submitted value, so changing only this field cannot replay the
+    original receipt.
+    """
+    client = _client(world)
+    token = _token(world, "admin")
+    operation_id = f"null-empty-request-{field}-{label}"
+    body = {
+        "name": "Exact Request",
+        "category": "operations",
+        "configuration": None,
+        "schedule_config": None,
+    }
+    body[field] = first
+    first_response = _post(client, token, body, operation_id=operation_id)
+    assert first_response.status_code == 201, first_response.text
+
+    body[field] = changed
+    replay = _post(client, token, body, operation_id=operation_id)
+    assert replay.status_code == 409, replay.text
+    assert replay.json()["detail"]["error"]["code"] == "OPERATION_CONFLICT"
+
+
+@pytest.mark.parametrize("field", ["configuration", "schedule_config"])
+@pytest.mark.parametrize(
+    ("first", "changed", "label"),
+    [(None, {}, "null-to-empty"), ({}, None, "empty-to-null")],
+)
+def test_custom_create_stored_null_empty_mutation_refutes(
+        world, field, first, changed, label):
+    """A post-commit material change refutes the original receipt.
+
+    The create stores NULL for an omitted field and {} for an explicit empty
+    object. Mutating the stored value in the other direction is a real
+    state change, so replay must return committed_unverified instead of
+    claiming the original operation is already applied.
+    """
+    client = _client(world)
+    token = _token(world, "admin")
+    operation_id = f"null-empty-stored-{field}-{label}"
+    body = {
+        "name": "Stored Exact",
+        "category": "operations",
+        "configuration": None,
+        "schedule_config": None,
+    }
+    body[field] = first
+    first_response = _post(client, token, body, operation_id=operation_id)
+    assert first_response.status_code == 201, first_response.text
+    agent_id = first_response.json()["data"]["agent_id"]
+
+    with world["Session"]() as db:
+        agent = db.get(AgentRegistry, agent_id)
+        setattr(agent, field, changed)
+        db.commit()
+
+    replay = _post(client, token, body, operation_id=operation_id)
+    assert replay.status_code == 503, replay.text
+    assert replay.json()["detail"]["error"]["code"] == (
+        "AGENT_COMMITTED_UNVERIFIED")
+
+
+@pytest.mark.parametrize("value", [None, {}])
+def test_custom_create_unchanged_null_empty_replays_once(world, value):
+    """The exact same NULL or {} request replays without a second effect."""
+    client = _client(world)
+    token = _token(world, "admin")
+    operation_id = "unchanged-" + ("null" if value is None else "empty")
+    body = {
+        "name": "Unchanged Exact",
+        "category": "operations",
+        "configuration": value,
+        "schedule_config": value,
+    }
+    first_response = _post(client, token, body, operation_id=operation_id)
+    assert first_response.status_code == 201, first_response.text
+    agent_id = first_response.json()["data"]["agent_id"]
+
+    replay = _post(client, token, body, operation_id=operation_id)
+    assert replay.status_code == 201, replay.text
+    assert replay.json()["data"]["verification"]["status"] == "already_applied"
+    with world["Session"]() as db:
+        agent = db.get(AgentRegistry, agent_id)
+        if value is None:
+            assert agent.configuration is None
+            assert agent.schedule_config is None
+        else:
+            assert agent.configuration == {}
+            assert agent.schedule_config == {}
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:{operation_id}").scalar() == 1
+
+
+def test_custom_create_scheduler_runs_only_on_first_verified_create(
+        world, monkeypatch):
+    client = _client(world)
+    token = _token(world, "admin")
+    calls = []
+
+    class FakeScheduler:
+        def schedule_agent(self, agent_id, schedule_config):
+            calls.append((agent_id, dict(schedule_config)))
+
+    from core.scheduler import AgentScheduler
+
+    monkeypatch.setattr(AgentScheduler, "get_instance", lambda: FakeScheduler())
+    body = {
+        "name": "Scheduled Create",
+        "category": "operations",
+        "configuration": {},
+        "schedule_config": {"active": True, "cron": "0 * * * *"},
+    }
+    operation_id = "scheduled-create"
+    first_response = _post(client, token, body, operation_id=operation_id)
+    assert first_response.status_code == 201, first_response.text
+    replay = _post(client, token, body, operation_id=operation_id)
+    assert replay.status_code == 201, replay.text
+    assert len(calls) == 1
+
+    changed = dict(body)
+    changed["schedule_config"] = {"active": True, "cron": "1 * * * *"}
+    conflict = _post(client, token, changed, operation_id=operation_id)
+    assert conflict.status_code == 409, conflict.text
+    assert len(calls) == 1
