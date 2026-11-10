@@ -173,8 +173,15 @@ export default function SsoCallbackPage() {
       // signIn('credentials', { backendToken, redirect: false }). Serialize
       // SDK commits so a late old-code call cannot overwrite a newer code's
       // session after a new navigation starts.
-      const sdkRun = sdkChainRef.current.then(() =>
-        establishWebSession(payload.access_token),
+      const sdkRun = sdkChainRef.current.then(
+        (): void | Promise<void> => {
+          // Ownership is checked again when the queued continuation actually
+          // runs: a newer code, invalid code or unmount may have happened while
+          // another SDK request was pending. Outer checks alone cannot stop an
+          // already-queued stale SDK side effect.
+          if (!isCurrent()) return;
+          return establishWebSession(payload.access_token);
+        },
       );
       sdkChainRef.current = sdkRun.then(
         (): void => undefined,

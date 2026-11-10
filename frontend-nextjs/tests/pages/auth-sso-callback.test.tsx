@@ -393,6 +393,66 @@ describe('SSO callback one-shot exchange', () => {
     expect(second.replace).toHaveBeenCalledWith('/dashboard');
   });
 
+  test.each(['invalidated', 'unmounted', 'still-current'])(
+    'queued second SDK obeys current ownership: %s',
+    async (mode) => {
+      const firstSdk = deferred<void>();
+      (establishWebSession as jest.Mock)
+        .mockImplementationOnce(() => firstSdk.promise)
+        .mockResolvedValueOnce(undefined);
+      fetchMock
+        .mockResolvedValueOnce(response({
+          ...validPayload,
+          access_token: 'controlled-a',
+        }))
+        .mockResolvedValueOnce(response({
+          ...validPayload,
+          access_token: 'controlled-b',
+          return_to: '/dashboard',
+        }));
+      const first = routerFor('controlled-code-a');
+      (useRouter as jest.Mock).mockReturnValue(first);
+      const view = render(<SsoCallbackPage />);
+      await waitFor(() =>
+        expect(establishWebSession).toHaveBeenCalledTimes(1),
+      );
+
+      const second = routerFor('controlled-code-b');
+      (useRouter as jest.Mock).mockReturnValue(second);
+      view.rerender(<SsoCallbackPage />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      await flush();
+      expect(establishWebSession).toHaveBeenCalledTimes(1);
+
+      if (mode === 'invalidated') {
+        (useRouter as jest.Mock).mockReturnValue(routerFor(undefined));
+        view.rerender(<SsoCallbackPage />);
+        await flush();
+      } else if (mode === 'unmounted') {
+        view.unmount();
+      }
+
+      await act(async () => {
+        firstSdk.resolve();
+        await flush();
+        await flush();
+      });
+
+      if (mode === 'still-current') {
+        expect(establishWebSession).toHaveBeenCalledTimes(2);
+        expect(persistBackendToken).toHaveBeenCalledWith(
+          'controlled-b',
+          'member@example.com',
+        );
+        expect(second.replace).toHaveBeenCalledWith('/dashboard');
+      } else {
+        expect(establishWebSession).toHaveBeenCalledTimes(1);
+        expect(persistBackendToken).not.toHaveBeenCalled();
+        expect(second.replace).not.toHaveBeenCalledWith('/dashboard');
+      }
+    },
+  );
+
   test('a genuinely new independent code navigation is exchanged once for the new code', async () => {
     const first = routerFor('opaque-code');
     (useRouter as jest.Mock).mockReturnValue(first);
