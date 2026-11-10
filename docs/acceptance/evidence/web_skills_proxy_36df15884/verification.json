@@ -1,0 +1,24 @@
+{
+  "executed_source": "36df1588489d935631d32f5a05c3eb5f589d99ea",
+  "baseline_route_source": "42be6ae1a",
+  "baseline_original_controls": {
+    "passed": 0,
+    "failed": 9
+  },
+  "native_proxy_and_task_controls": {
+    "passed": 27,
+    "failed": 0
+  },
+  "frontend": {
+    "passed": 75,
+    "failed": 0
+  },
+  "actual_auth_sdk": {
+    "passed": 43,
+    "failed": 0
+  },
+  "typescript_exit": 0,
+  "provider_transport": "doubled only; installed SDK decoding real",
+  "browser_replay": false,
+  "stack_dependency": "PR803 head42be6ae1a"
+}

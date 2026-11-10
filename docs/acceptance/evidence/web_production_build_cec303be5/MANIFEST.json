@@ -1,0 +1,20 @@
+{
+  "executed_source": "cec303be559fdf3d10bb3d2867863103f09b4117",
+  "source_files": {
+    "frontend-nextjs/package.json": "sha256:df46b06543bddee1daed8365c7bbc8c367a015f340a38d7ae24bab6c0fbdb474",
+    "frontend-nextjs/package-lock.json": "sha256:189c3fd142b26758e74e2d21befb299904b86735296284ac9d2d964ee20acbc0",
+    "frontend-nextjs/next.config.js": "sha256:e3064054bd6d6b339c439df126f92d346b4f9c25976bb31324581e9b6d36271f",
+    "frontend-nextjs/pages/api/auth/[...nextauth].ts": "sha256:f277101b068d22e1d8394d398f035540c57e6f6c5ffa582f59863b847ca0dc2b",
+    "frontend-nextjs/lib/auth.ts": "sha256:cc59cd6463cf10f5f8d6bdcee0c48efcc2e205bf76d87c3ebac246e8e04ca559",
+    "frontend-nextjs/lib/web-auth-config.ts": "sha256:19cd8f8fe88d5a58c1b8c25b334c1ad02de535e4ab905a9faac60cab3d17c86b",
+    "frontend-nextjs/lib/backend-current-session.ts": "sha256:52221f9369121f03359ccdd434dee4b5830eb0a47c1b713ee3f9982111678550",
+    "frontend-nextjs/tests/pages/api/__tests__/v1-financial-workflow.test.ts": "sha256:4803256fa3283869584fcb819137d5479ff4d2ac29de7623ea9f46a152ca3546"
+  },
+  "artifacts": {
+    "lifecycle.json": "sha256:17d2cff5d37c9ea62ac1b96eab8ec4d1b6e5b29a319be893294616ea9b0d977f",
+    "cookie-policy-observation.json": "sha256:34ed3c5eef0c6f4e6f2de1157b350a29c24065fee9ffb7f12ed096643ecc19be",
+    "README.md": "sha256:21f874a476c884a56e754b8672516b4aa9d65d6db184f54aefbd556f2eeef011",
+    "build-result.json": "sha256:c9211cc63a8fc986bdde5401248a22adc062878495fe8354cf5582047026dd7a",
+    "build.log": "sha256:cd8822135bb1810a608658eb565099336e65fd23872d9f98049a8ad9b11e65fd"
+  }
+}

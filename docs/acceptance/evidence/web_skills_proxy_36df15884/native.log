@@ -1,0 +1,145 @@
+TAP version 13
+# Subtest: actual encrypted web cookie forwards only its exact backend generation
+ok 1 - actual encrypted web cookie forwards only its exact backend generation
+  ---
+  duration_ms: 11.201792
+  ...
+# Subtest: upstream refusal never becomes success with zero skills
+ok 2 - upstream refusal never becomes success with zero skills
+  ---
+  duration_ms: 0.299375
+  ...
+# Subtest: upstream unavailable never becomes a successful empty catalogue
+ok 3 - upstream unavailable never becomes a successful empty catalogue
+  ---
+  duration_ms: 0.148375
+  ...
+# Subtest: missing credentials refuse before dispatch
+ok 4 - missing credentials refuse before dispatch
+  ---
+  duration_ms: 0.054042
+  ...
+# Subtest: invalid explicit authority cannot borrow an encrypted cookie
+ok 5 - invalid explicit authority cannot borrow an encrypted cookie
+  ---
+  duration_ms: 0.686208
+  ...
+# Subtest: an actual verified empty catalogue remains successful
+ok 6 - an actual verified empty catalogue remains successful
+  ---
+  duration_ms: 0.233667
+  ...
+# Subtest: a malformed successful catalogue is not presented as loaded
+ok 7 - a malformed successful catalogue is not presented as loaded
+  ---
+  duration_ms: 0.194916
+  ...
+# Subtest: raw error body is never reflected to caller
+ok 8 - raw error body is never reflected to caller
+  ---
+  duration_ms: 0.376792
+  ...
+# Subtest: query values are encoded and request transport refuses redirects
+ok 9 - query values are encoded and request transport refuses redirects
+  ---
+  duration_ms: 0.429917
+  ...
+# Subtest: tampered encrypted cookie is an authentication refusal, not an outage
+ok 10 - tampered encrypted cookie is an authentication refusal, not an outage
+  ---
+  duration_ms: 0.883666
+  ...
+# Subtest: explicit refused bearer never borrows another valid cookie
+ok 11 - explicit refused bearer never borrows another valid cookie
+  ---
+  duration_ms: 0.445958
+  ...
+# Subtest: ordinary id query filter remains an encoded query value
+ok 12 - ordinary id query filter remains an encoded query value
+  ---
+  duration_ms: 0.291959
+  ...
+# Subtest: shared transport preserves a confirmed no-content response without parsing or replay
+ok 13 - shared transport preserves a confirmed no-content response without parsing or replay
+  ---
+  duration_ms: 0.190875
+  ...
+# Subtest: non-JSON refusal retains the backend status without its diagnostics
+ok 14 - non-JSON refusal retains the backend status without its diagnostics
+  ---
+  duration_ms: 0.239084
+  ...
+# Subtest: anonymous GET tasks refuses without reading or changing private records
+ok 15 - anonymous GET tasks refuses without reading or changing private records
+  ---
+  duration_ms: 0.9865
+  ...
+# Subtest: anonymous POST tasks refuses without reading or changing private records
+ok 16 - anonymous POST tasks refuses without reading or changing private records
+  ---
+  duration_ms: 0.144791
+  ...
+# Subtest: anonymous PUT task refuses without reading or changing private records
+ok 17 - anonymous PUT task refuses without reading or changing private records
+  ---
+  duration_ms: 0.1945
+  ...
+# Subtest: anonymous DELETE task refuses without reading or changing private records
+ok 18 - anonymous DELETE task refuses without reading or changing private records
+  ---
+  duration_ms: 0.133
+  ...
+# Subtest: anonymous GET projects refuses without reading or changing private records
+ok 19 - anonymous GET projects refuses without reading or changing private records
+  ---
+  duration_ms: 0.135208
+  ...
+# Subtest: anonymous POST projects refuses without reading or changing private records
+ok 20 - anonymous POST projects refuses without reading or changing private records
+  ---
+  duration_ms: 0.11225
+  ...
+# Subtest: anonymous PUT project refuses without reading or changing private records
+ok 21 - anonymous PUT project refuses without reading or changing private records
+  ---
+  duration_ms: 0.169625
+  ...
+# Subtest: authenticated tasks forwards exact request once and preserves backend verdict
+ok 22 - authenticated tasks forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 1.20075
+  ...
+# Subtest: authenticated task forwards exact request once and preserves backend verdict
+ok 23 - authenticated task forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 0.211417
+  ...
+# Subtest: authenticated projects forwards exact request once and preserves backend verdict
+ok 24 - authenticated projects forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 0.176208
+  ...
+# Subtest: authenticated project forwards exact request once and preserves backend verdict
+ok 25 - authenticated project forwards exact request once and preserves backend verdict
+  ---
+  duration_ms: 0.124667
+  ...
+# Subtest: mutation confirmation loss returns unknown and never resends
+ok 26 - mutation confirmation loss returns unknown and never resends
+  ---
+  duration_ms: 0.199917
+  ...
+# Subtest: dot-segment record ids cannot change the authoritative target path
+ok 27 - dot-segment record ids cannot change the authoritative target path
+  ---
+  duration_ms: 0.067042
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 170.282625

@@ -1,0 +1,24 @@
+{
+  "source": "cec303be5",
+  "csrf_http_status": 200,
+  "cookies_without_values": [
+    {
+      "name": "__Host-next-auth.csrf-token",
+      "secure": true,
+      "http_only": true,
+      "has_domain": true,
+      "path_root": true
+    },
+    {
+      "name": "__Secure-next-auth.callback-url",
+      "secure": true,
+      "http_only": true,
+      "has_domain": true,
+      "path_root": true
+    }
+  ],
+  "plain_http_session_probe": "no session; Secure cookies correctly not sent over HTTP; not a credential/auth defect",
+  "host_prefix_cookie_has_invalid_domain": true,
+  "production_debug_warning_observed": true,
+  "no_tokens_published": true
+}

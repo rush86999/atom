@@ -1,0 +1,26 @@
+{
+  "executed_source": "36df1588489d935631d32f5a05c3eb5f589d99ea",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:cdcf0361bb34530029eed4c20fc6b92057dbbd940f2d34f804bae79cbb818399",
+    "frontend-nextjs/components/Automations/PiecesSidebar.tsx": "sha256:be018b54dca288e5cb783539c8d7c268cfff4fc618de0c8944883071af989927",
+    "frontend-nextjs/components/Automations/__tests__/test-pieces-sidebar.test.tsx": "sha256:4a988cf15dc8be4027472d5745804bbf1ba7e163bfe6a0771612a8244accaae0",
+    "frontend-nextjs/lib/backend-api-proxy.ts": "sha256:428406c4f0486d06b8ab7eef3ed216fe29750404fef1037227337f45fb60663e",
+    "frontend-nextjs/lib/web-auth-config.ts": "sha256:19cd8f8fe88d5a58c1b8c25b334c1ad02de535e4ab905a9faac60cab3d17c86b",
+    "frontend-nextjs/pages/api/skills/list.ts": "sha256:165910f39af7c6225aa9d8b39347f631c7ac5b25c6cb8f7ce37dd9bb6db4f669",
+    "frontend-nextjs/pages/api/v1/tasks/[id].ts": "sha256:0d85e4b556b54da209ee99ca7eec538b832105b5066cccd752664c304a38f61e",
+    "frontend-nextjs/pages/api/v1/projects/[id].ts": "sha256:3a3bea5f3e725bd65178cf85888184aa4577e1f06c72d93e995e9d0479ea935b",
+    "frontend-nextjs/tests/pages/api/__tests__/skills-list.test.ts": "sha256:8ba2f7b5db1a6defc8c68696593a006e89bd53ce00cedb1b5b0631c670a0dab6",
+    "frontend-nextjs/tests/contracts/skills-proxy-authority.cjs": "sha256:6060d29f8302be50c557dd12ccca710100354ea657f8b3ec3a62bc97b430a78a",
+    "frontend-nextjs/tests/contracts/task-project-public-boundary.cjs": "sha256:9bc32a587e0f1081642883d39d58ad1741c48ef4652bb68da7772a16947e2390",
+    "frontend-nextjs/tests/contracts/nextauth-current-principal.cjs": "sha256:ba385a83b2a6ee3b43cdd429c8e8a24b72f73b9970278bea767562841c59ce6e"
+  },
+  "artifacts": {
+    "baseline-native.log": "sha256:72541a7e005ea716446056cf67d12b757d740845a917535b5bc910980755bc1a",
+    "typescript.log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "frontend.log": "sha256:ec11e3c4d7d737ab1c29fed44662437068b789ec97234470af4cb4f704506cf3",
+    "README.md": "sha256:326929c751b60712ad9bebcd9b94f2da73caf4eefd6cb796094818362b36fdbe",
+    "auth-regression.log": "sha256:96ecdbe9a204c7e3257565ae032db5352bd00b74be60099d22acbf8971960501",
+    "native.log": "sha256:3387520923a61f8abfca534b6613705fb45fa5adbd8328548d31724f5d1b3c63",
+    "verification.json": "sha256:5f9cb433344dcfbdf41c227bed06d6efa3f933cadc924f368e97e4843093528e"
+  }
+}
