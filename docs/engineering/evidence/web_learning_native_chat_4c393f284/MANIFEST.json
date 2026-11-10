@@ -1,0 +1,27 @@
+{
+  "base": "e2cbff5b989c482040d61c210e74be7f8840668d",
+  "branch": "codex/web-learning-native-chat-20261110",
+  "commit": "4c393f2849815038cd66a89598b8b85df09d5554",
+  "logs_sha256": {
+    "authority-probe.log": "0523362e8bf31843fe171257bf90a3d3753f5bb0ba3880db30501d2babad8bb2",
+    "combined-backend.log": "d6cf0506f2832f076e270e094a086f6e0dbde807f7bc294917ec84a36ad10cc3",
+    "eslint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "frontend-tests.log": "c0df2e8c4e065a85f17c6cfa63d0a1d4ac2c160a80bda598550bc3defa5ad9ce",
+    "native-api-tests.log": "e3eb3f561c7bdb248a241567517f707aa69f7379568626e02d3fef58b55dc81d",
+    "root-repaired-probe.log": "2667c8a97bc58bfdc4b4364bde7cd55951cc4310727b312619eb65b99ee095d8",
+    "tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "packet": "web_learning_native_chat_4c393f284",
+  "root_authority_probe_sha256": "4abec43680e802bdf92b53c071c6e2972011038e73c1e94f7dc935ac84ab3fbe",
+  "root_repaired_review_sha256": "8801fec2c0408ef2a1e1d6b1cff8700ba27a7b3e6a8e3714872c063375c6923b",
+  "source_sha256": {
+    "backend/api/conversation_learning_routes.py": "b151e144350f9c5a18b40a4624f371e0d0832d9796a8ac9937a0c9eb651e2a37",
+    "backend/core/conversation_learning.py": "4e3f2a584f13d262e51f4b1306881d29a5cf84f28c12138f576603d64eab3c46",
+    "backend/tests/api/test_conversation_learning_native_chat.py": "b23d3a40aaf39e68a01455efa86a93a8b16f10bb0bb5dd1fd8df6f490f69dcb1",
+    "frontend-nextjs/components/learning/ConversationLearningReview.tsx": "edc62a4cdf1980a113bb14df30c3046c8380084025c40d2017f6bd4f01569419",
+    "frontend-nextjs/components/learning/__tests__/ConversationLearningReview.test.tsx": "81f3c8da2483e03b088747298de7fee114591a72c97e2f40aadc7ee67b04de4c",
+    "frontend-nextjs/lib/conversation-learning-api.ts": "7b07393d9f2eafb82c8b28013ed488b6f7f5b409ebec5630717f5ea9cb2a5a1d",
+    "frontend-nextjs/pages/learning.tsx": "2a9323e51b84602c981306e1497447171c0eb63fe7d6625208a31429e003e678",
+    "frontend-nextjs/tests/pages/learning.test.tsx": "bb8185e4fe92e6afb6319dc2789f38a2c30340bc58a1e1f21a6e87cbf9b39192"
+  }
+}
