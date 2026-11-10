@@ -1,0 +1,139 @@
+
+backend/tests/test_runtime_identity_export.py::test_nested_export_does_not_claim_ancestor_revision 
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:08:25 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 14:08:26 [    INFO] EscalationManager initialized
+2026-11-10 14:08:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:08:26 [    INFO] EscalationManager initialized
+2026-11-10 14:08:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:08:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:08:26 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:26 [    INFO] runtime identity: source_id=9927f746f895-dirty.78cca921d351 revision=9927f746f895 dirty=True (1 modified, 2 untracked)
+FAILED                                                                   [  9%]
+backend/tests/test_runtime_identity_export.py::test_native_clean_checkout_is_attributable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:26 [    INFO] runtime identity: source_id=9927f746f895 revision=9927f746f895 dirty=False (0 modified, 0 untracked)
+FAILED                                                                   [ 18%]
+backend/tests/test_runtime_identity_export.py::test_native_dirty_checkout_stays_attributable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:27 [    INFO] runtime identity: source_id=9927f746f895-dirty.b555aedf69bb revision=9927f746f895 dirty=True (1 modified, 0 untracked)
+FAILED                                                                   [ 27%]
+backend/tests/test_runtime_identity_export.py::test_nested_export_never_reports_ancestor_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:27 [    INFO] runtime identity: source_id=c38861952b50-dirty.0f9c04a8819e revision=c38861952b50 dirty=True (1 modified, 3 untracked)
+FAILED                                                                   [ 36%]
+backend/tests/test_runtime_identity_export.py::test_archive_export_twin_uses_archive_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:27 [    INFO] runtime identity: source_id=c38861952b50-dirty.620faa6e5342 revision=c38861952b50 dirty=True (0 modified, 2 untracked)
+FAILED                                                                   [ 45%]
+backend/tests/test_runtime_identity_export.py::test_symlinked_backend_farm_uses_world_export_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:27 [    INFO] runtime identity: source_id=c38861952b50-dirty.19bb76ab33e3 revision=c38861952b50 dirty=True (0 modified, 3 untracked)
+FAILED                                                                   [ 54%]
+backend/tests/test_runtime_identity_export.py::test_export_without_metadata_is_unknown_not_ancestor 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:28 [    INFO] runtime identity: source_id=a2a8f7ac2b15 revision=a2a8f7ac2b15 dirty=False (0 modified, 0 untracked)
+FAILED                                                                   [ 63%]
+backend/tests/test_runtime_identity_export.py::test_malformed_manifest_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:28 [    INFO] runtime identity: source_id=a2a8f7ac2b15-dirty.525886c661f1 revision=a2a8f7ac2b15 dirty=True (0 modified, 2 untracked)
+FAILED                                                                   [ 72%]
+backend/tests/test_runtime_identity_export.py::test_conflicting_manifest_hashes_are_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:28 [    INFO] runtime identity: source_id=a2a8f7ac2b15-dirty.0d148df0e138 revision=a2a8f7ac2b15 dirty=True (0 modified, 2 untracked)
+FAILED                                                                   [ 81%]
+backend/tests/test_runtime_identity_export.py::test_missing_code_manifest_is_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:29 [    INFO] runtime identity: source_id=3f3c79f0402b-dirty.bc8522b1c818 revision=3f3c79f0402b dirty=True (0 modified, 1 untracked)
+FAILED                                                                   [ 90%]
+backend/tests/test_runtime_identity_export.py::test_nogit_install_is_unknown_not_clean 
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:08:29 [    INFO] runtime identity: source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked)
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: assert '9927f746f89523e2957bee7de99719c941b71fae' != '9927f746f89523e2957bee7de99719c941b71fae'
+     +  where '9927f746f89523e2957bee7de99719c941b71fae' = RuntimeIdentity(source_id='9927f746f895-dirty.78cca921d351', instance_id='9927f746f895-dirty.78cca921d351.49635.1794337706', revision='9927f746f89523e2957bee7de99719c941b71fae', dirty=True, dirty_digest='78cca921d351', dirty_paths=['backend/base.py'], untracked_paths=['world-failure-first/MANIFEST.json', 'world-failure-first/code_manifest.json'], captured_at='2026-11-10T19:08:26.398671+00:00', process_started_at='2026-11-10T19:08:26.398668+00:00', started_monotonic=2652632.368853666, pid=49635, port=None, repo_path='/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-842/test_nested_export_does_not_cl0/ancestor/world-failure-first', backend_path='/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-842/test_nested_export_does_not_cl0/ancestor/world-failure-first/backend', error=None).revision
+------------------------------ Captured log setup ------------------------------
+INFO     core.auth:auth.py:57 Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=9927f746f895-dirty.78cca921d351 revision=9927f746f895 dirty=True (1 modified, 2 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:66: AssertionError: assert '9927f746f89523e2957bee7de99719c941b71fae' != '9927f746f89523e2957bee7de99719c941b71fae'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=9927f746f895 revision=9927f746f895 dirty=False (0 modified, 0 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:74: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=9927f746f895-dirty.b555aedf69bb revision=9927f746f895 dirty=True (1 modified, 0 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:87: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=c38861952b50-dirty.0f9c04a8819e revision=c38861952b50 dirty=True (1 modified, 3 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:107: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=c38861952b50-dirty.620faa6e5342 revision=c38861952b50 dirty=True (0 modified, 2 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:128: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=c38861952b50-dirty.19bb76ab33e3 revision=c38861952b50 dirty=True (0 modified, 3 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:144: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=a2a8f7ac2b15 revision=a2a8f7ac2b15 dirty=False (0 modified, 0 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:156: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=a2a8f7ac2b15-dirty.525886c661f1 revision=a2a8f7ac2b15 dirty=True (0 modified, 2 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:173: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=a2a8f7ac2b15-dirty.0d148df0e138 revision=a2a8f7ac2b15 dirty=True (0 modified, 2 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:189: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=3f3c79f0402b-dirty.bc8522b1c818 revision=3f3c79f0402b dirty=True (0 modified, 1 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:205: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+E   AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked)
+/private/tmp/atom-runtime-identity-20261110/backend/tests/test_runtime_identity_export.py:214: AttributeError: 'RuntimeIdentity' object has no attribute 'identity_kind'
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 22 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_runtime_identity_export.py::test_nested_export_does_not_claim_ancestor_revision
+  /private/tmp/atom-runtime-identity-20261110/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_runtime_identity_export.py::test_nested_export_does_not_claim_ancestor_revision
+FAILED backend/tests/test_runtime_identity_export.py::test_native_clean_checkout_is_attributable
+FAILED backend/tests/test_runtime_identity_export.py::test_native_dirty_checkout_stays_attributable
+FAILED backend/tests/test_runtime_identity_export.py::test_nested_export_never_reports_ancestor_revision
+FAILED backend/tests/test_runtime_identity_export.py::test_archive_export_twin_uses_archive_metadata
+FAILED backend/tests/test_runtime_identity_export.py::test_symlinked_backend_farm_uses_world_export_metadata
+FAILED backend/tests/test_runtime_identity_export.py::test_export_without_metadata_is_unknown_not_ancestor
+FAILED backend/tests/test_runtime_identity_export.py::test_malformed_manifest_is_unknown
+FAILED backend/tests/test_runtime_identity_export.py::test_conflicting_manifest_hashes_are_unknown
+FAILED backend/tests/test_runtime_identity_export.py::test_missing_code_manifest_is_unknown
+FAILED backend/tests/test_runtime_identity_export.py::test_nogit_install_is_unknown_not_clean
+======================= 11 failed, 25 warnings in 9.97s ========================
