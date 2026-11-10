@@ -1,0 +1,429 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 06:30:36 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 06:30:36 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:30:36 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:30:36 [    INFO] EscalationManager initialized
+2026-11-10 06:30:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:30:36 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:30:36 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:30:36 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:30:36 [    INFO] EscalationManager initialized
+2026-11-10 06:30:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:30:36 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:30:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:30:36 [    INFO] MCP Service initialized
+
+tests/api/test_graduation_qualification_join.py::test_missing_receipt_blocks_then_review_unlocks_promotion 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:30:37 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:38 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:30:38 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:38 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:38 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/2dac3087-31e9-48c4-8cc1-d0b97f7d94e5 "HTTP/1.1 200 OK"
+2026-11-10 06:30:38 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:30:38 [    INFO] Initialized global governance cache
+2026-11-10 06:30:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:38 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:30:38 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/api/test_graduation_qualification_join.py::test_exact_replay_after_fresh_session_and_changed_material 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:39 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/1767fc57-b0c0-43aa-ac45-a521d3d9bec4 "HTTP/1.1 200 OK"
+2026-11-10 06:30:39 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:30:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:30:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:30:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN&operation_id=agent:graduate:596e244d968642c7b8830014d5923bb3 "HTTP/1.1 200 OK"
+2026-11-10 06:30:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=SUPERVISED&operation_id=agent:graduate:596e244d968642c7b8830014d5923bb3 "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:39 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN&operation_id=agent:graduate:596e244d968642c7b8830014d5923bb3 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/api/test_graduation_qualification_join.py::test_required_receipt_fields_and_review_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:40 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/95f4df7e-ee34-4899-b7ec-77f6d7c3a8d3 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/api/test_graduation_qualification_join.py::test_governance_hook_preserves_caller_work 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:42 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+2026-11-10 06:30:42 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+2026-11-10 06:30:42 [    INFO] Agent Scratch Student evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 1/3 completed training sessions
+PASSED                                                                   [  9%]
+tests/api/test_graduation_qualification_join.py::test_policy_null_row_is_invalid_and_fresh_read_defeats_cache PASSED [ 11%]
+tests/api/test_graduation_qualification_join.py::test_peer_policy_change_before_target_dml_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:44 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:44 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:44 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/5ff60f23-811f-46fd-8895-b59dc1f2ba79 "HTTP/1.1 200 OK"
+2026-11-10 06:30:44 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/api/test_graduation_qualification_join.py::test_peer_receipt_and_evidence_change_before_target_dml_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:45 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:45 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/544430f0-037b-4525-9f80-3b3c992982e5 "HTTP/1.1 200 OK"
+2026-11-10 06:30:45 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:45 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 16%]
+tests/api/test_graduation_qualification_join.py::test_member_foreign_and_deactivated_controls 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:46 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 403 Forbidden"
+2026-11-10 06:30:46 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 404 Not Found"
+2026-11-10 06:30:46 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 404 Not Found"
+2026-11-10 06:30:46 [ WARNING] Rejected token for non-active user supervisor (status=inactive)
+2026-11-10 06:30:46 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 18%]
+tests/api/test_graduation_qualification_join.py::test_legacy_exception_is_explicit_and_unassessed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:47 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:30:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:47 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:30:47 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/api/test_graduation_qualification_join.py::test_manual_promotion_requires_explicit_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:49 [    INFO] HTTP Request: POST http://testserver/api/agents/student-agent/promote "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:49 [    INFO] HTTP Request: POST http://testserver/api/agents/student-agent/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/api/test_graduation_qualification_join.py::test_restart_readback_from_fresh_os_process 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:50 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:50 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/67b62b09-8668-4b6e-b48e-002a5efc21da "HTTP/1.1 200 OK"
+2026-11-10 06:30:50 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:30:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:30:50 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/api/test_graduation_qualification_join.py::test_training_completion_requires_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:51 [    INFO] Completed training session session-3 for agent student-agent. Performance: 1.00 (claimed 1.0; evidence 11/11 successful runs), Confidence boost: 0.200 (0.620 → 0.820), Promoted: False
+2026-11-10 06:30:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:company'. type='maturity_update'
+2026-11-10 06:30:51 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:51 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/a0506ff5-ec6d-4d7c-aaa5-44e6df7c948e "HTTP/1.1 200 OK"
+2026-11-10 06:30:51 [    INFO] Completed training session session-4 for agent student-agent. Performance: 1.00 (claimed 1.0; evidence 11/11 successful runs), Confidence boost: 0.180 (0.820 → 1.000), Promoted: True
+2026-11-10 06:30:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:company'. type='maturity_update'
+PASSED                                                                   [ 27%]
+tests/api/test_graduation_qualification_join.py::test_legacy_exam_does_not_overwrite_qualification_pointer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:52 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:52 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/8e0aedfb-8ffa-4f03-bcc7-05b4c1a2e661 "HTTP/1.1 200 OK"
+2026-11-10 06:30:52 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:30:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:30:52 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:30:52 [ WARNING] EdgeCaseSimulator unavailable; skipping edge case simulations
+2026-11-10 06:30:52 [    INFO] Agent student-agent failed legacy graduation exam: readiness score below threshold, found 11 constitutional violations, skill mastery below threshold | Governance policy denied: confidence_score 0.62 below min_confidence_score 0.7; episode_count 11 below min_episodes 25
+PASSED                                                                   [ 30%]
+tests/api/test_graduation_qualification_join.py::test_peer_exception_revocation_before_dml_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:53 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 32%]
+tests/api/test_graduation_qualification_join.py::test_peer_policy_value_change_without_timestamp_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:55 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+tests/api/test_graduation_qualification_join.py::test_same_passed_receipt_and_review_changes_before_dml_refuse 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:56 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:56 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:56 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/a33ee73e-597d-4e12-995f-6da000248c87 "HTTP/1.1 200 OK"
+2026-11-10 06:30:56 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:56 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:56 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:56 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 37%]
+tests/api/test_graduation_qualification_join.py::test_inactive_status_active_requester_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:57 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 403 Forbidden"
+2026-11-10 06:30:57 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/api/test_graduation_qualification_join.py::test_history_only_episode_is_not_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:58 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 409 Conflict"
+2026-11-10 06:30:58 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 41%]
+tests/api/test_graduation_qualification_join.py::test_artifact_output_is_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:30:59 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:30:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:30:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/0974656a-5d01-4ccc-99dc-ddfb2fe3295b "HTTP/1.1 200 OK"
+2026-11-10 06:30:59 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:30:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:30:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:30:59 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/api/test_graduation_qualification_join.py::test_evidence_endpoint_excludes_history_only 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:00 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/qualification/evidence/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:00 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/api/test_graduation_qualification_join.py::test_peer_evidence_scope_move_before_dml_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:02 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:02 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:02 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/88e822ad-222e-49fa-8454-31cf4712ce10 "HTTP/1.1 200 OK"
+2026-11-10 06:31:02 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:31:03 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:03 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:03 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/ae6b8c49-7d83-4d59-addc-32b455339371 "HTTP/1.1 200 OK"
+2026-11-10 06:31:03 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:31:04 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:04 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/e3d1f9f8-526c-4dfa-b663-965ea2fb0cfe "HTTP/1.1 200 OK"
+2026-11-10 06:31:04 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:31:06 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:06 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/874f516e-6047-41bb-be34-1b552db462e5 "HTTP/1.1 200 OK"
+2026-11-10 06:31:06 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+2026-11-10 06:31:07 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:07 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/b9247f28-2a48-492d-bcbf-282e5decd9ce "HTTP/1.1 200 OK"
+2026-11-10 06:31:07 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/api/test_graduation_qualification_join.py::test_supervision_completion_requires_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:09 [    INFO] Session sup-1 completed. Confidence boost: 0.050 (0.950 → 1.000), Promoted: False
+2026-11-10 06:31:09 [    INFO] EscalationManager initialized
+2026-11-10 06:31:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:31:09 [    INFO] Initiated supervision episode creation for session sup-1
+2026-11-10 06:31:09 [    INFO] Initiated two-way learning for session sup-1
+2026-11-10 06:31:09 [ WARNING] LanceDB not available, skipping archival
+2026-11-10 06:31:09 [    INFO] Created supervision episode 5d43a940-c237-491f-a139-f8377592fdad from session sup-1
+2026-11-10 06:31:09 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:09 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:09 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/780d3182-7ca6-481a-84c1-71fcec54d9e6 "HTTP/1.1 200 OK"
+2026-11-10 06:31:09 [    INFO] Session sup-2 completed. Confidence boost: 0.050 (0.950 → 1.000), Promoted: True
+2026-11-10 06:31:09 [    INFO] EscalationManager initialized
+2026-11-10 06:31:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:31:09 [    INFO] Initiated supervision episode creation for session sup-2
+2026-11-10 06:31:09 [    INFO] Initiated two-way learning for session sup-2
+2026-11-10 06:31:09 [ WARNING] LanceDB not available, skipping archival
+2026-11-10 06:31:09 [    INFO] Created supervision episode 8ebf802c-38fe-408a-a563-6593c83c632f from session sup-2
+PASSED                                                                   [ 51%]
+tests/api/test_graduation_qualification_join.py::test_existing_system_student_is_not_healed_even_with_flag 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:10 [ WARNING] System default Chat Assistant student-agent remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+2026-11-10 06:31:10 [ WARNING] System default Chat Assistant student-agent remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+2026-11-10 06:31:10 [    INFO] Creating system default Chat Assistant agent
+2026-11-10 06:31:10 [    INFO] Created system default agent: a88dce7f-5bac-4a2f-b904-4d23780db116
+2026-11-10 06:31:10 [ WARNING] System default Chat Assistant a88dce7f-5bac-4a2f-b904-4d23780db116 remains STUDENT: an existing-agent tier change requires the authorized qualification/owner-exception promotion path; a system flag or mutable name/category is not an exemption.
+PASSED                                                                   [ 53%]
+tests/api/test_graduation_qualification_join.py::test_supervision_entry_preserves_caller_work PASSED [ 55%]
+tests/api/test_graduation_qualification_join.py::test_enabled_exception_requires_nonblank_owner_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:15 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 58%]
+tests/api/test_graduation_qualification_join.py::test_blank_policy_identity_and_rubric_are_invalid PASSED [ 60%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_exact_duplicate_reuses_same_action 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:17 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:17 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_policy_change_creates_fresh_review_and_old_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:19 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:19 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:19 [ WARNING] API Error: STALE_DECISION_REVIEW - The assessment policy revision changed after this review was requested.
+2026-11-10 06:31:19 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/06e131dc-a6f6-4927-90ac-7b71d70cebc1 "HTTP/1.1 409 Conflict"
+2026-11-10 06:31:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:19 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/f2fbc689-0d42-4b1c-aa1f-d8a982c6736e "HTTP/1.1 200 OK"
+2026-11-10 06:31:19 [   ERROR] Graduation finalization error: error_class=TypeError
+2026-11-10 06:31:19 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:20 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:20 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:20 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:20 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 5926b6f1-7c5c-40a6-b6e7-6db5b4fa7bcd
+2026-11-10 06:31:20 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/5926b6f1-7c5c-40a6-b6e7-6db5b4fa7bcd "HTTP/1.1 404 Not Found"
+2026-11-10 06:31:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:20 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/3e47477a-fa8e-4878-a078-19d2d12786b4 "HTTP/1.1 200 OK"
+2026-11-10 06:31:20 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:20 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:21 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:21 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:21 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:21 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 9a3f5be2-4890-407d-9a1c-bf010a7ea173
+2026-11-10 06:31:21 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/9a3f5be2-4890-407d-9a1c-bf010a7ea173 "HTTP/1.1 404 Not Found"
+2026-11-10 06:31:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:21 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/057a14f1-ff2f-4e87-b5c0-3e03bb0b3629 "HTTP/1.1 200 OK"
+2026-11-10 06:31:21 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:21 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:23 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:23 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:23 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:23 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 77ff8fb4-873c-40ac-a782-3cc3cd95a504
+2026-11-10 06:31:23 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/77ff8fb4-873c-40ac-a782-3cc3cd95a504 "HTTP/1.1 404 Not Found"
+2026-11-10 06:31:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:23 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/f27e692c-946e-4574-9024-ea8d63b3b698 "HTTP/1.1 200 OK"
+2026-11-10 06:31:23 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:23 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[missing_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:24 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:24 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 49865aa4-6c76-4934-9ac1-211c7c00a26a
+2026-11-10 06:31:24 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/49865aa4-6c76-4934-9ac1-211c7c00a26a "HTTP/1.1 404 Not Found"
+2026-11-10 06:31:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:24 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/1264f079-e33a-4406-9eec-a774ac3c0318 "HTTP/1.1 200 OK"
+2026-11-10 06:31:24 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:24 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:25 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:25 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:25 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:25 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 13e496ff-c14f-4f5a-b1e2-7f506c411639
+2026-11-10 06:31:25 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/13e496ff-c14f-4f5a-b1e2-7f506c411639 "HTTP/1.1 404 Not Found"
+2026-11-10 06:31:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:25 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/cf7f8876-70f9-4406-ac87-99f942ccc63a "HTTP/1.1 200 OK"
+2026-11-10 06:31:25 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:25 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/api/test_graduation_qualification_join.py::test_pending_review_moved_scope_is_not_reused[wrong_type_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:27 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:27 [    INFO] HTTP Request: GET http://testserver/api/episodes/graduation/readiness/student-agent?target_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:27 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:27 [ WARNING] API Error: NOT_FOUND - HITLAction not found: 2610947e-6b51-41af-9e1c-c8a8566c589d
+2026-11-10 06:31:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/2610947e-6b51-41af-9e1c-c8a8566c589d "HTTP/1.1 404 Not Found"
+2026-11-10 06:31:27 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:27 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/9429be24-8002-4c4d-9470-af7ba3644667 "HTTP/1.1 200 OK"
+2026-11-10 06:31:27 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:27 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:27 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:27 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/api/test_graduation_qualification_join.py::test_actual_graduation_notification_persists_once_without_nested_loop 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:28 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/d19612af-ed55-4924-8322-24c35589038d "HTTP/1.1 200 OK"
+2026-11-10 06:31:28 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:28 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+2026-11-10 06:31:28 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN&operation_id=agent:graduate:acd64ef91f90460a8b51a8a9dfef7ee9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/api/test_graduation_qualification_join.py::test_notification_failure_does_not_erase_committed_promotion[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:29 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:29 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/d59b96c0-0be7-4a00-a9ce-7d3f261d3d8f "HTTP/1.1 200 OK"
+2026-11-10 06:31:29 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:29 [ WARNING] Graduation notification failed for agent student-agent (promotion already committed): controlled notification unavailable
+2026-11-10 06:31:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:29 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/api/test_graduation_qualification_join.py::test_notification_failure_does_not_erase_committed_promotion[soft_fail] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:31:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/qualification/request "HTTP/1.1 200 OK"
+2026-11-10 06:31:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-10 06:31:31 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/95a605de-5c8c-4a26-a7e5-3df0a1daf85b "HTTP/1.1 200 OK"
+2026-11-10 06:31:31 [    INFO] Agent student-agent promoted to INTERN by supervisor
+2026-11-10 06:31:31 [ WARNING] Graduation notification not delivered for agent student-agent (promotion already committed): notification_failed
+2026-11-10 06:31:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-10 06:31:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-a'. type='maturity_update'
+2026-11-10 06:31:31 [    INFO] HTTP Request: POST http://testserver/api/episodes/graduation/promote?agent_id=student-agent&new_maturity=INTERN "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_default_required_false_is_configuration_required PASSED [ 88%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[legacy] PASSED [ 90%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[manual] PASSED [ 93%]
+tests/api/test_graduation_qualification_join.py::test_unsupported_exception_domains_is_configuration_required[system] PASSED [ 95%]
+tests/api/test_graduation_qualification_join.py::test_default_and_exact_agent_exception_remain_supported PASSED [ 97%]
+tests/api/test_graduation_qualification_join.py::test_tier_gate_false_remains_supported PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+api/episode_routes.py:417
+  /private/tmp/atom-web-graduation-qualification-join-20261110/backend/api/episode_routes.py:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 43 passed, 6 warnings in 78.46s (0:01:18) ===================

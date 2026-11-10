@@ -1,0 +1,154 @@
+{
+  "schema": "atom-graduation-policy-notification-followthrough-1",
+  "status": "focused successor checkpoint submitted for independent root verification; no full-graduation, app-completion, or model-competence claim",
+  "branch": "codex/web-graduation-qualification-join-20261110",
+  "worktree": "/private/tmp/atom-web-graduation-qualification-join-20261110",
+  "commits": {
+    "prior_frozen_checkpoint": "7be407677a2d66908228c3b9464eabf739dbf372",
+    "prior_backend_source": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+    "backend_successor": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+    "evidence_commit": "the commit that adds this directory (evidence files only)"
+  },
+  "prior_packet_unchanged": {
+    "path": "docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/",
+    "note": "bytes preserved; its final-10 proof remains bound to prior backend source cf2c7c707 and is not claimed for this successor"
+  },
+  "source_files": [
+    {
+      "path": "backend/core/agent_graduation_service.py",
+      "sha256": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "backend/core/promotion_policy_service.py",
+      "sha256": "86da43ebee7e53e628078c545417a153a7a7aacdcce71112f85920a5a0750439",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "backend/tests/api/test_graduation_qualification_join.py",
+      "sha256": "391ee8845d4eaf6c60a63a21948eedce2486445d87c076c48c61b4ab7c86dd5e",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": true
+    },
+    {
+      "path": "backend/core/notification_service.py",
+      "sha256": "38d0e901eea6ad3ef2b76a41baf83160cf49be7be18d0c8cdb36ebc22c19dd32",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "backend/api/episode_routes.py",
+      "sha256": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "backend/core/auth.py",
+      "sha256": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "backend/core/agent_decision_write_service.py",
+      "sha256": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": false
+    },
+    {
+      "path": "backend/core/runtime_settings.py",
+      "sha256": "91202bb94068a378f23cb619d0e2f8cf905d39af69a06aadc9c4fe820c52fd66",
+      "bound_commit": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+      "changed_in_this_checkpoint": false
+    }
+  ],
+  "gates": {
+    "backend_qualification": {
+      "command": "TESTING=1 scratch SQLite; pytest tests/api/test_graduation_qualification_join.py -q --tb=short -p no:randomly",
+      "result": "43 passed",
+      "log": "backend-qualification-43.log"
+    },
+    "new_notification_policy_twins": {
+      "command": "focused selection of notification/policy tests",
+      "result": "8 passed",
+      "log": "backend-notification-policy-twins-8.log"
+    },
+    "notification_service_unit": {
+      "command": "pytest tests/unit/core/test_notification_service.py -q",
+      "result": "10 passed",
+      "log": "notification-service-unit-10.log"
+    },
+    "root_policy_after_fix": {
+      "command": "unchanged /private/tmp/root-graduation-unused-policy-independent-20261110.py",
+      "result": "3 passed",
+      "log": "root-policy-after-fix.log"
+    },
+    "root_notification_after_fix": {
+      "command": "unchanged /private/tmp/root-graduation-notification-independent-20261110.py",
+      "result": "2 passed",
+      "log": "root-notification-after-fix.log"
+    },
+    "root_combined_final_source": {
+      "command": "unchanged policy + notification probes combined",
+      "result": "5 passed, exit 0, same_source true, 7/7 parity",
+      "review": "root-combined-5-review.json",
+      "controls": "root-combined-5-controls.log",
+      "authoritative_for_successor": true
+    }
+  },
+  "root_combined_proof": {
+    "review": "root-combined-5-review.json",
+    "controls": "root-combined-5-controls.log",
+    "result": "5 passed",
+    "actual_exit": 0,
+    "same_source": true,
+    "source_parity": "7/7 captured sources match successor tree",
+    "authoritative_for_successor": true
+  },
+  "preserved_baselines": {
+    "root_policy_pre_repair": {
+      "review": "root-policy-baseline-review.json",
+      "world": "/private/tmp/root-graduation-unused-policy-independent-20261110-ue24nik6",
+      "result": "2 FAIL / 1 PASS"
+    },
+    "root_notification_pre_repair": {
+      "review": "root-notification-baseline-review.json",
+      "world": "/private/tmp/root-graduation-notification-independent-20261110-9guff86o",
+      "result": "1 FAIL / 1 PASS"
+    }
+  },
+  "repair_contract": {
+    "notification": "normal await inside the promotion coroutine after durable commit; no new loop/thread/runner/store; replay adds no second notification; failure preserves promotion and does not claim delivery",
+    "policy": "default_required=False and nonempty exceptions.*.domains are rejected as configuration_required; default true/empty domains, tier gates, exact owner-listed agent ids, reasons, CAS, current earned tiers, and domain action governance remain supported"
+  },
+  "disclosed_warnings": [
+    "FastAPI regex deprecation warning",
+    "pytest_freezegun plugin deprecation warnings",
+    "no never-awaited coroutine warnings remain in final logs"
+  ],
+  "affected_collection_gap": {
+    "log": "affected-collection-gap.log",
+    "note": "tests/test_assessment_rules_semantics.py cannot import substantive_assessment_campaign in this sparse worktree; checkout gap, not a product failure"
+  },
+  "exclusions": [
+    "no live DB, PostgreSQL, provider, model, browser, deployment, external email, or external notification send",
+    "no new dependency, store, schema, judge, lifecycle, CI yaml, goal index, PR, or merge",
+    "no full-graduation, app-completion, or model-competence claim",
+    "no test deletion, skip, xfail, or production mock bypass"
+  ],
+  "artifacts": {
+    "README.md": "ccaebb27b28e60613b1bde3fa4d0798f8b7b0e3489a00b601c832e6a06084e5d",
+    "affected-collection-gap.log": "c971d664f5b6c6cbf26875c32e9f4befde3322641cb00f3aa77fb46c6bf0c7b8",
+    "backend-notification-policy-twins-8.log": "e89c71f9f1935a8f50e64310ba598cda72637784d5295558a182b3a5657cc949",
+    "backend-qualification-43.log": "f5d2232fcb001b18681f53fb4115d0e8dd5552b18a86e3a2bd1181bf511e646f",
+    "notification-service-unit-10.log": "284aa1f617403611dfc45b0d3b88c031e49d9a90428c7accdf04aa5ad32cc388",
+    "root-combined-5-controls.log": "573cc2a5124f781b174509283aecf31da43662a79f24f069533a4dc3181c86e8",
+    "root-combined-5-review.json": "1ccff72922f922ef88920773f4e0a3c1b848b04730d171a38cf1a5a9f0dbc35f",
+    "root-notification-after-fix.log": "05cf15f8b50d4273e0b655cf2ed0c0f148bfec54595aaa3fa48776575e712271",
+    "root-notification-baseline-review.json": "77833c8cf55847d19c90d253399cf313ee23c021a021c04a8c07a12acda02af5",
+    "root-policy-after-fix.log": "bbd4199b51221a9ed06a2b0a13d98805861f780d623ba7180b093dd4599f741a",
+    "root-policy-baseline-review.json": "19c435b9f9b4f08fe211ca8aeb4126abd5c4f6d86cb358f8162e516d4299382b",
+    "verification.json": "4126223bce222e8df81726fbd69aee4ebbc50afc7f77b65ab67dcf7082219c99"
+  }
+}

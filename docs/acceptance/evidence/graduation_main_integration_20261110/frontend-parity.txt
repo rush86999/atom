@@ -1,0 +1,3 @@
+frontend source parity vs c37cd3dfd:
+diff_files=0
+frontend tree unchanged; prior tsc exit 0 and 90 Jest UI/API tests remain bound to the identical source in docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/

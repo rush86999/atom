@@ -1,0 +1,12 @@
+.....                                                                    [100%]
+=============================== warnings summary ===============================
+api/episode_routes.py:417
+  /private/tmp/atom-web-graduation-qualification-join-20261110/backend/api/episode_routes.py:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+../../root-py311-plugins/pytest_freezegun.py:17: 10 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+5 passed, 11 warnings in 9.12s

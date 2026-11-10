@@ -429,4 +429,49 @@ describe("Self-directed graduation queue", () => {
       String(c[0]).includes("/episodes/graduation/promote"))).toHaveLength(1);
   });
 
+
+
+  it('renders qualification rubric and scoped evidence details', async () => {
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [], count: 0 }));
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [] }));
+      }
+      if (u.includes("/agents/approvals/pending")) {
+        return Promise.resolve(okJson([{
+          id: "qual-1",
+          agent_id: "a1",
+          action_type: "agent_qualification_review",
+          reason: "Capability qualification review",
+          created_at: "2026-01-04T10:00:00Z",
+          params: {
+            rubric_criteria: [
+              { id: "task_context", label: "Task/context is inspectable" },
+              { id: "task_completion", label: "Task objective is completed" },
+            ],
+            evidence: [
+              {
+                kind: "agent_execution",
+                id: "exec-1",
+                task_preview: "Review invoice 1",
+                output_preview: "Decision: approve",
+              },
+            ],
+          },
+        }]));
+      }
+      return Promise.resolve(okJson([]));
+    });
+    render(<ApprovalsPage />);
+    await waitFor(() =>
+      expect(screen.getAllByText("Capability qualification review").length).toBeGreaterThan(0)
+    );
+    expect(screen.getByText(/task_context: Task\/context is inspectable/)).toBeInTheDocument();
+    expect(screen.getByText(/task_completion: Task objective is completed/)).toBeInTheDocument();
+    expect(screen.getByText(/Review invoice 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Decision: approve/)).toBeInTheDocument();
+  });
 });

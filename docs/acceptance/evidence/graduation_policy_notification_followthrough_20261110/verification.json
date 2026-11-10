@@ -1,0 +1,56 @@
+{
+  "schema": "atom-graduation-policy-notification-followthrough-verification-1",
+  "at": "2026-11-10T11:35:00Z",
+  "prior_frozen_checkpoint": "7be407677a2d66908228c3b9464eabf739dbf372",
+  "prior_backend_source": "cf2c7c707d81af2d5ebf5bf78d75a34190a35d95",
+  "backend_successor": "93864297ce7a9c77b2c35e05183dec294307d4a7",
+  "same_source_checks": {
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "86da43ebee7e53e628078c545417a153a7a7aacdcce71112f85920a5a0750439",
+    "backend/tests/api/test_graduation_qualification_join.py": "391ee8845d4eaf6c60a63a21948eedce2486445d87c076c48c61b4ab7c86dd5e",
+    "backend/core/notification_service.py": "38d0e901eea6ad3ef2b76a41baf83160cf49be7be18d0c8cdb36ebc22c19dd32",
+    "backend/api/episode_routes.py": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/agent_decision_write_service.py": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276",
+    "backend/core/runtime_settings.py": "91202bb94068a378f23cb619d0e2f8cf905d39af69a06aadc9c4fe820c52fd66"
+  },
+  "root_combined_proof": {
+    "review": "root-combined-5-review.json",
+    "controls": "root-combined-5-controls.log",
+    "result": "5 passed",
+    "actual_exit": 0,
+    "same_source": true,
+    "source_parity": "7/7 captured sources match successor tree",
+    "scope": "unsupported policy selectors 2, valid owner exception/default 1, actual notification row/replay 1, injected notification failure 1"
+  },
+  "gate_results": {
+    "backend_qualification": "43 passed",
+    "new_notification_policy_twins": "8 passed",
+    "notification_service_unit": "10 passed",
+    "root_policy_after_fix": "3 passed",
+    "root_notification_after_fix": "2 passed",
+    "root_combined_final_source": "5 passed, exit 0, same_source true, 7/7 parity"
+  },
+  "preserved_baselines": {
+    "root_policy_pre_repair": {
+      "review": "root-policy-baseline-review.json",
+      "world": "/private/tmp/root-graduation-unused-policy-independent-20261110-ue24nik6",
+      "result": "2 FAIL / 1 PASS"
+    },
+    "root_notification_pre_repair": {
+      "review": "root-notification-baseline-review.json",
+      "world": "/private/tmp/root-graduation-notification-independent-20261110-9guff86o",
+      "result": "1 FAIL / 1 PASS"
+    }
+  },
+  "notes": [
+    "Promotion is durably committed before the internal notification await; notification failure never rolls back or fabricates delivery.",
+    "Duplicate operation replay returns before the notification path and adds no second Notification row.",
+    "default_required=False and nonempty exception domains are rejected as configuration_required; true/empty defaults, tier gates, and exact owner-listed agent ids remain supported.",
+    "No new loop/thread/runner/store/schema/judge/lifecycle; no external email or notification send.",
+    "Final logs contain zero never-awaited coroutine warnings.",
+    "Remaining FastAPI regex and pytest_freezegun deprecation warnings are disclosed, not hidden.",
+    "tests/test_assessment_rules_semantics.py could not collect in this sparse worktree because substantive_assessment_campaign is absent; this is a checkout gap, not attributed to this change.",
+    "No full-graduation, app-completion, or model-competence claim."
+  ]
+}

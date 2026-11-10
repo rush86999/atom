@@ -709,3 +709,6 @@ class TestSupervisionMetrics:
 # Test Class 4: Graduation Configuration - 5 tests
 # Test Class 5: Supervision Metrics - 3 tests
 # ============================================================================
+
+
+pytestmark = pytest.mark.usefixtures("experience_only_qualification_exception")

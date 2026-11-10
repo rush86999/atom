@@ -290,6 +290,27 @@ SessionLocal = sessionmaker(
     expire_on_commit=False  # Prevents detached instance errors
 )
 
+# Track whether a caller session has flushed writes that are not yet
+# committed. ``Session.dirty`` empties after flush, so shared gate writers
+# need this flag to preserve already-flushed caller work rather than
+# committing it as a side effect of a promotion.
+from sqlalchemy.orm import Session as _SASession
+from sqlalchemy import event as _sa_event
+
+_ATOM_CALLER_WRITES = "atom_uncommitted_writes"
+
+
+@_sa_event.listens_for(_SASession, "before_flush")
+def _mark_caller_writes(session, flush_context, instances):
+    session.info[_ATOM_CALLER_WRITES] = True
+
+
+@_sa_event.listens_for(_SASession, "after_commit")
+@_sa_event.listens_for(_SASession, "after_rollback")
+def _clear_caller_writes(session):
+    session.info.pop(_ATOM_CALLER_WRITES, None)
+
+
 class Base(DeclarativeBase):
     """
     Base class for SQLAlchemy models.
