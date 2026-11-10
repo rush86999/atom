@@ -524,6 +524,38 @@ export interface GraduationReadiness {
   [key: string]: unknown;
 }
 
+export function qualificationStateLabel(state?: string): string {
+  const labels: Record<string, string> = {
+    valid: 'Qualified',
+    unresolved_missing: 'Review needed',
+    unresolved_failed: 'Review did not pass',
+    unresolved_stale: 'Review needs refresh',
+    unresolved_scope: 'Review scope changed',
+    unresolved_evaluator_unqualified: 'Evaluator not qualified',
+    unresolved_no_suitable: 'No suitable evaluator',
+    configuration_required: 'Configuration required',
+    legacy_unassessed: 'Owner exception (unassessed)',
+    manual_override: 'Owner override (unassessed)',
+    system_exempt: 'System exception (unassessed)',
+    not_required: 'Not required',
+    unknown: 'Status unavailable',
+  };
+  if (!state) return labels.unknown;
+  return labels[state] || state.replace(/_/g, ' ');
+}
+
+export function isQualificationReviewPending(
+  assessment?: {
+    review_action_id?: string;
+    allowed?: boolean;
+    state?: string;
+  } | null
+): boolean {
+  if (!assessment?.review_action_id || assessment.allowed === true) return false;
+  return assessment.state === 'unresolved_missing'
+    || assessment.state === 'unresolved_failed';
+}
+
 export async function requestQualificationReview(
   agentId: string,
   targetMaturity: string,
@@ -540,9 +572,9 @@ export async function requestQualificationReview(
       rubric_version: rubricVersion,
     }),
   });
-  const body = await res.json().catch(() => null);
+  const body: any = await res.json().catch((): null => null);
   if (!res.ok) {
-    const detail = (body as any)?.detail;
+    const detail = body?.detail;
     const message = detail?.message || detail?.error?.message
       || `Qualification review request failed (${res.status})`;
     throw new Error(message);

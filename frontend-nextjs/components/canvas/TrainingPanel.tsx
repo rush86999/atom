@@ -18,6 +18,8 @@ import {
   GraduationProgress,
   GraduationReadiness,
   promoteAgent,
+  isQualificationReviewPending,
+  qualificationStateLabel,
   requestQualificationReview,
   SelfDirectedAgentProgress,
   rejectTrainingProposal,
@@ -577,6 +579,7 @@ export function TrainingPanel({
       message: "Qualification status unavailable; promotion is blocked until it can be read.",
     };
   const qualificationAllowed = assessment.allowed === true;
+  const reviewPending = isQualificationReviewPending(assessment);
   const evidenceBundles = readiness?.assessment_evidence || [];
   const selectedEvidenceRefs = evidenceBundles
     .filter((bundle) => selectedBundles.includes(bundle.bundle_id))
@@ -1174,7 +1177,7 @@ export function TrainingPanel({
                 <div className="border rounded p-2 space-y-1" data-testid="qualification-section">
                   <p className="text-[11px] font-medium">Capability qualification</p>
                   <p className="text-[11px]" data-testid="qualification-state">
-                    State: <strong>{assessment.state}</strong>
+                    State: <strong title={assessment.state}>{qualificationStateLabel(assessment.state)}</strong>
                     {assessment.required === false ? " · not required by owner policy" : ""}
                     {assessment.candidate_capability_qualified ? " · qualified" : ""}
                   </p>
@@ -1191,13 +1194,13 @@ export function TrainingPanel({
                   {assessmentNextAction && (
                     <p className="text-[10px] text-muted-foreground">{assessmentNextAction}</p>
                   )}
-                  {assessment.review_action_id && (
+                  {reviewPending && (
                     <p className="text-[10px] text-muted-foreground">
                       Review pending in Approvals.
                     </p>
                   )}
                   {assessment.required && !qualificationAllowed
-                    && !assessment.review_action_id && (
+                    && !reviewPending && (
                     <div className="space-y-1" data-testid="qualification-evidence-picker">
                       <p className="text-[10px] font-medium">
                         Select reviewable task/output work

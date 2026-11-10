@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, GraduationCap, Eye, BookOpen, ArrowRight } from 'lucide-react';
 import { AgentMaturityGuide, getAgentMaturityGuide } from '@/lib/agent-onboarding-api';
+import {
+  isQualificationReviewPending,
+  qualificationStateLabel,
+} from '@/lib/maturity-api';
 
 interface AgentMaturityGuideDialogProps {
   agentId: string | null;
@@ -112,29 +116,38 @@ export function AgentMaturityGuideDialog({ agentId, open, onOpenChange }: AgentM
               <p className="mt-1.5 text-xs text-gray-500" data-testid="maturity-readiness-note">{guide.readiness.note}</p>
             </div>
 
-            {guide.assessment && (
-              <div className="text-xs border rounded-lg p-3 space-y-1" data-testid="maturity-qualification">
-                <p className="font-medium">Capability qualification</p>
-                <p>
-                  State: <strong>{guide.assessment.state}</strong>
-                  {guide.assessment.required === false ? " · not required by owner policy" : ""}
-                  {guide.assessment.candidate_capability_qualified ? " · qualified" : ""}
-                </p>
-                {guide.assessment.exception?.reason && (
-                  <p className="text-amber-700 dark:text-amber-400">
-                    Owner exception: {guide.assessment.exception.reason}
+            {(() => {
+              const assessment = guide.assessment ?? {
+                state: "unknown",
+                required: true,
+                allowed: false,
+                message: "Qualification status unavailable; promotion is blocked until it can be read.",
+              };
+              const reviewPending = isQualificationReviewPending(assessment);
+              return (
+                <div className="text-xs border rounded-lg p-3 space-y-1" data-testid="maturity-qualification">
+                  <p className="font-medium">Capability qualification</p>
+                  <p>
+                    State: <strong title={assessment.state}>{qualificationStateLabel(assessment.state)}</strong>
+                    {assessment.required === false ? " · not required by owner policy" : ""}
+                    {assessment.candidate_capability_qualified ? " · qualified" : ""}
                   </p>
-                )}
-                {(guide.assessment.next_action?.next_action || guide.assessment.message) && (
-                  <p className="text-gray-500">
-                    {guide.assessment.next_action?.next_action || guide.assessment.message}
-                  </p>
-                )}
-                {guide.assessment.review_action_id && (
-                  <p className="text-gray-500">Review pending in Approvals.</p>
-                )}
-              </div>
-            )}
+                  {assessment.exception?.reason && (
+                    <p className="text-amber-700 dark:text-amber-400">
+                      Owner exception: {assessment.exception.reason}
+                    </p>
+                  )}
+                  {(assessment.next_action?.next_action || assessment.message) && (
+                    <p className="text-gray-500">
+                      {assessment.next_action?.next_action || assessment.message}
+                    </p>
+                  )}
+                  {reviewPending && (
+                    <p className="text-gray-500">Review pending in Approvals.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Learning pathway counts */}
             <div className="grid grid-cols-2 gap-3 text-sm">
