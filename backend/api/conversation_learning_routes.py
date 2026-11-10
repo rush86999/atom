@@ -22,6 +22,7 @@ from core.conversation_learning import (
     apply_lesson_method,
     build_candidate,
     candidate_readiness,
+    candidate_visible_to_user,
     collect_thread_evidence,
     confirm_candidate,
     list_candidates,
@@ -174,9 +175,19 @@ def _evidence(db: Session, user: User, thread_id: str,
     return collect_thread_evidence(db, user, thread_id, kind)
 
 
+def _require_candidate_access(user: User,
+                              candidate: LearningCandidate) -> None:
+    """ONE shared candidate-access guard, before any read or side effect."""
+    if not candidate_visible_to_user(
+            candidate, str(getattr(user, "id", "") or "")):
+        raise HTTPException(status_code=404,
+                            detail="Learning candidate not found")
+
+
 def _revalidate_source(db: Session, user: User,
                        candidate: LearningCandidate) -> LearningCandidate:
     """Native source freshness: edit/delete/reorder invalidates review."""
+    _require_candidate_access(user, candidate)
     if candidate.source_kind != "native_chat":
         return candidate
     evidence = collect_thread_evidence(
@@ -207,6 +218,7 @@ def _load_scoped(
     if (candidate.workspace_id != workspace_id
             or candidate.tenant_id != tenant_id):
         raise HTTPException(status_code=404, detail="Learning candidate not found")
+    _require_candidate_access(user, candidate)
     _require_learning_authority(db, user, candidate.agent_id)
     return candidate
 
@@ -279,6 +291,9 @@ def get_thread_candidates(thread_id: str, source_kind: str = SOURCE_KIND_EMAIL,
     evidence = _evidence(db, user, thread_id, source_kind)
     visible = []
     for candidate in candidates:
+        if not candidate_visible_to_user(
+                candidate, str(getattr(user, "id", "") or "")):
+            continue
         try:
             _authorize_employee(db, user, candidate.agent_id)
         except HTTPException:
