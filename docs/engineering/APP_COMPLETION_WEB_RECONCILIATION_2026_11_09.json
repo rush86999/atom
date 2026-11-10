@@ -160,16 +160,20 @@
         "pr": 807,
         "head": "c20d2726b504b940028795b672d728ed7d04b668",
         "scope": "production TypeScript enforced; actual full optimized build0/native2pass; tree identical to frozen proof; draft dependency804/806"
+      },
+      {
+        "pr": 808,
+        "head": "35ee3b588",
+        "scope": "Production protected-page SDK-cookie navigation; independent3 probes/58 SDK/71 UI controls; actual combined strict production build0 at5248098bb; no actual new browser server run. Exact CI/review/dependency merge gates remain."
       }
     ],
     "sso": {
       "admission_source": "a7ed7a96737b4751bfa256b2c285cf6fdb8bf23d",
-      "independent_normal_fixture_tests": 38,
+      "independent_normal_fixture_tests": 69,
       "evidence": "docs/acceptance/evidence/web_sso_account_admission_a7ed7a967/",
       "state": "bounded admission verified, whole SSO incomplete",
       "next_required": [
-        "signed verified email ownership and exact UserInfo subject; two independent real-loopback negatives reproduced; native CLI successor active",
-        "durable login state across real backend restart using existing general mechanisms",
+        "durable login state across backend restart with initiating-browser binding; native CLI successor active",
         "canonical safe handoff to the configured web origin and ordinary UI session, not backend localStorage-only redirect",
         "safe configured-provider UI and current-authority readback"
       ],
@@ -177,7 +181,11 @@
         "live identity provider",
         "general SSO",
         "browser journey"
-      ]
+      ],
+      "identity_source": "6a21e1d7e989184fc89f524b61a6360a969972fa",
+      "identity_evidence": "docs/acceptance/evidence/web_sso_verified_identity_6a21e1d7e/",
+      "independent_exact_callback_probes": 4,
+      "bounded_identity_status": "Signed verified email, exact UserInfo subject and exact opaque-subject twins independently pass. Preserved negatives remain at their original sources."
     },
     "performance_reconciliation": {
       "historical_missing_public_reproducer_statement": "superseded only for cache-only command availability",
@@ -186,6 +194,12 @@
       "independent_tests": 37,
       "scope": "source-bound cache-only CLI correctness and DB isolation; not full governance/HTTP performance or universal throughput"
     },
-    "delivery_policy": "Refresh actual PR refs and all required checks before any merge; no inherited green after head change; reuse unchanged source-bound proof; no duplicate browser campaign for ancestry/docs-only changes."
+    "delivery_policy": "Refresh actual PR refs and all required checks before any merge; no inherited green after head change; reuse unchanged source-bound proof; no duplicate browser campaign for ancestry/docs-only changes.",
+    "active_web_session_producer": {
+      "finding": "Ordinary login/signup helpers manually write raw backend JWT into next-auth.session-token, rather than establish the installed SDK encrypted web session. Distinct from the corrected middleware consumer.",
+      "implementation": "Bounded economical native CLI successor on codex/web-login-session-producer-20261109",
+      "required": "Use existing backend-authoritative Credentials bridge without another password login; validate any supplied bearer at canonical current-user endpoint; SDK alone owns encrypted session cookies; preserve existing direct API compatibility and challenge/refusal safety.",
+      "not_complete": true
+    }
   }
 }
