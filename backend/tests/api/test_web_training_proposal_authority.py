@@ -461,3 +461,16 @@ def test_peer_expiry_change_before_claim_wins(env):
     env.db.expire_all()
     assert env.db.get(AgentProposal, "proposal-a").status == ProposalStatus.PENDING_APPROVAL.value
     assert _count(env, "proposal-a") == 0
+
+
+def test_expired_approve_false_rejection_is_explicit_no_session(env):
+    lead = env.headers("lead-a")
+    response = env.client.post(
+        "/api/maturity/training/proposals/proposal-expired/approve",
+        json={"approve": False}, headers=lead)
+    assert response.status_code == 200, response.text
+    env.db.expire_all()
+    proposal = env.db.get(AgentProposal, "proposal-expired")
+    assert proposal.status == ProposalStatus.REJECTED.value
+    assert proposal.approver_id == "lead-a"
+    assert _count(env, "proposal-expired") == 0
