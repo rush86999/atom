@@ -1,0 +1,1101 @@
+{
+  "browser_network": {
+    "by_method_path": {
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/agents.json": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/assignments.json": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/auth/forgot-password.json": {
+        "count": 1,
+        "statuses": {
+          "307": 1
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/auth/signin.json": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/auth/signup.json": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/canvas.json": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/chat.json": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/dashboard.json": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/documents.json": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/goal-runs.json": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/index.json": {
+        "count": 7,
+        "statuses": {
+          "307": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/learning.json": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/settings.json": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/settings/account.json": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/settings/ai.json": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/settings/local-models.json": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/data/x2CUoJu61foFf1UK93q73/settings/sessions.json": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0-77_coeetpop.js": {
+        "count": 12,
+        "statuses": {
+          "200": 11
+        }
+      },
+      "GET /_next/static/chunks/00wavf-z4d.ci.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/01~2~jdoz_0z~.js": {
+        "count": 13,
+        "statuses": {
+          "200": 11
+        }
+      },
+      "GET /_next/static/chunks/02quazjl2c7ga.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/03ahn8sm2gkv2.js": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/03e7z~1-li24p.js": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /_next/static/chunks/03jj8fqyhnnko.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/03ppky_fse9ru.js": {
+        "count": 6,
+        "statuses": {
+          "200": 6
+        }
+      },
+      "GET /_next/static/chunks/05es1d8kz82vj.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/06vmlg5amyx0e.js": {
+        "count": 5,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/08a5t8lgtk8f-.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/08v-eirfq~3t~.js": {
+        "count": 1,
+        "statuses": {}
+      },
+      "GET /_next/static/chunks/08xm775vsds4o.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/09.jl8mlbwlzf.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/09y.pmro-s3_4.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/0a.xfa7hhnsd~.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0bfu_4r-wglww.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0bonoap5i9z5n.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/0brjtq9n0w1ck.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0c7l1rars_n8b.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0c82nwcze9saj.js": {
+        "count": 13,
+        "statuses": {
+          "200": 12
+        }
+      },
+      "GET /_next/static/chunks/0d-sp59syq-gt.js": {
+        "count": 5,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/0dxo.6uq3wn4c.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0e1g4vevpinuv.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/0ex1o~86mlczy.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0f-vsi52wi0vy.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0g2y6zk3fgrsb.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0gybjtnvzo5ht.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/0ke3gz939_bw9.js": {
+        "count": 14,
+        "statuses": {
+          "200": 14
+        }
+      },
+      "GET /_next/static/chunks/0l9bcoea7mzew.js": {
+        "count": 5,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0mpbao~-vl123.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0mzum4~lqslt7.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/0njv.xe1zj1mw.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0np~fl.z0jfyw.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/0oq5wlaq0ury_.css": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0p.iy9qaqhfzk.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0pfi7ts0f2hon.js": {
+        "count": 10,
+        "statuses": {
+          "200": 10
+        }
+      },
+      "GET /_next/static/chunks/0puf25mnvk6ho.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0qiw8th2ur09_.js": {
+        "count": 5,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/0qoy8hgh6c64-.js": {
+        "count": 5,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/0ry7qdjt~mapl.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/0sm99i8gl3kwz.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0t17jk8u8a9_d.js": {
+        "count": 13,
+        "statuses": {
+          "200": 13
+        }
+      },
+      "GET /_next/static/chunks/0t1mfyz0pteyw.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0tbd52-usxepl.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0tv.h82nlg74a.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/0v.2n~znk-23f.js": {
+        "count": 6,
+        "statuses": {
+          "200": 6
+        }
+      },
+      "GET /_next/static/chunks/0woyy-9c.b8i-.js": {
+        "count": 7,
+        "statuses": {
+          "200": 6
+        }
+      },
+      "GET /_next/static/chunks/0xxcht--rldi8.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/0xzmfzrz_v-97.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/0~9u9o0ubua7i.js": {
+        "count": 5,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/0~~so5jzsi_gh.js": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/102l3baktwetz.js": {
+        "count": 12,
+        "statuses": {
+          "200": 11
+        }
+      },
+      "GET /_next/static/chunks/10n756~x~b.0p.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/11_epinxc7orp.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/11p7v88t8o8dn.js": {
+        "count": 6,
+        "statuses": {
+          "200": 6
+        }
+      },
+      "GET /_next/static/chunks/12mp3itb1s9b3.js": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /_next/static/chunks/12ph1gpgoa6k-.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/139hc341auygp.js": {
+        "count": 13,
+        "statuses": {
+          "200": 12
+        }
+      },
+      "GET /_next/static/chunks/13w_i7m~yqqen.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/142vibs7g7hmo.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/144sc~kd.mafr.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/144~cupuycd_k.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/14o7tg82ugpwd.js": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /_next/static/chunks/15736lqfk-cin.js": {
+        "count": 1,
+        "statuses": {}
+      },
+      "GET /_next/static/chunks/166jwv-jl3.c2.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/167b170m2zq_-.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/16wpk7c0b7yn_.js": {
+        "count": 12,
+        "statuses": {
+          "200": 11
+        }
+      },
+      "GET /_next/static/chunks/17vvvez.hnh2h.js": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /_next/static/chunks/turbopack-00je4m6l9~zz6.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/chunks/turbopack-00t9amfi1wy2i.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/turbopack-02dh6781x3p4e.js": {
+        "count": 7,
+        "statuses": {
+          "200": 6
+        }
+      },
+      "GET /_next/static/chunks/turbopack-0cywq6q35-ioo.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/turbopack-0fg2-mc6g5.67.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/turbopack-0jj3zu13-35uy.js": {
+        "count": 5,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/turbopack-0k-0o~~uye87e.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/turbopack-0k9g87ez~ef2y.js": {
+        "count": 6,
+        "statuses": {
+          "200": 5
+        }
+      },
+      "GET /_next/static/chunks/turbopack-0vg75top-n9l7.js": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/chunks/turbopack-0x.0hzm4s3c8c.js": {
+        "count": 1,
+        "statuses": {}
+      },
+      "GET /_next/static/chunks/turbopack-0~v3n8rb40sv5.js": {
+        "count": 6,
+        "statuses": {
+          "200": 6
+        }
+      },
+      "GET /_next/static/chunks/turbopack-10909cbx.29pl.js": {
+        "count": 4,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/turbopack-14-e0snso_yb2.js": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /_next/static/chunks/turbopack-14nxeatiuwc-d.js": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /_next/static/chunks/turbopack-15fr~4rcuokqe.js": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /_next/static/chunks/turbopack-1743bjlc~modb.js": {
+        "count": 5,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /_next/static/x2CUoJu61foFf1UK93q73/_buildManifest.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/x2CUoJu61foFf1UK93q73/_clientMiddlewareManifest.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /_next/static/x2CUoJu61foFf1UK93q73/_ssgManifest.js": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /api/agents/": {
+        "count": 4,
+        "statuses": {
+          "308": 4
+        }
+      },
+      "GET /api/ai/providers": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/csrf": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /api/auth/me": {
+        "count": 24,
+        "statuses": {
+          "200": 24
+        }
+      },
+      "GET /api/auth/providers": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/auth/session": {
+        "count": 16,
+        "statuses": {
+          "200": 16
+        }
+      },
+      "GET /api/canvas/": {
+        "count": 4,
+        "statuses": {
+          "308": 4
+        }
+      },
+      "GET /api/chat/history/session_1794273591164_czk9dpb4e": {
+        "count": 16,
+        "statuses": {
+          "200": 16
+        }
+      },
+      "GET /api/documents": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/goal-runs": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/goals": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/maturity/proposals": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /api/meta/version": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /api/notifications": {
+        "count": 22,
+        "statuses": {
+          "200": 14,
+          "401": 8
+        }
+      },
+      "GET /api/onboarding/probe-ollama": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/onboarding/progress": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/onboarding/status": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /api/product/profile": {
+        "count": 7,
+        "statuses": {
+          "200": 7
+        }
+      },
+      "GET /api/users/me": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/v1/preferences": {
+        "count": 10,
+        "statuses": {
+          "200": 6,
+          "401": 4
+        }
+      },
+      "GET /auth/signin": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /auth/signup": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /dashboard": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /login": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /settings": {
+        "count": 3,
+        "statuses": {
+          "200": 2,
+          "307": 1
+        }
+      },
+      "POST /api/auth/callback/credentials": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "POST /api/auth/login": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "POST /api/auth/logout": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "POST /api/auth/register": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/signout": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "POST /api/onboarding/update": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      }
+    },
+    "console_error_count": 16,
+    "external_requests_aborted": 0,
+    "failed_request_count": 27,
+    "page_error_count": 0,
+    "request_count": 777
+  },
+  "build": {
+    "build_id": "x2CUoJu61foFf1UK93q73",
+    "dist": ".next-auth-browser-20261109",
+    "duration_s": 30.0,
+    "exit": 0,
+    "minimum_free_bytes": 4355411968,
+    "next_version": "16.2.2",
+    "node": "v20.20.2",
+    "resource_pressure_abort": false,
+    "source": "3673b07bfc28a9541237a5bebe085c49ad6155ba"
+  },
+  "completed_at": "2026-11-10T01:20:50Z",
+  "cookie": {
+    "chunk_count": 1,
+    "host_only": true,
+    "http_only": true,
+    "jwe_segment_count": 5,
+    "name": "__Secure-next-auth.session-token",
+    "raw_jwt_segment_count": 3,
+    "same_site": "Lax",
+    "secure": true,
+    "secure_expected_from_cookie_name": true,
+    "tls_claimed": false,
+    "transport_scheme": "http",
+    "value_is_not_raw_backend_token": true
+  },
+  "db": {
+    "duplicate_user_rows": 0,
+    "final_id_count": 1,
+    "onboarding_completed": true,
+    "onboarding_step": "completed",
+    "registration_id_count": 1,
+    "same_user_id_as_registration": true,
+    "synthetic_user_row_count": 1
+  },
+  "fresh_context": {
+    "cookies_empty": true,
+    "local_storage_empty": true,
+    "session_storage_empty": true
+  },
+  "harness_sha256": "a69af452759cdbf6d341821ef134ac9d657ecb7c4fe198e7188dce04d346e849",
+  "limits": [
+    "HTTP loopback only; production build emits Secure cookies accepted by Chromium on loopback.",
+    "Google/GitHub/SSO handoff and 2FA live challenge were not exercised.",
+    "No provider/model calls, connector consent, sends, spend, or deployment."
+  ],
+  "logout": {
+    "explicit_logout_marker": true,
+    "landed_auth_signin": true,
+    "nextauth_session_cookie_names_remaining": [],
+    "raw_token_cleared": true,
+    "sdk_cookie_cleared": true,
+    "session_endpoint_status": 200,
+    "session_endpoint_user_absent": true
+  },
+  "ok": true,
+  "onboarding": {
+    "completed_via_ui": true,
+    "present": true,
+    "server_completed": true,
+    "status_endpoint": 200
+  },
+  "private_evidence": "retained in 0700 scratch world; not committed",
+  "registration": {
+    "backend_register_calls": 1,
+    "db_rows_after": 1,
+    "db_rows_before": 0,
+    "landed_dashboard": true,
+    "sdk_callback_calls": 1,
+    "session": {
+      "canonical_me_status": 200,
+      "checks": {
+        "canonical_me_user_id_matches_session_user_id": true,
+        "decoded_sdk_user_id_matches_canonical_me": true,
+        "legacy_auth_token_cookie_present": true,
+        "production_uses_secure_cookie_name": true,
+        "sdk_cookie_http_only": true,
+        "sdk_cookie_is_encrypted_not_raw": true,
+        "sdk_cookie_secure_matches_cookie_name": true,
+        "sdk_session_contains_same_backend_generation": true,
+        "session_endpoint_contains_same_backend_generation": true,
+        "session_not_counted_from_legacy_cookie": true
+      },
+      "cookie": {
+        "chunk_count": 1,
+        "host_only": true,
+        "http_only": true,
+        "jwe_segment_count": 5,
+        "name": "__Secure-next-auth.session-token",
+        "raw_jwt_segment_count": 3,
+        "same_site": "Lax",
+        "secure": true,
+        "secure_expected_from_cookie_name": true,
+        "tls_claimed": false,
+        "transport_scheme": "http",
+        "value_is_not_raw_backend_token": true
+      },
+      "session_endpoint_status": 200,
+      "session_user_id_present": true,
+      "status_ok": true
+    }
+  },
+  "remaining": [],
+  "session": {
+    "canonical_me_status": 200,
+    "checks": {
+      "canonical_me_user_id_matches_session_user_id": true,
+      "decoded_sdk_user_id_matches_canonical_me": true,
+      "legacy_auth_token_cookie_present": true,
+      "production_uses_secure_cookie_name": true,
+      "sdk_cookie_http_only": true,
+      "sdk_cookie_is_encrypted_not_raw": true,
+      "sdk_cookie_secure_matches_cookie_name": true,
+      "sdk_session_contains_same_backend_generation": true,
+      "session_endpoint_contains_same_backend_generation": true,
+      "session_not_counted_from_legacy_cookie": true
+    },
+    "cookie": {
+      "chunk_count": 1,
+      "host_only": true,
+      "http_only": true,
+      "jwe_segment_count": 5,
+      "name": "__Secure-next-auth.session-token",
+      "raw_jwt_segment_count": 3,
+      "same_site": "Lax",
+      "secure": true,
+      "secure_expected_from_cookie_name": true,
+      "tls_claimed": false,
+      "transport_scheme": "http",
+      "value_is_not_raw_backend_token": true
+    },
+    "session_endpoint_status": 200,
+    "session_user_id_present": true,
+    "status_ok": true
+  },
+  "settings": {
+    "reload_session": {
+      "canonical_me_status": 200,
+      "checks": {
+        "canonical_me_user_id_matches_session_user_id": true,
+        "decoded_sdk_user_id_matches_canonical_me": true,
+        "legacy_auth_token_cookie_present": true,
+        "production_uses_secure_cookie_name": true,
+        "sdk_cookie_http_only": true,
+        "sdk_cookie_is_encrypted_not_raw": true,
+        "sdk_cookie_secure_matches_cookie_name": true,
+        "sdk_session_contains_same_backend_generation": true,
+        "session_endpoint_contains_same_backend_generation": true,
+        "session_not_counted_from_legacy_cookie": true
+      },
+      "cookie": {
+        "chunk_count": 1,
+        "host_only": true,
+        "http_only": true,
+        "jwe_segment_count": 5,
+        "name": "__Secure-next-auth.session-token",
+        "raw_jwt_segment_count": 3,
+        "same_site": "Lax",
+        "secure": true,
+        "secure_expected_from_cookie_name": true,
+        "tls_claimed": false,
+        "transport_scheme": "http",
+        "value_is_not_raw_backend_token": true
+      },
+      "session_endpoint_status": 200,
+      "session_user_id_present": true,
+      "status_ok": true
+    },
+    "reload_url_path_query_exact": true,
+    "url_path_query_exact": true
+  },
+  "signin_auth_signin_default": {
+    "backend_password_login_delta": 1,
+    "canonical_me_status": 200,
+    "checks": {
+      "canonical_me_user_id_matches_session_user_id": true,
+      "decoded_sdk_user_id_matches_canonical_me": true,
+      "legacy_auth_token_cookie_present": true,
+      "production_uses_secure_cookie_name": true,
+      "sdk_cookie_http_only": true,
+      "sdk_cookie_is_encrypted_not_raw": true,
+      "sdk_cookie_secure_matches_cookie_name": true,
+      "sdk_session_contains_same_backend_generation": true,
+      "session_endpoint_contains_same_backend_generation": true,
+      "session_not_counted_from_legacy_cookie": true
+    },
+    "cookie": {
+      "chunk_count": 1,
+      "host_only": true,
+      "http_only": true,
+      "jwe_segment_count": 5,
+      "name": "__Secure-next-auth.session-token",
+      "raw_jwt_segment_count": 3,
+      "same_site": "Lax",
+      "secure": true,
+      "secure_expected_from_cookie_name": true,
+      "tls_claimed": false,
+      "transport_scheme": "http",
+      "value_is_not_raw_backend_token": true
+    },
+    "sdk_callback_delta": 1,
+    "session_endpoint_status": 200,
+    "session_user_id_present": true,
+    "status_ok": true
+  },
+  "signin_login_deep_link": {
+    "backend_password_login_delta": 1,
+    "callback_after_login": "/settings?a4dl=return20261109",
+    "callback_seen_before_login": "/settings?a4dl=return20261109",
+    "canonical_me_status": 200,
+    "checks": {
+      "canonical_me_user_id_matches_session_user_id": true,
+      "decoded_sdk_user_id_matches_canonical_me": true,
+      "legacy_auth_token_cookie_present": true,
+      "production_uses_secure_cookie_name": true,
+      "sdk_cookie_http_only": true,
+      "sdk_cookie_is_encrypted_not_raw": true,
+      "sdk_cookie_secure_matches_cookie_name": true,
+      "sdk_session_contains_same_backend_generation": true,
+      "session_endpoint_contains_same_backend_generation": true,
+      "session_not_counted_from_legacy_cookie": true
+    },
+    "cookie": {
+      "chunk_count": 1,
+      "host_only": true,
+      "http_only": true,
+      "jwe_segment_count": 5,
+      "name": "__Secure-next-auth.session-token",
+      "raw_jwt_segment_count": 3,
+      "same_site": "Lax",
+      "secure": true,
+      "secure_expected_from_cookie_name": true,
+      "tls_claimed": false,
+      "transport_scheme": "http",
+      "value_is_not_raw_backend_token": true
+    },
+    "landed_exact_path_query": true,
+    "sdk_callback_delta": 1,
+    "session_endpoint_status": 200,
+    "session_user_id_present": true,
+    "status_ok": true
+  },
+  "signin_login_default": {
+    "backend_password_login_delta": 1,
+    "canonical_me_status": 200,
+    "checks": {
+      "canonical_me_user_id_matches_session_user_id": true,
+      "decoded_sdk_user_id_matches_canonical_me": true,
+      "legacy_auth_token_cookie_present": true,
+      "production_uses_secure_cookie_name": true,
+      "sdk_cookie_http_only": true,
+      "sdk_cookie_is_encrypted_not_raw": true,
+      "sdk_cookie_secure_matches_cookie_name": true,
+      "sdk_session_contains_same_backend_generation": true,
+      "session_endpoint_contains_same_backend_generation": true,
+      "session_not_counted_from_legacy_cookie": true
+    },
+    "cookie": {
+      "chunk_count": 1,
+      "host_only": true,
+      "http_only": true,
+      "jwe_segment_count": 5,
+      "name": "__Secure-next-auth.session-token",
+      "raw_jwt_segment_count": 3,
+      "same_site": "Lax",
+      "secure": true,
+      "secure_expected_from_cookie_name": true,
+      "tls_claimed": false,
+      "transport_scheme": "http",
+      "value_is_not_raw_backend_token": true
+    },
+    "sdk_callback_delta": 1,
+    "session_endpoint_status": 200,
+    "session_user_id_present": true,
+    "status_ok": true
+  },
+  "source": "3673b07bfc28a9541237a5bebe085c49ad6155ba"
+}

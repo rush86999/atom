@@ -1,0 +1,244 @@
+{
+  "2fa": {
+    "existing_suites": "tests/auth/test-signin.test.tsx + tests/pages/__tests__/login.test.tsx",
+    "exit": 0,
+    "live_exercised": false,
+    "result": "55/55 passed"
+  },
+  "checks": {
+    "browser_network": {
+      "console_error_count": 16,
+      "external_requests_aborted": 0,
+      "failed_request_count": 27,
+      "key_api_and_page_counts": {
+        "GET /api/agents/": 4,
+        "GET /api/ai/providers": 1,
+        "GET /api/auth/csrf": 7,
+        "GET /api/auth/me": 24,
+        "GET /api/auth/providers": 4,
+        "GET /api/auth/session": 16,
+        "GET /api/canvas/": 4,
+        "GET /api/chat/history/session_1794273591164_czk9dpb4e": 16,
+        "GET /api/documents": 4,
+        "GET /api/goal-runs": 4,
+        "GET /api/goals": 4,
+        "GET /api/maturity/proposals": 7,
+        "GET /api/meta/version": 7,
+        "GET /api/notifications": 22,
+        "GET /api/onboarding/probe-ollama": 1,
+        "GET /api/onboarding/progress": 4,
+        "GET /api/onboarding/status": 2,
+        "GET /api/product/profile": 7,
+        "GET /api/users/me": 1,
+        "GET /api/v1/preferences": 10,
+        "GET /auth/signin": 1,
+        "GET /auth/signup": 1,
+        "GET /dashboard": 1,
+        "GET /login": 2,
+        "GET /settings": 3,
+        "POST /api/auth/callback/credentials": 4,
+        "POST /api/auth/login": 3,
+        "POST /api/auth/logout": 3,
+        "POST /api/auth/register": 1,
+        "POST /api/auth/signout": 3,
+        "POST /api/onboarding/update": 1
+      },
+      "page_error_count": 0,
+      "request_count": 777
+    },
+    "cookie": {
+      "chunk_count": 1,
+      "host_only": true,
+      "http_only": true,
+      "jwe_segment_count": 5,
+      "name": "__Secure-next-auth.session-token",
+      "raw_jwt_segment_count": 3,
+      "same_site": "Lax",
+      "secure": true,
+      "secure_expected_from_cookie_name": true,
+      "tls_claimed": false,
+      "transport_scheme": "http",
+      "value_is_not_raw_backend_token": true
+    },
+    "db": {
+      "duplicate_user_rows": 0,
+      "final_id_count": 1,
+      "onboarding_completed": true,
+      "onboarding_step": "completed",
+      "registration_id_count": 1,
+      "same_user_id_as_registration": true,
+      "synthetic_user_row_count": 1
+    },
+    "fresh_context": {
+      "cookies_empty": true,
+      "local_storage_empty": true,
+      "session_storage_empty": true
+    },
+    "logout": {
+      "explicit_logout_marker": true,
+      "landed_auth_signin": true,
+      "nextauth_session_cookie_names_remaining": [],
+      "raw_token_cleared": true,
+      "sdk_cookie_cleared": true,
+      "session_endpoint_status": 200,
+      "session_endpoint_user_absent": true
+    },
+    "onboarding": {
+      "completed_via_ui": true,
+      "present": true,
+      "server_completed": true,
+      "status_endpoint": 200
+    },
+    "registration": {
+      "backend_register_calls": 1,
+      "db_rows_after": 1,
+      "db_rows_before": 0,
+      "landed_dashboard": true,
+      "sdk_callback_calls": 1
+    },
+    "session_checks": {
+      "canonical_me_user_id_matches_session_user_id": true,
+      "decoded_sdk_user_id_matches_canonical_me": true,
+      "legacy_auth_token_cookie_present": true,
+      "production_uses_secure_cookie_name": true,
+      "sdk_cookie_http_only": true,
+      "sdk_cookie_is_encrypted_not_raw": true,
+      "sdk_cookie_secure_matches_cookie_name": true,
+      "sdk_session_contains_same_backend_generation": true,
+      "session_endpoint_contains_same_backend_generation": true,
+      "session_not_counted_from_legacy_cookie": true
+    },
+    "settings": {
+      "reload_url_path_query_exact": true,
+      "url_path_query_exact": true
+    },
+    "signin_auth_signin_default": {
+      "backend_password_login_delta": 1,
+      "sdk_callback_delta": 1,
+      "status_ok": true
+    },
+    "signin_login_deep_link": {
+      "backend_password_login_delta": 1,
+      "callback_seen_before_login": "/settings?a4dl=return20261109",
+      "landed_exact_path_query": true,
+      "sdk_callback_delta": 1,
+      "status_ok": true
+    },
+    "signin_login_default": {
+      "backend_password_login_delta": 1,
+      "sdk_callback_delta": 1,
+      "status_ok": true
+    },
+    "user_identity_hashes": {
+      "final_id_sha256": "742cd0f2a23dba03302d5161858188fa0439b4f73bdad7169e2d24c324ec660d",
+      "registration_id_sha256": "742cd0f2a23dba03302d5161858188fa0439b4f73bdad7169e2d24c324ec660d",
+      "same": true
+    }
+  },
+  "command": "python3 /private/tmp/root-web-auth-browser-harness-20261109.py",
+  "command_exit": 0,
+  "disclosure": {
+    "import_phase": "TESTING=0 only while main_api_app imported so the explicit scratch DATABASE_URL is honored",
+    "production_environment_or_tls_claimed": false,
+    "reason": "core.database TESTING=1 forces shared backend/test_integration.db",
+    "runtime": "TESTING=1 with fixed scratch DATABASE_URL and ATOM_DATA_DIR"
+  },
+  "executed_app_bytes": {
+    "build_id": "x2CUoJu61foFf1UK93q73",
+    "dist": ".next-auth-browser-20261109",
+    "duration_s": 30.0,
+    "exit": 0,
+    "minimum_free_bytes": 4355411968,
+    "next_version": "16.2.2",
+    "node": "v20.20.2",
+    "resource_pressure_abort": false,
+    "source": "3673b07bfc28a9541237a5bebe085c49ad6155ba"
+  },
+  "files": [
+    {
+      "bytes": 5108,
+      "path": "README.md",
+      "sha256": "175ad706fa3c9cf86e7a4b486fa50429364a3ef31fe7916a1e3a5929ad1367a5"
+    },
+    {
+      "bytes": 44810,
+      "path": "browser_auth_episode.py",
+      "sha256": "a69af452759cdbf6d341821ef134ac9d657ecb7c4fe198e7188dce04d346e849"
+    },
+    {
+      "bytes": 515,
+      "path": "owner-marker.json",
+      "sha256": "490a6c25aa2b131b889a835c9c5348f4e8757d37a73ef4b69b7c9dce46c6e12e"
+    },
+    {
+      "bytes": 83877,
+      "path": "screenshots/01-signup.png",
+      "sha256": "4c0a70fc1532f686666470b2838dbd4b5da745ac7da7f7cd8e3d9e080e62cac6"
+    },
+    {
+      "bytes": 134729,
+      "path": "screenshots/02-dashboard-after-registration.png",
+      "sha256": "d0479d7f302270e5e449093a30e75ef24810512a790c29b791eec735d8f14327"
+    },
+    {
+      "bytes": 134709,
+      "path": "screenshots/03-onboarding-welcome.png",
+      "sha256": "a0b90b0b055f12871ce685f6867c6ffb6e5e76f9fb80d98f42760bd3ae884251"
+    },
+    {
+      "bytes": 99187,
+      "path": "screenshots/04-settings.png",
+      "sha256": "8f0b32a82b8724b4956891ac24ca6bb21805f2f7b8a6f4f946efbeeccc2f1037"
+    },
+    {
+      "bytes": 181994,
+      "path": "screenshots/05-login-default-dashboard.png",
+      "sha256": "b131960bfa54be4fa6034a38a13aa7d548eb969e12e91f424b78f58c376d343d"
+    },
+    {
+      "bytes": 128084,
+      "path": "screenshots/06-auth-signin-dashboard.png",
+      "sha256": "c35fe0959b18f32536c9705a33e80b1a1d1a46d57bef5869909cc9b7156c42fc"
+    },
+    {
+      "bytes": 99187,
+      "path": "screenshots/07-deep-link-settings.png",
+      "sha256": "8f0b32a82b8724b4956891ac24ca6bb21805f2f7b8a6f4f946efbeeccc2f1037"
+    },
+    {
+      "bytes": 7968,
+      "path": "summary.json",
+      "sha256": "2a2352b61028f3220e84014a2a9bf00ba91079d881965cf29eb09492a75f0dc4"
+    },
+    {
+      "bytes": 27674,
+      "path": "verification.json",
+      "sha256": "e030c570725ce90d19b736f248efd11f185b853378fa2b636853f6ce0c0597cd"
+    }
+  ],
+  "harness": {
+    "path": "browser_auth_episode.py",
+    "sha256": "a69af452759cdbf6d341821ef134ac9d657ecb7c4fe198e7188dce04d346e849"
+  },
+  "harness_successor": {
+    "product_source_changed_between_runs": false,
+    "v1_negative": "deep-link login navigated to /dashboard because the harness discarded the captured callback query; harness defect, not product failure",
+    "v1_private_evidence": "/private/tmp/root-web-auth-browser-harness-v1-failed-20261109",
+    "v1_sha256": "0f1916c876055b60b23904d0b91db9ec0027d17a8f2522e2eb69122ad206b7fe",
+    "v2_positive": true,
+    "v2_sha256": "a69af452759cdbf6d341821ef134ac9d657ecb7c4fe198e7188dce04d346e849"
+  },
+  "limits": [
+    "HTTP loopback only; production build emits Secure cookies accepted by Chromium on loopback.",
+    "Google/GitHub/SSO handoff and 2FA live challenge were not exercised.",
+    "No provider/model calls, connector consent, sends, spend, or deployment."
+  ],
+  "private_evidence": "0700 scratch worlds; not committed",
+  "product_edits_in_packet": false,
+  "source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
+  "source_attribution": {
+    "frozen_runtime_source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
+    "prior_merged_tree_reference": "PR809 c0427e520 / a60 tree; runtime not relabeled",
+    "producer_chain": "5670d7451 + 3673b07bf combined branch"
+  }
+}

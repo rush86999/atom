@@ -1,0 +1,11 @@
+{
+  "backend_port": 18320,
+  "frontend_port": 18321,
+  "harness_sha256": "a69af452759cdbf6d341821ef134ac9d657ecb7c4fe198e7188dce04d346e849",
+  "http_loopback_only": true,
+  "not_live_database": true,
+  "source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
+  "testing_import_phase": 0,
+  "testing_note": "TESTING=1 is the runtime value. The wrapper imports the app with TESTING=0 only so the explicit fresh DATABASE_URL is honored; TESTING=1 forces the shared backend/test_integration.db.",
+  "testing_runtime": 1
+}
