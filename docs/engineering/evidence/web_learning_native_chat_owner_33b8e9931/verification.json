@@ -1,0 +1,102 @@
+{
+  "access_guard": {
+    "before_side_effects": true,
+    "email_policy": "unchanged workspace/tenant policy",
+    "helper": "candidate_visible_to_user",
+    "missing_owner": "fails closed; fresh review required",
+    "route_helper": "_require_candidate_access",
+    "surfaces": [
+      "single GET",
+      "thread candidate list",
+      "revise",
+      "dependency resolve",
+      "confirm",
+      "reject",
+      "promote",
+      "apply"
+    ]
+  },
+  "commit": "33b8e99317bc0563b153d379f177a133c0a0a914",
+  "disclosures": {
+    "no_browser": true,
+    "no_install_send_spend_deploy_merge_pr": true,
+    "no_live_db": true,
+    "no_model_or_provider": true,
+    "testing": "TESTING=1 with unique scratch DATABASE_URL/ATOM_DATA_DIR and bounded gate"
+  },
+  "honest_limits": [
+    "ChatSession remains owner-only and explicitly user-global; no workspace isolation claim",
+    "explicit human promotion keeps existing agent-level lesson audience; private pending candidate is separate",
+    "missing-owner rows are denied, not migrated",
+    "staleness applies on next candidate touch; no background watcher claimed",
+    "finite ownership/authority mechanics, not whole teaching completion"
+  ],
+  "owner_binding": {
+    "field": "LearningCandidate.source_owner_id",
+    "included_in": [
+      "candidate digest when present",
+      "source revision identity",
+      "review payload",
+      "promoted lesson provenance"
+    ],
+    "never_from": [
+      "caller input",
+      "mutable email created_by"
+    ],
+    "source": "ConversationEvidence.account_id / ChatSession.user_id"
+  },
+  "predecessor_evidence_commit": "a66ee49c87794de257cfd6962e7268fb92fad380",
+  "results": {
+    "combined_conversation_learning": {
+      "exit": 0,
+      "log": "logs/combined-backend.log",
+      "passed": 74
+    },
+    "eslint_changed_files": {
+      "exit": 0,
+      "log": "logs/eslint.log"
+    },
+    "frontend_learning_tests": {
+      "exit": 0,
+      "log": "logs/frontend-tests.log",
+      "passed": 5
+    },
+    "native_api_tests": {
+      "exit": 0,
+      "log": "logs/native-api-tests.log",
+      "passed": 13
+    },
+    "root_owner_probe": {
+      "exit": 0,
+      "passed": 2
+    },
+    "typescript": {
+      "exit": 0,
+      "log": "logs/tsc.log"
+    }
+  },
+  "retained_coverage": [
+    "typed collision twins",
+    "quoted/empty/whitespace authority refusal",
+    "genuine unquoted positive",
+    "truthful 199/200/201 counts",
+    "edit/reorder/delete staleness",
+    "restart readback",
+    "owner promotion -> fresh-session get_agent_lessons exact provenance"
+  ],
+  "root_negative": {
+    "log": "logs/root-negative-probe.log",
+    "observed": "same-workspace peer GET candidate and POST reject returned 200 and appended ConversationEvent 1->2",
+    "result": "2 failed in 3.44s",
+    "review": "root-negative-review.json"
+  },
+  "root_probe_rerun": {
+    "exit": 0,
+    "independent_root_rerun_required": true,
+    "log": "logs/root-owner-probe-positive.log",
+    "probe": "root-owner-probe.py",
+    "probe_sha256": "e34af065f4c7f6dd6ddfeae5f8e7e9b48e6389af0a0793b925b00115ad9c7b90",
+    "result": "2 passed"
+  },
+  "state": "focused_owner_repair_passed_pending_root_independent_gate"
+}

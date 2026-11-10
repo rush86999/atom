@@ -1,0 +1,26 @@
+{
+  "api_negative_controls_4": {
+    "acceptance": "root-native-learning-controlled-acceptance-20261110.json",
+    "owner_pair_log": "docs/engineering/evidence/web_learning_native_chat_owner_33b8e9931/logs/root-owner-probe-positive.log",
+    "owner_pair_probe": "docs/engineering/evidence/web_learning_native_chat_owner_33b8e9931/root-owner-probe.py",
+    "owner_pair_probe_sha256": "e34af065f4c7f6dd6ddfeae5f8e7e9b48e6389af0a0793b925b00115ad9c7b90",
+    "quoted_authority_log": "docs/engineering/evidence/web_learning_native_chat_4c393f284/logs/authority-probe.log",
+    "quoted_authority_probe": "docs/engineering/evidence/web_learning_native_chat_4c393f284/root-authority-probe.py",
+    "quoted_authority_probe_sha256": "4abec43680e802bdf92b53c071c6e2972011038e73c1e94f7dc935ac84ab3fbe",
+    "result": "4 passed in 4.76s (root independent)"
+  },
+  "missing_price_resource_refusal": {
+    "candidate_id": "lc-e039642c001541fc",
+    "classification": "correct product gate for an unprovided resource; NOT a product failure and NOT a positive teaching episode",
+    "gate_weakened": false,
+    "status": "needs_clarification",
+    "visible_question": "Which resource did 'current price' mean? No authorized catalog resource matched it.",
+    "world_receipt": "/private/tmp/root-web-learning-world-nob5dlsj (private, retained)"
+  },
+  "wrong_helper_database_mismatch": {
+    "cause": "helper imported core.database under TESTING=1 and used backend/test_integration.db instead of the explicit scratch DB",
+    "classification": "harness DB mismatch; Learning product not reached; not a product failure",
+    "phase": "fixture seed",
+    "world_receipt": "/private/tmp/root-web-learning-world-jecriakh (private, retained)"
+  }
+}

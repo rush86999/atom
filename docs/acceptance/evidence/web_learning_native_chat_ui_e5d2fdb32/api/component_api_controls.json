@@ -1,0 +1,36 @@
+{
+  "api_negative_4": {
+    "authority_log": "logs/authority-probe.log",
+    "authority_log_sha256": "0523362e8bf31843fe171257bf90a3d3753f5bb0ba3880db30501d2babad8bb2",
+    "owner_pair_log": "logs/root-owner-probe-positive.log",
+    "owner_pair_log_sha256": "529dcd0f881a8a55e4989e2123c22318427391ceac58ea5f09863bb0f3ace6b0",
+    "passed": 4
+  },
+  "combined_conversation_learning_74": {
+    "log": "logs/combined-backend.log",
+    "passed": 74,
+    "sha256": "3342330512f6c9b677813cc582d8cbd3882a477a933dc41cad0c25147f4a2891"
+  },
+  "eslint_changed_files": {
+    "exit": 0,
+    "log": "logs/eslint.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "frontend_learning_5": {
+    "log": "logs/frontend-tests.log",
+    "passed": 5,
+    "sha256": "9b8f9bb9a0cc7f37ec10dbd356dba873fd8f3d919160f17ecf819265b0d7bd5f"
+  },
+  "native_api_13": {
+    "log": "logs/native-api-tests.log",
+    "passed": 13,
+    "sha256": "366a2a96974c56fa009c365604982d004360ae40af8f6c27b5978aa1aaa38b35"
+  },
+  "scope": "controlled API/SQLite/component; already independently accepted; not browser evidence",
+  "source_bound": true,
+  "typescript": {
+    "exit": 0,
+    "log": "logs/tsc.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
