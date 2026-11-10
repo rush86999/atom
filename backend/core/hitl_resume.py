@@ -506,6 +506,10 @@ async def _resume_guided_create(
     acting parent, verify the reviewed intent digest, and use the shared
     create decision writer for one durable agent + receipt.
     """
+    from contextlib import closing
+
+    from sqlalchemy.orm import sessionmaker
+
     from core.agent_decision_write_service import create_agent
     from core.database import get_db_session
     from core.guided_automation_service import (
@@ -535,7 +539,12 @@ async def _resume_guided_create(
 
     action_tenant = str(params.get("tenant_id") or "")
     action_workspace = str(params.get("workspace_id") or "")
-    with get_db_session() as db:
+    bind = action.get("bind")
+    if bind is not None:
+        session_cm = closing(sessionmaker(bind=bind)())
+    else:
+        session_cm = get_db_session()
+    with session_cm as db:
         reviewer = (
             db.query(User).filter(User.id == str(reviewer_id)).first()
         )
