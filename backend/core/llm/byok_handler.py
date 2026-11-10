@@ -1230,6 +1230,12 @@ def _has_inline_image(messages: Any) -> bool:
 # a ceiling, not a target — short answers are unaffected.
 _DEFAULT_COMPLETION_MAX_TOKENS = int(os.getenv("ATOM_COMPLETION_MAX_TOKENS", "6000"))
 
+# One admitted physical attempt == one HTTP request. The OpenAI SDK otherwise
+# retries connection/408/409/429/5xx up to 2 times per call, which are hidden
+# physical requests that no reservation covers. The application's own
+# provider/model ladder is the single retry owner.
+_SDK_MAX_RETRIES = 0
+
 # Providers that speak OpenRouter's unified ``reasoning`` object (the field is
 # an OpenRouter extension, passed through ``extra_body`` for SDK requests).
 _REASONING_GATEWAY_PROVIDERS = frozenset(
@@ -3736,9 +3742,11 @@ class BYOKHandler:
                 api_key = lux_config.get_anthropic_key() or self.byok_manager.get_api_key("lux")
                 if api_key:
                     try:
-                        self.clients["lux"] = OpenAI(api_key=api_key)
+                        self.clients["lux"] = OpenAI(
+                            api_key=api_key, max_retries=_SDK_MAX_RETRIES)
                         if AsyncOpenAI:
-                            self.async_clients["lux"] = AsyncOpenAI(api_key=api_key)
+                            self.async_clients["lux"] = AsyncOpenAI(
+                                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
                         logger.info("Initialized LUX provider with Anthropic client")
                     except Exception as e:
                         logger.error(f"Failed to initialize LUX client: {e}")
@@ -3753,12 +3761,14 @@ class BYOKHandler:
                         api_key="ollama",  # Dummy key — server ignores it
                         base_url=ollama_base_url,
                         timeout=_ollama_request_timeout(),
+                        max_retries=_SDK_MAX_RETRIES,
                     )
                     if AsyncOpenAI:
                         self.async_clients["ollama"] = AsyncOpenAI(
                             api_key="ollama",
                             base_url=ollama_base_url,
                             timeout=_ollama_request_timeout(),
+                            max_retries=_SDK_MAX_RETRIES,
                         )
                     logger.info(f"Initialized Ollama (local) client at {ollama_base_url}")
                 except Exception as e:
@@ -3856,6 +3866,7 @@ class BYOKHandler:
                         "api_key": api_key,
                         "base_url": config["base_url"],  # can be None for OpenAI
                         "timeout": _llm_request_timeout(),
+                        "max_retries": _SDK_MAX_RETRIES,
                     }
                     if provider_id == "openrouter":
                         client_kwargs["default_headers"] = {
@@ -4204,8 +4215,12 @@ class BYOKHandler:
                     base_url = provider.base_url.rstrip("/")
 
                     try:
-                        self.clients[provider_key] = OpenAI(api_key=api_key, base_url=base_url)
-                        self.async_clients[provider_key] = AsyncOpenAI(api_key=api_key, base_url=base_url)
+                        self.clients[provider_key] = OpenAI(
+                            api_key=api_key, base_url=base_url,
+                            max_retries=_SDK_MAX_RETRIES)
+                        self.async_clients[provider_key] = AsyncOpenAI(
+                            api_key=api_key, base_url=base_url,
+                            max_retries=_SDK_MAX_RETRIES)
                         logger.info(f"Loaded local provider '{provider.name}' ({provider.provider_type}) at {base_url}")
                     except Exception as e:
                         logger.warning(f"Could not create client for local provider '{provider.name}': {e}")

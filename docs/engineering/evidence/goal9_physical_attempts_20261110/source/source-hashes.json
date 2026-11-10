@@ -9,7 +9,7 @@
       "changed": true
     },
     "backend/core/llm/byok_handler.py": {
-      "after_sha256": "d17b1a1cc2fa68a402ab1f53c0d68fbc88b2a14edf49c09cb5ab81c363ae23db",
+      "after_sha256": "d12e5ba6e8f8b800df28ab0e5209ef95f0640427229f7bf51e4cab1c9a7f931d",
       "before_sha256": "cbb6f77544cd25e9eb903b870812d8e51567d54e57c292715670128c39987833",
       "changed": true
     },
@@ -24,12 +24,12 @@
       "changed": true
     },
     "backend/tests/test_goal9_physical_attempts.py": {
-      "after_sha256": "78f1ff9941784eced3fbeb7f37d6c3039b527f26bbe84ab8c9da12ee86b9a046",
+      "after_sha256": "bc0f5ef1f7ed3d09c8dcd9108cf5827f0336123b9e31725a1f7b2e00e23d85f4",
       "before_sha256": null,
       "changed": true
     }
   },
-  "note": "Per-physical-attempt admission/settlement for streaming, gateway chat_completion and ordinary generate_response nested retries; tokenizer-agnostic UTF-8 byte text bound (reviewed prerequisite 4559f24a contract); explicit unknown image bound; additive CI gate",
+  "note": "Per-physical-attempt admission/settlement for streaming, gateway chat_completion and ordinary generate_response nested retries; tokenizer-agnostic UTF-8 byte text bound (reviewed prerequisite 4559f24a contract); explicit unknown image bound; SDK hidden retries disabled; additive CI gate",
   "prerequisite": {
     "commit": "4559f24a9988fa891776883257507affc41b9f82",
     "incorporated_not_cherry_picked": true,

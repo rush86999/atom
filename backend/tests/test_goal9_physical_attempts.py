@@ -612,6 +612,29 @@ def test_invalid_price_hardstop_zero_dispatch(
 
 
 # --------------------------------------------------------------------------
+# SDK hidden retries: one admission == one physical HTTP request
+# --------------------------------------------------------------------------
+def test_provider_clients_disable_sdk_hidden_retries():
+    """The OpenAI SDK retries 5xx/429/connection errors by default.
+
+    Those are physical requests that no reservation covers, and they create a
+    second retry owner. Every handler client construction must disable them so
+    the application ladder remains the only retry owner.
+    """
+    import inspect
+
+    from core.llm import byok_handler as bh
+
+    src = inspect.getsource(bh)
+    assert bh._SDK_MAX_RETRIES == 0
+    # 7 construction sites: lux sync/async, ollama sync/async, the shared
+    # provider client_kwargs dict, and registered-local sync/async.
+    assert src.count("_SDK_MAX_RETRIES") == 8
+    assert src.count("max_retries=_SDK_MAX_RETRIES") == 6
+    assert '"max_retries": _SDK_MAX_RETRIES' in src
+
+
+# --------------------------------------------------------------------------
 # multimodal: no proven image bound -> explicit unknown, never a guess
 # --------------------------------------------------------------------------
 _IMAGE_MESSAGES = [{

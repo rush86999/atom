@@ -71,6 +71,17 @@ the immutable binding). The new byok helpers are thin adapters:
   fallback shape. No fallback is blanket-disabled; valid free/local/observe
   behavior is untouched.
 
+## SDK retries audited (hidden physical requests)
+
+The handler constructs `OpenAI`/`AsyncOpenAI` clients without `max_retries`,
+so the SDK default (2) issued hidden retries for connection errors,
+408/409/429 and 5xx — physical requests no reservation covered, and a second
+retry owner. Every handler client construction (lux sync/async, ollama
+sync/async, the shared provider kwargs, registered-local sync/async) now sets
+`max_retries=_SDK_MAX_RETRIES = 0`. One admitted attempt is one HTTP request;
+the application's provider/model ladder remains the single retry owner. A
+bounded source contract pins the constant and all seven construction sites.
+
 ## Token bound (authoritative, tokenizer-agnostic)
 
 The reviewed finite prerequisite contract (root commit `4559f24a`,
@@ -114,14 +125,14 @@ it or blind-cherry-picking**:
 
 ## Evidence
 
-- `gates/physical-controls.log` — the new failure-first matrix: **25 passed**
+- `gates/physical-controls.log` — the new failure-first matrix: **26 passed**
   on this successor (12 of these failed on the frozen `0733` source; exact
   log retained at `retained_negative/pre-fix-physical-negative.log`).
 - `gates/focused.log` — physical controls + stream retry-state + P2 fallbacks
   + atomic/ordinary controls + durable settlement/upgrade + CI-lane contract:
-  **268 passed**.
+  **269 passed**.
 - `gates/affected.log` — focused set plus the wider budget selection:
-  **478 passed**.
+  **479 passed**.
 - `gates/root-prerequisite-probes.log` — root's invalid-price (5), direct
   bound (5) and estimated-flag (1) probes on this source: **11 passed**.
 - `gates/ci-lane-contract.log` — additive CI ledger contract after adding the
@@ -152,6 +163,9 @@ ledger and every existing command/environment/setup are preserved.
 - Nested retries inside the older `generate_structured_response` cascade are
   out of this finite slice (that path already has its own pre-dispatch
   reservation); they remain a follow-up audit if root requires parity.
+- SDK-internal retries are disabled for the handler's clients, but any client
+  constructed elsewhere (embedding services, integrations) was not audited in
+  this slice.
 - Root owns independent review/acceptance/merge. Historical 143 claims /
   18 goals are unchanged.
 

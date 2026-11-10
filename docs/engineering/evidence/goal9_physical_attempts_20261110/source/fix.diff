@@ -21,7 +21,7 @@ index 48ede3e6c..4e54b3729 100644
      runs-on: ubuntu-latest
      defaults:
 diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
-index bc99cecc4..d8f082ff6 100644
+index bc99cecc4..c65958d96 100644
 --- a/backend/core/llm/byok_handler.py
 +++ b/backend/core/llm/byok_handler.py
 @@ -813,6 +813,17 @@ class _DurableUsageIntentUnavailable(RuntimeError):
@@ -167,7 +167,72 @@ index bc99cecc4..d8f082ff6 100644
  # Completion cap for plain (non-streaming) completions — same rationale as
  # the structured path's ATOM_STRUCTURED_MAX_TOKENS: reasoning models burn
  # 750–3,155+ tokens thinking BEFORE the visible answer (measured on
-@@ -4183,37 +4298,36 @@ class BYOKHandler:
+@@ -1115,6 +1230,12 @@ def _usage_value(usage: Any, *names: str) -> int:
+ # a ceiling, not a target — short answers are unaffected.
+ _DEFAULT_COMPLETION_MAX_TOKENS = int(os.getenv("ATOM_COMPLETION_MAX_TOKENS", "6000"))
+ 
++# One admitted physical attempt == one HTTP request. The OpenAI SDK otherwise
++# retries connection/408/409/429/5xx up to 2 times per call, which are hidden
++# physical requests that no reservation covers. The application's own
++# provider/model ladder is the single retry owner.
++_SDK_MAX_RETRIES = 0
++
+ # Providers that speak OpenRouter's unified ``reasoning`` object (the field is
+ # an OpenRouter extension, passed through ``extra_body`` for SDK requests).
+ _REASONING_GATEWAY_PROVIDERS = frozenset(
+@@ -3621,9 +3742,11 @@ class BYOKHandler:
+                 api_key = lux_config.get_anthropic_key() or self.byok_manager.get_api_key("lux")
+                 if api_key:
+                     try:
+-                        self.clients["lux"] = OpenAI(api_key=api_key)
++                        self.clients["lux"] = OpenAI(
++                            api_key=api_key, max_retries=_SDK_MAX_RETRIES)
+                         if AsyncOpenAI:
+-                            self.async_clients["lux"] = AsyncOpenAI(api_key=api_key)
++                            self.async_clients["lux"] = AsyncOpenAI(
++                                api_key=api_key, max_retries=_SDK_MAX_RETRIES)
+                         logger.info("Initialized LUX provider with Anthropic client")
+                     except Exception as e:
+                         logger.error(f"Failed to initialize LUX client: {e}")
+@@ -3638,12 +3761,14 @@ class BYOKHandler:
+                         api_key="ollama",  # Dummy key — server ignores it
+                         base_url=ollama_base_url,
+                         timeout=_ollama_request_timeout(),
++                        max_retries=_SDK_MAX_RETRIES,
+                     )
+                     if AsyncOpenAI:
+                         self.async_clients["ollama"] = AsyncOpenAI(
+                             api_key="ollama",
+                             base_url=ollama_base_url,
+                             timeout=_ollama_request_timeout(),
++                            max_retries=_SDK_MAX_RETRIES,
+                         )
+                     logger.info(f"Initialized Ollama (local) client at {ollama_base_url}")
+                 except Exception as e:
+@@ -3741,6 +3866,7 @@ class BYOKHandler:
+                         "api_key": api_key,
+                         "base_url": config["base_url"],  # can be None for OpenAI
+                         "timeout": _llm_request_timeout(),
++                        "max_retries": _SDK_MAX_RETRIES,
+                     }
+                     if provider_id == "openrouter":
+                         client_kwargs["default_headers"] = {
+@@ -4089,8 +4215,12 @@ class BYOKHandler:
+                     base_url = provider.base_url.rstrip("/")
+ 
+                     try:
+-                        self.clients[provider_key] = OpenAI(api_key=api_key, base_url=base_url)
+-                        self.async_clients[provider_key] = AsyncOpenAI(api_key=api_key, base_url=base_url)
++                        self.clients[provider_key] = OpenAI(
++                            api_key=api_key, base_url=base_url,
++                            max_retries=_SDK_MAX_RETRIES)
++                        self.async_clients[provider_key] = AsyncOpenAI(
++                            api_key=api_key, base_url=base_url,
++                            max_retries=_SDK_MAX_RETRIES)
+                         logger.info(f"Loaded local provider '{provider.name}' ({provider.provider_type}) at {base_url}")
+                     except Exception as e:
+                         logger.warning(f"Could not create client for local provider '{provider.name}': {e}")
+@@ -4183,37 +4313,36 @@ class BYOKHandler:
          input_texts,
          max_output_tokens: Optional[int],
          schema_text: Optional[str] = None,
@@ -224,7 +289,7 @@ index bc99cecc4..d8f082ff6 100644
              input_tokens_upper = max(1, input_tokens_upper)
  
              output_tokens = max(
-@@ -4251,6 +4365,173 @@ class BYOKHandler:
+@@ -4251,6 +4380,173 @@ class BYOKHandler:
          except Exception:
              return None
  
@@ -398,7 +463,7 @@ index bc99cecc4..d8f082ff6 100644
      def _record_provider_usage(
          self,
          provider_id: str,
-@@ -6793,8 +7074,11 @@ class BYOKHandler:
+@@ -6793,8 +7089,11 @@ class BYOKHandler:
              # otherwise every retry stacked another image or another copy of
              # the user's text onto the same conversation.
              _pristine_messages = [dict(m) for m in messages] if messages else None
@@ -411,7 +476,7 @@ index bc99cecc4..d8f082ff6 100644
              for provider_id, model in options:
                  if provider_id in failed_providers:
                      continue
-@@ -6965,39 +7249,34 @@ class BYOKHandler:
+@@ -6965,39 +7264,34 @@ class BYOKHandler:
  
                      # Durable paid-liability intent BEFORE dispatch. If it
                      # cannot be persisted, do not dispatch (fail closed).
@@ -467,7 +532,7 @@ index bc99cecc4..d8f082ff6 100644
                          break
  
                      try:
-@@ -7183,7 +7462,8 @@ class BYOKHandler:
+@@ -7183,7 +7477,8 @@ class BYOKHandler:
                                  usage, "prompt_tokens", "input_tokens"),
                              completion_tokens=_usage_value(
                                  usage, "completion_tokens", "output_tokens"),
@@ -477,7 +542,7 @@ index bc99cecc4..d8f082ff6 100644
                              agent_id=agent_id,
                              workspace_id=getattr(self, "workspace_id", None),
                              tenant_id=getattr(self, "tenant_id", None),
-@@ -7240,6 +7520,9 @@ class BYOKHandler:
+@@ -7240,6 +7535,9 @@ class BYOKHandler:
                      return result
  
                  except Exception as attempt_err:
@@ -487,7 +552,7 @@ index bc99cecc4..d8f082ff6 100644
                      if isinstance(attempt_err, _EmptyCompletionError):
                          self._bench_model(provider_id, model)
                      logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
-@@ -7277,15 +7560,49 @@ class BYOKHandler:
+@@ -7277,15 +7575,49 @@ class BYOKHandler:
                          try:
                              _t_kwargs = dict(_req_kwargs)
                              _t_kwargs["temperature"] = _locked_value
@@ -537,7 +602,7 @@ index bc99cecc4..d8f082ff6 100644
                          except Exception as _temp_retry_err:
                              logger.warning(
                                  f"temperature={_locked_value} retry also "
-@@ -7314,15 +7631,37 @@ class BYOKHandler:
+@@ -7314,15 +7646,37 @@ class BYOKHandler:
                                  f"retrying with {fallback_model}"
                              )
                              try:
@@ -581,7 +646,7 @@ index bc99cecc4..d8f082ff6 100644
                                  self._capture_echoed_model(response)
                                  self._stash_last_reasoning(response)
                                  result = response.choices[0].message.content
-@@ -7330,12 +7669,25 @@ class BYOKHandler:
+@@ -7330,12 +7684,25 @@ class BYOKHandler:
                                      raise _EmptyCompletionError(
                                          f"fallback {fallback_model} returned no visible content"
                                      )
@@ -607,7 +672,7 @@ index bc99cecc4..d8f082ff6 100644
                              except Exception as fb_err:
                                  logger.warning(
                                      f"Fallback {fallback_model} also failed: {fb_err}"
-@@ -7415,6 +7767,29 @@ class BYOKHandler:
+@@ -7415,6 +7782,29 @@ class BYOKHandler:
                                      f"patch={heal_result.rule} keys={heal_result.patched_keys}"
                                  )
                                  try:
@@ -637,7 +702,7 @@ index bc99cecc4..d8f082ff6 100644
                                      response = await _to_thread_safe(
                                          client.chat.completions.create,
                                          **heal_result.patched_kwargs
-@@ -7450,15 +7825,30 @@ class BYOKHandler:
+@@ -7450,15 +7840,30 @@ class BYOKHandler:
                                          success=True, cost=None, latency_ms=latency_ms,
                                          routing_result_id=decision_id_for_feedback,
                                      )
@@ -668,7 +733,7 @@ index bc99cecc4..d8f082ff6 100644
                          except Exception:
                              logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
  
-@@ -7478,14 +7868,36 @@ class BYOKHandler:
+@@ -7478,14 +7883,36 @@ class BYOKHandler:
                          paid_model = _opencode_paid_fallback_model(model)
                          if paid_model and paid_model != model:
                              try:
@@ -710,7 +775,7 @@ index bc99cecc4..d8f082ff6 100644
                                  self._capture_echoed_model(response)
                                  self._stash_last_reasoning(response)
                                  result = response.choices[0].message.content
-@@ -7516,9 +7928,22 @@ class BYOKHandler:
+@@ -7516,9 +7943,22 @@ class BYOKHandler:
                                      success=True, cost=None, latency_ms=latency_ms,
                                      routing_result_id=decision_id_for_feedback,
                                  )
@@ -733,7 +798,7 @@ index bc99cecc4..d8f082ff6 100644
                              except Exception as paid_err:
                                  logger.warning(
                                      f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
-@@ -7540,6 +7965,11 @@ class BYOKHandler:
+@@ -7540,6 +7980,11 @@ class BYOKHandler:
                      )
                      continue # Try next provider
              
@@ -745,7 +810,7 @@ index bc99cecc4..d8f082ff6 100644
              logger.error(f"All providers failed. Last error: {last_error}")
  
              # LAST-RESORT CATALOG SWEEP for the non-stream path (2026-10-03,
-@@ -7612,6 +8042,25 @@ class BYOKHandler:
+@@ -7612,6 +8057,25 @@ class BYOKHandler:
                              _sp, _sm, _sweep_kwargs["max_tokens"])
                          if _reasoning_body:
                              _sweep_kwargs["extra_body"] = _reasoning_body
@@ -771,7 +836,7 @@ index bc99cecc4..d8f082ff6 100644
                          response = await _to_thread_safe(
                              _client.chat.completions.create, **_sweep_kwargs)
                          self._capture_echoed_model(response)
-@@ -7619,6 +8068,17 @@ class BYOKHandler:
+@@ -7619,6 +8083,17 @@ class BYOKHandler:
                          if _visible_content_missing(_sweep_result):
                              raise _EmptyCompletionError(
                                  _sweep_result or "")
@@ -789,7 +854,7 @@ index bc99cecc4..d8f082ff6 100644
                          logger.warning(
                              "completion ladder sweep SUCCEEDED on %s/%s",
                              _sp, _sm)
-@@ -7678,6 +8138,16 @@ class BYOKHandler:
+@@ -7678,6 +8153,16 @@ class BYOKHandler:
                  f"failed. Last error: {_cause}. Check provider status or "
                  "credentials in Settings and try again.")
  
@@ -806,7 +871,7 @@ index bc99cecc4..d8f082ff6 100644
          except Exception as e:
              logger.error(f"LLM Generation failed: {e}")
              logger.error(f"LLM Generation failed: {e}", exc_info=True)
-@@ -10603,41 +11073,18 @@ class BYOKHandler:
+@@ -10603,41 +11088,18 @@ class BYOKHandler:
                  break
          stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
          # The learning-router decision id is optional (None when the router is
@@ -860,7 +925,7 @@ index bc99cecc4..d8f082ff6 100644
  
          # P4 prompt-taint gate (shadow by default; blocks under enforce).
          _taint_block = self._llm_taint_check(
-@@ -10847,6 +11294,33 @@ class BYOKHandler:
+@@ -10847,6 +11309,33 @@ class BYOKHandler:
                  # This pair actually reaches transport. The request-wide
                  # ledger is what later ranked-route/sweep hops consult.
                  state.mark_attempt(attempt_provider_id, model)
@@ -894,7 +959,7 @@ index bc99cecc4..d8f082ff6 100644
                  try:
                      _connect_s = _stream_connect_timeout_seconds()
                      if _connect_s and _connect_s > 0:
-@@ -10987,6 +11461,20 @@ class BYOKHandler:
+@@ -10987,6 +11476,20 @@ class BYOKHandler:
                          "(finish_reason=%s); caller will fall back",
                          attempt_provider_id, model, _stream_finish_reason)
  
@@ -915,7 +980,7 @@ index bc99cecc4..d8f082ff6 100644
                  # Success! Return from the function
                  return
  
-@@ -10994,6 +11482,12 @@ class BYOKHandler:
+@@ -10994,6 +11497,12 @@ class BYOKHandler:
                  last_error = e
                  logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
  
@@ -928,7 +993,7 @@ index bc99cecc4..d8f082ff6 100644
                  # Classify BEFORE deciding what to do next: a rejected
                  # credential and an unsupported model look alike in a status
                  # code and demand opposite responses.
-@@ -11123,6 +11617,24 @@ class BYOKHandler:
+@@ -11123,6 +11632,24 @@ class BYOKHandler:
                              )
                              try:
                                  state.mark_attempt(attempt_provider_id, model)
@@ -953,7 +1018,7 @@ index bc99cecc4..d8f082ff6 100644
                                  stream = await client.chat.completions.create(
                                      **heal_result.patched_kwargs
                                  )
-@@ -11179,7 +11691,17 @@ class BYOKHandler:
+@@ -11179,7 +11706,17 @@ class BYOKHandler:
                                      success=True, cost=None, latency_ms=latency_ms,
                                      routing_result_id=stream_decision_id,
                                  )
@@ -971,7 +1036,7 @@ index bc99cecc4..d8f082ff6 100644
                              except Exception as retry_err:
                                  logger.warning(
                                      f"[SelfHeal-stream] retry FAILED for "
-@@ -11187,6 +11709,8 @@ class BYOKHandler:
+@@ -11187,6 +11724,8 @@ class BYOKHandler:
                                      f"(rule={heal_result.rule})"
                                  )
                                  last_error = retry_err
@@ -980,7 +1045,7 @@ index bc99cecc4..d8f082ff6 100644
                      except Exception:
                          logger.debug("[SelfHeal-stream] healer raised; skipping", exc_info=True)
  
-@@ -11226,6 +11750,23 @@ class BYOKHandler:
+@@ -11226,6 +11765,23 @@ class BYOKHandler:
                                      {k: v for k, v in extra_kwargs.items() if v is not None}
                                  )
                              state.mark_attempt(attempt_provider_id, paid_model)
@@ -1004,7 +1069,7 @@ index bc99cecc4..d8f082ff6 100644
                              stream = await client.chat.completions.create(**retry_kwargs)
                              logger.info(
                                  f"OpenCode Go free-model stream retry started on paid model "
-@@ -11275,7 +11816,17 @@ class BYOKHandler:
+@@ -11275,7 +11831,17 @@ class BYOKHandler:
                                  success=True, cost=None, latency_ms=latency_ms,
                                  routing_result_id=stream_decision_id,
                              )
@@ -1022,7 +1087,7 @@ index bc99cecc4..d8f082ff6 100644
                          except Exception as retry_err:
                              logger.warning(
                                  f"OpenCode Go free-model stream retry FAILED on paid model "
-@@ -11344,6 +11895,20 @@ class BYOKHandler:
+@@ -11344,6 +11910,20 @@ class BYOKHandler:
          if state.visible_yielded:
              return
  
@@ -1043,7 +1108,7 @@ index bc99cecc4..d8f082ff6 100644
          _next_routes = list(fallback_routes or [])
          if not _next_routes and fallback_models:
              # Legacy shape: names only. The provider that serves them is not
-@@ -11510,6 +12075,8 @@ class BYOKHandler:
+@@ -11510,6 +12090,8 @@ class BYOKHandler:
          extra_kwargs: Optional[Dict[str, Any]] = None,
          _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
          explicit_route: Optional[bool] = None,
@@ -1052,7 +1117,7 @@ index bc99cecc4..d8f082ff6 100644
      ) -> Dict[str, Any]:
          """Non-streaming chat completion with fallback + self-heal (gateway).
  
-@@ -11586,8 +12153,12 @@ class BYOKHandler:
+@@ -11586,8 +12168,12 @@ class BYOKHandler:
                  prompt_str = content if isinstance(content, str) else str(content)
                  break
          decision_id = self._stash_decision_features(prompt_str, task_type)
@@ -1067,7 +1132,7 @@ index bc99cecc4..d8f082ff6 100644
  
          # P4 prompt-taint gate (shadow by default; GatewayBlockedError maps to
          # a 4xx by the gateway's error mapping).
-@@ -11673,41 +12244,35 @@ class BYOKHandler:
+@@ -11673,41 +12259,35 @@ class BYOKHandler:
                          attempt_provider_id, model,
                      )
                      continue
@@ -1127,7 +1192,7 @@ index bc99cecc4..d8f082ff6 100644
                      break
                  try:
                      response = await client.chat.completions.create(**_attempt_kwargs)
-@@ -11783,7 +12348,9 @@ class BYOKHandler:
+@@ -11783,7 +12363,9 @@ class BYOKHandler:
                              model_name=model,
                              prompt_tokens=prompt_tokens or 0,
                              completion_tokens=completion_tokens or 0,
@@ -1138,7 +1203,7 @@ index bc99cecc4..d8f082ff6 100644
                              agent_id=agent_id,
                              workspace_id=getattr(self, "workspace_id", None),
                              tenant_id=getattr(self, "tenant_id", None),
-@@ -11842,6 +12409,9 @@ class BYOKHandler:
+@@ -11842,6 +12424,9 @@ class BYOKHandler:
                  }
  
              except Exception as e:
@@ -1148,7 +1213,7 @@ index bc99cecc4..d8f082ff6 100644
                  if isinstance(e, _EmptyCompletionError):
                      self._bench_model(attempt_provider_id, model)
                  last_error = e
-@@ -11867,6 +12437,24 @@ class BYOKHandler:
+@@ -11867,6 +12452,24 @@ class BYOKHandler:
                          "model": _direct_api_model_name(attempt_provider_id, model),
                      }
                      try:
@@ -1173,7 +1238,7 @@ index bc99cecc4..d8f082ff6 100644
                          response = await client.chat.completions.create(
                              **_retry_at_1)
                          _choice = (response.choices[0]
-@@ -11877,6 +12465,15 @@ class BYOKHandler:
+@@ -11877,6 +12480,15 @@ class BYOKHandler:
                              raise _EmptyCompletionError(
                                  f"temperature retry on {model} returned no completion payload"
                              )
@@ -1189,7 +1254,7 @@ index bc99cecc4..d8f082ff6 100644
                          self._clear_model_cooldown(attempt_provider_id, model)
                          last_error = None
                          self._last_used_model = model
-@@ -11904,6 +12501,8 @@ class BYOKHandler:
+@@ -11904,6 +12516,8 @@ class BYOKHandler:
                                  "total_tokens": getattr(_usage, "total_tokens", 0) or 0,
                              },
                          }
@@ -1198,7 +1263,7 @@ index bc99cecc4..d8f082ff6 100644
                      except Exception as _t1_err:
                          logger.warning(
                              f"temperature=1 retry also failed: {_t1_err}")
-@@ -11957,6 +12556,25 @@ class BYOKHandler:
+@@ -11957,6 +12571,25 @@ class BYOKHandler:
                                      "model": _direct_api_model_name(
                                          attempt_provider_id, model),
                                  }
@@ -1224,7 +1289,7 @@ index bc99cecc4..d8f082ff6 100644
                                  healed_response = await client.chat.completions.create(**healed_kwargs)
                                  self._capture_echoed_model(healed_response)
                                  healed_choice = healed_response.choices[0] if getattr(healed_response, "choices", None) else None
-@@ -11993,6 +12611,15 @@ class BYOKHandler:
+@@ -11993,6 +12626,15 @@ class BYOKHandler:
                                      success=True, cost=heal_cost, latency_ms=0.0,
                                      routing_result_id=decision_id,
                                  )
@@ -1240,7 +1305,7 @@ index bc99cecc4..d8f082ff6 100644
                                  self._last_used_model = model
                                  self._last_used_provider = attempt_provider_id
                                  return {
-@@ -12015,12 +12642,16 @@ class BYOKHandler:
+@@ -12015,12 +12657,16 @@ class BYOKHandler:
                                          "total_tokens": hp + hc,
                                      },
                                  }
@@ -1257,7 +1322,7 @@ index bc99cecc4..d8f082ff6 100644
                      except Exception:
                          logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
  
-@@ -12047,6 +12678,25 @@ class BYOKHandler:
+@@ -12047,6 +12693,25 @@ class BYOKHandler:
                                  k: v for k, v in base_kwargs.items() if k != "model"
                              }
                              retry_kwargs["model"] = paid_model
@@ -1283,7 +1348,7 @@ index bc99cecc4..d8f082ff6 100644
                              paid_response = await client.chat.completions.create(**retry_kwargs)
                              self._capture_echoed_model(paid_response)
                              p_choice = (
-@@ -12115,6 +12765,15 @@ class BYOKHandler:
+@@ -12115,6 +12780,15 @@ class BYOKHandler:
                                  success=True, cost=paid_cost, latency_ms=latency_ms,
                                  routing_result_id=decision_id,
                              )
@@ -1299,7 +1364,7 @@ index bc99cecc4..d8f082ff6 100644
                              self._last_used_model = paid_model
                              self._last_used_provider = attempt_provider_id
                              logger.info(
-@@ -12141,6 +12800,8 @@ class BYOKHandler:
+@@ -12141,6 +12815,8 @@ class BYOKHandler:
                                      "total_tokens": (pp or 0) + (pc or 0),
                                  },
                              }
@@ -1308,7 +1373,7 @@ index bc99cecc4..d8f082ff6 100644
                          except Exception as paid_err:
                              logger.warning(
                                  f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
-@@ -12165,7 +12826,7 @@ class BYOKHandler:
+@@ -12165,7 +12841,7 @@ class BYOKHandler:
          # dead, walk the untried providers' catalog-served models directly
          # (no re-ranking — BPC + the learning router were what kept dead
          # rungs on top). One pass, no nested sweeps.
@@ -1317,7 +1382,7 @@ index bc99cecc4..d8f082ff6 100644
              try:
                  from core.llm.model_route_registry import (
                      get_provider_model_catalog,
-@@ -12206,10 +12867,22 @@ class BYOKHandler:
+@@ -12206,10 +12882,22 @@ class BYOKHandler:
                          temperature=temperature, max_tokens=max_tokens,
                          task_type=task_type, agent_id=agent_id,
                          extra_kwargs=extra_kwargs, _allow_ladder_sweep=False,
@@ -1392,10 +1457,10 @@ index 5697ef581..62c794c39 100644
          "openai", "gpt-4o-mini",
 diff --git a/backend/tests/test_goal9_physical_attempts.py b/backend/tests/test_goal9_physical_attempts.py
 new file mode 100644
-index 000000000..974d6b93a
+index 000000000..1842eae1c
 --- /dev/null
 +++ b/backend/tests/test_goal9_physical_attempts.py
-@@ -0,0 +1,715 @@
+@@ -0,0 +1,738 @@
 +"""Goal 9 per-physical-attempt admission controls (doubled consumers).
 +
 +Every physical paid transport attempt — streaming initial/self-heal/paid/
@@ -2007,6 +2072,29 @@ index 000000000..974d6b93a
 +                "openai", max_tokens=1000))
 +    assert calls == []
 +    assert _attempt_rows(host) == []
++
++
++# --------------------------------------------------------------------------
++# SDK hidden retries: one admission == one physical HTTP request
++# --------------------------------------------------------------------------
++def test_provider_clients_disable_sdk_hidden_retries():
++    """The OpenAI SDK retries 5xx/429/connection errors by default.
++
++    Those are physical requests that no reservation covers, and they create a
++    second retry owner. Every handler client construction must disable them so
++    the application ladder remains the only retry owner.
++    """
++    import inspect
++
++    from core.llm import byok_handler as bh
++
++    src = inspect.getsource(bh)
++    assert bh._SDK_MAX_RETRIES == 0
++    # 7 construction sites: lux sync/async, ollama sync/async, the shared
++    # provider client_kwargs dict, and registered-local sync/async.
++    assert src.count("_SDK_MAX_RETRIES") == 8
++    assert src.count("max_retries=_SDK_MAX_RETRIES") == 6
++    assert '"max_retries": _SDK_MAX_RETRIES' in src
 +
 +
 +# --------------------------------------------------------------------------

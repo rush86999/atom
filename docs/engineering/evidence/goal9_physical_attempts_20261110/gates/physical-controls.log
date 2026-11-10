@@ -1,239 +1,240 @@
 
 tests/test_goal9_physical_attempts.py::test_stream_second_paid_attempt_refused_before_second_provider
 -------------------------------- live log setup --------------------------------
-2026-11-10 12:43:36 [    INFO] EscalationManager initialized
-2026-11-10 12:43:36 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:36 [    INFO] EscalationManager initialized
-2026-11-10 12:43:36 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 12:43:36 [    INFO] AgentTaskRegistry initialized
+2026-11-10 13:06:32 [    INFO] EscalationManager initialized
+2026-11-10 13:06:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:32 [    INFO] EscalationManager initialized
+2026-11-10 13:06:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 13:06:32 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:37 [    INFO] EscalationManager initialized
-2026-11-10 12:43:37 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:37 [    INFO] LocalOnlyGuard initialized
-2026-11-10 12:43:37 [    INFO] Attempting stream with provider: openai (requested: openai) model=shared-model
-2026-11-10 12:43:37 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.0s
-2026-11-10 12:43:37 [ WARNING] Streaming failed for openai/shared-model: controlled failure
-2026-11-10 12:43:37 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=controlled failure
-2026-11-10 12:43:38 [    INFO] Falling back to next provider...
-2026-11-10 12:43:38 [    INFO] Attempting stream with provider: deepseek (requested: openai) model=shared-model
-2026-11-10 12:43:38 [    INFO] [inflight] deepseek/shared-model released by 'structured:chat' after 0.0s
-2026-11-10 12:43:38 [   ERROR] Stream physical-attempt admission refused for deepseek/shared-model; no dispatch (_AccountingBlockedError)
-2026-11-10 12:43:38 [   ERROR] accounting refusal for openai/shared-model — no route/sweep replay
-PASSED                                                                   [  4%]
+2026-11-10 13:06:32 [    INFO] EscalationManager initialized
+2026-11-10 13:06:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:32 [    INFO] LocalOnlyGuard initialized
+2026-11-10 13:06:32 [    INFO] Attempting stream with provider: openai (requested: openai) model=shared-model
+2026-11-10 13:06:32 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.1s
+2026-11-10 13:06:32 [ WARNING] Streaming failed for openai/shared-model: controlled failure
+2026-11-10 13:06:32 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=controlled failure
+2026-11-10 13:06:33 [    INFO] Falling back to next provider...
+2026-11-10 13:06:33 [    INFO] Attempting stream with provider: deepseek (requested: openai) model=shared-model
+2026-11-10 13:06:33 [    INFO] [inflight] deepseek/shared-model released by 'structured:chat' after 0.0s
+2026-11-10 13:06:33 [   ERROR] Stream physical-attempt admission refused for deepseek/shared-model; no dispatch (_AccountingBlockedError)
+2026-11-10 13:06:33 [   ERROR] accounting refusal for openai/shared-model — no route/sweep replay
+PASSED                                                                   [  3%]
 tests/test_goal9_physical_attempts.py::test_chat_second_provider_refused_before_dispatch_at_cap
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:38 [    INFO] EscalationManager initialized
-2026-11-10 12:43:38 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:38 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:38 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.0s
-2026-11-10 12:43:38 [ WARNING] Completion failed for openai/shared-model: controlled failure
-2026-11-10 12:43:38 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=controlled failure
-2026-11-10 12:43:38 [    INFO] Attempting completion with provider: deepseek (requested: openai)
-2026-11-10 12:43:38 [    INFO] [inflight] deepseek/shared-model released by 'structured:chat' after 0.0s
-2026-11-10 12:43:38 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of deepseek/shared-model
-PASSED                                                                   [  8%]
+2026-11-10 13:06:34 [    INFO] EscalationManager initialized
+2026-11-10 13:06:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:34 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:34 [    INFO] [inflight] openai/shared-model released by 'structured:chat' after 0.0s
+2026-11-10 13:06:34 [ WARNING] Completion failed for openai/shared-model: controlled failure
+2026-11-10 13:06:34 [ WARNING] attempt openai/shared-model failed: cause=unknown status=None detail=controlled failure
+2026-11-10 13:06:34 [    INFO] Attempting completion with provider: deepseek (requested: openai)
+2026-11-10 13:06:34 [    INFO] [inflight] deepseek/shared-model released by 'structured:chat' after 0.0s
+2026-11-10 13:06:34 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of deepseek/shared-model
+PASSED                                                                   [  7%]
 tests/test_goal9_physical_attempts.py::test_chat_temperature_retry_gets_own_intent_and_settlement
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:39 [    INFO] EscalationManager initialized
-2026-11-10 12:43:39 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:39 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:39 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:39 [ WARNING] Completion failed for openai/gpt-4o: invalid temperature: only 1 is allowed
-2026-11-10 12:43:39 [ WARNING] openai/gpt-4o locks temperature to 1.0 — retrying once and memoizing the pair
-PASSED                                                                   [ 12%]
+2026-11-10 13:06:35 [    INFO] EscalationManager initialized
+2026-11-10 13:06:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:35 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:35 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:35 [ WARNING] Completion failed for openai/gpt-4o: invalid temperature: only 1 is allowed
+2026-11-10 13:06:35 [ WARNING] openai/gpt-4o locks temperature to 1.0 — retrying once and memoizing the pair
+PASSED                                                                   [ 11%]
 tests/test_goal9_physical_attempts.py::test_chat_selfheal_retry_gets_own_intent_and_settlement
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:40 [    INFO] EscalationManager initialized
-2026-11-10 12:43:40 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:40 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:40 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:40 [ WARNING] Completion failed for openai/gpt-4o: unsupported parameter
-2026-11-10 12:43:40 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=unsupported parameter
-2026-11-10 12:43:40 [    INFO] [SelfHeal] retrying openai/gpt-4o with patch=param-rename keys=['max_completion_tokens']
-PASSED                                                                   [ 16%]
+2026-11-10 13:06:35 [    INFO] EscalationManager initialized
+2026-11-10 13:06:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:35 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:35 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:35 [ WARNING] Completion failed for openai/gpt-4o: unsupported parameter
+2026-11-10 13:06:35 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=unsupported parameter
+2026-11-10 13:06:35 [    INFO] [SelfHeal] retrying openai/gpt-4o with patch=param-rename keys=['max_completion_tokens']
+PASSED                                                                   [ 15%]
 tests/test_goal9_physical_attempts.py::test_chat_paid_substitution_gets_own_route_intent
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:41 [    INFO] EscalationManager initialized
-2026-11-10 12:43:41 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:41 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
-2026-11-10 12:43:41 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
-2026-11-10 12:43:41 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
-2026-11-10 12:43:41 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
-2026-11-10 12:43:41 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
-PASSED                                                                   [ 20%]
+2026-11-10 13:06:36 [    INFO] EscalationManager initialized
+2026-11-10 13:06:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:36 [    INFO] Attempting completion with provider: opencode-go (requested: opencode-go)
+2026-11-10 13:06:36 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 13:06:36 [ WARNING] Completion failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 13:06:36 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 13:06:36 [    INFO] OpenCode Go free-model retry SUCCEEDED on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 19%]
 tests/test_goal9_physical_attempts.py::test_stream_selfheal_gets_own_intent
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:42 [    INFO] EscalationManager initialized
-2026-11-10 12:43:42 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:42 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:42 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.2s
-2026-11-10 12:43:42 [ WARNING] Streaming failed for openai/gpt-4o: unsupported parameter
-2026-11-10 12:43:42 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=unsupported parameter
-2026-11-10 12:43:42 [    INFO] [SelfHeal-stream] retrying openai/gpt-4o with patch=param-rename keys=['max_tokens']
-2026-11-10 12:43:42 [    INFO] [SelfHeal-stream] retry SUCCEEDED for openai/gpt-4o (rule=param-rename)
-PASSED                                                                   [ 24%]
+2026-11-10 13:06:37 [    INFO] EscalationManager initialized
+2026-11-10 13:06:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:37 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:37 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.2s
+2026-11-10 13:06:37 [ WARNING] Streaming failed for openai/gpt-4o: unsupported parameter
+2026-11-10 13:06:37 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=unsupported parameter
+2026-11-10 13:06:37 [    INFO] [SelfHeal-stream] retrying openai/gpt-4o with patch=param-rename keys=['max_tokens']
+2026-11-10 13:06:37 [    INFO] [SelfHeal-stream] retry SUCCEEDED for openai/gpt-4o (rule=param-rename)
+PASSED                                                                   [ 23%]
 tests/test_goal9_physical_attempts.py::test_stream_paid_substitution_gets_own_route_intent
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:43 [    INFO] EscalationManager initialized
-2026-11-10 12:43:43 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:43 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
-2026-11-10 12:43:43 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
-2026-11-10 12:43:43 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
-2026-11-10 12:43:43 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
-2026-11-10 12:43:43 [    INFO] OpenCode Go free-model stream retry started on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
-PASSED                                                                   [ 28%]
+2026-11-10 13:06:38 [    INFO] EscalationManager initialized
+2026-11-10 13:06:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:38 [    INFO] Attempting stream with provider: opencode-go (requested: opencode-go) model=deepseek-v4-flash-free
+2026-11-10 13:06:38 [    INFO] [inflight] opencode-go/deepseek-v4-flash-free released by 'structured:chat' after 0.0s
+2026-11-10 13:06:38 [ WARNING] Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 13:06:38 [ WARNING] attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+2026-11-10 13:06:38 [    INFO] OpenCode Go free-model stream retry started on paid model deepseek-v4-flash (free deepseek-v4-flash-free hit credit limit)
+PASSED                                                                   [ 26%]
 tests/test_goal9_physical_attempts.py::test_stream_reasoning_budget_retry_gets_own_larger_bound
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:44 [    INFO] EscalationManager initialized
-2026-11-10 12:43:44 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:44 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:44 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:44 [ WARNING] [stream-empty] openai/gpt-4o streamed no visible content (chunks=0, finish_reason=length)
-2026-11-10 12:43:44 [ WARNING] Streaming failed for openai/gpt-4o: openai/gpt-4o streamed no visible content (chunks=0, finish_reason=length)
-2026-11-10 12:43:44 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=openai/gpt-4o streamed no visible content (chunks=0, finish_reason=length)
-2026-11-10 12:43:44 [ WARNING] [stream-empty] retrying openai/gpt-4o with max_tokens=16000 (was 100)
-2026-11-10 12:43:44 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:44 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-PASSED                                                                   [ 32%]
+2026-11-10 13:06:38 [    INFO] EscalationManager initialized
+2026-11-10 13:06:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:38 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:38 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:38 [ WARNING] [stream-empty] openai/gpt-4o streamed no visible content (chunks=0, finish_reason=length)
+2026-11-10 13:06:38 [ WARNING] Streaming failed for openai/gpt-4o: openai/gpt-4o streamed no visible content (chunks=0, finish_reason=length)
+2026-11-10 13:06:38 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=openai/gpt-4o streamed no visible content (chunks=0, finish_reason=length)
+2026-11-10 13:06:38 [ WARNING] [stream-empty] retrying openai/gpt-4o with max_tokens=16000 (was 100)
+2026-11-10 13:06:38 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:38 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 30%]
 tests/test_goal9_physical_attempts.py::test_stream_route_hop_has_unique_attempts_same_request
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:45 [    INFO] EscalationManager initialized
-2026-11-10 12:43:45 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:45 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:45 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:45 [ WARNING] Streaming failed for openai/gpt-4o: controlled failure
-2026-11-10 12:43:45 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=controlled failure
-2026-11-10 12:43:45 [    INFO] Falling back to next provider...
-2026-11-10 12:43:45 [ WARNING] all 2 provider(s) failed for openai/gpt-4o — falling back to ranked route deepseek/deepseek-chat
-2026-11-10 12:43:45 [    INFO] Attempting stream with provider: deepseek (requested: deepseek) model=deepseek-chat
-2026-11-10 12:43:45 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
-PASSED                                                                   [ 36%]
+2026-11-10 13:06:39 [    INFO] EscalationManager initialized
+2026-11-10 13:06:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:39 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:39 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:39 [ WARNING] Streaming failed for openai/gpt-4o: controlled failure
+2026-11-10 13:06:39 [ WARNING] attempt openai/gpt-4o failed: cause=unknown status=None detail=controlled failure
+2026-11-10 13:06:39 [    INFO] Falling back to next provider...
+2026-11-10 13:06:39 [ WARNING] all 2 provider(s) failed for openai/gpt-4o — falling back to ranked route deepseek/deepseek-chat
+2026-11-10 13:06:39 [    INFO] Attempting stream with provider: deepseek (requested: deepseek) model=deepseek-chat
+2026-11-10 13:06:39 [    INFO] [inflight] deepseek/deepseek-chat released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 34%]
 tests/test_goal9_physical_attempts.py::test_generate_response_temperature_retry_gets_own_intent
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:45 [    INFO] EscalationManager initialized
-2026-11-10 12:43:45 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:45 [ WARNING] Failed to fetch tenant plan: '_AwaitableResult' object is not subscriptable
-2026-11-10 12:43:45 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
-2026-11-10 12:43:45 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
-2026-11-10 12:43:45 [ WARNING] Attempt failed for opencode-go/deepseek-v4-flash: invalid temperature: only 1 is allowed
-2026-11-10 12:43:45 [ WARNING] opencode-go/deepseek-v4-flash locks temperature to 1.0 — retrying once and memoizing the pair
-PASSED                                                                   [ 40%]
+2026-11-10 13:06:40 [    INFO] EscalationManager initialized
+2026-11-10 13:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:40 [ WARNING] Failed to fetch tenant plan: '_AwaitableResult' object is not subscriptable
+2026-11-10 13:06:40 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 13:06:40 [    INFO] [inflight] opencode-go/deepseek-v4-flash released by 'completion:general' after 0.0s
+2026-11-10 13:06:40 [ WARNING] Attempt failed for opencode-go/deepseek-v4-flash: invalid temperature: only 1 is allowed
+2026-11-10 13:06:40 [ WARNING] opencode-go/deepseek-v4-flash locks temperature to 1.0 — retrying once and memoizing the pair
+PASSED                                                                   [ 38%]
 tests/test_goal9_physical_attempts.py::test_chat_success_at_cap_settles_actual_97
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:46 [    INFO] EscalationManager initialized
-2026-11-10 12:43:46 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:46 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:46 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-PASSED                                                                   [ 44%]
+2026-11-10 13:06:40 [    INFO] EscalationManager initialized
+2026-11-10 13:06:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:40 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:40 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 42%]
 tests/test_goal9_physical_attempts.py::test_stream_success_retains_unknown_liability
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:47 [    INFO] EscalationManager initialized
-2026-11-10 12:43:47 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:47 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:47 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-PASSED                                                                   [ 48%]
+2026-11-10 13:06:41 [    INFO] EscalationManager initialized
+2026-11-10 13:06:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:41 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:41 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 46%]
 tests/test_goal9_physical_attempts.py::test_stream_known_free_numeric_zero_is_supported
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:48 [    INFO] EscalationManager initialized
-2026-11-10 12:43:48 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:48 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:48 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-PASSED                                                                   [ 52%]
+2026-11-10 13:06:42 [    INFO] EscalationManager initialized
+2026-11-10 13:06:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:42 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:42 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+PASSED                                                                   [ 50%]
 tests/test_goal9_physical_attempts.py::test_preintent_db_failure_dispatches_nothing[stream]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:49 [    INFO] EscalationManager initialized
-2026-11-10 12:43:49 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:49 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:49 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:49 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
-2026-11-10 12:43:49 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
-PASSED                                                                   [ 56%]
+2026-11-10 13:06:43 [    INFO] EscalationManager initialized
+2026-11-10 13:06:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:43 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:43 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:43 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
+2026-11-10 13:06:43 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
+PASSED                                                                   [ 53%]
 tests/test_goal9_physical_attempts.py::test_preintent_db_failure_dispatches_nothing[chat]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:50 [    INFO] EscalationManager initialized
-2026-11-10 12:43:50 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:50 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:50 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:50 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
-PASSED                                                                   [ 60%]
+2026-11-10 13:06:43 [    INFO] EscalationManager initialized
+2026-11-10 13:06:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:43 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:43 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:43 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
+PASSED                                                                   [ 57%]
 tests/test_goal9_physical_attempts.py::test_invalid_price_hardstop_zero_dispatch[-1.0-stream]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:51 [    INFO] EscalationManager initialized
-2026-11-10 12:43:51 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:51 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:51 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:51 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
-2026-11-10 12:43:51 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
-PASSED                                                                   [ 64%]
+2026-11-10 13:06:44 [    INFO] EscalationManager initialized
+2026-11-10 13:06:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:44 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:44 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:44 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
+2026-11-10 13:06:44 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
+PASSED                                                                   [ 61%]
 tests/test_goal9_physical_attempts.py::test_invalid_price_hardstop_zero_dispatch[-1.0-chat]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:52 [    INFO] EscalationManager initialized
-2026-11-10 12:43:52 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:52 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:52 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:52 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
-PASSED                                                                   [ 68%]
+2026-11-10 13:06:45 [    INFO] EscalationManager initialized
+2026-11-10 13:06:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:45 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:45 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:45 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
+PASSED                                                                   [ 65%]
 tests/test_goal9_physical_attempts.py::test_invalid_price_hardstop_zero_dispatch[nan-stream]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:52 [    INFO] EscalationManager initialized
-2026-11-10 12:43:52 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:52 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:52 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:52 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
-2026-11-10 12:43:52 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
-PASSED                                                                   [ 72%]
+2026-11-10 13:06:46 [    INFO] EscalationManager initialized
+2026-11-10 13:06:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:46 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:46 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:46 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
+2026-11-10 13:06:46 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
+PASSED                                                                   [ 69%]
 tests/test_goal9_physical_attempts.py::test_invalid_price_hardstop_zero_dispatch[nan-chat]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:53 [    INFO] EscalationManager initialized
-2026-11-10 12:43:53 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:53 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:53 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:53 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
-PASSED                                                                   [ 76%]
+2026-11-10 13:06:46 [    INFO] EscalationManager initialized
+2026-11-10 13:06:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:46 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:46 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:46 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
+PASSED                                                                   [ 73%]
 tests/test_goal9_physical_attempts.py::test_invalid_price_hardstop_zero_dispatch[inf-stream]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:54 [    INFO] EscalationManager initialized
-2026-11-10 12:43:54 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:54 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
-2026-11-10 12:43:54 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:54 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
-2026-11-10 12:43:54 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
-PASSED                                                                   [ 80%]
+2026-11-10 13:06:47 [    INFO] EscalationManager initialized
+2026-11-10 13:06:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:47 [    INFO] Attempting stream with provider: openai (requested: openai) model=gpt-4o
+2026-11-10 13:06:47 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:47 [   ERROR] Stream physical-attempt admission refused for openai/gpt-4o; no dispatch (_AccountingBlockedError)
+2026-11-10 13:06:47 [   ERROR] accounting refusal for openai/gpt-4o — no route/sweep replay
+PASSED                                                                   [ 76%]
 tests/test_goal9_physical_attempts.py::test_invalid_price_hardstop_zero_dispatch[inf-chat]
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:55 [    INFO] EscalationManager initialized
-2026-11-10 12:43:55 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:55 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:55 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:55 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
-PASSED                                                                   [ 84%]
+2026-11-10 13:06:48 [    INFO] EscalationManager initialized
+2026-11-10 13:06:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:48 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:48 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:48 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
+PASSED                                                                   [ 80%]
+tests/test_goal9_physical_attempts.py::test_provider_clients_disable_sdk_hidden_retries PASSED [ 84%]
 tests/test_goal9_physical_attempts.py::test_multimodal_hardstop_refuses_without_fabricated_image_bound
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:56 [    INFO] EscalationManager initialized
-2026-11-10 12:43:56 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:56 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:56 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
-2026-11-10 12:43:56 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
-2026-11-10 12:43:56 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
+2026-11-10 13:06:48 [    INFO] EscalationManager initialized
+2026-11-10 13:06:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:48 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:48 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
+2026-11-10 13:06:48 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:48 [   ERROR] Durable usage intent unavailable; refusing completion dispatch of openai/gpt-4o
 PASSED                                                                   [ 88%]
 tests/test_goal9_physical_attempts.py::test_multimodal_observe_admits_with_unknown_liability
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:57 [    INFO] EscalationManager initialized
-2026-11-10 12:43:57 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 12:43:57 [    INFO] Attempting completion with provider: openai (requested: openai)
-2026-11-10 12:43:57 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
-2026-11-10 12:43:57 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
+2026-11-10 13:06:49 [    INFO] EscalationManager initialized
+2026-11-10 13:06:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:49 [    INFO] Attempting completion with provider: openai (requested: openai)
+2026-11-10 13:06:49 [ WARNING] [reservation] multimodal request for openai/gpt-4o has no proven image token bound; admitting as explicit unknown
+2026-11-10 13:06:49 [    INFO] [inflight] openai/gpt-4o released by 'structured:chat' after 0.0s
 PASSED                                                                   [ 92%]
 tests/test_goal9_physical_attempts.py::test_bound_uses_byte_upper_for_every_text_model
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:58 [    INFO] EscalationManager initialized
-2026-11-10 12:43:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:50 [    INFO] EscalationManager initialized
+2026-11-10 13:06:50 [    INFO] CognitiveTierService initialized for workspace: default
 PASSED                                                                   [ 96%]
 tests/test_goal9_physical_attempts.py::test_bound_counts_serialized_payload_and_schema
 -------------------------------- live log call ---------------------------------
-2026-11-10 12:43:59 [    INFO] EscalationManager initialized
-2026-11-10 12:43:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:06:51 [    INFO] EscalationManager initialized
+2026-11-10 13:06:51 [    INFO] CognitiveTierService initialized for workspace: default
 PASSED                                                                   [100%]
 
 =============================== warnings summary ===============================
@@ -241,7 +242,7 @@ PASSED                                                                   [100%]
   /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
     self.import_plugin(import_spec)
 
-../../root-py311-plugins/pytest_freezegun.py:17: 50 warnings
+../../root-py311-plugins/pytest_freezegun.py:17: 52 warnings
   <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -266,4 +267,4 @@ PASSED                                                                   [100%]
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 25 passed, 55 warnings in 39.51s =======================
+======================= 26 passed, 57 warnings in 35.45s =======================

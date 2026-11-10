@@ -1,12 +1,12 @@
 
 tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved
 -------------------------------- live log setup --------------------------------
-2026-11-10 13:03:50 [    INFO] EscalationManager initialized
-2026-11-10 13:03:50 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 13:03:50 [    INFO] EscalationManager initialized
-2026-11-10 13:03:50 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 13:03:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 13:03:50 [    INFO] AgentTaskRegistry initialized
+2026-11-10 13:12:32 [    INFO] EscalationManager initialized
+2026-11-10 13:12:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:12:32 [    INFO] EscalationManager initialized
+2026-11-10 13:12:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 13:12:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 13:12:32 [    INFO] AgentTaskRegistry initialized
 PASSED                                                                   [  3%]
 tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [  7%]
 tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 11%]
@@ -65,4 +65,4 @@ tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_succe
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 27 passed, 59 warnings in 18.67s =======================
+======================= 27 passed, 59 warnings in 19.13s =======================
