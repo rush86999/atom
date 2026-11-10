@@ -1,0 +1,36 @@
+{
+  "artifacts": {
+    "README.md": "6a24c358f20d020dc8821a58be454f5f6a15b63613e634e8221adb79722797c8",
+    "root_independent_original_130_results.json": "4db753fff8e2fa8a599719285fbbef5b0d7e3865d0ff69c377117e5263aa3dab",
+    "root_independent_probe.py": "26359c2c49bd9845a8e8ba55941d7cb75eb305138b6b84d6cb6ebbd66eba972e",
+    "root_independent_verification.json": "5d713ea3105e523a470fe13eb2c44e464816c4b66e2ae3cdf97a0a576f3e7756",
+    "root_proof_summary.json": "a442b794a0190f579cd4d3ee1877277f79ba016ca5c8d6684a11e5a76dc903ab",
+    "verification.json": "a5096a08f845f9b72bbbe260ca7e15a9ef9b6f2cebb1eca4d8d48415b24864f1"
+  },
+  "branch": "codex/web-documents-pagination-20261110",
+  "code_commit": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "executed_source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "root_proof": {
+    "counts_note": "77 worker focused gate and 80 root neighborhood are different selectors; do not sum",
+    "frontend_tests_passed": 23,
+    "normal_controls_passed": 13,
+    "original_130_case_passed": 1,
+    "private_probe": "/private/tmp/root-document-pagination-fixed-independent-20261110.py",
+    "private_records": "/private/tmp/root-document-pagination-independent-20261110-d6ojl__3/",
+    "product_source": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+    "source": "1605d7713116f1552d23e6a8288fd3902ce9468a",
+    "strict_packet_artifacts": 2,
+    "strict_packet_sources": 8
+  },
+  "source_base": "b333221b23f925b3768ab82c2549200360a31865",
+  "source_files": {
+    "backend/api/document_routes.py": "94250a756d64c73021ca5aa12c0ed777ef2723aca62b977ebd21a9d79ef86e50",
+    "backend/core/lancedb_handler.py": "480bd9018cdd1c1114a00bd6de1399ed0b993005a3ecdddf7338c297ee7aac45",
+    "backend/tests/api/test_document_library_pagination.py": "5ae33223d69adc48bd83ddbdc458ce18b97ce0c61f939bcb453fd36bae5333e1",
+    "backend/tests/core/test_lancedb_handler_bughunt2.py": "b70f4b538585858cd85312ce79185962f5dd2784d6ce923e8fc1f2f92841c90b",
+    "backend/tests/test_covpush_ingestion_lancedb.py": "692602e9f0c834a5e6acf4b1627659b05a2a33c3648b2012f39b397661e6e1ad",
+    "backend/tests/test_covpush_w90_core_services.py": "5b3c0c61dbc830c31f6532384fce9638eb1e2932d6c5dd31988326fcf1ad83e0",
+    "frontend-nextjs/pages/documents.tsx": "e344c437f38a5430b0273e2930fd2f7a21d0e007c59b0f4b1f9fcab35f9a46a4",
+    "frontend-nextjs/tests/pages/documents.test.tsx": "3fb1d0b404e868dc3ffb4774e933ab9bb23c1f6370771a579e4aa6a9816033fc"
+  }
+}

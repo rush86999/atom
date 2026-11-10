@@ -10,9 +10,26 @@ from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
 
+from core.canvas_authority import (
+    CanvasAuthorityError,
+    claim_active_actor,
+    require_active_actor,
+    require_canvas_read,
+    require_canvas_write,
+    reserve_canvas_id,
+)
 from core.models import CanvasAudit
 
 logger = logging.getLogger(__name__)
+
+
+def _authority_refusal(exc: CanvasAuthorityError) -> Dict[str, Any]:
+    return {
+        "success": False,
+        "error": str(exc),
+        "http_status": exc.status_code,
+        "error_code": exc.code,
+    }
 
 
 class SpreadsheetCell:
@@ -43,6 +60,39 @@ class SpreadsheetCanvasService:
     def __init__(self, db: Session):
         self.db = db
 
+    def _actor(self, user_id: str) -> Dict[str, Any]:
+        return require_active_actor(self.db, user_id)
+
+    def get_spreadsheet(self, canvas_id: str, user_id: str) -> Dict[str, Any]:
+        """Return the latest spreadsheet state for an authorized reader."""
+        try:
+            from sqlalchemy import desc
+
+            actor = self._actor(user_id)
+            require_canvas_read(self.db, canvas_id, actor)
+            audit = self.db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+                CanvasAudit.canvas_type == "sheets",
+            ).order_by(desc(CanvasAudit.created_at)).first()
+            if not audit:
+                return {
+                    "success": False,
+                    "error": "Spreadsheet not found",
+                    "http_status": 404,
+                    "error_code": "CANVAS_NOT_FOUND",
+                }
+            return audit.details_json or {}
+        except CanvasAuthorityError as exc:
+            return _authority_refusal(exc)
+        except Exception as exc:  # noqa: BLE001 - unreadable is not a pass
+            logger.error("Failed to read spreadsheet: %s", type(exc).__name__)
+            return {
+                "success": False,
+                "error": "Spreadsheet could not be read",
+                "http_status": 503,
+                "error_code": "SPREADSHEET_READ_FAILED",
+            }
+
     def create_spreadsheet_canvas(
         self,
         user_id: str,
@@ -53,9 +103,11 @@ class SpreadsheetCanvasService:
         layout: str = "sheet",
         formulas: List[str] = None
     ) -> Dict[str, Any]:
-        """Create a new spreadsheet canvas."""
+        """Create a new spreadsheet canvas for the current active actor."""
         try:
-            canvas_id = canvas_id or str(uuid.uuid4())
+            actor = self._actor(user_id)
+            requested_id = str(canvas_id).strip() if canvas_id is not None else ""
+            canvas_id = requested_id or str(uuid.uuid4())
 
             # Initialize cells
             cells = {}
@@ -66,11 +118,23 @@ class SpreadsheetCanvasService:
                     "cell_type": "formula" if cell_ref in (formulas or []) else "text"
                 }
 
+            # The existing Canvas primary key is the atomic id reservation.
+            # Any existing id (same owner, another owner or another family)
+            # is refused; creation is not an implicit upsert.
+            reserve_canvas_id(
+                self.db,
+                canvas_id=canvas_id,
+                actor=actor,
+                title=title,
+                canvas_type="sheets",
+            )
+            claim_active_actor(self.db, actor)
+
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id="default",
+                tenant_id=str(actor["tenant_id"]),
                 agent_id=agent_id,
-                user_id=user_id,
+                user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="create",
                 canvas_type="sheets",
@@ -98,6 +162,9 @@ class SpreadsheetCanvasService:
                 "cells": cells
             }
 
+        except CanvasAuthorityError as exc:
+            self.db.rollback()
+            return _authority_refusal(exc)
         except Exception as e:
             logger.error(f"Failed to create spreadsheet: {e}")
             self.db.rollback()
@@ -112,9 +179,12 @@ class SpreadsheetCanvasService:
         cell_type: str = "text",
         formula: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Update a cell value."""
+        """Update a cell value for the current authorized actor."""
         try:
             from sqlalchemy import desc
+
+            actor = self._actor(user_id)
+            require_canvas_write(self.db, canvas_id, actor)
 
             audit = self.db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
@@ -139,8 +209,8 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id="default",
-                user_id=user_id,
+                tenant_id=str(actor["tenant_id"]),
+                user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="update_cell",
                 canvas_type="sheets",
@@ -156,6 +226,9 @@ class SpreadsheetCanvasService:
 
             return {"success": True, "cell_ref": cell_ref, "value": value}
 
+        except CanvasAuthorityError as exc:
+            self.db.rollback()
+            return _authority_refusal(exc)
         except Exception as e:
             logger.error(f"Failed to update cell: {e}")
             self.db.rollback()
@@ -201,9 +274,12 @@ class SpreadsheetCanvasService:
         data_range: str,
         title: str = ""
     ) -> Dict[str, Any]:
-        """Add a chart to the spreadsheet."""
+        """Add a chart to the spreadsheet for the current authorized actor."""
         try:
             from sqlalchemy import desc
+
+            actor = self._actor(user_id)
+            require_canvas_write(self.db, canvas_id, actor)
 
             audit = self.db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
@@ -229,8 +305,8 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id="default",
-                user_id=user_id,
+                tenant_id=str(actor["tenant_id"]),
+                user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="add_chart",
                 canvas_type="sheets",
@@ -246,6 +322,9 @@ class SpreadsheetCanvasService:
 
             return {"success": True, "chart_id": chart["chart_id"]}
 
+        except CanvasAuthorityError as exc:
+            self.db.rollback()
+            return _authority_refusal(exc)
         except Exception as e:
             logger.error(f"Failed to add chart: {e}")
             self.db.rollback()
@@ -262,9 +341,12 @@ class SpreadsheetCanvasService:
         columns: List[str],
         values: List[Dict[str, str]]
     ) -> Dict[str, Any]:
-        """Add a pivot table representation to the spreadsheet metadata."""
+        """Add a pivot table for the current authorized actor."""
         try:
             from sqlalchemy import desc
+
+            actor = self._actor(user_id)
+            require_canvas_write(self.db, canvas_id, actor)
 
             audit = self.db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
@@ -293,8 +375,8 @@ class SpreadsheetCanvasService:
 
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id="default",
-                user_id=user_id,
+                tenant_id=str(actor["tenant_id"]),
+                user_id=str(actor["id"]),
                 canvas_id=canvas_id,
                 action_type="add_pivot_table",
                 canvas_type="sheets",
@@ -310,6 +392,9 @@ class SpreadsheetCanvasService:
 
             return {"success": True, "pivot_id": pivot["pivot_id"]}
 
+        except CanvasAuthorityError as exc:
+            self.db.rollback()
+            return _authority_refusal(exc)
         except Exception as e:
             logger.error(f"Failed to add pivot table to canvas: {e}")
             self.db.rollback()

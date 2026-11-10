@@ -1,0 +1,1704 @@
+{
+  "schema_version": 1,
+  "kind": "canvas_authority_reproduction",
+  "generated_at": "2026-11-10T02:54:07.228183+00:00",
+  "source_ref": "f5a2413ce07bfd180b64ca58d861f9b9898cb9a5",
+  "source_state": "Frozen checkout at f5a2413ce; no branch, source, test, server, provider, model, install, download, merge or deploy action.",
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/root-canvas-authority-reproduction-20261109-work/canvas_authority.db",
+    "ATOM_DATA_DIR": "/private/tmp/root-canvas-authority-reproduction-20261109-work/data"
+  },
+  "scope": "Real public ASGI routes for /api/canvas/sheets and /api/canvas/coding, real get_current_user JWT validation, real SQLAlchemy User/Canvas/CanvasAudit rows, real services. Only the app get_db dependency is bound to the explicit scratch SQLite engine.",
+  "runtime_reproduced": true,
+  "summary": {
+    "owner_positive_passed": true,
+    "inactive_refused": true,
+    "foreign_sheet_read_reproduced": true,
+    "foreign_coding_read_reproduced": true,
+    "foreign_sheet_mutation_reproduced": true,
+    "foreign_coding_mutation_reproduced": true,
+    "supplied_canvas_id_collision_reproduced": true,
+    "body_user_id_is_not_authority": true
+  },
+  "scenarios": [
+    {
+      "name": "owner_get_sheet",
+      "route": "GET /api/canvas/sheets/sheet-A",
+      "actor": "owner",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "title": "Owner Sheet",
+        "cells": "<dict len=1>",
+        "charts": "<list len=0>"
+      },
+      "before": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-sheet-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-sheet-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "owner_read_ok",
+      "assertion": "Owner read succeeds and adds no audit row."
+    },
+    {
+      "name": "owner_get_coding",
+      "route": "GET /api/canvas/coding/code-A",
+      "actor": "owner",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "repo": "owner/repo",
+        "branch": "main",
+        "files": "<list len=0>",
+        "diffs": "<list len=0>"
+      },
+      "before": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-code-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-code-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "owner_read_ok",
+      "assertion": "Owner read succeeds and adds no audit row."
+    },
+    {
+      "name": "peer_get_sheet",
+      "route": "GET /api/canvas/sheets/sheet-A",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "title": "Owner Sheet",
+        "cells": "<dict len=1>",
+        "charts": "<list len=0>"
+      },
+      "before": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-sheet-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-sheet-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_sheet_read_leak",
+      "assertion": "Peer read either leaks owner content (reproduced) or is refused with no row effect."
+    },
+    {
+      "name": "peer_get_coding",
+      "route": "GET /api/canvas/coding/code-A",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "repo": "owner/repo",
+        "branch": "main",
+        "files": "<list len=0>",
+        "diffs": "<list len=0>"
+      },
+      "before": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-code-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-code-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_coding_read_leak",
+      "assertion": "Peer read either leaks owner content (reproduced) or is refused with no row effect."
+    },
+    {
+      "name": "peer_put_sheet_cell",
+      "route": "PUT /api/canvas/sheets/sheet-A/cell",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "success": true
+      },
+      "before": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-sheet-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 2,
+        "latest": {
+          "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+          "user_id": "canvas-peer",
+          "action_type": "update_cell",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_cell_mutation",
+      "assertion": "Peer mutation either appends one peer-authored update_cell row (reproduced) or is refused with zero effect."
+    },
+    {
+      "name": "peer_post_sheet_chart",
+      "route": "POST /api/canvas/sheets/sheet-A/chart",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "success": true
+      },
+      "before": {
+        "audit_count": 2,
+        "latest": {
+          "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+          "user_id": "canvas-peer",
+          "action_type": "update_cell",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 3,
+        "latest": {
+          "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+          "user_id": "canvas-peer",
+          "action_type": "add_chart",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_chart_mutation",
+      "assertion": "Peer chart mutation either appends one peer-authored add_chart row (reproduced) or is refused with zero effect."
+    },
+    {
+      "name": "peer_post_coding_file",
+      "route": "POST /api/canvas/coding/code-A/file",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "success": true
+      },
+      "before": {
+        "audit_count": 1,
+        "latest": {
+          "id": "audit-code-A",
+          "user_id": "canvas-owner",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 2,
+        "latest": {
+          "id": "d895d392-1753-401c-87e4-709ce4087c87",
+          "user_id": "canvas-peer",
+          "action_type": "add_file",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          },
+          {
+            "id": "d895d392-1753-401c-87e4-709ce4087c87",
+            "user_id": "canvas-peer",
+            "action_type": "add_file",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_coding_file_mutation",
+      "assertion": "Peer coding-file mutation either appends one peer-authored row (reproduced) or is refused with zero effect."
+    },
+    {
+      "name": "peer_post_coding_diff",
+      "route": "POST /api/canvas/coding/code-A/diff",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "success": true
+      },
+      "before": {
+        "audit_count": 2,
+        "latest": {
+          "id": "d895d392-1753-401c-87e4-709ce4087c87",
+          "user_id": "canvas-peer",
+          "action_type": "add_file",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          },
+          {
+            "id": "d895d392-1753-401c-87e4-709ce4087c87",
+            "user_id": "canvas-peer",
+            "action_type": "add_file",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 3,
+        "latest": {
+          "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+          "user_id": "canvas-peer",
+          "action_type": "add_diff",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          },
+          {
+            "id": "d895d392-1753-401c-87e4-709ce4087c87",
+            "user_id": "canvas-peer",
+            "action_type": "add_file",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+          },
+          {
+            "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+            "user_id": "canvas-peer",
+            "action_type": "add_diff",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_coding_diff_mutation",
+      "assertion": "Peer coding-diff mutation either appends one peer-authored row (reproduced) or is refused with zero effect."
+    },
+    {
+      "name": "peer_create_sheet_canvas_id_collision",
+      "route": "POST /api/canvas/sheets/create (canvas_id=sheet-A)",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "title": "Peer Hijack",
+        "canvas_id": "sheet-A",
+        "success": true,
+        "cells": "<dict len=1>"
+      },
+      "before": {
+        "audit_count": 3,
+        "latest": {
+          "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+          "user_id": "canvas-peer",
+          "action_type": "add_chart",
+          "canvas_type": "sheets",
+          "title": "Owner Sheet",
+          "repo": null,
+          "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 4,
+        "latest": {
+          "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+          "user_id": "canvas-peer",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_create_canvas_id_collision",
+      "assertion": "Peer create either appends a same-canvas_id row authored by the peer (reproduced) or is refused with zero effect."
+    },
+    {
+      "name": "owner_get_sheet_after_collision",
+      "route": "GET /api/canvas/sheets/sheet-A",
+      "actor": "owner",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "title": "Peer Hijack",
+        "cells": "<dict len=1>",
+        "charts": "<list len=0>"
+      },
+      "before": null,
+      "after": {
+        "audit_count": 4,
+        "latest": {
+          "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+          "user_id": "canvas-peer",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "owner_read_returns_peer_row",
+      "assertion": "Owner read after a successful peer collision returns the peer-authored latest state."
+    },
+    {
+      "name": "peer_create_coding_canvas_id_collision",
+      "route": "POST /api/canvas/coding/create (canvas_id=code-A)",
+      "actor": "peer_active_same_tenant",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "repo": "peer/repo",
+        "branch": "main",
+        "canvas_id": "code-A",
+        "success": true
+      },
+      "before": {
+        "audit_count": 3,
+        "latest": {
+          "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+          "user_id": "canvas-peer",
+          "action_type": "add_diff",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "owner/repo",
+          "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          },
+          {
+            "id": "d895d392-1753-401c-87e4-709ce4087c87",
+            "user_id": "canvas-peer",
+            "action_type": "add_file",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+          },
+          {
+            "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+            "user_id": "canvas-peer",
+            "action_type": "add_diff",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 4,
+        "latest": {
+          "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+          "user_id": "canvas-peer",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "peer/repo",
+          "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          },
+          {
+            "id": "d895d392-1753-401c-87e4-709ce4087c87",
+            "user_id": "canvas-peer",
+            "action_type": "add_file",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+          },
+          {
+            "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+            "user_id": "canvas-peer",
+            "action_type": "add_diff",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+          },
+          {
+            "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "peer/repo",
+            "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "foreign_create_canvas_id_collision",
+      "assertion": "Peer create either appends a same-canvas_id row authored by the peer (reproduced) or is refused with zero effect."
+    },
+    {
+      "name": "owner_body_user_id_spoof_control",
+      "route": "PUT /api/canvas/sheets/sheet-A/cell (body user_id=peer)",
+      "actor": "owner",
+      "evidence": "runtime",
+      "http_status": 200,
+      "body_summary": {
+        "success": true
+      },
+      "before": {
+        "audit_count": 4,
+        "latest": {
+          "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+          "user_id": "canvas-peer",
+          "action_type": "create",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 5,
+        "latest": {
+          "id": "112df129-d72f-4264-90c7-68a77703dc08",
+          "user_id": "canvas-owner",
+          "action_type": "update_cell",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          },
+          {
+            "id": "112df129-d72f-4264-90c7-68a77703dc08",
+            "user_id": "canvas-owner",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+          }
+        ]
+      },
+      "reproduced": true,
+      "effect": "body_user_id_not_authority",
+      "assertion": "Body user_id is not authority; the row is authored by the authenticated owner when allowed."
+    },
+    {
+      "name": "inactive_get_sheet",
+      "route": "GET /api/canvas/sheets/sheet-A",
+      "actor": "inactive",
+      "evidence": "runtime",
+      "http_status": 401,
+      "body_summary": {},
+      "before": {
+        "audit_count": 5,
+        "latest": {
+          "id": "112df129-d72f-4264-90c7-68a77703dc08",
+          "user_id": "canvas-owner",
+          "action_type": "update_cell",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          },
+          {
+            "id": "112df129-d72f-4264-90c7-68a77703dc08",
+            "user_id": "canvas-owner",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 5,
+        "latest": {
+          "id": "112df129-d72f-4264-90c7-68a77703dc08",
+          "user_id": "canvas-owner",
+          "action_type": "update_cell",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          },
+          {
+            "id": "112df129-d72f-4264-90c7-68a77703dc08",
+            "user_id": "canvas-owner",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+          }
+        ]
+      },
+      "reproduced": false,
+      "effect": "none",
+      "assertion": "Inactive actor is refused by current auth with zero row effect."
+    },
+    {
+      "name": "inactive_put_sheet_cell",
+      "route": "PUT /api/canvas/sheets/sheet-A/cell",
+      "actor": "inactive",
+      "evidence": "runtime",
+      "http_status": 401,
+      "body_summary": {},
+      "before": {
+        "audit_count": 5,
+        "latest": {
+          "id": "112df129-d72f-4264-90c7-68a77703dc08",
+          "user_id": "canvas-owner",
+          "action_type": "update_cell",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          },
+          {
+            "id": "112df129-d72f-4264-90c7-68a77703dc08",
+            "user_id": "canvas-owner",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 5,
+        "latest": {
+          "id": "112df129-d72f-4264-90c7-68a77703dc08",
+          "user_id": "canvas-owner",
+          "action_type": "update_cell",
+          "canvas_type": "sheets",
+          "title": "Peer Hijack",
+          "repo": null,
+          "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+        },
+        "rows": [
+          {
+            "id": "audit-sheet-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+          },
+          {
+            "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+            "user_id": "canvas-peer",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+          },
+          {
+            "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+            "user_id": "canvas-peer",
+            "action_type": "add_chart",
+            "canvas_type": "sheets",
+            "title": "Owner Sheet",
+            "repo": null,
+            "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+          },
+          {
+            "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+          },
+          {
+            "id": "112df129-d72f-4264-90c7-68a77703dc08",
+            "user_id": "canvas-owner",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+          }
+        ]
+      },
+      "reproduced": false,
+      "effect": "none",
+      "assertion": "Inactive actor is refused by current auth with zero row effect."
+    },
+    {
+      "name": "inactive_post_coding_file",
+      "route": "POST /api/canvas/coding/code-A/file",
+      "actor": "inactive",
+      "evidence": "runtime",
+      "http_status": 401,
+      "body_summary": {},
+      "before": {
+        "audit_count": 4,
+        "latest": {
+          "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+          "user_id": "canvas-peer",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "peer/repo",
+          "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          },
+          {
+            "id": "d895d392-1753-401c-87e4-709ce4087c87",
+            "user_id": "canvas-peer",
+            "action_type": "add_file",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+          },
+          {
+            "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+            "user_id": "canvas-peer",
+            "action_type": "add_diff",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+          },
+          {
+            "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "peer/repo",
+            "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+          }
+        ]
+      },
+      "after": {
+        "audit_count": 4,
+        "latest": {
+          "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+          "user_id": "canvas-peer",
+          "action_type": "create",
+          "canvas_type": "coding",
+          "title": null,
+          "repo": "peer/repo",
+          "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+        },
+        "rows": [
+          {
+            "id": "audit-code-A",
+            "user_id": "canvas-owner",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+          },
+          {
+            "id": "d895d392-1753-401c-87e4-709ce4087c87",
+            "user_id": "canvas-peer",
+            "action_type": "add_file",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+          },
+          {
+            "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+            "user_id": "canvas-peer",
+            "action_type": "add_diff",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "owner/repo",
+            "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+          },
+          {
+            "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "peer/repo",
+            "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+          }
+        ]
+      },
+      "reproduced": false,
+      "effect": "none",
+      "assertion": "Inactive actor is refused by current auth with zero row effect."
+    },
+    {
+      "name": "fresh_engine_readback",
+      "route": "GET sheets/coding after engine dispose/recreate",
+      "actor": "owner",
+      "evidence": "runtime",
+      "http_status": {
+        "sheet": 200,
+        "coding": 200
+      },
+      "body_summary": {
+        "sheet_title": "Peer Hijack",
+        "coding_repo": "peer/repo"
+      },
+      "before": {
+        "sheet": {
+          "audit_count": 5,
+          "latest": {
+            "id": "112df129-d72f-4264-90c7-68a77703dc08",
+            "user_id": "canvas-owner",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+          },
+          "rows": [
+            {
+              "id": "audit-sheet-A",
+              "user_id": "canvas-owner",
+              "action_type": "create",
+              "canvas_type": "sheets",
+              "title": "Owner Sheet",
+              "repo": null,
+              "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+            },
+            {
+              "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+              "user_id": "canvas-peer",
+              "action_type": "update_cell",
+              "canvas_type": "sheets",
+              "title": "Owner Sheet",
+              "repo": null,
+              "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+            },
+            {
+              "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+              "user_id": "canvas-peer",
+              "action_type": "add_chart",
+              "canvas_type": "sheets",
+              "title": "Owner Sheet",
+              "repo": null,
+              "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+            },
+            {
+              "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+              "user_id": "canvas-peer",
+              "action_type": "create",
+              "canvas_type": "sheets",
+              "title": "Peer Hijack",
+              "repo": null,
+              "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+            },
+            {
+              "id": "112df129-d72f-4264-90c7-68a77703dc08",
+              "user_id": "canvas-owner",
+              "action_type": "update_cell",
+              "canvas_type": "sheets",
+              "title": "Peer Hijack",
+              "repo": null,
+              "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+            }
+          ]
+        },
+        "coding": {
+          "audit_count": 4,
+          "latest": {
+            "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "peer/repo",
+            "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+          },
+          "rows": [
+            {
+              "id": "audit-code-A",
+              "user_id": "canvas-owner",
+              "action_type": "create",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "owner/repo",
+              "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+            },
+            {
+              "id": "d895d392-1753-401c-87e4-709ce4087c87",
+              "user_id": "canvas-peer",
+              "action_type": "add_file",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "owner/repo",
+              "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+            },
+            {
+              "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+              "user_id": "canvas-peer",
+              "action_type": "add_diff",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "owner/repo",
+              "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+            },
+            {
+              "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+              "user_id": "canvas-peer",
+              "action_type": "create",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "peer/repo",
+              "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+            }
+          ]
+        }
+      },
+      "after": {
+        "sheet": {
+          "audit_count": 5,
+          "latest": {
+            "id": "112df129-d72f-4264-90c7-68a77703dc08",
+            "user_id": "canvas-owner",
+            "action_type": "update_cell",
+            "canvas_type": "sheets",
+            "title": "Peer Hijack",
+            "repo": null,
+            "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+          },
+          "rows": [
+            {
+              "id": "audit-sheet-A",
+              "user_id": "canvas-owner",
+              "action_type": "create",
+              "canvas_type": "sheets",
+              "title": "Owner Sheet",
+              "repo": null,
+              "digest": "0d13c1505b19f414c75727ca01ddaf4ac0fa279b4678813126c73984143bd2b3"
+            },
+            {
+              "id": "247bb6cc-f5c1-4c55-a505-612b01056cc7",
+              "user_id": "canvas-peer",
+              "action_type": "update_cell",
+              "canvas_type": "sheets",
+              "title": "Owner Sheet",
+              "repo": null,
+              "digest": "34758434e9bda89be9f33e567351416f52a06b228515783e55c69fd8ddfaae87"
+            },
+            {
+              "id": "cebf0ad1-4fbd-454f-90b4-4cb467ba6bcb",
+              "user_id": "canvas-peer",
+              "action_type": "add_chart",
+              "canvas_type": "sheets",
+              "title": "Owner Sheet",
+              "repo": null,
+              "digest": "107414a5f522e9379606fdd4f67bd12e15a2d475f50231650debe5b9c43213a9"
+            },
+            {
+              "id": "d530ba68-c13b-4165-97f7-94997cb66d9d",
+              "user_id": "canvas-peer",
+              "action_type": "create",
+              "canvas_type": "sheets",
+              "title": "Peer Hijack",
+              "repo": null,
+              "digest": "2bbdf9f36f9632a4d2b17a5f76cee0fa50dfe76995ce94fe3c0dc3866d9d95d7"
+            },
+            {
+              "id": "112df129-d72f-4264-90c7-68a77703dc08",
+              "user_id": "canvas-owner",
+              "action_type": "update_cell",
+              "canvas_type": "sheets",
+              "title": "Peer Hijack",
+              "repo": null,
+              "digest": "c6a99b830f3848de1f19325ded924e59a27da7c023412c2aef7ac9089f755d84"
+            }
+          ]
+        },
+        "coding": {
+          "audit_count": 4,
+          "latest": {
+            "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+            "user_id": "canvas-peer",
+            "action_type": "create",
+            "canvas_type": "coding",
+            "title": null,
+            "repo": "peer/repo",
+            "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+          },
+          "rows": [
+            {
+              "id": "audit-code-A",
+              "user_id": "canvas-owner",
+              "action_type": "create",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "owner/repo",
+              "digest": "28eb203e0ddd4885620f7e9eeaeaca192089afe1b0449d4ea01e97cc8e34b03d"
+            },
+            {
+              "id": "d895d392-1753-401c-87e4-709ce4087c87",
+              "user_id": "canvas-peer",
+              "action_type": "add_file",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "owner/repo",
+              "digest": "c03c7c39611de8c9fe24148b06f7751b4018392ee80c2112289d89dc1d8ea82e"
+            },
+            {
+              "id": "111bc905-e22c-4a0b-9a8a-56abee57e56b",
+              "user_id": "canvas-peer",
+              "action_type": "add_diff",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "owner/repo",
+              "digest": "da012bdfee168452c636ad4a89e915935bd8c4da62c4a7d1bc81fdc618472aed"
+            },
+            {
+              "id": "9c787410-0cbb-4bc8-9601-65b2e3ca37f8",
+              "user_id": "canvas-peer",
+              "action_type": "create",
+              "canvas_type": "coding",
+              "title": null,
+              "repo": "peer/repo",
+              "digest": "b8e8d30c4485dffbee946f0e159997d660537000c2b00cc6b2994b2ebf299a98"
+            }
+          ]
+        }
+      },
+      "reproduced": false,
+      "effect": "persisted_readback",
+      "assertion": "Rows persist across a fresh engine/session; this is not an OS process restart."
+    }
+  ],
+  "source_only_cases": [
+    "docs/email R66 ownership helpers and PDF _require_owner are source-inspected, not executed in this probe.",
+    "The policy conclusion that single-tenant does not remove per-user canvas authority comes from CanvasAudit.user_id plus the R66/owner-gate pattern, not a separate runtime test.",
+    "The exact refusal status a future repair should return (403 vs 404) is not runtime-observed because the frozen source is unfixed.",
+    "No runtime test of a coeditor/former-coeditor role transition was performed; only owner, a different active same-tenant user, and an inactive user were exercised."
+  ],
+  "limits": [
+    "No live DB, server, provider, model, install, download, merge or deploy.",
+    "The probe uses an explicit scratch SQLite DB and a dependency override only for get_db; authority, routes, services and writes are real.",
+    "Fresh engine/session readback is not an OS process restart.",
+    "The probe reports current-source behavior; it does not accept, repair or claim a fixed product state."
+  ],
+  "probe_source_path": "/private/tmp/root-canvas-authority-reproduction-probe-20261109.py",
+  "probe_source_sha256": "5779a62b978b2617423162c888e7de2116dde40e6f3848aa13b61f33bf9b9450",
+  "test_harness": {
+    "profile": "bounded",
+    "gate": "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "gate_exit": 0,
+    "gate_free_before_bytes": 4442947584,
+    "gate_minimum_bytes": 2147483648,
+    "pytest_exit": 0,
+    "pytest_passed": 1,
+    "pytest_log": {
+      "path": "/private/tmp/root-canvas-authority-reproduction-20261109-work/pytest.log",
+      "sha256": "37cb23fbf2c07bbe26e2a595bdf52fed651fad263676040165a991df9c3a6fec",
+      "bytes": 98
+    },
+    "normal_conftest": "Not applicable for this private probe: the probe source lives under /private/tmp, outside the repository test tree, and the frozen checkout was not edited to add a test file. The public ASGI app, real auth dependency, real routing and real services were exercised; only get_db was bound to the explicit scratch engine.",
+    "command": "/usr/local/bin/python3.11 /private/tmp/atom-agent-cli/run_bounded_test_gate.py --cwd <backend> --profile bounded -- /usr/local/bin/python3.11 -m pytest /private/tmp/root-canvas-authority-reproduction-probe-20261109.py --noconftest -p no:randomly -q",
+    "environment": {
+      "TESTING": "1",
+      "DATABASE_URL": "sqlite:////private/tmp/root-canvas-authority-reproduction-20261109-work/canvas_authority.db",
+      "ATOM_DATA_DIR": "/private/tmp/root-canvas-authority-reproduction-20261109-work/data"
+    }
+  },
+  "policy_trace": [
+    {
+      "path": "backend/api/canvas_docs_routes.py",
+      "lines": "23-46",
+      "observation": "R66 _get_owned_docs_canvas_or_error compares the earliest audit row creator with current_user.id and is used by get/update."
+    },
+    {
+      "path": "backend/api/canvas_email_routes.py",
+      "lines": "20-39",
+      "observation": "R66 _get_owned_email_canvas_or_error compares the earliest audit row creator with current_user.id and is used by get/send."
+    },
+    {
+      "path": "backend/core/pdf_canvas_service.py",
+      "lines": "63-74",
+      "observation": "PdfCanvasService._require_owner checks canvas owner before content mutations."
+    },
+    {
+      "path": "backend/api/canvas_sheets_routes.py",
+      "lines": "16,66-84,87-104,107-122",
+      "observation": "Authentication only at router level; GET has no current_user; update_cell/add_chart pass current_user.id but no owner check is applied to the existing canvas."
+    },
+    {
+      "path": "backend/core/canvas_sheets_service.py",
+      "lines": "119-125,208-214",
+      "observation": "Queries CanvasAudit by canvas_id + canvas_type only; user_id is stored on the new row but not compared with the existing canvas owner."
+    },
+    {
+      "path": "backend/api/canvas_coding_routes.py",
+      "lines": "70-96,99-126,128-149",
+      "observation": "Routes pass current_user.id but the underlying queries use canvas_id + canvas_type only."
+    },
+    {
+      "path": "backend/core/canvas_coding_service.py",
+      "lines": "138-144,195-201",
+      "observation": "Same unscoped CanvasAudit query; user_id is only the new row author."
+    },
+    {
+      "path": "backend/core/models.py",
+      "lines": "4254-4298,4190-4205",
+      "observation": "CanvasAudit carries user_id/tenant_id and Canvas carries created_by/tenant_id/workspace_id, so per-user authority is representable; single-tenant does not remove it."
+    }
+  ],
+  "source_files": {
+    "backend/api/canvas_sheets_routes.py": "7510ca36a390eaea6f10a906afd1524f77e0a0fceb471cf6dcf0f8dc3708f676",
+    "backend/core/canvas_sheets_service.py": "2c67678ba7ae47d5f4ca47d86468107cf369bef02ffdeaa7f522f048d34c1951",
+    "backend/api/canvas_coding_routes.py": "46e308b199ee60942dcaf8e06f9752622a86a68c3b6826e2144318c14dac21cb",
+    "backend/core/canvas_coding_service.py": "0e60081fe887f8735dfd3d6fdba2e2d71fefd7205c9bc8246eae4150fcc7a0c7",
+    "backend/api/canvas_docs_routes.py": "e71a673c2a93b282c3259e34657a261be04e2a408cae8e5d2b2a8d9e08bc97e8",
+    "backend/api/canvas_email_routes.py": "8ea83cef510f83a2be89e41417e71c2088fffc816a959db9534ea7b960bde493",
+    "backend/core/pdf_canvas_service.py": "faec49d867ffd4a7985102261ed467c8a174b7bbdef1aa31b31d6c50a23b5204",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/main_api_app.py": "323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe"
+  },
+  "source_files_rule": "SHA-256 of the exact f5a2413ce:path blob; sheets/coding/docs/email/models/main hashes are identical to c0427e520, so the audit source binding remains valid.",
+  "evidence_class": {
+    "runtime_reproduced": [
+      "owner sheets read positive",
+      "owner coding read positive",
+      "different active same-tenant user sheets read",
+      "different active same-tenant user coding read",
+      "different active same-tenant user sheets cell mutation",
+      "different active same-tenant user sheets chart mutation",
+      "different active same-tenant user coding file mutation",
+      "different active same-tenant user coding diff mutation",
+      "different active same-tenant user supplied-canvas_id create collision (sheets and coding)",
+      "owner read after peer collision returns peer-authored latest state",
+      "inactive actor GET/mutations refused with zero effect",
+      "body user_id is not authority",
+      "fresh engine/session readback"
+    ],
+    "source_only": [
+      "docs/email R66 ownership helpers and PDF _require_owner are source-inspected, not executed in this probe.",
+      "The policy conclusion that single-tenant does not remove per-user canvas authority comes from CanvasAudit.user_id plus the R66/owner-gate pattern, not a separate runtime test.",
+      "The exact refusal status a future repair should return (403 vs 404) is not runtime-observed because the frozen source is unfixed.",
+      "No runtime test of a coeditor/former-coeditor role transition was performed; only owner, a different active same-tenant user, and an inactive user were exercised."
+    ]
+  },
+  "conclusion": "On frozen f5a2413ce, a different active same-tenant authenticated user was able to read the owner's sheets and coding canvases, append owner-canvas rows, and create a same-canvas_id row that changed the owner's subsequent read. The inactive actor was refused with zero effect, and supplied body user_id was not authority. This reproduces WO-WEB-CANVAS-AUTHORITY-01 at the public ASGI route/service/SQL boundary. It is not a repair, acceptance or app-completion claim.",
+  "recommended_next": "Root review of this reproduction. If accepted as the next finite repair, add the existing R66/owner-gate pattern to sheets and coding reads/mutations and supplied-canvas_id create, with foreign-active/former-coeditor/wrong-workspace/inactive negatives, owner positive, body-user_id spoof control, and fresh-process readback. No new store/router/review engine."
+}

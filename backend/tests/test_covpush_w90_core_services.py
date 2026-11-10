@@ -28,6 +28,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 import httpx
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -41,6 +42,7 @@ from tests.test_lancedb_handler_connection_leak import *  # noqa: F401,F403
 
 import core.lancedb_handler as lancedb_mod
 from core.lancedb_handler import (
+    DocumentListingUnavailable,
     ChatHistoryManager,
     LanceDBHandler,
     MockEmbedder,
@@ -152,6 +154,27 @@ class MockLanceDB:
         self.tables.pop(name, None)
 
 
+def _native_page(df, columns=None, limit=None, offset=0, order_by=None):
+    if df is None:
+        df = pd.DataFrame()
+    else:
+        df = df.copy()
+    if columns:
+        keep = [c for c in columns if c in df.columns]
+        df = df[keep]
+    if order_by and not df.empty:
+        by = [o.column_name for o in order_by if o.column_name in df.columns]
+        ascending = [o.ascending for o in order_by if o.column_name in df.columns]
+        if by:
+            df = df.sort_values(by=by, ascending=ascending, na_position="last")
+    offset = offset or 0
+    df = (df.iloc[offset:offset + limit] if limit is not None else df.iloc[offset:])
+    if df.empty:
+        names = columns or list(df.columns) or ["id"]
+        return pa.table({n: pa.array([], type=pa.string()) for n in names})
+    return pa.Table.from_pandas(df, preserve_index=False)
+
+
 def _table_mock(df=None, schema_names=None):
     t = MagicMock()
     chain = MagicMock()
@@ -162,6 +185,14 @@ def _table_mock(df=None, schema_names=None):
     chain.limit.return_value = chain
     chain.where.return_value = chain
     t.search.return_value = chain
+    t.count_rows.return_value = len(df) if df is not None else 0
+    dataset = MagicMock()
+    dataset.schema.names = list(df.columns) if df is not None else ["id"]
+    dataset.to_table.side_effect = (
+        lambda columns=None, limit=None, offset=0, order_by=None, **kwargs:
+        _native_page(df, columns, limit, offset, order_by)
+    )
+    t.to_lance.return_value = dataset
     if schema_names is not None:
         t.schema = [SimpleNamespace(name=n) for n in schema_names]
     return t
@@ -683,7 +714,8 @@ class TestW90ListDocuments:
     def test_db_none(self, tmp_path, monkeypatch):
         monkeypatch.setattr(lancedb_mod, "LANCEDB_AVAILABLE", False)
         h = _make_handler(tmp_path)
-        assert h.list_documents("t") == []
+        with pytest.raises(DocumentListingUnavailable):
+            h.list_documents("t")
 
     def test_table_none(self, tmp_path):
         h = _handler_with_db(tmp_path)
@@ -709,7 +741,8 @@ class TestW90ListDocuments:
     def test_exception(self, tmp_path):
         h = _handler_with_db(tmp_path)
         h.get_table = Mock(side_effect=RuntimeError("boom"))
-        assert h.list_documents("t") == []
+        with pytest.raises(DocumentListingUnavailable):
+            h.list_documents("t")
 
 
 # =========================================================================== #

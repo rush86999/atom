@@ -1,0 +1,68 @@
+{
+  "backend": {
+    "focused_gate_exit": 0,
+    "focused_gate_passed": 77,
+    "new_pagination_tests_exit": 0,
+    "new_pagination_tests_passed": 13
+  },
+  "baseline": {
+    "failed": 2,
+    "private_log": "/private/tmp/doc-pagination-repair-backup/baseline-two-tests.log",
+    "same_after_repair": true,
+    "source": "b333221b23f925b3768ab82c2549200360a31865",
+    "test_ids": [
+      "tests/test_covpush_ingestion_lancedb.py::TestLanceDBInit::test_llm_service_unavailable_fallback",
+      "tests/test_covpush_ingestion_lancedb.py::TestLanceDBEmbed::test_async_embed_text_success"
+    ]
+  },
+  "branch": "codex/web-documents-pagination-20261110",
+  "code_commit": "c4bc1d4b623eb56d54491e4c79052885b5950cff",
+  "eslint": {
+    "changed_files_exit": 0
+  },
+  "frontend": {
+    "component_tests_passed": 23,
+    "exit": 0,
+    "suite": "tests/pages/documents.test.tsx"
+  },
+  "limits": [
+    "No snapshot guarantee across concurrent writes.",
+    "No production browser/UI acceptance in this packet.",
+    "No live provider/model/database or deployment."
+  ],
+  "ordering": "created_at string desc, id desc; native scan before offset/limit; no concurrent-write snapshot guarantee",
+  "raw_logs_published": false,
+  "root_proof": {
+    "counts_note": "77 worker focused gate and 80 root neighborhood are different selectors; do not sum",
+    "frontend_tests_passed": 23,
+    "normal_controls_passed": 13,
+    "original_130_case_passed": 1,
+    "source": "1605d7713116f1552d23e6a8288fd3902ce9468a",
+    "strict_packet_artifacts": 2,
+    "strict_packet_sources": 8,
+    "summary": "root_proof_summary.json"
+  },
+  "root_retained_negative": {
+    "authorized_stored": 130,
+    "including_newest": "w1-doc-129",
+    "missing": 30,
+    "overlap": 30,
+    "page0": 100,
+    "page1": 30,
+    "root_proof": "/private/tmp/root-document-pagination-independent-20261110.json"
+  },
+  "scope": {
+    "browser_launched": false,
+    "build_run": false,
+    "live_database": false,
+    "live_provider_or_model": false,
+    "scratch_database": true,
+    "scratch_lancedb": true
+  },
+  "source_base": "b333221b23f925b3768ab82c2549200360a31865",
+  "typecheck": {
+    "command": "tsc --noEmit",
+    "errors": 0,
+    "exit": 0
+  }
+}

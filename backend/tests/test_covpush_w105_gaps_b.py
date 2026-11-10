@@ -42,6 +42,34 @@ def _audit(details):
     return SimpleNamespace(details_json=details)
 
 
+@pytest.fixture(autouse=True)
+def _canvas_authority_doubles(monkeypatch):
+    """Keep these pure service/arithmetic unit tests focused.
+
+    The real SQL authority path is covered in
+    ``tests/api/test_web_canvas_authority.py``. Here a synthetic actor
+    snapshot replaces the network/DB authority lookup so MagicMock sessions
+    still exercise the service's serialization and exception branches.
+    """
+    import core.canvas_coding_service as coding
+    import core.canvas_sheets_service as sheets
+
+    actor = {
+        "ok": True,
+        "id": "unit-actor",
+        "tenant_id": "default",
+        "workspace_id": "default",
+        "status": "active",
+        "is_active": True,
+    }
+    for module in (sheets, coding):
+        monkeypatch.setattr(module, "require_active_actor", lambda db, uid: dict(actor))
+        monkeypatch.setattr(module, "require_canvas_read", lambda db, cid, a: None)
+        monkeypatch.setattr(module, "require_canvas_write", lambda db, cid, a: None)
+        monkeypatch.setattr(module, "claim_active_actor", lambda db, a: None)
+        monkeypatch.setattr(module, "reserve_canvas_id", lambda db, **kw: None)
+
+
 # =========================================================================== #
 # 1. core/canvas_sheets_service.py
 # =========================================================================== #

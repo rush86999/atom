@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "web_canvas_authority_root_proof_summary",
+  "source_before": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "source_after": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "same_source": true,
+  "normal_conftest": {
+    "exit": 0,
+    "passed": 17,
+    "warnings": 39,
+    "duration_seconds": 30.65,
+    "log_private": "/private/tmp/root-canvas-independent-20261110-r95023op/normal.log"
+  },
+  "original_independent_probe": {
+    "exit": 0,
+    "passed": 1,
+    "duration_seconds": 2.88,
+    "log_private": "/private/tmp/root-canvas-independent-20261110-r95023op/original.log",
+    "probe": "independent-probe.py",
+    "probe_sha256": "428f91f152f3c62d1b32acb344510e6034baeb7a79f9ee14290f7ab4476bbc0e"
+  },
+  "independent_repair_assertions": {
+    "passed": true,
+    "original_failure_cases_refused": 8,
+    "scenarios": 16,
+    "runtime_reproduced": false,
+    "owner_positive_passed": true,
+    "inactive_refused": true,
+    "body_user_id_is_not_authority": true
+  },
+  "note": "The copied root-independent-case-results.json retains probe-template source_only_cases verbatim. In the repaired run runtime_reproduced is false because the original peer/collision cases are refused; the template sentence about an unfixed source is not a claim about 82b29cfcc.",
+  "raw_private_artifacts": [
+    "/private/tmp/root-canvas-independent-20261110-r95023op/normal.log",
+    "/private/tmp/root-canvas-independent-20261110-r95023op/original.log",
+    "/private/tmp/root-canvas-independent-20261110-r95023op/normal.db",
+    "/private/tmp/root-canvas-independent-20261110-r95023op/original.db"
+  ]
+}

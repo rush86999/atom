@@ -14,6 +14,29 @@ from core.canvas_orchestration_service import OrchestrationCanvasService
 from core.canvas_sheets_service import SpreadsheetCanvasService
 from core.canvas_terminal_service import TerminalCanvasService
 from core.canvas_type_registry import CanvasType, MaturityLevel, canvas_type_registry
+from core.models import Tenant, User, UserStatus
+
+
+def _ensure_canvas_user(db, user_id="test-user"):
+    """Real authority rows for the direct-service canvas tests."""
+    if not db.query(Tenant).filter(Tenant.id == "default").first():
+        db.add(Tenant(
+            id="default", name="Default", subdomain="canvas-tests-default",
+            edition="personal", is_active=True))
+    if not db.query(User).filter(User.id == user_id).first():
+        db.add(User(
+            id=user_id,
+            email=f"{user_id}@example.invalid",
+            hashed_password="test-hash",
+            first_name="Test",
+            last_name="User",
+            role="member",
+            status=UserStatus.ACTIVE.value,
+            is_active=True,
+            tenant_id="default",
+            workspace_id=None,
+        ))
+    db.commit()
 
 
 class TestCanvasTypeRegistry:
@@ -235,6 +258,10 @@ class TestEmailCanvas:
 class TestSpreadsheetCanvas:
     """Tests for Spreadsheet Canvas."""
 
+    @pytest.fixture(autouse=True)
+    def _authority_rows(self, db_session):
+        _ensure_canvas_user(db_session)
+
     def test_create_spreadsheet_canvas(self, db_session: Session):
         """Test creating a spreadsheet canvas."""
         service = SpreadsheetCanvasService(db_session)
@@ -412,6 +439,10 @@ class TestTerminalCanvas:
 
 class TestCodingCanvas:
     """Tests for Coding Canvas."""
+
+    @pytest.fixture(autouse=True)
+    def _authority_rows(self, db_session):
+        _ensure_canvas_user(db_session)
 
     def test_create_coding_canvas(self, db_session: Session):
         """Test creating a coding canvas."""
