@@ -1,0 +1,39 @@
+{
+  "executed_source": "f5a2413ce07bfd180b64ca58d861f9b9898cb9a5",
+  "implementation_predecessor": "3ae90bfaf265f3e952b4ce4ad8dbf6290e2ba3ff",
+  "root_normal_tests": {
+    "passed": 28,
+    "failed": 0,
+    "warnings": 62,
+    "seconds": 42.56,
+    "normal_repository_conftest": true
+  },
+  "root_original_consumer_probes": {
+    "passed": 3,
+    "failed": 0,
+    "warnings": 1,
+    "seconds": 6.31,
+    "scope": "Actual intent consumer and real scratch UserTask rows; no model/provider inference"
+  },
+  "preserved_negative": {
+    "source": "3ae90bfaf265f3e952b4ce4ad8dbf6290e2ba3ff",
+    "failed": 1,
+    "passed": 2,
+    "case": "Title mentioning Asana incorrectly inferred an external provider without platform selection"
+  },
+  "worker_affected_tests": {
+    "passed": 242,
+    "root_independently_reran_full_group": false
+  },
+  "verified_contracts": [
+    "Both chat consumers and public task API use existing durable UserTask store",
+    "Missing/inactive/session-conflicting authority refuses",
+    "Conditional current User claim binds authority before task write",
+    "Project ownership/current workspace validated",
+    "Unchanged request retry preserves one task; changed full material refuses",
+    "Missing due date stays absent rather than changing across retries",
+    "Provider word in title does not select provider; explicit unsupported provider refuses",
+    "Profile-deferred Tasks link is not force-enabled"
+  ],
+  "scope": "Controlled consumers/public ASGI task API, fresh sessions and child Python process in normal suite; not whole-app browser Tasks CRUD, live provider task creation, full mutation ORACLE or general adaptive model judgment."
+}

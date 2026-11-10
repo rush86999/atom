@@ -5,7 +5,11 @@ import { useRouter } from 'next/router';
 import { signIn, getSession } from 'next-auth/react';
 import SignIn from '@/pages/auth/signin';
 import { useToast } from '@/components/ui/use-toast';
-import { loginWithBackend, persistBackendToken } from '@/lib/backendAuth';
+import {
+  establishWebSession,
+  loginWithBackend,
+  persistBackendToken,
+} from '@/lib/backendAuth';
 
 // Mock next/router
 jest.mock('next/router', () => ({
@@ -27,6 +31,7 @@ jest.mock('@/components/ui/use-toast', () => ({
 
 // Mock backendAuth
 jest.mock('@/lib/backendAuth', () => ({
+  establishWebSession: jest.fn(),
   loginWithBackend: jest.fn(),
   persistBackendToken: jest.fn(),
 }));
@@ -49,6 +54,7 @@ describe('SignIn Component', () => {
       access_token: 'test-token',
       token_type: 'bearer',
     });
+    (establishWebSession as jest.Mock).mockResolvedValue(undefined);
     (persistBackendToken as jest.Mock).mockImplementation(() => {});
   });
 
@@ -178,6 +184,39 @@ describe('SignIn Component', () => {
       });
     });
 
+    it('establishes the SDK session before persistence and navigation', async () => {
+      render(<SignIn />);
+      await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+      fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'));
+
+      expect((establishWebSession as jest.Mock).mock.calls[0][0] === 'test-token').toBe(true);
+      expect((persistBackendToken as jest.Mock).mock.calls[0][0] === 'test-token').toBe(true);
+      const sessionOrder = (establishWebSession as jest.Mock).mock.invocationCallOrder[0];
+      const persistOrder = (persistBackendToken as jest.Mock).mock.invocationCallOrder[0];
+      expect(sessionOrder).toBeLessThan(persistOrder);
+      expect(persistOrder).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
+    });
+
+    it('does not persist, toast or navigate when the SDK session fails', async () => {
+      (establishWebSession as jest.Mock).mockRejectedValue(
+        new Error('Unable to establish a secure web session. Please sign in again.'),
+      );
+      render(<SignIn />);
+      await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+      fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/unable to establish a secure web session/i)).toBeInTheDocument();
+      });
+      expect(persistBackendToken).not.toHaveBeenCalled();
+      expect(mockToast).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
     it('should show error message on authentication failure', async () => {
       (loginWithBackend as jest.Mock).mockRejectedValue(new Error('Invalid email or password'));
       render(<SignIn />);
@@ -211,6 +250,9 @@ describe('SignIn Component', () => {
         expect(screen.getByLabelText(/security code/i)).toBeInTheDocument();
         expect(screen.getByText(/enter the code from your authenticator app/i)).toBeInTheDocument();
       });
+      expect(establishWebSession).not.toHaveBeenCalled();
+      expect(persistBackendToken).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
     });
 
     it('should update TOTP code state on input change', async () => {
@@ -258,6 +300,30 @@ describe('SignIn Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/invalid 2fa code/i)).toBeInTheDocument();
+      });
+    });
+
+    it('establishes the session only after the TOTP challenge succeeds', async () => {
+      (loginWithBackend as jest.Mock)
+        .mockResolvedValueOnce({ two_factor_required: true })
+        .mockResolvedValueOnce({ access_token: 'test-token', token_type: 'bearer' });
+      render(<SignIn />);
+      await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+      fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/security code/i)).toBeInTheDocument();
+      });
+      expect(establishWebSession).not.toHaveBeenCalled();
+
+      await userEvent.type(screen.getByLabelText(/security code/i), '123456');
+      fireEvent.click(screen.getByRole('button', { name: /verify & sign in/i }));
+
+      await waitFor(() => {
+        expect((establishWebSession as jest.Mock).mock.calls[0][0] === 'test-token').toBe(true);
+        expect((persistBackendToken as jest.Mock).mock.calls[0][0] === 'test-token').toBe(true);
+        expect(mockPush).toHaveBeenCalledWith('/dashboard');
       });
     });
 

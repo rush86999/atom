@@ -1,3 +1,5 @@
+import { signIn } from "next-auth/react";
+
 const API_BASE = typeof window !== "undefined"
   ? (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "")
   : (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
@@ -55,15 +57,39 @@ export async function loginWithBackend(
   return data;
 }
 
+/**
+ * Bridge an already-issued backend bearer into the installed NextAuth SDK
+ * session. NextAuth's Credentials provider validates that same bearer at the
+ * canonical backend /api/auth/me and the SDK owns every session cookie.
+ * Call this only after a successful backend login/registration and before raw
+ * auth_token persistence, toasts or navigation.
+ */
+export async function establishWebSession(backendToken: unknown): Promise<void> {
+  if (typeof backendToken !== "string" || backendToken.length === 0 || /\s/.test(backendToken)) {
+    throw new Error("Unable to establish a secure web session. Please sign in again.");
+  }
+
+  let result;
+  try {
+    result = await signIn("credentials", { backendToken, redirect: false });
+  } catch {
+    throw new Error("Unable to establish a secure web session. Please sign in again.");
+  }
+
+  if (!result || result.ok !== true || result.error) {
+    throw new Error("Unable to establish a secure web session. Please sign in again.");
+  }
+}
+
 export function persistBackendToken(token: string, email?: string) {
   if (typeof window === "undefined") return;
 
   localStorage.removeItem("atom_explicit_logout");
   localStorage.setItem("auth_token", token);
   localStorage.setItem("token", token);
-  // Sidebar/profile identity fallback for API-first sessions (NextAuth's
-  // session stays empty when sign-in bypassed the NextAuth route).
+  // Sidebar/profile identity fallback for direct backend API sessions.
   if (email) localStorage.setItem("user_email", email);
   document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-  document.cookie = `next-auth.session-token=${token}; path=/; max-age=86400; SameSite=Lax`;
+  // Never write next-auth.session-token (or its Secure/chunked variants): the
+  // installed NextAuth SDK owns and encrypts those cookies.
 }

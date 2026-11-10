@@ -15,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from core.auth import get_password_hash as secure_hash_password
+from core.security.referrer_policy import apply_referrer_policy
 
 # Security logger
 security_logger = logging.getLogger("atom.security")
@@ -243,7 +244,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Preserve an explicitly stricter policy chosen by the response; this
+        # shared variant must behave like the core middleware.
+        apply_referrer_policy(response.headers)
         # 'unsafe-eval' removed (permits eval()/Function() → CSP no-op vs XSS).
         # connect-src tightened to 'self' + ws/wss (no blanket https:).
         response.headers["Content-Security-Policy"] = (

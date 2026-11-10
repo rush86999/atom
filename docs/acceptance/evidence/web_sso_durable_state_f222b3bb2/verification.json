@@ -1,0 +1,29 @@
+{
+  "source": "f222b3bb2a2e346756a3b6bf7e87660950b5e3e3",
+  "normal_fixture_gate": {
+    "actual_exit": 0,
+    "passed": 89,
+    "warnings": 260,
+    "seconds": 91.38
+  },
+  "exact_independent_authority_probes": {
+    "actual_exit": 0,
+    "passed": 5,
+    "warnings": 2,
+    "seconds": 6.74
+  },
+  "negative_source": "2961410582935e34323a25d56c0e111d7ad1e12d",
+  "negative_probe_failures": 5,
+  "scope": "Controlled real local issuer, scratch SQLite and fresh processes; no full browser or live identity-provider claim",
+  "next": "Publish source-bound safe packet, integrate actual main, then ordinary same-origin SSO SDK handoff remains open",
+  "normal_repository_conftest": true,
+  "python": "3.11.16",
+  "process_scope": "Target89 includes distinct Python TestClient callback processes sharing scratch SQLite; no uvicorn/browser restart qualification",
+  "raw_logs": "Private only; contain authentication request state/code material and are not uploadable",
+  "current_source_note": "Current-main and predecessor-evidence merges change no tested backend source bytes",
+  "open": [
+    "ordinary same-origin web handoff into SDK session",
+    "live identity-provider/browser qualification",
+    "PostgreSQL runtime and soak"
+  ]
+}

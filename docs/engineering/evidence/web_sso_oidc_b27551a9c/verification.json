@@ -1,0 +1,359 @@
+{
+  "admin": {
+    "config_api_status": 403,
+    "config_source": "environment",
+    "login_status": 200,
+    "role": "workspace_admin"
+  },
+  "all_boundary_checks_true": true,
+  "boundary_check_count": 31,
+  "boundary_checks": {
+    "admin_bootstrap_login_200": true,
+    "canonical_me_matches_db": true,
+    "canonical_me_matches_session": true,
+    "config_api_policy_boundary": true,
+    "decoded_sdk_matches_canonical_me": true,
+    "encrypted_not_raw": true,
+    "exchange_after_restart": true,
+    "exchange_no_referrer": true,
+    "exchange_no_store": true,
+    "http_only": true,
+    "issuer_gate_entered_before_302": true,
+    "issuer_gate_released_after_restart": true,
+    "landing_code_removed_before_exchange": true,
+    "landing_no_referrer": true,
+    "landing_no_store": true,
+    "one_canonical_user": true,
+    "one_exchange": true,
+    "one_issuer_authorize": true,
+    "one_issuer_token": true,
+    "one_sdk_callback": true,
+    "production_secure_name": true,
+    "raw_token_not_in_html": true,
+    "raw_token_not_in_url": true,
+    "restart_extension_ok": true,
+    "restart_health": true,
+    "same_backend_generation": true,
+    "secure_matches_name": true,
+    "settings_exact_path_query": true,
+    "settings_reload_exact_path_query": true,
+    "supported_env_config_used_when_api_refused": true,
+    "zero_browser_password_logins": true
+  },
+  "browser_network": {
+    "by_method_path": {
+      "GET /api/ai/providers": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/csrf": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/me": {
+        "count": 8,
+        "statuses": {
+          "200": 8
+        }
+      },
+      "GET /api/auth/providers": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/session": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/auth/sso/oidc/web/login": {
+        "count": 1,
+        "statuses": {
+          "302": 1
+        }
+      },
+      "GET /api/chat/history/<session_id_redacted>": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/maturity/proposals": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /api/meta/version": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /api/notifications": {
+        "count": 8,
+        "statuses": {
+          "200": 4,
+          "401": 4
+        }
+      },
+      "GET /api/onboarding/probe-ollama": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/onboarding/status": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/product/profile": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /api/users/me": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/v1/preferences": {
+        "count": 5,
+        "statuses": {
+          "200": 3,
+          "401": 2
+        }
+      },
+      "GET /bot-avatar.png": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /login": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /settings": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/callback/credentials": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/sso/oidc/web/exchange": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/onboarding/update": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      }
+    },
+    "console_error_count": 6,
+    "external_requests_aborted": 0,
+    "failed_request_count": 0,
+    "page_error_count": 0,
+    "request_count": 274
+  },
+  "build": {
+    "build_id": "gUNpk4hsJ2bFpZNTMyvcD",
+    "dist": ".next-sso-web-20261109",
+    "duration_s": 27.0,
+    "exit": 0,
+    "minimum_free_bytes": 4617658368,
+    "next_version": "16.2.2",
+    "node": "v20.20.2",
+    "resource_pressure_abort": false,
+    "source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3"
+  },
+  "completed_at": "2026-11-10T02:54:31Z",
+  "cookie": {
+    "chunk_count": 1,
+    "host_only": true,
+    "http_only": true,
+    "jwe_segment_count": 5,
+    "name": "__Secure-next-auth.session-token",
+    "raw_jwt_segment_count": 3,
+    "same_site": "Lax",
+    "secure": true,
+    "tls_claimed": false,
+    "transport_scheme": "http",
+    "value_is_not_raw": true
+  },
+  "db": {
+    "hashed_password_null": true,
+    "nextauth_adapter_tables": [],
+    "role": "member",
+    "same_canonical_id": true,
+    "sso_user_count": 1,
+    "status": "active",
+    "tenant_id_present": true,
+    "total_users": 2,
+    "workspace_id": null
+  },
+  "freshness": {
+    "before_app_bootstrap_local_keys": [],
+    "before_app_bootstrap_session_keys": [],
+    "before_app_bootstrap_storage_empty": true,
+    "before_navigation_cookie_count": 0,
+    "before_navigation_cookies_empty": true
+  },
+  "harness_sha256": "5228fb27ab7acc6dcd74ff0608c04e641ba4c129524630268978daac8fd75bb4",
+  "headers": {
+    "GET /api/auth/sso/oidc/web/callback": [
+      {
+        "cache-control": "no-store",
+        "content-type": null,
+        "referrer-policy": "no-referrer",
+        "status": 302
+      }
+    ],
+    "GET /auth/sso/callback": [
+      {
+        "cache-control": "no-store",
+        "content-type": "text/html; charset=utf-8",
+        "referrer-policy": "no-referrer",
+        "status": 200
+      }
+    ],
+    "POST /api/auth/sso/oidc/web/exchange": [
+      {
+        "cache-control": "no-store",
+        "content-type": "application/json",
+        "referrer-policy": "no-referrer",
+        "status": 200
+      }
+    ]
+  },
+  "limits": [
+    "HTTP loopback only; no TLS/production-transport claim.",
+    "Controlled local OIDC issuer and in-process PKCE S256 validation; no live provider/account/consent.",
+    "Backend SMTP transport captured/no live send; no model/provider/SMTP/spend calls."
+  ],
+  "logout": {
+    "explicit_logout_marker": true,
+    "raw_token_absent": true,
+    "sdk_cookie_absent": true,
+    "session_user_absent": true
+  },
+  "ok": true,
+  "onboarding": {
+    "completed_via_ui": true,
+    "present": true
+  },
+  "owner": {
+    "backend_cwd_under_repo": true,
+    "backend_listener_present": true,
+    "frontend_cwd_under_repo": true,
+    "frontend_listener_present": true,
+    "issuer_listener_present": true
+  },
+  "provenance": {
+    "app_complete": false,
+    "baseline_note": "the post-commit stash push/pop incident was not a valid baseline and is excluded from all claims; this packet makes no baseline claim",
+    "candidate_is_main": false,
+    "controller": "root",
+    "earlier_negative_worlds_preserved": [
+      "/private/tmp/root-web-sso-oidc-world-6ajr8f6j",
+      "/private/tmp/root-web-sso-oidc-world-1y0gecfl",
+      "/private/tmp/root-web-sso-oidc-world-5wfunhu6"
+    ],
+    "goal_map_rows": 18,
+    "historical_claims": 143,
+    "packet_source_commit": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+    "private_world_retained_0700": true,
+    "raw_auth_material_published": false,
+    "root_reviewed": true
+  },
+  "provider": {
+    "authorize": 1,
+    "controlled_issuer_origin": "http://127.0.0.1:18372",
+    "discovery": 2,
+    "jwks": 1,
+    "scope": "controlled local OIDC provider; not a live identity provider",
+    "token": 1,
+    "userinfo": 1
+  },
+  "restart": {
+    "attempt": 1,
+    "enabled": true,
+    "entered": true,
+    "extension_ok": true,
+    "gate": {
+      "entered": true,
+      "note": "gate snapshot was copied immediately after signalling release, before the issuer thread wrote released=true; the later issuer_gate_released_after_restart check and the completed exchange are the authoritative release evidence",
+      "release_timeout": false,
+      "snapshot_released_at_copy": false
+    },
+    "health": true,
+    "held": true,
+    "old_terminal": true,
+    "released": true
+  },
+  "restart_extension_ok": true,
+  "restart_gap": false,
+  "root_header_test_summary": "root_header_test_summary.json",
+  "root_independent_review": "root_independent_review.json",
+  "services": {
+    "backend_first_started": true,
+    "backend_restart_started": true,
+    "frontend_started": true
+  },
+  "session": {
+    "all_checks_true": true,
+    "canonical_me_status": 200,
+    "session_status": 200,
+    "session_user_id_present": true
+  },
+  "settings": {
+    "exact_path_query": true,
+    "final_url_has_access_token": false,
+    "reload_exact_path_query": true
+  },
+  "signed_out_state": {
+    "cookies_after_bootstrap_names": [
+      "__Host-next-auth.csrf-token",
+      "__Secure-next-auth.callback-url"
+    ],
+    "harmless_state_only": true,
+    "local_storage_keys_after_bootstrap": [
+      "nextauth.message"
+    ],
+    "nextauth_session_user_absent": true,
+    "no_auth_token_cookie": true,
+    "no_sdk_session_cookie": true,
+    "session_storage_keys_after_bootstrap": []
+  },
+  "source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+  "testing": {
+    "explicit_scratch_database": true,
+    "http_loopback_only": true,
+    "import_phase_testing": 0,
+    "live_database": false,
+    "note": "TESTING=0 only for the main_api_app import so explicit scratch DATABASE_URL/ATOM_DATA_DIR is honored; TESTING=1 restored before serving.",
+    "runtime_testing": 1,
+    "tls_claimed": false
+  }
+}

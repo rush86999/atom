@@ -1,0 +1,25 @@
+{
+  "executed_source": "100ac3d99e457a667099bc9cf768a126cada8100",
+  "source_files": {
+    "backend/api/sso_oidc_routes.py": "553d8f4c8031df025a71c121cde8458fa16bca6c0517cfb0bf03182746bdd389",
+    "backend/tests/api/test_sso_oidc_routes.py": "15004431de8bccec1a496cc60f399cdd60049bc73bf72dd882d82551f5e486b7",
+    "backend/scripts/controlled_oidc_provider.py": "0aa6b3796c0c10525453b19b1971d637a7a973305fe2378541b6adb8816db08c",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/sql_json.py": "192db820fcb7580a6178b6ccfb82caaf0b4de6b9628ea9e181e7cf5946678a5a",
+    "backend/core/config.py": "7f9da83149c22e5034b57056585ab8649544bfc5623e69902fe74ba1aa5182b3",
+    "backend/core/llm/byok_handler.py": "0ccc3eca8a65c7f23e2aeb90881f5c6dd0994dd65ec66ecc6ced57633de32063",
+    "backend/core/llm/cognitive_tier_system.py": "dfa69eb0eca5f34d39dda8abd576ceaf54085118d3e2e900b29f5bc4a03fcdef",
+    "backend/core/llm/__init__.py": "18f73289e42b0db60fdd266d5fa0383f28352852dd9966adbccce707ab2f3af9",
+    "backend/tests/conftest.py": "5f8c8b1016b8bb08d18c297deb8d2c452b7b897d4e023a4f3198281dbbdc8dc2",
+    "backend/tests/core/llm/test_cognitive_classifier_import_cycle.py": "b9c5ddc6187cb1ceae35ba3ebceae59fbf67a35211b28145541345a3d1ec959f"
+  },
+  "artifacts": {
+    "independent-handoff-probes.py": "24eb512cad172019b0508f6ab0a444f35d67d1cc305ce45b74a4e1c36666273a",
+    "independent-state-probes.py": "d68114622033bd014c13d06025e59681f20568fa53ab1e689e95fea36b8d70db",
+    "README.md": "fd2019bd7ea435cbb4e247c7b7b00233045c5b9d5e7c4fde68eb249d6e6a2284",
+    "command.json": "e85447c04592adc5792f38b46ff3db518077b7e1e20bac12ec9bbd717a03f402",
+    "verification.json": "dca631485825d8e3e8ec47bca4d52c8a477929c939a5f0bd9640a58b60549d15"
+  }
+}

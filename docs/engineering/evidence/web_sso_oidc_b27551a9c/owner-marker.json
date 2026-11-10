@@ -1,0 +1,14 @@
+{
+  "controlled_issuer_redirect_uri": "http://localhost:18371/api/auth/sso/oidc/web/callback",
+  "controlled_oidc_issuer": "http://127.0.0.1:18372",
+  "harness_sha256": "5228fb27ab7acc6dcd74ff0608c04e641ba4c129524630268978daac8fd75bb4",
+  "http_loopback_only": true,
+  "not_live_database": true,
+  "private_world_retained_0700": true,
+  "production_environment_or_tls_claimed": false,
+  "purpose": "one ordinary controlled-loopback OIDC web handoff browser episode",
+  "raw_auth_material_published": false,
+  "source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+  "testing_import_phase": 0,
+  "testing_runtime": 1
+}

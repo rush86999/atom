@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "false_checks": [
+    "b"
+  ],
+  "unknown_checks": [
+    "c"
+  ],
+  "header_capture_by_method_path": true,
+  "header_missing_is_none": true,
+  "issuer_gate": {
+    "entered_before_response": true,
+    "response_withheld_while_held": true,
+    "status_after_release": 302,
+    "location_has_authorization_code": true,
+    "released": true
+  }
+}

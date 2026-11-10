@@ -1,0 +1,18 @@
+{
+  "executed_source": "f222b3bb2a2e346756a3b6bf7e87660950b5e3e3",
+  "source_files": {
+    "backend/api/sso_oidc_routes.py": "sha256:75c3383b56d1657fce40958514abe7aae2ad64f9f1f9c08dc5885a9c2f301982",
+    "backend/tests/api/test_sso_oidc_routes.py": "sha256:a28d784c32d8690e68155ad3e8015710a06b337f0da7103332dbf65235571fdf",
+    "backend/core/models.py": "sha256:9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/auth.py": "sha256:af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/sql_json.py": "sha256:192db820fcb7580a6178b6ccfb82caaf0b4de6b9628ea9e181e7cf5946678a5a",
+    "backend/core/personal_scope.py": "sha256:fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/tests/conftest.py": "sha256:5f8c8b1016b8bb08d18c297deb8d2c452b7b897d4e023a4f3198281dbbdc8dc2",
+    "backend/scripts/controlled_oidc_provider.py": "sha256:0aa6b3796c0c10525453b19b1971d637a7a973305fe2378541b6adb8816db08c"
+  },
+  "artifacts": {
+    "command.json": "sha256:a0a70b8711ec6afecd5a0fcb0b6de56f6c6965804656b4db23cb6068cc404cdd",
+    "verification.json": "sha256:d22492f906ae450dded692dedab244d0504e38c15fe213c1971937578a5f89d6",
+    "independent-authority-probes.py": "sha256:d68114622033bd014c13d06025e59681f20568fa53ab1e689e95fea36b8d70db"
+  }
+}

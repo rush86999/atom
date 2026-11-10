@@ -25,7 +25,11 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        totp_code: { label: "2FA Code", type: "text" }
+        totp_code: { label: "2FA Code", type: "text" },
+        // A bearer already issued by the canonical backend login/register
+        // flow. The provider validates it at /api/auth/me; it is never decoded
+        // or trusted as client-supplied identity.
+        backendToken: { label: "Backend Session", type: "password" }
       },
       authorize: createBackendCredentialsAuthorize(resolveWebAuthBackend),
     }),

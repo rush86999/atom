@@ -1,0 +1,338 @@
+{
+  "browser_network": {
+    "by_method_path": {
+      "GET /api/agents/": {
+        "count": 1,
+        "statuses": {
+          "308": 1
+        }
+      },
+      "GET /api/auth/csrf": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/me": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /api/auth/providers": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/session": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/canvas/": {
+        "count": 1,
+        "statuses": {
+          "308": 1
+        }
+      },
+      "GET /api/chat/history/session_1794274643191_7sy6byg2s": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/documents": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/goal-runs": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/goals": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/maturity/proposals": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/meta/version": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /api/notifications": {
+        "count": 6,
+        "statuses": {
+          "200": 2,
+          "401": 4
+        }
+      },
+      "GET /api/onboarding/progress": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/onboarding/status": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/product/profile": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /api/users/me": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/v1/preferences": {
+        "count": 2,
+        "statuses": {
+          "401": 2
+        }
+      },
+      "GET /auth/forgot-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /auth/reset-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /bot-avatar.png": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/callback/credentials": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/forgot-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/login": {
+        "count": 2,
+        "statuses": {
+          "200": 1,
+          "401": 1
+        }
+      },
+      "POST /api/auth/reset-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/verify-token": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      }
+    },
+    "console_error_count": 8,
+    "external_requests_aborted": 0,
+    "failed_request_count": 0,
+    "page_error_count": 0,
+    "request_count": 166
+  },
+  "build": {
+    "build_id": "SB4Z5gPHOVhvOVdm4Vytd",
+    "dist": ".next-recovery-reset-20261109",
+    "duration_s": 27.0,
+    "exit": 0,
+    "minimum_free_bytes": 4205600768,
+    "next_version": "16.2.2",
+    "node": "v20.20.2",
+    "resource_pressure_abort": false,
+    "source": "f9ef079c2a2805dc1a92b91a94a9ff2a82bd9b1b"
+  },
+  "completed_at": "2026-11-10T01:37:29Z",
+  "db": {
+    "canonical_me_matches_final_db": true,
+    "canonical_me_matches_registered_scratch": true,
+    "decoded_sdk_matches_registered_scratch": true,
+    "same_user_id": true,
+    "session_matches_registered_scratch": true,
+    "user_count": 1
+  },
+  "forgot": {
+    "post_count": 1,
+    "signed_out_page_public": true,
+    "ui_success_message": true
+  },
+  "freshness": {
+    "before_app_bootstrap_local_storage_keys": [],
+    "before_app_bootstrap_session_storage_keys": [],
+    "before_app_bootstrap_storage_empty": true,
+    "before_navigation_cookie_count": 0,
+    "before_navigation_cookies_empty": true
+  },
+  "harness_history": {
+    "product_source_changed_between_runs": false,
+    "v1": {
+      "private_packet": "/private/tmp/root-web-recovery-harness-v1-20261109",
+      "private_world": "/private/tmp/root-web-recovery-reset-world-j06tgyuw",
+      "sha256": "e3d8b66fa925f5eec0f82fa9bb3dec433c18b020192c34fcd3d21dd174933f67",
+      "status": "limited positive: reset flow passed; freshness measured after app bootstrap and exact account binding not explicit; not a product failure"
+    },
+    "v2": {
+      "private_packet": "/private/tmp/root-web-recovery-harness-v2-20261109",
+      "private_world": "/private/tmp/root-web-recovery-reset-world-pah6_w53",
+      "sha256": "496dba2d70fe31aa26ab7e2e59dc6f7b025dc5d3202dbe40b08be77f97c9102f",
+      "status": "limited positive: exact account binding added; freshness still measured after app load"
+    },
+    "v3": {
+      "private_world": "/private/tmp/root-web-recovery-reset-world-sfet1nbo",
+      "sha256": "23f5d3d8e2432d3017fd1efe5fb282e3ae7e51d534d85508715e8258b0caf5b3",
+      "status": "corrected focused successor: pre-navigation cookies and pre-app-bootstrap storage measured; signed-out harmless state names recorded"
+    }
+  },
+  "harness_sha256": "23f5d3d8e2432d3017fd1efe5fb282e3ae7e51d534d85508715e8258b0caf5b3",
+  "limits": [
+    "HTTP loopback only; production build Secure cookies accepted by Chromium on loopback; no TLS claim.",
+    "Backend SMTP transport was replaced by private local file capture; no live SMTP sent.",
+    "No provider/model calls, connector consent, sends, spend, or deployment."
+  ],
+  "mail": {
+    "captured": true,
+    "reset_link_path": "/auth/reset-password",
+    "token_present": true
+  },
+  "new_password": {
+    "cookie": {
+      "chunk_count": 1,
+      "http_only": true,
+      "jwe_segment_count": 5,
+      "name": "__Secure-next-auth.session-token",
+      "raw_jwt_segment_count": 3,
+      "same_site": "Lax",
+      "secure": true,
+      "tls_claimed": false,
+      "transport_scheme": "http"
+    },
+    "landed_dashboard": true,
+    "sdk_checks": {
+      "canonical_me_matches_final_db": true,
+      "canonical_me_matches_registered_scratch": true,
+      "canonical_me_matches_session": true,
+      "decoded_sdk_matches_canonical_me": true,
+      "decoded_sdk_matches_registered_scratch": true,
+      "encrypted_not_raw": true,
+      "http_only": true,
+      "legacy_auth_token_present": true,
+      "production_secure_name": true,
+      "same_backend_generation": true,
+      "secure_matches_cookie_name": true,
+      "session_matches_registered_scratch": true
+    }
+  },
+  "ok": true,
+  "old_password": {
+    "backend_refused": true,
+    "backend_status": 401,
+    "sdk_session_cookie_present": false,
+    "session_endpoint_user_absent": true,
+    "ui_refused": true
+  },
+  "owner": {
+    "backend_cwd": "/private/tmp/atom-web-task-project-20261109/backend",
+    "backend_listener_pid": 50559,
+    "frontend_cwd": "/private/tmp/atom-web-task-project-20261109/frontend-nextjs",
+    "frontend_listener_pid": 50576
+  },
+  "reset": {
+    "post_count": 1,
+    "redirected_to_signin": true,
+    "signed_out_page_public": true,
+    "token_consumed": true,
+    "ui_success_message": true,
+    "verify_token_post_count": 1
+  },
+  "screenshots": [
+    {
+      "bytes": 24768,
+      "name": "01-forgot-password.png",
+      "sha256": "62c70e122f9789ed276a89c6d2b5cd723fc88a897da2c7b3cf7f4442312122af"
+    },
+    {
+      "bytes": 25206,
+      "name": "02-reset-form.png",
+      "sha256": "2c67826a1bd49125fe286be5ed8b4f3da3401b5f56039f432d6a1918bf621355"
+    },
+    {
+      "bytes": 49555,
+      "name": "03-old-password-refused.png",
+      "sha256": "03494891cc87ecf58f3f11da2e997142d125fc26bdd91699bd70d4419955f51c"
+    },
+    {
+      "bytes": 135493,
+      "name": "04-new-password-dashboard.png",
+      "sha256": "8d91cf8cb1a6abd4deb2882dec11fda973ecf143691abfb1bf4c58aea5930874"
+    }
+  ],
+  "services": {
+    "backend": 50559,
+    "frontend": 50576
+  },
+  "signed_out_state": {
+    "cookies_after_app_load_names": [
+      "__Host-next-auth.csrf-token",
+      "__Secure-next-auth.callback-url"
+    ],
+    "harmless_state_only": true,
+    "local_storage_keys_after_app_load": [
+      "nextauth.message"
+    ],
+    "nextauth_session_user_absent": true,
+    "no_auth_token_cookie": true,
+    "no_sdk_session_cookie": true,
+    "session_storage_keys_after_app_load": []
+  },
+  "source": "f9ef079c2a2805dc1a92b91a94a9ff2a82bd9b1b",
+  "testing_disclosure": {
+    "import_phase": "TESTING=0 only while main_api_app imported so the explicit scratch DATABASE_URL is honored",
+    "mail": "private local file capture; no live SMTP",
+    "production_environment_or_tls_claimed": false,
+    "reason": "core.database TESTING=1 forces shared backend/test_integration.db",
+    "runtime": "TESTING=1 with fixed scratch DATABASE_URL and ATOM_DATA_DIR"
+  },
+  "user_identity_hashes": {
+    "canonical_me_id_sha256": "af792ef3800d97f383bbd28b8cc19935ee060ce7f6f4bc1e6789b49563c9ba3a",
+    "decoded_sdk_id_sha256": "af792ef3800d97f383bbd28b8cc19935ee060ce7f6f4bc1e6789b49563c9ba3a",
+    "final_db_id_sha256": "af792ef3800d97f383bbd28b8cc19935ee060ce7f6f4bc1e6789b49563c9ba3a",
+    "registered_scratch_id_sha256": "af792ef3800d97f383bbd28b8cc19935ee060ce7f6f4bc1e6789b49563c9ba3a",
+    "same_single_account": true,
+    "session_user_id_sha256": "af792ef3800d97f383bbd28b8cc19935ee060ce7f6f4bc1e6789b49563c9ba3a"
+  }
+}
