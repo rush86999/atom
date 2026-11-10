@@ -360,3 +360,84 @@ describe("Activity goal utility visibility", () => {
     await waitFor(() => expect(getGoalUtility).toHaveBeenCalledTimes(2));
     intervalSpy.mockRestore();
   });
+
+
+describe("Activity utility consistency", () => {
+  const target = { metric: "steps_executed", direction: "minimize",
+                   source: "goal_run" } as const;
+  const goal = { id: "goal-current", title: "Current objective",
+                 utility_target: target };
+  const body = {
+    goal_id: goal.id,
+    target,
+    ranking: [{ id: "run-current", utility: 2, rank: 1, eligible: true,
+                reason: "" }],
+    winner: "run-current",
+    eligible_count: 1,
+  };
+
+  beforeEach(() => {
+    listGoalRuns.mockReset().mockResolvedValue([
+      run({ id: "run-current", goal_id: goal.id, status: "achieved" }),
+    ]);
+    listGoals.mockReset().mockResolvedValue([goal]);
+    getGoalUtility.mockReset();
+    mockUseUserRole.mockReturnValue(member);
+  });
+
+  it("clears a fresh winner when the authoritative utility target is cleared", async () => {
+    getGoalUtility
+      .mockResolvedValueOnce(body)
+      .mockResolvedValueOnce({ ...body, target: null, ranking: [],
+                               winner: null, eligible_count: 0 });
+    render(<GoalRunsIndexPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("activity-utility-winner")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Hide finished/i }));
+    await waitFor(() => expect(getGoalUtility).toHaveBeenCalledTimes(2));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    expect(screen.queryByTestId("activity-utility-summary")).toBeNull();
+  });
+
+  it("an older slow Activity load cannot revive a target after a newer targetless load", async () => {
+    let resolveOldRuns: any;
+    let resolveOldGoals: any;
+    listGoalRuns.mockReset()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOldRuns = resolve; }))
+      .mockResolvedValueOnce([]);
+    listGoals.mockReset()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOldGoals = resolve; }))
+      .mockResolvedValueOnce([]);
+    getGoalUtility.mockResolvedValue(body);
+    render(<GoalRunsIndexPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Hide finished/i }));
+    await waitFor(() => expect(listGoalRuns).toHaveBeenCalledTimes(2));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => {
+      resolveOldRuns([run({ id: "run-current", goal_id: goal.id,
+                            status: "achieved" })]);
+      resolveOldGoals([goal]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    expect(screen.queryByTestId("activity-utility-summary")).toBeNull();
+  });
+
+  it("keeps last known utility but marks a metadata failure and suppresses the fresh winner", async () => {
+    getGoalUtility.mockResolvedValue(body);
+    render(<GoalRunsIndexPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("activity-utility-winner")).toBeTruthy());
+    listGoals.mockRejectedValueOnce(new Error("metadata unavailable"));
+    fireEvent.click(screen.getByRole("button", { name: /Hide finished/i }));
+    const warning = await waitFor(() =>
+      screen.getByTestId("activity-goal-metadata-error"));
+    expect(warning.textContent).toContain("metadata is unavailable");
+    expect(screen.queryByTestId("activity-utility-winner")).toBeNull();
+    // Last known ranked row is retained, not converted to a no-target state.
+    expect(screen.getByTestId("activity-utility-summary").textContent)
+      .toContain("run-current");
+  });
+});
