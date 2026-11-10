@@ -1,0 +1,53 @@
+{
+  "world": "/private/tmp/root-email-legacy-personal-independent-20261110-yh3ia04y",
+  "source_before": {
+    "backend/core/chat_draft_classifier.py": "409cede1ec7de78bef66b48a133d1ac5cd124bb6465ca3c4453bb8817b8408ed",
+    "backend/api/canvas_routes.py": "1fb9fdcd4a50265d15d390b4dc8eeb4550ba80513a63e8dc81daa18b6582198d",
+    "backend/core/canvas_coding_service.py": "2ee49128bf9a46c8418ca9f01051a643bf90da6b6ff3e2c819dd8a7c1b5ba612",
+    "backend/core/canvas_sheets_service.py": "c5061ce27128bcef3100c2ca4100eac1e05cab4c28d69e154ed524ed3534973c",
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_email_service.py": "682175983ee3a1b09438391dcd166b06003f6e94a313ddfee625ad5426ea3ace",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/core/canvas_authority.py": "bc90f12b2c16a097d0d0d893e492f30f27e40721f2b64d5205e294d9209bbebf",
+    "backend/tools/canvas_crud_tool.py": "00872970a74c2bb5529137e8d43d446f10eb424b4518d5368494ccf4a0884c99"
+  },
+  "capture_head": "f2789bef93394fda4cab28d7c270899a11c4986f",
+  "probe_sha256": "21ee93520ed1b22f1cc5f4bbe22e2aaff24c2fb2627c49d279c4ef3998a94aee",
+  "frozen_fixture_sha256": "dbb2cd14e025b038d5f2cd4b058c38bf348e16edbc2cbc55b3c352401d8da09a",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal11-office-browser-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-email-null-personal-independent-20261110.py",
+    "/private/tmp/root-email-projection-independent-20261110.py",
+    "/private/tmp/root-office-null-personal-independent-20261110.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 0,
+  "source_after": {
+    "backend/core/chat_draft_classifier.py": "409cede1ec7de78bef66b48a133d1ac5cd124bb6465ca3c4453bb8817b8408ed",
+    "backend/api/canvas_routes.py": "1fb9fdcd4a50265d15d390b4dc8eeb4550ba80513a63e8dc81daa18b6582198d",
+    "backend/core/canvas_coding_service.py": "2ee49128bf9a46c8418ca9f01051a643bf90da6b6ff3e2c819dd8a7c1b5ba612",
+    "backend/core/canvas_sheets_service.py": "c5061ce27128bcef3100c2ca4100eac1e05cab4c28d69e154ed524ed3534973c",
+    "backend/api/canvas_email_routes.py": "fef77d810a7296b075fb1125ce49508501e534492d8c3c01f75a943519153527",
+    "backend/core/canvas_email_service.py": "682175983ee3a1b09438391dcd166b06003f6e94a313ddfee625ad5426ea3ace",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/core/canvas_authority.py": "bc90f12b2c16a097d0d0d893e492f30f27e40721f2b64d5205e294d9209bbebf",
+    "backend/tools/canvas_crud_tool.py": "00872970a74c2bb5529137e8d43d446f10eb424b4518d5368494ccf4a0884c99"
+  },
+  "at": "2026-11-10T13:11:26.339702+00:00",
+  "same_source": true
+}

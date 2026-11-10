@@ -1,0 +1,15 @@
+{
+  "source": "346b9a6c5a230812ed8ab08ac814483e8cf9b1f9",
+  "pr_merge_commit": "0267d57233110cf03f8bdfeae89c86d9c917d387",
+  "root_log": "/private/tmp/root-pr831-frontend-failure-20261110.log",
+  "root_log_sha256": "029fc02cbfa1736e8ac29ff1a253d3ac8aa7739e785f6ad22e37fcc6a56c8a87",
+  "result": "2 failed / 135 passed / 137 total",
+  "failed_cases": [
+    "TrainingPanel \u203a an unconfirmed promotion shows the next action without a graduation notice",
+    "Qualification assessment UI \u203a request uses only the selected task/output bundle"
+  ],
+  "failure_identity": {
+    "unconfirmed_promotion": "Unable to find /Promotion could not be confirmed/ after clicking before readiness settled",
+    "selected_bundle": "Unable to find checkbox because picker rendered before evidence bundles settled"
+  }
+}

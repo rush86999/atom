@@ -1,0 +1,14 @@
+Base commit: 013209bfab6d4d48e1b377e5781ad1be33f12b94
+Old function from git show 013209bfa:backend/core/chat_draft_classifier.py
+
+Input: {"type": "doc", "content": "doc body"}
+Old output: {'type': 'doc', 'content': 'doc body', 'to': '', 'cc': '', 'subject': '', 'body': 'doc body'}
+Stale test asserted only {to, cc, subject, body} -> pre-existing failure, not introduced by this fix.
+
+Input: EmailCanvasService create details (no content key)
+Old output: {'canvas_type': 'email', 'subject': 'Quote follow-up', 'draft': {'to_emails': ['mark@example.com'], 'subject': 'Quote follow-up', 'body': 'Hi Mark,'}, 'messages': [], 'to': 'mark@example.com', 'cc': '', 'body': 'Hi Mark,'}
+Stale test asserted only {to, cc, subject, body} -> pre-existing failure, not introduced by this fix.
+
+Conclusion: the base implementation already preserved **content; the two exact-dict tests
+encoded an older 4-key projection. This slice aligns the tests with the actual/provenance-
+preserving contract and documents the compatibility change honestly.

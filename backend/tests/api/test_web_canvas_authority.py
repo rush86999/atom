@@ -441,17 +441,21 @@ def test_direct_service_calls_cannot_bypass_route_authority(env):
     assert _snapshot(env.db, code_id, "coding") == before_code
 
 
-def test_missing_and_no_tenant_actor_refused_before_effect(env):
+def test_missing_actor_refused_but_null_default_is_valid_personal(env):
     before = _snapshot(env.db, "missing-canvas", "sheets")
     sheets = SpreadsheetCanvasService(env.db)
     missing = sheets.create_spreadsheet_canvas("does-not-exist", "Missing", {})
     assert missing.get("success") is False
     assert missing.get("http_status") == 403
-    no_tenant = sheets.create_spreadsheet_canvas(env.users["no_tenant"].id, "No Tenant", {})
-    assert no_tenant.get("success") is False
-    assert no_tenant.get("http_status") == 403
+    # Bootstrap NULL tenant is the documented Personal fallback; the default
+    # Tenant row exists, so this is a valid actor, not "no authority".
+    no_tenant = sheets.create_spreadsheet_canvas(
+        env.users["no_tenant"].id, "No Tenant", {})
+    assert no_tenant.get("success") is True
     route = _create_sheet(env.client, env.headers("no_tenant"), title="No Tenant")
-    assert route.status_code == 403, route.text
+    assert route.status_code == 200, route.text
+    snap = _snapshot(env.db, no_tenant["canvas_id"], "sheets")
+    assert snap["latest_tenant"] == "default"
     assert _snapshot(env.db, "missing-canvas", "sheets") == before
 
 

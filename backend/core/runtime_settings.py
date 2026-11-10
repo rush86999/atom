@@ -34,6 +34,8 @@ class ResolvedSetting:
 
     value: Any
     source: str  # "env" | "db" | "default" | "unknown"
+    #: Exact RuntimeSetting row version for a DB-sourced policy snapshot.
+    row_updated_at: Optional[Any] = None
 
 
 class StrictSettingError(ValueError):
@@ -168,13 +170,19 @@ def resolve_setting(key_name: str, db: Any = None) -> ResolvedSetting:
     return ResolvedSetting(value=spec.default, source="default")
 
 
-def resolve_setting_strict(key_name: str, db: Any = None) -> ResolvedSetting:
+def resolve_setting_strict(
+    key_name: str, db: Any = None, *, fresh: bool = False,
+) -> ResolvedSetting:
     """Resolve one setting without softening bad values.
 
     Used by fail-closed policy consumers. A present-but-invalid env value,
     a present-but-invalid DB row, or an unreadable DB raises
     ``StrictSettingError`` instead of falling through to a permissive
     default. Absence of the setting still returns the catalog default.
+
+    ``fresh=True`` reads the DB row in a NEW session with
+    ``populate_existing`` so a retained ORM RuntimeSetting in the caller's
+    identity map cannot supply a stale policy snapshot.
     """
     spec = find_spec(key_name)
     if spec is None:
@@ -189,24 +197,51 @@ def resolve_setting_strict(key_name: str, db: Any = None) -> ResolvedSetting:
             raise StrictSettingError(
                 f"{key_name} has an invalid environment value: {exc}") from exc
 
+    session = None
     try:
         from core.models import RuntimeSetting
 
         if db is not None:
-            row = db.get(RuntimeSetting, key_name)
+            if fresh:
+                from sqlalchemy.orm import sessionmaker
+
+                session = sessionmaker(bind=db.get_bind())()
+                row = (
+                    session.query(RuntimeSetting)
+                    .filter(RuntimeSetting.key == key_name)
+                    .populate_existing()
+                    .first()
+                )
+            else:
+                row = db.get(RuntimeSetting, key_name)
         else:
             from core.database import get_db_session
 
             with get_db_session() as session:
-                row = session.get(RuntimeSetting, key_name)
+                row = (
+                    session.query(RuntimeSetting)
+                    .filter(RuntimeSetting.key == key_name)
+                    .populate_existing()
+                    .first()
+                )
         raw = row.value_json if row is not None else None
+        row_updated_at = getattr(row, "updated_at", None) if row is not None else None
     except Exception as exc:
         raise StrictSettingError(
             f"{key_name} is unreadable: {exc}") from exc
+    finally:
+        if session is not None:
+            session.close()
 
-    if raw is not None:
+    if row is not None:
+        if raw is None:
+            raise StrictSettingError(
+                f"{key_name} row is present but value_json is null; "
+                "a present strict policy is invalid, not absent")
         try:
-            return ResolvedSetting(value=_coerce(raw, spec.type), source="db")
+            return ResolvedSetting(
+                value=_coerce(raw, spec.type), source="db",
+                row_updated_at=row_updated_at)
         except Exception as exc:
             raise StrictSettingError(
                 f"{key_name} has an invalid stored value: {exc}") from exc

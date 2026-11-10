@@ -141,27 +141,33 @@ def test_other_user_cannot_mutate_imported_email_canvas(db, canvas, tmp_path, mo
         from_email="attacker@example.com", to_emails=["victim@example.com"],
         subject="takeover", body="should not land",
     )["success"] is False
-    assert service.save_draft(
-        canvas_id=canvas.id, user_id="user-2",
-        to_emails=["attacker@example.com"], subject="takeover", body="nope",
-    )["success"] is False
+    with pytest.raises(RuntimeError, match="retired"):
+        service.save_draft(
+            canvas_id=canvas.id, user_id="user-2",
+            to_emails=["attacker@example.com"], subject="takeover",
+            body="nope",
+        )
     fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first()
     assert fresh.content["subject"].startswith("Re: Q3 invoice request")
 
 
-def test_save_draft_updates_public_canvas_content(db, canvas, tmp_path, monkeypatch):
+def test_save_draft_is_retired_and_cannot_mutate_public_content(
+    db, canvas, tmp_path, monkeypatch,
+):
     monkeypatch.setenv("ATOM_EMAIL_ATTACHMENT_DIR", str(tmp_path / "attachments"))
     service = EmailCanvasService(db)
     service.import_eml(
         canvas_id=canvas.id, user_id="user-1", content=_eml(),
         filename="q3-invoice.eml",
     )
-    result = service.save_draft(
-        canvas_id=canvas.id, user_id="user-1",
-        to_emails=["dana@example.com"], cc_emails=[],
-        subject="Re: Q3 invoice request", body="Draft body persisted.",
-    )
-    assert result["success"] is True
-    fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first()
-    assert fresh.content["body"] == "Draft body persisted."
-    assert fresh.content["source_message_id"] == "<q3-invoice@example.com>"
+    before = dict(
+        db.query(Canvas).filter(Canvas.id == canvas.id).one().content or {})
+    with pytest.raises(RuntimeError, match="retired"):
+        service.save_draft(
+            canvas_id=canvas.id, user_id="user-1",
+            to_emails=["dana@example.com"], cc_emails=[],
+            subject="Re: Q3 invoice request", body="Draft body persisted.",
+        )
+    after = dict(
+        db.query(Canvas).filter(Canvas.id == canvas.id).one().content or {})
+    assert after == before

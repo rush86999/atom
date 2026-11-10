@@ -1,0 +1,36 @@
+{
+  "product_head": "6da3374abd2fdd2d88df5cfae1635f4d495301d8",
+  "capture_head": "6da3374abd2fdd2d88df5cfae1635f4d495301d8",
+  "frontend_parity_vs_6da": {
+    "changed_files": [],
+    "count": 0,
+    "prior_ui_packet": "docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/"
+  },
+  "product_diff_vs_6da": {
+    "changed_backend_or_frontend_files": [],
+    "count": 0
+  },
+  "source_files": {
+    "scripts/acceptance/browser_graduation_qualification_ui.py": "c5b1536f663513df9f0767d662431e2a4f2e8b40647ec1ea45d820f39cdc64cf",
+    "frontend-nextjs/components/canvas/TrainingPanel.tsx": "f72b9aac6160a112c5ece154f2eecc81b146e9d462f919c6f0173dcbb8260869",
+    "frontend-nextjs/components/Agents/AgentMaturityGuide.tsx": "a837e203f2ce6dba9ab7bc59905bb9644bdc51560174d9c901070796ffe09f6f",
+    "frontend-nextjs/pages/approvals.tsx": "a6e20172d8af91495ec1ce91eddc6d581cdf34bdbd76233ceee748e9ad353a1d",
+    "frontend-nextjs/pages/agents/index.tsx": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+    "frontend-nextjs/lib/maturity-api.ts": "c3de570835e6e925ff2360bcad2a1bb09042a13771f5001853e09fd67e88732d",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/self_directed_progress.py": "0b37a891917c4e24a366f194528d47801662ca51e6482ce78a334959f385bfe2",
+    "backend/api/agent_maturity_routes.py": "317340816de0e1f9402279aecc69f6237c9811bc338db1f843bbcab3592b9c91",
+    "backend/core/product_profile.py": "e441aa5957f3be845119b94c7ffc281a8379fe00bf81243a3427eebac4a8c5cb"
+  },
+  "continuation_driver": {
+    "path": "continuation-driver.py",
+    "sha256": "66389173e7bee028dca094cd6bb067e36b0261f2044be2c246b03a64d97eeddb"
+  },
+  "release_profile": {
+    "agents": "enabled",
+    "canvas": "enabled",
+    "approvals": "enabled; nav=false; min_role=team_lead",
+    "deferred_surfaces_force_enabled": false
+  }
+}

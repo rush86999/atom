@@ -1,0 +1,41 @@
+{
+  "atomic_wip": "separate branch codex/goal9-atomic-cap-20261110 @ bc8d7c10a",
+  "base_commit": "c3c540f720f7497e8443a6d30299c3525e2ed8d9",
+  "branch": "codex/goal9-ci-repair-c3-20261110",
+  "date": "2026-11-10",
+  "evidence_files": {
+    "README.md": "130d83ad7b7a7ca75dc4159e21da829122558bd2df1ed9e97e4f19e82bba4dad",
+    "gates/bounded.log": "8c15cd8791674db3a6f5e51b34abe3a1cf340cf1a753a41d327826c3bfb2306a",
+    "gates/durable.log": "776ec862bb71902dba0559b94af2909c436f0266d8d988af830c715d5a387b0c",
+    "gates/focused.log": "47f9324a620219d22b8120aa3e36a49c613befc5edee74cb3927aa547506f014",
+    "gates/stream.log": "39c2ffaf68926089076f8e960139661b09e26ff8d7b648ca571067e978ee1856",
+    "retained_negative/c3-backend-core-failures.excerpt.log": "058dab40a4179349c61de65c06371c63c2425ac6e6a6714d9fde3c16153dc53f",
+    "retained_negative/c3-private-log-identity.json": "608c4e9f2b5f8c4688eeaf88f2d3f5e4af4ca948d825ac75d4cbe53dfc71dc55",
+    "source/fix.diff": "6c38d2b46e7c2fa1a27d9525704ff5e9d1991acf2f22e0fbc731e8024256aaff",
+    "source/source-hashes.json": "2489a0ab7b24b2e829584c41ccf102b022f9175b93cc644f1926576a52291ef8"
+  },
+  "gates": {
+    "bounded_ci_subset": "225 passed",
+    "durable_regression": "29 passed",
+    "exact_failing_classes": "15 passed",
+    "focused": "59 passed",
+    "live_provider_db": false,
+    "new_contract": "3 passed",
+    "scratch": "SQLite only",
+    "stream": "132 passed"
+  },
+  "kind": "goal9_ci_repair_c3",
+  "product_changes": [
+    "generate_response accepts optional execution_id and uses it in intent/settlement/error paths",
+    "stream_completion mints per-call server-owned identity when learning-router decision id is None",
+    "ordinary and chat intent failures break instead of hidden provider fallback"
+  ],
+  "root_private_log_sha256": "f3d2e7652f475d89afdeaf2598c5fe6dcb63cfcfeed6fbf65a29c66954332a01",
+  "root_review_required": true,
+  "runtime_findings": {
+    "ci_failures": 13,
+    "classification": "consumer contract NameError before dispatch",
+    "nameerror_intent_lines": 17
+  },
+  "status": "tested_candidate_ready_for_root_review"
+}

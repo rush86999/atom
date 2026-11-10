@@ -547,6 +547,23 @@ class TestManualPromotion:
         db.refresh = mock_refresh
         return db
 
+    def test_manual_promotion_without_qualification_never_dispatches(self, mock_db):
+        agent = Mock(id="agent-001", status=AgentStatus.INTERN.value,
+                     tenant_id="tenant-001", promotion_count=0)
+        mock_db.query.return_value.filter.return_value.first.return_value = agent
+        with patch('core.agent_graduation_service.evaluate_qualification_gate',
+                   return_value={'allowed': False, 'state': 'assessment_missing'}), \
+                patch('core.agent_graduation_service.commit_qualified_transition') as writer:
+            result = GraduationExamService(mock_db).promote_agent_manually(
+                agent_id="agent-001", tenant_id="tenant-001",
+                new_level=AgentStatus.SUPERVISED.value, promoted_by="admin-user",
+                justification="Authority alone does not qualify a capability")
+        assert not result.success
+        assert "assessment_missing" in result.message
+        writer.assert_not_called()
+        mock_db.commit.assert_not_called()
+        mock_db.add.assert_not_called()
+
     def test_manual_promotion_success(self, mock_db):
         """GraduationExamService performs manual promotion successfully."""
         mock_agent = Mock(
@@ -561,7 +578,11 @@ class TestManualPromotion:
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        with patch('core.graduation_exam.EpisodeService') as mock_episode_service:
+        with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
+                patch('core.agent_graduation_service.evaluate_qualification_gate',
+                      return_value={'allowed': True, 'state': 'valid'}) as gate, \
+                patch('core.agent_graduation_service.commit_qualified_transition',
+                      return_value={'status': 'verified'}) as transition:
             # Mock readiness calculation for audit trail
             mock_readiness = Mock(
                 readiness_score=0.85
@@ -582,7 +603,13 @@ class TestManualPromotion:
 
             assert result.agent_id == "agent-001"
             assert result.to_level == AgentStatus.SUPERVISED.value
-            mock_db.commit.assert_called()
+            assert result.success
+            gate.assert_called_once_with(mock_db, mock_agent, AgentStatus.SUPERVISED.value, manual=True)
+            assert transition.call_args.args == (mock_db,)
+            assert transition.call_args.kwargs["agent_id"] == "agent-001"
+            assert transition.call_args.kwargs["target_level"] == "SUPERVISED"
+            assert transition.call_args.kwargs["actor_id"] == "admin-user"
+            mock_db.commit.assert_not_called()
 
     def test_manual_promotion_creates_history(self, mock_db):
         """GraduationExamService creates promotion history record."""
@@ -598,7 +625,11 @@ class TestManualPromotion:
         mock_query.filter.return_value.first.return_value = mock_agent
         mock_db.query.return_value = mock_query
 
-        with patch('core.graduation_exam.EpisodeService') as mock_episode_service:
+        with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
+                patch('core.agent_graduation_service.evaluate_qualification_gate',
+                      return_value={'allowed': True, 'state': 'valid'}) as gate, \
+                patch('core.agent_graduation_service.commit_qualified_transition',
+                      return_value={'status': 'verified'}) as transition:
             # Mock readiness calculation for audit trail
             mock_readiness = Mock(
                 readiness_score=0.90
@@ -617,8 +648,13 @@ class TestManualPromotion:
                 justification="Testing manual promotion with history"
             )
 
-            # Should create PromotionHistory record
-            assert mock_db.add.called
+            # History belongs to the shared qualified writer, not this adapter.
+            assert result.success
+            assert transition.call_args.args == (mock_db,)
+            assert transition.call_args.kwargs["agent_id"] == "agent-002"
+            assert transition.call_args.kwargs["target_level"] == "AUTONOMOUS"
+            assert transition.call_args.kwargs["promotion_type"] == "manual"
+            mock_db.add.assert_not_called()
 
     def test_manual_demotion(self, mock_db):
         """GraduationExamService performs manual demotion."""

@@ -1,0 +1,44 @@
+{
+  "baseline_browser_negative": {
+    "commit": "a8e9e52f891e93a7ab118d8f9006741bd1acc118",
+    "packet": "docs/acceptance/evidence/goal11_office_ordinary_browser_episode_96dd3afaf/"
+  },
+  "branch": "codex/office-personal-scope-repair-20261110",
+  "evidence_files": {
+    "README.md": "976a7de7b3b192a65bea42db4adf7b98211689e382e74b53dfa822179b92a18a",
+    "gates/affected_120.proof": "4e8610c242d6e09da4c9b299704a5adee960ab35479a49c6d7c1e90d8d560430",
+    "gates/root_null_personal_successor_3.proof": "421254f65986c3de46777bfca910d0106fb49790930f566a51ffd005333f8933",
+    "root_proof/predecessor_controls.proof": "896b5fa01a6f52d7f6e03a645e7364084cd0ffb678d873d26c7f099935ed2d66",
+    "root_proof/predecessor_review.sanitized.json": "45cc7b49bdb8dc0c68b8de8080eb7e4cefd33be3b703ef3b1eb5b36b4d115898",
+    "root_proof/probe.py": "7732be1b2008d9c44f3d6ab29125026885cf922959b64153f21921411c20f25b"
+  },
+  "gates": {
+    "affected_callers": "120 passed",
+    "root_independent_predecessor": "3 passed in 5.89s exit0 same_source",
+    "root_probe_successor": "3 passed in 5.13s"
+  },
+  "kind": "office_personal_scope_effective_key_successor",
+  "non_changes": [
+    "raw actor snapshot/claim",
+    "canvas_lifecycle_scope_error",
+    "opaque/foreign scope policy"
+  ],
+  "non_claims": [
+    "No browser rerun",
+    "No PR/merge/CI/goal-index",
+    "No provider/model/send/live DB"
+  ],
+  "predecessor_commit": "def47a93d39afa04286f875e5a5003744c944de6",
+  "predecessor_packet": "docs/acceptance/evidence/office_personal_scope_repair_def47a93d/",
+  "source_base": "96dd3afaf6a519848c04265db7249454020d7e85",
+  "source_hashes": {
+    "backend/api/canvas_routes.py": "1fb9fdcd4a50265d15d390b4dc8eeb4550ba80513a63e8dc81daa18b6582198d",
+    "backend/core/canvas_authority.py": "bc90f12b2c16a097d0d0d893e492f30f27e40721f2b64d5205e294d9209bbebf",
+    "backend/core/canvas_coding_service.py": "2ee49128bf9a46c8418ca9f01051a643bf90da6b6ff3e2c819dd8a7c1b5ba612",
+    "backend/core/canvas_sheets_service.py": "c5061ce27128bcef3100c2ca4100eac1e05cab4c28d69e154ed524ed3534973c",
+    "backend/tests/test_covpush_w105_gaps_b.py": "c19d18b02446716296d100fb4e71384c52f67a87a561428d4ab74e1394cfd789",
+    "backend/tests/test_personal_scope_authority.py": "a0d14311c6748f1e6b154ea25e2de7bf4a0878180603b0cdc3b49a7090fa4ccd"
+  },
+  "status": "narrow_successor_awaiting_root_review",
+  "successor_commit": "7319a287c43e96cd149a9b49e20f530fef9ce627"
+}

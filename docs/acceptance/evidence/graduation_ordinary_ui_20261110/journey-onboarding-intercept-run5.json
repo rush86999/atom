@@ -1,0 +1,142 @@
+{
+  "status": "FAIL",
+  "world": "grad_ordinary_ui_6da_1794315072_506accd5c6",
+  "nonce": "506accd5c6",
+  "ports": {
+    "backend": 8065,
+    "frontend": 3001
+  },
+  "source_head": "6da3374abd2fdd2d88df5cfae1635f4d495301d8",
+  "storage_preflight": "world storage preflight OK\n  ok       no maintenance lock\n  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds",
+  "runners_before": [
+    {
+      "argv": [
+        "/private/tmp/atom-web-graduation-qualification-join-20261110/scripts/acceptance/browser_graduation_qualification_ui.py",
+        "--out",
+        "/private/tmp/atom-graduation-ordinary-ui-1794315072",
+        "--backend-port",
+        "8065",
+        "--frontend-port",
+        "3001"
+      ],
+      "cwd": "/private/tmp/atom-web-graduation-qualification-join-20261110/backend",
+      "pid": 38301,
+      "ppid": 38300,
+      "registered_at": 1794315072.5257988,
+      "registered_at_iso": "2026-11-10T07:51:12-0500",
+      "role": "launcher"
+    }
+  ],
+  "runners_after": [
+    {
+      "argv": [
+        "/private/tmp/atom-web-graduation-qualification-join-20261110/scripts/acceptance/browser_graduation_qualification_ui.py",
+        "--out",
+        "/private/tmp/atom-graduation-ordinary-ui-1794315072",
+        "--backend-port",
+        "8065",
+        "--frontend-port",
+        "3001"
+      ],
+      "cwd": "/private/tmp/atom-web-graduation-qualification-join-20261110/backend",
+      "pid": 38301,
+      "ppid": 38300,
+      "registered_at": 1794315072.5257988,
+      "registered_at_iso": "2026-11-10T07:51:12-0500",
+      "role": "launcher"
+    }
+  ],
+  "seeded": {
+    "execution_ids": [
+      "506accd5c6-exec-00",
+      "506accd5c6-exec-01",
+      "506accd5c6-exec-02",
+      "506accd5c6-exec-03",
+      "506accd5c6-exec-04",
+      "506accd5c6-exec-05",
+      "506accd5c6-exec-06",
+      "506accd5c6-exec-07",
+      "506accd5c6-exec-08",
+      "506accd5c6-exec-09"
+    ],
+    "episode_ids": [
+      "506accd5c6-ep-00",
+      "506accd5c6-ep-01",
+      "506accd5c6-ep-02",
+      "506accd5c6-ep-03",
+      "506accd5c6-ep-04",
+      "506accd5c6-ep-05",
+      "506accd5c6-ep-06",
+      "506accd5c6-ep-07",
+      "506accd5c6-ep-08",
+      "506accd5c6-ep-09"
+    ],
+    "artifact_id": "506accd5c6-artifact-1",
+    "segment_id": "506accd5c6-segment-1",
+    "note": "controlled fixture preconditions only; not model competence"
+  },
+  "ui": {
+    "login": {
+      "ok": true,
+      "landed_path": "/dashboard",
+      "token_present": true
+    },
+    "onboarding_seen": false,
+    "onboarding_completed": true,
+    "maturity_guide_button": {
+      "present": true,
+      "disabled_without_run": true,
+      "note": "AgentMaturityGuide needs an active run; no model run was made"
+    }
+  },
+  "api": {
+    "initial_readiness": {
+      "status": 200,
+      "ready": true,
+      "score": 89.9,
+      "gaps": [],
+      "assessment": {
+        "required": true,
+        "policy_revision": "1",
+        "policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+        "policy_source": "default",
+        "policy_row_updated_at": null,
+        "candidate_capability_qualified": false,
+        "allowed": false,
+        "state": "unresolved_missing",
+        "message": "No scoped capability qualification receipt is recorded.",
+        "review_action_id": null,
+        "next_action": {
+          "state": "unresolved_missing",
+          "code": "unresolved_missing",
+          "message": "No scoped capability qualification receipt is recorded.",
+          "next_action": "Request a human qualification review for this exact agent, tier and evidence scope."
+        }
+      },
+      "assessment_evidence_count": 10
+    }
+  },
+  "db": {},
+  "requests": [],
+  "screenshots": [
+    "agents-page.png"
+  ],
+  "errors": [
+    "TimeoutError: Locator.click: Timeout 120000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"agent-teach-button-af4a35a2-98ae-4334-8e41-4f43347453c4\\\"]\")\n    - locator resolved to <button title=\"Teach this employee\" data-testid=\"agent-teach-button-af4a35a2-98ae-4334-8e41-4f43347453c4\" class=\"inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-10 w-10\">\u2026</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  2 \u00d7 retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  15 \u00d7 retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n  - element was detached from the DOM, retrying\n    - waiting for\" http://127.0.0.1:3001/agents\" navigation to finish...\n    - navigated to \"http://127.0.0.1:3001/agents\"\n    - locator resolved to <button title=\"Teach this employee\" data-testid=\"agent-teach-button-af4a35a2-98ae-4334-8e41-4f43347453c4\" class=\"inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-10 w-10\">\u2026</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  2 \u00d7 retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  15 \u00d7 retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n  - element was detached from the DOM, retrying\n    - locator resolved to <button title=\"Teach this employee\" data-testid=\"agent-teach-button-af4a35a2-98ae-4334-8e41-4f43347453c4\" class=\"inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-10 w-10\">\u2026</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  2 \u00d7 retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  5 \u00d7 retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div aria-hidden=\"true\" class=\"fixed inset-0 bg-black/50\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"flex flex-col items-center text-center space-y-4\">\u2026</div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block\"></div> from <div class=\"fixed inset-0 z-50 flex items-center justify-center p-4\">\u2026</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n"
+  ],
+  "world_preflight": {
+    "source_revision": "6da3374abd2fdd2d88df5cfae1635f4d495301d8",
+    "code_archive_sha256": null,
+    "code_snapshot_sha256": "86ff63fda943c572b35208377076ada28082075aeca2f8cf00c6dd617e131078",
+    "db_sha256": "65fd9e422f40184e9b045c5cd040a67bb5d828bc67d25c9894256cf7469c3f14",
+    "credentials_scrubbed": true,
+    "venv_verified": true,
+    "fixtures_verified": true,
+    "harness_version": "enforced-isolation-v3.2"
+  },
+  "run_dir": "/private/tmp/atom-web-graduation-qualification-join-20261110/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315072_506accd5c6/runs/run-31f18ff73a09",
+  "db_path": "/private/tmp/atom-web-graduation-qualification-join-20261110/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315072_506accd5c6/runs/run-31f18ff73a09/data/atom.db",
+  "admin_id": "3d82f12c-65f0-44f0-8121-f3dcf73e418a",
+  "agent_id": "af4a35a2-98ae-4334-8e41-4f43347453c4",
+  "agent_name": "Graduation UI Candidate 506accd5c6"
+}

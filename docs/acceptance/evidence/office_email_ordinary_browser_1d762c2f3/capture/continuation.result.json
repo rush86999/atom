@@ -1,0 +1,323 @@
+{
+  "admin_fixture_reset": true,
+  "canvas_id": "9bdfe77a-c44b-44e6-8bee-8210388a9573",
+  "checks": {
+    "browser_api_equal": true,
+    "continuation_complete": true,
+    "current_audit": "cf0fd722-49b4-42b0-a06a-d8e89d7f328b"
+  },
+  "expected_audit": "cf0fd722-49b4-42b0-a06a-d8e89d7f328b",
+  "requests": [
+    {
+      "content_length": "36875",
+      "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "disposition": "attachment; filename=\"canvas-Office-Export-DOCX-cf0fd722.docx\"",
+      "etag": "\"sha256:54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038\"",
+      "status": 200,
+      "url": "http://localhost:8037/api/canvas/9bdfe77a-c44b-44e6-8bee-8210388a9573/export/office?format=docx&expected_audit_id=cf0fd722-49b4-42b0-a06a-d8e89d7f328b"
+    }
+  ],
+  "run": "run-b25cb62b465c",
+  "schema": "office-ordinary-browser-continuation-1",
+  "source_head": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
+  "steps": [
+    {
+      "checks": {
+        "admin_raw_null": true,
+        "audit_present": true,
+        "canvas_present": true,
+        "new_in_current": true,
+        "old_absent": true
+      },
+      "details": {
+        "admin": [
+          "92aa7748-9f79-4ad0-bd1d-88e579ae0cb1",
+          "admin@example.com",
+          "active",
+          1,
+          "NULL",
+          "NULL"
+        ],
+        "audit": [
+          "cf0fd722-49b4-42b0-a06a-d8e89d7f328b",
+          "9bdfe77a-c44b-44e6-8bee-8210388a9573",
+          "default",
+          "update"
+        ],
+        "canvas": [
+          "9bdfe77a-c44b-44e6-8bee-8210388a9573",
+          "default",
+          "default",
+          "\"# Office Export\\n\\nUpdated body NEW-4242.\\n\\n- One\\n- Two\\n\\n| A | B |\\n|---|---|\\n| 9 | 8 |\\n\""
+        ]
+      },
+      "name": "retained_readback_before_restart",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "db_path_same": true,
+        "same_run_dir": true
+      },
+      "details": {
+        "descriptor_db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/office_ordinary_browser_1d762c2f3d_1794309563/runs/run-b25cb62b465c/data/atom.db",
+        "run_dir": "/private/tmp/atom-goal11-office-browser-20261110/backend/data/acceptance_worlds/office_ordinary_browser_1d762c2f3d_1794309563/runs/run-b25cb62b465c"
+      },
+      "name": "same_run_resumed",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "ok": true
+      },
+      "details": {
+        "health": {
+          "database": "operational",
+          "deployed_sha": "unknown",
+          "identity": {
+            "backend_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/office_ordinary_browser_1d762c2f3d_1794309563/backend_root",
+            "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/office_ordinary_browser_1d762c2f3d_1794309563/backend_root/data/byok_keys.json",
+            "captured_at": "2026-11-10T12:02:14.688499+00:00",
+            "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/office_ordinary_browser_1d762c2f3d_1794309563/backend_root",
+            "database": "/private/tmp/atom-goal11-office-browser-20261110/backend/data/acceptance_worlds/office_ordinary_browser_1d762c2f3d_1794309563/runs/run-b25cb62b465c/data/atom.db",
+            "dirty": true,
+            "dirty_digest": "d48cacd2123b",
+            "dirty_paths": [
+              "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/summary.json",
+              "frontend-nextjs/.preview-instance/299-08-execution-summary.md",
+              "frontend-nextjs/.preview-instance/299-11-PROGRESS.md",
+              "frontend-nextjs/.preview-instance/ACCESSIBILITY.md",
+              "frontend-nextjs/.preview-instance/DEPLOYMENT.md",
+              "frontend-nextjs/.preview-instance/Dockerfile",
+              "frontend-nextjs/.preview-instance/Dockerfile.production",
+              "frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md",
+              "frontend-nextjs/.preview-instance/LIGHTHOUSE.md",
+              "frontend-nextjs/.preview-instance/PERCY.md",
+              "frontend-nextjs/.preview-instance/README.md",
+              "frontend-nextjs/.preview-instance/README_TEAM_CHAT.md",
+              "frontend-nextjs/.preview-instance/a11y-test-results.json",
+              "frontend-nextjs/.preview-instance/advanced-management.js",
+              "frontend-nextjs/.preview-instance/analyze_coverage.js",
+              "frontend-nextjs/.preview-instance/components",
+              "frontend-nextjs/.preview-instance/components.json",
+              "frontend-nextjs/.preview-instance/config",
+              "frontend-nextjs/.preview-instance/contexts",
+              "frontend-nextjs/.preview-instance/coverage",
+              "frontend-nextjs/.preview-instance/coverage-reports",
+              "frontend-nextjs/.preview-instance/data",
+              "frontend-nextjs/.preview-instance/docs",
+              "frontend-nextjs/.preview-instance/e2e",
+              "frontend-nextjs/.preview-instance/element-not-found-patterns.md",
+              "frontend-nextjs/.preview-instance/enterprise-dashboard.js",
+              "frontend-nextjs/.preview-instance/eslint.config.mjs",
+              "frontend-nextjs/.preview-instance/final-implementation.js",
+              "frontend-nextjs/.preview-instance/find-uncovered-files.js",
+              "frontend-nextjs/.preview-instance/fix-eslint-errors.js",
+              "frontend-nextjs/.preview-instance/fix-parsing-errors.js",
+              "frontend-nextjs/.preview-instance/hooks",
+              "frontend-nextjs/.preview-instance/jest.config.js",
+              "frontend-nextjs/.preview-instance/jest.setup.js",
+              "frontend-nextjs/.preview-instance/k8s",
+              "frontend-nextjs/.preview-instance/layouts",
+              "frontend-nextjs/.preview-instance/lib",
+              "frontend-nextjs/.preview-instance/lighthouserc.json",
+              "frontend-nextjs/.preview-instance/middleware.ts",
+              "frontend-nextjs/.preview-instance/next-env.d.ts"
+            ],
+            "error": null,
+            "git_commit": "ec69e24f4385",
+            "instance_id": "ec69e24f4385-dirty.d48cacd2123b.23038.1794312134",
+            "pid": 23038,
+            "port": null,
+            "process_started_at": "2026-11-10T12:02:14.688498+00:00",
+            "repo_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/office_ordinary_browser_1d762c2f3d_1794309563",
+            "revision": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+            "source_id": "ec69e24f4385-dirty.d48cacd2123b",
+            "started_at": "2026-11-10T12:02:11.976382+00:00",
+            "untracked_paths": [
+              "backend/replay_subject_admission.py",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_221948/deployment_smoke_20261017_221948.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_222902/deployment_smoke_20261017_222902.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/deployment_smoke_20261017_223251.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_after_click.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_ready_before_click.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_saved_edit.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_sourced_answer.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/deployment_smoke_20261017_223554.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_after_click.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_ready_before_click.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_saved_edit.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_sourced_answer.png",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j2_live_20261013_e8b01dcec.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j4_r16_20261013_164740_e5bc38.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j5_r16_20261013_165009_e69d41.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/summary.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/driver_j45_r17.py",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j4_r17_20261014_065311_3ccbf8.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j5_r17_20261014_065402_02a9bb.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/summary.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_config.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_encryption_key",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_keys.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_config.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_encryption_key",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_keys.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105549/j4_evidence.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105935/j5_evidence.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_110533/j5_evidence.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_20261014_204321.json",
+              "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_benchmark.py",
+              "backend/tests/test_direct_read_settlement_facts.py",
+              "backend/tests/test_probe_exec_row_tmp.py",
+              "backend/tests/test_t1_investigate_end_to_end.py",
+              "backend/tests/test_unmet_obligation_replay.py",
+              "docs/architecture/orchestration_migration/BRENNAN_FIRST_PRODUCT_COMPLETION_PLAN_2026_10_06.md",
+              "docs/architecture/orchestration_migration/DOMAIN_INDEPENDENT_JOB_COMPLETION_AGENT_GUIDE_2026_10_07.md",
+              "docs/architecture/orchestration_migration/INTENT_AND_FRESH_INSTALL_COMPLETION_GUIDE_2026_10_08.md",
+              "docs/architecture/orchestration_migration/RESEARCH_TO_DRAFT_COMPLETION_REPAIR_GUIDE_2026_10_08.md"
+            ]
+          },
+          "memory_mb": 669.03,
+          "redis": "operational",
+          "services": {
+            "database": "operational",
+            "redis": "operational",
+            "vector_store": "operational"
+          },
+          "status": "healthy",
+          "timestamp": "2026-11-10T12:02:14.927478+00:00",
+          "vector_store": "operational",
+          "version": "8.0.0"
+        }
+      },
+      "name": "backend_health_resume",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "email": true,
+        "password_source_present": true,
+        "status": true,
+        "token": true
+      },
+      "details": {},
+      "name": "ordinary_admin_api_login_resume",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "login_ok": true,
+        "onboarding_durable": true
+      },
+      "details": {
+        "login": {
+          "attempted": true,
+          "landed_url": "http://localhost:3137/dashboard",
+          "ok": true,
+          "token_present_after_login": true
+        },
+        "onboarding": {
+          "completion_durable": true,
+          "dismissed": false,
+          "wizard_seen": false
+        }
+      },
+      "name": "ordinary_ui_login_resume",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "browser_api_equal": true,
+        "current_audit": true,
+        "download_ext": true,
+        "new_present": true,
+        "old_absent": true,
+        "request_200": true,
+        "table_new": true
+      },
+      "details": {
+        "api_sha256": "54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038",
+        "browser_sha256": "54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038",
+        "filename": "canvas-9bdfe77a-c44b-44e6-8bee-8210388a9573.docx",
+        "paragraphs": [
+          "Office Export DOCX",
+          "Office Export",
+          "Updated body NEW-4242.",
+          "One",
+          "Two"
+        ],
+        "requests": [
+          {
+            "content_length": "36875",
+            "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "disposition": "attachment; filename=\"canvas-Office-Export-DOCX-cf0fd722.docx\"",
+            "etag": "\"sha256:54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038\"",
+            "status": 200,
+            "url": "http://localhost:8037/api/canvas/9bdfe77a-c44b-44e6-8bee-8210388a9573/export/office?format=docx&expected_audit_id=cf0fd722-49b4-42b0-a06a-d8e89d7f328b"
+          }
+        ],
+        "source_audit": "cf0fd722-49b4-42b0-a06a-d8e89d7f328b",
+        "tables": [
+          [
+            [
+              "A",
+              "B"
+            ],
+            [
+              "9",
+              "8"
+            ]
+          ]
+        ]
+      },
+      "name": "current_visible_download",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "all_200": true,
+        "audit_in_url": true,
+        "same_canvas": true
+      },
+      "details": {
+        "requests": [
+          {
+            "content_length": "36875",
+            "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "disposition": "attachment; filename=\"canvas-Office-Export-DOCX-cf0fd722.docx\"",
+            "etag": "\"sha256:54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038\"",
+            "status": 200,
+            "url": "http://localhost:8037/api/canvas/9bdfe77a-c44b-44e6-8bee-8210388a9573/export/office?format=docx&expected_audit_id=cf0fd722-49b4-42b0-a06a-d8e89d7f328b"
+          }
+        ]
+      },
+      "name": "request_identity_bound",
+      "status": "PASS"
+    }
+  ],
+  "stops": {
+    "backend": {
+      "exited": true,
+      "only_own_pid": true,
+      "pid": 23038,
+      "poll": -15,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "was_running": true
+    },
+    "frontend": {
+      "exited": true,
+      "only_own_pid": true,
+      "pid": 23122,
+      "poll": 0,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "was_running": true
+    }
+  },
+  "world": "office_ordinary_browser_1d762c2f3d_1794309563"
+}

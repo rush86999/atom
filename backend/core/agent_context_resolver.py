@@ -165,17 +165,17 @@ class AgentContextResolver:
                         "Backfilled workspace/tenant scope on system default agent: %s",
                         agent.id,
                     )
-                # Heal pre-Round-86 rows born STUDENT: the fallback chat
-                # surface needs level-2 actions (stream_chat) to function at
-                # all. Never demotes an agent that already graduated higher.
+                # Existing-agent tier is never mutated here. The dedicated
+                # system flag is provenance, not a qualification or review.
+                # A legacy/revoked STUDENT row stays STUDENT and is surfaced
+                # with the explicit authorized promotion path.
                 if agent.status == AgentStatus.STUDENT.value:
-                    agent.status = AgentStatus.INTERN.value
-                    if (agent.confidence_score or 0) < 0.6:
-                        agent.confidence_score = 0.6
-                    self.db.commit()
-                    logger.info(
-                        "Healed system Chat Assistant %s to INTERN (fallback "
-                        "chat surface cannot run at STUDENT)", agent.id,
+                    logger.warning(
+                        "System default Chat Assistant %s remains STUDENT: "
+                        "an existing-agent tier change requires the authorized "
+                        "qualification/owner-exception promotion path; a system "
+                        "flag or mutable name/category is not an exemption.",
+                        agent.id,
                     )
                 return agent
 
@@ -196,6 +196,7 @@ class AgentContextResolver:
                 module_path="system",
                 class_name="ChatAssistant",
                 status=AgentStatus.INTERN.value,
+                is_system_agent=True,
                 confidence_score=0.6,
                 workspace_id=PERSONAL_WORKSPACE_ID,
                 tenant_id=PERSONAL_TENANT_ID,

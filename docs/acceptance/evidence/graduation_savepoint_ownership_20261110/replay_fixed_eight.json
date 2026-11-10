@@ -1,0 +1,53 @@
+{
+  "world": "/private/tmp/root-graduation-adapted-eight-controls-20261110-pgqtfva2",
+  "source_before": {
+    ".github/workflows/ci.yml": "bb34f2ba7ecf58f5e0b225a5e7a3b52db7d349f7170edc8d7c59fe79305df0e1",
+    "backend/tests/fixtures/ci_backend_additions.json": "fa06b23b56f3fab728d5ed22fcdc79118b0f92f22ae544d50049427a3312e97e",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+    "backend/core/agent_decision_write_service.py": "399d726fb0d74fb5e25f77bfda7f931320ba8d3b681075412854b6b521bdc420"
+  },
+  "capture_head": "a75e3e3c69e6b92e72e5ad5e4968a913c5315c79",
+  "probe_sha256": "54ebdae9648b887003a540f4dea3aee81b06f9b68d6f2774d20a46b24ca1c395",
+  "frozen_fixture_sha256": "dbb2cd14e025b038d5f2cd4b058c38bf348e16edbc2cbc55b3c352401d8da09a",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-graduation-reviewed-delivery-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_agent_decision_contract.py::test_promote_replay_refutes_changed_qualification_material",
+    "tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale",
+    "tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote]",
+    "tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_without_qualification_never_dispatches",
+    "tests/test_agent_decision_contract.py::test_unqualified_manual_promotion_is_not_an_authority_bypass",
+    "tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_success",
+    "tests/test_graduation_exam.py::TestManualPromotion::test_manual_promotion_creates_history",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 0,
+  "source_after": {
+    ".github/workflows/ci.yml": "bb34f2ba7ecf58f5e0b225a5e7a3b52db7d349f7170edc8d7c59fe79305df0e1",
+    "backend/tests/fixtures/ci_backend_additions.json": "fa06b23b56f3fab728d5ed22fcdc79118b0f92f22ae544d50049427a3312e97e",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/database.py": "f82db493c165be5f89e59e79912f78bc8e94541ba6a47f8319eedf0d95e80424",
+    "backend/core/agent_decision_write_service.py": "399d726fb0d74fb5e25f77bfda7f931320ba8d3b681075412854b6b521bdc420"
+  },
+  "at": "2026-11-10T12:56:06.962977+00:00",
+  "same_source": true
+}

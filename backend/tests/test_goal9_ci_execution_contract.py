@@ -398,3 +398,107 @@ def test_invalid_pricing_hardstop_zero_provider_dispatch(
         assert db.query(TokenUsage).filter(
             TokenUsage.tenant_id == tenant_id,
             TokenUsage.attempt_id.isnot(None)).count() == 0
+
+
+# Preserve the original ordinary-settlement twins alongside reservation-specific controls.
+SUCCESS_TENANT = "tenant-goal9-success"
+
+SUCCESS_WORKSPACE = "ws-goal9-success"
+
+def _bind_success_scope(host, handler):
+    with host.Session() as db:
+        db.add(Tenant(
+            id=SUCCESS_TENANT, name="Goal9 success",
+            subdomain="goal9-success"))
+        db.add(Workspace(
+            id=SUCCESS_WORKSPACE, name="Goal9 success",
+            tenant_id=SUCCESS_TENANT))
+        db.commit()
+    handler.workspace_id = SUCCESS_WORKSPACE
+    handler.tenant_id = SUCCESS_TENANT
+
+def test_missing_usage_is_explicit_unknown(
+        host, ordinary_handler, monkeypatch):
+    _bind_success_scope(host, ordinary_handler)
+    ordinary_handler.clients[
+        "opencode-go"].chat.completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(
+                    content="no usage", reasoning_content=None),
+                finish_reason="stop")])
+    assert asyncio.run(ordinary_handler.generate_response(
+        "No usage in response")) == "no usage"
+    with host.Session() as db:
+        row = db.query(TokenUsage).filter(
+            TokenUsage.tenant_id == SUCCESS_TENANT).one()
+        assert row.billed is True
+        assert row.cost_usd is None
+        assert row.pricing_status == "unknown"
+        assert row.prompt_tokens == 0
+        assert row.completion_tokens == 0
+
+def test_success_settlement_failure_retains_intent_across_restart(
+        host, ordinary_handler, monkeypatch):
+    _bind_success_scope(host, ordinary_handler)
+    # Preserve the original unbounded-unknown liability control. Admission
+    # under alert_only permits an unknown bound; a later owner hard_stop must
+    # refuse it, including after restart. The separate reserved-liability
+    # twin covers a failed settlement admitted with a known bound.
+    from core.llm import byok_handler
+    monkeypatch.setattr(
+        byok_handler, "get_pricing_fetcher",
+        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: 0.25))
+    with host.Session() as db:
+        db.add(TenantSetting(
+            tenant_id=SUCCESS_TENANT,
+            setting_key="billing",
+            setting_value=json.dumps({
+                "budget_limit_usd": 100,
+                "enforcement": {"mode": "alert_only"},
+            })))
+        db.commit()
+    monkeypatch.setattr(
+        ordinary_handler, "_estimate_reservation_bound", lambda *a, **k: None)
+    ordinary_handler.clients["opencode-go"].chat.completions.create.return_value = (
+        _response("settle failure still returns"))
+    from core import spend_aggregation_service as spend_module
+
+    def _settlement_down(*args, **kwargs):
+        raise RuntimeError("controlled settlement write failure")
+
+    monkeypatch.setattr(
+        spend_module, "record_llm_usage", _settlement_down)
+    assert asyncio.run(ordinary_handler.generate_response(
+        "settlement failure")) == "settle failure still returns"
+
+    with host.Session() as db:
+        policy = db.query(TenantSetting).filter(
+            TenantSetting.tenant_id == SUCCESS_TENANT,
+            TenantSetting.setting_key == "billing").one()
+        policy.setting_value = json.dumps({
+            "budget_limit_usd": 100,
+            "enforcement": {"mode": "hard_stop"},
+        })
+        db.commit()
+        row = db.query(TokenUsage).filter(
+            TokenUsage.tenant_id == SUCCESS_TENANT).one()
+        assert row.reserved_cost_usd is None
+        assert row.billed is False
+        assert row.cost_usd is None
+        assert row.pricing_status == "unknown"
+        refused = BudgetEnforcementService(
+            db).check_budget_before_action_sync(
+                SUCCESS_TENANT, "ci-agent", "llm")
+    assert refused["allowed"] is False
+    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
+
+    spend_module.clear_settlement_failure()
+    engine = create_engine(str(host.engine.url))
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    with Session() as db:
+        refused = BudgetEnforcementService(
+            db).check_budget_before_action_sync(
+                SUCCESS_TENANT, "ci-agent", "llm")
+    assert refused["allowed"] is False
+    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
+    engine.dispose()

@@ -1,0 +1,58 @@
+A
+ATOM
+CORE
+Dashboard
+Chat
+Workspace
+Data
+Agents
+Learning
+Assignments
+Approvals
+Activity
+PLATFORM
+Settings
+
+Admin User
+
+admin@example.com
+
+No unread notifications
+All Canvases
+Office Export DOCX
+DOCUMENT
+Add agent
+LOAD DATA
+Upload file
+Attach an agent to load data.
+DATA OPERATIONS
+Enable table operations
+
+This canvas has no agent yet
+
+Add an agent to collaborate in chat, load data, and train it on this canvas.
+
+Add an agent
+Office Export DOCX
+v2
+DOCUMENT
+▾
+Loading...
+History
+Preview Mode
+Download DOCX
+Saved
+Mini-App Harness
+Chat
+Training
+Journey
+Autonomy
+Agent Co-Editor
+
+Chat with the agent while editing this canvas
+
+💬 Ask the agent to modify this canvas
+
+e.g. "Add a new row to the spreadsheet" or "Change the chart to a bar chart"
+
+Office Export DOCX | Atom

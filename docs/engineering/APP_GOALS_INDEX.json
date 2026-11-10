@@ -1,5 +1,5 @@
 {
-  "title": "Atom app goals \u2014 canonical reference index",
+  "title": "Atom app goals — canonical reference index",
   "scope": "All original app goals; single-tenant main web app first, mobile last. This index is not a completion claim.",
   "reference_order": [
     {
@@ -111,8 +111,8 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T08:16:44.681258+00:00",
-    "as_of_main": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+    "updated_at": "2026-11-10T14:25:47.103413+00:00",
+    "as_of_main": "01b554c55045334fa562cd2858c278f5bb3e1545",
     "app_complete": false,
     "historical_claims": 143,
     "goal_rows": 18,
@@ -146,50 +146,40 @@
         "pr": 818,
         "revision": "750f42215",
         "scope": "Reviewed native-chat learning: controlled API/component and ordinary UI operations plus restart durability. Original full browser verifier retains10 failed capture checks. Exact all13 PR checks and merged-union tree verified; post-merge main all12 required Actions verified green."
+      },
+      {
+        "pr": 824,
+        "revision": "0d5132c2e",
+        "scope": "Integrated reviewed main-web deliveries; post-merge12 required Actions green. Original claims and per-feature evidence scope retained."
+      },
+      {
+        "pr": 829,
+        "revision": "01b554c5504",
+        "scope": "Reviewed Office/email Personal and legacy-draft compatibility; all13 premerge checks green, merged tree exactly08743676d; postmerge Actions pending."
       }
     ],
     "submitted": [
       {
-        "pr": 817,
-        "head": "5cbc21781",
-        "scope": "Reviewed web regression gates and normal-install Lance dependency; failed predecessor preserved."
+        "pr": 831,
+        "branch": "codex/web-graduation-clean-delivery-20261110",
+        "scope": "Reviewed scoped qualification,121 permanent controls,137 frontend controls;174 broader passes/7 reproduced baseline failures; controlled6da UI promotion. Reconciling newly merged main before fresh exact-head checks."
       },
       {
-        "pr": 819,
-        "head": "2beccb819",
-        "scope": "Governed manual workflow handoff; controlled API/real child-process evidence. No live model/browser/general scheduling claim."
-      },
-      {
-        "pr": 820,
-        "head": "30ad48ac2",
-        "scope": "Presence authority/receipt/uncertain UI plus exact restored supervisor directory. Original red CI and root negatives retained; successor root2+3 pass."
-      },
-      {
-        "pr": 821,
-        "head": "423abf868",
-        "scope": "Deterministic JSON execution export bound to executed definition and complete verified outputs; root1+7 and60 UI controls pass. Depends819."
-      },
-      {
-        "pr": 822,
-        "head": "cf4c7bde2",
-        "scope": "Activity utility visibility; original2 stale-winner failures repaired, root unchanged2 pass. Existing deterministic ranking only."
-      },
-      {
-        "pr": 823,
-        "head": "31b127927",
-        "scope": "Maturity guide current-authority scope; root real-JWT3fail1pass to4pass. No graduation policy change."
+        "pr": 832,
+        "head": "75c88c26f",
+        "scope": "Draft durable cost accounting and hard-stop candidate13/201; actual existing-database upgrade and independent review pending. No concurrent reservation claim."
       }
     ],
     "active": [
       {
-        "owner": "backend native CLI",
-        "work": "Ordinary generated Canvas DOCX/PPTX download through existing renderers",
-        "acceptance": "Implementation in progress; exact saved content/authority/revision, file substance, safe errors, path anchoring and actual process restart are required. No runtime acceptance or general output-goal closure yet."
+        "owner": "existing native CLI and root verifier",
+        "work": "Budget durable settlement and existing-database upgrade",
+        "acceptance": "Negative evidenceb0 distinguishes production in-memory settlement from ledger; candidate832 not accepted yet."
       },
       {
-        "owner": "frontend native CLI",
-        "work": "Teaching/assessment/graduation ordinary product-continuation audit",
-        "acceptance": "Read-only diagnosis; distinguish intentional training-review eligibility from actual exam/promotion readiness. No new lifecycle/threshold/model judge or completed-goal claim."
+        "owner": "existing native CLI and root verifier",
+        "work": "Remaining agent creation/registration mutation boundary",
+        "acceptance": "Reconcile accepted scope and capture real public-API gap before changes; no provider or live account action."
       }
     ],
     "superseded": [
@@ -204,22 +194,11 @@
       }
     ],
     "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
-    "next_prepared": "Finish independent review and exact-head CI of current main-web deliveries; retain the full143-claim/18-goal audit and choose the next substantive unclosed requirement after ownership/evidence reconciliation.",
+    "next_prepared": "Complete current budgets/mutation boundaries and exact-head verification; original143claims/18goals preserved. TW two-fact evidence is controlled process scope, not ordinary UI or multi-day soak.",
     "integration_candidate": {
-      "branch": "codex/web-reviewed-integration-20261110",
-      "status": "prepared; exact combined hosted checks required before merge",
-      "family_prs": [
-        817,
-        819,
-        820,
-        821,
-        822,
-        823
-      ],
-      "verified_source_artifact_paths": 160,
-      "combined_independent_api_and_ci_passed": 44,
-      "combined_ui_consumer_passed": 147,
-      "original_denominator_unchanged": true
+      "branch": "codex/web-graduation-clean-delivery-20261110",
+      "status": "Combining currentmain01b and reviewedgraduation before fresh CI; not whole goal acceptance",
+      "accepted": false
     }
   }
 }

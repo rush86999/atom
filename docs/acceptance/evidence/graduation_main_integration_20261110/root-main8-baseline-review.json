@@ -1,0 +1,56 @@
+{
+  "baseline_only": true,
+  "not_in_baseline": [
+    "tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_supervised_pass_requires_qualification_receipt"
+  ],
+  "world": "/private/tmp/root-graduation-eight-main-baseline-20261110-uf3gix98",
+  "source_before": {
+    "backend/api/episode_routes.py": "2cf4d2bd6b5d6c4c921d7c5002c9f52eb4a7b5a8cb244eea6ea18955d6bbb746",
+    "backend/core/agent_graduation_service.py": "733d1f4c5a6891e27a0c590244db63ba64c51bf8f2f520b7ba4f8f10d402e675",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/promotion_policy_service.py": "b0eee7b42962636042a0e528081f7d8ed6eabc85a3ba0a7378cb86a87868d801",
+    "backend/core/agent_decision_write_service.py": "729490b3e423e88eb478a1ac76f48b405aed08828df071e1cf3f0b63e2aafced",
+    "backend/core/runtime_settings.py": "85753a0dc0af49d07a0614bab3972c83ac6085246cab361ff0c9bb663a207af7"
+  },
+  "capture_head": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "probe_sha256": "66c9f5a96160dc4fc1daaf8570918082bff82d5e677503c2b83735c7ae606e63",
+  "frozen_fixture_sha256": "a389cdd98090a410881228293ad72c06dbb4a00210e5ce401cafb27841d20147",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-graduation-main-baseline-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_promotes_to_autonomous",
+    "tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_success",
+    "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_success",
+    "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_with_modifications",
+    "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_proposal_not_found",
+    "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_invalid_status",
+    "tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_promotes_to_intern",
+    "tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_confidence_boost",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 1,
+  "source_after": {
+    "backend/api/episode_routes.py": "2cf4d2bd6b5d6c4c921d7c5002c9f52eb4a7b5a8cb244eea6ea18955d6bbb746",
+    "backend/core/agent_graduation_service.py": "733d1f4c5a6891e27a0c590244db63ba64c51bf8f2f520b7ba4f8f10d402e675",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/promotion_policy_service.py": "b0eee7b42962636042a0e528081f7d8ed6eabc85a3ba0a7378cb86a87868d801",
+    "backend/core/agent_decision_write_service.py": "729490b3e423e88eb478a1ac76f48b405aed08828df071e1cf3f0b63e2aafced",
+    "backend/core/runtime_settings.py": "85753a0dc0af49d07a0614bab3972c83ac6085246cab361ff0c9bb663a207af7"
+  },
+  "at": "2026-11-10T11:53:57.480664+00:00",
+  "same_source": true
+}

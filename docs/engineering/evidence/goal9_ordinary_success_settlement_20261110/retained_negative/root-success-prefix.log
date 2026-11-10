@@ -1,0 +1,45 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_two_ordinary_calls_have_distinct_durable_attempts ____________
+
+host = namespace(engine=Engine(sqlite:///<scratch> object at 0x13670af10>, session=<function host.<locals>.scratch_session at 0x13450eb60>)
+ordinary_handler = <core.llm.byok_handler.BYOKHandler object at 0x136d79e50>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x134565450>
+
+    def test_two_ordinary_calls_have_distinct_durable_attempts(host,ordinary_handler,monkeypatch):
+     from core.llm import byok_handler
+     with host.Session() as db:
+      db.add(Tenant(id="root-budget",name="Root",subdomain="root-budget"));db.add(Workspace(id="root-budget-ws",name="Root",tenant_id="root-budget"));db.commit()
+     ordinary_handler.workspace_id="root-budget-ws";ordinary_handler.tenant_id="root-budget"
+     monkeypatch.setattr(byok_handler,"get_pricing_fetcher",lambda:SimpleNamespace(estimate_cost=lambda *a,**k:0.25))
+     client=ordinary_handler.clients["opencode-go"]
+     client.chat.completions.create.return_value=SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="independent ordinary",reasoning_content=None),finish_reason="stop")],usage=SimpleNamespace(prompt_tokens=10,completion_tokens=5,total_tokens=15))
+     for prompt in ["First independent call","Second independent call"]:assert asyncio.run(ordinary_handler.generate_response(prompt))=="independent ordinary"
+     assert client.chat.completions.create.call_count==2
+     with host.Session() as db:
+      rows=db.query(TokenUsage).filter(TokenUsage.tenant_id=="root-budget").all();assert len(rows)==2
+      assert len({r.attempt_id for r in rows})==2 and len({r.request_id for r in rows})==2
+      import json
+      observed=[dict(attempt_id=r.attempt_id,request_id=r.request_id,execution_id=r.execution_id,workspace_id=r.workspace_id,tenant_id=r.tenant_id,billed=r.billed,cost_usd=r.cost_usd,pricing_status=r.pricing_status,prompt_tokens=r.prompt_tokens,completion_tokens=r.completion_tokens) for r in rows]
+      from pathlib import Path
+      Path("<scratch>").write_text(json.dumps(observed,indent=2)+"\n")
+>     assert all(r.execution_id is None and r.workspace_id=="root-budget-ws" and r.billed and r.cost_usd==0.25 for r in rows),observed
+E     AssertionError: [{'attempt_id': 'e1b6179e-f4a9-494a-8c76-e00e7cd5e6be:1', 'billed': False, 'completion_tokens': 0, 'cost_usd': None, ....attempt_id': '084b5b6f-3eae-4ee2-98a8-a517d84ae8cf:1', 'billed': False, 'completion_tokens': 0, 'cost_usd': None, ...}]
+E     assert False
+E      +  where False = all(<generator object test_two_ordinary_calls_have_distinct_durable_attempts.<locals>.<genexpr> at 0x157d8b100>)
+
+../../root_goal9_ordinary_ci_probe.py:24: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-10T16:18:57.198237+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
+------------------------------ Captured log call -------------------------------
+INFO     core.privsec.local_only_guard:structured_logger.py:118 LocalOnlyGuard initialized
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_goal9_ordinary_ci_probe.py::test_two_ordinary_calls_have_distinct_durable_attempts
+1 failed, 2 warnings in 5.04s
