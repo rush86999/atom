@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { extractApiErrorMessage } from '@/lib/api-error';
 
 interface UserActivityState {
   state: 'online' | 'away' | 'offline';
@@ -130,6 +131,50 @@ export const useUserActivity = ({
     };
   }, [enabled, interval, sendHeartbeat]);
 
+  const readPresenceResponse = useCallback(async (
+    response: Response
+  ): Promise<UserActivityState> => {
+    let data: any = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+    const verification = data?.verification;
+    const ambiguous = (
+      data?.success === false
+      || verification?.effect === 'unknown'
+      || verification?.status === 'unavailable'
+      || verification?.status === 'refuted'
+    );
+    if (!response.ok || ambiguous) {
+      const fallback = ambiguous
+        ? 'Presence change could not be confirmed; refresh before retrying.'
+        : `HTTP ${response.status}`;
+      const hasMessage = data && typeof data === 'object' && (
+        typeof data.detail === 'string'
+        || typeof data.message === 'string'
+        || typeof data.error === 'string'
+        || (Array.isArray(data.detail) && data.detail.length > 0)
+      );
+      throw new Error(hasMessage
+        ? extractApiErrorMessage(data, fallback)
+        : fallback);
+    }
+    const validState = data && (
+      data.state === 'online'
+      || data.state === 'away'
+      || data.state === 'offline'
+    );
+    if (!validState
+        || typeof data.last_activity_at !== 'string'
+        || typeof data.manual_override !== 'boolean') {
+      throw new Error(
+        'Presence response was missing its state; refresh before retrying.');
+    }
+    return data as UserActivityState;
+  }, []);
+
   // Manual state override
   const setManualOverride = useCallback(async (
     overrideState: 'online' | 'away' | 'offline',
@@ -149,17 +194,13 @@ export const useUserActivity = ({
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data: UserActivityState = await response.json();
+      const data = await readPresenceResponse(response);
       setState(data);
       setError(null);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [userId]);
+  }, [userId, readPresenceResponse]);
 
   const clearManualOverride = useCallback(async () => {
     if (!userId) return;
@@ -169,17 +210,13 @@ export const useUserActivity = ({
         method: 'DELETE',
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data: UserActivityState = await response.json();
+      const data = await readPresenceResponse(response);
       setState(data);
       setError(null);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [userId]);
+  }, [userId, readPresenceResponse]);
 
   return {
     state,
