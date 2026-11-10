@@ -3,9 +3,15 @@ Unified Canvas API Routes
 Consolidates state management, context tracking, recording, and summarization.
 """
 
+import hashlib
+import io
+import json
 import logging
 import os
-from fastapi import APIRouter, Body, Depends, File, WebSocket, WebSocketDisconnect, HTTPException, Query, UploadFile
+import re
+import tempfile
+from pathlib import Path
+from fastapi import APIRouter, Body, Depends, File, WebSocket, WebSocketDisconnect, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
@@ -759,6 +765,384 @@ async def update_canvas_content(
             content,
         )
     return result
+
+
+def _canvas_export_text(content: Any) -> Optional[str]:
+    """The exact saved text body for generated document/markdown canvases."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, dict):
+        for key in ("content", "text", "markdown", "body"):
+            value = content.get(key)
+            if isinstance(value, str):
+                return value
+    return None
+
+
+def _canvas_export_slug(value: Any, fallback: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "-", str(value or "")).strip("-")
+    return (slug[:60] or fallback)
+
+
+def _normalize_office_zip(body: bytes) -> bytes:
+    """Make Office OPC packages byte-stable across processes.
+
+    python-docx/python-pptx write ZIP entries with the current local timestamp.
+    The document content is deterministic, but that ZIP metadata is not. This
+    rewrites the same entries and compression with a fixed 1980 DOS timestamp;
+    it does not alter any XML/business content. The result is a real Office
+    package and the same saved source now yields the same bytes/hash.
+    """
+    import zipfile
+
+    source = zipfile.ZipFile(io.BytesIO(body))
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
+        for info in source.infolist():
+            data = source.read(info.filename)
+            normalized = zipfile.ZipInfo(
+                info.filename, date_time=(1980, 1, 1, 0, 0, 0))
+            normalized.compress_type = info.compress_type
+            normalized.external_attr = info.external_attr
+            normalized.internal_attr = info.internal_attr
+            normalized.create_system = 0
+            normalized.comment = b""
+            normalized.extra = b""
+            target.writestr(normalized, data)
+    return output.getvalue()
+
+
+def _validate_docx_package(body: bytes, source_text: str,
+                           title: Optional[str] = None) -> None:
+    """Compare the actual DOCX blocks to the canonical markdown compiler."""
+    from docx import Document
+
+    from core.office_service import _markdown_blocks
+
+    document = Document(io.BytesIO(body))
+    actual_headings = []
+    actual_bullets = []
+    actual_paragraphs = []
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+        if not text:
+            continue
+        style = (paragraph.style.name or "").lower()
+        if style == "title" or style.startswith("heading"):
+            actual_headings.append(text)
+        elif "list bullet" in style:
+            actual_bullets.append(text)
+        else:
+            actual_paragraphs.append(text)
+    actual_tables = [
+        [[cell.text.strip() for cell in row.cells] for row in table.rows]
+        for table in document.tables
+    ]
+
+    expected_headings = []
+    expected_bullets = []
+    expected_paragraphs = []
+    expected_tables = []
+    for kind, payload in _markdown_blocks(source_text):
+        if kind == "heading":
+            if payload[1]:
+                expected_headings.append(payload[1])
+        elif kind == "bullets":
+            expected_bullets.extend(payload)
+        elif kind == "table":
+            expected_tables.append(payload)
+        else:
+            if str(payload).strip():
+                expected_paragraphs.append(str(payload).strip())
+    first_heading = expected_headings[0] if expected_headings else ""
+    if title and str(title).strip().lower() != first_heading.strip().lower():
+        expected_headings.insert(0, str(title).strip())
+
+    if actual_headings != expected_headings:
+        raise ValueError("rendered DOCX headings do not match the saved source")
+    if actual_bullets != expected_bullets:
+        raise ValueError("rendered DOCX bullets do not match the saved source")
+    if actual_paragraphs != expected_paragraphs:
+        raise ValueError("rendered DOCX paragraphs do not match the saved source")
+    if actual_tables != expected_tables:
+        raise ValueError("rendered DOCX tables do not match the saved source")
+
+
+def _validate_pptx_package(body: bytes, source_text: str) -> None:
+    from pptx import Presentation
+
+    from core.chat_draft_classifier import extract_slide_outline
+    from core.office_service import _parse_markdown_table
+
+    expected = extract_slide_outline(source_text)
+    if not expected:
+        raise ValueError("presentation source has no Slide N: outline")
+    presentation = Presentation(io.BytesIO(body))
+    if len(presentation.slides) != len(expected):
+        raise ValueError("rendered PPTX slide count does not match the source")
+
+    for slide, expected_slide in zip(presentation.slides, expected):
+        title = str(expected_slide.get("title") or "").strip()
+        title_shape = slide.shapes.title
+        rendered_title = (
+            title_shape.text.strip() if title_shape is not None else "")
+        if rendered_title != title:
+            raise ValueError("rendered PPTX slide title does not match")
+
+        content_lines = str(expected_slide.get("content") or "").splitlines()
+        expected_notes = []
+        body_lines = []
+        expected_tables = []
+        table_lines = set()
+        for idx, line in enumerate(content_lines):
+            stripped = line.strip()
+            lowered = stripped.lower()
+            if lowered.startswith(("notes:", "speaker notes:")):
+                expected_notes.append(stripped.split(":", 1)[1].strip())
+                continue
+            if lowered.startswith(("source:", "sources:", "reference:",
+                                   "references:")):
+                expected_notes.append(stripped)
+                continue
+            rows, nxt = _parse_markdown_table(content_lines, idx)
+            if rows:
+                expected_tables.append(rows)
+                table_lines.update(range(idx, nxt))
+                continue
+            if idx not in table_lines and stripped:
+                body_lines.append(stripped)
+
+        actual_body = []
+        actual_tables = []
+        for shape in slide.shapes:
+            if title_shape is not None and shape == title_shape:
+                continue
+            if getattr(shape, "has_table", False):
+                actual_tables.append([
+                    [cell.text.strip() for cell in row.cells]
+                    for row in shape.table.rows
+                ])
+            elif getattr(shape, "has_text_frame", False):
+                actual_body.append(shape.text_frame.text.strip())
+        actual_body_text = "\n".join(part for part in actual_body if part)
+        for line in body_lines:
+            if line not in actual_body_text:
+                raise ValueError(
+                    "rendered PPTX slide body does not match the saved source")
+        if body_lines and not actual_body_text.strip():
+            raise ValueError("rendered PPTX slide body is empty")
+        if actual_tables != expected_tables:
+            raise ValueError(
+                "rendered PPTX tables do not match the saved source")
+        if expected_notes:
+            notes_shape = slide.notes_slide
+            actual_notes = notes_shape.notes_text_frame.text.strip()
+            for note in expected_notes:
+                if note and note not in actual_notes:
+                    raise ValueError(
+                        "rendered PPTX speaker notes do not match the source")
+
+
+@router.get("/{canvas_id}/export/office")
+async def export_generated_canvas_office(
+    canvas_id: str,
+    format: str = Query(..., pattern="^(docx|pptx)$"),
+    expected_audit_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Download the exact saved generated Canvas document/presentation.
+
+    Read-only: reads the authoritative audit material, renders with the
+    existing office_service Word/PowerPoint create_from_markdown renderers,
+    verifies the actual package, and returns bytes with source/output digests.
+    It never executes an agent/model and never exposes a filesystem path.
+    """
+    from core.canvas_authority import (
+        CanvasAuthorityError, require_active_actor, require_canvas_read,
+    )
+    from core.canvas_write_service import canvas_content_digest
+    from core.office_service import OfficeService
+    from tools.canvas_crud_tool import visible_canvas_material
+
+    try:
+        actor = require_active_actor(db, str(current_user.id))
+        require_canvas_read(db, canvas_id, actor)
+    except CanvasAuthorityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={
+            "error": exc.code, "message": str(exc)}) from exc
+    material = visible_canvas_material(db, canvas_id)
+    if not material.get("success"):
+        raise HTTPException(status_code=404, detail="Canvas not found")
+    latest = material.get("latest")
+    if latest is not None and str(latest.action_type or "") == "delete":
+        raise HTTPException(status_code=404, detail="Canvas not found")
+    revision_id = str(material.get("revision_audit_id") or "")
+    if not revision_id:
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_source_unavailable",
+            "message": "the canvas has no saved source revision",
+        })
+    if expected_audit_id and str(expected_audit_id) != revision_id:
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_source_changed",
+            "message": "the saved canvas changed before export; save again and retry",
+        })
+    review_status = str(material.get("review_status") or "unknown").lower()
+    if review_status in {"pending_review", "rejected", "withheld"}:
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_withheld",
+            "message": "the canvas result is not accepted for final publication",
+            "review_status": review_status,
+        })
+    details = material.get("details") if isinstance(
+        material.get("details"), dict) else {}
+    assignment = details.get("assignment") if isinstance(
+        details.get("assignment"), dict) else {}
+    requirements = (
+        details.get("business_requirements")
+        or assignment.get("business_requirements") or [])
+    artifact_scope = "unscoped_canvas_draft"
+    if requirements:
+        artifact_scope = "assignment_bound"
+        try:
+            from core.employee_business_outcomes import (
+                business_requirement_views,
+            )
+            unresolved = [
+                view for view in business_requirement_views(
+                    assignment or {"business_requirements": requirements})
+                if str(view.get("status") or "") != "satisfied"
+            ]
+        except Exception:
+            unresolved = [{"label": "required business result"}]
+        if unresolved:
+            raise HTTPException(status_code=409, detail={
+                "error": "canvas_export_business_result_required",
+                "message": "the requested output cannot be published before "
+                           "its required scoped business result is verified",
+                "unresolved": [
+                    {"label": item.get("label"),
+                     "next_action": item.get("next_action")}
+                    for item in unresolved
+                ],
+            })
+    text = _canvas_export_text(material.get("content"))
+    if text is None or not text.strip():
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_empty",
+            "message": "the saved canvas has no document text to export",
+        })
+    canvas_type = str(material.get("canvas_type") or "").lower()
+    if format == "pptx" and canvas_type not in ("presentation", "markdown", "generic"):
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_format_unsupported",
+            "message": "this canvas type is not a presentation source",
+        })
+    if format == "docx" and canvas_type not in ("docs", "document", "markdown", "generic"):
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_export_format_unsupported",
+            "message": "this canvas type is not a document source",
+        })
+
+    source_digest = canvas_content_digest(material.get("content"))
+    source_sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    title = str(material.get("title") or "").strip() or None
+    from core.local_paths import resolve_local_path
+    office_dir = resolve_local_path(
+        os.getenv("ATOM_OFFICE_DIR") or os.path.join("data", "office"))
+    office_dir.mkdir(parents=True, exist_ok=True)
+    suffix = "." + format
+    fd, temp_path = tempfile.mkstemp(
+        prefix=f"canvas-{_canvas_export_slug(canvas_id, 'canvas')}-",
+        suffix=suffix, dir=str(office_dir))
+    os.close(fd)
+    os.unlink(temp_path)
+    service = OfficeService()
+    try:
+        if format == "docx":
+            result = service.word.create_from_markdown(
+                temp_path, text, title=title)
+        else:
+            result = service.pptx.create_from_markdown(
+                temp_path, text, title=title)
+        if not result.get("success"):
+            logger.warning(
+                "Canvas office export renderer refused (stage=render)")
+            raise HTTPException(status_code=422, detail={
+                "error": "canvas_export_render_failed",
+                "message": "the renderer refused the saved canvas content",
+                "stage": "render",
+            })
+        body = _normalize_office_zip(Path(temp_path).read_bytes())
+        if format == "docx":
+            _validate_docx_package(body, text, title)
+        else:
+            _validate_pptx_package(body, text)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning(
+            "Canvas office export failed (stage=render_or_validate, class=%s)",
+            type(exc).__name__)
+        raise HTTPException(status_code=422, detail={
+            "error": "canvas_export_render_failed",
+            "message": "the renderer did not produce a valid Office package",
+            "stage": "render_or_validate",
+        }) from exc
+    finally:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+
+    # Recheck actor/scope/source immediately before delivery. A concurrent
+    # save or authority change must not return bytes for the earlier revision.
+    try:
+        actor = require_active_actor(db, str(current_user.id))
+        require_canvas_read(db, canvas_id, actor)
+    except CanvasAuthorityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={
+            "error": exc.code, "message": str(exc)}) from exc
+    latest_material = visible_canvas_material(db, canvas_id)
+    if (not latest_material.get("success")
+            or str(latest_material.get("revision_audit_id") or "") != revision_id
+            or canvas_content_digest(latest_material.get("content")) != source_digest):
+        raise HTTPException(status_code=409, detail={
+            "error": "canvas_source_changed",
+            "message": "the saved canvas changed while the file was rendered; retry",
+        })
+
+    output_sha = hashlib.sha256(body).hexdigest()
+    filename = (
+        "canvas-"
+        + _canvas_export_slug(title or canvas_id, "canvas")
+        + "-"
+        + _canvas_export_slug(revision_id, "revision")[:8]
+        + suffix
+    )
+    return Response(
+        content=body,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            + ("wordprocessingml.document" if format == "docx"
+               else "presentationml.presentation")),
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(body)),
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "ETag": f'"sha256:{output_sha}"',
+            "X-Atom-Canvas-Id": canvas_id,
+            "X-Atom-Source-Audit-Id": revision_id,
+            "X-Atom-Source-SHA256": source_sha,
+            "X-Atom-Output-SHA256": output_sha,
+            "X-Atom-Artifact-Scope": artifact_scope,
+            "X-Atom-Business-Result": (
+                "not_claimed" if artifact_scope == "unscoped_canvas_draft"
+                else "required_results_verified"),
+        },
+    )
 
 
 @router.post("/{canvas_id}/restore")
