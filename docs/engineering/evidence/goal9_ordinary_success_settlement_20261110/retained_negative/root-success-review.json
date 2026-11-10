@@ -1,0 +1,31 @@
+{
+  "actual_exit": 1,
+  "log": "<root-private>/pytest.log",
+  "rows": [
+    {
+      "attempt_id": "e1b6179e-f4a9-494a-8c76-e00e7cd5e6be:1",
+      "billed": false,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "execution_id": null,
+      "pricing_status": "unknown",
+      "prompt_tokens": 0,
+      "request_id": "e1b6179e-f4a9-494a-8c76-e00e7cd5e6be",
+      "tenant_id": "root-budget",
+      "workspace_id": "root-budget-ws"
+    },
+    {
+      "attempt_id": "084b5b6f-3eae-4ee2-98a8-a517d84ae8cf:1",
+      "billed": false,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "execution_id": null,
+      "pricing_status": "unknown",
+      "prompt_tokens": 0,
+      "request_id": "084b5b6f-3eae-4ee2-98a8-a517d84ae8cf",
+      "tenant_id": "root-budget",
+      "workspace_id": "root-budget-ws"
+    }
+  ],
+  "source": "0472eb9203a3d171c2b521a28c9a5f579397163f"
+}
