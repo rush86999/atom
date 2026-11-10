@@ -1,5 +1,5 @@
 {
-  "title": "Atom app goals \u2014 canonical reference index",
+  "title": "Atom app goals — canonical reference index",
   "scope": "All original app goals; single-tenant main web app first, mobile last. This index is not a completion claim.",
   "reference_order": [
     {
@@ -111,7 +111,7 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T09:41:30.121946+00:00",
+    "updated_at": "2026-11-10T11:14:43.338710+00:00",
     "as_of_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
     "app_complete": false,
     "historical_claims": 143,
@@ -150,7 +150,7 @@
       {
         "pr": 824,
         "revision": "0d5132c2e",
-        "scope": "Combined exact reviewed deliveries: permanent web regression gates/Lance dependency, governed workflow handoff, current presence, definition-bound JSON output, Activity utility, maturity guide scope. All13 PR checks and exact merged tree verified; post-merge CI still running at this snapshot.",
+        "scope": "Combined six exact independently reviewed main-web deliveries; all13 PR checks, exact merged tree and all12 required post-merge Actions verified green.",
         "included_prs": [
           817,
           819,
@@ -161,22 +161,28 @@
         ]
       }
     ],
-    "submitted": [],
+    "submitted": [
+      {
+        "pr": 826,
+        "head": "96dd3afaf6a5",
+        "scope": "All13 checks green; merge withheld after ordinary bootstrap NULL-scope browser export403. Negative preserved; shared Personal-scope repair under independent verification."
+      },
+      {
+        "pr": 827,
+        "head": "a1a03ba92bad",
+        "scope": "Hosted checks running; merge withheld after independently reproduced actual NULL-scope Personal draft-create403. Existing eight shared-writer controls and original negatives retained."
+      }
+    ],
     "active": [
       {
-        "owner": "root verification/integration",
-        "work": "Generated Canvas DOCX/PPTX export",
-        "acceptance": "Repair50d11d811;10 independent cases pass across real JWT and canonical executor. Genuine file positive, false receipt/contradictory body/refusal and actual child-process producer controls; evidence verified23/23. Main-based integration and permanent CI gate pending; no browser/wholeGOAL11 closure."
+        "owner": "root integration and native CLI",
+        "work": "Shared Personal-scope Office/email compatibility",
+        "acceptance": "Repair def47a93d independently passes three real-JWT document default/foreign-scope twins. Cleanup and frozen evidence in progress; no browser or fullGOAL11 acceptance."
       },
       {
-        "owner": "backend native CLI",
-        "work": "Ordinary email draft save/open/reload audit",
-        "acceptance": "Isolated public JWT/scratch baseline first; no live provider/send. Next finite remaining output row."
-      },
-      {
-        "owner": "frontend native CLI",
-        "work": "Scoped qualification to graduation receipt join",
-        "acceptance": "Existing GraduationExam/HITL/policy/CAS only; full ordinary review/readiness flow and all upward callers required. In progress, not accepted."
+        "owner": "graduation native CLI and root verifier",
+        "work": "Scoped qualification across all upward writers",
+        "acceptance": "Independent policy-change retry2pass, durable-scope retry2pass, actual-output promotion/replay2pass; frontend90pass/tsc0. Full binding, frozen-source and ordinary-flow acceptance remains open."
       }
     ],
     "superseded": [
@@ -192,39 +198,44 @@
       {
         "pr": 817,
         "successor": 824,
-        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+        "reason": "Included at exact frozen head; closed superseded, not separately merged."
       },
       {
         "pr": 819,
         "successor": 824,
-        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+        "reason": "Included at exact frozen head; closed superseded, not separately merged."
       },
       {
         "pr": 820,
         "successor": 824,
-        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+        "reason": "Included at exact frozen head; closed superseded, not separately merged."
       },
       {
         "pr": 821,
         "successor": 824,
-        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+        "reason": "Included at exact frozen head; closed superseded, not separately merged."
       },
       {
         "pr": 822,
         "successor": 824,
-        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+        "reason": "Included at exact frozen head; closed superseded, not separately merged."
       },
       {
         "pr": 823,
         "successor": 824,
-        "reason": "Included at exact frozen head in reviewed integration; closed superseded, not individually merged."
+        "reason": "Included at exact frozen head; closed superseded, not separately merged."
+      },
+      {
+        "pr": 825,
+        "successor": 826,
+        "reason": "GitGuardian false positive on Git revision under credential-like manifest key. Clean history successor; no waiver/history rewrite; real Docker type fix retained separately."
       }
     ],
     "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
-    "next_prepared": "Complete current Office export integration, scoped graduation qualification, and ordinary email-draft readback; preserve original143claims/18goals and historical negatives.",
+    "next_prepared": "Complete the shared Personal-scope repair, integrated Office/email regression and one ordinary Office export browser continuation; freeze and verify scoped graduation. Preserve original143claims/18goals.",
     "integration_candidate": {
       "branch": "codex/web-reviewed-integration-20261110",
-      "status": "merged as PR824 /0d5132c2e; exact reviewed tree preserved",
+      "status": "merged PR824; exact reviewed tree and required post-merge Actions verified",
       "family_prs": [
         817,
         819,

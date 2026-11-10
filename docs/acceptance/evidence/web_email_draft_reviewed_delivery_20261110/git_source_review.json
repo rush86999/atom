@@ -1,0 +1,36 @@
+{
+  "evidence_ref": "5a70facfaf7f1064b6ce75ba4b3aca814eca7dcc",
+  "packets": [
+    {
+      "packet": "goal11_email_draft_readback_audit_0d5132c2e",
+      "source": "0d5132c2e",
+      "artifacts": 7,
+      "sources": 8,
+      "mismatches": []
+    },
+    {
+      "packet": "goal11_email_draft_shared_writer_8167d919e",
+      "source": "8167d919e",
+      "artifacts": 7,
+      "sources": 10,
+      "mismatches": []
+    },
+    {
+      "packet": "goal11_email_draft_shared_writer_7625389eb",
+      "source": "7625389eb",
+      "artifacts": 8,
+      "sources": 10,
+      "mismatches": []
+    }
+  ],
+  "independent_cases": 8,
+  "actual_exit": 0,
+  "same_source": true,
+  "frozen_source_matches": {
+    "backend/api/canvas_email_routes.py": true,
+    "backend/core/canvas_email_service.py": true,
+    "backend/core/canvas_write_service.py": true,
+    "backend/core/canvas_authority.py": true,
+    "backend/tools/canvas_crud_tool.py": true
+  }
+}
