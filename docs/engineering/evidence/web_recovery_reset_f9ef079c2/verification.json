@@ -1,0 +1,285 @@
+{
+  "browser_network": {
+    "by_method_path": {
+      "GET /api/agents/": {
+        "count": 1,
+        "statuses": {
+          "308": 1
+        }
+      },
+      "GET /api/auth/csrf": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/me": {
+        "count": 3,
+        "statuses": {
+          "200": 3
+        }
+      },
+      "GET /api/auth/providers": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/auth/session": {
+        "count": 4,
+        "statuses": {
+          "200": 4
+        }
+      },
+      "GET /api/canvas/": {
+        "count": 1,
+        "statuses": {
+          "308": 1
+        }
+      },
+      "GET /api/chat/history/session_1794274643191_7sy6byg2s": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/documents": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/goal-runs": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/goals": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/maturity/proposals": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/meta/version": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /api/notifications": {
+        "count": 6,
+        "statuses": {
+          "200": 2,
+          "401": 4
+        }
+      },
+      "GET /api/onboarding/progress": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/onboarding/status": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/product/profile": {
+        "count": 2,
+        "statuses": {
+          "200": 2
+        }
+      },
+      "GET /api/users/me": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /api/v1/preferences": {
+        "count": 2,
+        "statuses": {
+          "401": 2
+        }
+      },
+      "GET /auth/forgot-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /auth/reset-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "GET /bot-avatar.png": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/callback/credentials": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/forgot-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/login": {
+        "count": 2,
+        "statuses": {
+          "200": 1,
+          "401": 1
+        }
+      },
+      "POST /api/auth/reset-password": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      },
+      "POST /api/auth/verify-token": {
+        "count": 1,
+        "statuses": {
+          "200": 1
+        }
+      }
+    },
+    "console_error_count": 8,
+    "external_requests_aborted": 0,
+    "failed_request_count": 0,
+    "page_error_count": 0,
+    "request_count": 166
+  },
+  "build": {
+    "build_id": "SB4Z5gPHOVhvOVdm4Vytd",
+    "dist": ".next-recovery-reset-20261109",
+    "duration_s": 27.0,
+    "exit": 0,
+    "minimum_free_bytes": 4205600768,
+    "next_version": "16.2.2",
+    "node": "v20.20.2",
+    "resource_pressure_abort": false,
+    "source": "f9ef079c2a2805dc1a92b91a94a9ff2a82bd9b1b"
+  },
+  "completed_at": "2026-11-10T01:37:29Z",
+  "db": {
+    "canonical_me_matches_final_db": true,
+    "canonical_me_matches_registered_scratch": true,
+    "decoded_sdk_matches_registered_scratch": true,
+    "same_user_id": true,
+    "session_matches_registered_scratch": true,
+    "user_count": 1
+  },
+  "fixture": {
+    "user_rows_before": 1
+  },
+  "forgot": {
+    "post_count": 1,
+    "signed_out_page_public": true,
+    "ui_success_message": true
+  },
+  "freshness": {
+    "before_app_bootstrap_local_storage_keys": [],
+    "before_app_bootstrap_session_storage_keys": [],
+    "before_app_bootstrap_storage_empty": true,
+    "before_navigation_cookie_count": 0,
+    "before_navigation_cookies_empty": true
+  },
+  "harness_sha256": "23f5d3d8e2432d3017fd1efe5fb282e3ae7e51d534d85508715e8258b0caf5b3",
+  "limits": [
+    "HTTP loopback only; production build Secure cookies accepted by Chromium on loopback; no TLS claim.",
+    "Backend SMTP transport was replaced by private local file capture; no live SMTP sent.",
+    "No provider/model calls, connector consent, sends, spend, or deployment."
+  ],
+  "mail": {
+    "captured": true,
+    "reset_link_path": "/auth/reset-password",
+    "token_present": true
+  },
+  "new_password": {
+    "cookie": {
+      "chunk_count": 1,
+      "http_only": true,
+      "jwe_segment_count": 5,
+      "name": "__Secure-next-auth.session-token",
+      "raw_jwt_segment_count": 3,
+      "same_site": "Lax",
+      "secure": true,
+      "tls_claimed": false,
+      "transport_scheme": "http"
+    },
+    "landed_dashboard": true,
+    "sdk_checks": {
+      "canonical_me_matches_final_db": true,
+      "canonical_me_matches_registered_scratch": true,
+      "canonical_me_matches_session": true,
+      "decoded_sdk_matches_canonical_me": true,
+      "decoded_sdk_matches_registered_scratch": true,
+      "encrypted_not_raw": true,
+      "http_only": true,
+      "legacy_auth_token_present": true,
+      "production_secure_name": true,
+      "same_backend_generation": true,
+      "secure_matches_cookie_name": true,
+      "session_matches_registered_scratch": true
+    }
+  },
+  "ok": true,
+  "old_password": {
+    "backend_refused": true,
+    "backend_status": 401,
+    "sdk_session_cookie_present": false,
+    "session_endpoint_user_absent": true,
+    "ui_refused": true
+  },
+  "owner": {
+    "backend_cwd": "/private/tmp/atom-web-task-project-20261109/backend",
+    "backend_listener_pid": 50559,
+    "frontend_cwd": "/private/tmp/atom-web-task-project-20261109/frontend-nextjs",
+    "frontend_listener_pid": 50576
+  },
+  "private_evidence": "retained in 0700 scratch world; not committed",
+  "reset": {
+    "post_count": 1,
+    "redirected_to_signin": true,
+    "signed_out_page_public": true,
+    "token_consumed": true,
+    "ui_success_message": true,
+    "verify_token_post_count": 1
+  },
+  "services": {
+    "backend": 50559,
+    "frontend": 50576
+  },
+  "signed_out_state": {
+    "cookies_after_app_load_names": [
+      "__Host-next-auth.csrf-token",
+      "__Secure-next-auth.callback-url"
+    ],
+    "harmless_state_only": true,
+    "local_storage_keys_after_app_load": [
+      "nextauth.message"
+    ],
+    "nextauth_session_user_absent": true,
+    "no_auth_token_cookie": true,
+    "no_sdk_session_cookie": true,
+    "session_storage_keys_after_app_load": []
+  },
+  "source": "f9ef079c2a2805dc1a92b91a94a9ff2a82bd9b1b"
+}

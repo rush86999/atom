@@ -1,0 +1,12 @@
+{
+  "build_id": "SB4Z5gPHOVhvOVdm4Vytd",
+  "harness_sha256": "23f5d3d8e2432d3017fd1efe5fb282e3ae7e51d534d85508715e8258b0caf5b3",
+  "http_loopback_only": true,
+  "mail": "private local file capture; no live SMTP",
+  "not_live_database": true,
+  "purpose": "targeted signed-out password recovery and SDK sign-in episode",
+  "repo": "/private/tmp/atom-web-task-project-20261109",
+  "source": "f9ef079c2a2805dc1a92b91a94a9ff2a82bd9b1b",
+  "testing_import_phase": 0,
+  "testing_runtime": 1
+}

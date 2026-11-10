@@ -4,7 +4,11 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { GetServerSideProps } from "next";
 import { useToast } from "@/components/ui/use-toast";
-import { loginWithBackend, persistBackendToken } from "@/lib/backendAuth";
+import {
+  establishWebSession,
+  loginWithBackend,
+  persistBackendToken,
+} from "@/lib/backendAuth";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -58,6 +62,9 @@ export default function SignIn() {
         return;
       }
 
+      // The backend login has already issued this bearer. Never run a second
+      // login: the SDK validates that bearer and owns the web session cookie.
+      await establishWebSession(data.access_token);
       persistBackendToken(data.access_token);
       toast({
         title: "Successfully signed in!",

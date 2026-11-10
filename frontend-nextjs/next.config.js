@@ -309,6 +309,13 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/v1/auth/oauth/:path*",
       },
       {
+        // Exact same-origin web-OIDC family. This must stay in afterFiles so it
+        // reaches Python before pages/api/auth/[...nextauth].ts; never broaden
+        // it to /api/auth/:path* because NextAuth owns session/csrf/callback.
+        source: "/api/auth/sso/oidc/web/:path*",
+        destination: "http://127.0.0.1:8000/api/auth/sso/oidc/web/:path*",
+      },
+      {
         source: "/api/auth/login",
         destination: "http://127.0.0.1:8000/api/auth/login",
       },

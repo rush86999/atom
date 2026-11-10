@@ -16,6 +16,7 @@ from starlette.responses import Response as StarletteResponse
 
 from core.cache import RedisCacheService, UniversalCacheService
 from core.database import SessionLocal
+from core.security.referrer_policy import apply_referrer_policy
 
 # Initialize UniversalCacheService singleton
 cache = UniversalCacheService()
@@ -237,7 +238,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # bytes combined and don't trigger HTTP 431 (header too large).
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Preserve an explicitly stricter policy chosen by the response (e.g.
+        # the OIDC callback/exchange endpoints emit no-referrer); otherwise
+        # apply the default. See W3C Referrer Policy.
+        apply_referrer_policy(response.headers)
 
         # Skip the larger headers (CSP, Permissions-Policy, HSTS) on /api/
         # routes to keep response size minimal and avoid proxy/reverse-proxy

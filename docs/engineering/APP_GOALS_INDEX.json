@@ -1,0 +1,106 @@
+{
+  "title": "Atom app goals \u2014 canonical reference index",
+  "scope": "All original app goals; single-tenant main web app first, mobile last. This index is not a completion claim.",
+  "reference_order": [
+    {
+      "path": "APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.json",
+      "purpose": "Complete original 143-claim inventory and 18 goal rows. Preserve claim identifiers and historical evidence."
+    },
+    {
+      "path": "APP_COMPLETION_WEB_RECONCILIATION_2026_11_09.json",
+      "purpose": "Later operational progress and source-bound evidence. Read dated updates in order; old open PR snapshots are historical."
+    },
+    {
+      "path": "AGENT_GOAL_COMPLETION_DIRECTIVE_2026_11_06.md",
+      "purpose": "Engineering/product delivery rules and agent responsibilities."
+    }
+  ],
+  "goal_catalog": [
+    {
+      "number": 1,
+      "goal": "Setup and ordinary account use"
+    },
+    {
+      "number": 2,
+      "goal": "BYOK and suitable model selection"
+    },
+    {
+      "number": 3,
+      "goal": "Authorized common data and search"
+    },
+    {
+      "number": 4,
+      "goal": "Spreadsheet and calculation"
+    },
+    {
+      "number": 5,
+      "goal": "Canvas and editable outputs"
+    },
+    {
+      "number": 6,
+      "goal": "Teaching and reusable agent capability"
+    },
+    {
+      "number": 7,
+      "goal": "Assessment and unfamiliar work"
+    },
+    {
+      "number": 8,
+      "goal": "Durable employee objectives"
+    },
+    {
+      "number": 9,
+      "goal": "Runtime configured-budget enforcement"
+    },
+    {
+      "number": 10,
+      "goal": "TASK-WAIT-01 long tasks pause/resume"
+    },
+    {
+      "number": 11,
+      "goal": "Documents, presentations and email drafts"
+    },
+    {
+      "number": 12,
+      "goal": "Repeatable workflows and schedules"
+    },
+    {
+      "number": 13,
+      "goal": "Fleet, goals and background work"
+    },
+    {
+      "number": 14,
+      "goal": "Direct mutations and whole-app ORACLE"
+    },
+    {
+      "number": 15,
+      "goal": "Remaining exposed application"
+    },
+    {
+      "number": 16,
+      "goal": "Installation, compatibility and operations"
+    },
+    {
+      "number": 17,
+      "goal": "Performance and comparative promises"
+    },
+    {
+      "number": 18,
+      "goal": "Profile breadth"
+    }
+  ],
+  "explicit_user_requirements": [
+    "Long-running domain-independent jobs can wait for missing information for days, survive restart, continue independent useful work, and resume the same job when authorized relevant information arrives.",
+    "Agent graduation to autonomy requires verified evidence, appropriate approval, and enforceable authority boundaries.",
+    "BYOK chooses eligible models by measured satisfactory outcomes and expected cost; capable Flash models remain first-class.",
+    "Requested outputs must be usable, current, source-bound and verified; unresolved required outcomes cannot falsely complete or publish partial final artifacts.",
+    "Documentation, architecture diagrams and the marketing README must reflect verified capabilities and disclose limits.",
+    "Mobile follows main web readiness; completing a core release does not erase the remaining original app goals."
+  ],
+  "update_rules": [
+    "Each delivery references original claim/goal, exact product source, evidence and remaining gap.",
+    "Distinguish implemented, submitted, merged, independently verified and full outcome acceptance.",
+    "Preserve negative evidence and historical counts; do not infer universal capability from bounded tests.",
+    "New user requirements append to the goal register rather than silently replacing existing scope."
+  ]
+}

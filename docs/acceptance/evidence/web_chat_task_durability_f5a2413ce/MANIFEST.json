@@ -1,0 +1,25 @@
+{
+  "executed_source": "f5a2413ce07bfd180b64ca58d861f9b9898cb9a5",
+  "source_files": {
+    "backend/core/user_task_service.py": "de4ba83b192ef59ce79092f46973cafdcd9b244d485d25034dd8c0297b0a1d0b",
+    "backend/api/nav_stub_routes.py": "af7f911e9d86e7f5a49c50b6261dfd09c56eb757b51f0c211acb0c8e4454e4a3",
+    "backend/core/atom_agent_endpoints.py": "aeb2624261cd488316a83dc22f2735df54171790fa91af22e088d58f61e31d5d",
+    "backend/integrations/chat_orchestrator.py": "f055b96d8d34f864447218e835b28d15eeda31020a10fe7dbbbcc039ae8c109c",
+    "backend/tests/api/test_chat_task_durability.py": "7cd5c3d0d0c4b633d694dd13452053c06a664a54b8693c0cd65736d571d52887",
+    "backend/tests/api/test_atom_agent_endpoints.py": "51bab1e407753f453f7aec7da94f7c52eab13bb298fa548e86f6c7689ee9f43a",
+    "backend/tests/api/test_atom_agent_endpoints_coverage_extend.py": "034d020cf858277e21283c5eb04f53621b3d910c6b51c0cd20cc22c0078d4660",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/product_profile.py": "e441aa5957f3be845119b94c7ffc281a8379fe00bf81243a3427eebac4a8c5cb",
+    "backend/service_delivery/models.py": "64586d8c576bda0b658acd46c18433b147ad2ba358653da286c0f2eef0b04a69",
+    "backend/tests/conftest.py": "5f8c8b1016b8bb08d18c297deb8d2c452b7b897d4e023a4f3198281dbbdc8dc2"
+  },
+  "artifacts": {
+    "README.md": "472f633ea279833d005d14f99e80d24bb51a9abfbcfed360492a6674e5da64e4",
+    "command.json": "42195274a68d62583d22cb821253b544697c3fdebdd6216c0d3108a5f01784c8",
+    "verification.json": "033ce9be8aca267392bec4e42523a679e85aa008c77979aa9c25b21b3588529f",
+    "independent-consumer-probes.py": "2025ea08aa530c378d23cfc9f969308143f770e410343e6e3e455bf00f37c9af"
+  }
+}

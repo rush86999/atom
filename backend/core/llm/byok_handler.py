@@ -6,6 +6,7 @@ from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timezone
 from enum import Enum
 import hashlib
+import importlib
 import json
 import logging
 import os
@@ -551,11 +552,17 @@ class AwaitableResult:
         return int(self.value)
 from core.llm.cache_aware_router import CacheAwareRouter
 from core.llm.cognitive_tier_service import CognitiveTierService
-import core.llm.cognitive_tier_system
 from core.llm.cognitive_tier_system import CognitiveTier
 class CognitiveClassifier:
     def __new__(cls, *args, **kwargs):
-        return core.llm.cognitive_tier_system.CognitiveClassifier(*args, **kwargs)
+        # Resolve the module at call time. During core.llm package
+        # initialization the parent package may not yet expose the submodule
+        # attribute even though the real module is in sys.modules; importlib
+        # returns that exact module object and preserves monkeypatching of its
+        # CognitiveClassifier. Do not replace this with a fallback classifier.
+        classifier_module = importlib.import_module(
+            "core.llm.cognitive_tier_system")
+        return classifier_module.CognitiveClassifier(*args, **kwargs)
 from core.llm_usage_tracker import llm_usage_tracker
 from core.lux_config import lux_config
 from core.models import GovernanceDocument, AgentExecution, Tenant, Workspace, ModelCatalog

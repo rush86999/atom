@@ -491,32 +491,46 @@ class TestAtomAgentEndpointsExtended:
     # ==================== TASK HANDLERS ====================
 
     def test_handle_create_task(self, mocker):
-        """Cover handle_create_task (lines 1197-1214)"""
-        mock_create_task = AsyncMock(return_value={"task_id": "task-123"})
-        mocker.patch("core.atom_agent_endpoints.create_task", mock_create_task)
+        """Cover durable create path"""
+        task = Mock(id="task-123", title="Test Task")
+        task.as_dict.return_value = {"id": "task-123", "title": "Test Task"}
+        mocker.patch("core.user_task_service.create_user_task", return_value=task)
 
         from core.atom_agent_endpoints import handle_task_intent, ChatRequest
 
         request = ChatRequest(message="Create task", user_id="test-user")
 
         async def test():
-            result = await handle_task_intent("CREATE_TASK", {"title": "Test Task"}, request)
+            result = await handle_task_intent(
+                "CREATE_TASK",
+                {"title": "Test Task"},
+                request,
+                current_user=Mock(id="test-user"),
+                db=object(),
+            )
             assert result.get("success") is True
 
         import asyncio
         asyncio.run(test())
 
     def test_handle_list_tasks(self, mocker):
-        """Cover handle_list_tasks (lines 1216-1229)"""
-        mock_get_tasks = AsyncMock(return_value={"tasks": [{"id": "task-1"}]})
-        mocker.patch("core.atom_agent_endpoints.get_tasks", mock_get_tasks)
+        """Cover durable list path"""
+        task = Mock(id="task-1", title="Task 1")
+        task.as_dict.return_value = {"id": "task-1", "title": "Task 1"}
+        mocker.patch("core.user_task_service.list_user_tasks", return_value=[task])
 
         from core.atom_agent_endpoints import handle_task_intent, ChatRequest
 
         request = ChatRequest(message="List tasks", user_id="test-user")
 
         async def test():
-            result = await handle_task_intent("LIST_TASKS", {}, request)
+            result = await handle_task_intent(
+                "LIST_TASKS",
+                {},
+                request,
+                current_user=Mock(id="test-user"),
+                db=object(),
+            )
             assert result.get("success") is True
 
         import asyncio

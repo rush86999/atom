@@ -1,0 +1,25 @@
+{
+  "source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+  "independent_root_review": true,
+  "browser_boundary_checks": 31,
+  "all_true": true,
+  "controlled_issuer_restart_verified": true,
+  "single_canonical_sso_account": true,
+  "sso_account_without_local_password": true,
+  "settings_screenshot_visually_inspected": true,
+  "logout_assertions": 4,
+  "cleanup_verified": true,
+  "header_independent_pytest": {
+    "source": "86053d3a70627065784819a41273939775c65e1c",
+    "passed": 37,
+    "deselected": 120,
+    "log_private": "/private/tmp/root-referrer-independent-20261109-jvpp7ua5/tests.log"
+  },
+  "task_implementation_identical_to_verified_f5": true,
+  "harness_bytes_match_executed": true,
+  "limits": [
+    "HTTP loopback and controlled local issuer, not live identity provider or deployed TLS",
+    "Task proof remains controlled API/service scope; not a Tasks browser acceptance",
+    "No full app completion or historical rescore"
+  ]
+}

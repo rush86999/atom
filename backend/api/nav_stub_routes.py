@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import Body, Depends, HTTPException, Query
@@ -26,6 +25,17 @@ from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+from core.user_task_service import (
+    TaskAuthorityError,
+    TaskCommitError,
+    TaskNotFound,
+    TaskProjectNotFound,
+    TaskValidationError,
+    create_user_task,
+    delete_user_task,
+    list_user_tasks,
+    update_user_task,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +46,6 @@ _HEX_COLOR_RE = re.compile(
     r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
 )
 _MAX_PROJECT_NAME_LENGTH = 255
-_MAX_PROJECT_REF_LENGTH = 128
 
 
 def _fail_validation(message: str) -> None:
@@ -67,6 +76,28 @@ def _commit_or_fail(db: Session, message: str) -> None:
         _database_failure(message)
 
 
+def _raise_task_service_error(exc: Exception, task_id: Optional[str] = None) -> None:
+    if isinstance(exc, TaskValidationError):
+        _fail_validation(str(exc))
+    if isinstance(exc, TaskProjectNotFound):
+        raise router.error_response(
+            error_code="PROJECT_NOT_FOUND",
+            message="Project not found in the current workspace",
+            status_code=404,
+        )
+    if isinstance(exc, TaskAuthorityError):
+        raise router.error_response(
+            error_code="AUTHENTICATION_REQUIRED",
+            message="An active authenticated user is required",
+            status_code=403,
+        )
+    if isinstance(exc, TaskNotFound):
+        raise router.not_found_error("Task", task_id or "")
+    if isinstance(exc, TaskCommitError):
+        _database_failure("Unable to confirm the task write")
+    _database_failure("Unable to complete the task operation")
+
+
 # ============================================================================
 # Tasks — /api/v1/tasks (Tasks sidebar nav)
 # ============================================================================
@@ -78,17 +109,6 @@ def _iso(value: Any) -> Optional[str]:
         return value.isoformat()
     except AttributeError:
         return str(value)
-
-
-def _parse_due(value: Any) -> Optional[datetime]:
-    if value in (None, ""):
-        return None
-    if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
 
 
 def _task_payload(task: Any) -> Dict[str, Any]:
@@ -112,6 +132,7 @@ def _task_payload(task: Any) -> Dict[str, Any]:
 
 
 def _owned_task(db: Session, task_id: str, user_id: str):
+    """Compatibility helper for existing task-ownership callers/tests."""
     from core.models import UserTask
 
     return (
@@ -206,70 +227,6 @@ def _project_payload(project: Any, tasks: Optional[List[Any]] = None) -> Dict[st
     }
 
 
-def _nullish_project_ref(value: Any) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value.strip() or None
-    return value
-
-
-def _resolve_task_project_ref(
-    db: Session, current_user: User, payload: Dict[str, Any]
-) -> tuple[Optional[str], bool]:
-    """Validate a task's project reference before any task is mutated.
-
-    Returns (project_id_or_None, was_supplied). A null reference is a valid
-    unlink, but a non-null reference must resolve to a Project in the caller's
-    current workspace.
-    """
-    has_project = "project" in payload
-    has_project_id = "projectId" in payload
-    if not has_project and not has_project_id:
-        return None, False
-
-    if has_project and has_project_id:
-        if _nullish_project_ref(payload.get("project")) != _nullish_project_ref(
-            payload.get("projectId")
-        ):
-            _fail_validation("project and projectId must agree")
-        raw = payload.get("project")
-    elif has_project:
-        raw = payload.get("project")
-    else:
-        raw = payload.get("projectId")
-
-    if raw is None:
-        return None, True
-    if not isinstance(raw, str):
-        _fail_validation("project must be a project id string or null")
-    project_id = raw.strip()
-    if not project_id:
-        return None, True
-    if len(project_id) > _MAX_PROJECT_REF_LENGTH:
-        _fail_validation("project reference is invalid")
-
-    try:
-        project = _authorized_project(db, project_id, current_user)
-    except HTTPException:
-        raise
-    except Exception:
-        logger.warning("Project reference lookup failed")
-        try:
-            db.rollback()
-        except Exception:
-            logger.warning("Rollback failed after project reference lookup")
-        _database_failure("Unable to validate project")
-
-    if project is None:
-        raise router.error_response(
-            error_code="PROJECT_NOT_FOUND",
-            message="Project not found in the current workspace",
-            status_code=404,
-        )
-    return str(project.id), True
-
-
 @router.get("/api/v1/tasks")
 async def list_tasks(
     limit: int = Query(50, ge=1, le=100),
@@ -279,16 +236,11 @@ async def list_tasks(
 ) -> Dict[str, Any]:
     """List tasks for the current user."""
     try:
-        from core.models import UserTask
-        tasks = (
-            db.query(UserTask)
-            .filter(UserTask.user_id == str(current_user.id))
-            .order_by(UserTask.created_at.desc(), UserTask.id.desc())
-            .offset(offset)
-            .limit(limit)
-            .all()
-        )
+        tasks = list_user_tasks(
+            db, current_user, limit=limit, offset=offset)
         return {"tasks": [_task_payload(t) for t in tasks]}
+    except TaskAuthorityError as exc:
+        _raise_task_service_error(exc)
     except Exception:
         logger.warning("Task list query failed")
         try:
@@ -311,39 +263,10 @@ async def create_task(
     row vanished on reload. Persist to `tasks` (UserTask) so reload and a
     backend restart both keep it.
     """
-    from core.models import UserTask
-
-    raw_title = payload.get("title")
-    if not isinstance(raw_title, str) or not raw_title.strip():
-        _fail_validation("title is required")
-    title = raw_title.strip()
-
-    project_id, _ = _resolve_task_project_ref(db, current_user, payload)
-
     try:
-        estimated_hours = float(payload.get("estimatedHours") or 0)
-        actual_hours = float(payload.get("actualHours") or 0)
-    except (TypeError, ValueError):
-        _fail_validation("estimatedHours and actualHours must be numbers")
-
-    task = UserTask(
-        tenant_id=resolve_tenant_id(current_user),
-        user_id=str(current_user.id),
-        project_id=project_id,
-        title=title,
-        description=payload.get("description"),
-        status=str(payload.get("status") or "todo"),
-        priority=str(payload.get("priority") or "medium"),
-        due_date=_parse_due(payload.get("dueDate") or payload.get("due_date")),
-        tags=payload.get("tags") or [],
-        estimated_hours=estimated_hours,
-        actual_hours=actual_hours,
-        color=str(payload.get("color") or "#3182CE"),
-        metadata_json=payload.get("metadata") or {},
-    )
-    db.add(task)
-    _commit_or_fail(db, "Unable to create task")
-    db.refresh(task)
+        task = create_user_task(db, current_user, payload)
+    except Exception as exc:
+        _raise_task_service_error(exc)
     return {"success": True, "task": _task_payload(task)}
 
 
@@ -354,56 +277,10 @@ async def update_task(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    task = _owned_task(db, task_id, str(current_user.id))
-    if task is None:
-        raise router.not_found_error("Task", task_id)
-
-    project_id, project_supplied = _resolve_task_project_ref(db, current_user, payload)
-
-    title_update = None
-    if "title" in payload:
-        raw_title = payload.get("title")
-        if not isinstance(raw_title, str) or not raw_title.strip():
-            _fail_validation("title must be a non-empty string")
-        title_update = raw_title.strip()
-
     try:
-        estimated_hours = (
-            float(payload.get("estimatedHours") or 0)
-            if "estimatedHours" in payload
-            else None
-        )
-        actual_hours = (
-            float(payload.get("actualHours") or 0)
-            if "actualHours" in payload
-            else None
-        )
-    except (TypeError, ValueError):
-        _fail_validation("estimatedHours and actualHours must be numbers")
-
-    if title_update is not None:
-        task.title = title_update
-    for incoming, attr in (
-        ("description", "description"),
-        ("status", "status"),
-        ("priority", "priority"),
-        ("tags", "tags"),
-        ("color", "color"),
-        ("metadata", "metadata_json"),
-    ):
-        if incoming in payload:
-            setattr(task, attr, payload[incoming])
-    if project_supplied:
-        task.project_id = project_id
-    if "dueDate" in payload or "due_date" in payload:
-        task.due_date = _parse_due(payload.get("dueDate") or payload.get("due_date"))
-    if estimated_hours is not None:
-        task.estimated_hours = estimated_hours
-    if actual_hours is not None:
-        task.actual_hours = actual_hours
-
-    _commit_or_fail(db, "Unable to update task")
-    db.refresh(task)
+        task = update_user_task(db, current_user, task_id, payload)
+    except Exception as exc:
+        _raise_task_service_error(exc, task_id)
     return {"success": True, "task": _task_payload(task)}
 
 
@@ -413,11 +290,10 @@ async def delete_task(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    task = _owned_task(db, task_id, str(current_user.id))
-    if task is None:
-        raise router.not_found_error("Task", task_id)
-    db.delete(task)
-    _commit_or_fail(db, "Unable to delete task")
+    try:
+        delete_user_task(db, current_user, task_id)
+    except Exception as exc:
+        _raise_task_service_error(exc, task_id)
     return {"success": True, "deleted": task_id}
 
 

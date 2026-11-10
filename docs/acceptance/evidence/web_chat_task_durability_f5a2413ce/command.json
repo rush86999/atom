@@ -1,0 +1,48 @@
+{
+  "source": "f5a2413ce07bfd180b64ca58d861f9b9898cb9a5",
+  "runs": {
+    "normal": {
+      "exit": 0,
+      "command": [
+        "python3",
+        "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+        "--cwd",
+        "/private/tmp/atom-web-production-cookies-20261109/backend",
+        "--profile",
+        "bounded",
+        "--",
+        "/usr/local/bin/python3.11",
+        "-m",
+        "pytest",
+        "tests/api/test_chat_task_durability.py",
+        "-q",
+        "-p",
+        "pytest_freezegun",
+        "-p",
+        "no:randomly",
+        "--tb=short"
+      ]
+    },
+    "independent": {
+      "exit": 0,
+      "command": [
+        "python3",
+        "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+        "--cwd",
+        "/private/tmp/atom-web-production-cookies-20261109/backend",
+        "--profile",
+        "bounded",
+        "--",
+        "/usr/local/bin/python3.11",
+        "-m",
+        "pytest",
+        "/private/tmp/root-chat-task-consumer-independent-20261109.py",
+        "--noconftest",
+        "-q",
+        "-p",
+        "no:randomly",
+        "--tb=short"
+      ]
+    }
+  }
+}

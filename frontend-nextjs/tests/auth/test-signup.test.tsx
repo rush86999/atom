@@ -262,11 +262,53 @@ describe('SignUp Component', () => {
       await userEvent.type(confirmPasswordInput, 'password123');
       fireEvent.click(submitButton);
 
-      // The register response carries a token — the page persists it and
-      // enters the app directly instead of forcing a redundant sign-in.
+      // The register response carries a token — the page bridges it through
+      // the installed SDK instead of writing a raw session cookie.
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith('/dashboard');
       });
+      const signInCall = (signIn as jest.Mock).mock.calls[0];
+      expect(signInCall[0]).toBe('credentials');
+      expect(signInCall[1].redirect).toBe(false);
+      expect(signInCall[1].backendToken === 'test-token-123').toBe(true);
+      const sessionOrder = (signIn as jest.Mock).mock.invocationCallOrder[0];
+      expect(sessionOrder).toBeLessThan(mockToast.mock.invocationCallOrder[0]);
+      expect(sessionOrder).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
+    });
+
+    it('reports account created and requires sign-in when the SDK bridge fails', async () => {
+      (signIn as jest.Mock).mockResolvedValue({
+        ok: false,
+        error: 'CredentialsSignin',
+        status: 401,
+        url: null,
+      });
+      render(<SignUp />);
+      const nameInput = screen.getByLabelText(/full name/i);
+      const emailInput = screen.getByLabelText(/email/i);
+      const passwordInput = screen.getByLabelText(/^password$/i);
+      const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
+      const submitButton = screen.getByRole('button', { name: /create account/i });
+
+      await userEvent.type(nameInput, 'John Doe');
+      await userEvent.type(emailInput, 'test@example.com');
+      await userEvent.type(passwordInput, 'password123');
+      await userEvent.type(confirmPasswordInput, 'password123');
+      fireEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          /your account was created.*please sign in/i,
+        );
+      });
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(mockToast).not.toHaveBeenCalled();
+      const createdButton = screen.getByRole('button', { name: /account created/i });
+      expect(createdButton).toBeDisabled();
+
+      // The existing account must never be registered a second time.
+      fireEvent.click(createdButton);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('should show error if user already exists', async () => {

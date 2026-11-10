@@ -1,0 +1,50 @@
+{
+  "source": "100ac3d99e457a667099bc9cf768a126cada8100",
+  "runs": {
+    "normal": {
+      "exit": 0,
+      "command": [
+        "python3",
+        "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+        "--cwd",
+        "/private/tmp/atom-web-production-cookies-20261109/backend",
+        "--profile",
+        "bounded",
+        "--",
+        "/usr/local/bin/python3.11",
+        "-m",
+        "pytest",
+        "tests/api/test_sso_oidc_routes.py",
+        "tests/core/llm/test_cognitive_classifier_import_cycle.py",
+        "-q",
+        "-p",
+        "pytest_freezegun",
+        "-p",
+        "no:randomly",
+        "--tb=short"
+      ]
+    },
+    "independent": {
+      "exit": 0,
+      "command": [
+        "python3",
+        "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+        "--cwd",
+        "/private/tmp/atom-web-production-cookies-20261109/backend",
+        "--profile",
+        "bounded",
+        "--",
+        "/usr/local/bin/python3.11",
+        "-m",
+        "pytest",
+        "/private/tmp/root-sso-web-handoff-independent-20261109.py",
+        "/private/tmp/root-sso-state-authority-claim-20261109.py",
+        "--noconftest",
+        "-q",
+        "-p",
+        "no:randomly",
+        "--tb=short"
+      ]
+    }
+  }
+}

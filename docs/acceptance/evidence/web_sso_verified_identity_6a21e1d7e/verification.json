@@ -1,0 +1,41 @@
+{
+  "executed_source": "6a21e1d7e989184fc89f524b61a6360a969972fa",
+  "normal_fixture_gate": {
+    "actual_exit": 0,
+    "passed": 69,
+    "warnings": 207,
+    "seconds": 75.32,
+    "python": "3.11.16",
+    "normal_repository_conftest": true
+  },
+  "independent_exact_probes": {
+    "actual_exit": 0,
+    "passed": 4,
+    "warnings": 4,
+    "seconds": 6.69,
+    "cases": [
+      "signed unverified email denied without User creation",
+      "foreign UserInfo subject cannot supply omitted signed email",
+      "different opaque spaced subject refused",
+      "identical opaque spaced subject admitted"
+    ]
+  },
+  "failure_first": {
+    "original_main_claim_negatives": {
+      "failed": 2,
+      "source": "c20d2726b504b940028795b672d728ed7d04b668",
+      "sso_bytes": "unchanged main482"
+    },
+    "exact_subject_predecessor": {
+      "failed": 2,
+      "source": "386bdba100297f1fabc44932f498b689016d5a3e"
+    }
+  },
+  "scope": "real controlled local issuer HTTP; canonical current-user positive reader; no live account/provider or browser",
+  "source_attribution": "normal69 ran at6a21; docs/evidence-only merge d1c766b2d during later4-probe run changed no API/test/auth source bytes; source comparison empty",
+  "durability_boundaries": [
+    "new SSO state persistence/browser binding work is active separately",
+    "web-origin handoff and complete ordinary browser journey remain unqualified"
+  ],
+  "private_material": "Raw auth responses, state/codes/cookies/JWTs and full request logs retained privately, never published as evidence."
+}

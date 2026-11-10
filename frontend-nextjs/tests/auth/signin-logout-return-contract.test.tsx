@@ -6,7 +6,7 @@ const mockPush=jest.fn();
 jest.mock('next/router',()=>({useRouter:()=>({push:mockPush,query:{},pathname:'/auth/signin'})}));
 jest.mock('next-auth/react',()=>({getSession:jest.fn(),signIn:jest.fn()}));
 jest.mock('@/components/ui/use-toast',()=>({useToast:()=>({toast:jest.fn()})}));
-jest.mock('@/lib/backendAuth',()=>({loginWithBackend:jest.fn(),persistBackendToken:jest.fn()}));
+jest.mock('@/lib/backendAuth',()=>({establishWebSession:jest.fn(),loginWithBackend:jest.fn(),persistBackendToken:jest.fn()}));
 beforeEach(()=>{jest.clearAllMocks();localStorage.clear();});
 afterEach(()=>{cleanup();localStorage.clear();});
 it('does not revive a cached browser session after explicit local logout',async()=>{
