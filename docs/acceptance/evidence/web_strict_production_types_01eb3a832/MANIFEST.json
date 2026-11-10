@@ -1,0 +1,17 @@
+{
+  "executed_source": "01eb3a8321ef3f00eb35c2b62dae9ca37b9b5a95",
+  "source_files": {
+    "frontend-nextjs/next.config.js": "sha256:1aef8231e3001ec84b1455b54beccbc815722d1f06f029ad1e8ef3f8c51d3d0f",
+    "frontend-nextjs/tests/contracts/production-type-gate.cjs": "sha256:4afff9b77515093aea33e51e20ec4a93d15a4b5e479ec40eb4e0f29f9b4013e9",
+    ".github/workflows/ci.yml": "sha256:8754e95007aa1e3f6e69053e5444a9673925d05be23b10963cb66024b4bcfaeb",
+    "frontend-nextjs/package.json": "sha256:df46b06543bddee1daed8365c7bbc8c367a015f340a38d7ae24bab6c0fbdb474",
+    "frontend-nextjs/tsconfig.json": "sha256:f0ce3a03f1d5d2332eb2b62c401454c901d914460cbb72b7fd90110b4ae39232"
+  },
+  "artifacts": {
+    "compiler-twins.log": "sha256:8d577fef4ebdfcccddb07f34275043019c7180999601a7eba521c0f43f54758d",
+    "README.md": "sha256:1df4e30e1613aa13ad85e3b25b77822fe43463501f24753bf857685fef63509c",
+    "cleanup.json": "sha256:19b66352cfeaf85dd537fc18e3fba0d14d70f630097928b93e0e6dbbf76ead9e",
+    "build-result.json": "sha256:0120cc4c6d5ae8c61513ba5512eb023b0b7b0b827e9d7b6a14ee1d13472ae26d",
+    "build.log": "sha256:6e32c03d18815de42a61746dc071c02a2e57a4b0dc3dd3c9ed00a1b30e2b2a75"
+  }
+}

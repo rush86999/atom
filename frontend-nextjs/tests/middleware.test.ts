@@ -1,25 +1,38 @@
 /**
- * Middleware auth redirect tests.
+ * @jest-environment jsdom
+ * @jest-environment-options {"customExportConditions": ["node", "node-addons"]}
+ *
+ * Middleware auth admission tests.
  *
  * The login pages accept only same-app relative callbackUrl values. The
  * middleware must therefore pass the protected path + query, not the absolute
  * request URL, or every deep link silently falls back to /dashboard after
  * login. The open-redirect guard remains on the login consumer and is covered
  * by tests/pages/__tests__/login.test.tsx.
+ *
+ * Session cookies are produced by the installed NextAuth SDK. Token values are
+ * synthetic and never printed, even on failure.
  */
-import { NextRequest } from 'next/server';
+import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 
-jest.mock('next-auth/jwt', () => ({
-  getToken: jest.fn().mockResolvedValue(null),
-}));
+import { NextRequest } from 'next/server';
 
 import { middleware } from '../middleware';
 
-function makeRequest(url: string, cookie?: string) {
-  return new NextRequest(
-    url,
-    cookie ? { headers: { cookie } } : undefined,
-  );
+const originalNextAuthUrl = process.env.NEXTAUTH_URL;
+const originalNextAuthSecret = process.env.NEXTAUTH_SECRET;
+
+function makeRequest(
+  url: string,
+  cookie?: string,
+  headers: Record<string, string> = {},
+) {
+  const requestHeaders = { ...headers };
+  if (cookie) {
+    requestHeaders.cookie = cookie;
+  }
+  return new NextRequest(url, { headers: requestHeaders });
 }
 
 function callbackFrom(response: Response): string | null {
@@ -31,6 +44,49 @@ function callbackFrom(response: Response): string | null {
     'callbackUrl',
   );
 }
+
+async function encryptedSession(
+  secret = process.env.NEXTAUTH_SECRET as string,
+  maxAge = 60,
+): Promise<string> {
+  // jsdom's realm-specific encoders break jose's Node Uint8Array checks when
+  // the SDK runs in the Jest VM. Encode with the same installed SDK in a plain
+  // Node process and return only the opaque token through a pipe.
+  const script = `
+    const { encode } = require(${JSON.stringify(require.resolve('next-auth/jwt'))});
+    encode({
+      secret: process.env.TEST_SESSION_SECRET,
+      token: { sub: 'test-user', backendToken: 'test-backend-session' },
+      maxAge: ${Number(maxAge)},
+    }).then((token) => process.stdout.write(token));
+  `;
+  return execFileSync(process.execPath, ['-e', script], {
+    env: { ...process.env, TEST_SESSION_SECRET: secret },
+    encoding: 'utf8',
+  }).trim();
+}
+
+function chunkedCookie(name: string, token: string): string {
+  const half = Math.floor(token.length / 2);
+  return `${name}.0=${token.slice(0, half)}; ${name}.1=${token.slice(half)}`;
+}
+
+beforeEach(() => {
+  process.env.NEXTAUTH_URL = 'http://localhost:3000';
+});
+
+afterAll(() => {
+  if (originalNextAuthUrl === undefined) {
+    delete process.env.NEXTAUTH_URL;
+  } else {
+    process.env.NEXTAUTH_URL = originalNextAuthUrl;
+  }
+  if (originalNextAuthSecret === undefined) {
+    delete process.env.NEXTAUTH_SECRET;
+  } else {
+    process.env.NEXTAUTH_SECRET = originalNextAuthSecret;
+  }
+});
 
 describe('auth middleware callbackUrl', () => {
   test('preserves an internal protected path and query as a relative target', async () => {
@@ -64,7 +120,7 @@ describe('auth middleware callbackUrl', () => {
     expect(callbackFrom(response)).toBe('/dashboard');
   });
 
-  test('authenticated requests pass through without a login redirect', async () => {
+  test('legacy auth_token still admits a protected page', async () => {
     const response = await middleware(
       makeRequest(
         'http://localhost:3000/workflows/123',
@@ -81,5 +137,181 @@ describe('auth middleware callbackUrl', () => {
     );
 
     expect(response.headers.get('location')).toBeNull();
+  });
+});
+
+describe('NextAuth session cookie admission', () => {
+  test('valid production secure session admits a protected page', async () => {
+    process.env.NEXTAUTH_URL = 'https://app.example.invalid';
+    const token = await encryptedSession();
+
+    const response = await middleware(
+      makeRequest(
+        'https://app.example.invalid/settings?return=verified',
+        `__Secure-next-auth.session-token=${token}`,
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
+  test('valid production chunked session admits a protected page', async () => {
+    process.env.NEXTAUTH_URL = 'https://app.example.invalid';
+    const token = await encryptedSession();
+
+    const response = await middleware(
+      makeRequest(
+        'https://app.example.invalid/settings?return=verified',
+        chunkedCookie('__Secure-next-auth.session-token', token),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
+  test('valid development session admits a protected page', async () => {
+    const token = await encryptedSession();
+
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings',
+        `next-auth.session-token=${token}`,
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
+  test('invalid session cookie redirects with a relative callback', async () => {
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings?return=verified',
+        'next-auth.session-token=invalid',
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(callbackFrom(response)).toBe('/settings?return=verified');
+  });
+
+  test('expired session cookie does not admit a protected page', async () => {
+    const token = await encryptedSession(undefined, -60);
+
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings',
+        `next-auth.session-token=${token}`,
+      ),
+    );
+
+    expect(response.status).toBe(307);
+  });
+
+  test('tampered session cookie does not admit a protected page', async () => {
+    const token = await encryptedSession();
+    const replacement = token.endsWith('AAAAAA') ? 'BBBBBB' : 'AAAAAA';
+    const tampered = `${token.slice(0, -6)}${replacement}`;
+
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings',
+        `next-auth.session-token=${tampered}`,
+      ),
+    );
+
+    expect(response.status).toBe(307);
+  });
+
+  test('session signed with a different key does not admit a protected page', async () => {
+    const token = await encryptedSession(
+      randomBytes(32).toString('base64url'),
+    );
+
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings',
+        `next-auth.session-token=${token}`,
+      ),
+    );
+
+    expect(response.status).toBe(307);
+  });
+
+  test('missing signing secret does not admit a protected page', async () => {
+    const token = await encryptedSession();
+    const savedSecret = process.env.NEXTAUTH_SECRET;
+    delete process.env.NEXTAUTH_SECRET;
+
+    try {
+      const response = await middleware(
+        makeRequest(
+          'http://localhost:3000/settings',
+          `next-auth.session-token=${token}`,
+        ),
+      );
+
+      expect(response.status).toBe(307);
+    } finally {
+      process.env.NEXTAUTH_SECRET = savedSecret;
+    }
+  });
+
+  test('malformed chunked session does not admit a protected page', async () => {
+    process.env.NEXTAUTH_URL = 'https://app.example.invalid';
+    const token = await encryptedSession();
+    const half = Math.floor(token.length / 2);
+
+    const response = await middleware(
+      makeRequest(
+        'https://app.example.invalid/settings',
+        `__Secure-next-auth.session-token.0=${token.slice(0, half)}`,
+      ),
+    );
+
+    expect(response.status).toBe(307);
+  });
+
+  test('an authorization header alone does not admit a protected page', async () => {
+    const token = await encryptedSession();
+
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings',
+        undefined,
+        { authorization: `Bearer ${token}` },
+      ),
+    );
+
+    expect(response.status).toBe(307);
+  });
+
+  test('invalid cookie never falls back to a valid authorization header', async () => {
+    const token = await encryptedSession();
+
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings',
+        'next-auth.session-token=invalid',
+        { authorization: `Bearer ${token}` },
+      ),
+    );
+
+    expect(response.status).toBe(307);
+  });
+});
+
+describe('API passthrough', () => {
+  test('public API route is not redirected and forwards auth_token', async () => {
+    const response = await middleware(
+      makeRequest('http://localhost:3000/api/health', 'auth_token=test-token'),
+    );
+
+    expect(response.headers.get('location')).toBeNull();
+    expect(
+      response.headers.get('x-middleware-request-authorization'),
+    ).toBe('Bearer test-token');
   });
 });

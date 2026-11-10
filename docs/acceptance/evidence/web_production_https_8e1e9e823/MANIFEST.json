@@ -1,0 +1,34 @@
+{
+  "executed_source": "8e1e9e82393a8f203a18baefe3e837d3bda980d2",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:ec8aefd514872b847e48c866fa39252743288d9b34e220f89e5f8d808821484d",
+    "frontend-nextjs/pages/api/auth/[...nextauth].ts": "sha256:de9bda423814d23cee91b403dc6033997997c046f605e36c020fdbb6bdc11567",
+    "frontend-nextjs/lib/auth.ts": "sha256:cc59cd6463cf10f5f8d6bdcee0c48efcc2e205bf76d87c3ebac246e8e04ca559",
+    "frontend-nextjs/lib/web-auth-config.ts": "sha256:19cd8f8fe88d5a58c1b8c25b334c1ad02de535e4ab905a9faac60cab3d17c86b",
+    "frontend-nextjs/lib/backend-current-session.ts": "sha256:52221f9369121f03359ccdd434dee4b5830eb0a47c1b713ee3f9982111678550",
+    "frontend-nextjs/lib/backend-credentials.ts": "sha256:daa2ae591985b088d9d6f3079d7da4ae2a4b52de1437f41acea9ac413bca1932",
+    "frontend-nextjs/tests/contracts/nextauth-cookie-policy.cjs": "sha256:a18dec25440badd5006e02ba643fd2642c2ce872ebc9e6a1c920fc63da5b2e6c",
+    "frontend-nextjs/tests/contracts/nextauth-current-principal.cjs": "sha256:ba385a83b2a6ee3b43cdd429c8e8a24b72f73b9970278bea767562841c59ce6e",
+    "frontend-nextjs/tests/pages/api/__tests__/auth-nextauth.test.ts": "sha256:1b3bd567bc7a4be20233b1b09d538b8617d5e6faa9786fc212af3f7105d623c9",
+    "frontend-nextjs/next.config.js": "sha256:e3064054bd6d6b339c439df126f92d346b4f9c25976bb31324581e9b6d36271f",
+    "frontend-nextjs/package-lock.json": "sha256:189c3fd142b26758e74e2d21befb299904b86735296284ac9d2d964ee20acbc0"
+  },
+  "artifacts": {
+    "typescript.log": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "frontend.log": "sha256:7e2cf397d0262230f3942e943f2450f8cb43bd8edd5c37a8a057acc555d6cf8c",
+    "versions.json": "sha256:5822de26000b3605ad4f5864379a67fa8f7f74ba70ed1997b2feb207a9e45800",
+    "lifecycle.json": "sha256:0bd617c3d383a675e697a39638ea2f5591fceb820a72450ee2a1025579b3ac6d",
+    "cookie-policy.json": "sha256:9c190a2a2a857753b17c700ede85d85c47c318a15ef8129067273d32e3c45152",
+    "README.md": "sha256:c9b5eb450b09534e0df7a906ce6f508fd37da49866a5c05215c8776c86b59a9e",
+    "runtime-identity.json": "sha256:ce536e554f4e6e09cb2ba16a58449cd6459d62afff532557201038325142dd59",
+    "worker-negative.log": "sha256:7400587aca0926669be6462118aa16a5068bae25f26fb8d241130e7a08a03065",
+    "independent-sdk.log": "sha256:bd7786dfd3b81ce533a1c72d617f3a512be465693dad2462d44fd3e442003583",
+    "verification.json": "sha256:67d8f6ac8ab8babcf334a8c8b7a6645820938846f16e8c29438b2eb1ebe241b6",
+    "owned-tls-proxy.py": "sha256:872458c8d3aa98f341f99872636c734bf3d0661f1e9f51bd56411188d3af8615",
+    "worker-positive.log": "sha256:4084f5c3ff674608a903749c4b7b17d56d767750c7d157ac928df84823654b8f",
+    "https-after.py": "sha256:5815459e3a8528fb205a8a75a607e082b13e9b0e103ccf66e1e8041ff1ab23c6",
+    "https-before.py": "sha256:c32e5aeeb9ef4bcf91a32136402b448ec212940a478adb183425c515ef09064e",
+    "build-result.json": "sha256:ee07c12e2cd5dcdb0123264b5b9dc9003a0243ce6e0d7136f31135cae5c5226d",
+    "build.log": "sha256:d7c6aebe3a5a238407fe62035eff310a101395ae6f39e65ca044d2bb96e63171"
+  }
+}

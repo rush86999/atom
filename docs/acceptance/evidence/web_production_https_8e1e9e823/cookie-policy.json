@@ -1,0 +1,22 @@
+{
+  "source": "8e1e9e82393a8f203a18baefe3e837d3bda980d2",
+  "tls_verified_with_explicit_fixture_ca": true,
+  "cookie_attributes_without_values": [
+    {
+      "name": "__Host-next-auth.csrf-token",
+      "secure": true,
+      "http_only": true,
+      "has_domain": false,
+      "path_root": true
+    },
+    {
+      "name": "__Secure-next-auth.callback-url",
+      "secure": true,
+      "http_only": true,
+      "has_domain": false,
+      "path_root": true
+    }
+  ],
+  "debug_enabled_warning": false,
+  "runtime_signing_key_generated_after_build": true
+}
