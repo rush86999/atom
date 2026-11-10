@@ -259,7 +259,7 @@ class TestAtomMetaAgentSpawnAgent:
         assert spawned.name == "Finance Analyst"
         assert spawned.category == "Finance"
         assert spawned.status == AgentStatus.STUDENT.value
-        assert spawned.confidence_score == 0.5
+        assert spawned.confidence_score == 0.35
 
     @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')

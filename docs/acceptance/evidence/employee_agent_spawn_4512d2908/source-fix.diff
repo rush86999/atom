@@ -1,0 +1,1463 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index a6b699023..4badaa8da 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -511,6 +511,19 @@ jobs:
+         run: |
+           python -m pytest tests/api/test_agent_guided_create_goal14.py -q --tb=short --timeout=300 --timeout-method=thread
+ 
++      - name: Run spawned agent authority and receipt controls
++        env:
++          TESTING: "1"
++          PYTEST_CURRENT_TEST: "1"
++          DATABASE_URL: "sqlite:///test_ci_spawn_create.db"
++          ATOM_DATA_DIR: "${{ runner.temp }}/atom-spawn-create"
++          ATOM_LANCEDB_PATH: "${{ runner.temp }}/atom-spawn-create/lancedb"
++          LANCEDB_URI: "${{ runner.temp }}/atom-spawn-create/lancedb"
++          SECRET_KEY: "ci-test-secret-key"
++          ENVIRONMENT: "development"
++        run: |
++          python -m pytest tests/api/test_agent_spawn_goal14.py -q --tb=short --timeout=300 --timeout-method=thread
++
+   backend-oracle:
+     runs-on: ubuntu-latest
+     defaults:
+diff --git a/backend/api/agent_routes.py b/backend/api/agent_routes.py
+index 4fbf4bb85..292b253ef 100644
+--- a/backend/api/agent_routes.py
++++ b/backend/api/agent_routes.py
+@@ -46,7 +46,12 @@ from core.models import (
+     UserStatus,
+ )
+ from core.notification_manager import notification_manager
+-from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID, resolve_workspace_id
++from core.personal_scope import (
++    PERSONAL_TENANT_ID,
++    PERSONAL_WORKSPACE_ID,
++    resolve_tenant_id,
++    resolve_workspace_id,
++)
+ from core.rbac_service import Permission, RBACService
+ from core.security_dependencies import require_permission
+ from core.websockets import manager as ws_manager
+@@ -3484,28 +3489,70 @@ async def execute_atom(
+ @router.post("/spawn")
+ async def spawn_agent(
+     req: AtomSpawnRequest,
++    operation_id: Optional[str] = None,
+     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
++    db: Session = Depends(get_db),
+ ):
++    """Spawn a specialty agent on-demand from a template.
++
++    Durable spawn uses the authenticated caller's workspace/tenant and the
++    shared create decision writer: distinct operation ids create distinct
++    STUDENT agents with exact template/config/capabilities material, one
++    AuditLog receipt, and replay. Ephemeral spawn stays in memory and is
++    reported honestly as non-persisted.
+     """
+-    Spawn a specialty agent on-demand from a template.
+-    """
+-    from core.atom_meta_agent import get_atom_agent
+-    
+-    atom = get_atom_agent()
+-    agent = await atom.spawn_agent(
+-        template_name=req.template,
+-        custom_params=req.custom_params,
+-        persist=req.persist
+-    )
+-    
++    from core.atom_meta_agent import get_scoped_atom_agent
++
++    workspace_id = resolve_workspace_id(user)
++    tenant_id = resolve_tenant_id(user)
++    atom = get_scoped_atom_agent(workspace_id, tenant_id, user)
++
++    try:
++        if req.persist:
++            result = await atom.spawn_agent_decision(
++                template_name=req.template,
++                custom_params=req.custom_params,
++                actor=user,
++                db=db,
++                operation_id=operation_id,
++            )
++            _raise_agent_decision(result)
++            data = dict(result.get("data") or {})
++            return router.success_response(
++                data={
++                    "agent_id": data["agent_id"],
++                    "agent_name": data.get("agent_name") or "",
++                    "category": data.get("category") or "",
++                    "persisted": True,
++                    "template": req.template,
++                    "operation_id": data.get("operation_id"),
++                    "audit_id": data.get("audit_id"),
++                    "verification": data.get("verification"),
++                    "tenant_id": data.get("tenant_id"),
++                    "workspace_id": data.get("workspace_id"),
++                },
++                message=(
++                    f"Agent {data.get('agent_name') or ''} spawned "
++                    "successfully"),
++            )
++        agent = await atom.spawn_agent(
++            template_name=req.template,
++            custom_params=req.custom_params,
++            persist=False,
++        )
++    except ValueError as exc:
++        raise HTTPException(status_code=400, detail=str(exc))
++
+     return router.success_response(
+         data={
+             "agent_id": agent.id,
+             "agent_name": agent.name,
+             "category": agent.category,
+-            "persisted": req.persist
++            "persisted": False,
++            "template": req.template,
++            "verification": {"status": "not_persisted", "effect": "none"},
+         },
+-        message=f"Agent {agent.name} spawned successfully"
++        message=f"Agent {agent.name} spawned successfully",
+     )
+ 
+ 
+diff --git a/backend/core/atom_meta_agent.py b/backend/core/atom_meta_agent.py
+index 41bd6d507..a104afacb 100644
+--- a/backend/core/atom_meta_agent.py
++++ b/backend/core/atom_meta_agent.py
+@@ -2799,96 +2799,137 @@ What is your next step?"""
+             return "Fleet recruitment failed. Please try again."
+ 
+     
++    def _resolve_spawn_template(
++        self,
++        template_name: str,
++        custom_params: Optional[Dict[str, Any]],
++    ) -> Dict[str, Any]:
++        if template_name in SpecialtyAgentTemplate.TEMPLATES:
++            return SpecialtyAgentTemplate.TEMPLATES[template_name]
++        if template_name == "custom" and custom_params:
++            return custom_params
++        raise ValueError(f"Unknown agent template: {template_name}")
++
++    async def spawn_agent_decision(
++        self,
++        template_name: str,
++        custom_params: Optional[Dict[str, Any]] = None,
++        *,
++        actor: User,
++        db: Session,
++        operation_id: Optional[str] = None,
++    ) -> Dict[str, Any]:
++        """Create one distinct persisted spawn under the authenticated actor.
++
++        The shared create decision owns the current-actor claim, exact
++        template/config/capabilities material, AuditLog receipt, replay and
++        readback. A spawn is create-only: distinct operation ids produce
++        distinct agents; there is no module/class upsert collapse.
++        """
++        from core.agent_decision_write_service import create_agent
++
++        template = self._resolve_spawn_template(template_name, custom_params)
++        configuration = (
++            custom_params if custom_params is not None
++            else template.get("default_params", {})
++        )
++        return create_agent(
++            db,
++            actor=actor,
++            name=str(template.get("name") or f"Spawned {template_name}"),
++            category=str(template.get("category") or "General"),
++            description=(
++                template.get("description") or "Dynamically spawned agent"),
++            configuration=configuration,
++            schedule_config=None,
++            confidence_score=NEW_AGENT_CONFIDENCE,
++            user_id=str(getattr(actor, "id", "") or ""),
++            parent_agent_id=None,
++            parent_authority=None,
++            capabilities=template.get("capabilities"),
++            operation_id=operation_id,
++        )
++
++    def _spawn_result_agent(
++        self, db: Session, result: Dict[str, Any],
++    ) -> AgentRegistry:
++        status = result.get("status")
++        if status not in ("verified", "already_applied"):
++            raise ValueError(
++                result.get("error")
++                or f"Spawn decision did not apply: {status}")
++        target_id = str((result.get("data") or {}).get("agent_id") or "")
++        agent = db.get(AgentRegistry, target_id)
++        if agent is None:
++            raise ValueError("Spawn decision target is unreadable")
++        return agent
++
+     async def spawn_agent(self, template_name: str, custom_params: Dict[str, Any] = None,
+-                         persist: bool = False, db: Optional[Session] = None) -> AgentRegistry:
++                         persist: bool = False, db: Optional[Session] = None,
++                         actor: Optional[User] = None,
++                         operation_id: Optional[str] = None) -> AgentRegistry:
+         """
+         Spawn a specialty agent from template or custom definition.
+ 
+         Args:
+             template_name: Name of predefined template OR "custom"
+             custom_params: Custom agent configuration
+-            persist: If True, register in database; else ephemeral
+-            db: Optional database session to use for persistence (useful for tests)
++            persist: If True, create a distinct durable agent; else ephemeral
++            db: Optional database session to use for persistence
++            actor: Authenticated creator for durable spawn
++            operation_id: Optional exact-operation id for replay
+         """
+-        if template_name in SpecialtyAgentTemplate.TEMPLATES:
+-            template = SpecialtyAgentTemplate.TEMPLATES[template_name]
+-            
+-            # Extract capabilities for graduation registration
+-            initial_capabilities = template.get("capabilities", [])
+-            
+-            with SessionLocal() as reset_db:
+-                # Register capabilities at STUDENT level if they don't exist.
+-                # NOTE: must NOT shadow the `db` parameter — doing so made
+-                # the `if db is None:` fresh-session persist branch below
+-                # unreachable (persistence ran on the already-closed
+-                # reset-block session instead of a new one).
+-                for capability in initial_capabilities:
+-                    self.graduation_service.reset_maturity(
+-                        "atom_specialty_init",
+-                        capability,
+-                        "initial_spawn_registration"
+-                    )
+-            template = SpecialtyAgentTemplate.TEMPLATES[template_name]
+-        elif template_name == "custom" and custom_params:
+-            template = custom_params
+-        else:
+-            raise ValueError(f"Unknown agent template: {template_name}")
+-        
+-        # Create agent instance
++        template = self._resolve_spawn_template(template_name, custom_params)
++        configuration = (
++            custom_params if custom_params is not None
++            else template.get("default_params", {})
++        )
++        effective_user = actor or self.user
+         agent_id = f"spawned_{template_name}_{uuid.uuid4().hex[:8]}"
+-        
+         agent = AgentRegistry(
+             id=agent_id,
+-            name=template.get("name", f"Spawned {template_name}"),
+-            description=template.get("description", "Dynamically spawned agent"),
+-            category=template.get("category", "General"),
+-            status=AgentStatus.STUDENT.value,  # New agents start as STUDENT
+-            confidence_score=NEW_AGENT_CONFIDENCE,  # Below the INTERN floor (0.5)
++            name=str(template.get("name") or f"Spawned {template_name}"),
++            description=(
++                template.get("description") or "Dynamically spawned agent"),
++            category=str(template.get("category") or "General"),
++            status=AgentStatus.STUDENT.value,
++            confidence_score=NEW_AGENT_CONFIDENCE,
+             module_path="core.generic_agent",
+             class_name="GenericAgent",
+-            configuration=custom_params or template.get("default_params", {}),
+-            workspace_id=self.workspace_id,  # Set workspace from AtomMetaAgent
+-            tenant_id=self.tenant_id       # Set tenant from AtomMetaAgent
++            configuration=configuration,
++            capabilities=template.get("capabilities"),
++            user_id=(
++                str(effective_user.id) if effective_user is not None else None),
++            workspace_id=self.workspace_id,
++            tenant_id=self.tenant_id,
+         )
+ 
+         if persist:
+-            # Register in database
++            if effective_user is None:
++                raise ValueError(
++                    "Persistent spawn requires an authenticated actor")
+             if db is None:
+-                # Create new session if none provided
+                 with SessionLocal() as session:
+-                    governance = AgentGovernanceService(
+-                        session,
+-                        workspace_id=self.workspace_id,
+-                        tenant_id=self.tenant_id
++                    result = await self.spawn_agent_decision(
++                        template_name,
++                        custom_params,
++                        actor=effective_user,
++                        db=session,
++                        operation_id=operation_id,
+                     )
+-                    agent = governance.register_or_update_agent(
+-                        name=agent.name,
+-                        category=agent.category,
+-                        module_path=agent.module_path,
+-                        class_name=agent.class_name,
+-                        description=agent.description
+-                    )
+-                    logger.info(f"Persisted spawned agent: {agent.id}")
+-            else:
+-                # Use provided session (useful for tests)
+-                governance = AgentGovernanceService(
+-                    db,
+-                    workspace_id=self.workspace_id,
+-                    tenant_id=self.tenant_id
+-                )
+-                agent = governance.register_or_update_agent(
+-                    name=agent.name,
+-                    category=agent.category,
+-                    module_path=agent.module_path,
+-                    class_name=agent.class_name,
+-                    description=agent.description
+-                )
+-                logger.info(f"Persisted spawned agent: {agent.id}")
+-        else:
+-            # Ephemeral agent - just keep in memory
+-            self.spawned_agents[agent_id] = agent
+-            logger.info(f"Created ephemeral agent: {agent_id}")
++                    return self._spawn_result_agent(session, result)
++            result = await self.spawn_agent_decision(
++                template_name,
++                custom_params,
++                actor=effective_user,
++                db=db,
++                operation_id=operation_id,
++            )
++            return self._spawn_result_agent(db, result)
+ 
++        # Ephemeral agents are honest non-durable objects: no row, no audit.
++        self.spawned_agents[agent_id] = agent
++        logger.info(f"Created ephemeral agent: {agent_id}")
+         return agent
+ 
+     async def teach_student(
+@@ -4143,3 +4184,17 @@ def get_atom_agent(workspace_id: str = "default") -> AtomMetaAgent:
+     if _atom_instance is None or _atom_instance.workspace_id != workspace_id:
+         _atom_instance = AtomMetaAgent(workspace_id)
+     return _atom_instance
++
++
++def get_scoped_atom_agent(
++    workspace_id: str = "default",
++    tenant_id: Optional[str] = None,
++    user: Optional[User] = None,
++) -> AtomMetaAgent:
++    """Construct a request-scoped Atom instance, never the global singleton.
++
++    The public spawn route must use the authenticated caller's workspace,
++    tenant and user; reusing the process singleton would let one caller's
++    scope leak into another's durable spawn.
++    """
++    return AtomMetaAgent(workspace_id, tenant_id, user)
+diff --git a/backend/integrations/mcp_service.py b/backend/integrations/mcp_service.py
+index 0cdf32cd1..d4fde4201 100644
+--- a/backend/integrations/mcp_service.py
++++ b/backend/integrations/mcp_service.py
+@@ -2134,13 +2134,106 @@ class MCPService(IntegrationService):
+                 }
+ 
+             elif tool_name == "spawn_agent":
+-                from core.atom_meta_agent import get_atom_agent
+-                atom = get_atom_agent(context.get("workspace_id", "default"))
+-                return await atom.spawn_agent(
+-                    template_name=arguments.get("template"),
+-                    persist=arguments.get("persist", False)
++                ctx = context or {}
++                from core.personal_scope import (
++                    resolve_tenant_id as _scope_tenant,
++                    resolve_workspace_id as _scope_workspace,
+                 )
+ 
++                template_name = arguments.get("template")
++                custom_params = arguments.get("custom_params")
++                persist = bool(arguments.get("persist", False))
++                ctx_workspace = ctx.get("workspace_id")
++                ctx_tenant = ctx.get("tenant_id")
++                user_id = ctx.get("user_id")
++                user = None
++                if user_id:
++                    from core.database import SessionLocal
++                    from core.models import User as _User
++
++                    with SessionLocal() as lookup_db:
++                        user = (
++                            lookup_db.query(_User)
++                            .filter(_User.id == str(user_id))
++                            .first()
++                        )
++                    if user is None:
++                        return {
++                            "error": "Authenticated user required for spawn",
++                            "persisted": False,
++                        }
++
++                if user is not None:
++                    authoritative_workspace = _scope_workspace(user)
++                    authoritative_tenant = _scope_tenant(user)
++                    if (
++                        (ctx_workspace
++                         and str(ctx_workspace) != authoritative_workspace)
++                        or (ctx_tenant
++                            and str(ctx_tenant) != authoritative_tenant)
++                    ):
++                        return {
++                            "error": (
++                                "Spawn context contradicts the current "
++                                "user's authoritative workspace/tenant"),
++                            "persisted": False,
++                        }
++                    effective_workspace = authoritative_workspace
++                    effective_tenant = authoritative_tenant
++                else:
++                    effective_workspace = (
++                        str(ctx_workspace) if ctx_workspace
++                        else _scope_workspace())
++                    effective_tenant = (
++                        str(ctx_tenant) if ctx_tenant
++                        else _scope_tenant())
++
++                if persist and user is None:
++                    return {
++                        "error": (
++                            "Authenticated user required for persistent "
++                            "spawn"),
++                        "persisted": False,
++                    }
++
++                from core.atom_meta_agent import get_scoped_atom_agent
++
++                atom = get_scoped_atom_agent(
++                    effective_workspace, effective_tenant, user)
++                if persist:
++                    from core.database import SessionLocal
++
++                    with SessionLocal() as db:
++                        result = await atom.spawn_agent_decision(
++                            template_name=template_name,
++                            custom_params=custom_params,
++                            actor=user,
++                            db=db,
++                            operation_id=arguments.get("operation_id"),
++                        )
++                        if result.get("status") in (
++                                "verified", "already_applied"):
++                            data = dict(result.get("data") or {})
++                            data["persisted"] = True
++                            data["operation_id"] = result.get("operation_id")
++                            data["audit_id"] = result.get("audit_id")
++                            data["verification"] = (
++                                data.get("verification")
++                                or result.get("verification"))
++                            return data
++                        return {
++                            "error": (
++                                result.get("error")
++                                or result.get("status")),
++                            "persisted": False,
++                            "verification": result.get("verification"),
++                        }
++
++                return await atom.spawn_agent(
++                    template_name=template_name,
++                    custom_params=custom_params,
++                    persist=False,
++                )
+             elif tool_name == "list_workflows":
+                 try:
+                     import json
+diff --git a/backend/tests/api/test_agent_routes.py b/backend/tests/api/test_agent_routes.py
+index e541d3352..6e1ae2f80 100644
+--- a/backend/tests/api/test_agent_routes.py
++++ b/backend/tests/api/test_agent_routes.py
+@@ -439,7 +439,7 @@ def test_spawn_custom_agent(
+     mock_agent.name = "Spawned Agent"
+     mock_agent.category = "finance"
+ 
+-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
++    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
+         mock_atom_instance = Mock()
+         mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
+         mock_atom.return_value = mock_atom_instance
+@@ -1239,9 +1239,28 @@ def test_spawn_agent_persist_true(
+     mock_agent.name = "Persisted Agent"
+     mock_agent.category = "finance"
+ 
+-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
++    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
+         mock_atom_instance = Mock()
+-        mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
++        mock_atom_instance.spawn_agent_decision = AsyncMock(return_value={
++            "status": "verified",
++            "data": {
++                "agent_id": "persisted-agent-123",
++                "agent_name": "Persisted Agent",
++                "category": "finance",
++                "tenant_id": "default",
++                "workspace_id": "default",
++                "operation_id": "agent:create:test",
++                "audit_id": "agent:create:test",
++                "verification": {
++                    "status": "verified",
++                    "effect": "committed",
++                    "audit_id": "agent:create:test",
++                },
++            },
++            "operation_id": "agent:create:test",
++            "audit_id": "agent:create:test",
++            "target_id": "persisted-agent-123",
++        })
+         mock_atom.return_value = mock_atom_instance
+ 
+         response = client.post("/api/agents/spawn", json=request_data)
+@@ -1266,7 +1285,7 @@ def test_spawn_agent_unknown_template(
+     }
+ 
+     # Should handle gracefully
+-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
++    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
+         mock_atom_instance = Mock()
+         mock_atom_instance.spawn_agent.side_effect = Exception("Template not found")
+         mock_atom.return_value = mock_atom_instance
+@@ -2290,9 +2309,28 @@ def test_spawn_agent_persist_true(
+     mock_agent.name = "Persisted Agent"
+     mock_agent.category = "finance"
+ 
+-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
++    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
+         mock_atom_instance = Mock()
+-        mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
++        mock_atom_instance.spawn_agent_decision = AsyncMock(return_value={
++            "status": "verified",
++            "data": {
++                "agent_id": "persisted-agent-123",
++                "agent_name": "Persisted Agent",
++                "category": "finance",
++                "tenant_id": "default",
++                "workspace_id": "default",
++                "operation_id": "agent:create:test",
++                "audit_id": "agent:create:test",
++                "verification": {
++                    "status": "verified",
++                    "effect": "committed",
++                    "audit_id": "agent:create:test",
++                },
++            },
++            "operation_id": "agent:create:test",
++            "audit_id": "agent:create:test",
++            "target_id": "persisted-agent-123",
++        })
+         mock_atom.return_value = mock_atom_instance
+ 
+         response = client.post("/api/agents/spawn", json=request_data)
+@@ -2317,7 +2355,7 @@ def test_spawn_agent_unknown_template(
+     }
+ 
+     # Should handle gracefully
+-    with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
++    with patch('core.atom_meta_agent.get_scoped_atom_agent') as mock_atom:
+         mock_atom_instance = Mock()
+         mock_atom_instance.spawn_agent.side_effect = Exception("Template not found")
+         mock_atom.return_value = mock_atom_instance
+diff --git a/backend/tests/api/test_agent_routes_coverage_ext.py b/backend/tests/api/test_agent_routes_coverage_ext.py
+index f53d3d21b..ae69735de 100644
+--- a/backend/tests/api/test_agent_routes_coverage_ext.py
++++ b/backend/tests/api/test_agent_routes_coverage_ext.py
+@@ -742,9 +742,9 @@ def test_promote_agent_not_found(admin_user, client):
+ def test_spawn_agent_failure_propagates(admin_user, client):
+     """An exception from spawn_agent surfaces as 500 (no swallow)."""
+     _set_user(admin_user)
+-    with patch("core.atom_meta_agent.get_atom_agent") as mock_atom:
++    with patch("core.atom_meta_agent.get_scoped_atom_agent") as mock_atom:
+         inst = Mock()
+-        inst.spawn_agent = AsyncMock(side_effect=ValueError("bad template"))
++        inst.spawn_agent = AsyncMock(side_effect=RuntimeError("bad template"))
+         mock_atom.return_value = inst
+         resp = client.post(
+             "/api/agents/spawn",
+diff --git a/backend/tests/api/test_agent_spawn_goal14.py b/backend/tests/api/test_agent_spawn_goal14.py
+new file mode 100644
+index 000000000..041359795
+--- /dev/null
++++ b/backend/tests/api/test_agent_spawn_goal14.py
+@@ -0,0 +1,499 @@
++"""Goal14 public spawned-agent create boundary controls.
++
++Real scratch SQLite + real FastAPI route + real JWT. The Atom template and
++shared create decision writer are real; no model/provider is called. The
++persist=False branch is the real in-memory ephemeral path.
++"""
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++from fastapi import FastAPI
++from fastapi.testclient import TestClient
++from sqlalchemy import create_engine, func
++from sqlalchemy.orm import sessionmaker
++
++from api.agent_routes import router as agent_router
++from core.atom_meta_agent import SpecialtyAgentTemplate
++from core.auth import create_access_token
++from core.database import Base, get_db
++from core.models import AgentRegistry, AuditLog, Tenant, User, Workspace
++
++
++@pytest.fixture
++def world(tmp_path: Path, monkeypatch):
++    engine = create_engine(
++        f"sqlite:///{tmp_path / 'spawn.db'}",
++        connect_args={"check_same_thread": False},
++    )
++    Base.metadata.create_all(engine)
++    Session = sessionmaker(bind=engine, expire_on_commit=False)
++    import core.database as database
++
++    monkeypatch.setattr(database, "SessionLocal", Session)
++    with Session() as db:
++        db.add_all([
++            Tenant(id="company", name="Company", subdomain="company",
++                   edition="personal", is_active=True),
++            Tenant(id="other", name="Other", subdomain="other",
++                   edition="personal", is_active=True),
++        ])
++        db.add_all([
++            Workspace(id="ws-a", name="A", tenant_id="company"),
++            Workspace(id="ws-b", name="B", tenant_id="other"),
++        ])
++        db.add_all([
++            User(id="admin", tenant_id="company", workspace_id="ws-a",
++                 email="admin@example.test", hashed_password="x",
++                 first_name="A", last_name="D", role="workspace_admin",
++                 status="active", is_active=True),
++            User(id="member", tenant_id="company", workspace_id="ws-a",
++                 email="member@example.test", hashed_password="x",
++                 first_name="M", last_name="V", role="member",
++                 status="active", is_active=True),
++            User(id="foreign-admin", tenant_id="other", workspace_id="ws-b",
++                 email="foreign-admin@example.test", hashed_password="x",
++                 first_name="F", last_name="A", role="workspace_admin",
++                 status="active", is_active=True),
++            User(id="inactive", tenant_id="company", workspace_id="ws-a",
++                 email="inactive@example.test", hashed_password="x",
++                 first_name="I", last_name="V", role="workspace_admin",
++                 status="inactive", is_active=False),
++        ])
++        db.add(AgentRegistry(
++            id="atom_specialty_init", name="Specialty Init",
++            category="System", module_path="core.atom_meta_agent",
++            class_name="SpecialtyAgentTemplate", status="autonomous",
++            confidence_score=0.9, role="agent", type="personal",
++            tenant_id="company", workspace_id="ws-a",
++            configuration={
++                "capability_maturities": {
++                    "finance_analyst": "AUTONOMOUS",
++                },
++            },
++        ))
++        db.commit()
++    return {"engine": engine, "Session": Session}
++
++
++def _client(world):
++    app = FastAPI()
++    app.include_router(agent_router)
++
++    def override():
++        db = world["Session"]()
++        try:
++            yield db
++        finally:
++            db.close()
++
++    app.dependency_overrides[get_db] = override
++    return TestClient(app)
++
++
++def _token(world, user_id: str) -> str:
++    with world["Session"]() as db:
++        return create_access_token({"sub": user_id}, user=db.get(User, user_id))
++
++
++def _post(client, token, body, operation_id=None):
++    url = "/api/agents/spawn"
++    if operation_id is not None:
++        url += f"?operation_id={operation_id}"
++    return client.post(
++        url,
++        headers={"Authorization": f"Bearer {token}"},
++        json=body,
++    )
++
++
++def _audit_count(world, operation_id):
++    with world["Session"]() as db:
++        return db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == f"agent:create:{operation_id}").scalar()
++
++
++def _init_configuration(world):
++    with world["Session"]() as db:
++        return db.get(AgentRegistry, "atom_specialty_init").configuration
++
++
++def test_spawn_persist_true_uses_caller_scope_and_exact_material(world):
++    client = _client(world)
++    token = _token(world, "admin")
++    before_init = _init_configuration(world)
++    response = _post(
++        client, token,
++        {"template": "finance_analyst", "persist": True},
++        operation_id="spawn-op-1",
++    )
++    assert response.status_code == 200, response.text
++    data = response.json()["data"]
++    assert data["persisted"] is True
++    assert data["operation_id"] == "agent:create:spawn-op-1"
++    assert data["audit_id"] == "agent:create:spawn-op-1"
++    assert data["verification"]["status"] == "verified"
++
++    template = SpecialtyAgentTemplate.TEMPLATES["finance_analyst"]
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, data["agent_id"])
++        assert agent is not None
++        assert agent.name == template["name"]
++        assert agent.category == template["category"]
++        assert agent.tenant_id == "company"
++        assert agent.workspace_id == "ws-a"
++        assert agent.status == "student"
++        assert float(agent.confidence_score) == pytest.approx(0.35)
++        assert agent.user_id == "admin"
++        assert agent.parent_agent_id is None
++        assert agent.capabilities == template["capabilities"]
++        assert agent.configuration == template["default_params"]
++        audit = db.get(AuditLog, "agent:create:spawn-op-1")
++        assert audit is not None
++        assert audit.action == "agent_created"
++        assert audit.user_id == "admin"
++        assert audit.tenant_id == "company"
++        assert db.get(
++            AgentRegistry, "atom_specialty_init").configuration == before_init
++
++
++def test_spawn_distinct_operations_create_distinct_agents(world):
++    client = _client(world)
++    token = _token(world, "admin")
++    body = {"template": "finance_analyst", "persist": True}
++    first = _post(client, token, body, operation_id="spawn-distinct-a")
++    second = _post(client, token, body, operation_id="spawn-distinct-b")
++    assert first.status_code == 200, first.text
++    assert second.status_code == 200, second.text
++    first_id = first.json()["data"]["agent_id"]
++    second_id = second.json()["data"]["agent_id"]
++    assert first_id != second_id
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.id.in_([first_id, second_id])).scalar() == 2
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id.in_([
++                "agent:create:spawn-distinct-a",
++                "agent:create:spawn-distinct-b",
++            ])).scalar() == 2
++
++
++def test_spawn_duplicate_exact_operation_is_idempotent(world):
++    client = _client(world)
++    token = _token(world, "admin")
++    body = {"template": "finance_analyst", "persist": True}
++    first = _post(client, token, body, operation_id="spawn-dup")
++    assert first.status_code == 200, first.text
++    agent_id = first.json()["data"]["agent_id"]
++    replay = _post(client, token, body, operation_id="spawn-dup")
++    assert replay.status_code == 200, replay.text
++    assert replay.json()["data"]["agent_id"] == agent_id
++    assert replay.json()["data"]["verification"]["status"] == "already_applied"
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.id == agent_id).scalar() == 1
++        assert _audit_count(world, "spawn-dup") == 1
++
++
++def test_spawn_changed_material_same_operation_conflicts(world):
++    client = _client(world)
++    token = _token(world, "admin")
++    first = _post(client, token, {
++        "template": "finance_analyst",
++        "custom_params": {"focus": "cost"},
++        "persist": True,
++    }, operation_id="spawn-changed")
++    assert first.status_code == 200, first.text
++    agent_id = first.json()["data"]["agent_id"]
++    changed = _post(client, token, {
++        "template": "finance_analyst",
++        "custom_params": {"focus": "growth"},
++        "persist": True,
++    }, operation_id="spawn-changed")
++    assert changed.status_code == 409, changed.text
++    assert changed.json()["detail"]["error"]["code"] == "OPERATION_CONFLICT"
++    with world["Session"]() as db:
++        assert db.get(AgentRegistry, agent_id).configuration == {"focus": "cost"}
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == "agent:create:spawn-changed").scalar() == 1
++
++
++def test_spawn_foreign_admin_uses_own_scope(world):
++    client = _client(world)
++    token = _token(world, "foreign-admin")
++    response = _post(client, token, {
++        "template": "finance_analyst", "persist": True,
++    }, operation_id="spawn-foreign")
++    assert response.status_code == 200, response.text
++    data = response.json()["data"]
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, data["agent_id"])
++        assert agent.tenant_id == "other"
++        assert agent.workspace_id == "ws-b"
++        audit = db.get(AuditLog, "agent:create:spawn-foreign")
++        assert audit.tenant_id == "other"
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.tenant_id == "company",
++            AgentRegistry.name == "Finance Analyst",
++        ).scalar() == 0
++
++
++def test_spawn_custom_params_cannot_forge_authority(world):
++    client = _client(world)
++    token = _token(world, "admin")
++    forged = {
++        "name": "Forged Spawn",
++        "category": "Operations",
++        "description": "forged material",
++        "capabilities": ["read"],
++        "configuration": {"x": 1},
++        "status": "autonomous",
++        "maturity": "autonomous",
++        "confidence_score": 0.99,
++        "tenant_id": "other",
++        "workspace_id": "ws-b",
++        "user_id": "foreign",
++        "parent_agent_id": "foreign-agent",
++    }
++    response = _post(client, token, {
++        "template": "custom",
++        "custom_params": forged,
++        "persist": True,
++    }, operation_id="spawn-forged")
++    assert response.status_code == 200, response.text
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, response.json()["data"]["agent_id"])
++        assert agent.name == "Forged Spawn"
++        assert agent.category == "Operations"
++        assert agent.status == "student"
++        assert float(agent.confidence_score) == pytest.approx(0.35)
++        assert agent.tenant_id == "company"
++        assert agent.workspace_id == "ws-a"
++        assert agent.user_id == "admin"
++        assert agent.parent_agent_id is None
++        assert agent.capabilities == ["read"]
++
++
++def test_spawn_concurrent_authority_change_is_refused(world, monkeypatch):
++    from core import agent_decision_write_service as writes
++
++    original = writes._claim_actor
++
++    def claim_after_demotion(db, actor):
++        with world["Session"]() as peer:
++            user = peer.get(User, "admin")
++            user.role = "member"
++            peer.commit()
++        return original(db, actor)
++
++    monkeypatch.setattr(writes, "_claim_actor", claim_after_demotion)
++    client = _client(world)
++    token = _token(world, "admin")
++    response = _post(client, token, {
++        "template": "finance_analyst", "persist": True,
++    }, operation_id="spawn-race")
++    assert response.status_code == 409, response.text
++    assert response.json()["detail"]["error"]["code"] == "AUTHORITY_CHANGED"
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Finance Analyst").scalar() == 0
++        assert db.get(AuditLog, "agent:create:spawn-race") is None
++
++
++def test_spawn_inactive_or_member_is_forbidden(world):
++    client = _client(world)
++    for user_id in ("inactive", "member"):
++        response = _post(
++            client, _token(world, user_id),
++            {"template": "finance_analyst", "persist": True},
++            operation_id=f"spawn-{user_id}",
++        )
++        assert response.status_code in (401, 403), response.text
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Finance Analyst").scalar() == 0
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id.in_([
++                "agent:create:spawn-inactive",
++                "agent:create:spawn-member",
++            ])).scalar() == 0
++
++
++def test_spawn_null_and_empty_template_material_is_exact(
++        world, monkeypatch):
++    monkeypatch.setitem(SpecialtyAgentTemplate.TEMPLATES, "test_spawn_null", {
++        "name": "Null Config Spawn",
++        "category": "Operations",
++        "description": "null config",
++        "capabilities": ["read"],
++        "default_params": None,
++    })
++    monkeypatch.setitem(SpecialtyAgentTemplate.TEMPLATES, "test_spawn_empty", {
++        "name": "Empty Config Spawn",
++        "category": "Operations",
++        "description": "empty config",
++        "capabilities": ["read"],
++        "default_params": {},
++    })
++    client = _client(world)
++    token = _token(world, "admin")
++    null_body = {"template": "test_spawn_null", "persist": True}
++    null_response = _post(
++        client, token, null_body, operation_id="spawn-null")
++    assert null_response.status_code == 200, null_response.text
++    null_id = null_response.json()["data"]["agent_id"]
++    with world["Session"]() as db:
++        assert db.get(AgentRegistry, null_id).configuration is None
++        assert db.get(AgentRegistry, null_id).schedule_config is None
++
++    replay = _post(client, token, null_body, operation_id="spawn-null")
++    assert replay.status_code == 200, replay.text
++    assert replay.json()["data"]["verification"]["status"] == "already_applied"
++
++    changed = _post(client, token, {
++        "template": "test_spawn_empty", "persist": True,
++    }, operation_id="spawn-null")
++    assert changed.status_code == 409, changed.text
++    assert changed.json()["detail"]["error"]["code"] == "OPERATION_CONFLICT"
++    with world["Session"]() as db:
++        assert db.get(AgentRegistry, null_id).configuration is None
++        assert _audit_count(world, "spawn-null") == 1
++
++
++def test_spawn_rollback_and_readback_uncertainty(world, monkeypatch):
++    import uuid
++
++    client = _client(world)
++    token = _token(world, "admin")
++    # PK conflict at commit forces a real rollback: no child/audit is written
++    # and the existing row is untouched.
++    target_id = str(uuid.uuid5(
++        uuid.NAMESPACE_URL, "agent:create:spawn-rollback"))
++    with world["Session"]() as db:
++        db.add(AgentRegistry(
++            id=target_id, name="Existing Rollback", category="Operations",
++            module_path="tests.spawn", class_name="Existing",
++            status="student", confidence_score=0.2,
++            tenant_id="company", workspace_id="ws-a",
++        ))
++        db.commit()
++    response = _post(client, token, {
++        "template": "finance_analyst", "persist": True,
++    }, operation_id="spawn-rollback")
++    assert response.status_code == 409, response.text
++    assert response.json()["detail"]["error"]["code"] == (
++        "AGENT_TRANSACTION_ROLLED_BACK")
++    with world["Session"]() as db:
++        assert db.get(AgentRegistry, target_id).name == "Existing Rollback"
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Finance Analyst").scalar() == 0
++        assert db.get(AuditLog, "agent:create:spawn-rollback") is None
++
++    import core.agent_decision_write_service as writes
++
++    monkeypatch.setattr(writes, "_load_agent", lambda db, agent_id: None)
++    unverified = _post(client, token, {
++        "template": "finance_analyst", "persist": True,
++    }, operation_id="spawn-readback")
++    assert unverified.status_code == 503, unverified.text
++    assert unverified.json()["detail"]["error"]["code"] == (
++        "AGENT_COMMITTED_UNVERIFIED")
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Finance Analyst").scalar() == 1
++        assert db.get(AuditLog, "agent:create:spawn-readback") is not None
++
++
++def test_spawn_persist_false_is_honest_nondurable(world):
++    client = _client(world)
++    token = _token(world, "admin")
++    before_init = _init_configuration(world)
++    response = _post(client, token, {
++        "template": "finance_analyst", "persist": False,
++    }, operation_id="spawn-ephemeral")
++    assert response.status_code == 200, response.text
++    data = response.json()["data"]
++    assert data["persisted"] is False
++    assert data["verification"] == {
++        "status": "not_persisted", "effect": "none",
++    }
++    assert "operation_id" not in data
++    assert "audit_id" not in data
++    with world["Session"]() as db:
++        assert db.query(func.count(AgentRegistry.id)).filter(
++            AgentRegistry.name == "Finance Analyst").scalar() == 0
++        assert db.query(func.count(AuditLog.id)).filter(
++            AuditLog.id == "agent:create:spawn-ephemeral").scalar() == 0
++        assert db.get(
++            AgentRegistry, "atom_specialty_init").configuration == before_init
++
++
++def _personal_admin(world):
++    with world["Session"]() as db:
++        db.add(User(
++            id="personal-admin", tenant_id=None, workspace_id=None,
++            email="personal-admin@example.test", hashed_password="x",
++            first_name="P", last_name="A", role="workspace_admin",
++            status="active", is_active=True,
++        ))
++        db.commit()
++
++
++def _capture_scoped_factory(monkeypatch):
++    import core.atom_meta_agent as atom_mod
++
++    captured = {}
++    real = atom_mod.get_scoped_atom_agent
++
++    def wrapped(workspace_id, tenant_id=None, user=None):
++        captured["workspace_id"] = workspace_id
++        captured["tenant_id"] = tenant_id
++        return real(workspace_id, tenant_id, user)
++
++    monkeypatch.setattr(atom_mod, "get_scoped_atom_agent", wrapped)
++    return captured
++
++
++def test_spawn_personal_scope_matches_shared_writer(world, monkeypatch):
++    import core.personal_scope as scope
++
++    monkeypatch.setattr(scope, "PERSONAL_WORKSPACE_ID", "personal-ws")
++    monkeypatch.setattr(scope, "PERSONAL_TENANT_ID", "personal-tenant")
++    _personal_admin(world)
++    captured = _capture_scoped_factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "personal-admin")
++    response = _post(client, token, {
++        "template": "finance_analyst", "persist": True,
++    }, operation_id="spawn-personal")
++    assert response.status_code == 200, response.text
++    agent_id = response.json()["data"]["agent_id"]
++    with world["Session"]() as db:
++        agent = db.get(AgentRegistry, agent_id)
++        assert agent.tenant_id == "personal-tenant"
++        assert agent.workspace_id == "personal-ws"
++    assert captured == {
++        "workspace_id": "personal-ws",
++        "tenant_id": "personal-tenant",
++    }
++
++
++def test_spawn_ephemeral_personal_scope_matches_writer(world, monkeypatch):
++    import core.personal_scope as scope
++
++    monkeypatch.setattr(scope, "PERSONAL_WORKSPACE_ID", "personal-ws")
++    monkeypatch.setattr(scope, "PERSONAL_TENANT_ID", "personal-tenant")
++    _personal_admin(world)
++    captured = _capture_scoped_factory(monkeypatch)
++    client = _client(world)
++    token = _token(world, "personal-admin")
++    response = _post(client, token, {
++        "template": "finance_analyst", "persist": False,
++    }, operation_id="spawn-personal-ephemeral")
++    assert response.status_code == 200, response.text
++    assert response.json()["data"]["persisted"] is False
++    assert captured == {
++        "workspace_id": "personal-ws",
++        "tenant_id": "personal-tenant",
++    }
+diff --git a/backend/tests/core/agents/test_atom_meta_agent_coverage.py b/backend/tests/core/agents/test_atom_meta_agent_coverage.py
+index 6867a6a5e..b234aa895 100644
+--- a/backend/tests/core/agents/test_atom_meta_agent_coverage.py
++++ b/backend/tests/core/agents/test_atom_meta_agent_coverage.py
+@@ -259,7 +259,7 @@ class TestAtomMetaAgentSpawnAgent:
+         assert spawned.name == "Finance Analyst"
+         assert spawned.category == "Finance"
+         assert spawned.status == AgentStatus.STUDENT.value
+-        assert spawned.confidence_score == 0.5
++        assert spawned.confidence_score == 0.35
+ 
+     @patch('core.service_factory.ServiceFactory')
+     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
+diff --git a/backend/tests/fixtures/ci_backend_additions.json b/backend/tests/fixtures/ci_backend_additions.json
+index f724427cb..2c26ae5b2 100644
+--- a/backend/tests/fixtures/ci_backend_additions.json
++++ b/backend/tests/fixtures/ci_backend_additions.json
+@@ -157,5 +157,19 @@
+       "ENVIRONMENT": "development"
+     },
+     "run": "python -m pytest tests/api/test_agent_guided_create_goal14.py -q --tb=short --timeout=300 --timeout-method=thread\n"
++  },
++  {
++    "name": "Run spawned agent authority and receipt controls",
++    "env": {
++      "TESTING": "1",
++      "PYTEST_CURRENT_TEST": "1",
++      "DATABASE_URL": "sqlite:///test_ci_spawn_create.db",
++      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-spawn-create",
++      "ATOM_LANCEDB_PATH": "${{ runner.temp }}/atom-spawn-create/lancedb",
++      "LANCEDB_URI": "${{ runner.temp }}/atom-spawn-create/lancedb",
++      "SECRET_KEY": "ci-test-secret-key",
++      "ENVIRONMENT": "development"
++    },
++    "run": "python -m pytest tests/api/test_agent_spawn_goal14.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+   }
+ ]
+diff --git a/backend/tests/test_agent_routes_coverage.py b/backend/tests/test_agent_routes_coverage.py
+index 997d5a27c..664fe46a0 100644
+--- a/backend/tests/test_agent_routes_coverage.py
++++ b/backend/tests/test_agent_routes_coverage.py
+@@ -963,13 +963,28 @@ class TestAtomMetaAgentEndpoints:
+ 
+     def test_spawn_agent_success(self, client: TestClient):
+         """Test spawning a new agent."""
+-        with patch("core.atom_meta_agent.get_atom_agent") as mock_get:
++        with patch("core.atom_meta_agent.get_scoped_atom_agent") as mock_get:
+             mock_atom = MagicMock()
+-            mock_agent = Mock()
+-            mock_agent.id = "spawned-123"
+-            mock_agent.name = "Spawned Agent"
+-            mock_agent.category = "finance"
+-            mock_atom.spawn_agent = AsyncMock(return_value=mock_agent)
++            mock_atom.spawn_agent_decision = AsyncMock(return_value={
++                "status": "verified",
++                "data": {
++                    "agent_id": "spawned-123",
++                    "agent_name": "Spawned Agent",
++                    "category": "finance",
++                    "tenant_id": "default",
++                    "workspace_id": "default",
++                    "operation_id": "agent:create:coverage",
++                    "audit_id": "agent:create:coverage",
++                    "verification": {
++                        "status": "verified",
++                        "effect": "committed",
++                        "audit_id": "agent:create:coverage",
++                    },
++                },
++                "operation_id": "agent:create:coverage",
++                "audit_id": "agent:create:coverage",
++                "target_id": "spawned-123",
++            })
+             mock_get.return_value = mock_atom
+ 
+             response = client.post(
+@@ -989,7 +1004,7 @@ class TestAtomMetaAgentEndpoints:
+ 
+     def test_spawn_agent_minimal(self, client: TestClient):
+         """Test spawning agent with minimal params."""
+-        with patch("core.atom_meta_agent.get_atom_agent") as mock_get:
++        with patch("core.atom_meta_agent.get_scoped_atom_agent") as mock_get:
+             mock_atom = MagicMock()
+             mock_agent = Mock()
+             mock_agent.id = "spawned-minimal"
+diff --git a/backend/tests/test_covpush_mcp_svc.py b/backend/tests/test_covpush_mcp_svc.py
+index 763bdaa83..ff854ab1a 100644
+--- a/backend/tests/test_covpush_mcp_svc.py
++++ b/backend/tests/test_covpush_mcp_svc.py
+@@ -1244,12 +1244,46 @@ class TestExecuteToolLocalTools:
+     async def test_spawn_agent(self, svc, monkeypatch):
+         atom = MagicMock()
+         atom.spawn_agent = AsyncMock(return_value={"spawned": True})
+-        monkeypatch.setattr("core.atom_meta_agent.get_atom_agent", lambda ws: atom)
++        monkeypatch.setattr(
++            "core.atom_meta_agent.get_scoped_atom_agent",
++            lambda ws, tenant_id=None, user=None: atom)
+         result = await svc.execute_tool(
+             "local-tools", "spawn_agent", {"template": "researcher"}, {"workspace_id": "ws"}
+         )
+         assert result == {"spawned": True}
+ 
++    @pytest.mark.asyncio
++    async def test_spawn_agent_rejects_contradictory_context(
++            self, svc, monkeypatch):
++        from types import SimpleNamespace
++        from unittest.mock import MagicMock
++
++        user = SimpleNamespace(
++            id="u1", workspace_id="ws-a", tenant_id="company",
++            role="workspace_admin", status="active", is_active=True)
++        db = MagicMock()
++        db.query.return_value.filter.return_value.first.return_value = user
++
++        class _CM:
++            def __enter__(self):
++                return db
++
++            def __exit__(self, *args):
++                return False
++
++        monkeypatch.setattr("core.database.SessionLocal", lambda: _CM())
++        calls = []
++        monkeypatch.setattr(
++            "core.atom_meta_agent.get_scoped_atom_agent",
++            lambda *args, **kwargs: calls.append((args, kwargs)) or MagicMock())
++        result = await svc.execute_tool(
++            "local-tools", "spawn_agent", {"template": "researcher"},
++            {"workspace_id": "ws-b", "tenant_id": "other", "user_id": "u1"},
++        )
++        assert result["error"]
++        assert result["persisted"] is False
++        assert calls == []
++
+     @pytest.mark.asyncio
+     async def test_list_workflows_no_dir(self, svc, monkeypatch):
+         monkeypatch.setattr("integrations.mcp_service.os.path.exists", lambda p: False)
+diff --git a/backend/tests/test_covpush_meta.py b/backend/tests/test_covpush_meta.py
+index cdc9076f2..fa5b14958 100644
+--- a/backend/tests/test_covpush_meta.py
++++ b/backend/tests/test_covpush_meta.py
+@@ -888,7 +888,9 @@ class TestSpawnAgent:
+         result = await agent.spawn_agent("finance_analyst")
+         assert result.id.startswith("spawned_finance_analyst_")
+         assert result.id in agent.spawned_agents
+-        agent.graduation_service.reset_maturity.assert_called()
++        # Ordinary spawn must not mutate the synthetic atom_specialty_init
++        # capability row; the agent's capabilities live on its own row.
++        agent.graduation_service.reset_maturity.assert_not_called()
+ 
+     @pytest.mark.asyncio
+     async def test_spawn_custom(self, meta_agent):
+@@ -908,21 +910,36 @@ class TestSpawnAgent:
+         db = MagicMock()
+         registered = SimpleNamespace(id="reg-1", name="Registered", category="c",
+                                      module_path="m", class_name="k", description="d")
+-        gov = MagicMock()
+-        gov.register_or_update_agent.return_value = registered
+-        with patch("core.atom_meta_agent.AgentGovernanceService", return_value=gov):
+-            result = await agent.spawn_agent("hr_assistant", persist=True, db=db)
++        actor = SimpleNamespace(id="actor-1")
++        agent.spawn_agent_decision = AsyncMock(return_value={
++            "status": "verified", "data": {"agent_id": "reg-1"}})
++        db.get.return_value = registered
++        result = await agent.spawn_agent(
++            "hr_assistant", persist=True, db=db, actor=actor)
+         assert result == registered
++        agent.spawn_agent_decision.assert_awaited_once()
++        assert agent.spawn_agent_decision.call_args.kwargs["actor"] is actor
++        assert agent.spawn_agent_decision.call_args.kwargs["db"] is db
+ 
+     @pytest.mark.asyncio
+     async def test_spawn_persist_new_session(self, meta_agent):
+         agent, sl = meta_agent
+         registered = SimpleNamespace(id="reg-2", name="Registered")
+-        gov = MagicMock()
+-        gov.register_or_update_agent.return_value = registered
+-        with patch("core.atom_meta_agent.AgentGovernanceService", return_value=gov):
+-            result = await agent.spawn_agent("sales_assistant", persist=True)
++        actor = SimpleNamespace(id="actor-1")
++        session = sl.return_value.__enter__.return_value
++        session.get.return_value = registered
++        agent.spawn_agent_decision = AsyncMock(return_value={
++            "status": "verified", "data": {"agent_id": "reg-2"}})
++        result = await agent.spawn_agent(
++            "sales_assistant", persist=True, actor=actor)
+         assert result == registered
++        agent.spawn_agent_decision.assert_awaited_once()
++
++    @pytest.mark.asyncio
++    async def test_spawn_persist_requires_actor(self, meta_agent):
++        agent, _ = meta_agent
++        with pytest.raises(ValueError, match="authenticated actor"):
++            await agent.spawn_agent("sales_assistant", persist=True)
+ 
+ 
+ class TestQueryMemoryAndGuidance:
+diff --git a/backend/tests/test_covpush_w41b_meta_tools.py b/backend/tests/test_covpush_w41b_meta_tools.py
+index 2c659de38..00a4cd0aa 100644
+--- a/backend/tests/test_covpush_w41b_meta_tools.py
++++ b/backend/tests/test_covpush_w41b_meta_tools.py
+@@ -315,33 +315,41 @@ class TestSpawnAgent:
+     async def test_custom_spawn_persist(self):
+         agent = make_tool_agent()
+         registered = SimpleNamespace(id="reg-1")
+-        gov = MagicMock()
+-        gov.register_or_update_agent.return_value = registered
++        actor = SimpleNamespace(id="actor-1")
++        db = MagicMock()
++        db.get.return_value = registered
++        agent.spawn_agent_decision = AsyncMock(return_value={
++            "status": "verified", "data": {"agent_id": "reg-1"}})
+         with patch("core.atom_meta_agent.AgentRegistry",
+-                   lambda **kw: SimpleNamespace(**kw)), \
+-             patch("core.atom_meta_agent.AgentGovernanceService",
+-                   return_value=gov):
++                   lambda **kw: SimpleNamespace(**kw)):
+             result = await agent.spawn_agent(
+                 "custom",
+                 {"name": "Custom", "category": "Ops",
+                  "description": "d", "default_params": {"x": 1}},
+-                persist=True, db=MagicMock())
++                persist=True, db=db, actor=actor)
+         assert result.id == "reg-1"
++        agent.spawn_agent_decision.assert_awaited_once()
+ 
+     async def test_template_spawn_persist_no_db(self):
+         agent = make_tool_agent()
+         registered = SimpleNamespace(id="reg-2")
+-        gov = MagicMock()
+-        gov.register_or_update_agent.return_value = registered
++        actor = SimpleNamespace(id="actor-1")
++        agent.spawn_agent_decision = AsyncMock(return_value={
++            "status": "verified", "data": {"agent_id": "reg-2"}})
+         with patch("core.atom_meta_agent.AgentRegistry",
+                    lambda **kw: SimpleNamespace(**kw)), \
+-             patch("core.atom_meta_agent.SessionLocal") as sl, \
+-             patch("core.atom_meta_agent.AgentGovernanceService",
+-                   return_value=gov):
+-            sl.return_value.__enter__.return_value = MagicMock()
+-            result = await agent.spawn_agent("sales_assistant", persist=True)
++             patch("core.atom_meta_agent.SessionLocal") as sl:
++            session = sl.return_value.__enter__.return_value
++            session.get.return_value = registered
++            result = await agent.spawn_agent(
++                "sales_assistant", persist=True, actor=actor)
+         assert result.id == "reg-2"
+ 
++    async def test_persist_requires_actor(self):
++        agent = make_tool_agent()
++        with pytest.raises(ValueError, match="authenticated actor"):
++            await agent.spawn_agent("sales_assistant", persist=True)
++
+ 
+ class TestQueryMemoryAndMentorship:
+     async def test_query_memory_scopes(self):
+diff --git a/backend/tests/test_covpush_w85_mcp_service.py b/backend/tests/test_covpush_w85_mcp_service.py
+index 8ef4750c7..ce021e526 100644
+--- a/backend/tests/test_covpush_w85_mcp_service.py
++++ b/backend/tests/test_covpush_w85_mcp_service.py
+@@ -552,7 +552,9 @@ async def test_local_spawn_and_list_agents(svc, base_env):
+     assert res["templates"] == [{"name": "T"}] and res["registered"][0]["id"] == "ag1"
+     atom = MagicMock()
+     atom.spawn_agent = AsyncMock(return_value={"agent": "new"})
+-    base_env.setattr("core.atom_meta_agent.get_atom_agent", lambda ws: atom)
++    base_env.setattr(
++        "core.atom_meta_agent.get_scoped_atom_agent",
++        lambda ws, tenant_id=None, user=None: atom)
+     res = await svc.execute_tool("local-tools", "spawn_agent",
+                                  {"template": "T"}, {"workspace_id": "w"})
+     assert res == {"agent": "new"}
+diff --git a/backend/tests/test_covpush_w98_gaps_a.py b/backend/tests/test_covpush_w98_gaps_a.py
+index aa856f1ed..0ec4cc1e8 100644
+--- a/backend/tests/test_covpush_w98_gaps_a.py
++++ b/backend/tests/test_covpush_w98_gaps_a.py
+@@ -1063,16 +1063,28 @@ class TestAtomMetaAgentGaps:
+         custom = await agent.spawn_agent("custom",
+                                          custom_params={"name": "MyAgent"})
+         assert custom.name == "MyAgent"
+-        # persist with provided db
+-        gov = ama.AgentGovernanceService.return_value
+-        gov.register_or_update_agent = MagicMock(return_value=NS(id="reg-1"))
+-        persisted = await agent.spawn_agent("custom", custom_params={"name": "P"},
+-                                            persist=True, db=MagicMock())
++        # persist with provided db: shared decision writer, authenticated actor
++        actor = NS(id="actor-1")
++        decision = AsyncMock(return_value={
++            "status": "verified", "data": {"agent_id": "reg-1"}})
++        agent.spawn_agent_decision = decision
++        db = MagicMock()
++        db.get.return_value = NS(id="reg-1")
++        persisted = await agent.spawn_agent(
++            "custom", custom_params={"name": "P"},
++            persist=True, db=db, actor=actor)
+         assert persisted.id == "reg-1"
+         # persist without db -> fresh session
+-        persisted = await agent.spawn_agent("custom", custom_params={"name": "P2"},
+-                                            persist=True, db=None)
++        session = sl.return_value.__enter__.return_value
++        session.get.return_value = NS(id="reg-1")
++        persisted = await agent.spawn_agent(
++            "custom", custom_params={"name": "P2"},
++            persist=True, db=None, actor=actor)
+         assert persisted.id == "reg-1"
++        # no authenticated actor -> fail closed, no silent default scope
++        with pytest.raises(ValueError, match="authenticated actor"):
++            await agent.spawn_agent(
++                "custom", custom_params={"name": "P3"}, persist=True)
+ 
+     async def test_query_memory_scopes(self, meta_agent):
+         agent, sl, ama = meta_agent
+diff --git a/backend/tests/unit/test_atom_meta_agent.py b/backend/tests/unit/test_atom_meta_agent.py
+index 383315899..e7d17b026 100644
+--- a/backend/tests/unit/test_atom_meta_agent.py
++++ b/backend/tests/unit/test_atom_meta_agent.py
+@@ -433,7 +433,7 @@ class TestAtomMetaAgentErrorHandling:
+             assert agent.name == "Finance Analyst"
+             assert agent.category == "Finance"
+             assert agent.status == AgentStatus.STUDENT.value
+-            assert agent.confidence_score == 0.5
++            assert agent.confidence_score == 0.35
+ 
+     @pytest.mark.asyncio
+     async def test_spawn_agent_unknown_template(self, atom_agent):
+@@ -613,7 +613,8 @@ class TestPostgreSQLIntegration:
+                 "capabilities": ["test_capability"]
+             },
+             persist=True,
+-            db=postgresql_db
++            db=postgresql_db,
++            actor=actor,
+         ))
+ 
+         # Verify agent exists in database (now in same session!)
+@@ -806,7 +807,7 @@ class TestPostgreSQLIntegration:
+             pytest.skip("PostgreSQL unavailable")
+ 
+         from core.atom_meta_agent import AtomMetaAgent
+-        from core.models import AgentRegistry, Workspace, Tenant
++        from core.models import AgentRegistry, Workspace, Tenant, User
+ 
+         # Create tenant first
+         tenant = Tenant(
+@@ -903,6 +904,17 @@ class TestPostgreSQLIntegration:
+ 
+         agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
+ 
++        # The durable spawn decision needs an authenticated actor row.
++        actor = User(
++            id=f"spawn-actor-{test_tenant_id[:8]}",
++            email=f"spawn-actor-{test_tenant_id[:8]}@example.test",
++            first_name="Spawn", last_name="Actor", hashed_password="x",
++            role="workspace_admin", status="active", is_active=True,
++            tenant_id=test_tenant_id, workspace_id=test_workspace_id,
++        )
++        postgresql_db.add(actor)
++        postgresql_db.commit()
++
+         # Create agent - all new agents start at STUDENT status
+         agent_registry = asyncio.run(agent.spawn_agent(
+             template_name="custom",
+@@ -916,13 +928,13 @@ class TestPostgreSQLIntegration:
+             db=postgresql_db
+         ))
+ 
+-        # Verify initial maturity (status = student, confidence_score = 0.5)
++        # Verify initial maturity (status = student, confidence_score = 0.35)
+         saved_agent = postgresql_db.query(AgentRegistry).filter(
+             AgentRegistry.id == agent_registry.id
+         ).first()
+ 
+         assert saved_agent.status == "student"
+-        assert saved_agent.confidence_score == 0.5
++        assert saved_agent.confidence_score == 0.35
+ 
+         # Update maturity to INTERN
+         saved_agent.status = "intern"
