@@ -106,6 +106,7 @@ const generatedWorkflow = {
   name: 'Lead Qualification Flow',
   description: 'Qualify inbound leads',
   execution_mode: 'manual',
+  definition_digest: 'digest-42',
   route_reasoning: 'sales outreach is common',
   nodes: [
     { id: 'n1', name: 'Lead Created', type: 'trigger', metadata: { service: 'crm' } },
@@ -294,7 +295,7 @@ describe('AgentWorkflowGenerator', () => {
         '/api/v1/workflows/generate-from-agent',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ prompt: 'qualify new leads', tenant_id: 'default' }),
+          body: JSON.stringify({ prompt: 'qualify new leads', tenant_id: 'default', agent_id: 'agent-sales' }),
         })
       );
     });
@@ -357,7 +358,7 @@ describe('AgentWorkflowGenerator', () => {
     });
   });
 
-  it('treats recurring_automation workflows as requiring approval', async () => {
+  it('treats recurring_automation workflows as manifestly not active', async () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
     fetchSpy.mockResolvedValueOnce(jsonResponse(generatedRecurringWorkflow));
     render(<AgentWorkflowGenerator />);
@@ -368,14 +369,13 @@ describe('AgentWorkflowGenerator', () => {
     await waitFor(() => {
       expect(screen.getByText('Nightly Sync')).toBeInTheDocument();
     });
-    // approval UI instead of direct deploy
+    // Deploy/Run/Schedule stay separate actions; no client-side activation.
     expect(
-      screen.getByRole('button', { name: /submit for approval/i })
+      screen.getByRole('button', { name: /deploy workflow/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/A team lead or admin must approve this workflow/)
+      screen.getByText(/Running and scheduling are separate/)
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /deploy workflow/i })).not.toBeInTheDocument();
   });
 
   it('toasts Generation Failed when the generate API is not ok', async () => {
@@ -488,11 +488,16 @@ describe('AgentWorkflowGenerator', () => {
     });
   };
 
-  it('deploys directly when the backend approves', async () => {
+  it('saves a server-confirmed deployment without claiming active or run', async () => {
     const onDeployWorkflow = jest.fn();
     fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
     fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
-    fetchSpy.mockResolvedValueOnce(jsonResponse({ can_deploy: true }));
+    fetchSpy.mockResolvedValueOnce(jsonResponse({
+      status: 'deployed',
+      workflow_id: 'wf-42',
+      definition_digest: 'digest-42',
+      scheduler_job_id: null,
+    }));
     render(
       <AgentWorkflowGenerator onDeployWorkflow={onDeployWorkflow} />
     );
@@ -502,101 +507,135 @@ describe('AgentWorkflowGenerator', () => {
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/agent-governance/check-deployment',
+        '/api/v1/workflows/workflows/wf-42/deploy',
         expect.objectContaining({ method: 'POST' })
       );
     });
     const deployBody = JSON.parse(
       fetchSpy.mock.calls.find(
-        ([url]: any) => url === '/api/agent-governance/check-deployment'
+        ([url]: any) => url === '/api/v1/workflows/workflows/wf-42/deploy'
       )![1].body
     );
-    expect(deployBody).toMatchObject({
+    expect(deployBody).toEqual({
+      definition_digest: 'digest-42',
       agent_id: 'agent-eng',
-      workflow_name: 'Lead Qualification Flow',
-      workflow_definition: { id: 'wf-42', name: 'Lead Qualification Flow' },
-      trigger_type: 'manual',
-      actions: ['Lead Created', 'Score Lead', 'Slack Alert'],
-      requested_by: 'current-user',
     });
     expect(onDeployWorkflow).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'wf-42', name: 'Lead Qualification Flow' })
+      expect.objectContaining({ id: 'wf-42', name: 'Lead Qualification Flow' }),
+      expect.objectContaining({ status: 'deployed' })
     );
-    // chat message confirms the deployment
     await waitFor(() => {
-      expect(screen.getByText(/I've deployed the workflow "Lead Qualification Flow"/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Saved "Lead Qualification Flow" to My Workflows/)
+      ).toBeInTheDocument();
     });
+    expect(screen.getByText(/not active, and no run or schedule/)).toBeInTheDocument();
+    expect(screen.queryByText(/now active and ready to run/)).not.toBeInTheDocument();
   });
 
-  it('submits for approval when the backend requires it', async () => {
-    fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
-    fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
-    fetchSpy.mockResolvedValueOnce(jsonResponse({ can_deploy: false }));
-    fetchSpy.mockResolvedValueOnce(
-      jsonResponse({ message: 'Your request was queued.' })
-    );
-    render(<AgentWorkflowGenerator />);
-    await generateWorkflow();
-
-    fireEvent.click(screen.getByRole('button', { name: /deploy workflow/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/agent-governance/submit-for-approval',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-    const submitBody = JSON.parse(
-      fetchSpy.mock.calls.find(
-        ([url]: any) => url === '/api/agent-governance/submit-for-approval'
-      )![1].body
-    );
-    expect(submitBody).toMatchObject({
-      agent_id: 'agent-sales',
-      workflow_name: 'Lead Qualification Flow',
-      trigger_type: 'manual',
-      actions: ['Lead Created', 'Score Lead', 'Slack Alert'],
-      requested_by: 'current-user',
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/submitted the workflow "Lead Qualification Flow" for approval. Your request was queued\./)).toBeInTheDocument();
-    });
-  });
-
-  it('falls back to local deploy when the check-deployment request throws', async () => {
+  it('shows a real pending approval and never fabricates deployment', async () => {
     const onDeployWorkflow = jest.fn();
     fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
     fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
-    fetchSpy.mockRejectedValueOnce(new Error('governance down'));
+    fetchSpy.mockResolvedValueOnce(jsonResponse({
+      status: 'pending_approval',
+      workflow_id: 'wf-42',
+      approval_id: 'apr-real-1',
+      scheduler_job_id: null,
+    }));
     render(
       <AgentWorkflowGenerator onDeployWorkflow={onDeployWorkflow} />
     );
-    await generateWorkflow('eng');
-
-    fireEvent.click(screen.getByRole('button', { name: /deploy workflow/i }));
-
-    await waitFor(() => {
-      expect(onDeployWorkflow).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'wf-42' })
-      );
-    });
-    expect(screen.getByText(/I've deployed the workflow "Lead Qualification Flow"/)).toBeInTheDocument();
-  });
-
-  it('falls back to the approval message when the check throws and the agent cannot deploy directly', async () => {
-    fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
-    fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
-    fetchSpy.mockRejectedValueOnce(new Error('governance down'));
-    render(<AgentWorkflowGenerator />);
     await generateWorkflow();
 
     fireEvent.click(screen.getByRole('button', { name: /deploy workflow/i }));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/This workflow requires approval. I've submitted it for review by a team lead\./)
+        screen.getByText(/submitted for approval \(approval apr-real-1\)/)
       ).toBeInTheDocument();
     });
+    expect(
+      screen.getByText(/No workflow was activated, run or scheduled/)
+    ).toBeInTheDocument();
+    expect(onDeployWorkflow).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Saved "Lead Qualification Flow"/)).not.toBeInTheDocument();
+  });
+
+  it('reports a server refusal honestly with no success fallback', async () => {
+    const onDeployWorkflow = jest.fn();
+    fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
+    fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
+    fetchSpy.mockResolvedValueOnce(jsonResponse({
+      detail: {
+        error: 'definition_digest_mismatch',
+        message: 'the requested material does not match the persisted blueprint',
+      },
+    }, false));
+    render(
+      <AgentWorkflowGenerator onDeployWorkflow={onDeployWorkflow} />
+    );
+    await generateWorkflow();
+
+    fireEvent.click(screen.getByRole('button', { name: /deploy workflow/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/couldn't deploy "Lead Qualification Flow"/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Nothing was activated, run or scheduled/)).toBeInTheDocument();
+    expect(onDeployWorkflow).not.toHaveBeenCalled();
+    expect(toastMock()).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Deployment not confirmed',
+        variant: 'destructive',
+      })
+    );
+  });
+
+  it('does not fall back to a local success when the deployment request throws', async () => {
+    const onDeployWorkflow = jest.fn();
+    fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
+    fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
+    fetchSpy.mockRejectedValueOnce(new Error('network down'));
+    render(
+      <AgentWorkflowGenerator onDeployWorkflow={onDeployWorkflow} />
+    );
+    await generateWorkflow('eng');
+
+    fireEvent.click(screen.getByRole('button', { name: /deploy workflow/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/couldn't confirm the deployment of "Lead Qualification Flow"/)
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Nothing is claimed as deployed, pending, active, run or scheduled/)).toBeInTheDocument();
+    expect(onDeployWorkflow).not.toHaveBeenCalled();
+    expect(screen.queryByText(/I've deployed the workflow/)).not.toBeInTheDocument();
+  });
+
+  it('reports committed-but-unverified instead of deployed or pending', async () => {
+    const onDeployWorkflow = jest.fn();
+    fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
+    fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
+    fetchSpy.mockResolvedValueOnce(jsonResponse({
+      status: 'committed_unverified',
+      workflow_id: 'wf-42',
+    }));
+    render(
+      <AgentWorkflowGenerator onDeployWorkflow={onDeployWorkflow} />
+    );
+    await generateWorkflow();
+
+    fireEvent.click(screen.getByRole('button', { name: /deploy workflow/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/saved state of "Lead Qualification Flow" could not be verified/)
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Do not treat this as deployed or as a rollback/)).toBeInTheDocument();
+    expect(onDeployWorkflow).not.toHaveBeenCalled();
   });
 
   // ------------------------------------------------------------------

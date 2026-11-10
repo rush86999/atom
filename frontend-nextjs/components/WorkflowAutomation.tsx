@@ -449,9 +449,18 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
       const data = await response.json();
       if (data.execution_id) {
+        const status = String(data.status || "");
+        const titles: Record<string, string> = {
+          waiting_approval: "Waiting for Approval",
+          completed: "Workflow Completed",
+          failed: "Workflow Failed",
+          running: "Workflow Started",
+        };
         toast({
-          title: "Workflow Started",
-          description: `Execution ${data.execution_id} has started`,
+          title: titles[status] || "Execution Recorded",
+          description: status === "waiting_approval"
+            ? `Execution ${data.execution_id} is waiting for approval; no later step ran.`
+            : `Execution ${data.execution_id} — status: ${status || "unknown"}`,
         });
 
         // Refresh executions list

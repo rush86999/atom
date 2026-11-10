@@ -103,8 +103,10 @@ const AutomationsPage: React.FC = () => {
           {activeTab === 'agents' && (
             <AgentWorkflowGenerator
               onWorkflowGenerated={(wf) => console.log('Generated:', wf)}
-              onDeployWorkflow={(wf) => {
-                console.log('Deploying:', wf);
+              onDeployWorkflow={(wf, result) => {
+                // The child only calls this after the server returned a
+                // verified durable deployed/already_deployed result.
+                console.log('Deployed:', result);
                 setActiveTab('flows');
               }}
               className="h-[calc(100vh-120px)]"
