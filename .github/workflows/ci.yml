@@ -781,3 +781,5 @@ jobs:
 
       - name: Native-chat learning selection and review controls
         run: npx jest tests/pages/learning.test.tsx components/learning/__tests__/ConversationLearningReview.test.tsx --runInBand --no-coverage --watchman=false
+      - name: Activity utility ranking and stale-response controls
+        run: npx jest tests/pages/goal-runs/index.test.tsx --runInBand --no-coverage --watchman=false
