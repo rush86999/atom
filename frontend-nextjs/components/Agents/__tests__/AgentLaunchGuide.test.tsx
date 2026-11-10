@@ -39,6 +39,13 @@ jest.mock('../../../lib/maturity-api', () => ({
   listTrainingProposals: mockApi.listTrainingProposals,
 }));
 
+const mockIsCapabilityEnabled = jest.fn();
+
+jest.mock('@/lib/product-profile', () => ({
+  __esModule: true,
+  useProductProfile: () => ({ isCapabilityEnabled: mockIsCapabilityEnabled }),
+}));
+
 import { AgentLaunchGuide } from '../AgentLaunchGuide';
 
 const connectedBoth = {
@@ -72,6 +79,7 @@ const fullRegistry = {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockIsCapabilityEnabled.mockReturnValue(true);
   localStorage.clear();
   // Default world: OAuth configured server-side, nothing connected yet,
   // standard ingestion registry available.
@@ -163,7 +171,7 @@ describe('AgentLaunchGuide', () => {
     });
   });
 
-  test('shows env-var guidance instead of consent redirect when provider is unconfigured server-side', async () => {
+  test('shows workspace-admin setup guidance instead of server env-var names when provider is unconfigured', async () => {
     mockApiClient.get.mockImplementation((url: string) => {
       if (url.includes('/oauth/tokens')) return Promise.resolve(nothingConnected);
       if (url.includes('/config-status'))
@@ -175,11 +183,44 @@ describe('AgentLaunchGuide', () => {
     render(<AgentLaunchGuide agents={[]} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/ZOHO_CLIENT_ID/)).toBeInTheDocument();
+      expect(screen.getByTestId('provider-setup-zoho')).toHaveTextContent(/workspace admin/i);
     });
-    expect(screen.getByText(/MICROSOFT_CLIENT_ID/)).toBeInTheDocument();
+    expect(screen.getByTestId('provider-setup-outlook')).toHaveTextContent(/workspace admin/i);
     expect(screen.queryByTestId('connect-zoho-cta')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ZOHO_CLIENT_ID|MICROSOFT_CLIENT_ID/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Settings' }).length).toBeGreaterThan(0);
     expect(screen.queryByTestId('connect-outlook-cta')).not.toBeInTheDocument();
+  });
+
+  test('core profile marks connector setup as deferred and keeps hire available', async () => {
+    mockIsCapabilityEnabled.mockImplementation(
+      (capability: string) => capability !== 'connectors'
+    );
+    render(<AgentLaunchGuide agents={[]} />);
+
+    await screen.findByTestId('agent-launch-guide');
+    expect(screen.getByTestId('launch-connectors-deferred')).toHaveTextContent(
+      /not part of this release/i
+    );
+    expect(screen.queryByTestId('launch-step-zoho')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('connect-zoho-cta')).not.toBeInTheDocument();
+    expect(screen.getByTestId('create-agent-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('open-data-cta')).toBeInTheDocument();
+  });
+
+  test('core profile hides the guide once the role employee exists without connectors', async () => {
+    mockIsCapabilityEnabled.mockImplementation(
+      (capability: string) => capability !== 'connectors'
+    );
+    render(
+      <AgentLaunchGuide
+        agents={[{ id: 'sales-1', name: 'Sales Employee', category: 'sales' }]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('agent-launch-guide')).not.toBeInTheDocument();
+    });
   });
 
   test('hire flow posts the role category and notifies parent', async () => {
