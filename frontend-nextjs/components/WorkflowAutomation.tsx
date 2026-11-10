@@ -505,7 +505,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         let message = `Export failed (HTTP ${response.status})`;
         try {
           const data = await response.json();
-          message = extractApiErrorMessage(data, message, response.status);
+          const detail = data?.detail;
+          if (detail && typeof detail === 'object') {
+            message = detail.message || detail.error || message;
+          } else {
+            message = extractApiErrorMessage(data, message, response.status);
+          }
         } catch {
           // non-JSON refusal
         }

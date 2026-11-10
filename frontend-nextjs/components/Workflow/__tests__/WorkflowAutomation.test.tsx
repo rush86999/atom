@@ -1503,4 +1503,111 @@ describe('WorkflowAutomation', () => {
       expect(within(dialog).queryByPlaceholderText('Value')).not.toBeInTheDocument();
     });
   });
+
+  // Export: the parent modal owns its own fetch/blob/download handler. It must
+  // use the same execution, never re-execute, and surface typed refusals.
+  test('downloads completed execution results from the parent modal', async () => {
+    let executeCalls = 0;
+    server.use(
+      rest.post('/api/v1/workflows/workflows/:workflow_id/execute', (req, res, ctx) => {
+        executeCalls += 1;
+        return res(ctx.status(200), ctx.json({ execution_id: 'unexpected' }));
+      }),
+      rest.get(
+        '/api/v1/workflows/workflows/executions/e2/export',
+        (req, res, ctx) =>
+          res(
+            ctx.status(200),
+            ctx.set('Content-Type', 'application/json'),
+            ctx.set(
+              'Content-Disposition',
+              'attachment; filename="workflow-w1-execution-e2.json"',
+            ),
+            ctx.body('{"schema":"atom.workflow.execution-result.v1"}'),
+          ),
+      ),
+    );
+    const createObjectURL = jest.fn(() => 'blob:parent-export');
+    const revokeObjectURL = jest.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectURL,
+    });
+    let downloadedName = '';
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloadedName = this.download;
+      });
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
+    await screen.findByText('completed');
+    fireEvent.click(getIconButtons()[1]); // e2, completed
+
+    const button = await screen.findByRole('button', { name: /download results/i });
+    expect(button).not.toBeDisabled();
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+    });
+    expect(downloadedName).toBe('workflow-w1-execution-e2.json');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:parent-export');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(executeCalls).toBe(0);
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Results downloaded' }),
+    );
+    clickSpy.mockRestore();
+  });
+
+  test.each([
+    [409, 'execution_not_completed', 'the execution is not complete'],
+    [503, 'workflow_store_unreadable', 'the export store is unavailable'],
+  ])('surfaces a typed %s refusal in the parent modal', async (status, code, message) => {
+    server.use(
+      rest.get(
+        '/api/v1/workflows/workflows/executions/e2/export',
+        (req, res, ctx) =>
+          res(ctx.status(status), ctx.json({ detail: { error: code, message } })),
+      ),
+    );
+    const createObjectURL = jest.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    });
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
+    await screen.findByText('completed');
+    fireEvent.click(getIconButtons()[1]);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /download results/i }),
+    );
+    await waitFor(() => {
+      expect(screen.getByText(message)).toBeInTheDocument();
+    });
+    expect(screen.getByText('Download unavailable')).toBeInTheDocument();
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  test('disables parent-modal download for a running execution', async () => {
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'Executions' }));
+    await screen.findByText('running');
+    fireEvent.click(getIconButtons()[0]); // e1, running
+
+    const button = await screen.findByRole('button', { name: /download results/i });
+    expect(button).toBeDisabled();
+  });
 });
