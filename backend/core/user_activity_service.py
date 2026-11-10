@@ -132,16 +132,16 @@ class UserActivityService:
         if not activity:
             return UserState.offline
 
-        # Check if manual override is active
+        # Check if manual override is active. SQLite returns naive
+        # timestamps even for DateTime(timezone=True); normalize at the
+        # boundary before comparing.
         if activity.manual_override:
-            if activity.manual_override_expires_at:
-                if datetime.now(timezone.utc) < activity.manual_override_expires_at:
+            expiry = activity.manual_override_expires_at
+            if expiry is not None:
+                expiry = expiry.replace(tzinfo=timezone.utc) if expiry.tzinfo is None else expiry.astimezone(timezone.utc)
+                if datetime.now(timezone.utc) < expiry:
                     return activity.state
-                else:
-                    # Manual override expired, clear it
-                    activity.manual_override = False
-                    activity.manual_override_expires_at = None
-                    self.db.commit()
+                await self._clear_expired_override(activity, commit=True)
             else:
                 # Manual override without expiry (permanent until cleared)
                 return activity.state
@@ -170,6 +170,10 @@ class UserActivityService:
         Returns:
             Updated UserActivity record
         """
+        if expires_at is not None:
+            expires_at = (expires_at.replace(tzinfo=timezone.utc)
+                          if expires_at.tzinfo is None
+                          else expires_at.astimezone(timezone.utc))
         activity = self.db.query(UserActivity).filter(
             UserActivity.user_id == user_id
         ).first()
@@ -242,6 +246,9 @@ class UserActivityService:
         Returns:
             List of available supervisor dicts with user info
         """
+        from core.presence_override_write_service import expire_manual_overrides
+        await expire_manual_overrides(self.db)
+
         # Query users with online or away state
         available_activities = self.db.query(UserActivity).filter(
             UserActivity.state.in_([UserState.online, UserState.away])
@@ -335,32 +342,49 @@ class UserActivityService:
     # State Management Helpers
     # ========================================================================
 
+    async def _clear_expired_override(
+        self, activity: UserActivity, *, commit: bool = True,
+    ) -> bool:
+        """Clear an expired manual override and recalculate real activity."""
+        expiry = activity.manual_override_expires_at
+        if expiry is None:
+            return False
+        expiry = (expiry.replace(tzinfo=timezone.utc)
+                  if expiry.tzinfo is None else expiry.astimezone(timezone.utc))
+        if datetime.now(timezone.utc) < expiry:
+            return False
+        activity.manual_override = False
+        activity.manual_override_expires_at = None
+        if commit:
+            self.db.commit()
+        await self._recalculate_activity_state(activity, commit=commit)
+        return True
+
     async def _update_activity_state_from_heartbeat(
         self,
         activity: UserActivity
     ) -> None:
         """Update activity state after receiving heartbeat."""
-        # Skip if manual override is active
-        if activity.manual_override:
-            return
+        # CAS on manual_override so a concurrent override cannot be
+        # silently overwritten by a heartbeat that read the old row.
+        from sqlalchemy import update
 
-        # Update last activity time
-        activity.last_activity_at = datetime.now(timezone.utc)
-
-        # Set to online (heartbeat means user is actively using the system)
-        if activity.state != UserState.online:
-            old_state = activity.state
-            activity.state = UserState.online
-            logger.info(
-                f"User {activity.user_id} state: {old_state} → online "
-                f"(heartbeat received)"
-            )
-
-        self.db.commit()
+        now = datetime.now(timezone.utc)
+        updated = self.db.execute(
+            update(UserActivity)
+            .where(
+                UserActivity.id == activity.id,
+                UserActivity.manual_override.is_(False))
+            .values(state=UserState.online, last_activity_at=now))
+        if updated.rowcount == 1:
+            self.db.commit()
+            self.db.refresh(activity)
 
     async def _recalculate_activity_state(
         self,
-        activity: UserActivity
+        activity: UserActivity,
+        *,
+        commit: bool = True,
     ) -> None:
         """
         Recalculate activity state based on actual session activity.
@@ -387,7 +411,8 @@ class UserActivityService:
                     f"User {activity.user_id} state: {old_state} → offline "
                     f"(no active sessions)"
                 )
-            self.db.commit()
+            if commit:
+                self.db.commit()
             return
 
         # Find most recent heartbeat across all sessions
@@ -422,7 +447,8 @@ class UserActivityService:
             )
             activity.state = new_state
 
-        self.db.commit()
+        if commit:
+            self.db.commit()
 
     async def transition_state_batch(
         self,
@@ -439,6 +465,11 @@ class UserActivityService:
         Returns:
             Dict with transition counts
         """
+        # Expire time-bounded overrides first so they cannot remain
+        # permanently exempt from normal state transitions.
+        from core.presence_override_write_service import expire_manual_overrides
+        await expire_manual_overrides(self.db)
+
         # Get all activities that need state recalculation
         # (no manual override, updated more than 1 minute ago)
         cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=1)
