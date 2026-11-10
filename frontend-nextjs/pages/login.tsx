@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import {
@@ -7,8 +7,8 @@ import {
     persistBackendToken,
 } from '../lib/backendAuth';
 import { registerWithBackend } from '../lib/registration';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+import { safeReturnTo } from '../lib/safe-return-to';
+import { startWebSso } from '../lib/sso-web';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -29,32 +29,26 @@ export default function LoginPage() {
         last_name: ''
     });
 
-    // OIDC SSO: probe the backend login endpoint first so we can surface a
-    // friendly message when SSO isn't configured (409/503) instead of
-    // navigating the user to a raw error response. When configured, the
-    // endpoint 302s to the IdP — hand off to a full-page navigation so the
-    // browser follows the redirect (an opaque redirect under CORS hides the
-    // Location header, so we re-navigate to the login URL itself).
-    const handleSSO = async () => {
+    // OIDC SSO: navigate directly to the same-origin web handoff endpoint.
+    // A preliminary GET would create an OAuth state and then be followed by a
+    // second navigation, starting OAuth twice (RFC 9700 one-time-flow rule).
+    // The backend validates return_to again; this page validates it before
+    // placing it in the request.
+    const handleSSO = () => {
         setSsoError('');
         setSsoLoading(true);
-        const ssoLoginUrl = `${API_BASE}/api/auth/sso/oidc/login`;
-        try {
-            const response = await fetch(ssoLoginUrl, {
-                redirect: 'manual',
-                headers: { Accept: 'application/json' },
-            });
-            if (response.status === 409 || response.status === 503) {
-                setSsoError('SSO is not configured for this workspace');
-                setSsoLoading(false);
-                return;
-            }
-        } catch {
-            // Probe failed (e.g. CORS on the redirect hop) — fall through and
-            // let the navigation itself surface any real problem.
-        }
-        window.location.href = ssoLoginUrl;
+        const callbackUrl = typeof router.query.callbackUrl === 'string'
+            ? router.query.callbackUrl
+            : '/dashboard';
+        const returnTo = safeReturnTo(callbackUrl, '/dashboard');
+        startWebSso(returnTo);
     };
+
+    useEffect(() => {
+        if (typeof router.query.sso_error === 'string') {
+            setSsoError('SSO sign-in could not be completed. Please try again.');
+        }
+    }, [router.query.sso_error]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -69,9 +63,7 @@ export default function LoginPage() {
         const callbackUrl = typeof router.query.callbackUrl === 'string'
             ? router.query.callbackUrl
             : '/dashboard';
-        const safeDest = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
-            ? callbackUrl
-            : '/dashboard';
+        const safeDest = safeReturnTo(callbackUrl, '/dashboard');
 
         try {
             if (isLogin) {

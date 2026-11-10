@@ -6,6 +6,7 @@ import { resolveWebAuthSecret } from './lib/web-auth-config';
 
 const SESSION_COOKIE = 'next-auth.session-token';
 const SECURE_SESSION_COOKIE = `__Secure-${SESSION_COOKIE}`;
+const SSO_CALLBACK_PATH = '/auth/sso/callback';
 
 // Define public pages that don't require authentication. Exact paths only:
 // a prefix rule here would make every /auth/* route (and any lookalike) public.
@@ -24,6 +25,9 @@ const publicPageRoutes = new Set([
   '/auth/reset-password',
   '/auth/verify-email',
   '/auth/verification-sent',
+  // OIDC web handoff landing page. The page exchanges a one-use code through a
+  // same-origin POST and never treats the code itself as authority.
+  SSO_CALLBACK_PATH,
 ]);
 
 // Define API routes that don't require authentication
@@ -152,6 +156,14 @@ export async function middleware(request: NextRequest) {
 
   // Allow public page routes without authentication.
   if (isPublicRoute) {
+    if (pathname === SSO_CALLBACK_PATH) {
+      const response = NextResponse.next();
+      // The callback URL contains an opaque one-use code until the page
+      // replaceState. Keep it out of caches and cross-origin Referer values.
+      response.headers.set('Cache-Control', 'no-store');
+      response.headers.set('Referrer-Policy', 'no-referrer');
+      return response;
+    }
     return NextResponse.next();
   }
 

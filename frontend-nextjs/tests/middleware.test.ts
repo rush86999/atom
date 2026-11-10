@@ -342,6 +342,48 @@ describe('public password-recovery and verification pages', () => {
   });
 });
 
+describe('SSO callback admission', () => {
+  test('public exact callback is reachable with no-store and no-referrer', async () => {
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/auth/sso/callback?code=nonsecret-probe',
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+
+  test.each([
+    '/auth/sso/callback/extra',
+    '/auth/sso/callback-evil',
+    '/auth/sso',
+  ])('%s is not made public by the exact callback route', async (path) => {
+    const response = await middleware(
+      makeRequest(`http://localhost:3000${path}`),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).not.toBeNull();
+  });
+
+  test('SSO web API family remains a public same-origin API passthrough', async () => {
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/api/auth/sso/oidc/web/exchange',
+        'auth_token=test-token',
+      ),
+    );
+
+    expect(response.headers.get('location')).toBeNull();
+    expect(
+      response.headers.get('x-middleware-request-authorization'),
+    ).toBe('Bearer test-token');
+  });
+});
+
 describe('API passthrough', () => {
   test('public API route is not redirected and forwards auth_token', async () => {
     const response = await middleware(

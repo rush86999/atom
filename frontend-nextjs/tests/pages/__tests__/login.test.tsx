@@ -15,9 +15,14 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import { signIn } from 'next-auth/react';
 import LoginPage from '@/pages/login';
+import { startWebSso } from '@/lib/sso-web';
 
 jest.mock('next-auth/react', () => ({
   signIn: jest.fn(),
+}));
+
+jest.mock('@/lib/sso-web', () => ({
+  startWebSso: jest.fn(),
 }));
 
 const mockPush = jest.fn(() => Promise.resolve(true));
@@ -119,6 +124,42 @@ describe('LoginPage', () => {
     expect((signIn as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
       setItemSpy.mock.invocationCallOrder[0],
     );
+  });
+
+  test('SSO button navigates directly to the same-origin web handoff with a safe return target', async () => {
+    mockQuery = { callbackUrl: '/settings?a4dl=return20261106' };
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByTestId('login-sso-button'));
+
+    await waitFor(() =>
+      expect(startWebSso).toHaveBeenCalledWith(
+        '/settings?a4dl=return20261106',
+      ),
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  test('SSO button does not carry an unsafe return target', async () => {
+    mockQuery = { callbackUrl: '/%5Cevil.example/path' };
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByTestId('login-sso-button'));
+
+    await waitFor(() =>
+      expect(startWebSso).toHaveBeenCalledWith('/dashboard'),
+    );
+  });
+
+  test('shows a safe static SSO failure message from the callback route', async () => {
+    mockQuery = { sso_error: 'sso_failed' };
+    render(<LoginPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sso-error-message')).toHaveTextContent(
+        'SSO sign-in could not be completed. Please try again.',
+      );
+    });
   });
 
   test('a failed SDK bridge does not persist, toast or navigate', async () => {
