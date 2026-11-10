@@ -154,13 +154,15 @@
     "backend/core/product_profile.py": "e441aa5957f3be845119b94c7ffc281a8379fe00bf81243a3427eebac4a8c5cb"
   },
   "artifacts": {
-    "README.md": "f643406a33a2d2849c4f30ed81540095565c61a539ff16c2d70a4a7da49583b9",
+    "README.md": "0989b9cf8a149b2f10f33ed242f91d78c648d945add333017ec63aceffd8902f",
     "continuation-driver.py": "66389173e7bee028dca094cd6bb067e36b0261f2044be2c246b03a64d97eeddb",
     "durable-state.json": "e151fe2ff2ae449e5e1e35b6d05bcdac30ecaea42542ea7ee9ad2122f98b7316",
     "heavy-gate-usage.txt": "4f7d1f64c46d02766d441f16993c4dcd18ea581a73833f8968d2c69f48dee06f",
     "journey-continuation3.json": "88866c193667e0edfefe0ae72de71f5995112d0e2df5f67f89f9b8eba6088d60",
     "journey-initial-run6.json": "232227af26265159eed2b0dd1ce67f1a56cb881d06490f91270d86e63d8ed125",
+    "journey-onboarding-intercept-run5.json": "dccb4f128d42d2b154cef6d55abfff2e45458dddcb3a9e99f246fb2b496dfb68",
     "retained-ui-inspect.log": "7780c1184967f7d2b614d01fb2536ca8f17111db049577774d600ecd8b0b0297",
+    "screenshots/agents-page-run5.png": "e628db6c4b7955efdfb6fdd70c8ebe83a1664ab136f0573f18338ce615ccf5fc",
     "screenshots/agents-page.png": "f216749f36eef05150ea397ea34d4bdc5f965f4f0a3d52a21b0c888658ee8988",
     "screenshots/approvals-qualification.png": "66b41dc7c0ea2c4e5b6667e927801c3d717a3ee95a910b176dfc3a83ff8f76f4",
     "screenshots/training-missing.png": "80dee035f6961b05b5832110efaf6c7d56f348a9a59cc3a73563c2a7ea059194",
@@ -172,8 +174,9 @@
     "ui-continuation-seed.log": "bd5905aca2a9506e59ef892297df5c83fdf3bcf45c1760958d72c50451912c5e",
     "ui-continuation.log": "bd60126ae6c468c2cc7d8a93ef5aa66e8e07ae70d4aae354576214c7c08d2319",
     "ui-run-initial.log": "88732aea654f1246a356ba667b313b235464cb3dfefc8444fb83cfb5bbc6100d",
+    "ui-run5-onboarding-intercept.log": "00d7f99a52a0745b9196a4af8f886976425e6c0aa976fe7846221c19d412bd78",
     "ui-trace.json": "85371b9d547e9c97135d5a8e738affb72c8c7dc6246c5d16379f22676a18f2f4",
-    "verification.json": "a173171caf4d3a483e5b447e0f72f420c6a64f943b675e4f90df27246b5777e2"
+    "verification.json": "88de58ccd5d7a83d989b3335a7b8778bda2266f0046be3c026c340a012f0a1d7"
   },
   "exclusions": [
     "no full-app, all-tier, unseen-quality, general-autonomy or live-model-competence claim",

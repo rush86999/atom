@@ -130,6 +130,14 @@ The initial run6 capture is preserved (`journey-initial-run6.json`,
 exposure preconditions were not yet present. Continuation logs show the
 sessions seed and the confidence precondition, then the PASS.
 
+The earlier run5 negative is also preserved
+(`journey-onboarding-intercept-run5.json`,
+`ui-run5-onboarding-intercept.log`, `screenshots/agents-page-run5.png`): the
+ordinary onboarding modal was still open and intercepted the Teach click, so
+no canvas/action/receipt existed. The run6/continuation then completed or
+dismissed onboarding through its own controls before Teach. No onboarding
+completion was seeded via DB/API.
+
 ## Safety and scope
 
 - World storage preflight: canonical local root via the worktree symlink; no
