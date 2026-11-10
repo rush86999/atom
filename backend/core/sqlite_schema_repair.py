@@ -139,7 +139,8 @@ def ensure_token_usage_upgrade(engine: Any) -> None:
         needs_columns = any(
             name not in columns
             for name in ("provider_id", "request_id", "attempt_id",
-                         "pricing_status")
+                         "pricing_status", "reserved_cost_usd",
+                         "reservation_status")
         )
         if not needs_nullable and not needs_columns:
             _REPAIRED.add(key)
@@ -162,6 +163,8 @@ def ensure_token_usage_upgrade(engine: Any) -> None:
             ("billed", "BOOLEAN"),
             ("cost_usd", "FLOAT"),
             ("pricing_status", "VARCHAR(20) NOT NULL DEFAULT 'priced'"),
+            ("reserved_cost_usd", "FLOAT DEFAULT 0.0"),
+            ("reservation_status", "VARCHAR(20) NOT NULL DEFAULT 'none'"),
             ("memory_mb", "FLOAT"),
             ("model_name", "VARCHAR"),
             ("timestamp", "DATETIME"),
@@ -254,6 +257,7 @@ def ensure_token_usage_upgrade(engine: Any) -> None:
                 ("ix_token_usage_provider_id", "provider_id"),
                 ("ix_token_usage_request_id", "request_id"),
                 ("ix_token_usage_pricing_status", "pricing_status"),
+                ("ix_token_usage_reservation_status", "reservation_status"),
             ):
                 conn.exec_driver_sql(
                     f"CREATE INDEX IF NOT EXISTS {name} "

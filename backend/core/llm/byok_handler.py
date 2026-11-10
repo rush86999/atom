@@ -4156,6 +4156,62 @@ class BYOKHandler:
         except Exception:
             logger.debug("Rate usage tracking failed (non-fatal)", exc_info=True)
 
+    def _estimate_reservation_bound(
+        self,
+        provider_id: str,
+        model: str,
+        input_texts,
+        max_output_tokens: Optional[int],
+        schema_text: Optional[str] = None,
+    ) -> Optional[float]:
+        """Conservative configured USD bound for one paid attempt.
+
+        Inputs use the existing token counter (exact when tiktoken is
+        available); the fallback uses UTF-8 byte length as an upper bound,
+        plus explicit message/schema overhead. Output uses the request's
+        completion cap. The pricing contract then estimates the cost; a
+        missing price returns None so hard-stop refuses rather than silently
+        under-reserving.
+        """
+        try:
+            from core.llm.prompt_budget import count_tokens
+
+            if isinstance(input_texts, str):
+                input_texts = [input_texts]
+            input_tokens_upper = 0
+            for text in input_texts:
+                text = str(text or "")
+                counted, exact = count_tokens(text)
+                if not exact:
+                    counted = max(counted, len(text.encode("utf-8")))
+                input_tokens_upper += counted
+            input_tokens_upper += int(os.getenv(
+                "ATOM_LLM_RESERVATION_OVERHEAD_TOKENS", "256"))
+            input_tokens_upper += 8 * max(1, len(input_texts))
+            if schema_text:
+                schema_count, schema_exact = count_tokens(str(schema_text))
+                if not schema_exact:
+                    schema_count = max(
+                        schema_count, len(str(schema_text).encode("utf-8")))
+                input_tokens_upper += schema_count
+            input_tokens_upper = max(1, input_tokens_upper)
+
+            output_tokens = max(
+                1, int(max_output_tokens or _DEFAULT_COMPLETION_MAX_TOKENS))
+            fetcher = get_pricing_fetcher()
+            cost = fetcher.estimate_cost(
+                model, input_tokens_upper, output_tokens)
+            if cost is None:
+                cost = get_llm_cost(
+                    model, input_tokens_upper, output_tokens)
+            if cost is None:
+                return None
+            margin = float(
+                os.getenv("ATOM_LLM_RESERVATION_MARGIN", "1.25"))
+            return max(0.0, float(cost) * max(1.0, margin))
+        except Exception:
+            return None
+
     def _record_provider_usage(
         self,
         provider_id: str,
@@ -6869,6 +6925,10 @@ class BYOKHandler:
                     _settlement_attempt += 1
                     _attempt_id = (
                         f"{_settlement_request_id}:{_settlement_attempt}")
+                    _reservation_bound = self._estimate_reservation_bound(
+                        provider_id, model,
+                        [str(m.get("content") or "") for m in messages],
+                        _cap)
                     try:
                         from core.spend_aggregation_service import (
                             begin_llm_usage,
@@ -6884,6 +6944,8 @@ class BYOKHandler:
                             chain_id=chain_id,
                             request_id=_settlement_request_id,
                             attempt_id=_attempt_id,
+                            reserved_cost_usd=_reservation_bound,
+                            enforce_budget=True,
                         )
                     except Exception as intent_err:
                         _release_once()
@@ -9168,6 +9230,32 @@ class BYOKHandler:
                             _structured_attempt_id = (
                                 f"{_structured_settlement_request_id}:"
                                 f"{_attempt_count}")
+                            _structured_reservation_texts = (
+                                [str(m.get("content") or "") for m in messages]
+                                if messages else
+                                [system_instruction or "", prompt]
+                            )
+                            _structured_schema_text = None
+                            try:
+                                if hasattr(response_model, "model_json_schema"):
+                                    _structured_schema_text = json.dumps(
+                                        response_model.model_json_schema(),
+                                        default=str)
+                                else:
+                                    _structured_schema_text = str(response_model)
+                            except Exception:
+                                _structured_schema_text = None
+                            _structured_reservation_output = (
+                                int(max_tokens) if max_tokens else int(
+                                    os.getenv(
+                                        "ATOM_STRUCTURED_MAX_TOKENS", "6000"))
+                            )
+                            _structured_reservation_bound = (
+                                self._estimate_reservation_bound(
+                                    provider_id, model,
+                                    _structured_reservation_texts,
+                                    _structured_reservation_output,
+                                    schema_text=_structured_schema_text))
                             try:
                                 from core.spend_aggregation_service import (
                                     begin_llm_usage,
@@ -9184,6 +9272,9 @@ class BYOKHandler:
                                     request_id=(
                                         _structured_settlement_request_id),
                                     attempt_id=_structured_attempt_id,
+                                    reserved_cost_usd=(
+                                        _structured_reservation_bound),
+                                    enforce_budget=True,
                                 )
                             except Exception as intent_err:
                                 _release_once()
@@ -10432,31 +10523,35 @@ class BYOKHandler:
                 break
         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
         # Streaming token/cost usage is not currently exposed by every
-        # provider stream. Record an explicit unpriced liability for the
-        # request (never 0); a hard stop refuses until it is reconciled.
+        # provider stream. Reserve a conservative configured bound before the
+        # stream; it remains an active liability until authoritative
+        # reconciliation (never auto-released as zero).
+        _stream_reservation_bound = self._estimate_reservation_bound(
+            provider_id, model,
+            [str(m.get("content") or "") for m in messages],
+            max_tokens or _DEFAULT_COMPLETION_MAX_TOKENS)
         try:
-            from core.spend_aggregation_service import record_llm_usage
+            from core.spend_aggregation_service import begin_llm_usage
 
-            record_llm_usage(
+            begin_llm_usage(
                 provider_id=provider_id,
                 model_name=model,
-                prompt_tokens=0,
-                completion_tokens=0,
-                cost_usd=None,
                 agent_id=agent_id,
                 workspace_id=getattr(self, "workspace_id", None),
                 tenant_id=getattr(self, "tenant_id", None),
                 request_id=stream_decision_id,
                 attempt_id=f"{stream_decision_id}:stream:request",
+                reserved_cost_usd=_stream_reservation_bound,
+                enforce_budget=True,
             )
         except Exception as stream_settle_err:
             logger.error(
-                "Stream usage settlement failed (%s)",
+                "Stream usage reservation failed (%s)",
                 type(stream_settle_err).__name__)
-            # No durable unknown/paid-liability intent: do not start the
-            # stream. Never silently stream an unaccounted paid call.
+            # No durable reservation: do not start the stream. Never silently
+            # stream an unaccounted paid call.
             raise RuntimeError(
-                "durable stream usage intent unavailable") from None
+                "durable stream usage reservation unavailable") from None
 
         # P4 prompt-taint gate (shadow by default; blocks under enforce).
         _taint_block = self._llm_taint_check(
@@ -11495,6 +11590,11 @@ class BYOKHandler:
                 _settlement_attempt += 1
                 _attempt_id = (
                     f"{_settlement_request_id}:{_settlement_attempt}")
+                _chat_reservation_bound = self._estimate_reservation_bound(
+                    attempt_provider_id, model,
+                    [str(m.get("content") or "") for m in messages],
+                    _attempt_kwargs.get("max_tokens")
+                    or _DEFAULT_COMPLETION_MAX_TOKENS)
                 try:
                     from core.spend_aggregation_service import (
                         begin_llm_usage,
@@ -11508,6 +11608,8 @@ class BYOKHandler:
                         tenant_id=getattr(self, "tenant_id", None),
                         request_id=_settlement_request_id,
                         attempt_id=_attempt_id,
+                        reserved_cost_usd=_chat_reservation_bound,
+                        enforce_budget=True,
                     )
                 except Exception as intent_err:
                     self._release_model_attempt(

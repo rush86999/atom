@@ -36,6 +36,7 @@ from core.models import (
     Workspace,
 )
 from core.spend_aggregation_service import (
+    BudgetReservationRefused,
     SpendAggregationService,
     begin_llm_usage,
     record_llm_usage,
@@ -665,16 +666,31 @@ def test_durable_intent_survives_restart_when_settlement_write_fails(
         assert pending.billed is False
         assert pending.pricing_status == "unknown"
         assert pending.cost_usd is None
+        assert pending.reservation_status == "active"
+        assert pending.reserved_cost_usd and pending.reserved_cost_usd > 0
         assert pending.attempt_id
         attempt_id = pending.attempt_id
+        reserved_bound = float(pending.reserved_cost_usd)
 
-    refused = _admit(host)
-    assert refused["allowed"] is False
-    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
+    with host.Session() as db:
+        committed = SpendAggregationService(db).update_tenant_spend(
+            TENANT, persist=False, include_liabilities=True)
+    assert committed["committed_spend_usd"] == pytest.approx(
+        90.0 + reserved_bound, abs=1e-6)
+
+    # The active reservation is a real liability: a new 7-ish dispatch must
+    # refuse before provider dispatch even though the simple spend read is
+    # still below the cap.
+    with pytest.raises(BudgetReservationRefused):
+        begin_llm_usage(
+            provider_id="openai", model_name="gpt-4o-mini",
+            agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
+            request_id="restart-new", attempt_id="restart-new",
+            reserved_cost_usd=reserved_bound, enforce_budget=True)
 
     # Simulate a process restart: clear process-local markers and read the
-    # SAME scratch DB through a fresh engine/session. The durable pending
-    # intent must still prevent the paid charge from being forgotten.
+    # SAME scratch DB through a fresh engine/session. The durable active
+    # reservation must still be present and still refuse a new reservation.
     spend_module.clear_settlement_failure()
     repair._clear_token_usage_upgrade_failure()
     engine = create_engine(str(host.engine.url))
@@ -685,11 +701,17 @@ def test_durable_intent_survives_restart_when_settlement_write_fails(
         assert pending.billed is False
         assert pending.pricing_status == "unknown"
         assert pending.cost_usd is None
-        refused = asyncio.run(AgentGovernanceService(
-            db, workspace_id=WORKSPACE, tenant_id=TENANT,
-        ).can_perform_action_async(AGENT, "llm_react_step"))
-        assert refused["allowed"] is False
-        assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
+        assert pending.reservation_status == "active"
+        assert float(pending.reserved_cost_usd) == pytest.approx(
+            reserved_bound)
+        assert db.query(TokenUsage).filter(
+            TokenUsage.attempt_id == "restart-new").count() == 0
+    with pytest.raises(BudgetReservationRefused):
+        begin_llm_usage(
+            provider_id="openai", model_name="gpt-4o-mini",
+            agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
+            request_id="restart-new-2", attempt_id="restart-new-2",
+            reserved_cost_usd=reserved_bound, enforce_budget=True)
     engine.dispose()
 
 

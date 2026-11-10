@@ -1595,6 +1595,13 @@ class TokenUsage(Base):
     # Explicit authority for the cost meaning; unknown is never treated as
     # known-free even when the numeric column is 0.
     pricing_status = Column(String(20), nullable=False, default="priced", index=True)
+    # Atomic admission reservation over the SAME durable ledger. A row is
+    # ``reservation_status="active"`` before provider dispatch and carries the
+    # conservative bounded cost; settlement changes it to ``settled`` (known
+    # actual) or ``uncertain`` (liability retained). No second budget store.
+    reserved_cost_usd = Column(Float, nullable=True)
+    reservation_status = Column(
+        String(20), nullable=False, default="none", index=True)
     memory_mb = Column(Float, default=0.0)  # Track memory usage for governance metrics
     model_name = Column(String, nullable=True)
     timestamp = Column(DateTime, default=func.now())

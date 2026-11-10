@@ -11,12 +11,13 @@ New Phase 10 Features:
 """
 import logging
 import json
+import math
 import uuid
 from typing import Dict, Any, Optional
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, update
+from sqlalchemy import func, and_, or_, update, text
 from sqlalchemy.exc import IntegrityError
 
 from core.models import Tenant, ACUConsumption, TokenUsage, TenantSetting
@@ -40,6 +41,15 @@ class DurableUsageIntentError(RuntimeError):
     """A paid dispatch could not persist its durable unknown/liability intent."""
 
 
+class BudgetReservationRefused(RuntimeError):
+    """Atomic hard-stop admission refused the reservation before dispatch."""
+
+    def __init__(self, reason: str, *, status_code: str = "BUDGET_EXCEEDED"):
+        self.reason = reason
+        self.status_code = status_code
+        super().__init__(reason)
+
+
 def settlement_failure_reason() -> Optional[str]:
     """Reason a prior settlement write failed, or None when healthy."""
     return _SETTLEMENT_FAILURE_REASON
@@ -50,6 +60,143 @@ def clear_settlement_failure() -> None:
     global _SETTLEMENT_FAILURE_REASON
     _SETTLEMENT_FAILURE_REASON = None
 
+
+
+class BudgetPolicyUnavailable(RuntimeError):
+    """The configured billing policy cannot be read/validated safely."""
+
+
+_VALID_MODES = {"alert_only", "soft_stop", "hard_stop", "approval"}
+
+
+def read_billing_policy(
+    session: Session, tenant_id: str, *, strict: bool = False,
+) -> tuple[float, str]:
+    """One reader for the existing billing limit + enforcement mode.
+
+    ``strict=True`` (the reservation path) raises ``BudgetPolicyUnavailable``
+    for a malformed/contradictory configured policy instead of collapsing an
+    invalid cap to 0/unlimited. ``strict=False`` preserves the historical
+    lenient defaults for existing callers/tests. A genuinely absent policy
+    (no row / no limit) remains the intended no-limit/observe default.
+    """
+    tenant = session.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if tenant is None:
+        if strict:
+            raise BudgetPolicyUnavailable("tenant not found")
+        return 0.0, "soft_stop"
+
+    limit = getattr(tenant, "budget_limit_usd", None)
+    if limit is not None:
+        try:
+            limit = float(limit)
+        except (TypeError, ValueError):
+            if strict:
+                raise BudgetPolicyUnavailable("invalid tenant budget limit")
+            limit = None
+        if limit is not None and (
+                not math.isfinite(limit) or limit < 0):
+            if strict:
+                raise BudgetPolicyUnavailable("invalid tenant budget limit")
+            limit = None
+
+    mode = "soft_stop"
+    row = session.query(TenantSetting).filter(
+        TenantSetting.tenant_id == tenant_id,
+        TenantSetting.setting_key == "billing",
+    ).first()
+    if row is None:
+        return float(limit or 0.0), mode
+    if not row.setting_value:
+        if strict:
+            raise BudgetPolicyUnavailable("empty billing policy")
+        return float(limit or 0.0), mode
+    try:
+        data = json.loads(row.setting_value)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        if strict:
+            raise BudgetPolicyUnavailable("unreadable billing policy")
+        return float(limit or 0.0), mode
+    if not isinstance(data, dict):
+        if strict:
+            raise BudgetPolicyUnavailable("invalid billing policy")
+        return float(limit or 0.0), mode
+
+    raw_limit = data.get("budget_limit_usd")
+    if raw_limit is not None:
+        try:
+            parsed_limit = float(raw_limit)
+        except (TypeError, ValueError):
+            if strict:
+                raise BudgetPolicyUnavailable("invalid billing cap")
+            parsed_limit = None
+        if parsed_limit is not None:
+            if not math.isfinite(parsed_limit) or parsed_limit < 0:
+                if strict:
+                    raise BudgetPolicyUnavailable("invalid billing cap")
+            else:
+                limit = parsed_limit
+
+    enforcement = data.get("enforcement")
+    if enforcement is not None and not isinstance(enforcement, dict):
+        if strict:
+            raise BudgetPolicyUnavailable("invalid enforcement policy")
+        enforcement = {}
+    raw_mode = (enforcement or {}).get("mode")
+    if raw_mode is not None:
+        if not isinstance(raw_mode, str) or raw_mode not in _VALID_MODES:
+            if strict:
+                raise BudgetPolicyUnavailable("invalid enforcement mode")
+            logger.warning(
+                "Invalid enforcement mode %r for tenant %s; using soft_stop",
+                raw_mode, tenant_id)
+        else:
+            mode = raw_mode
+    return float(limit or 0.0), mode
+
+
+def _admission_totals(
+    session: Session, tenant_id: str,
+) -> tuple[float, float]:
+    """Return (actual, active_reserved) in the configured cycle window."""
+    today = date.today()
+    cycle_start = date(today.year, today.month, 1)
+    spend = SpendAggregationService(session).get_total_spend(
+        tenant_id=tenant_id, start_date=cycle_start, end_date=today)
+    if "error" in spend:
+        raise RuntimeError("spend read failed")
+    start_dt = datetime.combine(cycle_start, datetime.min.time())
+    end_dt = datetime.combine(today, datetime.max.time())
+    reserved = session.query(func.sum(TokenUsage.reserved_cost_usd)).filter(
+        TokenUsage.tenant_id == tenant_id,
+        TokenUsage.reservation_status.in_(("active", "uncertain")),
+        TokenUsage.timestamp >= start_dt,
+        TokenUsage.timestamp <= end_dt,
+    ).scalar()
+    return float(spend["total_spend_usd"]), float(reserved or 0.0)
+
+
+def _lock_tenant_for_admission(session: Session, tenant_id: str) -> None:
+    """Serialize Postgres reservations on the existing tenant row.
+
+    SQLite has one writer at a time; the reservation INSERT/flush acquires that
+    write lock, so the following sum sees every committed reservation.
+    """
+    try:
+        dialect = session.get_bind().dialect.name
+    except Exception:
+        dialect = ""
+    if dialect == "postgresql":
+        session.query(Tenant).filter(
+            Tenant.id == tenant_id).with_for_update().first()
+    elif dialect == "sqlite":
+        # Acquire the single writer lock BEFORE the read/sum. A deferred
+        # read-then-write would keep a stale snapshot and could admit two
+        # reservations against 90. BEGIN IMMEDIATE waits for the other writer
+        # and then the following query sees its committed row.
+        conn = session.connection()
+        conn.exec_driver_sql("PRAGMA busy_timeout=30000")
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
 
 
 def begin_llm_usage(
@@ -63,22 +210,31 @@ def begin_llm_usage(
     chain_id: Optional[str] = None,
     request_id: Optional[str] = None,
     attempt_id: str,
+    reserved_cost_usd: Optional[float] = None,
+    enforce_budget: bool = False,
 ) -> str:
-    """Persist a durable unknown/liability row BEFORE a paid provider dispatch.
+    """Persist the durable paid-liability/reservation row BEFORE dispatch.
 
-    This is the pending-intent use of the existing ``TokenUsage`` ledger, not a
-    parallel store. The row is ``pricing_status=unknown`` / ``cost_usd=NULL`` /
-    ``billed=False`` with the exact server-owned attempt id. If the provider is
-    paid but settlement cannot be written, this row survives and a hard stop
-    keeps refusing across restart until reconciliation. A later
-    ``record_llm_usage(attempt_id=...)`` settles this exact row once; it is
-    never deleted/released on timeout or failure.
+    This is the pending-intent/reservation use of the existing ``TokenUsage``
+    ledger, not a parallel store. For a production dispatch, the caller passes
+    ``enforce_budget=True`` and a conservative ``reserved_cost_usd`` bound.
+    Under configured hard_stop, the INSERT is the serialization point (SQLite
+    write lock) or follows a Tenant ``FOR UPDATE`` lock (Postgres), then the
+    transaction sums actual + active reservations. A loser rolls back and
+    raises ``BudgetReservationRefused`` before any provider call.
+
+    A failed settlement write leaves the active reservation/unknown row in
+    place; a restart reads it, so the liability is not forgotten. Timeout or
+    uncertain usage never auto-releases it. A later ``record_llm_usage``
+    settles this exact row once.
     """
     from core.database import SessionLocal
 
     session = None
     try:
         session = SessionLocal()
+        if tenant_id:
+            _lock_tenant_for_admission(session, tenant_id)
         existing = session.query(TokenUsage).filter(
             TokenUsage.attempt_id == str(attempt_id)).first()
         if existing is not None:
@@ -112,11 +268,50 @@ def begin_llm_usage(
             billed=False,
             cost_usd=None,
             pricing_status="unknown",
+            reserved_cost_usd=(
+                reserved_cost_usd if enforce_budget else 0.0),
+            reservation_status=("active" if enforce_budget else "none"),
             model_name=model_name,
         )
         session.add(row)
+        # Flush first: on SQLite this takes the single writer lock, so a
+        # concurrent reservation waits and then sees this committed row.
+        session.flush()
+        if enforce_budget and tenant_id:
+            try:
+                limit, mode = read_billing_policy(
+                    session, tenant_id, strict=True)
+            except BudgetPolicyUnavailable:
+                raise BudgetReservationRefused(
+                    "billing policy unavailable",
+                    status_code="BUDGET_STATUS_UNAVAILABLE") from None
+            if mode == "hard_stop" and limit > 0:
+                if reserved_cost_usd is None:
+                    raise BudgetReservationRefused(
+                        "unknown pricing; hard_stop cannot reserve a bounded "
+                        "cost", status_code="BUDGET_UNPRICED_USAGE")
+                try:
+                    actual, active_reserved = _admission_totals(
+                        session, tenant_id)
+                except Exception:
+                    raise BudgetReservationRefused(
+                        "budget state unavailable",
+                        status_code="BUDGET_STATUS_UNAVAILABLE") from None
+                if actual + active_reserved > limit + 1e-9:
+                    raise BudgetReservationRefused(
+                        "atomic budget reservation would exceed the configured "
+                        f"limit ({actual + active_reserved:.4f} > "
+                        f"{limit:.4f})",
+                        status_code="BUDGET_EXCEEDED")
         session.commit()
         return str(row.id)
+    except BudgetReservationRefused:
+        if session is not None:
+            try:
+                session.rollback()
+            except Exception:
+                pass
+        raise
     except Exception as intent_err:
         # Do not put SQL/params in the degraded reason or log.
         mark_settlement_failure(
@@ -233,6 +428,8 @@ def _settle_pending_intent(
             TokenUsage.chain_id == chain_id,
             TokenUsage.pricing_status == "unknown",
             TokenUsage.cost_usd.is_(None),
+            TokenUsage.reserved_cost_usd == existing.reserved_cost_usd,
+            TokenUsage.reservation_status == existing.reservation_status,
         )
         .values(
             prompt_tokens=int(prompt_tokens or 0),
@@ -240,6 +437,10 @@ def _settle_pending_intent(
             total_tokens=int(prompt_tokens or 0) + int(completion_tokens or 0),
             cost_usd=cost_usd,
             pricing_status=_usage_pricing_status(cost_usd),
+            reserved_cost_usd=(
+                existing.reserved_cost_usd if cost_usd is None else 0.0),
+            reservation_status=(
+                "uncertain" if cost_usd is None else "settled"),
             billed=True,
         )
         .execution_options(synchronize_session=False)
@@ -410,28 +611,17 @@ class SpendAggregationService:
 
         This is the admin-configured source (set via the budget control API at
         api/admin/budget_routes.py). Returns 0.0 if unset (meaning no limit).
+        Delegates to the one billing-policy reader so the limit/mode parsing
+        cannot drift from the reservation path.
         """
         try:
-            from core.models import TenantSetting
-            import json
-
-            row = (
-                self.db.query(TenantSetting)
-                .filter(
-                    TenantSetting.tenant_id == tenant_id,
-                    TenantSetting.setting_key == "billing",
-                )
-                .first()
-            )
-            if row and row.setting_value:
-                data = json.loads(row.setting_value)
-                if isinstance(data, dict):
-                    limit = data.get("budget_limit_usd")
-                    if limit is not None:
-                        return float(limit)
+            limit, _mode = read_billing_policy(
+                self.db, tenant_id, strict=False)
+            return float(limit)
         except Exception as e:
-            logger.debug(f"Could not read budget limit from settings for {tenant_id}: {e}")
-        return 0.0
+            logger.debug(
+                f"Could not read budget limit from settings for {tenant_id}: {e}")
+            return 0.0
 
     def get_total_spend(
         self,
@@ -519,6 +709,12 @@ class SpendAggregationService:
                 TokenUsage.tenant_id == tenant_id,
                 or_(TokenUsage.pricing_status == "unknown",
                     TokenUsage.cost_usd.is_(None)),
+                # An active reservation with a known bound is a committed
+                # reservation, not an unpriced actual; it is counted in
+                # committed_spend_usd. An active reservation with no bound
+                # remains an unpriced liability and is counted here.
+                or_(TokenUsage.reservation_status != "active",
+                    TokenUsage.reserved_cost_usd.is_(None)),
                 TokenUsage.timestamp >= start_dt,
                 TokenUsage.timestamp <= end_dt,
             ).scalar() or 0)
@@ -609,7 +805,6 @@ class SpendAggregationService:
             if not budget_limit:
                 budget_limit = self._budget_limit_from_setting(tenant_id)
             budget_limit = float(budget_limit or 0.0)
-            utilization_percent = (current_spend_usd / budget_limit * 100) if budget_limit > 0 else 0.0
             # Unknown-cost liabilities travel WITH the spend read so a hard
             # stop cannot allow on a spend number that silently omits them.
             # A read failure here becomes {"error": ...} above, which the
@@ -618,14 +813,32 @@ class SpendAggregationService:
             # previous result shape.
             unpriced_usage_rows = 0
             unattributed_unpriced_rows = 0
+            reserved_spend_usd = 0.0
             if include_liabilities:
+                start_dt = datetime.combine(cycle_start, datetime.min.time())
+                end_dt = datetime.combine(today, datetime.max.time())
+                reserved_result = self.db.query(
+                    func.sum(TokenUsage.reserved_cost_usd)
+                ).filter(
+                    TokenUsage.tenant_id == tenant_id,
+                    TokenUsage.reservation_status.in_(("active", "uncertain")),
+                    TokenUsage.timestamp >= start_dt,
+                    TokenUsage.timestamp <= end_dt,
+                ).scalar()
+                reserved_spend_usd = float(reserved_result or 0.0)
                 unpriced_usage_rows = self.get_unpriced_usage(tenant_id)
                 unattributed_unpriced_rows = (
                     self.get_unattributed_unpriced())
+            committed_spend_usd = current_spend_usd + reserved_spend_usd
+            utilization_percent = (
+                committed_spend_usd / budget_limit * 100
+                if budget_limit > 0 else 0.0)
 
             return {
                 "tenant_id": tenant_id,
                 "current_spend_usd": round(current_spend_usd, 4),
+                "reserved_spend_usd": round(reserved_spend_usd, 4),
+                "committed_spend_usd": round(committed_spend_usd, 4),
                 "total_spend_usd": round(total_spend_usd, 4),
                 "budget_limit_usd": budget_limit,
                 "utilization_percent": round(utilization_percent, 2),

@@ -21,7 +21,10 @@ from sqlalchemy import func
 
 from core.models import Tenant, AgentExecution, TenantSetting
 from core.database import SessionLocal
-from core.spend_aggregation_service import SpendAggregationService
+from core.spend_aggregation_service import (
+    SpendAggregationService,
+    read_billing_policy,
+)
 from core.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -197,7 +200,14 @@ class BudgetEnforcementService:
 
             current_spend = spend_result.get("current_spend_usd", 0.0)
             budget_limit = spend_result.get("budget_limit_usd", 0.0)
+            reserved_spend = spend_result.get("reserved_spend_usd", 0.0)
+            committed_spend = spend_result.get(
+                "committed_spend_usd", current_spend)
             utilization = spend_result.get("utilization_percent", 0.0)
+            if not isinstance(reserved_spend, (int, float)):
+                reserved_spend = 0.0
+            if not isinstance(committed_spend, (int, float)):
+                committed_spend = current_spend
             # Unknown-cost liabilities travel WITH the spend read; a read
             # failure already surfaced as spend_result["error"] above.
             unattributed_rows = spend_result.get(
@@ -256,7 +266,7 @@ class BudgetEnforcementService:
             # moment any spend existed.
             budget_configured = budget_limit > 0
             budget_exceeded = budget_configured and (
-                utilization >= 100.0 or current_spend >= budget_limit
+                utilization >= 100.0 or committed_spend >= budget_limit
             )
 
             if not budget_exceeded:
@@ -525,29 +535,12 @@ class BudgetEnforcementService:
         via the budget setting API.
         """
         try:
-            existing_setting = self.db.query(TenantSetting).filter(
-                TenantSetting.tenant_id == tenant_id,
-                TenantSetting.setting_key == 'billing'
-            ).first()
-
-            if existing_setting and existing_setting.setting_value:
-                settings_dict = json.loads(existing_setting.setting_value)
-                enforcement = settings_dict.get('enforcement', {})
-                mode = enforcement.get('mode', BudgetEnforcementMode.SOFT_STOP)
-
-                # Validate mode
-                if mode not in BudgetEnforcementMode.ALL:
-                    logger.warning(
-                        f"[BudgetEnforcementService] Invalid enforcement mode '{mode}' "
-                        f"for tenant {tenant_id}, defaulting to soft_stop"
-                    )
-                    return BudgetEnforcementMode.SOFT_STOP
-
-                return mode
-
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(f"[BudgetEnforcementService] Error reading enforcement mode: {e}")
-
+            _limit, mode = read_billing_policy(
+                self.db, tenant_id, strict=False)
+            return mode
+        except Exception as e:
+            logger.warning(
+                f"[BudgetEnforcementService] Error reading enforcement mode: {e}")
         return BudgetEnforcementMode.SOFT_STOP
 
     def _get_budget_override(self, tenant_id: str) -> Optional[Dict]:
