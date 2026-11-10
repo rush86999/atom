@@ -149,14 +149,21 @@ describe("AutomationsPage", () => {
     expect(consoleLogSpy).toHaveBeenCalledWith("Generated:", { id: "wf-1" });
   });
 
-  test("deploying a generated workflow logs it and returns to the flows tab", () => {
+  test("a server-confirmed deployment returns to the flows tab", () => {
     render(<AutomationsPage />);
     fireEvent.click(screen.getByRole("button", { name: /AI Agents/ }));
 
     act(() => {
-      latestGeneratorProps.onDeployWorkflow({ id: "wf-2" });
+      // The child only invokes this after a verified durable server result.
+      latestGeneratorProps.onDeployWorkflow(
+        { id: "wf-2" },
+        { status: "deployed", workflow_id: "wf-2" }
+      );
     });
-    expect(consoleLogSpy).toHaveBeenCalledWith("Deploying:", { id: "wf-2" });
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      "Deployed:",
+      { status: "deployed", workflow_id: "wf-2" }
+    );
     expect(screen.getByTestId("workflow-automation")).toBeInTheDocument();
     expect(latestGeneratorProps.className).toBe("h-[calc(100vh-120px)]");
   });
