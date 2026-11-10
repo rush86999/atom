@@ -1,0 +1,42 @@
+{
+  "base": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+  "checkpoint": "b9b3ebbb631bf2ced3b71303e765d29cc735c918",
+  "contract": {
+    "authority": "existing core.canvas_authority active actor/owner/co-editor/scope + visible_canvas_material latest saved revision",
+    "business_guard": "review_status + assignment business_requirements if bound; unscoped draft not claimed final",
+    "determinism": "fixed OPC ZIP timestamps; parent and fresh child same bytes/hash",
+    "package_validation": "canonical markdown blocks/DOCX structure and slide outline/PPTX structure/notes",
+    "renderers": "existing office_service Word/PowerPoint create_from_markdown",
+    "route": "GET /api/canvas/{canvas_id}/export/office?format=docx|pptx",
+    "save_intent": "CanvasPanel flushAutosave confirmed before export; dirty/uncertain refuses"
+  },
+  "evidence_files": {
+    "README.md": "7942262f3013b9fec896b3a43a73ce4aeb5f308b620e7a19701f8635a491f590",
+    "baseline/base_export_route_absent.proof": "634e6321f11c7c95ad13440e5f8c0829e2c138ed9c2be47bc469f1a5daf92a4a",
+    "gates/backend_export_11.proof": "1347af3d92f5e64cff6c156e2f9b0bd49a4c82a8cb42674a4dfb6f907fca9d98",
+    "gates/backend_export_9.proof": "c4dfd182b5f383e1c9aa8972ddc0baf8a016ff09eb76fcf7562f28c90f24529d",
+    "gates/canvas_panel_47.proof": "b3b732dfcbd9fd8f3cd6c998fd6c30b1f5eb881a9f2f3159e33df8252ca15bd8",
+    "gates/office_file_compat_32pass_1pre_existing.proof": "fdd56e8ea98d81e2e569cabb5a820fe5b54179a3ae62f47d1c51dd14659ec967"
+  },
+  "gates": {
+    "backend_public_route": "11 passed (DOCX + PPTX fresh-process; CWD parity; negatives)",
+    "baseline_route": "404 / no route",
+    "canvas_panel": "47 passed",
+    "office_file_compat": "32 passed, 1 pre-existing unrelated failure"
+  },
+  "kind": "goal11_canvas_office_export_evidence_manifest",
+  "non_claims": [
+    "Bounded generated-canvas sample; no general DOCX/PPTX or whole-GOAL-11 claim.",
+    "No browser/model/live provider/install/CI/PR/merge.",
+    "Root owns independent verification and integration."
+  ],
+  "packet": "docs/acceptance/evidence/goal11_canvas_office_export_b9b3ebbb6/",
+  "source_hashes": {
+    "backend/api/canvas_routes.py": "becec70062e0f09a2ea2a185d9f294ee2fc5548f897d74af3429b8c770843bbe",
+    "backend/tests/helpers/canvas_office_export_child.py": "68b42fe90066a64f95326d97bec7e393ece996f8a3f3c41733466028a206c090",
+    "backend/tests/test_canvas_office_export.py": "6d275136dea1e36285548fc96b4acc29f436f9a5db35e354e5596405d7656f92",
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "93c3f856d78cfab95d2c2900617ac066e4e5d8e3163ccce76f5346b4edc8a7ca",
+    "frontend-nextjs/components/canvas/__tests__/CanvasPanel.test.tsx": "3cdd1aeaae6120143823dfad19db82cd417a525c062264f219a494314e6fefe0"
+  },
+  "test_checkpoint": "4b4acd93d6a26f333c405acbfe75c1ea56bbce01"
+}

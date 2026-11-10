@@ -1,0 +1,140 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 05:21:16 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_create_email_canvas_success 
+-------------------------------- live log setup --------------------------------
+2026-11-10 05:21:21 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  5%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_create_email_canvas_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:21 [ WARNING] API Error: EMAIL_CANVAS_CREATE_FAILED - Invalid recipients
+PASSED                                                                   [ 10%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_create_email_canvas_with_template PASSED [ 15%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_create_email_canvas_with_all_params PASSED [ 21%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_create_email_canvas_calls_service PASSED [ 26%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:21 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 31%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:21 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 36%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_with_attachments 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:21 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 42%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_calls_service 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 47%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_save_draft_success PASSED [ 52%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_save_draft_with_cc PASSED [ 57%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_save_draft_calls_service PASSED [ 63%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 68%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 73%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_different_categories 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 78%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_calls_service 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 84%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_multiple_messages 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+FAILED                                                                   [ 89%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_save_multiple_drafts PASSED [ 94%]
+tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_email_endpoints_return_json 
+-------------------------------- live log call ---------------------------------
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+2026-11-10 05:21:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_email_canvas on EmailCanvas
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+<scratch-path> assert 403 == 200
+<scratch-path> assert 403 == 400
+<scratch-path> assert 403 == 200
+<scratch-path> assert 403 == 200
+<scratch-path> assert 403 == 200
+<scratch-path> assert 403 == 400
+<scratch-path> assert 403 == 200
+<scratch-path> assert 403 == 200
+<scratch-path> assert 403 == 200
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  <scratch-path> PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  <scratch-path> PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  <scratch-path> PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  <scratch-path> FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:202
+  <scratch-path> PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1017
+  <scratch-path> PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1017
+  <scratch-path> PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_success
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_failure
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_with_attachments
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_message_calls_service
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_success
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_failure
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_different_categories
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_categorize_email_calls_service
+FAILED tests/api/test_canvas_email_routes.py::TestCanvasEmailRoutes::test_add_multiple_messages
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 9 failed, 10 passed, 13 warnings in 20.45s ==================

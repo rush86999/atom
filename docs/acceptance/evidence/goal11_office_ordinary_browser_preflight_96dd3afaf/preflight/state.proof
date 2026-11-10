@@ -1,0 +1,34 @@
+source_head:
+96dd3afaf6a519848c04265db7249454020d7e85
+worktree:
+/private/tmp/atom-goal11-office-browser-20261110
+branch:
+codex/web-goal11-office-ordinary-browser-20261110
+status:
+?? docs/acceptance/evidence/goal11_office_ordinary_browser_preflight_96dd3afaf/
+disk:
+/dev/disk3s5       460  391        37    92% 7921947 388744600    2%   /System/Volumes/Data
+memory:
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                     7249.
+Pages active:                                 625873.
+Pages inactive:                               619514.
+Pages speculative:                              5304.
+ports_3000_8000:
+worlds_root:
+ls: backend/data/acceptance_worlds: No such file or directory
+backend_data:
+total 0
+drwxr-xr-x@   3 rushiparikh  wheel    96 Nov 10 05:27 .
+drwxr-xr-x@ 302 rushiparikh  wheel  9664 Nov 10 05:27 ..
+drwxr-xr-x@  12 rushiparikh  wheel   384 Nov 10 05:27 acceptance_results
+bypass_env:
+<unset>
+node_modules:
+ls: frontend-nextjs/node_modules: No such file or directory
+lrwxr-xr-x@ 1 rushiparikh  wheel  72 Nov  9 17:34 /private/tmp/atom-web-production-cookies-20261109/frontend-nextjs/node_modules -> /private/tmp/atom-web-task-project-20261109/frontend-nextjs/node_modules
+harness:
+-rw-r--r--@ 1 rushiparikh  wheel   22717 Nov 10 05:27 backend/scripts/orchestration_acceptance/browser_verify.py
+-rw-r--r--@ 1 rushiparikh  wheel   35012 Nov 10 05:27 backend/scripts/orchestration_acceptance/case5_browser_recovery.py
+-rw-r--r--@ 1 rushiparikh  wheel  305809 Nov 10 05:27 backend/scripts/orchestration_acceptance/run_isolated.py
+-rw-r--r--@ 1 rushiparikh  wheel  178444 Nov 10 05:30 scripts/acceptance/browser_document_export_ui.py

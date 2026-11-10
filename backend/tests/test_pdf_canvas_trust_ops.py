@@ -179,6 +179,16 @@ def db_session(tmp_path, monkeypatch):
     Base.metadata.create_all(bind=eng)
     Session = sessionmaker(bind=eng, expire_on_commit=False)
     with Session() as s:
+        from core.models import Tenant, User
+        s.add(Tenant(id="default", name="Default",
+                     subdomain=f"trust-{tmp_path.name}"[:50],
+                     edition="personal", is_active=True))
+        s.add(User(
+            id="u-1", tenant_id="default", workspace_id="default",
+            email="u-1@example.invalid", hashed_password="x",
+            first_name="U", last_name="Ser", role="member",
+            status="active", is_active=True))
+        s.commit()
         yield s
 
 

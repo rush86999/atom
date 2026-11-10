@@ -1,0 +1,362 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 07:56:12 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 07:56:12 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 07:56:12 [    INFO] EscalationManager initialized
+2026-11-10 07:56:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 07:56:12 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 07:56:12 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 07:56:12 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 07:56:12 [    INFO] EscalationManager initialized
+2026-11-10 07:56:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 07:56:12 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 07:56:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 07:56:12 [    INFO] MCP Service initialized
+
+tests/test_email_legacy_draft_precedence.py::test_top_level_fields_win_over_stale_nested_draft 
+-------------------------------- live log setup --------------------------------
+2026-11-10 07:56:13 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_email_legacy_draft_precedence.py::test_top_level_wins_with_explicit_empty_values PASSED [  1%]
+tests/test_email_legacy_draft_precedence.py::test_legacy_only_draft_still_resolves PASSED [  2%]
+tests/test_email_legacy_draft_precedence.py::test_provenance_and_draft_identity_are_preserved PASSED [  3%]
+tests/test_email_legacy_draft_precedence.py::test_normalization_is_idempotent PASSED [  4%]
+tests/test_email_legacy_draft_precedence.py::test_list_recipients_are_canonicalized PASSED [  5%]
+tests/test_email_legacy_draft_precedence.py::test_coerce_uses_the_same_precedence PASSED [  6%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_plain_header_block PASSED [  7%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_bold_markdown_headers PASSED [  8%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_to_and_subject_headers PASSED [  8%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_cc_header_extracted PASSED [  9%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_doc_wrapped_shape PASSED [ 10%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_leading_separator_fences_are_ignored PASSED [ 11%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_narration_then_fenced_draft_extracts PASSED [ 12%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_unfenced_mid_document_subject_stays_a_document PASSED [ 13%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_narration_then_unfenced_draft_extracts PASSED [ 14%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_loose_scan_requires_a_recipient PASSED [ 15%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_doc_mentioning_subject_midtext_is_not_email PASSED [ 16%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_subject_without_body_is_not_email PASSED [ 16%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_non_text_shapes_return_none PASSED [ 17%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_empty_and_blank PASSED [ 18%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_greeting_only_body_below_minimum PASSED [ 19%]
+tests/test_chat_draft_classifier.py::TestExtractEmailDraft::test_quoted_and_indented_headers PASSED [ 20%]
+tests/test_chat_draft_classifier.py::TestNormalizeEmailContent::test_classifier_shape_passthrough_with_defaults PASSED [ 21%]
+tests/test_chat_draft_classifier.py::TestNormalizeEmailContent::test_email_canvas_service_draft_details PASSED [ 22%]
+tests/test_chat_draft_classifier.py::TestNormalizeEmailContent::test_draft_details_cc_list PASSED [ 23%]
+tests/test_chat_draft_classifier.py::TestNormalizeEmailContent::test_bare_string_is_the_body PASSED [ 24%]
+tests/test_chat_draft_classifier.py::TestNormalizeEmailContent::test_doc_shape_body FAILED [ 25%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_document_with_email_draft_becomes_email PASSED [ 25%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_doc_wrapped_content PASSED [ 26%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_plain_document_passthrough PASSED [ 27%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_narration_wrapped_draft_coerces_with_clean_fields PASSED [ 28%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_sheet_and_code_types_never_coerced PASSED [ 29%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_typed_email_content_normalized PASSED [ 30%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_typed_email_bare_string_passthrough PASSED [ 31%]
+tests/test_chat_draft_classifier.py::TestCoerceEmailCanvas::test_none_type PASSED [ 32%]
+tests/test_chat_draft_classifier.py::TestSelectDraftMessage::test_most_recent_artifact_wins_regardless_of_kind PASSED [ 33%]
+tests/test_chat_draft_classifier.py::TestSelectDraftMessage::test_email_draft_found_when_only_artifact PASSED [ 33%]
+tests/test_chat_draft_classifier.py::TestSelectDraftMessage::test_skips_conversational_replies_to_find_code_draft PASSED [ 34%]
+tests/test_chat_draft_classifier.py::TestSelectDraftMessage::test_finds_table_draft_under_newer_chatter PASSED [ 35%]
+tests/test_chat_draft_classifier.py::TestSelectDraftMessage::test_finds_titled_document PASSED [ 36%]
+tests/test_chat_draft_classifier.py::TestSelectDraftMessage::test_none_when_no_draft PASSED [ 37%]
+tests/test_chat_draft_classifier.py::TestSelectDraftMessage::test_empty_and_non_string_inputs PASSED [ 38%]
+tests/test_chat_draft_classifier.py::TestReadCanvasCoercion::test_historical_doc_canvas_reads_as_email PASSED [ 39%]
+tests/test_chat_draft_classifier.py::TestReadCanvasCoercion::test_plain_doc_read_unchanged PASSED [ 40%]
+tests/test_chat_draft_classifier.py::TestReadCanvasCoercion::test_email_canvas_service_details_normalized FAILED [ 41%]
+tests/test_chat_draft_classifier.py::TestUpdateCanvasCoercion::test_co_editor_rewrite_retypes_doc_to_email 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:14 [    INFO] Updated canvas c-email-1 (email)
+PASSED                                                                   [ 41%]
+tests/test_chat_draft_classifier.py::TestUpdateCanvasCoercion::test_update_broadcast_includes_email_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:14 [    INFO] Updated canvas c-email-1 (email)
+PASSED                                                                   [ 42%]
+tests/test_chat_draft_classifier.py::TestSuggestContacts::test_normalizes_dedupes_and_caps 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:14 [ WARNING] Mail-history correspondents unavailable for user-1: object MagicMock can't be used in 'await' expression
+PASSED                                                                   [ 43%]
+tests/test_chat_draft_classifier.py::TestSuggestContacts::test_mailbox_failure_degrades_to_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:14 [ WARNING] Contact suggestions unavailable for user-1: no token
+PASSED                                                                   [ 44%]
+tests/test_chat_draft_classifier.py::TestSuggestContacts::test_empty_address_book PASSED [ 45%]
+tests/test_chat_draft_classifier.py::TestSuggestContacts::test_mail_history_fallback_when_address_book_denied PASSED [ 46%]
+tests/test_chat_draft_classifier.py::TestSuggestContacts::test_mail_history_fallback_respects_query 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:14 [   ERROR] No access token available for user user-1
+PASSED                                                                   [ 47%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_reply_to_received_mail_fills_sender PASSED [ 48%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_reply_to_own_sent_mail_fills_original_recipients PASSED [ 49%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_non_reply_subject_short_circuits PASSED [ 50%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_no_thread_match_returns_none PASSED [ 50%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_received_match_preferred_over_own_sent PASSED [ 51%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_token_leg_fills_from_lead_form_body PASSED [ 52%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_token_leg_ignores_marketing_noise PASSED [ 53%]
+tests/test_chat_draft_classifier.py::TestResolveReplyRecipients::test_reply_tokens_extraction PASSED [ 54%]
+tests/test_chat_draft_classifier.py::TestSignature::test_extract_signoff_standard PASSED [ 55%]
+tests/test_chat_draft_classifier.py::TestSignature::test_extract_signoff_none_without_closing PASSED [ 56%]
+tests/test_chat_draft_classifier.py::TestSignature::test_extract_signoff_single_line_block_rejected PASSED [ 57%]
+tests/test_chat_draft_classifier.py::TestSignature::test_extract_signoff_oversized_block_rejected PASSED [ 58%]
+tests/test_chat_draft_classifier.py::TestSignature::test_extract_signoff_real_outlook_banner_signature PASSED [ 58%]
+tests/test_chat_draft_classifier.py::TestSignature::test_extract_signoff_owner_guard_rejects_quoted_colleague PASSED [ 59%]
+tests/test_chat_draft_classifier.py::TestSignature::test_stored_preference_wins PASSED [ 60%]
+tests/test_chat_draft_classifier.py::TestSignature::test_integration_default_mined_from_sent_mail PASSED [ 61%]
+tests/test_chat_draft_classifier.py::TestSignature::test_no_signature_anywhere PASSED [ 62%]
+tests/test_chat_draft_classifier.py::TestSignature::test_set_signature_persists_and_clears_cache PASSED [ 63%]
+tests/test_chat_draft_classifier.py::TestStripTrailingSignoff::test_strips_plain_closing_block PASSED [ 64%]
+tests/test_chat_draft_classifier.py::TestStripTrailingSignoff::test_strips_bold_closing_and_placeholder PASSED [ 65%]
+tests/test_chat_draft_classifier.py::TestStripTrailingSignoff::test_prose_thanks_is_not_a_signoff PASSED [ 66%]
+tests/test_chat_draft_classifier.py::TestStripTrailingSignoff::test_mid_body_regards_is_not_stripped PASSED [ 66%]
+tests/test_chat_draft_classifier.py::TestStripTrailingSignoff::test_body_without_closing_unchanged PASSED [ 67%]
+tests/test_chat_draft_classifier.py::TestStripTrailingSignoff::test_conditional_strip_keeps_closing_without_default PASSED [ 68%]
+tests/test_chat_draft_classifier.py::TestStripTrailingSignoff::test_conditional_strip_replaces_when_default_exists PASSED [ 69%]
+tests/test_chat_draft_classifier.py::TestDetectDraftKind::test_short_inline_code_is_not_a_code_draft PASSED [ 70%]
+tests/test_chat_draft_classifier.py::TestDetectDraftKind::test_prose_with_pipe_chars_is_not_a_table PASSED [ 71%]
+tests/test_chat_draft_classifier.py::TestDetectDraftKind::test_heading_decorated_answer_is_not_a_doc_draft PASSED [ 72%]
+tests/test_chat_draft_classifier.py::TestDetectDraftKind::test_kind_ordering_email_strongest PASSED [ 73%]
+tests/test_chat_draft_classifier.py::TestOfficeDraftParsing::test_markdown_table_rows PASSED [ 74%]
+tests/test_chat_draft_classifier.py::TestOfficeDraftParsing::test_no_table_returns_none PASSED [ 75%]
+tests/test_chat_draft_classifier.py::TestOfficeDraftParsing::test_slide_outline_detection_and_parse PASSED [ 75%]
+tests/test_chat_draft_classifier.py::TestOfficeDraftParsing::test_single_slide_mention_is_not_a_deck PASSED [ 76%]
+tests/test_chat_draft_classifier.py::TestOfficeDraftParsing::test_kind_ordering_slides_beats_code_and_table PASSED [ 77%]
+tests/test_chat_draft_classifier.py::TestOfficeDraftCreation::test_create_spreadsheet_writes_rows PASSED [ 78%]
+tests/test_chat_draft_classifier.py::TestOfficeDraftCreation::test_create_spreadsheet_rejects_paths_outside_office_dir PASSED [ 79%]
+tests/test_chat_draft_classifier.py::test_narration_wrapped_draft_extracts_headers_from_fenced_segment PASSED [ 80%]
+tests/test_chat_draft_classifier.py::test_top_block_draft_still_extracted_unchanged PASSED [ 81%]
+tests/test_chat_draft_classifier.py::test_pure_prose_without_headers_still_returns_none PASSED [ 82%]
+tests/test_chat_draft_classifier.py::test_subjectless_fenced_segment_returns_none PASSED [ 83%]
+tests/test_email_draft_shared_writer.py::test_requires_prior_and_roundtrips_exact_body 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-1346f05677/draft "HTTP/1.1 409 Conflict"
+2026-11-10 07:56:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-878d4c0d'. type='canvas:update'
+2026-11-10 07:56:15 [    INFO] Updated canvas canvas-1346f05677 (email)
+2026-11-10 07:56:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-1346f05677/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:15 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-1346f05677 "HTTP/1.1 200 OK"
+2026-11-10 07:56:15 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-1346f05677 "HTTP/1.1 200 OK"
+2026-11-10 07:56:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-1346f05677/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-1346f05677/draft "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 83%]
+tests/test_email_draft_shared_writer.py::test_stale_prior_refuses_without_overwriting_peer 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-9ccad45d'. type='canvas:update'
+2026-11-10 07:56:15 [    INFO] Updated canvas canvas-787347e18a (email)
+2026-11-10 07:56:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-787347e18a/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:15 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-787347e18a/draft "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 84%]
+tests/test_email_draft_shared_writer.py::test_inactive_moved_actor_and_moved_target_refuse 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-77672c9a21/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 07:56:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-77672c9a21/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 07:56:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-77672c9a21/draft "HTTP/1.1 403 Forbidden"
+2026-11-10 07:56:16 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-77672c9a21 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 85%]
+tests/test_email_draft_shared_writer.py::test_scoped_create_is_ordinary_put_editable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:17 [    INFO] Created email canvas 9455b13b-e9f7-4fc4-859f-512b608af6bc: Scoped Draft
+2026-11-10 07:56:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 07:56:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-ec4e4710'. type='canvas:update'
+2026-11-10 07:56:17 [    INFO] Updated canvas 9455b13b-e9f7-4fc4-859f-512b608af6bc (email)
+2026-11-10 07:56:17 [    INFO] HTTP Request: PUT http://testserver/api/canvas/9455b13b-e9f7-4fc4-859f-512b608af6bc?expected_prior_audit_id=59a71c00-b0de-41f3-92c4-1980205a1a07 "HTTP/1.1 200 OK"
+2026-11-10 07:56:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/9455b13b-e9f7-4fc4-859f-512b608af6bc "HTTP/1.1 200 OK"
+2026-11-10 07:56:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/9455b13b-e9f7-4fc4-859f-512b608af6bc "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_email_draft_shared_writer.py::test_email_get_projects_native_thread_and_attachments 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-0cf90eb6'. type='canvas:update'
+2026-11-10 07:56:17 [    INFO] Updated canvas canvas-fc220f48e8 (email)
+2026-11-10 07:56:17 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-fc220f48e8?expected_prior_audit_id=audit-8a426a2945 "HTTP/1.1 200 OK"
+2026-11-10 07:56:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-fc220f48e8 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_email_draft_shared_writer.py::test_uncertain_and_refused_writes_are_truthful 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:18 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-5c959a45b0/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:18 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-5c959a45b0/draft "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 88%]
+tests/test_email_draft_shared_writer.py::test_fresh_process_reads_exact_saved_body 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:19 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-fb32a076'. type='canvas:update'
+2026-11-10 07:56:19 [    INFO] Updated canvas canvas-6e0051f736 (email)
+2026-11-10 07:56:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-6e0051f736/draft "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_email_draft_shared_writer.py::test_generic_put_explicit_empty_does_not_resurrect_native_values 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-cf5719a8'. type='canvas:update'
+2026-11-10 07:56:22 [    INFO] Updated canvas canvas-0704c4929e (email)
+2026-11-10 07:56:22 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-0704c4929e/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-cf5719a8'. type='canvas:update'
+2026-11-10 07:56:22 [    INFO] Updated canvas canvas-0704c4929e (email)
+2026-11-10 07:56:22 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-0704c4929e?expected_prior_audit_id=fd739c67-c367-4582-965c-caec16e851d4 "HTTP/1.1 200 OK"
+2026-11-10 07:56:22 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-0704c4929e "HTTP/1.1 200 OK"
+2026-11-10 07:56:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-cf5719a8'. type='canvas:update'
+2026-11-10 07:56:24 [    INFO] Updated canvas canvas-0704c4929e (email)
+2026-11-10 07:56:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-0704c4929e/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:24 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-0704c4929e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_email_draft_shared_writer.py::test_generic_put_with_stale_nested_draft_keeps_top_level_edits 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-a366d551'. type='canvas:update'
+2026-11-10 07:56:25 [    INFO] Updated canvas canvas-3f07adce9c (email)
+2026-11-10 07:56:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-3f07adce9c/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-a366d551'. type='canvas:update'
+2026-11-10 07:56:25 [    INFO] Updated canvas canvas-3f07adce9c (email)
+2026-11-10 07:56:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-3f07adce9c?expected_prior_audit_id=7ae16f28-10e1-47a6-b3c4-410299a24a6a "HTTP/1.1 200 OK"
+2026-11-10 07:56:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-3f07adce9c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_email_draft_shared_writer.py::test_readback_explicit_empty_does_not_resurrect_stale_details_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:25 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-fe2dafd2'. type='canvas:update'
+2026-11-10 07:56:25 [    INFO] Updated canvas canvas-2993d32e77 (email)
+2026-11-10 07:56:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/canvas-2993d32e77?expected_prior_audit_id=audit-049bc5c646 "HTTP/1.1 200 OK"
+2026-11-10 07:56:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-2993d32e77 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_email_draft_shared_writer.py::test_native_attachment_identity_is_preserved_without_duplication 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-260a3859'. type='canvas:update'
+2026-11-10 07:56:26 [    INFO] Updated canvas canvas-073e0360c1 (email)
+2026-11-10 07:56:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-073e0360c1/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-260a3859'. type='canvas:update'
+2026-11-10 07:56:26 [    INFO] Updated canvas canvas-073e0360c1 (email)
+2026-11-10 07:56:26 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/canvas-073e0360c1/draft "HTTP/1.1 200 OK"
+2026-11-10 07:56:26 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/canvas-073e0360c1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_email_draft_shared_writer.py::test_create_authority_race_has_zero_effects[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:27 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+2026-11-10 07:56:27 [ WARNING] API Error: EMAIL_CANVAS_CREATE_FAILED - Acting user changed before the canvas could be created
+2026-11-10 07:56:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 93%]
+tests/test_email_draft_shared_writer.py::test_create_authority_race_has_zero_effects[move] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:27 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+2026-11-10 07:56:27 [ WARNING] API Error: EMAIL_CANVAS_CREATE_FAILED - Acting user changed before the canvas could be created
+2026-11-10 07:56:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 94%]
+tests/test_email_draft_shared_writer.py::test_created_draft_survives_ordinary_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:28 [    INFO] Created email canvas 34031c36-912c-4839-9c07-73506f801358: Restart Draft
+2026-11-10 07:56:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 07:56:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner-8c1db1ce'. type='canvas:update'
+2026-11-10 07:56:28 [    INFO] Updated canvas 34031c36-912c-4839-9c07-73506f801358 (email)
+2026-11-10 07:56:28 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/34031c36-912c-4839-9c07-73506f801358/draft "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_email_draft_shared_writer.py::test_create_rejects_scope_disagreement_and_unknown_user 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:31 [   ERROR] Failed to create email canvas: Caller scope does not match the current acting user
+2026-11-10 07:56:31 [   ERROR] Failed to create email canvas: Acting user not found
+PASSED                                                                   [ 96%]
+tests/test_email_draft_shared_writer.py::test_create_null_raw_scope_move_has_zero_effects[default] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:31 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+PASSED                                                                   [ 97%]
+tests/test_email_draft_shared_writer.py::test_create_null_raw_scope_move_has_zero_effects[] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:32 [   ERROR] Failed to create email canvas: Acting user changed before the canvas could be created
+PASSED                                                                   [ 98%]
+tests/test_email_draft_shared_writer.py::test_active_personal_default_create_is_ordinary_put_editable[explicit-default] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:33 [    INFO] Created email canvas d43250a1-4b24-4c18-bbaa-3ad0d2ff05b7: Personal Draft
+2026-11-10 07:56:33 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 07:56:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:personal-default'. type='canvas:update'
+2026-11-10 07:56:33 [    INFO] Updated canvas d43250a1-4b24-4c18-bbaa-3ad0d2ff05b7 (email)
+2026-11-10 07:56:33 [    INFO] HTTP Request: PUT http://testserver/api/canvas/d43250a1-4b24-4c18-bbaa-3ad0d2ff05b7?expected_prior_audit_id=1eafd55c-fe81-458b-8489-595b86f64897 "HTTP/1.1 200 OK"
+2026-11-10 07:56:33 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/d43250a1-4b24-4c18-bbaa-3ad0d2ff05b7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_email_draft_shared_writer.py::test_active_personal_default_create_is_ordinary_put_editable[bootstrap-null] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 07:56:34 [    INFO] Created email canvas 9e8adf76-ad31-4d22-be5a-648408717a13: Personal Draft
+2026-11-10 07:56:34 [    INFO] HTTP Request: POST http://testserver/api/canvas/email/create "HTTP/1.1 200 OK"
+2026-11-10 07:56:34 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:personal-default'. type='canvas:update'
+2026-11-10 07:56:34 [    INFO] Updated canvas 9e8adf76-ad31-4d22-be5a-648408717a13 (email)
+2026-11-10 07:56:34 [    INFO] HTTP Request: PUT http://testserver/api/canvas/9e8adf76-ad31-4d22-be5a-648408717a13?expected_prior_audit_id=f258a965-0eb8-45e2-aeba-e0a571c62996 "HTTP/1.1 200 OK"
+2026-11-10 07:56:34 [    INFO] HTTP Request: GET http://testserver/api/canvas/email/9e8adf76-ad31-4d22-be5a-648408717a13 "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+________________ TestNormalizeEmailContent.test_doc_shape_body _________________
+tests/test_chat_draft_classifier.py:261: in test_doc_shape_body
+    assert normalize_email_content({"type": "doc", "content": "doc body"}) == {
+E   AssertionError: assert {'body': 'doc...ect': '', ...} == {'body': 'doc... '', 'to': ''}
+E     
+E     Omitting 4 identical items, use -vv to show
+E     Left contains 2 more items:
+E     {'content': 'doc body', 'type': 'doc'}
+E     
+E     Full diff:
+E       {...
+E     
+E     ...Full output truncated (7 lines hidden), use '-vv' to show
+_____ TestReadCanvasCoercion.test_email_canvas_service_details_normalized ______
+tests/test_chat_draft_classifier.py:528: in test_email_canvas_service_details_normalized
+    assert result["content"] == {
+E   AssertionError: assert {'body': 'Hi ...e.com']}, ...} == {'body': 'Hi ...@example.com'}
+E     
+E     Omitting 4 identical items, use -vv to show
+E     Left contains 3 more items:
+E     {'canvas_type': 'email',
+E      'draft': {'body': 'Hi Mark,',
+E                'cc_emails': [],
+E                'subject': 'Quote follow-up',...
+E     
+E     ...Full output truncated (20 lines hidden), use '-vv' to show
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 224 warnings
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_chat_draft_classifier.py::TestNormalizeEmailContent::test_doc_shape_body
+FAILED tests/test_chat_draft_classifier.py::TestReadCanvasCoercion::test_email_canvas_service_details_normalized
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 2 failed, 110 passed, 229 warnings in 39.09s =================
+GATE_EXIT=1
