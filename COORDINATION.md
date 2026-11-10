@@ -409,4 +409,4 @@ workflow/governance consumer needed by the failing controls. Do not edit the
 root PR831 worktree (`/private/tmp/atom-web-graduation-clean-delivery-20261110`)
 or PR833 branch/evidence.
 
-Status: in progress. No live DB/model/provider/send/spend/deploy/deps.
+Status: repair complete on isolated branch; evidence packet under docs/acceptance/evidence/pr831_workflow_consumer_repair_8ec58cf3f. No live DB/model/provider/send/spend/deploy/deps.
