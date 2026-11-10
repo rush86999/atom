@@ -1,0 +1,92 @@
+{
+  "baseline": {
+    "control": "existing Activity list with a goal utility target",
+    "exit": 1,
+    "failure": "activity-utility-summary absent; getGoalUtility not called",
+    "log": "logs/baseline-red.log",
+    "result": "1 failed, 14 passed"
+  },
+  "boundary": "GOAL02-ACTIVITY-UTILITY-VISIBILITY",
+  "change": {
+    "backend_change": false,
+    "entrypoint": "ordinary Activity list /goal-runs",
+    "failure_behavior": "typed error; preserve last known ranking; stale result marked and old winner not shown as fresh; first failure has no fabricated winner",
+    "new_api": false,
+    "new_engine_store_router": false,
+    "preserves": [
+      "existing 15s poll",
+      "include-terminal reload/filter",
+      "member read-only",
+      "detail supervisor write controls"
+    ],
+    "renders": [
+      "goal title and target metric/direction",
+      "eligible count",
+      "winner",
+      "ranked completed runs with metric values",
+      "explicit withheld reasons"
+    ],
+    "reuse": [
+      "Goal.utility_target from GET /api/goals",
+      "getGoalUtility from existing API client",
+      "detail card metric/direction/winner/withheld semantics"
+    ]
+  },
+  "claim": "GOAL-02 activity utility visibility",
+  "controls": {
+    "baseline_red": {
+      "exit": 1,
+      "failed": 1,
+      "log": "logs/baseline-red.log",
+      "log_sha256": "f55d054dd67ec5ce972125b830f93ca02ec3caff3d29b623fdc16c816e308242",
+      "passed": 14
+    },
+    "eslint_changed_files": {
+      "exit": 0,
+      "log": "logs/eslint.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "index_detail": {
+      "exit": 0,
+      "log": "logs/index-detail-controls.log",
+      "log_sha256": "df70ab0c6a2497fa4176dc90b68cce9d311096e807792fa3d67bf7d5ae832833",
+      "passed": 45
+    },
+    "typescript": {
+      "exit": 0,
+      "log": "logs/tsc.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "limits": {
+    "agent_general_judgment": false,
+    "backend_ranking_change": false,
+    "browser_liveDB_provider_model": false,
+    "root_ci_pr_pending": true,
+    "whole_goal02_closure": false
+  },
+  "repair_commit": "05ca1e72bb87848d07c702cc4c99201217c92b7b",
+  "schema_version": 1,
+  "source": {
+    "after": {
+      "frontend-nextjs/pages/goal-runs/index.tsx": "7873ffc7d5e342870c47f11d9eb6251b6a6c7231f6068d4cde1f0f288d5aac42",
+      "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "71aa1f84090f2ce6faf0093947c8d86b374d4446ffb726bb20ae2392bbb2901c"
+    },
+    "before": {
+      "frontend-nextjs/pages/goal-runs/index.tsx": "0e569cea3fc02b62e760e7d2590c463ef33e38d85ba5a03034954439a883cec6",
+      "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "fde03afcca8aeb661f4374ca614d088676dd76b15ee06cb4c87678acde5d6d27"
+    }
+  },
+  "source_before": "310e72aecd1a4041a35af6ac093379d39b93556b",
+  "state": "failure_first_component_control_green_component_scope_frozen",
+  "twin_coverage": [
+    "target + eligible/withheld two-result",
+    "no target/no API call",
+    "first utility read failure",
+    "stale after later failure preserves last ranking and suppresses winner",
+    "member read-only",
+    "poll refresh",
+    "detail controls regression",
+    "include-terminal reload"
+  ]
+}
