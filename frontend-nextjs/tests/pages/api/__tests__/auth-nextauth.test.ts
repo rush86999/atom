@@ -51,13 +51,11 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
         error: "/auth/error",
       });
       expect(authOptions.useSecureCookies).toBe(false);
-      expect((authOptions.cookies as any).sessionToken.name).toBe(
-        "next-auth.session-token",
-      );
-      expect((authOptions.cookies as any).csrfToken.name).toBe(
-        "next-auth.csrf-token",
-      );
+      // Cookie names and security attributes come from the installed
+      // NextAuth defaults; a local override cannot add Domain to __Host-.
+      expect(authOptions.cookies).toBeUndefined();
       expect(authOptions.secret).toBeDefined();
+      expect(authOptions.debug).toBe(false);
     });
   });
 

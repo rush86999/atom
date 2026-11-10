@@ -249,7 +249,8 @@ describe("pages/api/v1/projects", () => {
     expect(res._getJSONData()).toEqual({ projects });
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${BACKEND_URL}/api/v1/projects?owner=u1`);
+    // A collection id query is not a dynamic route parameter.
+    expect(url).toBe(`${BACKEND_URL}/api/v1/projects?owner=u1&id=ignored`);
     expect(init.method).toBe("GET");
     expect(init.body).toBeUndefined();
     expect(init.headers).toEqual({
@@ -588,7 +589,8 @@ describe("pages/api/v1/tasks", () => {
     expect(res._getJSONData()).toEqual({ tasks });
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${BACKEND_URL}/api/v1/tasks?limit=10`);
+    // Only [id] routes explicitly remove their consumed path parameter.
+    expect(url).toBe(`${BACKEND_URL}/api/v1/tasks?limit=10&id=ignored`);
     expect(init.method).toBe("GET");
     expect(init.body).toBeUndefined();
     expect(init.headers).toEqual({

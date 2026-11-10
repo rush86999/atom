@@ -1,0 +1,235 @@
+TAP version 13
+# Subtest: production: actual handler reuses NextAuth __Host- CSRF and __Secure- cookies without Domain
+ok 1 - production: actual handler reuses NextAuth __Host- CSRF and __Secure- cookies without Domain
+  ---
+  duration_ms: 88.9945
+  ...
+# Subtest: development: actual handler reuses NextAuth non-Secure host cookies without Domain
+ok 2 - development: actual handler reuses NextAuth non-Secure host cookies without Domain
+  ---
+  duration_ms: 6.91825
+  ...
+# Subtest: normal: revoked backend bearer cannot certify a server-side web session
+ok 3 - normal: revoked backend bearer cannot certify a server-side web session
+  ---
+  duration_ms: 16.339041
+  ...
+# Subtest: normal: a cookie without a backend generation requires fresh login
+ok 4 - normal: a cookie without a backend generation requires fresh login
+  ---
+  duration_ms: 2.526125
+  ...
+# Subtest: normal: current canonical role and workspace replace cached authority
+ok 5 - normal: current canonical role and workspace replace cached authority
+  ---
+  duration_ms: 1.476875
+  ...
+# Subtest: normal: a mismatched canonical subject is refused, not reassigned
+ok 6 - normal: a mismatched canonical subject is refused, not reassigned
+  ---
+  duration_ms: 0.65925
+  ...
+# Subtest: shared: revoked backend bearer cannot certify a server-side web session
+ok 7 - shared: revoked backend bearer cannot certify a server-side web session
+  ---
+  duration_ms: 0.648917
+  ...
+# Subtest: shared: a cookie without a backend generation requires fresh login
+ok 8 - shared: a cookie without a backend generation requires fresh login
+  ---
+  duration_ms: 0.544833
+  ...
+# Subtest: shared: current canonical role and workspace replace cached authority
+ok 9 - shared: current canonical role and workspace replace cached authority
+  ---
+  duration_ms: 0.907459
+  ...
+# Subtest: shared: a mismatched canonical subject is refused, not reassigned
+ok 10 - shared: a mismatched canonical subject is refused, not reassigned
+  ---
+  duration_ms: 0.613791
+  ...
+# Subtest: shared decoder uses the actual web-cookie secret, not an unrelated backend JWT_SECRET
+ok 11 - shared decoder uses the actual web-cookie secret, not an unrelated backend JWT_SECRET
+  ---
+  duration_ms: 4.838834
+  ...
+# Subtest: production web auth refuses to use a public development secret when configuration is missing
+ok 12 - production web auth refuses to use a public development secret when configuration is missing
+  ---
+  duration_ms: 5.857417
+  ...
+# Subtest: normal: exact personal scope null is preserved
+ok 13 - normal: exact personal scope null is preserved
+  ---
+  duration_ms: 1.100667
+  ...
+# Subtest: normal: exact personal scope "" is preserved
+ok 14 - normal: exact personal scope "" is preserved
+  ---
+  duration_ms: 0.852875
+  ...
+# Subtest: normal: exact personal scope "default" is preserved
+ok 15 - normal: exact personal scope "default" is preserved
+  ---
+  duration_ms: 0.865625
+  ...
+# Subtest: normal: missing current role cannot inherit cached authority
+ok 16 - normal: missing current role cannot inherit cached authority
+  ---
+  duration_ms: 0.706834
+  ...
+# Subtest: normal: missing current workspace_id cannot inherit cached authority
+ok 17 - normal: missing current workspace_id cannot inherit cached authority
+  ---
+  duration_ms: 0.625459
+  ...
+# Subtest: normal: missing current tenant_id cannot inherit cached authority
+ok 18 - normal: missing current tenant_id cannot inherit cached authority
+  ---
+  duration_ms: 0.718333
+  ...
+# Subtest: normal: safe failure logs never echo transport credential material
+ok 19 - normal: safe failure logs never echo transport credential material
+  ---
+  duration_ms: 0.467584
+  ...
+# Subtest: normal: inactive current identity never inherits a cached active session
+ok 20 - normal: inactive current identity never inherits a cached active session
+  ---
+  duration_ms: 0.625917
+  ...
+# Subtest: shared: exact personal scope null is preserved
+ok 21 - shared: exact personal scope null is preserved
+  ---
+  duration_ms: 0.588333
+  ...
+# Subtest: shared: exact personal scope "" is preserved
+ok 22 - shared: exact personal scope "" is preserved
+  ---
+  duration_ms: 0.488791
+  ...
+# Subtest: shared: exact personal scope "default" is preserved
+ok 23 - shared: exact personal scope "default" is preserved
+  ---
+  duration_ms: 0.63625
+  ...
+# Subtest: shared: missing current role cannot inherit cached authority
+ok 24 - shared: missing current role cannot inherit cached authority
+  ---
+  duration_ms: 0.509292
+  ...
+# Subtest: shared: missing current workspace_id cannot inherit cached authority
+ok 25 - shared: missing current workspace_id cannot inherit cached authority
+  ---
+  duration_ms: 0.571833
+  ...
+# Subtest: shared: missing current tenant_id cannot inherit cached authority
+ok 26 - shared: missing current tenant_id cannot inherit cached authority
+  ---
+  duration_ms: 0.586291
+  ...
+# Subtest: shared: safe failure logs never echo transport credential material
+ok 27 - shared: safe failure logs never echo transport credential material
+  ---
+  duration_ms: 0.3635
+  ...
+# Subtest: shared: inactive current identity never inherits a cached active session
+ok 28 - shared: inactive current identity never inherits a cached active session
+  ---
+  duration_ms: 0.329875
+  ...
+# Subtest: real SDK denies a principal when an actual HTTP identity body stalls past the single deadline
+ok 29 - real SDK denies a principal when an actual HTTP identity body stalls past the single deadline
+  ---
+  duration_ms: 5014.204709
+  ...
+# Subtest: normal: an explicit unsuccessful identity result cannot certify cached authority
+ok 30 - normal: an explicit unsuccessful identity result cannot certify cached authority
+  ---
+  duration_ms: 3.472458
+  ...
+# Subtest: shared: an explicit unsuccessful identity result cannot certify cached authority
+ok 31 - shared: an explicit unsuccessful identity result cannot certify cached authority
+  ---
+  duration_ms: 1.420458
+  ...
+# Subtest: normal: unavailable current authority refuses without destroying the recoverable cookie
+ok 32 - normal: unavailable current authority refuses without destroying the recoverable cookie
+  ---
+  duration_ms: 1.879291
+  ...
+# Subtest: shared: unavailable current authority refuses without destroying the recoverable cookie
+ok 33 - shared: unavailable current authority refuses without destroying the recoverable cookie
+  ---
+  duration_ms: 1.412625
+  ...
+# Subtest: normal: unknown cached authority cannot survive a current-principal projection
+ok 34 - normal: unknown cached authority cannot survive a current-principal projection
+  ---
+  duration_ms: 1.163625
+  ...
+# Subtest: shared: unknown cached authority cannot survive a current-principal projection
+ok 35 - shared: unknown cached authority cannot survive a current-principal projection
+  ---
+  duration_ms: 0.983375
+  ...
+# Subtest: missing web signing secret refuses in test
+ok 36 - missing web signing secret refuses in test
+  ---
+  duration_ms: 0.206125
+  ...
+# Subtest: missing web signing secret refuses in development
+ok 37 - missing web signing secret refuses in development
+  ---
+  duration_ms: 0.073334
+  ...
+# Subtest: missing web signing secret refuses in production
+ok 38 - missing web signing secret refuses in production
+  ---
+  duration_ms: 0.064458
+  ...
+# Subtest: invalid or absent auth backend never substitutes localhost
+ok 39 - invalid or absent auth backend never substitutes localhost
+  ---
+  duration_ms: 0.150916
+  ...
+# Subtest: invalid or absent auth backend never substitutes localhost
+ok 40 - invalid or absent auth backend never substitutes localhost
+  ---
+  duration_ms: 0.098542
+  ...
+# Subtest: invalid or absent auth backend never substitutes localhost
+ok 41 - invalid or absent auth backend never substitutes localhost
+  ---
+  duration_ms: 0.075125
+  ...
+# Subtest: invalid or absent auth backend never substitutes localhost
+ok 42 - invalid or absent auth backend never substitutes localhost
+  ---
+  duration_ms: 0.436917
+  ...
+# Subtest: invalid or absent auth backend never substitutes localhost
+ok 43 - invalid or absent auth backend never substitutes localhost
+  ---
+  duration_ms: 0.090708
+  ...
+# Subtest: invalid or absent auth backend never substitutes localhost
+ok 44 - invalid or absent auth backend never substitutes localhost
+  ---
+  duration_ms: 0.081958
+  ...
+# Subtest: server auth uses configured private authority before browser URL and normalizes whitespace
+ok 45 - server auth uses configured private authority before browser URL and normalizes whitespace
+  ---
+  duration_ms: 0.085792
+  ...
+1..45
+# tests 45
+# suites 0
+# pass 45
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5314.890458

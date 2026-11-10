@@ -1,0 +1,40 @@
+{
+  "executed_source": "5248098bb744f174823f958e29acb9cb3eba6575",
+  "actual_full_production_build": {
+    "exit": 0,
+    "node": "20.20.2",
+    "next": "16.2.2",
+    "type_validation": "ran; finished15.4s; no skipping",
+    "runtime_signing_key_supplied": false,
+    "runtime_server_started": false
+  },
+  "root_original_probes": {
+    "before_pass": 1,
+    "before_fail": 2,
+    "after_pass": 3,
+    "after_fail": 0,
+    "after_source": "1fc07d62fc8e42498db39a2d3f4bf368d629c462"
+  },
+  "root_sdk_controls": {
+    "passed": 58,
+    "failed": 0,
+    "source": "1fc07d62fc8e42498db39a2d3f4bf368d629c462"
+  },
+  "root_frontend_controls": {
+    "passed": 71,
+    "failed": 0,
+    "source": "5248098bb744f174823f958e29acb9cb3eba6575"
+  },
+  "source_attribution": "Middleware, installed-SDK regression tests and web-auth config are byte-identical between1fc07d62f and5248098bb. The later source adds only CI wiring and the previously submitted production type gate/evidence. Full app build and login71 ran on the combined source.",
+  "scope": "actual SDK page middleware and actual optimized compilation; legacy auth_token compatibility preserved; backend current authority remains actual authorization",
+  "limits": [
+    "No new browser journey or actual runtime navigation server was started",
+    "No live model/provider/account or deployment",
+    "Predecessor HTTPS and type-gate packets retain their original executed identities; no claim they ran this middleware source"
+  ],
+  "dependencies": [
+    804,
+    806,
+    807
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "backend_pid": 6678,
+  "frontend_pid": 6741,
+  "both_confirmed_terminal": true,
+  "build_output_removed_bytes": 185051873,
+  "runtime_private_key_occurrences_in_build_output": 0,
+  "private_db_keys_account_and_logs_retained": true,
+  "next_env_restored": true
+}

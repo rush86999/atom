@@ -1,0 +1,24 @@
+{
+  "executed_source": "5248098bb744f174823f958e29acb9cb3eba6575",
+  "source_files": {
+    "frontend-nextjs/middleware.ts": "sha256:004a6f93400054f0caee291e5fefcbbdc5af109cecba86e01dc872a26179923b",
+    "frontend-nextjs/tests/middleware.test.ts": "sha256:9678b8f94fdb56d0e99334937e39591ecabb5aeba92a7869c54da491679d2a31",
+    "frontend-nextjs/tests/contracts/production-middleware-session.cjs": "sha256:e71c792e82b227752295566adee1333803562f895a4b0341639b3d48c7921159",
+    "frontend-nextjs/lib/web-auth-config.ts": "sha256:19cd8f8fe88d5a58c1b8c25b334c1ad02de535e4ab905a9faac60cab3d17c86b",
+    "frontend-nextjs/next.config.js": "sha256:1aef8231e3001ec84b1455b54beccbc815722d1f06f029ad1e8ef3f8c51d3d0f",
+    "frontend-nextjs/package.json": "sha256:df46b06543bddee1daed8365c7bbc8c367a015f340a38d7ae24bab6c0fbdb474",
+    "frontend-nextjs/tsconfig.json": "sha256:f0ce3a03f1d5d2332eb2b62c401454c901d914460cbb72b7fd90110b4ae39232",
+    ".github/workflows/ci.yml": "sha256:07a4072ddbc2268aff911ac42616717bb35817735ca513ca6981acefa0ffbf96"
+  },
+  "artifacts": {
+    "independent-before.log": "sha256:7cbef7fbd9b6ce95ccc66a132ced95a956356e30ac9474fbd9d31136a1ccf067",
+    "independent-after.log": "sha256:6c05f7f4f8d38d65bdbaf3ea271284d426e97ed098d62ec1768fb4397409f0d3",
+    "cleanup.json": "sha256:cd1ddf3e0d6a1494b7b1c0ed51b853772f880850dcae85bc9ed22cca63ddac25",
+    "sdk.log": "sha256:96697c965857ea4e5adae4a5a68d1f3972ca300a8e96c35b2d91ceb164d45485",
+    "verification.json": "sha256:ae1a72e7e829dc0dbea7d1baea12b4e2324c6b08439a089f4dcc105eef72757c",
+    "auth.log": "sha256:a8377b5185caf9ce0f206521354aec3f786a4fa88d679d3d7dc699e97b2bebad",
+    "independent-probe.cjs": "sha256:278039f840c62085f363b0fd3464443b59d64f157664b14d5db27fbd1178d581",
+    "build-result.json": "sha256:3825bfba06291033e8229f16978ef607b2aa5abcd728dc8a4452da2e14f22807",
+    "build.log": "sha256:56739c38ea48de6b4792176e8c89ed9bdb257deeb659fbcd1b589a1c85888379"
+  }
+}

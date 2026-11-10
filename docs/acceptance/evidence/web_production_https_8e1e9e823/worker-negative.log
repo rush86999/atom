@@ -1,0 +1,28 @@
+{
+  "context": "production",
+  "source": "cec303be5 pre-repair working tree d2815c052",
+  "handler": "pages/api/auth/[...nextauth].ts default export via node-mocks-http",
+  "csrf": {
+    "name": "__Host-next-auth.csrf-token",
+    "secure": true,
+    "httpOnly": true,
+    "sameSite": "Lax",
+    "path": "/",
+    "hasDomain": true
+  },
+  "callbackUrl": {
+    "name": "__Secure-next-auth.callback-url",
+    "secure": true,
+    "httpOnly": true,
+    "sameSite": "Lax",
+    "path": "/",
+    "hasDomain": true
+  },
+  "custom_cookies_configured": true,
+  "useSecureCookies": true,
+  "debug_enabled": true,
+  "debug_enabled_warning_observed": true,
+  "host_prefix_cookie_has_invalid_domain": true,
+  "cookie_values_published": false,
+  "signing_material_published": false
+}

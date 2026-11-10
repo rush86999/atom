@@ -1,0 +1,217 @@
+TAP version 13
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# Subtest: actual encrypted web cookie forwards only its exact backend generation
+not ok 1 - actual encrypted web cookie forwards only its exact backend generation
+  ---
+  duration_ms: 11.073625
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:20:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'Bearer controlled-backend-generation'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Bearer controlled-backend-generation'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:23:9)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# Subtest: upstream refusal never becomes success with zero skills
+# [API Proxy] Skills backend returned 401 — using empty list
+not ok 2 - upstream refusal never becomes success with zero skills
+  ---
+  duration_ms: 0.848125
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:25:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 401
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 401
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:26:155)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# [API Proxy] Skills backend unreachable — using empty list: Error: private-transport-diagnostic
+#     at global.fetch (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:29:31)
+#     at handler (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/pages/api/skills/list.ts:36:32)
+#     at async invoke (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:17:2)
+#     at async TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:29:84)
+#     at async Test.run (node:internal/test_runner/test:797:9)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# Subtest: upstream unavailable never becomes a successful empty catalogue
+not ok 3 - upstream unavailable never becomes a successful empty catalogue
+  ---
+  duration_ms: 0.960792
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:28:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 503
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 503
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:29:148)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: missing credentials refuse before dispatch
+not ok 4 - missing credentials refuse before dispatch
+  ---
+  duration_ms: 0.217833
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:31:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 401
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 401
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:32:110)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# Subtest: invalid explicit authority cannot borrow an encrypted cookie
+not ok 5 - invalid explicit authority cannot borrow an encrypted cookie
+  ---
+  duration_ms: 0.775416
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:34:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 401
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 401
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:35:183)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# Subtest: an actual verified empty catalogue remains successful
+not ok 6 - an actual verified empty catalogue remains successful
+  ---
+  duration_ms: 0.800625
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:37:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /private.*no-store/. Input:
+    
+    's-maxage=60, stale-while-revalidate=300'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 's-maxage=60, stale-while-revalidate=300'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:38:242)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# Subtest: a malformed successful catalogue is not presented as loaded
+not ok 7 - a malformed successful catalogue is not presented as loaded
+  ---
+  duration_ms: 0.463583
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:40:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 502
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 502
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:41:163)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# [API Proxy Error] Non-JSON response from backend: PRIVATE_BACKEND_DIAGNOSTIC
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list
+# Subtest: raw error body is never reflected to caller
+not ok 8 - raw error body is never reflected to caller
+  ---
+  duration_ms: 0.629291
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:43:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    502 !== 503
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 503
+  actual: 502
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:44:194)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# [API Proxy] Fetching skills from: http://controlled-backend.invalid/api/skills/list?status=Active+%26+current&limit=3
+# Subtest: query values are encoded and request transport refuses redirects
+not ok 9 - query values are encoded and request transport refuses redirects
+  ---
+  duration_ms: 0.977834
+  location: '/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:46:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'error'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/private/tmp/atom-web-task-project-20261109/frontend-nextjs/tests/contracts/skills-proxy-authority.cjs:47:274)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 0
+# fail 9
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 170.828

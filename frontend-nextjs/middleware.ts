@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { resolveWebAuthSecret } from './lib/web-auth-config';
 
-// Define public routes that don't require authentication
+const SESSION_COOKIE = 'next-auth.session-token';
+const SECURE_SESSION_COOKIE = `__Secure-${SESSION_COOKIE}`;
+
 // Define public routes that don't require authentication
 const publicRoutes = [
   // BUG-120: /dashboard removed from public routes — it's the main
@@ -29,6 +32,77 @@ const publicApiRoutes = [
   '/api/integrations/slack/auth/start',
   '/api/integrations/slack/callback',
 ];
+
+function isChunkOf(cookieName: string, baseName: string): boolean {
+  if (!cookieName.startsWith(`${baseName}.`)) {
+    return false;
+  }
+  return /^\d+$/.test(cookieName.slice(baseName.length + 1));
+}
+
+function hasSessionCookie(request: NextRequest, name: string): boolean {
+  return request.cookies.getAll().some(
+    ({ name: cookieName, value }) =>
+      value.length > 0 &&
+      (cookieName === name || isChunkOf(cookieName, name)),
+  );
+}
+
+function prefersSecureCookie(request: NextRequest): boolean {
+  const configured = process.env.NEXTAUTH_URL;
+  if (configured) {
+    return configured.startsWith('https://');
+  }
+  return (
+    Boolean(process.env.VERCEL) ||
+    process.env.NODE_ENV === 'production' ||
+    request.nextUrl.protocol === 'https:'
+  );
+}
+
+/**
+ * Page admission only: decode the installed SDK's encrypted session cookie.
+ * The backend stays the authorization authority; no role or claim is read here.
+ * Authorization headers are excluded so only a browser cookie can admit a page.
+ */
+async function hasDecodedWebSession(request: NextRequest): Promise<boolean> {
+  const candidates = prefersSecureCookie(request)
+    ? [SECURE_SESSION_COOKIE, SESSION_COOKIE]
+    : [SESSION_COOKIE, SECURE_SESSION_COOKIE];
+  // Use the expected cookie name first. Only fall back to the other variant
+  // when the expected name is entirely absent, so an invalid expected cookie
+  // can never be replaced by a different cookie.
+  const cookieName = candidates.find((name) => hasSessionCookie(request, name));
+  if (!cookieName) {
+    return false;
+  }
+
+  let secret: string;
+  try {
+    secret = resolveWebAuthSecret();
+  } catch {
+    // Missing or placeholder signing material admits nothing.
+    return false;
+  }
+
+  try {
+    // The SDK's SessionStore reassembles .0/.1 chunks and authenticates the
+    // encrypted JWT. The empty headers also disable getToken's Bearer fallback.
+    const token = await getToken({
+      req: {
+        cookies: request.cookies,
+        headers: new Headers(),
+      } as unknown as NextRequest,
+      secret,
+      cookieName,
+      secureCookie: cookieName === SECURE_SESSION_COOKIE,
+    });
+    return Boolean(token);
+  } catch {
+    // Wrong key, expired/tampered token, malformed chunks, or SDK failure.
+    return false;
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -73,15 +147,15 @@ export async function middleware(request: NextRequest) {
     return withAuthHeader();
   }
 
-  // Client-side route protection: check for the auth_token cookie (set on
-  // login by lib/auth.ts). This is a first-line gate — the real security
-  // enforcement is API-level (Depends(get_current_user) on every backend
-  // endpoint). This middleware prevents unauthenticated users from seeing
-  // page shells; without it, every route is public.
+  // Page admission only: the legacy auth_token cookie is still accepted, and
+  // the actual NextAuth session cookie (secure or development name, chunked)
+  // is decoded with the installed SDK. This is a first-line gate — the real
+  // authorization is API-level (Depends(get_current_user) on every backend
+  // endpoint), and the backend current-user check remains authoritative.
   const authToken = request.cookies.get('auth_token')?.value;
-  const sessionCookie = request.cookies.get('next-auth.session-token')?.value;
+  const hasWebSession = authToken ? false : await hasDecodedWebSession(request);
 
-  if (!authToken && !sessionCookie) {
+  if (!authToken && !hasWebSession) {
     const signInUrl = new URL('/login', request.url);
     // The login pages accept only same-app relative return targets
     // (`/path?query`, never `//host`). Passing the absolute request URL made
