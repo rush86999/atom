@@ -236,7 +236,7 @@ class TestConductExamGovernanceWiring:
         assert agent.status == "supervised"                 # level unchanged
         assert exam_row.metadata_json["governance"]["awaiting_human_approval"] is True
 
-    def test_supervised_pass_still_auto_promotes(self):
+    def test_supervised_pass_requires_qualification_receipt(self):
         result, agent, _ = self._run_conduct_exam(
             "supervised",
             current_level="intern",
@@ -246,10 +246,13 @@ class TestConductExamGovernanceWiring:
                 success_rate=0.9, episodes_analyzed=30,
             ),
         )
+        # The legacy statistics exam still passes its own stages, but it is
+        # not a capability qualification and must not auto-promote.
         assert result.passed is True
-        assert result.promoted is True
+        assert result.promoted is False
         assert result.awaiting_human_approval is False
-        assert agent.status == "supervised"  # auto-promoted (TACTICAL tier)
+        assert agent.status == "intern"
+        assert "qualification_required" in (result.failure_reason or "")
 
     def test_policy_deny_fails_exam_with_reason(self):
         result, _, exam_row = self._run_conduct_exam(
@@ -352,3 +355,6 @@ class TestPromoteAgentStrategicGate:
             tenant_id=None,
             workspace_id=None,
         )
+
+
+pytestmark = pytest.mark.usefixtures("experience_only_qualification_exception")

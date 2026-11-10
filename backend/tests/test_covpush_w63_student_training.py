@@ -257,3 +257,6 @@ class TestSimilarAgentsBranch:
             _session(performance_score=1.4), _session(performance_score=1.5)]
         rate2 = await svc._calculate_learning_rate("a1")
         assert rate2 == 2.0  # clamped at maximum
+
+
+pytestmark = pytest.mark.usefixtures("experience_only_qualification_exception")

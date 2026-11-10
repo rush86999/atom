@@ -259,3 +259,6 @@ async def _assert_real_promotion(sessions, prior, target):
         assert agent.status == target.lower()
         assert agent.configuration["promoted_by"] == "supervisor"
         assert agent.configuration["accepted"] == "original"
+
+
+pytestmark = pytest.mark.usefixtures("experience_only_qualification_exception")

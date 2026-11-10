@@ -47,7 +47,7 @@ from core.models import (
     User,
     UserRole,
 )
-from core.personal_scope import resolve_tenant_id
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.security.rbac import role_level
 
 logger = logging.getLogger(__name__)
@@ -284,6 +284,7 @@ def _resolve_actor(
                 "role": str(row.role or ""),
                 "status": str(row.status or ""),
                 "tenant_id": str(resolve_tenant_id(row)),
+                "workspace_id": str(resolve_workspace_id(row)),
                 "raw_tenant_id": row.tenant_id,
                 "raw_workspace_id": row.workspace_id,
             }
@@ -384,6 +385,28 @@ def _change_material(changes: Dict[str, Any]) -> Dict[str, Any]:
     return material
 
 
+def caller_work_pending(db: Session, owned: tuple = ()) -> bool:
+    """True when the caller's session holds work outside ``owned``.
+
+    Shared gate writers must never commit or roll back another caller's
+    pending work. They refuse/return unresolved instead; the owner of the
+    transaction decides when to commit.
+    """
+    from sqlalchemy.orm import Session as SASession
+
+    if not isinstance(db, SASession):
+        # Unit tests sometimes pass a Mock session; there is no real caller
+        # transaction to preserve.
+        return False
+    if db.info.get("atom_uncommitted_writes"):
+        # A prior flush already moved caller work into the transaction;
+        # Session.dirty is empty but committing would still persist it.
+        return True
+    owned_ids = {id(obj) for obj in owned}
+    pending = list(db.new) + list(db.dirty) + list(db.deleted)
+    return any(id(obj) not in owned_ids for obj in pending)
+
+
 def _state_material(
     agent: AgentRegistry, *, status: Optional[str] = None,
     changes: Optional[Dict[str, Any]] = None,
@@ -436,6 +459,8 @@ def _agent_predicates(agent: AgentRegistry, prior_status: str):
         AgentRegistry.capabilities == agent.capabilities,
         _exact(AgentRegistry.promotion_episode_floor,
                agent.promotion_episode_floor),
+        _exact(AgentRegistry.last_exam_id, agent.last_exam_id),
+        _exact(AgentRegistry.exam_eligible_at, agent.exam_eligible_at),
         AgentRegistry.status == str(prior_status),
     ]
 
@@ -865,6 +890,10 @@ def promote_agent(
     db: Session, *, actor: Any, agent_id: str,
     operation_id: Optional[str] = None,
 ) -> Dict[str, Any]:
+    if caller_work_pending(db):
+        return _not_applied(
+            "Manual promotion refused: the caller transaction has unrelated "
+            "pending work. Commit or roll it back first.")
     actor_snapshot = _resolve_actor(db, actor)
     if not actor_snapshot.get("ok"):
         return _actor_refusal(actor_snapshot)
@@ -901,9 +930,38 @@ def promote_agent(
             {"agent_status": prior_status, "agent_id": str(agent.id)},
             "Agent is already autonomous")
 
+    from core.agent_graduation_service import evaluate_qualification_gate
+
+    qualification_gate = evaluate_qualification_gate(
+        db, agent, "AUTONOMOUS", manual=True)
+    if not qualification_gate.get("allowed"):
+        return {
+            "status": "unresolved",
+            "assessment": qualification_gate,
+            "error": "Capability qualification is unresolved for this manual promotion.",
+            "error_code": "QUALIFICATION_REQUIRED",
+            "http_status": 409,
+            "verification": {"status": "refused", "effect": "none"},
+        }
+    receipt_id = (
+        qualification_gate.get("receipt_id")
+        if qualification_gate.get("state") == "valid"
+        else agent.last_exam_id
+    )
+    new_promotion_count = int(getattr(agent, "promotion_count", 0) or 0) + 1
+
+    def _promote_material(current: AgentRegistry) -> Dict[str, Any]:
+        material = _state_material(current)
+        material["last_exam_id"] = current.last_exam_id
+        material["promotion_count"] = int(
+            getattr(current, "promotion_count", 0) or 0)
+        return material
+
     result_status = AgentStatus.AUTONOMOUS.value
-    prior_material = _state_material(agent)
+    prior_material = _promote_material(agent)
     result_material = _state_material(agent, status=result_status)
+    result_material["last_exam_id"] = receipt_id
+    result_material["promotion_count"] = new_promotion_count
     expected = _audit_expected(
         operation_id=operation_id, action=_ACTION_PROMOTE,
         event_type=AuditEventType.UPDATE.value, agent=agent,
@@ -911,7 +969,8 @@ def promote_agent(
         request_digest=request_digest,
         prior_digest=_state_digest(prior_material),
         result_digest=_state_digest(result_material),
-        actor=actor_snapshot)
+        actor=actor_snapshot,
+        extra={"assessment": qualification_gate})
 
     if not _claim_actor(db, actor_snapshot):
         db.rollback()
@@ -923,7 +982,12 @@ def promote_agent(
         updated = db.execute(
             update(AgentRegistry)
             .where(*_agent_predicates(agent, prior_status))
-            .values(status=result_status))
+            .values(
+                status=result_status,
+                last_exam_id=receipt_id,
+                promotion_count=new_promotion_count,
+                updated_at=datetime.now(timezone.utc),
+            ))
         if updated.rowcount != 1:
             db.rollback()
             return _conflict(
@@ -946,16 +1010,36 @@ def promote_agent(
             "The agent promotion could not be applied; no effect was "
             "committed")
 
+    from core.models import PromotionHistory
+
+    history = PromotionHistory(
+        id=str(uuid.uuid4()),
+        agent_id=str(agent.id),
+        tenant_id=resolve_tenant_id(agent),
+        from_level=prior_status,
+        to_level=result_status,
+        promotion_type="manual",
+        readiness_score=0.0,
+        exam_id=receipt_id if qualification_gate.get("state") == "valid" else None,
+        promoted_by=str(actor_snapshot["id"]),
+        justification=(
+            "manual owner promotion; assessment="
+            f"{qualification_gate.get('state')}"),
+        promoted_at=datetime.now(timezone.utc),
+    )
+    db.add(history)
     audit_row = _audit_row(expected=expected, actor=actor_snapshot)
     return _commit_and_verify(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: (
             (now := _load_agent(db, agent_id)) is not None
-            and _state_digest(_state_material(now))
+            and _state_digest(_promote_material(now))
             == expected["result_digest"]),
         success_data={
             "agent_status": result_status,
             "agent_id": str(agent.id),
+            "assessment": qualification_gate,
+            "promotion_history_id": history.id,
         },
         authority=actor_snapshot)
 
@@ -1572,6 +1656,8 @@ def _replace_agent_predicates(
         _raw_json_predicate("schedule_config", raw_schedule, params),
         AgentRegistry.status == str(agent.status or ""),
         AgentRegistry.enabled == bool(agent.enabled),
+        _exact(AgentRegistry.last_exam_id, agent.last_exam_id),
+        _exact(AgentRegistry.exam_eligible_at, agent.exam_eligible_at),
     ]
     return predicates, params
 
@@ -1953,13 +2039,24 @@ async def stop_agent(
 
 # Episodic graduation shares the decision ledger; manual promotion retains its
 # separate permission/readiness semantics above.
-def _graduation_material(agent: AgentRegistry, *, status=None, configuration=None):
+def _graduation_material(
+    agent: AgentRegistry, *, status=None, configuration=None,
+    last_exam_id=None, promotion_count=None,
+):
     material = _replace_state_material(agent)
     material.update(_state_material(agent))
     material["configuration_digest"] = _replace_config_digest(
         agent.configuration if configuration is None else configuration)
     if status is not None:
         material["status"] = status
+    material["last_exam_id"] = (
+        agent.last_exam_id if last_exam_id is None else last_exam_id)
+    material["exam_eligible_at"] = (
+        None if getattr(agent, "exam_eligible_at", None) is None
+        else str(agent.exam_eligible_at))
+    material["promotion_count"] = (
+        int(getattr(agent, "promotion_count", 0) or 0)
+        if promotion_count is None else int(promotion_count))
     for field in ("module_path", "class_name", "user_id", "confidence_score",
                   "required_role_for_autonomy"):
         material[field] = getattr(agent, field)
@@ -1972,14 +2069,24 @@ def _graduation_target_matches(db: Session, expected: Dict[str, Any]) -> bool:
             and _state_digest(_graduation_material(current)) == expected["result_digest"])
 
 
-def graduation_request(*, operation_id, agent_id, target_status, actor, tenant_id, workspace_id):
+def graduation_request(
+    *, operation_id, agent_id, target_status, actor, tenant_id, workspace_id,
+    assessment_receipt_id=None, policy_revision=None,
+):
+    request_material = {
+        "agent_id": str(agent_id), "target_status": target_status,
+        "tenant_id": tenant_id, "workspace_id": workspace_id,
+    }
+    # Only new qualified callers add these keys; older requests keep their
+    # exact digest so an in-flight replay is not broken by the join.
+    if assessment_receipt_id is not None:
+        request_material["assessment_receipt_id"] = str(assessment_receipt_id)
     return {
         "operation_id": operation_id, "schema": REVIEW_SCHEMA,
         "action": "agent_graduated", "event_type": AuditEventType.UPDATE.value,
         "target_id": str(agent_id), "actor_id": actor["id"],
-        "request_digest": _fingerprint("graduation-request", _canonical({
-            "agent_id": str(agent_id), "target_status": target_status,
-            "tenant_id": tenant_id, "workspace_id": workspace_id})),
+        "request_digest": _fingerprint(
+            "graduation-request", _canonical(request_material)),
     }
 
 
@@ -1989,7 +2096,15 @@ def replay_graduation(db: Session, *, request, actor):
 
 
 def commit_graduation(db: Session, *, reviewed, actor, request, predicates,
-                      claim_params, target_status, configuration):
+                      claim_params, target_status, configuration,
+                      last_exam_id=None, promotion_count=None,
+                      promotion_history=None, extra_success=None,
+                      audit_extra=None):
+    resolved_last_exam_id = (
+        reviewed.last_exam_id if last_exam_id is None else last_exam_id)
+    resolved_promotion_count = (
+        int(getattr(reviewed, "promotion_count", 0) or 0)
+        if promotion_count is None else int(promotion_count))
     expected = _audit_expected(
         operation_id=request["operation_id"], action=request["action"],
         event_type=AuditEventType.UPDATE.value, agent=reviewed,
@@ -1997,14 +2112,19 @@ def commit_graduation(db: Session, *, reviewed, actor, request, predicates,
         request_digest=request["request_digest"],
         prior_digest=_state_digest(_graduation_material(reviewed)),
         result_digest=_state_digest(_graduation_material(
-            reviewed, status=target_status, configuration=configuration)), actor=actor)
+            reviewed, status=target_status, configuration=configuration,
+            last_exam_id=resolved_last_exam_id,
+            promotion_count=resolved_promotion_count)), actor=actor,
+        extra=audit_extra)
     try:
         if not _claim_actor(db, actor):
             db.rollback()
             return _conflict("Supervisor authority changed", code="AUTHORITY_CHANGED")
         changed = db.execute(update(AgentRegistry).where(*predicates).values(
             status=target_status, updated_at=datetime.now(timezone.utc),
-            configuration=configuration).execution_options(synchronize_session=False), claim_params)
+            configuration=configuration, last_exam_id=resolved_last_exam_id,
+            promotion_count=resolved_promotion_count
+        ).execution_options(synchronize_session=False), claim_params)
         if changed.rowcount != 1:
             db.rollback()
             # A peer may have committed this exact operation after our first
@@ -2026,9 +2146,14 @@ def commit_graduation(db: Session, *, reviewed, actor, request, predicates,
         db.rollback()
         logger.warning("Graduation claim failed: error_class=%s", type(exc).__name__)
         return _not_applied("Graduation was not applied")
+    if promotion_history is not None:
+        db.add(promotion_history)
+    success_data = {"agent_id": str(reviewed.id), "agent_status": target_status}
+    if extra_success:
+        success_data.update(extra_success)
     return _commit_and_verify(
         db, expected=expected, audit_row=_audit_row(expected=expected, actor=actor),
         target_check=lambda: _graduation_target_matches(db, expected),
         replay_check=lambda value: _graduation_target_matches(db, value),
-        success_data={"agent_id": str(reviewed.id), "agent_status": target_status},
+        success_data=success_data,
         authority=actor)

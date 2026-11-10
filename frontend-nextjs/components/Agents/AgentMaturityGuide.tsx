@@ -112,6 +112,25 @@ export function AgentMaturityGuideDialog({ agentId, open, onOpenChange }: AgentM
               <p className="mt-1.5 text-xs text-gray-500" data-testid="maturity-readiness-note">{guide.readiness.note}</p>
             </div>
 
+            {guide.assessment && (
+              <div className="text-xs border rounded-lg p-3 space-y-1" data-testid="maturity-qualification">
+                <p className="font-medium">Capability qualification</p>
+                <p>
+                  State: <strong>{guide.assessment.state}</strong>
+                  {guide.assessment.required === false ? " · not required by owner policy" : ""}
+                  {guide.assessment.candidate_capability_qualified ? " · qualified" : ""}
+                </p>
+                {(guide.assessment.next_action?.next_action || guide.assessment.message) && (
+                  <p className="text-gray-500">
+                    {guide.assessment.next_action?.next_action || guide.assessment.message}
+                  </p>
+                )}
+                {guide.assessment.review_action_id && (
+                  <p className="text-gray-500">Review pending in Approvals.</p>
+                )}
+              </div>
+            )}
+
             {/* Learning pathway counts */}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2 border rounded p-2" data-testid="maturity-lessons">

@@ -610,10 +610,30 @@ export default function ApprovalsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-medium text-amber-300">
-                      {a.action_type}
+                      {a.action_type === "agent_qualification_review"
+                        ? "Capability qualification review"
+                        : a.action_type}
                       {a.agent_id && <span className="ml-2 text-xs text-gray-500">agent {String(a.agent_id).slice(0, 8)}</span>}
                     </div>
                     {a.reason && <div className="text-sm text-gray-400 mt-1">{a.reason}</div>}
+                    {a.action_type === "agent_qualification_review" && (
+                      <div className="mt-2 rounded border border-gray-700 p-2 text-xs space-y-1">
+                        <p className="font-medium text-gray-300">Frozen rubric</p>
+                        {((a.params?.rubric_criteria as Array<Record<string, unknown>> | undefined) || []).map((criterion) => (
+                          <div key={String(criterion.id)} className="text-gray-400">
+                            {String(criterion.id)}: {String(criterion.label)}
+                          </div>
+                        ))}
+                        <p className="font-medium text-gray-300 pt-1">Scoped evidence</p>
+                        {((a.params?.evidence as Array<Record<string, unknown>> | undefined) || []).map((item) => (
+                          <div key={`${String(item.kind)}:${String(item.id)}`} className="text-gray-400">
+                            <div>{String(item.kind)}:{String(item.id)}</div>
+                            <div>Task: {String(item.task_preview || "")}</div>
+                            <div>Output: {String(item.output_preview || "")}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500 mt-1 font-mono break-all">{fmtParams(a.params)}</div>
                     <div className="text-xs text-gray-600 mt-1">
                       {a.created_at ? new Date(a.created_at).toLocaleString() : ""}

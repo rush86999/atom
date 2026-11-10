@@ -47,7 +47,7 @@ const SAMPLE_GUIDE = {
     note: '23 more observations roughly reach the review threshold.',
   },
   next_level: 'intern',
-  how_to_advance: 'Complete training sessions and pass the graduation exam.',
+  how_to_advance: 'Complete training sessions, then request a scoped capability qualification review.',
 };
 
 describe('AgentMaturityGuideDialog', () => {
@@ -87,7 +87,7 @@ describe('AgentMaturityGuideDialog', () => {
   it('shows the readiness note and how to advance', async () => {
     render(<AgentMaturityGuideDialog agentId="agent-1" open onOpenChange={jest.fn()} />);
     expect(await screen.findByTestId('maturity-readiness-note')).toHaveTextContent('23 more observations');
-    expect(screen.getByTestId('maturity-advance').textContent).toContain('graduation exam');
+    expect(screen.getByTestId('maturity-advance').textContent).toContain('qualification review');
   });
 
   it('shows an error message when the API fails', async () => {

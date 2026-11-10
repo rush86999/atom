@@ -14,7 +14,13 @@ from sqlalchemy.orm import Session
 from core.agent_context_resolver import AgentContextResolver
 from core.auth import get_current_user, User
 from core.agent_governance_service import AgentGovernanceService
-from core.agent_graduation_service import AgentGraduationService
+from core.agent_graduation_service import (
+    AgentGraduationService,
+    QualificationReviewError,
+    evaluate_qualification_gate,
+    list_qualification_evidence_bundles,
+    request_qualification_review,
+)
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.episode_lifecycle_service import EpisodeLifecycleService
@@ -22,6 +28,7 @@ from core.episode_retrieval_service import EpisodeRetrievalService
 from core.episode_segmentation_service import EpisodeSegmentationService
 from core.models import AgentFeedback, Episode, User, UserRole
 from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+from core.promotion_policy_service import AssessmentPolicyError
 from core.security.rbac import user_meets_role
 from core.security_dependencies import get_current_user
 
@@ -61,6 +68,19 @@ class CreateEpisodeRequest(BaseModel):
     session_id: str
     agent_id: str
     title: Optional[str] = None
+
+
+class QualificationEvidenceRef(BaseModel):
+    kind: str = Field(min_length=1, max_length=40)
+    id: str = Field(min_length=1, max_length=160)
+
+
+class QualificationReviewRequest(BaseModel):
+    agent_id: str = Field(min_length=1, max_length=160)
+    target_maturity: str = Field(default="INTERN", min_length=1, max_length=40)
+    evidence_refs: List[QualificationEvidenceRef] = Field(min_length=1, max_length=32)
+    rubric_version: Optional[str] = Field(default=None, max_length=80)
+    note: Optional[str] = Field(default=None, max_length=1000)
 
 
 class TemporalRetrievalRequest(BaseModel):
@@ -694,7 +714,82 @@ async def get_readiness(
     )
     if result.get("error") == "Agent not found":
         raise HTTPException(status_code=404, detail="Agent not found")
+    agent = service.get_agent_in_scope(agent_id, tenant_id, workspace_id)
+    if agent is not None:
+        result["assessment"] = evaluate_qualification_gate(
+            db, agent, target_maturity)
+        try:
+            result["assessment_evidence"] = list_qualification_evidence_bundles(
+                db, agent, target_maturity, tenant_id, workspace_id,
+            )["items"]
+        except AssessmentPolicyError:
+            result["assessment_evidence"] = []
     return result
+
+
+@router.post("/graduation/qualification/request")
+async def request_qualification(
+    request: QualificationReviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Request a human review of actual held-out scoped work.
+
+    This creates an existing HITLAction row; it does not promote and does not
+    run a model or historical-statistics exam.
+    """
+    from types import SimpleNamespace
+    from core import agent_decision_write_service as writes
+    from core.models import UserRole
+
+    actor = writes._resolve_actor(
+        db, SimpleNamespace(id=str(current_user.id)),
+        minimum_role=UserRole.GUEST,
+        authority_label="QUALIFICATION_REQUEST",
+    )
+    if not actor.get("ok"):
+        raise HTTPException(
+            status_code=int(actor.get("http_status") or 403),
+            detail={
+                "state": "authority_required",
+                "message": actor.get("message") or "Current active authority required.",
+            },
+        )
+    service = AgentGraduationService(db)
+    tenant_id = str(actor["tenant_id"])
+    workspace_id = str(actor["workspace_id"])
+    agent = service.get_agent_in_scope(
+        request.agent_id, tenant_id, workspace_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    try:
+        result = request_qualification_review(
+            db,
+            agent=agent,
+            target_level=request.target_maturity,
+            evidence_refs=[ref.model_dump() for ref in request.evidence_refs],
+            rubric_version=request.rubric_version,
+            requested_by=str(actor["id"]),
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            note=request.note,
+            actor=actor,
+        )
+    except QualificationReviewError as exc:
+        status_code = 503 if exc.state == "configuration_required" else 409
+        raise HTTPException(
+            status_code=status_code,
+            detail={"state": exc.state, "message": exc.message, **exc.details},
+        ) from exc
+    except AssessmentPolicyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"state": exc.state, "message": exc.message},
+        ) from exc
+    return router.success_response(
+        data=result,
+        message="Qualification review requested",
+    )
 
 
 @router.post("/graduation/exam")
@@ -716,6 +811,50 @@ async def run_exam(
     if result.get("error"):
         raise HTTPException(status_code=404, detail=result["error"])
     return result
+
+
+@router.get("/graduation/qualification/evidence/{agent_id}")
+async def get_qualification_evidence(
+    agent_id: str,
+    target_maturity: str = "INTERN",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Eligible reviewable work: task/context plus actual output.
+
+    History-only episodes are excluded; the UI selects from these bundles.
+    """
+    from types import SimpleNamespace
+    from core import agent_decision_write_service as writes
+    from core.models import UserRole
+
+    actor = writes._resolve_actor(
+        db, SimpleNamespace(id=str(current_user.id)),
+        minimum_role=UserRole.GUEST,
+        authority_label="QUALIFICATION_EVIDENCE",
+    )
+    if not actor.get("ok"):
+        raise HTTPException(
+            status_code=int(actor.get("http_status") or 403),
+            detail={"state": "authority_required",
+                    "message": actor.get("message") or "Current active authority required."},
+        )
+    service = AgentGraduationService(db)
+    tenant_id = str(actor["tenant_id"])
+    workspace_id = str(actor["workspace_id"])
+    agent = service.get_agent_in_scope(agent_id, tenant_id, workspace_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    try:
+        data = list_qualification_evidence_bundles(
+            db, agent, target_maturity, tenant_id, workspace_id,
+        )
+    except AssessmentPolicyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"state": exc.state, "message": exc.message},
+        ) from exc
+    return router.success_response(data=data, message="Qualification evidence")
 
 
 @router.post("/graduation/promote")
@@ -742,6 +881,8 @@ async def promote_agent(
         operation_id=operation_id,
     )
     success = decision.get("status") in ("verified", "already_applied")
+    if decision.get("status") == "unresolved":
+        raise HTTPException(status_code=409, detail=decision)
     if decision.get("status") in ("effect_unknown", "committed_unverified"):
         raise HTTPException(status_code=503, detail=decision)
     if decision.get("status") in ("refused", "conflict"):

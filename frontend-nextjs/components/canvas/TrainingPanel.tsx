@@ -18,6 +18,7 @@ import {
   GraduationProgress,
   GraduationReadiness,
   promoteAgent,
+  requestQualificationReview,
   SelfDirectedAgentProgress,
   rejectTrainingProposal,
   teachAgent,
@@ -146,6 +147,9 @@ export function TrainingPanel({
 
   // Graduation
   const [promoteBusy, setPromoteBusy] = useState(false);
+  const [qualificationBusy, setQualificationBusy] = useState(false);
+  const [readinessRefreshKey, setReadinessRefreshKey] = useState(0);
+  const [selectedBundles, setSelectedBundles] = useState<string[]>([]);
 
   // Teaching points journal (collapsible when long)
   const [showAllTeaching, setShowAllTeaching] = useState(false);
@@ -229,7 +233,7 @@ export function TrainingPanel({
     return () => {
       cancelled = true;
     };
-  }, [isSupervisor, agentId, nextTier]);
+  }, [isSupervisor, agentId, nextTier, readinessRefreshKey]);
 
   const handleTeach = async () => {
     if (!agent || !lesson.trim()) return;
@@ -520,6 +524,32 @@ export function TrainingPanel({
     }
   };
 
+  const handleRequestQualificationReview = async () => {
+    if (!agent || !nextTier) return;
+    const bundles = readiness?.assessment_evidence || [];
+    const refs = bundles
+      .filter((bundle) => selectedBundles.includes(bundle.bundle_id))
+      .flatMap((bundle) => bundle.evidence_refs);
+    if (!refs.length) {
+      setError("Select at least one reviewable task/output item first.");
+      return;
+    }
+    setQualificationBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await requestQualificationReview(agent.id, nextTier.toUpperCase(), refs);
+      setNotice("Qualification review requested — a supervisor can approve it in Approvals.");
+      setSelectedBundles([]);
+      setReadinessRefreshKey((key) => key + 1);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setQualificationBusy(false);
+    }
+  };
+
   const handlePromote = async () => {
     if (!agent || !nextTier) return;
     if (!window.confirm(`Promote ${agent.name} to ${nextTier.toUpperCase()}? This unlocks the next action band.`)) return;
@@ -538,6 +568,22 @@ export function TrainingPanel({
   };
 
   const evidence = session?.evidence ?? null;
+  const assessment = readiness?.assessment
+    ?? selfDirected?.assessment
+    ?? {
+      state: "unknown",
+      required: true,
+      allowed: false,
+      message: "Qualification status unavailable; promotion is blocked until it can be read.",
+    };
+  const qualificationAllowed = assessment.allowed === true;
+  const evidenceBundles = readiness?.assessment_evidence || [];
+  const selectedEvidenceRefs = evidenceBundles
+    .filter((bundle) => selectedBundles.includes(bundle.bundle_id))
+    .flatMap((bundle) => bundle.evidence_refs);
+  const assessmentNextAction = assessment?.next_action?.next_action
+    || assessment?.message
+    || null;
 
   return (
     <div className="flex-1 overflow-y-auto p-3 space-y-4 text-sm" data-testid="training-panel">
@@ -1124,6 +1170,73 @@ export function TrainingPanel({
           {isSupervisor && (
             <div className="border rounded-lg p-2.5 space-y-2" data-testid="graduation-section">
               <p className="text-xs font-medium">Graduation</p>
+              {assessment && (
+                <div className="border rounded p-2 space-y-1" data-testid="qualification-section">
+                  <p className="text-[11px] font-medium">Capability qualification</p>
+                  <p className="text-[11px]" data-testid="qualification-state">
+                    State: <strong>{assessment.state}</strong>
+                    {assessment.required === false ? " · not required by owner policy" : ""}
+                    {assessment.candidate_capability_qualified ? " · qualified" : ""}
+                  </p>
+                  {assessment.receipt_id && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Receipt: {assessment.receipt_id}
+                    </p>
+                  )}
+                  {assessmentNextAction && (
+                    <p className="text-[10px] text-muted-foreground">{assessmentNextAction}</p>
+                  )}
+                  {assessment.review_action_id && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Review pending in Approvals.
+                    </p>
+                  )}
+                  {assessment.required && !qualificationAllowed
+                    && !assessment.review_action_id && (
+                    <div className="space-y-1" data-testid="qualification-evidence-picker">
+                      <p className="text-[10px] font-medium">
+                        Select reviewable task/output work
+                      </p>
+                      {evidenceBundles.length === 0 ? (
+                        <p className="text-[10px] text-muted-foreground">
+                          No reviewable held-out work (task + actual output) is available yet.
+                        </p>
+                      ) : (
+                        evidenceBundles.map((bundle) => (
+                          <label
+                            key={bundle.bundle_id}
+                            className="flex items-start gap-2 text-[10px] border rounded p-1.5"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedBundles.includes(bundle.bundle_id)}
+                              onChange={(event) => {
+                                setSelectedBundles((current) => event.target.checked
+                                  ? [...current, bundle.bundle_id]
+                                  : current.filter((id) => id !== bundle.bundle_id));
+                              }}
+                            />
+                            <span>
+                              <span className="block font-medium">Task: {bundle.task_preview}</span>
+                              <span className="block text-muted-foreground">Output: {bundle.output_preview}</span>
+                            </span>
+                          </label>
+                        ))
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={handleRequestQualificationReview}
+                        disabled={qualificationBusy || selectedEvidenceRefs.length === 0}
+                        data-testid="request-qualification-review"
+                      >
+                        {qualificationBusy ? "Requesting…" : "Request qualification review"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
               {tier === "student" && selfDirected ? (
                 <>
                   {/* Self-directed pathway: the card IS the review surface —
@@ -1134,7 +1247,7 @@ export function TrainingPanel({
                   <SelfDirectedPathwayCard
                     progress={selfDirected}
                     nextTierLabel={nextTier || "INTERN"}
-                    onPromote={handleSelfDirectedPromote}
+                    onPromote={qualificationAllowed ? handleSelfDirectedPromote : undefined}
                     promoteBusy={promoteBusy}
                   />
                 </>
@@ -1145,7 +1258,7 @@ export function TrainingPanel({
                   {readiness ? (
                     <div className="text-[11px] space-y-1">
                       <p data-testid="readiness-score">
-                        Readiness for {nextTier.toUpperCase()}:{" "}
+                        Experience readiness for {nextTier.toUpperCase()}:{" "}
                         <strong>{typeof readiness.score === "number" ? `${Math.round(readiness.score)}/100` : "—"}</strong>
                         {readiness.ready && <span className="text-green-700 dark:text-green-400"> · ready</span>}
                       </p>
@@ -1164,7 +1277,8 @@ export function TrainingPanel({
                     variant="outline"
                     className="h-7 text-xs"
                     onClick={handlePromote}
-                    disabled={promoteBusy}
+                    disabled={promoteBusy
+                      || (assessment?.required === true && !qualificationAllowed)}
                     data-testid="promote-agent-button"
                   >
                     {promoteBusy ? "Promoting…" : `Promote to ${nextTier.toUpperCase()}`}

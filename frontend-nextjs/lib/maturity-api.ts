@@ -42,6 +42,34 @@ export interface SelfDirectedEvidence {
   required_episodes?: number;
 }
 
+export interface QualificationEvidenceBundle {
+  bundle_id: string;
+  episode_id: string;
+  task_preview: string;
+  output_preview: string;
+  evidence_refs: Array<{ kind: string; id: string }>;
+  source_revision: string;
+}
+
+export interface QualificationAssessment {
+  allowed?: boolean;
+  required?: boolean;
+  state: string;
+  message?: string;
+  receipt_id?: string;
+  review_action_id?: string;
+  policy_revision?: string;
+  policy_digest?: string;
+  candidate_capability_qualified?: boolean;
+  next_action?: {
+    state?: string;
+    code?: string;
+    message?: string;
+    next_action?: string;
+    review_action_id?: string;
+  } | null;
+}
+
 export interface SelfDirectedAgentProgress {
   agent_id: string;
   agent_name: string;
@@ -50,6 +78,7 @@ export interface SelfDirectedAgentProgress {
   confidence: number;
   episode_progress: number;
   ready_for_review: boolean;
+  assessment?: QualificationAssessment;
   completed_sessions?: number;
   evidence: SelfDirectedEvidence;
   readiness: SelfDirectedReadiness;
@@ -489,7 +518,35 @@ export interface GraduationReadiness {
   gaps?: string[];
   current_maturity?: string;
   target_maturity?: string;
+  assessment?: QualificationAssessment;
+  assessment_evidence?: QualificationEvidenceBundle[];
   [key: string]: unknown;
+}
+
+export async function requestQualificationReview(
+  agentId: string,
+  targetMaturity: string,
+  evidenceRefs: Array<{ kind: string; id: string }>,
+  rubricVersion?: string
+): Promise<{ action_id?: string; state?: string; [key: string]: unknown }> {
+  const res = await fetchJson('/api/episodes/graduation/qualification/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agent_id: agentId,
+      target_maturity: targetMaturity,
+      evidence_refs: evidenceRefs,
+      rubric_version: rubricVersion,
+    }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const detail = (body as any)?.detail;
+    const message = detail?.message || detail?.error?.message
+      || `Qualification review request failed (${res.status})`;
+    throw new Error(message);
+  }
+  return body;
 }
 
 export async function getGraduationReadiness(

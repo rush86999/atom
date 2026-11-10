@@ -73,6 +73,22 @@ export interface AgentMaturityGuide {
     confidence_needed_for_training_review: number;
     note: string;
   };
+  assessment?: {
+    allowed?: boolean;
+    required?: boolean;
+    state?: string;
+    message?: string;
+    receipt_id?: string;
+    review_action_id?: string;
+    candidate_capability_qualified?: boolean;
+    next_action?: {
+      state?: string;
+      code?: string;
+      message?: string;
+      next_action?: string;
+      review_action_id?: string;
+    } | null;
+  } | null;
   next_level: string | null;
   how_to_advance: string;
 }

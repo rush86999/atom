@@ -20,6 +20,7 @@ from core.models import (
     AgentEpisode, AgentRegistry, GraduationExam, PromotionHistory,
     EdgeCaseLibrary, AgentStatus, PromotionType, EpisodeOutcome
 )
+from core.agent_graduation_service import evaluate_qualification_gate
 from core.episode_service import EpisodeService, ReadinessThresholds
 
 try:
@@ -177,6 +178,15 @@ class GraduationExamService:
         Returns:
             ExamResult with exam outcome
         """
+        from core.agent_decision_write_service import caller_work_pending
+
+        if caller_work_pending(self.db):
+            return ExamResult(
+                exam_id="", agent_id=agent_id, passed=False, promoted=False,
+                readiness_score=0.0, edge_case_results={},
+                constitutional_check_passed=False,
+                failure_reason="dirty_caller_work",
+            )
         # Get agent
         agent = self.db.query(AgentRegistry).filter(
             and_(
@@ -342,58 +352,77 @@ class GraduationExamService:
                 (exam.failure_reason + " | ") if exam.failure_reason else ""
             ) + "Governance policy denied: " + "; ".join(governance_decision.reasons)
 
+        legacy_metadata = {
+            "receipt_kind": "legacy_history_statistics",
+            "assessment_scope": "historical_statistics",
+            "candidate_capability_qualified": False,
+        }
+        legacy_gate = None
         if passed and governance_decision.requires_human:
             # STRATEGIC (target AUTONOMOUS): every gate passed, but the
-            # promotion itself is a human decision. Record the pass and
-            # withhold the level change — a supervisor completes it via
-            # AgentGraduationService.promote_agent (re-evaluated against
-            # the same policy with live evidence) or the manual override.
+            # promotion itself is a human decision. This legacy exam is a
+            # history record, not a qualification receipt; it must not move
+            # the protected qualification pointer or the tier.
             exam.promoted = False
-            exam.metadata_json = {
-                "governance": {
-                    "layer": governance_decision.layer.value,
-                    "awaiting_human_approval": True,
-                    "context": governance_context,
-                }
+            legacy_metadata["governance"] = {
+                "layer": governance_decision.layer.value,
+                "awaiting_human_approval": True,
+                "context": governance_context,
             }
-            agent.last_exam_id = exam.id
             logger.info(
-                f"Agent {agent_id} PASSED the {target_level} exam; promotion "
-                "withheld pending human approval (STRATEGIC governance)"
+                f"Agent {agent_id} PASSED the {target_level} legacy exam; "
+                "no promotion or qualification pointer write"
             )
         elif passed:
-            # Promote agent
-            agent.status = target_level
-            agent.last_promotion_at = datetime.now(timezone.utc)
-            agent.promotion_count = (agent.promotion_count or 0) + 1
-            agent.last_exam_id = exam.id
-
-            exam.promoted = True
-            exam.promoted_at = datetime.now(timezone.utc)
-
-            # Record promotion history
-            self._record_promotion_history(
-                agent_id=agent_id,
-                tenant_id=tenant_id,
-                from_level=current_level,
-                to_level=target_level,
-                promotion_type=PromotionType.AUTOMATIC.value,
-                readiness_score=readiness_score,
-                exam_id=exam.id,
-                promoted_by=promoted_by
+            legacy_gate = evaluate_qualification_gate(
+                self.db, agent, target_level, manual=False)
+            legacy_metadata["assessment"] = legacy_gate
+            exam.promoted = False
+            if not legacy_gate.get("allowed"):
+                exam.failure_reason = (
+                    (exam.failure_reason + " | ") if exam.failure_reason else ""
+                ) + "qualification_required: " + str(legacy_gate.get("state"))
+            logger.info(
+                f"Agent {agent_id} passed the {target_level} legacy exam; "
+                "legacy statistics never qualify"
             )
-
-            logger.info(f"Agent {agent_id} promoted from {current_level} to {target_level}")
         else:
             exam.promoted = False
-            agent.exam_eligible_at = datetime.now(timezone.utc) + timedelta(hours=6)
-            agent.last_exam_id = exam.id
+            logger.info(f"Agent {agent_id} failed legacy graduation exam: {exam.failure_reason}")
 
-            logger.info(f"Agent {agent_id} failed graduation exam: {exam.failure_reason}")
-
+        exam.metadata_json = legacy_metadata
         self.db.add(exam)
         self.db.commit()
         self.db.refresh(exam)
+
+        if passed and not governance_decision.requires_human and legacy_gate and legacy_gate.get("allowed"):
+            from core.agent_graduation_service import commit_qualified_transition
+
+            transition = commit_qualified_transition(
+                self.db,
+                agent_id=agent_id,
+                target_level=target_level.upper(),
+                actor_id=promoted_by or getattr(agent, "user_id", None),
+                readiness=readiness.to_dict(),
+                source="legacy_exam",
+                promotion_type="automatic",
+            )
+            if transition.get("status") in ("verified", "already_applied"):
+                exam.promoted = True
+                exam.promoted_at = datetime.now(timezone.utc)
+                exam.failure_reason = None
+                exam.metadata_json = {
+                    **(exam.metadata_json or {}),
+                    "promotion_history_id": (
+                        (transition.get("data") or {}).get("promotion_history_id")),
+                }
+            else:
+                exam.failure_reason = (
+                    "qualification_transition_unresolved: "
+                    + str((transition.get("assessment") or {}).get("state")
+                          or transition.get("status")))
+            self.db.commit()
+            self.db.refresh(exam)
 
         return ExamResult(
             exam_id=exam.id,
@@ -428,6 +457,14 @@ class GraduationExamService:
         Returns:
             PromotionResult with promotion outcome
         """
+        from core.agent_decision_write_service import caller_work_pending
+
+        if caller_work_pending(self.db):
+            return PromotionResult(
+                agent_id=agent_id, from_level="", to_level=new_level,
+                promotion_type=PromotionType.MANUAL.value, success=False,
+                message="dirty_caller_work",
+            )
         # Get agent
         agent = self.db.query(AgentRegistry).filter(
             and_(
@@ -490,33 +527,50 @@ class GraduationExamService:
                 )
             )
 
-        # Update agent
-        agent.status = new_level
-        agent.last_promotion_at = datetime.now(timezone.utc)
-        agent.promotion_count = (agent.promotion_count or 0) + 1
-
-        # Get current readiness for audit trail
-        episode_service = EpisodeService(self.db)
-        readiness = episode_service.get_graduation_readiness(
-            agent_id=agent_id,
-            tenant_id=tenant_id,
-            episode_count=30
+        # Every manual grant participates in the shared qualification gate.
+        # Only an explicit owner-scoped manual exception or a valid receipt
+        # may proceed; the receipt/policy/CAS provenance is written by the
+        # canonical transition writer.
+        from core.agent_graduation_service import (
+            commit_qualified_transition,
+            evaluate_qualification_gate,
         )
 
-        # Record promotion history
-        self._record_promotion_history(
+        gate = evaluate_qualification_gate(
+            self.db, agent, new_level, manual=True)
+        if not gate.get("allowed"):
+            return PromotionResult(
+                agent_id=agent_id,
+                from_level=from_level,
+                to_level=new_level,
+                promotion_type=PromotionType.MANUAL.value,
+                success=False,
+                message=(
+                    "Capability qualification unresolved: "
+                    f"{gate.get('state')}"),
+            )
+        decision = commit_qualified_transition(
+            self.db,
             agent_id=agent_id,
-            tenant_id=tenant_id,
-            from_level=from_level,
-            to_level=new_level,
-            promotion_type=PromotionType.MANUAL.value,
-            readiness_score=readiness.readiness_score,
-            exam_id=None,
-            promoted_by=promoted_by,
-            justification=justification
+            target_level=new_level.upper(),
+            actor_id=promoted_by,
+            readiness={"ready": True, "gaps": []},
+            source="legacy_manual_promotion",
+            manual=True,
+            promotion_type="manual",
+            override_reason=justification,
         )
-
-        self.db.commit()
+        if decision.get("status") not in ("verified", "already_applied"):
+            return PromotionResult(
+                agent_id=agent_id,
+                from_level=from_level,
+                to_level=new_level,
+                promotion_type=PromotionType.MANUAL.value,
+                success=False,
+                message=(
+                    decision.get("message")
+                    or "Manual promotion was not applied."),
+            )
 
         logger.info(
             f"Agent {agent_id} manually promoted from {from_level} to {new_level} "
