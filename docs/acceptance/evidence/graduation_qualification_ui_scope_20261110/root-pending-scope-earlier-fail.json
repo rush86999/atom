@@ -1,0 +1,45 @@
+{
+  "world": "/private/tmp/root-graduation-pending-scope-independent-20261110-jd6_7uox",
+  "source_before": {
+    "backend/api/episode_routes.py": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+    "backend/core/agent_graduation_service.py": "4f018a090b177480408045cbf103074f1cfe42a1a74699d9a326c7ac2e0b424c",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/promotion_policy_service.py": "48f9592c0cf8c8075f1928489a8de6fe6df07c344929c418b071c4c59f37688e",
+    "backend/core/agent_decision_write_service.py": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276",
+    "backend/core/runtime_settings.py": "91202bb94068a378f23cb619d0e2f8cf905d39af69a06aadc9c4fe820c52fd66"
+  },
+  "capture_head": "498f3d22d410932c1d4b24546d52db9fc8e8e109",
+  "probe_sha256": "82ce40e581ac25fb43af37fb3dd95204d222993b5e285629615dc4c2245ee669",
+  "frozen_fixture_sha256": "a389cdd98090a410881228293ad72c06dbb4a00210e5ce401cafb27841d20147",
+  "auth": "real JWT/get_current_user and actual development-audience guard",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-web-graduation-qualification-join-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "/private/tmp/root-graduation-pending-scope-independent-20261110.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:randomly",
+    "-p",
+    "pytest_freezegun"
+  ],
+  "actual_exit": 1,
+  "source_after": {
+    "backend/api/episode_routes.py": "b7c0bcb0a54ed68a7dc3a158a575ca189f43b5b43f313b0b08e8f529e77e3a09",
+    "backend/core/agent_graduation_service.py": "4f018a090b177480408045cbf103074f1cfe42a1a74699d9a326c7ac2e0b424c",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/promotion_policy_service.py": "48f9592c0cf8c8075f1928489a8de6fe6df07c344929c418b071c4c59f37688e",
+    "backend/core/agent_decision_write_service.py": "6ee9b52b9140e422b0157790502dfc032f078aabd53dd9710b7c12846fa2f276",
+    "backend/core/runtime_settings.py": "91202bb94068a378f23cb619d0e2f8cf905d39af69a06aadc9c4fe820c52fd66"
+  },
+  "at": "2026-11-10T11:05:10.611212+00:00",
+  "same_source": true
+}

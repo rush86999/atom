@@ -1,5 +1,5 @@
 {
-  "title": "Atom app goals \u2014 canonical reference index",
+  "title": "Atom app goals — canonical reference index",
   "scope": "All original app goals; single-tenant main web app first, mobile last. This index is not a completion claim.",
   "reference_order": [
     {
@@ -111,8 +111,8 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T08:16:44.681258+00:00",
-    "as_of_main": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+    "updated_at": "2026-11-10T12:47:16.176074+00:00",
+    "as_of_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
     "app_complete": false,
     "historical_claims": 143,
     "goal_rows": 18,
@@ -146,50 +146,30 @@
         "pr": 818,
         "revision": "750f42215",
         "scope": "Reviewed native-chat learning: controlled API/component and ordinary UI operations plus restart durability. Original full browser verifier retains10 failed capture checks. Exact all13 PR checks and merged-union tree verified; post-merge main all12 required Actions verified green."
+      },
+      {
+        "pr": 824,
+        "revision": "0d5132c2e",
+        "scope": "Integrated reviewed main-web deliveries; post-merge12 required Actions green. Original claims and per-feature evidence scope retained."
       }
     ],
     "submitted": [
       {
-        "pr": 817,
-        "head": "5cbc21781",
-        "scope": "Reviewed web regression gates and normal-install Lance dependency; failed predecessor preserved."
-      },
-      {
-        "pr": 819,
-        "head": "2beccb819",
-        "scope": "Governed manual workflow handoff; controlled API/real child-process evidence. No live model/browser/general scheduling claim."
-      },
-      {
-        "pr": 820,
-        "head": "30ad48ac2",
-        "scope": "Presence authority/receipt/uncertain UI plus exact restored supervisor directory. Original red CI and root negatives retained; successor root2+3 pass."
-      },
-      {
-        "pr": 821,
-        "head": "423abf868",
-        "scope": "Deterministic JSON execution export bound to executed definition and complete verified outputs; root1+7 and60 UI controls pass. Depends819."
-      },
-      {
-        "pr": 822,
-        "head": "cf4c7bde2",
-        "scope": "Activity utility visibility; original2 stale-winner failures repaired, root unchanged2 pass. Existing deterministic ranking only."
-      },
-      {
-        "pr": 823,
-        "head": "31b127927",
-        "scope": "Maturity guide current-authority scope; root real-JWT3fail1pass to4pass. No graduation policy change."
+        "pr": 829,
+        "head": "7fb2645c9",
+        "scope": "Combined Office/email Personal scope candidate; all13 exact-head checks green. Bounded Office output/update/download and ordinary-format email UI save/reload demonstrated; legacy nested-draft overwrite remains under repair. No merge;826/827 drafts and828 superseded."
       }
     ],
     "active": [
       {
-        "owner": "backend native CLI",
-        "work": "Ordinary generated Canvas DOCX/PPTX download through existing renderers",
-        "acceptance": "Implementation in progress; exact saved content/authority/revision, file substance, safe errors, path anchoring and actual process restart are required. No runtime acceptance or general output-goal closure yet."
+        "owner": "native CLI and root verifier",
+        "work": "Legacy nested email draft write/read precedence",
+        "acceptance": "Ordinary-format UI packet013209bfa has14/14 Git artifacts. Top-level current/cleared fields versus retained legacy draft remains a confirmed compatibility gap; no-send boundary preserved."
       },
       {
-        "owner": "frontend native CLI",
-        "work": "Teaching/assessment/graduation ordinary product-continuation audit",
-        "acceptance": "Read-only diagnosis; distinguish intentional training-review eligibility from actual exam/promotion readiness. No new lifecycle/threshold/model judge or completed-goal claim."
+        "owner": "native CLI and root verifier",
+        "work": "Graduation qualification UI and shared caller transaction ownership",
+        "acceptance": "Ordinary UI remains frozen6da. Successor918e7a17c repairs SAVEPOINT ownership: unchanged4 independent cases and110 permanent controls pass; broader consumers and native review pending. No competence/all-goals completion claim."
       }
     ],
     "superseded": [
@@ -206,20 +186,9 @@
     "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
     "next_prepared": "Finish independent review and exact-head CI of current main-web deliveries; retain the full143-claim/18-goal audit and choose the next substantive unclosed requirement after ownership/evidence reconciliation.",
     "integration_candidate": {
-      "branch": "codex/web-reviewed-integration-20261110",
-      "status": "prepared; exact combined hosted checks required before merge",
-      "family_prs": [
-        817,
-        819,
-        820,
-        821,
-        822,
-        823
-      ],
-      "verified_source_artifact_paths": 160,
-      "combined_independent_api_and_ci_passed": 44,
-      "combined_ui_consumer_passed": 147,
-      "original_denominator_unchanged": true
+      "branch": "codex/web-graduation-reviewed-delivery-20261110",
+      "status": "Controlled graduation successor:918e7a17c repair, evidencec75e3f0da;110 permanent and4 independent controls pass. Broader regression/native review/ordinary UI pending; no PR yet.",
+      "accepted": false
     }
   }
 }

@@ -1,0 +1,167 @@
+
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_promotes_to_autonomous 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:53:40 [    INFO] EscalationManager initialized
+2026-11-10 06:53:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:53:40 [    INFO] EscalationManager initialized
+2026-11-10 06:53:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:53:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:53:40 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:53:40 [    INFO] Agent agent_supervised_123 promoted from SUPERVISED to AUTONOMOUS (confidence: 0.990)
+2026-11-10 06:53:40 [    INFO] Session session_123 completed. Confidence boost: 0.100 (0.890 → 0.990), Promoted: True
+2026-11-10 06:53:40 [    INFO] EscalationManager initialized
+2026-11-10 06:53:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:53:40 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:53:40 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 06:53:40 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 06:53:40 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 12%]
+tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_success 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:53:40 [    INFO] Duplicate training trigger for agent-001: returning open proposal <Mock name='mock.query().filter().order_by().first().id' id='5734244240'> (status=<Mock name='mock.query().filter().order_by().first().status' id='5734246288'>, open_session=False) instead of creating a clone
+FAILED                                                                   [ 25%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_success FAILED [ 37%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_with_modifications FAILED [ 50%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_proposal_not_found FAILED [ 62%]
+tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_invalid_status FAILED [ 75%]
+tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_promotes_to_intern FAILED [ 87%]
+tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_confidence_boost FAILED [100%]
+
+=================================== FAILURES ===================================
+______ TestTrainingProposalCreation.test_create_training_proposal_success ______
+tests/test_student_training_service.py:197: in test_create_training_proposal_success
+    assert proposal.agent_id == "agent-001"
+E   AssertionError: assert <Mock name='mock.query().filter().order_by().first().agent_id' id='5734246608'> == 'agent-001'
+E    +  where <Mock name='mock.query().filter().order_by().first().agent_id' id='5734246608'> = <Mock name='mock.query().filter().order_by().first()' id='5734245904'>.agent_id
+------------------------------ Captured log call -------------------------------
+INFO     core.student_training_service:student_training_service.py:464 Duplicate training trigger for agent-001: returning open proposal <Mock name='mock.query().filter().order_by().first().id' id='5734244240'> (status=<Mock name='mock.query().filter().order_by().first().status' id='5734246288'>, open_session=False) instead of creating a clone
+__________ TestTrainingSessionLifecycle.test_approve_training_success __________
+tests/test_student_training_service.py:259: in test_approve_training_success
+    session = await service.approve_training(
+core/student_training_service.py:670: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:336: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:230: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:225: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+____ TestTrainingSessionLifecycle.test_approve_training_with_modifications _____
+tests/test_student_training_service.py:287: in test_approve_training_with_modifications
+    session = await service.approve_training(
+core/student_training_service.py:670: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:336: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:230: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:225: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+____ TestTrainingSessionLifecycle.test_approve_training_proposal_not_found _____
+tests/test_student_training_service.py:304: in test_approve_training_proposal_not_found
+    await service.approve_training(
+core/student_training_service.py:670: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:336: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:230: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:225: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+
+During handling of the above exception, another exception occurred:
+tests/test_student_training_service.py:303: in test_approve_training_proposal_not_found
+    with pytest.raises(ValueError, match="Proposal .* not found"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'Proposal .* not found'
+E    Input: 'The current user is not active'
+______ TestTrainingSessionLifecycle.test_approve_training_invalid_status _______
+tests/test_student_training_service.py:318: in test_approve_training_invalid_status
+    await service.approve_training(
+core/student_training_service.py:670: in approve_training
+    proposal, agent, actor = self.get_training_proposal(
+core/student_training_service.py:336: in get_training_proposal
+    self._current_supervisor(user_id)
+core/student_training_service.py:230: in _current_supervisor
+    actor = self._current_actor(user_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:225: in _current_actor
+    raise TrainingAuthorityError("The current user is not active")
+E   core.student_training_service.TrainingAuthorityError: The current user is not active
+
+During handling of the above exception, another exception occurred:
+tests/test_student_training_service.py:317: in test_approve_training_invalid_status
+    with pytest.raises(ValueError, match="Proposal must be in PENDING_APPROVAL status"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'Proposal must be in PENDING_APPROVAL status'
+E    Input: 'The current user is not active'
+_______ TestTrainingCompletion.test_complete_training_promotes_to_intern _______
+tests/test_student_training_service.py:382: in test_complete_training_promotes_to_intern
+    result = await service.complete_training_session(
+core/student_training_service.py:1143: in complete_training_session
+    evidence = self.get_session_evidence(session)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:1039: in get_session_evidence
+    "success_ratio": (successes / episodes) if episodes else 0.0,
+                      ^^^^^^^^^^^^^^^^^^^^
+E   TypeError: unsupported operand type(s) for /: 'Mock' and 'Mock'
+________ TestTrainingCompletion.test_complete_training_confidence_boost ________
+tests/test_student_training_service.py:403: in test_complete_training_confidence_boost
+    result = await service.complete_training_session(
+core/student_training_service.py:1143: in complete_training_session
+    evidence = self.get_session_evidence(session)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/student_training_service.py:1039: in get_session_evidence
+    "success_ratio": (successes / episodes) if episodes else 0.0,
+                      ^^^^^^^^^^^^^^^^^^^^
+E   TypeError: unsupported operand type(s) for /: 'Mock' and 'Mock'
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 16 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_promotes_to_autonomous
+  /private/tmp/atom-graduation-main-baseline-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_success
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_success
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_with_modifications
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_proposal_not_found
+FAILED tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_invalid_status
+FAILED tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_promotes_to_intern
+FAILED tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_confidence_boost
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 7 failed, 1 passed, 22 warnings in 16.58s ===================

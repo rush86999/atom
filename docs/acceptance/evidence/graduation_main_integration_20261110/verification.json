@@ -1,0 +1,81 @@
+{
+  "schema": "atom-graduation-main-integration-verification-1",
+  "at": "2026-11-10T12:15:00Z",
+  "commits": {
+    "main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+    "merge": "8c3f1483ff68f7d4d2ac00b88e6df67604e386d2",
+    "merge_tree": "840f142947d6334bbe4c72c2c2815efe8bdcaa6a",
+    "backend_final": "f3c284aaee856220d44e6c41e74806542b1f4ffb",
+    "test_docs_successor": "cef304a18d994c14a770b3df2a02f6cb22a5474a",
+    "prior_frozen_packet": "7be407677a2d66908228c3b9464eabf739dbf372",
+    "prior_graduation_successor": "c37cd3dfd0df247733cf12830aa20d1c4be45639"
+  },
+  "root_final21_proof": {
+    "review": "root-final21-review.json",
+    "controls": "root-final21-controls.log",
+    "parity": "root-final21-parity.json",
+    "result": "21 passed",
+    "actual_exit": 0,
+    "same_source": true,
+    "source_parity": "15/15 captured runtime files match f3c284aa",
+    "authoritative": true
+  },
+  "gate_results": {
+    "backend_policy_qualification": "73 passed",
+    "root_final21": "21 passed",
+    "candidate_fixture_fixes": "3 passed",
+    "integration_final": "316 passed / 7 failed",
+    "integration_initial": "309 passed / 9 failed",
+    "docs_source_link_check": "PASS",
+    "frontend": "exact source parity; prior tsc exit 0 and 90 UI/API tests reused"
+  },
+  "failure_classification": {
+    "main_baseline_7": [
+      "tests/test_student_training_service.py::TestTrainingProposalCreation::test_create_training_proposal_success",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_success",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_with_modifications",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_proposal_not_found",
+      "tests/test_student_training_service.py::TestTrainingSessionLifecycle::test_approve_training_invalid_status",
+      "tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_promotes_to_intern",
+      "tests/test_student_training_service.py::TestTrainingCompletion::test_complete_training_confidence_boost"
+    ],
+    "main_baseline_probe": "root-main8-baseline-review.json: 7 failed / 1 passed at 0d5132c2e, same_source true",
+    "candidate_supervision_fix": "old test passed on main but correctly failed under the new gate; explicit authorized + missing-receipt fixtures now pass",
+    "candidate_governance_fix": "candidate-only test not on main; complete id/pending-query/non-excepted fixture now passes",
+    "final_remaining": "only the exact 7 main-baseline student-training identities",
+    "no_test_deletion_skip_xfail_or_global_exemption": true
+  },
+  "personal_path": {
+    "root_personal_probe": "root-personal-review.json: 3 passed",
+    "permanent_regression_twin": "actual ensure_admin_user/default bootstrap, raw-NULL admin, request/review/promotion, foreign/inactive negatives"
+  },
+  "docs": {
+    "files": [
+      "docs/agents/graduation.md",
+      "docs/agents/TRAINING_AND_GRADUATION.md"
+    ],
+    "check_log": "docs-source-check.log",
+    "links": "41 links, 0 missing against Git index",
+    "source_signatures": "11/11 PASS"
+  },
+  "frontend": {
+    "changed_files_vs_c37": 0,
+    "prior_packet": "docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/",
+    "prior_gates": "tsc exit 0; 90 UI/API tests passed"
+  },
+  "checkout_only_gap": [
+    "scripts/acceptance/substantive_assessment_campaign.py",
+    "scripts/acceptance/deterministic_assessment_qualification.py",
+    "scripts/acceptance/qualification/assessment_qualification_set_2026-10-31.json",
+    "scripts/acceptance/qualification/assessment_scoring_v2_2026-10-31.json",
+    "docs/agents/"
+  ],
+  "notes": [
+    "Merge tree exactly matched the root preview; no accepted main source was overwritten.",
+    "Root final21 proof is authoritative for backend f3c284aa; earlier local reruns are supporting.",
+    "The initial 309/9 and main 7/1 baselines are preserved; final 316/7 is not a whole-suite green claim.",
+    "Personal raw-NULL actor is intentionally supported; foreign-scoped and inactive actors are refused.",
+    "Docs-only updates did not trigger inference/browser reruns.",
+    "No full-app, ordinary-UI-journey, live-model-competence or marketing claim."
+  ]
+}

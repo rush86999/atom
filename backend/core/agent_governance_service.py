@@ -559,6 +559,10 @@ class AgentGovernanceService:
         ).first()
         if not agent: return
 
+        from core.agent_decision_write_service import caller_work_pending
+
+        unrelated_pending = caller_work_pending(self.db, owned=(agent,))
+
         # NULL-confidence rows start from the shared new-agent baseline —
         # the old `or 0.5` fallback sat exactly on the INTERN floor, so a
         # NULL row's first update promoted it out of STUDENT immediately.
@@ -587,11 +591,70 @@ class AgentGovernanceService:
         # evidence still demotes, and upward moves still use the same gates.
         prior_rank = self._MATURITY_RANK.get(prev_status)
         band_rank = self._MATURITY_RANK.get(banded)
+        resolved_status = prev_status
+        upward = False
         if (positive and prior_rank is not None and band_rank is not None
                 and band_rank < prior_rank):
-            agent.status = prev_status
+            resolved_status = prev_status
         else:
-            agent.status = self._resolve_promotion(agent, prev_status, banded)
+            resolved_status = self._resolve_promotion(agent, prev_status, banded)
+            resolved_rank = self._MATURITY_RANK.get(resolved_status)
+            upward = (
+                prior_rank is not None and resolved_rank is not None
+                and resolved_rank > prior_rank
+            )
+
+        if upward:
+            if unrelated_pending:
+                if self.activity_publisher:
+                    self.activity_publisher.publish_activity(
+                        tenant_id=self.workspace_id,
+                        agent_id=agent_id,
+                        activity_type='learning',
+                        state='promotion_blocked',
+                        metadata={
+                            'old_status': prev_status,
+                            'target_status': resolved_status,
+                            'confidence': new_score,
+                            'reason': 'dirty_caller_work',
+                        },
+                    )
+                return
+            # Confidence is a separate durable signal; the tier change goes
+            # through the shared qualification gate and canonical CAS writer.
+            self.db.commit()
+            from core.agent_graduation_service import (
+                commit_qualified_transition,
+            )
+
+            promotion = commit_qualified_transition(
+                self.db,
+                agent_id=agent_id,
+                target_level=resolved_status.upper(),
+                actor_id=getattr(agent, "user_id", None),
+                readiness={"ready": True, "gaps": []},
+                source=f"governance_{source}",
+                promotion_type="automatic",
+            )
+            self.db.refresh(agent)
+            if (promotion.get("status") not in ("verified", "already_applied")
+                    and self.activity_publisher):
+                self.activity_publisher.publish_activity(
+                    tenant_id=self.workspace_id,
+                    agent_id=agent_id,
+                    activity_type='learning',
+                    state='promotion_blocked',
+                    metadata={
+                        'old_status': prev_status,
+                        'target_status': resolved_status,
+                        'confidence': new_score,
+                        'assessment': promotion.get('assessment'),
+                    },
+                )
+        else:
+            agent.status = resolved_status
+            if not unrelated_pending:
+                self.db.commit()
 
         if agent.status != prev_status:
             logger.info(f"Agent {agent.name} transitioned: {prev_status} -> {agent.status}")
@@ -626,8 +689,6 @@ class AgentGovernanceService:
                 )
             except Exception as broadcast_err:
                 logger.debug(f"maturity broadcast skipped for {agent_id}: {broadcast_err}")
-
-        self.db.commit()
 
     # Maturity ladder used by the promotion gate below. Tier is still a
     # function of confidence, but MOVING UP now requires evidence — the

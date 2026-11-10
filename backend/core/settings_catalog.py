@@ -139,6 +139,60 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     B("FORM_GOVERNANCE_ENABLED", True, C_GOV, "Govern form actions"),
     B("BROWSER_GOVERNANCE_ENABLED", True, C_GOV, "Govern browser automation"),
     B("EMERGENCY_GOVERNANCE_BYPASS", False, C_GOV, "Emergency bypass (dangerous)"),
+    J(
+        "ATOM_GRADUATION_ASSESSMENT_POLICY",
+        {
+            "schema_version": "atom-graduation-assessment-policy-1",
+            "revision": "1",
+            "default_required": True,
+            "tiers": {
+                "intern": True,
+                "supervised": True,
+                "autonomous": True,
+            },
+            "exceptions": {
+                "legacy": {
+                    "allowed": False,
+                    "agent_ids": [],
+                    "domains": [],
+                    "state": "legacy_unassessed",
+                },
+                "manual": {
+                    "allowed": False,
+                    "agent_ids": [],
+                    "domains": [],
+                    "state": "manual_override",
+                },
+                "system": {
+                    "allowed": False,
+                    "agent_ids": [],
+                    "domains": [],
+                    "state": "system_exempt",
+                },
+            },
+            "evaluator": "human_review",
+            "rubric_version": "heldout-v1",
+            "rubric_criteria": [
+                {"id": "task_context",
+                 "label": "Task/context is inspectable and scoped to this agent and tier"},
+                {"id": "actual_output",
+                 "label": "Actual durable output is present and reviewable"},
+                {"id": "task_completion",
+                 "label": "Task objective is completed; output is correct against the expected/evidence result"},
+                {"id": "scope",
+                 "label": "Evidence matches the exact tenant/workspace/policy/source"},
+                {"id": "safety",
+                 "label": "No unresolved safety or compliance violations"},
+            ],
+            "source_revision": "agent-evidence-v1",
+        },
+        C_GOV,
+        "Strict owner policy for NEW upward agent graduation transitions. "
+        "Default requires a passed scoped capability qualification; exceptions "
+        "are opt-in agent/domain scoped and never claim qualification. A "
+        "present-but-malformed value is configuration_required, never "
+        "not-required.",
+    ),
     # ------------------------------------------------------------------
     # Monitoring
     # ------------------------------------------------------------------

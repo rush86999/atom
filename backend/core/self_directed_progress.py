@@ -261,6 +261,17 @@ def snapshot(db, agent) -> Dict[str, Any]:
             }
         )
 
+    try:
+        from core.agent_graduation_service import evaluate_qualification_gate
+
+        assessment = evaluate_qualification_gate(db, agent, "INTERN")
+    except Exception as exc:  # pragma: no cover — never 500 the panel
+        assessment = {
+            "allowed": False, "required": True,
+            "state": "configuration_required",
+            "message": str(exc)[:500],
+        }
+
     return {
         "agent_id": agent.id,
         "agent_name": agent.name,
@@ -273,6 +284,7 @@ def snapshot(db, agent) -> Dict[str, Any]:
         "confidence_ok": confidence_ok,
         "evidence_floor_met": evidence_ready,
         "ready_for_review": ready_for_review,
+        "assessment": assessment,
         "completed_sessions": sessions,
         "trigger_health": triggers,
         "readiness": {

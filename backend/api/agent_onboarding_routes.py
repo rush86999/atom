@@ -257,9 +257,9 @@ MATURITY_LEVELS_USER_GUIDE = [
 
 _LEVEL_ORDER = ["student", "intern", "supervised", "autonomous"]
 _ADVANCEMENT = {
-    "student": "Complete training sessions and pass the graduation exam: confidence ≥ 0.5 plus demonstrated episodes with low intervention. Teaching and observation accelerate this.",
-    "intern": "25+ quality episodes with <20% human intervention and constitutional score ≥ 0.85.",
-    "supervised": "50+ quality episodes with very low intervention rate — earned through consistent, corrected real work.",
+    "student": "Complete training sessions, then request a scoped capability qualification review. A human-reviewed held-out work receipt is required before INTERN; confidence alone never promotes.",
+    "intern": "25+ quality episodes with <20% human intervention, constitutional score ≥ 0.85, and a scoped capability qualification review for the next tier.",
+    "supervised": "50+ quality episodes with very low intervention rate, plus a scoped capability qualification review for AUTONOMOUS.",
 }
 
 
@@ -325,13 +325,29 @@ async def get_agent_maturity_guide(
         "confidence": round(confidence, 3),
         "confidence_needed_for_training_review": learning_ceiling,
         "note": (
-            "Learning is capped here on purpose — a training session and "
-            "graduation exam confer maturity, learning alone never does."
+            "Learning is capped here on purpose — a training session and a "
+            "scoped capability qualification review confer maturity; learning "
+            "alone never does."
         ) if at_ceiling else (
             f"{round((learning_ceiling - confidence) / 0.01)} more observations "
             f"(or {round((learning_ceiling - confidence) / 0.05)} lessons) roughly reach the review threshold."
         ),
     }
+
+    assessment = None
+    if next_level:
+        try:
+            from core.agent_graduation_service import (
+                evaluate_qualification_gate,
+            )
+
+            assessment = evaluate_qualification_gate(db, agent, next_level)
+        except Exception as exc:  # pragma: no cover — never 500 the guide
+            assessment = {
+                "allowed": False, "required": True,
+                "state": "configuration_required",
+                "message": str(exc)[:500],
+            }
 
     return router.success_response(
         data={
@@ -352,6 +368,7 @@ async def get_agent_maturity_guide(
             },
             "mastery": mastery,
             "readiness": readiness,
+            "assessment": assessment,
             "next_level": next_level,
             "how_to_advance": _ADVANCEMENT.get(status, "Top maturity level reached."),
         },

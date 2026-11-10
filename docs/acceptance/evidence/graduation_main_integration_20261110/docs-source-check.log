@@ -1,0 +1,15 @@
+docs source/link check 2026-11-10T12:10:11Z
+docs/agents/graduation.md: links=30 missing=[]
+docs/agents/TRAINING_AND_GRADUATION.md: links=11 missing=[]
+backend/api/episode_routes.py: PASS
+backend/api/episode_routes.py#evidence: PASS
+backend/api/episode_routes.py#promote: PASS
+backend/api/agent_routes.py: PASS
+backend/core/agent_graduation_service.py#promote: PASS
+backend/core/agent_graduation_service.py#gate: PASS
+backend/core/agent_graduation_service.py#transition: PASS
+backend/core/promotion_policy_service.py#key: PASS
+backend/core/promotion_policy_service.py#rubric: PASS
+backend/core/promotion_policy_service.py#domains: PASS
+backend/core/promotion_policy_service.py#unique: PASS
+RESULT PASS
