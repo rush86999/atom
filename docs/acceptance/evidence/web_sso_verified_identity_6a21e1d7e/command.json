@@ -1,0 +1,24 @@
+{
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "unique private scratch SQLite file",
+    "ATOM_DATA_DIR": "unique private data root"
+  },
+  "python": "/usr/local/bin/python3.11",
+  "normal_command": [
+    "-m",
+    "pytest",
+    "tests/api/test_sso_oidc_routes.py",
+    "-q",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "no:randomly",
+    "--tb=short"
+  ],
+  "normal_plugin": "existing root-py311-plugins compatibility plugin",
+  "independent_probes": "four root failure-first tests retained privately; exact names and outcomes in verification.json",
+  "resource_gate": "existing run_bounded_test_gate.py profile bounded",
+  "dependency_installs": 0,
+  "live_provider_calls": 0
+}

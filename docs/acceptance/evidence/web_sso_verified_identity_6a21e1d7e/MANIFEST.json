@@ -1,0 +1,14 @@
+{
+  "executed_source": "6a21e1d7e989184fc89f524b61a6360a969972fa",
+  "source_files": {
+    "backend/api/sso_oidc_routes.py": "sha256:a90a30c6488a3939197dc0fe1144c6b646b2472278b05244fdaada759080715c",
+    "backend/tests/api/test_sso_oidc_routes.py": "sha256:63c34653af11f205241e3eb1283ed64e355f4a76d04983260c6a3c726982fbf8",
+    "backend/scripts/controlled_oidc_provider.py": "sha256:0aa6b3796c0c10525453b19b1971d637a7a973305fe2378541b6adb8816db08c",
+    "backend/core/auth.py": "sha256:af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/tests/conftest.py": "sha256:5f8c8b1016b8bb08d18c297deb8d2c452b7b897d4e023a4f3198281dbbdc8dc2"
+  },
+  "artifacts": {
+    "command.json": "sha256:922a6fce9908e7413934e8fb4bb37cb91ade9ce43125ae98488976a03707f2d5",
+    "verification.json": "sha256:68d98657f89e2d1cb65500fa807ffe8c7b5b2dbe63e783ba69408193d56e7f1b"
+  }
+}

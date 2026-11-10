@@ -1,0 +1,26 @@
+{
+  "executed_source": "a7ed7a96737b4751bfa256b2c285cf6fdb8bf23d",
+  "independent_exit": 0,
+  "passed": 38,
+  "warnings": 113,
+  "duration_seconds": 47.14,
+  "normal_repository_conftest": true,
+  "python": "3.11.16",
+  "transport": "real controlled local OIDC issuer HTTP only",
+  "scratch_database": true,
+  "verified_scope": [
+    "existing account lifecycle refusal",
+    "exact User authority/material admission CAS",
+    "six separate-connection SQLite peer interleavings",
+    "current canonical reader without principal override",
+    "valid existing and JIT twins",
+    "safe database errors and uncertain-commit no credential return"
+  ],
+  "open_gaps": [
+    "signed email ownership and profile subject validation: two separately reproduced negatives; next CLI repair active",
+    "browser-origin session handoff",
+    "durable login state across restart",
+    "live identity provider and broad SSO qualification"
+  ],
+  "logs": "Raw request/auth test logs retained privately; no token-bearing response or request log is published. Safe result extracted only after actual process exit."
+}
