@@ -143,39 +143,29 @@
         "pr": 805,
         "merge": "482ced8f40f179cf34108e0bc7df4ba44029698f",
         "scope": "test-only 7/30-day controlled-clock wait and late-authority extension; actual prospective main12pass; not physical soak"
-      }
-    ],
-    "submitted": [
+      },
       {
         "pr": 804,
-        "head": "02db8d5c1ded4478ec3ad56df28fbda8f184c321",
-        "scope": "truthful skills catalogue/shared proxy; reconciled actual main; native27pass; fresh CI required"
+        "merge": "20bf3dd93f89d844db9b94d7d1adda14ddbed768",
+        "scope": "truthful authenticated skills/shared proxy; all13green and actual merge-tree equality verified; no live skill-provider breadth"
       },
       {
-        "pr": 806,
-        "head": "cc693d6462c61fed33bd343b404041029594ef44",
-        "scope": "production-cookie policy and actual optimized HTTPS frontend restart/session isolation; SDK45pass; fresh CI required"
-      },
-      {
-        "pr": 807,
-        "head": "c20d2726b504b940028795b672d728ed7d04b668",
-        "scope": "production TypeScript enforced; actual full optimized build0/native2pass; tree identical to frozen proof; draft dependency804/806"
-      },
-      {
-        "pr": 808,
-        "head": "35ee3b588",
-        "scope": "Production protected-page SDK-cookie navigation; independent3 probes/58 SDK/71 UI controls; actual combined strict production build0 at5248098bb; no actual new browser server run. Exact CI/review/dependency merge gates remain."
+        "pr": 809,
+        "head": "a60b7f748efa49cbbd1d25150d74bb38acbd06e8",
+        "merge": "c0427e5204690c6fdba04bdc9b08b363e284d39f",
+        "scope": "Production cookie, strict production type gate and installed SDK middleware consumer; all13 exact-head checks green; merged tree byte-identical to accepted head. Ordinary browser producer and complete SSO remain separate."
       }
     ],
+    "submitted": [],
     "sso": {
       "admission_source": "a7ed7a96737b4751bfa256b2c285cf6fdb8bf23d",
-      "independent_normal_fixture_tests": 69,
+      "independent_normal_fixture_tests": 89,
       "evidence": "docs/acceptance/evidence/web_sso_account_admission_a7ed7a967/",
-      "state": "bounded admission verified, whole SSO incomplete",
+      "state": "backend identity/state contracts verified at controlled local API scope; complete browser SSO open",
       "next_required": [
-        "durable login state across backend restart with initiating-browser binding; native CLI successor active",
-        "canonical safe handoff to the configured web origin and ordinary UI session, not backend localStorage-only redirect",
-        "safe configured-provider UI and current-authority readback"
+        "safe same-origin web handoff into the existing encrypted SDK session",
+        "ordinary controlled-provider browser SSO journey",
+        "live identity-provider and PostgreSQL/soak remain unqualified"
       ],
       "not_qualified": [
         "live identity provider",
@@ -185,7 +175,16 @@
       "identity_source": "6a21e1d7e989184fc89f524b61a6360a969972fa",
       "identity_evidence": "docs/acceptance/evidence/web_sso_verified_identity_6a21e1d7e/",
       "independent_exact_callback_probes": 4,
-      "bounded_identity_status": "Signed verified email, exact UserInfo subject and exact opaque-subject twins independently pass. Preserved negatives remain at their original sources."
+      "bounded_identity_status": "Signed verified email, exact UserInfo subject and exact opaque-subject twins independently pass. Preserved negatives remain at their original sources.",
+      "durable_state_source": "f222b3bb2a2e346756a3b6bf7e87660950b5e3e3",
+      "durable_state_evidence": "docs/acceptance/evidence/web_sso_durable_state_f222b3bb2/",
+      "independent_authority_interleavings_and_twins": 5,
+      "active_implementation": "Backend-only short-lived browser-bound opaque handoff using existing OAuthState/current authority and canonical User; implementation in separate CLI checkout, no acceptance yet.",
+      "architecture_basis": [
+        "https://www.rfc-editor.org/rfc/rfc9700/",
+        "https://next-auth.js.org/providers/credentials",
+        "https://next-auth.js.org/getting-started/client"
+      ]
     },
     "performance_reconciliation": {
       "historical_missing_public_reproducer_statement": "superseded only for cache-only command availability",
@@ -197,9 +196,38 @@
     "delivery_policy": "Refresh actual PR refs and all required checks before any merge; no inherited green after head change; reuse unchanged source-bound proof; no duplicate browser campaign for ancestry/docs-only changes.",
     "active_web_session_producer": {
       "finding": "Ordinary login/signup helpers manually write raw backend JWT into next-auth.session-token, rather than establish the installed SDK encrypted web session. Distinct from the corrected middleware consumer.",
-      "implementation": "Bounded economical native CLI successor on codex/web-login-session-producer-20261109",
+      "implementation": "Existing Credentials bridge and three public form producers implemented; raw API compatibility retained; SDK alone owns encrypted cookies",
       "required": "Use existing backend-authoritative Credentials bridge without another password login; validate any supplied bearer at canonical current-user endpoint; SDK alone owns encrypted session cookies; preserve existing direct API compatibility and challenge/refusal safety.",
-      "not_complete": true
-    }
-  }
+      "not_complete": true,
+      "source": "5670d7451e2343ca7f579a2670b9a5a7a36391a4",
+      "independent_sdk_controls": 61,
+      "independent_ui_controls": 191,
+      "independent_explicit_token_probes": 7,
+      "next": "actual ordinary browser login/signup/reload verification on combined frozen source",
+      "runtime_candidate": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
+      "state": "Independent 191 UI,61 SDK,7 explicit-token controls pass. Ordinary browser verification currently running; not yet accepted."
+    },
+    "actual_main_ref": "c0427e5204690c6fdba04bdc9b08b363e284d39f",
+    "superseded_prs": {
+      "806": 809,
+      "807": 809,
+      "808": 809
+    },
+    "current_operational_queue": [
+      {
+        "owner": "existing frontend CLI",
+        "task": "Finish ordinary fresh-browser signup/onboarding/login/logout/reload on frozen3673, preserve exact failures; no product edits during run."
+      },
+      {
+        "owner": "existing backend CLI",
+        "task": "Implement and test same-origin SSO handoff in independent checkout, no new user/credential store; no live provider."
+      },
+      {
+        "owner": "root verifier",
+        "task": "Independent source/effect verification, preserve all143claims18goals, web first/mobile last; postmerge checks model-free."
+      }
+    ],
+    "observed_at": "2026-11-10T01:16:04.886773+00:00"
+  },
+  "operational_snapshot_rule": "Top-level historical PR/readback fields retain their original snapshot. Latest operational status is lead_verified_followthrough_2026_11_09; no historical evidence is reattributed."
 }
