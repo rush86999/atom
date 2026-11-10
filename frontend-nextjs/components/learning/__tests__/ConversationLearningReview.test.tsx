@@ -155,7 +155,8 @@ describe("ConversationLearningReview", () => {
           dependency_id: "dep-1",
           resource_id: "ds-1",
           confirmed_by: "owner",
-        })
+        }),
+        "email",
       );
     });
     expect(await screen.findByText("No unresolved questions.")).toBeInTheDocument();
@@ -164,14 +165,14 @@ describe("ConversationLearningReview", () => {
     fireEvent.click(screen.getByTestId("learning-confirm"));
     await waitFor(() => {
       expect(confirmLearningCandidate).toHaveBeenCalledWith(
-        "thread-1", "lc-1", "owner", 1);
+        "thread-1", "lc-1", "owner", 1, "email");
     });
     expect(screen.getByTestId("learning-promote")).toBeEnabled();
 
     fireEvent.click(screen.getByTestId("learning-promote"));
     await waitFor(() => {
       expect(promoteLearningCandidate).toHaveBeenCalledWith(
-        "thread-1", "lc-1", "owner", 1, "digest-1");
+        "thread-1", "lc-1", "owner", 1, "digest-1", "email");
     });
   });
 
@@ -188,7 +189,7 @@ describe("ConversationLearningReview", () => {
 
     await waitFor(() => {
       expect(rejectLearningCandidate).toHaveBeenCalledWith(
-        "thread-1", "lc-1", "owner", "Rejected in review");
+        "thread-1", "lc-1", "owner", "Rejected in review", "email");
     });
     expect(await screen.findByTestId("learning-notice")).toHaveTextContent(
       "No lesson was written."

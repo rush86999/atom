@@ -15,21 +15,24 @@ from sqlalchemy.orm import Session
 from core.auth import User, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.conversation_learning import (
+    SOURCE_KIND_EMAIL,
     ConversationEvidence,
     LearningCandidate,
     applicable_method_lessons,
     apply_lesson_method,
     build_candidate,
     candidate_readiness,
-    collect_email_thread_evidence,
+    collect_thread_evidence,
     confirm_candidate,
     list_candidates,
-    list_email_threads,
+    list_learning_threads,
     load_candidate,
+    normalize_source_kind,
     promote_candidate,
     reject_candidate,
     resolve_dependency,
     revalidate_candidate,
+    revalidate_source_candidate,
     review_payload,
     revise_candidate,
     save_candidate,
@@ -44,10 +47,12 @@ router = BaseAPIRouter(
 
 class EvidenceRequest(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
 
 
 class CandidateCreate(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
     agent_id: str
     proposed_lesson: str
     method: Dict[str, Any] = {}
@@ -64,6 +69,7 @@ class CandidateCreate(BaseModel):
 
 class CandidateRevise(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
     proposed_lesson: Optional[str] = None
     method: Optional[Dict[str, Any]] = None
     method_status: Optional[str] = None
@@ -77,6 +83,7 @@ class CandidateRevise(BaseModel):
 
 class DependencyResolve(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
     dependency_id: str
     resource_id: str = ""
     column: str = ""
@@ -87,12 +94,14 @@ class DependencyResolve(BaseModel):
 
 class CandidateConfirm(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
     reviewer: str
     expected_revision: int
 
 
 class CandidatePromote(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
     reviewer: str
     expected_revision: int
     expected_digest: str = ""
@@ -100,12 +109,14 @@ class CandidatePromote(BaseModel):
 
 class CandidateReject(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
     reviewer: str
     reason: str = ""
 
 
 class ApplyMethodRequest(BaseModel):
     thread_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
     rows: List[Dict[str, Any]]
     field_mapping: Dict[str, str] = {}
     context: Dict[str, Any] = {}
@@ -154,14 +165,42 @@ def _reviewer(user: User) -> str:
     return str(getattr(user, "email", "") or getattr(user, "id", "") or "")
 
 
-def _evidence(db: Session, user: User, thread_id: str) -> ConversationEvidence:
-    return collect_email_thread_evidence(db, user, thread_id)
+def _evidence(db: Session, user: User, thread_id: str,
+              source_kind: str = SOURCE_KIND_EMAIL) -> ConversationEvidence:
+    try:
+        kind = normalize_source_kind(source_kind)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="unknown_source_kind") from exc
+    return collect_thread_evidence(db, user, thread_id, kind)
+
+
+def _revalidate_source(db: Session, user: User,
+                       candidate: LearningCandidate) -> LearningCandidate:
+    """Native source freshness: edit/delete/reorder invalidates review."""
+    if candidate.source_kind != "native_chat":
+        return candidate
+    evidence = collect_thread_evidence(
+        db, user, candidate.thread_id, candidate.source_kind)
+    coverage = evidence.coverage
+    if (coverage.source_access != "available"
+            or not coverage.messages_known
+            or coverage.messages_truncated
+            or evidence.source_revision != candidate.source_revision):
+        reason = ("source_missing" if coverage.source_access != "available"
+                  else "source_changed")
+        return revalidate_source_candidate(db, candidate, reason=reason)
+    return candidate
 
 
 def _load_scoped(
     db: Session, user: User, thread_id: str, candidate_id: str,
+    source_kind: str = SOURCE_KIND_EMAIL,
 ) -> LearningCandidate:
-    candidate = load_candidate(db, thread_id, candidate_id)
+    try:
+        source_kind = normalize_source_kind(source_kind)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="unknown_source_kind") from exc
+    candidate = load_candidate(db, thread_id, candidate_id, source_kind)
     if candidate is None:
         raise HTTPException(status_code=404, detail="Learning candidate not found")
     workspace_id, tenant_id = _scope(user)
@@ -210,40 +249,45 @@ def get_employees(
 def get_threads(db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    return {"threads": list_email_threads(db, user)}
+    return {"threads": list_learning_threads(db, user)}
 
 
 @router.post("/evidence")
 def build_evidence(request: EvidenceRequest, db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    return _evidence(db, user, request.thread_id).model_dump(mode="json")
+    return _evidence(db, user, request.thread_id,
+                     request.source_kind).model_dump(mode="json")
 
 
 @router.get("/threads/{thread_id}/evidence")
-def get_evidence(thread_id: str, db: Session = Depends(get_db),
+def get_evidence(thread_id: str, source_kind: str = SOURCE_KIND_EMAIL,
+                 db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    return _evidence(db, user, thread_id).model_dump(mode="json")
+    return _evidence(db, user, thread_id, source_kind).model_dump(mode="json")
 
 
 @router.get("/threads/{thread_id}/candidates")
-def get_thread_candidates(thread_id: str, db: Session = Depends(get_db),
+def get_thread_candidates(thread_id: str, source_kind: str = SOURCE_KIND_EMAIL,
+                          db: Session = Depends(get_db),
                           current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
     workspace_id, tenant_id = _scope(user)
     candidates = list_candidates(db, thread_id, workspace_id=workspace_id,
-                                 tenant_id=tenant_id)
-    evidence = _evidence(db, user, thread_id)
+                                 tenant_id=tenant_id, source_kind=source_kind)
+    evidence = _evidence(db, user, thread_id, source_kind)
     visible = []
     for candidate in candidates:
         try:
             _authorize_employee(db, user, candidate.agent_id)
         except HTTPException:
             continue
+        candidate = _revalidate_source(db, user, candidate)
         candidate = revalidate_candidate(db, candidate, evidence.resources)
         visible.append(_payload(candidate))
-    return {"thread_id": thread_id, "candidates": visible}
+    return {"thread_id": thread_id, "source_kind": source_kind,
+            "candidates": visible}
 
 
 @router.post("/candidates")
@@ -251,7 +295,7 @@ def create_candidate(request: CandidateCreate, db: Session = Depends(get_db),
                      current_user: User = Depends(get_current_user)):
     user, _agent = _require_learning_authority(db, current_user, request.agent_id)
     workspace_id, tenant_id = _scope(user)
-    evidence = _evidence(db, user, request.thread_id)
+    evidence = _evidence(db, user, request.thread_id, request.source_kind)
     try:
         candidate = build_candidate(
             workspace_id=workspace_id, tenant_id=tenant_id,
@@ -273,11 +317,13 @@ def create_candidate(request: CandidateCreate, db: Session = Depends(get_db),
 
 @router.get("/candidates/{candidate_id}")
 def get_candidate(candidate_id: str, thread_id: str,
+                  source_kind: str = SOURCE_KIND_EMAIL,
                   db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    candidate = _load_scoped(db, user, thread_id, candidate_id)
-    evidence = _evidence(db, user, thread_id)
+    candidate = _load_scoped(db, user, thread_id, candidate_id, source_kind)
+    evidence = _evidence(db, user, thread_id, source_kind)
+    candidate = _revalidate_source(db, user, candidate)
     candidate = revalidate_candidate(db, candidate, evidence.resources)
     return _payload(candidate)
 
@@ -287,7 +333,7 @@ def revise(candidate_id: str, request: CandidateRevise,
            db: Session = Depends(get_db),
            current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    candidate = _load_scoped(db, user, request.thread_id, candidate_id)
+    candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
     try:
         revised = revise_candidate(
             db, candidate, proposed_lesson=request.proposed_lesson,
@@ -307,8 +353,8 @@ def resolve(candidate_id: str, request: DependencyResolve,
             db: Session = Depends(get_db),
             current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    candidate = _load_scoped(db, user, request.thread_id, candidate_id)
-    evidence = _evidence(db, user, request.thread_id)
+    candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
+    evidence = _evidence(db, user, request.thread_id, request.source_kind)
     try:
         resolved = resolve_dependency(
             db, candidate, request.dependency_id, catalog=evidence.resources,
@@ -325,7 +371,10 @@ def confirm(candidate_id: str, request: CandidateConfirm,
             db: Session = Depends(get_db),
             current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    candidate = _load_scoped(db, user, request.thread_id, candidate_id)
+    candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
+    candidate = _revalidate_source(db, user, candidate)
+    if candidate.status == "invalidated":
+        raise HTTPException(status_code=409, detail="candidate_invalidated")
     try:
         confirmed = confirm_candidate(db, candidate, reviewer=_reviewer(user),
                                       expected_revision=request.expected_revision)
@@ -339,8 +388,9 @@ def promote(candidate_id: str, request: CandidatePromote,
             db: Session = Depends(get_db),
             current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    candidate = _load_scoped(db, user, request.thread_id, candidate_id)
-    evidence = _evidence(db, user, request.thread_id)
+    candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
+    evidence = _evidence(db, user, request.thread_id, request.source_kind)
+    candidate = _revalidate_source(db, user, candidate)
     candidate = revalidate_candidate(db, candidate, evidence.resources)
     try:
         result = promote_candidate(
@@ -360,8 +410,9 @@ def apply_method(candidate_id: str, request: ApplyMethodRequest,
                  db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    candidate = _load_scoped(db, user, request.thread_id, candidate_id)
-    evidence = _evidence(db, user, request.thread_id)
+    candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
+    evidence = _evidence(db, user, request.thread_id, request.source_kind)
+    candidate = _revalidate_source(db, user, candidate)
     candidate = revalidate_candidate(db, candidate, evidence.resources)
     if candidate.status != "promoted" or not candidate.promoted_entry_id:
         raise HTTPException(status_code=409,
@@ -422,6 +473,6 @@ def reject(candidate_id: str, request: CandidateReject,
            db: Session = Depends(get_db),
            current_user: User = Depends(get_current_user)):
     user, _ = _require_learning_authority(db, current_user)
-    candidate = _load_scoped(db, user, request.thread_id, candidate_id)
+    candidate = _load_scoped(db, user, request.thread_id, candidate_id, request.source_kind)
     return _payload(reject_candidate(db, candidate, reviewer=_reviewer(user),
                                      reason=request.reason))
