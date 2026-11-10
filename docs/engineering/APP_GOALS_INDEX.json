@@ -95,12 +95,74 @@
     "BYOK chooses eligible models by measured satisfactory outcomes and expected cost; capable Flash models remain first-class.",
     "Requested outputs must be usable, current, source-bound and verified; unresolved required outcomes cannot falsely complete or publish partial final artifacts.",
     "Documentation, architecture diagrams and the marketing README must reflect verified capabilities and disclose limits.",
-    "Mobile follows main web readiness; completing a core release does not erase the remaining original app goals."
+    "Mobile follows main web readiness; completing a core release does not erase the remaining original app goals.",
+    "Graduation aims at unrestricted autonomy, with exceptions in certain domains. Present maturity, review and authority controls describe current implementation and do not redefine that destination."
   ],
   "update_rules": [
     "Each delivery references original claim/goal, exact product source, evidence and remaining gap.",
     "Distinguish implemented, submitted, merged, independently verified and full outcome acceptance.",
     "Preserve negative evidence and historical counts; do not infer universal capability from bounded tests.",
     "New user requirements append to the goal register rather than silently replacing existing scope."
-  ]
+  ],
+  "graduation_reference": {
+    "primary": "docs/agents/graduation.md",
+    "quick_reference": "docs/agents/TRAINING_AND_GRADUATION.md",
+    "destination": "Unrestricted autonomy, with domain-specific exceptions",
+    "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
+  },
+  "quick_reference": {
+    "updated_at": "2026-11-10T04:47:42.135962+00:00",
+    "as_of_main": "e2cbff5b989c482040d61c210e74be7f8840668d",
+    "app_complete": false,
+    "historical_claims": 143,
+    "goal_rows": 18,
+    "merged": [
+      {
+        "pr": 810,
+        "revision": "63dab46b5",
+        "scope": "Truthful training/context-aware README and comprehensive plus short graduation guides"
+      },
+      {
+        "pr": 812,
+        "revision": "e2cbff5b9",
+        "scope": "Canonical account/SSO and durable chat-task repair at recorded controlled scopes; all13 exact-head checks passed; post-merge CI still running at this update"
+      }
+    ],
+    "submitted": [
+      {
+        "pr": 813,
+        "head": "4fab98f44",
+        "scope": "Canvas sheets/coding authority and exact visible restore material; controlled independent verification complete, hosted CI pending"
+      },
+      {
+        "pr": 815,
+        "head": "4ab38c621",
+        "scope": "Document-library global ordering and accessible pagination;85/85 development browser checks and32 source/artifact checks; hosted CI pending"
+      }
+    ],
+    "active": [
+      {
+        "owner": "backend native CLI",
+        "work": "Training-proposal authority repair",
+        "acceptance": "withheld: independent null-agent-scope disclosure and expired-review probes must pass"
+      },
+      {
+        "owner": "frontend native CLI",
+        "work": "Native-chat conversation learning reproduction and shared-pipeline design",
+        "acceptance": "source gap only until actual public API reproduction; no new lesson store or silent bulk training"
+      }
+    ],
+    "superseded": [
+      {
+        "pr": 811,
+        "successor": 812
+      },
+      {
+        "pr": 814,
+        "successor": 815,
+        "reason": "Public Git revision under credential-worded metadata key triggered scanner. Clean successor changes that key only; no history rewrite or scanner waiver."
+      }
+    ],
+    "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion."
+  }
 }

@@ -334,5 +334,35 @@
       },
       "summary": "docs/engineering/evidence/web_sso_oidc_b27551a9c/root_integration_gate_summary.json"
     }
+  },
+  "lead_followthrough_2026_11_10": {
+    "as_of_main": "e2cbff5b989c482040d61c210e74be7f8840668d",
+    "canonical_quick_reference": "APP_GOALS_INDEX.json#quick_reference",
+    "merged_812": {
+      "head": "f7adab343",
+      "merge": "e2cbff5b9",
+      "checks": 13,
+      "all_success": true,
+      "normal_merge": "blocked by required review policy",
+      "override": "Owner-authorized required-review-only admin override; no tests or scanner bypass",
+      "tree_identity": "Merged main exactly matches reviewed candidate plus previously merged README/graduation guidance",
+      "post_merge_CI": "running at update; not preclaimed green"
+    },
+    "pending_deliveries": [
+      813,
+      815
+    ],
+    "packet_pointers": [
+      "docs/acceptance/evidence/web_canvas_integrated_delivery_20261110/verification.json",
+      "docs/engineering/evidence/web_documents_pagination_integrated_20261110/verification.json"
+    ],
+    "unmerged_scope_notice": "Pending packet pointers are in their delivery branches until owner-authorized verified merge; no main qualification is implied.",
+    "graduation_destination": "Unrestricted autonomy, with exceptions in certain domains; docs/agents/graduation.md is primary and TRAINING_AND_GRADUATION.md is the useful short companion.",
+    "counts_preserved": {
+      "historical_claims": 143,
+      "goal_map_rows": 18,
+      "app_complete": false
+    },
+    "remaining_scope": "All original requirements remain, including domain-independent multi-day wait/trigger coordination, reusable teaching, broad outcome verification, web primary actions, operations and later mobile. Bounded acceptances do not prove general judgment or whole-app completion."
   }
 }
