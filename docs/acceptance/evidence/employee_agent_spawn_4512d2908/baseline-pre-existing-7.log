@@ -1,0 +1,211 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 12:15:23 [    INFO] MCP Service initialized
+2026-11-10 12:15:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_covpush_meta.py::TestReactStep::test_react_step_memory_assembly 
+-------------------------------- live log setup --------------------------------
+2026-11-10 12:15:24 [    INFO] EscalationManager initialized
+2026-11-10 12:15:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:15:24 [    INFO] EscalationManager initialized
+2026-11-10 12:15:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 12:15:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 12:15:24 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 14%]
+tests/test_covpush_meta.py::TestRecordExecution::test_record_execution_success FAILED [ 28%]
+tests/test_covpush_w98_gaps_a.py::TestWorkbookRuntime::test_recalc_formulas_hit_and_miss 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:15:25 [    INFO] Recalculated workbook via formulas lib: b.xlsx
+FAILED                                                                   [ 42%]
+tests/api/test_agent_routes_coverage_ext.py::test_get_agent_execution_history_db_error_returns_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:15:26 [ WARNING] Agent read authority unavailable: stage=actor error_class=RuntimeError
+2026-11-10 12:15:26 [ WARNING] API Error: AGENT_READ_AUTHORITY_UNAVAILABLE - Agent data is temporarily unavailable; retry.
+2026-11-10 12:15:26 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
+FAILED                                                                   [ 57%]
+tests/api/test_agent_routes_coverage_ext.py::test_delete_agent_registry_exception_allows_delete 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:15:26 [    INFO] HTTP Request: DELETE http://testserver/api/agents/5b62a8d2-d007-4902-b932-2f9e6bab42c7 "HTTP/1.1 200 OK"
+FAILED                                                                   [ 71%]
+tests/api/test_agent_routes_coverage_ext.py::test_run_agent_paused_returns_400 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:15:26 [   ERROR] Agent 60e5835b-0a59-48cd-9a9d-e61b28adf483 not found in background task
+2026-11-10 12:15:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-11-10 12:15:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:b7c7f701-978f-470c-bc54-d7ce02f828a9'. type='agent_status_change'
+2026-11-10 12:15:26 [    INFO] HTTP Request: POST http://testserver/api/agents/60e5835b-0a59-48cd-9a9d-e61b28adf483/run "HTTP/1.1 200 OK"
+FAILED                                                                   [ 85%]
+tests/api/test_agent_routes_coverage_ext.py::test_run_agent_deprecated_returns_400 
+-------------------------------- live log call ---------------------------------
+2026-11-10 12:15:26 [   ERROR] Agent 65ad3811-b96a-4583-9721-b81a842b30ea not found in background task
+2026-11-10 12:15:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-11-10 12:15:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:4e07dc01-d350-4c65-bbd5-7d69a72c476d'. type='agent_status_change'
+2026-11-10 12:15:26 [    INFO] HTTP Request: POST http://testserver/api/agents/65ad3811-b96a-4583-9721-b81a842b30ea/run "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+________________ TestReactStep.test_react_step_memory_assembly _________________
+tests/test_covpush_meta.py:635: in test_react_step_memory_assembly
+    assert "DURABLE FACTS" in prompt
+E   assert 'DURABLE FACTS' in 'Request: req\n\nMEMORY CONTEXT:\nPAST EXPERIENCES:\n- task... → completed\n\nCANVAS EPISODES (same workspace):\n- [c1] t... → ok (boost: +0.50)\n\nRELEVANT KNOWLEDGE:\n<provenance type="retrieved" source="doc">\ndoc\n</provenance>\n\nAVAILABLE FORMULAS:\n- F: d\n\nTRUSTED BUSINESS FACTS:\n- [Status: verified] f1 (Source: s)\n\nguide text\n\nSEMANTICALLY RELATED FACTS:\n- pf\n- plain\n\nExecution History:\nhist\n\nWhat is your next step?'
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+______________ TestRecordExecution.test_record_execution_success _______________
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:2301: in assert_awaited_with
+    raise AssertionError(_error_message()) from cause
+E   AssertionError: expected await not found.
+E   Expected: record_outcome('atom_main', success=True)
+E     Actual: record_outcome('atom_main', success=True, task_summary='req')
+
+During handling of the above exception, another exception occurred:
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:2312: in assert_awaited_once_with
+    return self.assert_awaited_with(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: expected await not found.
+E   Expected: record_outcome('atom_main', success=True)
+E     Actual: record_outcome('atom_main', success=True, task_summary='req')
+E   
+E   pytest introspection follows:
+E   
+E   Kwargs:
+E   assert {'success': T...mmary': 'req'} == {'success': True}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'task_summary': 'req'}
+E     
+E     Full diff:
+E       {...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+
+During handling of the above exception, another exception occurred:
+tests/test_covpush_meta.py:1230: in test_record_execution_success
+    gov.record_outcome.assert_awaited_once_with("atom_main", success=True)
+E   AssertionError: expected await not found.
+E   Expected: record_outcome('atom_main', success=True)
+E     Actual: record_outcome('atom_main', success=True, task_summary='req')
+E   
+E   pytest introspection follows:
+E   
+E   Kwargs:
+E   assert {'success': T...mmary': 'req'} == {'success': True}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'task_summary': 'req'}
+E     
+E     Full diff:
+E       {...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+____________ TestWorkbookRuntime.test_recalc_formulas_hit_and_miss _____________
+tests/test_covpush_w98_gaps_a.py:147: in test_recalc_formulas_hit_and_miss
+    assert wb2.active["A2"].value == 42
+E   AssertionError: assert '=A1+1' == 42
+E    +  where '=A1+1' = <Cell 'Sheet'.A2>.value
+------------------------------ Captured log call -------------------------------
+INFO     core.workbook_runtime:workbook_runtime.py:206 Recalculated workbook via formulas lib: b.xlsx
+___________ test_get_agent_execution_history_db_error_returns_empty ____________
+tests/api/test_agent_routes_coverage_ext.py:191: in test_get_agent_execution_history_db_error_returns_empty
+    assert resp.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call -------------------------------
+WARNING  api.agent_routes:agent_routes.py:233 Agent read authority unavailable: stage=actor error_class=RuntimeError
+WARNING  core.base_routes:base_routes.py:190 API Error: AGENT_READ_AUTHORITY_UNAVAILABLE - Agent data is temporarily unavailable; retry.
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
+______________ test_delete_agent_registry_exception_allows_delete ______________
+tests/api/test_agent_routes_coverage_ext.py:313: in test_delete_agent_registry_exception_allows_delete
+    assert db_session.query(AgentRegistry).filter_by(id=agent.id).first() is None
+                                                        ^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py:566: in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py:1086: in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py:1116: in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state.py:798: in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/loading.py:1661: in load_scalar_attributes
+    raise orm_exc.ObjectDeletedError(state)
+E   sqlalchemy.orm.exc.ObjectDeletedError: Instance '<AgentRegistry at 0x156f8bfd0>' has been deleted, or its row is otherwise not present.
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: DELETE http://testserver/api/agents/5b62a8d2-d007-4902-b932-2f9e6bab42c7 "HTTP/1.1 200 OK"
+______________________ test_run_agent_paused_returns_400 _______________________
+tests/api/test_agent_routes_coverage_ext.py:710: in test_run_agent_paused_returns_400
+    assert resp.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:1176 Agent 60e5835b-0a59-48cd-9a9d-e61b28adf483 not found in background task
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:b7c7f701-978f-470c-bc54-d7ce02f828a9'. type='agent_status_change'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/60e5835b-0a59-48cd-9a9d-e61b28adf483/run "HTTP/1.1 200 OK"
+____________________ test_run_agent_deprecated_returns_400 _____________________
+tests/api/test_agent_routes_coverage_ext.py:717: in test_run_agent_deprecated_returns_400
+    assert resp.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:1176 Agent 65ad3811-b96a-4583-9721-b81a842b30ea not found in background task
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:4e07dc01-d350-4c65-bbd5-7d69a72c476d'. type='agent_status_change'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/65ad3811-b96a-4583-9721-b81a842b30ea/run "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 14 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_meta.py::TestReactStep::test_react_step_memory_assembly
+  /private/tmp/atom-goal14-spawn-baseline-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/api/test_agent_routes_coverage_ext.py::test_get_agent_execution_history_db_error_returns_empty
+tests/api/test_agent_routes_coverage_ext.py::test_delete_agent_registry_exception_allows_delete
+tests/api/test_agent_routes_coverage_ext.py::test_run_agent_paused_returns_400
+tests/api/test_agent_routes_coverage_ext.py::test_run_agent_deprecated_returns_400
+  /private/tmp/atom-goal14-spawn-baseline-20261110/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_meta.py::TestReactStep::test_react_step_memory_assembly
+FAILED tests/test_covpush_meta.py::TestRecordExecution::test_record_execution_success
+FAILED tests/test_covpush_w98_gaps_a.py::TestWorkbookRuntime::test_recalc_formulas_hit_and_miss
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_get_agent_execution_history_db_error_returns_empty
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_delete_agent_registry_exception_allows_delete
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_run_agent_paused_returns_400
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_run_agent_deprecated_returns_400
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 7 failed, 24 warnings in 19.07s ========================

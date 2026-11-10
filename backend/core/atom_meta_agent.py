@@ -2799,96 +2799,137 @@ What is your next step?"""
             return "Fleet recruitment failed. Please try again."
 
     
+    def _resolve_spawn_template(
+        self,
+        template_name: str,
+        custom_params: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        if template_name in SpecialtyAgentTemplate.TEMPLATES:
+            return SpecialtyAgentTemplate.TEMPLATES[template_name]
+        if template_name == "custom" and custom_params:
+            return custom_params
+        raise ValueError(f"Unknown agent template: {template_name}")
+
+    async def spawn_agent_decision(
+        self,
+        template_name: str,
+        custom_params: Optional[Dict[str, Any]] = None,
+        *,
+        actor: User,
+        db: Session,
+        operation_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create one distinct persisted spawn under the authenticated actor.
+
+        The shared create decision owns the current-actor claim, exact
+        template/config/capabilities material, AuditLog receipt, replay and
+        readback. A spawn is create-only: distinct operation ids produce
+        distinct agents; there is no module/class upsert collapse.
+        """
+        from core.agent_decision_write_service import create_agent
+
+        template = self._resolve_spawn_template(template_name, custom_params)
+        configuration = (
+            custom_params if custom_params is not None
+            else template.get("default_params", {})
+        )
+        return create_agent(
+            db,
+            actor=actor,
+            name=str(template.get("name") or f"Spawned {template_name}"),
+            category=str(template.get("category") or "General"),
+            description=(
+                template.get("description") or "Dynamically spawned agent"),
+            configuration=configuration,
+            schedule_config=None,
+            confidence_score=NEW_AGENT_CONFIDENCE,
+            user_id=str(getattr(actor, "id", "") or ""),
+            parent_agent_id=None,
+            parent_authority=None,
+            capabilities=template.get("capabilities"),
+            operation_id=operation_id,
+        )
+
+    def _spawn_result_agent(
+        self, db: Session, result: Dict[str, Any],
+    ) -> AgentRegistry:
+        status = result.get("status")
+        if status not in ("verified", "already_applied"):
+            raise ValueError(
+                result.get("error")
+                or f"Spawn decision did not apply: {status}")
+        target_id = str((result.get("data") or {}).get("agent_id") or "")
+        agent = db.get(AgentRegistry, target_id)
+        if agent is None:
+            raise ValueError("Spawn decision target is unreadable")
+        return agent
+
     async def spawn_agent(self, template_name: str, custom_params: Dict[str, Any] = None,
-                         persist: bool = False, db: Optional[Session] = None) -> AgentRegistry:
+                         persist: bool = False, db: Optional[Session] = None,
+                         actor: Optional[User] = None,
+                         operation_id: Optional[str] = None) -> AgentRegistry:
         """
         Spawn a specialty agent from template or custom definition.
 
         Args:
             template_name: Name of predefined template OR "custom"
             custom_params: Custom agent configuration
-            persist: If True, register in database; else ephemeral
-            db: Optional database session to use for persistence (useful for tests)
+            persist: If True, create a distinct durable agent; else ephemeral
+            db: Optional database session to use for persistence
+            actor: Authenticated creator for durable spawn
+            operation_id: Optional exact-operation id for replay
         """
-        if template_name in SpecialtyAgentTemplate.TEMPLATES:
-            template = SpecialtyAgentTemplate.TEMPLATES[template_name]
-            
-            # Extract capabilities for graduation registration
-            initial_capabilities = template.get("capabilities", [])
-            
-            with SessionLocal() as reset_db:
-                # Register capabilities at STUDENT level if they don't exist.
-                # NOTE: must NOT shadow the `db` parameter — doing so made
-                # the `if db is None:` fresh-session persist branch below
-                # unreachable (persistence ran on the already-closed
-                # reset-block session instead of a new one).
-                for capability in initial_capabilities:
-                    self.graduation_service.reset_maturity(
-                        "atom_specialty_init",
-                        capability,
-                        "initial_spawn_registration"
-                    )
-            template = SpecialtyAgentTemplate.TEMPLATES[template_name]
-        elif template_name == "custom" and custom_params:
-            template = custom_params
-        else:
-            raise ValueError(f"Unknown agent template: {template_name}")
-        
-        # Create agent instance
+        template = self._resolve_spawn_template(template_name, custom_params)
+        configuration = (
+            custom_params if custom_params is not None
+            else template.get("default_params", {})
+        )
+        effective_user = actor or self.user
         agent_id = f"spawned_{template_name}_{uuid.uuid4().hex[:8]}"
-        
         agent = AgentRegistry(
             id=agent_id,
-            name=template.get("name", f"Spawned {template_name}"),
-            description=template.get("description", "Dynamically spawned agent"),
-            category=template.get("category", "General"),
-            status=AgentStatus.STUDENT.value,  # New agents start as STUDENT
-            confidence_score=NEW_AGENT_CONFIDENCE,  # Below the INTERN floor (0.5)
+            name=str(template.get("name") or f"Spawned {template_name}"),
+            description=(
+                template.get("description") or "Dynamically spawned agent"),
+            category=str(template.get("category") or "General"),
+            status=AgentStatus.STUDENT.value,
+            confidence_score=NEW_AGENT_CONFIDENCE,
             module_path="core.generic_agent",
             class_name="GenericAgent",
-            configuration=custom_params or template.get("default_params", {}),
-            workspace_id=self.workspace_id,  # Set workspace from AtomMetaAgent
-            tenant_id=self.tenant_id       # Set tenant from AtomMetaAgent
+            configuration=configuration,
+            capabilities=template.get("capabilities"),
+            user_id=(
+                str(effective_user.id) if effective_user is not None else None),
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
         )
 
         if persist:
-            # Register in database
+            if effective_user is None:
+                raise ValueError(
+                    "Persistent spawn requires an authenticated actor")
             if db is None:
-                # Create new session if none provided
                 with SessionLocal() as session:
-                    governance = AgentGovernanceService(
-                        session,
-                        workspace_id=self.workspace_id,
-                        tenant_id=self.tenant_id
+                    result = await self.spawn_agent_decision(
+                        template_name,
+                        custom_params,
+                        actor=effective_user,
+                        db=session,
+                        operation_id=operation_id,
                     )
-                    agent = governance.register_or_update_agent(
-                        name=agent.name,
-                        category=agent.category,
-                        module_path=agent.module_path,
-                        class_name=agent.class_name,
-                        description=agent.description
-                    )
-                    logger.info(f"Persisted spawned agent: {agent.id}")
-            else:
-                # Use provided session (useful for tests)
-                governance = AgentGovernanceService(
-                    db,
-                    workspace_id=self.workspace_id,
-                    tenant_id=self.tenant_id
-                )
-                agent = governance.register_or_update_agent(
-                    name=agent.name,
-                    category=agent.category,
-                    module_path=agent.module_path,
-                    class_name=agent.class_name,
-                    description=agent.description
-                )
-                logger.info(f"Persisted spawned agent: {agent.id}")
-        else:
-            # Ephemeral agent - just keep in memory
-            self.spawned_agents[agent_id] = agent
-            logger.info(f"Created ephemeral agent: {agent_id}")
+                    return self._spawn_result_agent(session, result)
+            result = await self.spawn_agent_decision(
+                template_name,
+                custom_params,
+                actor=effective_user,
+                db=db,
+                operation_id=operation_id,
+            )
+            return self._spawn_result_agent(db, result)
 
+        # Ephemeral agents are honest non-durable objects: no row, no audit.
+        self.spawned_agents[agent_id] = agent
+        logger.info(f"Created ephemeral agent: {agent_id}")
         return agent
 
     async def teach_student(
@@ -4143,3 +4184,17 @@ def get_atom_agent(workspace_id: str = "default") -> AtomMetaAgent:
     if _atom_instance is None or _atom_instance.workspace_id != workspace_id:
         _atom_instance = AtomMetaAgent(workspace_id)
     return _atom_instance
+
+
+def get_scoped_atom_agent(
+    workspace_id: str = "default",
+    tenant_id: Optional[str] = None,
+    user: Optional[User] = None,
+) -> AtomMetaAgent:
+    """Construct a request-scoped Atom instance, never the global singleton.
+
+    The public spawn route must use the authenticated caller's workspace,
+    tenant and user; reusing the process singleton would let one caller's
+    scope leak into another's durable spawn.
+    """
+    return AtomMetaAgent(workspace_id, tenant_id, user)
