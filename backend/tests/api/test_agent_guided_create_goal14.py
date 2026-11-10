@@ -12,6 +12,7 @@ reference, and same-scope acting-agent approval.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -502,3 +503,133 @@ def test_guided_create_acting_agent_deleted_during_generation_is_refused(
         assert db.query(func.count(AgentRegistry.id)).filter(
             AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
         assert db.get(AuditLog, "agent:create:guided-acting-deleted") is None
+
+
+def _set_autonomous_acting(world, confidence=0.99):
+    with world["Session"]() as db:
+        agent = db.get(AgentRegistry, "acting-agent")
+        agent.status = "autonomous"
+        agent.confidence_score = confidence
+        db.commit()
+
+
+def _race_acting_agent(world, monkeypatch, change):
+    """Change the acting agent after the route snapshot, before the create."""
+    _set_autonomous_acting(world)
+    _factory(monkeypatch)
+    from api import agent_onboarding_routes as route
+
+    original = route._create_agent_decision
+
+    def raced(db, **kwargs):
+        with world["Session"]() as peer:
+            agent = peer.get(AgentRegistry, "acting-agent")
+            if change == "scope":
+                agent.tenant_id = "other"
+                agent.workspace_id = "ws-b"
+            elif change == "status":
+                agent.status = "student"
+            elif change == "material":
+                agent.confidence_score = 0.98
+                agent.configuration = {"changed": True}
+            elif change == "delete":
+                peer.delete(agent)
+            else:  # pragma: no cover
+                raise AssertionError(change)
+            peer.commit()
+        return original(db, **kwargs)
+
+    monkeypatch.setattr(route, "_create_agent_decision", raced)
+
+
+@pytest.mark.parametrize("change", ["scope", "status", "material", "delete"])
+def test_guided_create_parent_change_before_create_refuses(
+        world, monkeypatch, change):
+    _race_acting_agent(world, monkeypatch, change)
+    scheduled = []
+
+    class FakeScheduler:
+        def schedule_agent(self, agent_id, schedule_config):
+            scheduled.append(agent_id)
+
+    from core.scheduler import AgentScheduler
+
+    monkeypatch.setattr(AgentScheduler, "get_instance", lambda: FakeScheduler())
+    client = _client(world)
+    token = _token(world, "member")
+    response = _post(client, token, {
+        "goal": "Create with current acting authority",
+        "acting_agent_id": "acting-agent",
+        "schedule_config": {"active": True, "cron": "0 * * * *"},
+    }, operation_id=f"guided-parent-{change}")
+    assert response.status_code in (202, 403, 404, 409), response.text
+    assert response.status_code != 201
+    with world["Session"]() as db:
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
+        assert db.get(AuditLog, f"agent:create:guided-parent-{change}") is None
+    assert scheduled == []
+
+
+def test_guided_create_valid_autonomous_acting_agent(world, monkeypatch):
+    _set_autonomous_acting(world)
+    _factory(monkeypatch)
+    scheduled = []
+
+    class FakeScheduler:
+        def schedule_agent(self, agent_id, schedule_config):
+            scheduled.append(agent_id)
+
+    from core.scheduler import AgentScheduler
+
+    monkeypatch.setattr(AgentScheduler, "get_instance", lambda: FakeScheduler())
+    client = _client(world)
+    token = _token(world, "member")
+    response = _post(client, token, {
+        "goal": "Create with an allowed autonomous acting agent",
+        "acting_agent_id": "acting-agent",
+        "schedule_config": {"active": True, "cron": "0 * * * *"},
+    }, operation_id="guided-valid-acting")
+    assert response.status_code == 201, response.text
+    data = response.json()["data"]
+    assert data["verification"]["status"] == "verified"
+    with world["Session"]() as db:
+        agent = db.get(AgentRegistry, data["agent_id"])
+        assert agent.parent_agent_id == "acting-agent"
+        audit = db.get(AuditLog, "agent:create:guided-valid-acting")
+        assert audit is not None
+        metadata = json.loads(audit.metadata_json)
+        assert metadata["extra"]["parent_authority"]["id"] == (
+            "acting-agent")
+        assert metadata["extra"]["parent_authority"]["status"] == (
+            "autonomous")
+    assert scheduled == [data["agent_id"]]
+
+
+def test_guided_create_replay_after_parent_material_change_conflicts(
+        world, monkeypatch):
+    _set_autonomous_acting(world)
+    _factory(monkeypatch)
+    client = _client(world)
+    token = _token(world, "member")
+    body = {
+        "goal": "Create with an exact parent receipt",
+        "acting_agent_id": "acting-agent",
+    }
+    first = _post(client, token, body, operation_id="guided-parent-replay")
+    assert first.status_code == 201, first.text
+    agent_id = first.json()["data"]["agent_id"]
+
+    with world["Session"]() as db:
+        parent = db.get(AgentRegistry, "acting-agent")
+        parent.confidence_score = 0.98
+        db.commit()
+
+    replay = _post(client, token, body, operation_id="guided-parent-replay")
+    assert replay.status_code == 409, replay.text
+    assert replay.json()["detail"]["error"]["code"] == "AUTHORITY_CHANGED"
+    with world["Session"]() as db:
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.id == agent_id).scalar() == 1
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == "agent:create:guided-parent-replay").scalar() == 1

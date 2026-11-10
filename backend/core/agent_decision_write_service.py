@@ -623,6 +623,7 @@ def _replay(
     *, authority: Dict[str, Any],
     target_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
     success_data: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
+    authority_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
 ) -> Optional[Dict[str, Any]]:
     try:
         with _fresh_session(db) as fresh:
@@ -655,6 +656,13 @@ def _replay(
                     code="OPERATION_CONFLICT")
             audit_expected = _expected_from_metadata(
                 metadata, operation_id=operation_id)
+            if (
+                authority_check is not None
+                and not authority_check(audit_expected)
+            ):
+                return _conflict(
+                    "agent authority changed; refresh and retry",
+                    code="AUTHORITY_CHANGED")
             audit_state = _verify_audit(db, audit_expected)
             if target_check is not None:
                 target_ok = bool(target_check(audit_expected))
@@ -717,6 +725,7 @@ def _commit_and_verify(
     replay_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
     replay_data: Optional[
         Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
+    authority_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
 ) -> Dict[str, Any]:
     operation_id = expected["operation_id"]
     target_id = expected["target_id"]
@@ -727,7 +736,8 @@ def _commit_and_verify(
         db.rollback()
         replay = _replay(
             db, operation_id, expected, authority=authority,
-            target_check=replay_check, success_data=replay_data)
+            target_check=replay_check, success_data=replay_data,
+            authority_check=authority_check)
         if replay is not None:
             return replay
         return _not_applied(
@@ -772,6 +782,113 @@ def _create_config_digest(value: Any) -> str:
 
 def _create_schedule_digest(value: Any) -> str:
     return _fingerprint("agent-schedule", _canonical(value))
+
+
+def _same_scalar(a: Any, b: Any) -> bool:
+    if a is None or b is None:
+        return a is None and b is None
+    return str(a) == str(b)
+
+
+def _same_float(a: Any, b: Any) -> bool:
+    if a is None or b is None:
+        return a is None and b is None
+    try:
+        return float(a) == float(b)
+    except (TypeError, ValueError):
+        return False
+
+
+def _create_parent_receipt(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": str(snapshot.get("id") or ""),
+        "tenant_id": snapshot.get("tenant_id"),
+        "workspace_id": snapshot.get("workspace_id"),
+        "status": snapshot.get("status"),
+        "confidence_score": (
+            None if snapshot.get("confidence_score") is None
+            else float(snapshot["confidence_score"])),
+        "enabled": snapshot.get("enabled"),
+        "last_exam_id": snapshot.get("last_exam_id"),
+        "configuration_digest": _create_config_digest(
+            snapshot.get("configuration")),
+        "capabilities_digest": _fingerprint(
+            "agent-capabilities",
+            _canonical(snapshot.get("capabilities") or [])),
+    }
+
+
+def _claim_parent_authority(
+    db: Session, snapshot: Dict[str, Any],
+) -> bool:
+    """Conditionally claim the exact acting-agent material in this transaction."""
+    result = db.execute(
+        update(AgentRegistry)
+        .where(
+            AgentRegistry.id == str(snapshot.get("id") or ""),
+            _exact(AgentRegistry.tenant_id, snapshot.get("tenant_id")),
+            _exact(AgentRegistry.workspace_id, snapshot.get("workspace_id")),
+            _exact(AgentRegistry.status, snapshot.get("status")),
+            _exact(
+                AgentRegistry.confidence_score,
+                snapshot.get("confidence_score")),
+            _exact(AgentRegistry.enabled, snapshot.get("enabled")),
+            _exact(AgentRegistry.last_exam_id, snapshot.get("last_exam_id")),
+            _exact(AgentRegistry.capabilities, snapshot.get("capabilities")),
+            _exact(AgentRegistry.configuration, snapshot.get("configuration")),
+        )
+        .values(updated_at=AgentRegistry.updated_at)
+    )
+    return result.rowcount == 1
+
+
+def _parent_authority_matches(
+    db: Session, receipt: Dict[str, Any],
+) -> bool:
+    if not isinstance(receipt, dict) or not receipt.get("id"):
+        return False
+    with _fresh_session(db) as fresh:
+        row = (
+            fresh.query(AgentRegistry)
+            .filter(AgentRegistry.id == str(receipt["id"]))
+            .populate_existing()
+            .first()
+        )
+        if row is None:
+            return False
+        return (
+            _same_scalar(row.tenant_id, receipt.get("tenant_id"))
+            and _same_scalar(row.workspace_id, receipt.get("workspace_id"))
+            and _same_scalar(row.status, receipt.get("status"))
+            and _same_float(
+                row.confidence_score, receipt.get("confidence_score"))
+            and _same_scalar(row.enabled, receipt.get("enabled"))
+            and _same_scalar(row.last_exam_id, receipt.get("last_exam_id"))
+            and _create_config_digest(_stored_json_value(row.configuration))
+            == receipt.get("configuration_digest")
+            and _fingerprint(
+                "agent-capabilities",
+                _canonical(row.capabilities or []))
+            == receipt.get("capabilities_digest")
+        )
+
+
+def _create_authority_check(
+    db: Session, actor_snapshot: Dict[str, Any],
+    parent_authority: Optional[Dict[str, Any]],
+):
+    def check(expected: Dict[str, Any]) -> bool:
+        if str(actor_snapshot.get("workspace_id") or "") != str(
+                expected.get("target_workspace_id") or ""):
+            return False
+        receipt = (expected.get("extra") or {}).get("parent_authority")
+        if parent_authority is not None and not isinstance(receipt, dict):
+            return False
+        if receipt is not None:
+            return _parent_authority_matches(db, receipt)
+        return True
+
+    return check
 
 
 def _stored_json_value(value: Any) -> Any:
@@ -854,6 +971,7 @@ def create_agent(
     confidence_score: Optional[float] = None,
     user_id: Optional[str] = None,
     parent_agent_id: Optional[str] = None,
+    parent_authority: Optional[Dict[str, Any]] = None,
     capabilities: Optional[Any] = None,
     minimum_role: UserRole = UserRole.WORKSPACE_ADMIN,
     authority_label: str = "AGENT_MANAGE",
@@ -892,6 +1010,20 @@ def create_agent(
             http_status=422, error_code="VALIDATION_ERROR",
             field="confidence_score")
 
+    if parent_authority is not None:
+        snapshot_id = str(parent_authority.get("id") or "")
+        if not snapshot_id:
+            return _refused(
+                "parent authority snapshot is missing id",
+                http_status=422, error_code="VALIDATION_ERROR",
+                field="parent_authority")
+        if parent_agent_id is not None and str(parent_agent_id) != snapshot_id:
+            return _refused(
+                "parent authority snapshot does not match parent_agent_id",
+                http_status=422, error_code="VALIDATION_ERROR",
+                field="parent_authority")
+        parent_agent_id = snapshot_id
+
     target_id = str(uuid.uuid5(uuid.NAMESPACE_URL, operation_id))
     configuration_digest = _create_config_digest(configuration)
     schedule_digest = _create_schedule_digest(schedule_config)
@@ -915,8 +1047,13 @@ def create_agent(
         "class_name": "GenericAgent",
         **state_extra,
     }
+    parent_receipt = (
+        _create_parent_receipt(parent_authority)
+        if parent_authority is not None else None)
     request_digest = _request_digest(
         _ACTION_CREATE, target_id, request_material)
+    authority_check = _create_authority_check(
+        db, actor_snapshot, parent_authority)
     expected_base = {
         "operation_id": operation_id,
         "schema": REVIEW_SCHEMA,
@@ -929,7 +1066,8 @@ def create_agent(
     replay = _replay(
         db, operation_id, expected_base, authority=actor_snapshot,
         target_check=_create_target_check(db),
-        success_data=_create_success_data)
+        success_data=_create_success_data,
+        authority_check=authority_check)
     if replay is not None:
         return replay
 
@@ -937,6 +1075,14 @@ def create_agent(
         db.rollback()
         return _conflict(
             "actor authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
+    if (
+        parent_authority is not None
+        and not _claim_parent_authority(db, parent_authority)
+    ):
+        db.rollback()
+        return _conflict(
+            "acting agent authority changed; refresh and retry",
             code="AUTHORITY_CHANGED")
 
     agent = AgentRegistry(
@@ -974,6 +1120,8 @@ def create_agent(
             "configuration_digest": configuration_digest,
             "schedule_config_digest": schedule_digest,
             **state_extra,
+            **({"parent_authority": parent_receipt}
+               if parent_receipt is not None else {}),
         })
 
     return _commit_and_verify(
@@ -984,6 +1132,7 @@ def create_agent(
         authority=actor_snapshot,
         replay_check=_create_target_check(db),
         replay_data=_create_success_data,
+        authority_check=authority_check,
     )
 
 

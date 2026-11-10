@@ -27,7 +27,7 @@ from core.guided_automation_service import (
     get_guided_agent_factory,
 )
 from core.models import AgentRegistry, AgentStatus, UserRole
-from core.personal_scope import resolve_tenant_id
+from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 from core.service_factory import ServiceFactory
 
 logger = logging.getLogger(__name__)
@@ -173,15 +173,41 @@ async def create_guided_agent(
         "curriculum": ROLE_CURRICULUM.get(role, []),
     }
 
+    parent_authority = None
     if req.acting_agent_id:
-        # Generation may await; re-check the exact actor reference before the
-        # create so a concurrent deletion/scope move cannot leave a dangling
-        # parent binding.
-        if req.acting_agent_id not in {
-            agent.id for agent in governance.list_agents()
-        }:
+        # Generation may await. Read the exact acting-agent material after it
+        # returns; the create transaction conditionally claims this snapshot,
+        # so a peer move/demote/delete after this read loses the claim instead
+        # of creating a child with stale authority.
+        parent_row = (
+            db.query(AgentRegistry)
+            .filter(AgentRegistry.id == req.acting_agent_id)
+            .populate_existing()
+            .first()
+        )
+        if parent_row is None:
             raise HTTPException(
                 status_code=404, detail="Acting agent not found")
+        expected_workspace = (
+            "default" if str(workspace_id) == "default"
+            else str(workspace_id))
+        if (
+            str(resolve_workspace_id(parent_row)) != expected_workspace
+            or resolve_tenant_id(parent_row) != str(tenant_id)
+        ):
+            raise HTTPException(
+                status_code=404, detail="Acting agent not found")
+        parent_authority = {
+            "id": str(parent_row.id),
+            "tenant_id": parent_row.tenant_id,
+            "workspace_id": parent_row.workspace_id,
+            "status": parent_row.status,
+            "confidence_score": parent_row.confidence_score,
+            "enabled": parent_row.enabled,
+            "last_exam_id": parent_row.last_exam_id,
+            "configuration": parent_row.configuration,
+            "capabilities": parent_row.capabilities,
+        }
 
     result = _create_agent_decision(
         db,
@@ -197,6 +223,7 @@ async def create_guided_agent(
         confidence_score=0.1,
         user_id=str(getattr(current_user, "id", "unknown")),
         parent_agent_id=req.acting_agent_id,
+        parent_authority=parent_authority,
         capabilities=blueprint.get("capabilities"),
         minimum_role=UserRole.GUEST,
         authority_label="GUIDED_CREATE",
