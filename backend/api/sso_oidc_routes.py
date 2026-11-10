@@ -24,28 +24,42 @@ Token delivery to the frontend:
     to ``/?sso=success``.
 
 State management:
-    The OAuth2 ``state`` parameter is a random 256-bit token stored in a
-    server-side dict with a 10-minute expiry, consumed on first use
-    (single-use). Comparison uses ``hmac.compare_digest`` (constant time).
-    LIMITATION: in-memory storage is single-process only; a multi-worker
-    deployment needs shared storage (Redis) for state.
+    The OAuth2 ``state`` parameter is a random 256-bit token. Only its
+    SHA-256 digest is persisted, in the existing ``oauth_states`` table,
+    together with a 10-minute expiry, the ID-token nonce, a digest of a
+    separate HttpOnly SameSite=Lax browser-binding cookie, the current
+    issuer/client/config generation, and the exact callback target. A
+    conditional DELETE of that row is the single-use arbiter across
+    processes; comparisons are constant-time and the state is consumed
+    before any provider code exchange.
 """
 import hashlib
 import hmac
+import json
 import logging
+import os
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from core.auth import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user
 from core.database import get_db
-from core.models import SSOConfiguration, User, UserRole, UserStatus
+from core.models import (
+    OAuthState,
+    SSOConfiguration,
+    Tenant,
+    User,
+    UserRole,
+    UserStatus,
+)
 from core.personal_scope import PERSONAL_TENANT_ID
 from core.privsec.token_encryption import decrypt_token, encrypt_token
 from core.security_dependencies import require_permission
@@ -70,12 +84,16 @@ _discovery_cache: Dict[str, tuple] = {}
 _JWKS_CACHE_TTL = 300
 _jwks_cache: Dict[str, tuple] = {}
 
-# Single-use, expiring OAuth2 state store (see module docstring limitation).
-# Keys are SHA-256 digests of the state token; validation scans entries with
-# hmac.compare_digest so the comparison itself is constant time (the dict is
-# only used for pruning, not lookup). The value carries the nonce that the
-# token endpoint's ID token must echo.
+# Durable, single-use OAuth2 state lifetime. The URL state token is stored as
+# a digest in the existing OAuthState table; the browser cookie carries a
+# separate high-entropy binding token whose digest is kept in extra_data.
 _STATE_TTL = 600
+_STATE_COOKIE_DEVELOPMENT = "atom_oidc_state"
+_STATE_COOKIE_SECURE = "__Host-atom_oidc_state"
+
+# Retired in-memory store. Kept only as an inert compatibility symbol for
+# external test harnesses that clear it; the durable state path never reads or
+# writes this dictionary.
 _pending_states: Dict[str, tuple] = {}
 
 _SUPPORTED_ID_TOKEN_ALGS = frozenset({
@@ -85,29 +103,91 @@ _SUPPORTED_ID_TOKEN_ALGS = frozenset({
 })
 
 
-def _store_state(state: str, nonce: str) -> None:
-    _prune_states()
-    _pending_states[hashlib.sha256(state.encode()).hexdigest()] = (
-        time.time() + _STATE_TTL,
-        nonce,
+def _state_cookie_secure(request: Request) -> bool:
+    environment = os.getenv("ENVIRONMENT", "development").strip().lower()
+    return environment == "production" or request.url.scheme == "https"
+
+
+def _state_cookie_name(request: Request) -> str:
+    return (
+        _STATE_COOKIE_SECURE if _state_cookie_secure(request)
+        else _STATE_COOKIE_DEVELOPMENT
     )
 
 
-def _consume_state(state: str) -> Optional[str]:
-    """Single-use, expiring, constant-time state validation.
+def _state_digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
-    Returns the nonce bound to the state, or ``None`` when the state is
-    missing, unknown, expired or already consumed.
-    """
-    if not state:
+
+def _state_expired(row: OAuthState) -> bool:
+    expires_at = getattr(row, "expires_at", None)
+    if expires_at is None:
+        return True
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) >= expires_at
+
+
+def _config_row(db: Session) -> Optional[SSOConfiguration]:
+    return (
+        db.query(SSOConfiguration)
+        .filter(SSOConfiguration.provider == _OIDC_PROVIDER)
+        .first()
+    )
+
+
+def _authoritative_tenant_id(db: Session) -> Optional[str]:
+    """Resolve the configured/default tenant without creating one."""
+    try:
+        row = _config_row(db)
+        tenant_id = (
+            str(row.tenant_id) if row is not None and row.tenant_id
+            else PERSONAL_TENANT_ID
+        )
+        tenant = (
+            db.query(Tenant)
+            .filter(Tenant.id == tenant_id)
+            .populate_existing()
+            .first()
+        )
+    except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
+        logger.error(
+            "OIDC tenant resolution failed (error_class=%s)",
+            type(exc).__name__)
         return None
-    digest = hashlib.sha256(state.encode()).hexdigest()
-    now = time.time()
-    for key in list(_pending_states.keys()):
-        if hmac.compare_digest(digest, key):
-            expires_at, nonce = _pending_states.pop(key)
-            return nonce if expires_at >= now else None
-    return None
+    if tenant is None or getattr(tenant, "is_active", True) is False:
+        return None
+    return tenant_id
+
+
+def _config_fingerprint(
+    db: Session, cfg: Dict[str, Any], redirect_target: str
+) -> Optional[str]:
+    """Freeze the current SSO config generation and exact callback target."""
+    try:
+        row = _config_row(db)
+    except Exception as exc:  # noqa: BLE001 — unreadable generation fails closed
+        logger.error(
+            "OIDC config generation read failed (error_class=%s)",
+            type(exc).__name__)
+        return None
+    material = {
+        "issuer_url": str(cfg.get("issuer_url") or "").rstrip("/"),
+        "client_id": str(cfg.get("client_id") or ""),
+        "default_role": str(cfg.get("default_role") or ""),
+        "allowed_domains": list(cfg.get("allowed_domains") or []),
+        "enabled": bool(cfg.get("enabled")),
+        "redirect_uri": str(redirect_target or ""),
+    }
+    if row is not None:
+        material["generation"] = str(
+            row.updated_at or row.created_at or row.id)
+        material["tenant_id"] = str(row.tenant_id or "")
+    return hashlib.sha256(
+        json.dumps(
+            material, sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 # ============================================================================
@@ -468,43 +548,79 @@ async def oidc_login(request: Request, db: Session = Depends(get_db)):
     """302 redirect to the IdP authorization endpoint."""
     cfg = _resolve_config(db)
     if not cfg:
-        from fastapi import HTTPException
         raise HTTPException(
             status_code=409,
             detail="SSO is not configured. An administrator must configure OIDC SSO first.",
         )
     if not cfg.get("enabled"):
-        from fastapi import HTTPException
         raise HTTPException(status_code=503, detail="SSO is disabled")
+
+    tenant_id = _authoritative_tenant_id(db)
+    if not tenant_id:
+        logger.error("OIDC login refused: authoritative tenant unavailable")
+        raise HTTPException(status_code=503, detail="SSO is unavailable")
 
     try:
         metadata = await _get_discovery_document(cfg["issuer_url"])
     except Exception as e:
         logger.error("OIDC discovery failed for issuer (issuer=%r, error=%s)", cfg["issuer_url"], e)
-        from fastapi import HTTPException
         raise HTTPException(status_code=502, detail="Failed to contact SSO identity provider")
+
+    redirect_target = _redirect_uri(request)
+    config_digest = _config_fingerprint(db, cfg, redirect_target)
+    if not config_digest:
+        raise HTTPException(status_code=503, detail="SSO is unavailable")
 
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
-    _store_state(state, nonce)
+    browser_binding = secrets.token_urlsafe(32)
+    state_row = OAuthState(
+        tenant_id=tenant_id,
+        user_id=None,
+        state=_state_digest(state),
+        provider=_OIDC_PROVIDER,
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=_STATE_TTL),
+        redirect_uri=redirect_target,
+        extra_data={
+            "nonce": nonce,
+            "browser_digest": _state_digest(browser_binding),
+            "config_digest": config_digest,
+        },
+    )
+    try:
+        db.add(state_row)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — state must be durable before redirect
+        db.rollback()
+        logger.error(
+            "OIDC state persistence failed "
+            "(stage=login_commit, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be started",
+        )
 
     params = {
         "response_type": "code",
         "client_id": cfg["client_id"],
-        "redirect_uri": _redirect_uri(request),
+        "redirect_uri": redirect_target,
         "scope": "openid email profile",
         "state": state,
         "nonce": nonce,
     }
     from urllib.parse import urlencode
     authorize_url = metadata["authorization_endpoint"] + "?" + urlencode(params)
-    return RedirectResponse(url=authorize_url, status_code=302)
-
-
-def _prune_states() -> None:
-    now = time.time()
-    for s in [s for s, (exp, _nonce) in _pending_states.items() if exp < now]:
-        _pending_states.pop(s, None)
+    response = RedirectResponse(url=authorize_url, status_code=302)
+    response.set_cookie(
+        key=_state_cookie_name(request),
+        value=browser_binding,
+        max_age=_STATE_TTL,
+        path="/",
+        secure=_state_cookie_secure(request),
+        httponly=True,
+        samesite="lax",
+    )
+    return response
 
 
 _CALLBACK_HTML = """<!DOCTYPE html>
@@ -595,6 +711,159 @@ def _claim_existing_user_admission(
     return current
 
 
+def _consume_callback_state(
+    db: Session,
+    request: Request,
+    state: Optional[str],
+    cfg: Dict[str, Any],
+    redirect_target: str,
+) -> str:
+    """Validate and atomically consume the durable browser-bound state.
+
+    The conditional DELETE is the single-use arbiter across processes and
+    connections. Every identity/binding check and its constant-time comparison
+    happens before that delete and before any provider exchange.
+    """
+    if not state:
+        logger.warning("OIDC state rejected stage=missing")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+
+    digest = _state_digest(state)
+    try:
+        row = (
+            db.query(OAuthState)
+            .filter(
+                OAuthState.state == digest,
+                OAuthState.provider == _OIDC_PROVIDER,
+            )
+            .populate_existing()
+            .first()
+        )
+    except Exception as exc:  # noqa: BLE001 — unreadable state fails closed
+        db.rollback()
+        logger.error(
+            "OIDC state lookup failed "
+            "(stage=lookup, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+
+    if row is None:
+        logger.warning("OIDC state rejected stage=unknown")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+    if not hmac.compare_digest(str(row.state or ""), digest):
+        logger.warning("OIDC state rejected stage=digest")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+    if _state_expired(row):
+        logger.warning("OIDC state rejected stage=expired")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+
+    cookie_value = request.cookies.get(_state_cookie_name(request))
+    if not cookie_value:
+        logger.warning("OIDC state rejected stage=browser_missing")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+    extra_data = row.extra_data if isinstance(row.extra_data, dict) else {}
+    stored_browser = extra_data.get("browser_digest")
+    if (
+        not isinstance(stored_browser, str)
+        or not hmac.compare_digest(
+            stored_browser, _state_digest(cookie_value))
+    ):
+        logger.warning("OIDC state rejected stage=browser_mismatch")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+
+    current_config = _config_fingerprint(db, cfg, redirect_target)
+    if not current_config:
+        logger.error("OIDC state rejected stage=config_unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+    stored_config = extra_data.get("config_digest")
+    if (
+        not isinstance(stored_config, str)
+        or not hmac.compare_digest(stored_config, current_config)
+    ):
+        logger.warning("OIDC state rejected stage=config_changed")
+        raise HTTPException(
+            status_code=409,
+            detail="SSO configuration changed. Start sign-in again.",
+        )
+
+    if not hmac.compare_digest(
+            str(row.redirect_uri or ""), str(redirect_target or "")):
+        logger.warning("OIDC state rejected stage=redirect_changed")
+        raise HTTPException(
+            status_code=409,
+            detail="SSO callback target changed. Start sign-in again.",
+        )
+
+    try:
+        tenant = (
+            db.query(Tenant)
+            .filter(Tenant.id == str(row.tenant_id or ""))
+            .populate_existing()
+            .first()
+        )
+    except Exception as exc:  # noqa: BLE001 — unreadable tenant fails closed
+        db.rollback()
+        logger.error(
+            "OIDC state tenant lookup failed "
+            "(stage=tenant_lookup, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+    if tenant is None or getattr(tenant, "is_active", True) is False:
+        logger.error("OIDC state rejected stage=tenant_missing")
+        raise HTTPException(status_code=503, detail="SSO is unavailable")
+
+    nonce = extra_data.get("nonce")
+    if not isinstance(nonce, str) or not nonce:
+        logger.warning("OIDC state rejected stage=nonce_missing")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+
+    now = datetime.now(timezone.utc)
+    try:
+        claimed = db.execute(
+            delete(OAuthState)
+            .where(
+                OAuthState.id == row.id,
+                OAuthState.state == digest,
+                OAuthState.provider == _OIDC_PROVIDER,
+                OAuthState.redirect_uri == redirect_target,
+                OAuthState.expires_at > now,
+            )
+            .execution_options(synchronize_session=False)
+        )
+    except Exception as exc:  # noqa: BLE001 — unconfirmed delete fails closed
+        db.rollback()
+        logger.error(
+            "OIDC state consume failed "
+            "(stage=delete, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+    if claimed.rowcount != 1:
+        db.rollback()
+        logger.warning("OIDC state rejected stage=replayed")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+    try:
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — uncertain commit fails closed
+        db.rollback()
+        logger.error(
+            "OIDC state consume commit failed "
+            "(stage=commit, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+    return nonce
+
+
 @router.get("/callback")
 async def oidc_callback(
     code: Optional[str] = None,
@@ -604,8 +873,6 @@ async def oidc_callback(
     db: Session = Depends(get_db),
 ):
     """Validate state, exchange code, fetch userinfo, issue session JWT."""
-    from fastapi import HTTPException
-
     if error:
         raise HTTPException(status_code=400, detail=f"SSO provider returned error: {error}")
 
@@ -613,13 +880,12 @@ async def oidc_callback(
     if not cfg or not cfg.get("enabled"):
         raise HTTPException(status_code=503, detail="SSO is disabled or not configured")
 
-    # SECURITY: state must be present, single-use, unexpired, compared in
-    # constant time to prevent both replay and timing oracles. The consumed
-    # state also carries the nonce the provider must echo in the ID token.
-    expected_nonce = _consume_state(state)
-    if not expected_nonce:
-        logger.warning("OIDC callback rejected: invalid, expired or replayed state")
-        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+    # SECURITY: the durable state row is validated against the initiating
+    # browser cookie, current config generation and exact callback target, then
+    # atomically consumed before any upstream code exchange.
+    redirect_target = _redirect_uri(request)
+    expected_nonce = _consume_callback_state(
+        db, request, state, cfg, redirect_target)
 
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
@@ -639,7 +905,7 @@ async def oidc_callback(
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": _redirect_uri(request),
+                    "redirect_uri": redirect_target,
                     "client_id": cfg["client_id"],
                     "client_secret": cfg["client_secret"],
                 },
@@ -819,4 +1085,12 @@ async def oidc_callback(
         token_json=_json.dumps(access_jwt),
         redirect="/?sso=success",
     )
-    return HTMLResponse(content=html)
+    response = HTMLResponse(content=html)
+    response.delete_cookie(
+        key=_state_cookie_name(request),
+        path="/",
+        secure=_state_cookie_secure(request),
+        httponly=True,
+        samesite="lax",
+    )
+    return response

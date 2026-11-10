@@ -5,11 +5,19 @@ with discovery, JWKS, authorization redirect, token exchange and userinfo. The
 tests therefore exercise the product's real network callback path, including
 ID-token signature/issuer/audience/nonce verification.
 """
+import hashlib
 import json
 import logging
 import os
+import subprocess
+import sys
 import tempfile
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -26,13 +34,26 @@ from api import sso_oidc_routes
 from api.sso_oidc_routes import router
 from core.auth import SECRET_KEY, get_current_user
 from core.database import Base, get_db
-from core.models import User
+from core.models import OAuthState, Tenant, User
 from core.personal_scope import PERSONAL_TENANT_ID
 from scripts.controlled_oidc_provider import OIDCProvider, _pem
 
 CLIENT_ID = "atom-acceptance-client"
 CLIENT_SECRET = "atom-acceptance-secret"
 CALLBACK = "http://testserver/api/auth/sso/oidc/callback"
+
+
+def _seed_tenant(db):
+    tenant = Tenant(
+        id=PERSONAL_TENANT_ID,
+        name="Personal",
+        subdomain="personal",
+        edition="personal",
+        is_active=True,
+    )
+    db.add(tenant)
+    db.commit()
+    return tenant
 
 
 @pytest.fixture(scope="module")
@@ -53,6 +74,7 @@ def engine():
 @pytest.fixture()
 def db(engine):
     session = sessionmaker(bind=engine)()
+    _seed_tenant(session)
     yield session
     session.rollback()
     for table in reversed(Base.metadata.sorted_tables):
@@ -302,6 +324,7 @@ def concurrency_client(tmp_path):
     Base.metadata.create_all(eng)
     Session = sessionmaker(bind=eng)
     db = Session()
+    _seed_tenant(db)
     admin = User(
         id=f"admin-{uuid.uuid4().hex[:8]}",
         email="admin@example.com",
@@ -332,6 +355,120 @@ def concurrency_client(tmp_path):
         client.close()
         db.close()
         eng.dispose()
+
+
+_CHILD_CALLBACK_SCRIPT = '''\
+import json
+import sys
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from api.sso_oidc_routes import router
+from core.database import get_db
+from core.models import User
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+engine = create_engine(
+    f"sqlite:///{payload['db_path']}",
+    connect_args={"check_same_thread": False},
+)
+Session = sessionmaker(bind=engine)
+db = Session()
+app = FastAPI()
+app.include_router(router)
+
+def _get_db():
+    yield db
+
+app.dependency_overrides[get_db] = _get_db
+client = TestClient(app, base_url="http://testserver")
+client.cookies.set(
+    payload["cookie_name"], payload["cookie_value"], path="/")
+response = client.get(payload["callback"])
+count = db.query(User).filter(User.email == payload["email"]).count()
+print(json.dumps({"status": response.status_code, "created_rows": count}))
+db.close()
+'''
+
+
+def _cookie_pair(client):
+    for cookie in client.cookies.jar:
+        return cookie.name, cookie.value
+    raise AssertionError("SSO browser-binding cookie was not set")
+
+
+def _set_browser_cookie(client, name, value, domain=None):
+    if domain is None:
+        client.cookies.set(name, value, path="/")
+    else:
+        client.cookies.set(name, value, domain=domain, path="/")
+
+
+def _fresh_cookie_client(client, base_url="http://testserver"):
+    return TestClient(client.app, base_url=base_url)
+
+
+def _fresh_session_client(Session, base_url="http://testserver"):
+    app = FastAPI()
+    app.include_router(router)
+
+    def _get_db():
+        session = Session()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = _get_db
+    return TestClient(app, base_url=base_url)
+
+
+def _run_child_callback(
+        tmp_path, db_path, callback_url, cookie_name, cookie_value, email):
+    """Run one callback in a separate Python process over the same SQLite DB.
+
+    This is a controlled process-API proof, not uvicorn/browser qualification.
+    The child receives private input only and prints a safe status/row summary.
+    """
+    parsed = urlparse(callback_url)
+    callback = parsed.path + ("?" + parsed.query if parsed.query else "")
+    payload = {
+        "db_path": str(db_path),
+        "callback": callback,
+        "cookie_name": cookie_name,
+        "cookie_value": cookie_value,
+        "email": email,
+    }
+    input_path = tmp_path / "child_callback_input.json"
+    input_path.write_text(json.dumps(payload), encoding="utf-8")
+    os.chmod(input_path, 0o600)
+
+    script_path = tmp_path / "child_callback.py"
+    script_path.write_text(_CHILD_CALLBACK_SCRIPT, encoding="utf-8")
+    os.chmod(script_path, 0o600)
+
+    backend_dir = Path(sso_oidc_routes.__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(script_path), str(input_path)],
+        cwd=str(backend_dir),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    child_log = tmp_path / "child_callback.private.log"
+    child_log.write_text(
+        (result.stdout or "") + "\n--- stderr ---\n" + (result.stderr or ""),
+        encoding="utf-8",
+    )
+    os.chmod(child_log, 0o600)
+    assert result.returncode == 0, {"child_exit": result.returncode}
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    assert lines, {"child_exit": result.returncode, "child_output": "empty"}
+    return json.loads(lines[-1])
 
 
 def _before_claim_peer_write(engine, Session, user_id, changes):
@@ -813,15 +950,21 @@ def test_callback_uncertain_commit_does_not_return_session(
         client, provider, db, monkeypatch):
     _save_config(client, provider)
     existing = _existing_user(db)
+    callback = _provider_redirect(_start_login(client))
     real_commit = db.commit
 
-    def _fail_commit():
+    def _fail_second_commit():
+        # First commit consumes the durable state; the second is the existing
+        # account/session commit that must fail closed.
+        if _fail_second_commit.calls == 0:
+            _fail_second_commit.calls = 1
+            return real_commit()
         raise RuntimeError(
             "commit failed for hashed_password='super-secret-hash'")
 
-    monkeypatch.setattr(db, "commit", _fail_commit)
+    _fail_second_commit.calls = 0
+    monkeypatch.setattr(db, "commit", _fail_second_commit)
     try:
-        callback = _provider_redirect(_start_login(client))
         resp = _callback(client, callback)
     finally:
         monkeypatch.setattr(db, "commit", real_commit)
@@ -1136,3 +1279,246 @@ def test_exact_opaque_subject_pair_admits_profile_identity(
     assert db.query(User).filter(
         User.email == "sso.user@example.com").count() == 1
     assert _canonical_me_id(db, _callback_token(resp)) == user.id
+
+
+# ============================================================================
+# Durable browser-bound state
+# ============================================================================
+
+def test_login_requires_existing_authoritative_tenant(client, provider, db):
+    _save_config(client, provider)
+    db.query(Tenant).delete()
+    db.commit()
+
+    resp = client.get(
+        "/api/auth/sso/oidc/login", follow_redirects=False)
+
+    assert resp.status_code == 503
+    assert db.query(OAuthState).count() == 0
+
+
+def test_state_cookie_attributes_follow_environment(monkeypatch):
+    request = SimpleNamespace(url=SimpleNamespace(scheme="http"))
+
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    assert sso_oidc_routes._state_cookie_secure(request) is True
+    assert (
+        sso_oidc_routes._state_cookie_name(request)
+        == "__Host-atom_oidc_state"
+    )
+
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    assert sso_oidc_routes._state_cookie_secure(request) is False
+    assert sso_oidc_routes._state_cookie_name(request) == "atom_oidc_state"
+
+
+def test_login_persists_state_digest_not_raw_url_state(
+        client, provider, db):
+    _save_config(client, provider)
+    location = _start_login(client)
+    raw_state = parse_qs(urlparse(location).query)["state"][0]
+    _cookie_name, cookie_value = _cookie_pair(client)
+
+    row = db.query(OAuthState).one()
+    serialized_extra = json.dumps(row.extra_data)
+    assert row.state == hashlib.sha256(
+        raw_state.encode("utf-8")).hexdigest()
+    assert raw_state not in serialized_extra
+    assert cookie_value not in serialized_extra
+    assert row.redirect_uri == CALLBACK
+    assert row.provider == "oidc"
+    assert row.tenant_id == PERSONAL_TENANT_ID
+
+
+def test_process_restart_preserves_durable_state_and_cookie(
+        client, provider, db, tmp_path):
+    """Controlled process-API proof, not uvicorn/browser qualification."""
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    cookie_name, cookie_value = _cookie_pair(client)
+    db_path = db.get_bind().url.database
+
+    summary = _run_child_callback(
+        tmp_path,
+        db_path,
+        callback,
+        cookie_name,
+        cookie_value,
+        "sso.user@example.com",
+    )
+
+    assert summary == {"status": 200, "created_rows": 1}
+    db.expire_all()
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 1
+
+
+@pytest.mark.parametrize("cookie_mode", ["missing", "wrong"])
+def test_callback_requires_same_browser_cookie(
+        client, provider, db, cookie_mode):
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    cookie_name, cookie_value = _cookie_pair(client)
+
+    other_browser = _fresh_cookie_client(client)
+    try:
+        if cookie_mode == "wrong":
+            _set_browser_cookie(
+                other_browser, cookie_name, "wrong-browser-binding")
+        resp = _callback(other_browser, callback)
+    finally:
+        other_browser.close()
+
+    assert resp.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+    assert db.query(OAuthState).count() == 1
+    assert not any(
+        record["path"] == "/token" for record in provider.records)
+
+
+def test_expired_durable_state_refused_before_exchange(
+        client, provider, db):
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    row = db.query(OAuthState).one()
+    row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+    assert db.query(OAuthState).count() == 1
+    assert not any(
+        record["path"] == "/token" for record in provider.records)
+
+
+def test_durable_state_replay_refused_with_cookie(client, provider, db):
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    cookie_name, cookie_value = _cookie_pair(client)
+
+    first = _callback(client, callback)
+    assert first.status_code == 200
+    assert db.query(OAuthState).count() == 0
+
+    _set_browser_cookie(client, cookie_name, cookie_value)
+    replay = _callback(client, callback)
+
+    assert replay.status_code == 401
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 1
+    assert sum(
+        1 for record in provider.records if record["path"] == "/token") == 1
+
+
+@pytest.mark.parametrize(
+    "change", ["issuer", "client", "config-generation"])
+def test_callback_rejects_changed_config_before_exchange(
+        client, provider, db, change):
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    overrides = {
+        "issuer": {"issuer_url": provider.base_url + "/changed"},
+        "client": {"client_id": "other-client"},
+        "config-generation": {"default_role": "admin"},
+    }[change]
+    assert _save_config(client, provider, **overrides).status_code == 200
+
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 409
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+    assert db.query(OAuthState).count() == 1
+    assert not any(
+        record["path"] == "/token" for record in provider.records)
+
+
+def test_callback_rejects_changed_callback_target(
+        client, provider, db):
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    cookie_name, cookie_value = _cookie_pair(client)
+
+    other_origin = _fresh_cookie_client(client, base_url="http://otherserver")
+    try:
+        _set_browser_cookie(other_origin, cookie_name, cookie_value)
+        resp = _callback(other_origin, callback)
+    finally:
+        other_origin.close()
+
+    assert resp.status_code == 409
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+    assert db.query(OAuthState).count() == 1
+    assert not any(
+        record["path"] == "/token" for record in provider.records)
+
+
+def test_callback_rejects_tampered_stored_redirect_target(
+        client, provider, db):
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    row = db.query(OAuthState).one()
+    row.redirect_uri = "http://otherserver/api/auth/sso/oidc/callback"
+    db.commit()
+
+    resp = _callback(client, callback)
+
+    assert resp.status_code == 409
+    assert db.query(User).filter(
+        User.email == "sso.user@example.com").count() == 0
+    assert db.query(OAuthState).count() == 1
+    assert not any(
+        record["path"] == "/token" for record in provider.records)
+
+
+def test_concurrent_durable_state_consume_single_use(
+        concurrency_client, provider):
+    client, engine, Session, _db = concurrency_client
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    cookie_name, cookie_value = _cookie_pair(client)
+
+    first = _fresh_session_client(Session)
+    second = _fresh_session_client(Session)
+    _set_browser_cookie(first, cookie_name, cookie_value)
+    _set_browser_cookie(second, cookie_name, cookie_value)
+
+    barrier = threading.Barrier(2)
+
+    def _before_delete(conn, cursor, statement, parameters, context,
+                       executemany):
+        if not statement.lstrip().lower().startswith(
+                "delete from oauth_states"):
+            return
+        try:
+            barrier.wait(timeout=10)
+        except threading.BrokenBarrierError:
+            return
+
+    event.listen(engine, "before_cursor_execute", _before_delete)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [
+                pool.submit(_callback, candidate, callback)
+                for candidate in (first, second)
+            ]
+            responses = [future.result(timeout=60) for future in futures]
+    finally:
+        event.remove(engine, "before_cursor_execute", _before_delete)
+        first.close()
+        second.close()
+
+    assert sorted(response.status_code for response in responses) == [200, 401]
+
+    fresh = Session()
+    try:
+        assert fresh.query(User).filter(
+            User.email == "sso.user@example.com").count() == 1
+        assert fresh.query(OAuthState).count() == 0
+    finally:
+        fresh.close()
