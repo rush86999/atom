@@ -164,6 +164,10 @@ class MockEmbedder:
             return vec
 
 
+class DocumentListingUnavailable(RuntimeError):
+    """A complete, globally ordered document page could not be produced."""
+
+
 class LanceDBHandler:
     """LanceDB vector database handler with dual vector storage support"""
 
@@ -1692,56 +1696,193 @@ class LanceDBHandler:
     def list_documents(
         self, table_name: str, limit: int = 20, offset: int = 0
     ) -> list[dict[str, Any]]:
-        """List documents (recent first)"""
+        """List documents (recent first) with global deterministic ordering.
+
+        Ordering contract: ``created_at`` descending, then the opaque ``id``
+        descending as a deterministic tie-break. The query orders the *whole*
+        table through Lance's projected native scan before applying
+        ``limit``/``offset``; it never fetches the vector column and never
+        slices a locally fetched prefix.
+
+        Raises :class:`DocumentListingUnavailable` when the native ordered scan
+        cannot be produced. It never falls back to a known-incomplete prefix
+        sort: a caller must either surface unavailability or use an explicit,
+        complete mechanism.
+
+        There is no snapshot guarantee across concurrent writes: ``count`` and
+        the page read are separate native scans.
+        """
+        page = self.list_documents_page(table_name, limit=limit, offset=offset)
+        return page["documents"]
+
+    def list_documents_page(
+        self, table_name: str, limit: int = 20, offset: int = 0
+    ) -> dict[str, Any]:
+        """Return one strict, globally ordered page plus truthful metadata.
+
+        A missing/empty table is a valid empty library. A present table whose
+        native ordering/count cannot be produced raises
+        :class:`DocumentListingUnavailable`; it is never reported as an empty
+        success. ``has_more`` is only true when at least one row was returned,
+        so ``next_offset`` always advances (no self-loop).
+        """
         self._ensure_db()
         if self.db is None:
-            return []
+            raise DocumentListingUnavailable("LanceDB connection is unavailable")
 
         try:
             table = self.get_table(table_name)
-            if table is None:
-                return []
+        except Exception as exc:  # noqa: BLE001
+            raise DocumentListingUnavailable(
+                f"LanceDB table lookup failed for {table_name!r}"
+            ) from exc
 
-            # Retrieve all (or limit) and sort by created_at desc if possible
-            # LanceDB might not support efficient global sorting without an index,
-            # so we fetch and sort in memory for small batches
-            df = table.search().limit(limit + offset).to_pandas()
+        if table is None:
+            return {
+                "documents": [],
+                "total": 0,
+                "count": 0,
+                "has_more": False,
+                "next_offset": None,
+                "previous_offset": None,
+                "ordering": "created_at_desc,id_desc",
+            }
 
-            if df.empty:
-                return []
+        try:
+            total_raw = table.count_rows()
+        except Exception as exc:  # noqa: BLE001
+            raise DocumentListingUnavailable(
+                f"LanceDB count failed for {table_name!r}"
+            ) from exc
+        if not isinstance(total_raw, (int, bool)):
+            raise DocumentListingUnavailable(
+                f"LanceDB count returned a non-integer for {table_name!r}"
+            )
+        total = int(total_raw)
 
-            # Sort by created_at if available
-            if "created_at" in df.columns:
-                df = df.sort_values("created_at", ascending=False)
+        df = self._ordered_documents_frame(table, limit=limit, offset=offset)
+        documents = self._documents_from_frame(df)
+        count = len(documents)
+        has_more = count > 0 and (offset + count) < total
+        next_offset = (offset + count) if has_more else None
+        previous_offset = max(0, offset - limit) if offset > 0 else None
+        return {
+            "documents": documents,
+            "total": total,
+            "count": count,
+            "has_more": has_more,
+            "next_offset": next_offset,
+            "previous_offset": previous_offset,
+            "stale_page": count == 0 and offset < total,
+            "ordering": "created_at_desc,id_desc",
+        }
 
-            # Apply offset/limit
-            df = df.iloc[offset : offset + limit]
+    def _ordered_documents_frame(
+        self, table: Any, limit: int, offset: int
+    ):
+        """Projected, globally ordered page via the installed Lance SDK.
 
-            docs = []
-            for _, row in df.iterrows():
-                metadata = row.get("metadata", {})
-                if isinstance(metadata, str):
-                    try:
-                        metadata = json.loads(metadata)
-                    except Exception:                         metadata = {}
-                elif metadata is None:
-                    metadata = {}
+        ``LanceDataset.to_table(..., order_by=[ColumnOrdering(...)])`` applies
+        the ordering before ``offset``/``limit`` at scan level, and the vector
+        column is not projected. Any unsupported/error path raises
+        :class:`DocumentListingUnavailable`; there is deliberately no
+        incomplete prefix-sort fallback.
+        """
+        if pa is None:
+            raise DocumentListingUnavailable("pyarrow is unavailable")
+        to_lance = getattr(table, "to_lance", None)
+        if not callable(to_lance):
+            raise DocumentListingUnavailable(
+                "table does not expose the Lance dataset primitive"
+            )
+        try:
+            from lance.dataset import ColumnOrdering
 
-                docs.append(
-                    {
-                        "id": row["id"],
-                        "title": metadata.get("title") or row.get("source") or "Untitled",
-                        "text_preview": (row["text"] or "")[:200],
-                        "metadata": metadata,
-                        "created_at": row.get("created_at", ""),
-                    }
+            dataset = to_lance()
+            names = set(dataset.schema.names)
+            columns = [
+                name for name in ("id", "text", "source", "metadata", "created_at")
+                if name in names
+            ]
+            if not columns or "id" not in names:
+                raise DocumentListingUnavailable(
+                    "documents table is missing the id column"
                 )
+            order_by = []
+            if "created_at" in names:
+                order_by.append(ColumnOrdering("created_at", False, False))
+            order_by.append(ColumnOrdering("id", False, False))
+            page = dataset.to_table(
+                columns=columns,
+                limit=limit,
+                offset=offset,
+                order_by=order_by,
+            )
+            if not isinstance(page, pa.Table):
+                raise DocumentListingUnavailable(
+                    "native ordered scan did not return an Arrow table"
+                )
+            return page.to_pandas()
+        except DocumentListingUnavailable:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise DocumentListingUnavailable(
+                f"native ordered document scan failed: {exc}"
+            ) from exc
 
-            return docs
-
-        except Exception as e:
-            logger.error(f"Failed to list documents: {e}")
+    def _documents_from_frame(self, df) -> list[dict[str, Any]]:
+        if df is None or df.empty:
             return []
+        documents = []
+        for _, row in df.iterrows():
+            metadata = row.get("metadata", {})
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except Exception:
+                    metadata = {}
+            elif metadata is None:
+                metadata = {}
+            documents.append(
+                {
+                    "id": row["id"],
+                    "title": metadata.get("title") or row.get("source") or "Untitled",
+                    "text_preview": (row.get("text") or "")[:200],
+                    "metadata": metadata,
+                    "created_at": row.get("created_at", ""),
+                }
+            )
+        return documents
+
+    def count_documents(self, table_name: str) -> int:
+        """Return the table's native row count without loading documents.
+
+        Raises :class:`DocumentListingUnavailable` when the count cannot be
+        produced; it never reports a failed count as an empty library.
+        """
+        self._ensure_db()
+        if self.db is None:
+            raise DocumentListingUnavailable("LanceDB connection is unavailable")
+        try:
+            table = self.get_table(table_name)
+        except Exception as exc:  # noqa: BLE001
+            raise DocumentListingUnavailable(
+                f"LanceDB table lookup failed for {table_name!r}"
+            ) from exc
+        if table is None:
+            return 0
+        try:
+            total = table.count_rows()
+        except Exception as exc:  # noqa: BLE001
+            raise DocumentListingUnavailable(
+                f"LanceDB count failed for {table_name!r}"
+            ) from exc
+        if not isinstance(total, (int, bool)):
+            raise DocumentListingUnavailable(
+                f"LanceDB count returned a non-integer for {table_name!r}"
+            )
+        return int(total)
+
 
     def query_knowledge_graph(
         self,
