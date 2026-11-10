@@ -1,0 +1,191 @@
+{
+  "status": "PASS",
+  "scope": "ordinary custom Hire only; no guided model generation",
+  "world": "web_hire_ui_708d4d6a5_1794335154",
+  "nonce": "32d8a92cde",
+  "ports": {
+    "backend": 8073,
+    "frontend": 3173
+  },
+  "source": {
+    "repo": "/private/tmp/atom-goal14-create-ui-join-20261110",
+    "head": "416094ffba4e457f2670a59e9871d1cce7b14292",
+    "branch": "codex/web-goal14-create-ui-join-20261110",
+    "dirty": "?? .watchman-cookie-MacBook-Pro.local-2934-29\n?? .watchman-cookie-MacBook-Pro.local-2934-31\n?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join.py\n?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/"
+  },
+  "storage_preflight": "world storage preflight OK\n  ok       no maintenance lock\n  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds",
+  "runners_before": [
+    {
+      "argv": [
+        "docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join.py",
+        "--out",
+        "docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join",
+        "--world",
+        "web_hire_ui_708d4d6a5_1794335154",
+        "--backend-port",
+        "8073",
+        "--frontend-port"
+      ],
+      "cwd": "/private/tmp/atom-goal14-create-ui-join-20261110",
+      "pid": 40576,
+      "ppid": 40574,
+      "registered_at": 1794335922.362446,
+      "registered_at_iso": "2026-11-10T13:38:42-0500",
+      "role": "launcher"
+    }
+  ],
+  "runners_after": [
+    {
+      "argv": [
+        "docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join.py",
+        "--out",
+        "docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join",
+        "--world",
+        "web_hire_ui_708d4d6a5_1794335154",
+        "--backend-port",
+        "8073",
+        "--frontend-port"
+      ],
+      "cwd": "/private/tmp/atom-goal14-create-ui-join-20261110",
+      "pid": 40576,
+      "ppid": 40574,
+      "registered_at": 1794335922.362446,
+      "registered_at_iso": "2026-11-10T13:38:42-0500",
+      "role": "launcher"
+    }
+  ],
+  "network_boundary": {
+    "loopback": true,
+    "external_blocked": true
+  },
+  "world_preflight": {
+    "source_revision": "416094ffba4e457f2670a59e9871d1cce7b14292",
+    "code_archive_sha256": null,
+    "code_snapshot_sha256": "b4aa64edb48cc5f24ed318afb627fc5a700c795f3f5626b6b0fa654455f5be49",
+    "db_sha256": "c5f6455b95d24201642b4b4e47f3bc3ed50d57434c133ce4f11c86bc429cf204",
+    "credentials_scrubbed": true,
+    "venv_verified": true,
+    "fixtures_verified": true,
+    "harness_version": "enforced-isolation-v3.2"
+  },
+  "run_dir": "/private/tmp/atom-goal14-create-ui-join-20261110/backend/data/acceptance_worlds/web_hire_ui_708d4d6a5_1794335154/runs/run-fcf95adcaed0",
+  "db_path": "/private/tmp/atom-goal14-create-ui-join-20261110/backend/data/acceptance_worlds/web_hire_ui_708d4d6a5_1794335154/runs/run-fcf95adcaed0/data/atom.db",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "http://localhost:8073/api/agents/custom?operation_id=01e67049-e999-46b0-b5f3-aae4fa0041d8",
+      "path": "/api/agents/custom",
+      "query": {
+        "operation_id": [
+          "01e67049-e999-46b0-b5f3-aae4fa0041d8"
+        ]
+      },
+      "post_data": "{\"name\":\"Custom Hire Join 32d8a92cde\",\"description\":\"Owns inbound leads and the pipeline. Controlled ordinary custom Hire join; drafts everything for approval until promoted.\",\"category\":\"Sales\",\"configuration\":{},\"schedule_config\":{}}"
+    }
+  ],
+  "responses": [
+    {
+      "status": 201,
+      "url": "http://localhost:8073/api/agents/custom?operation_id=01e67049-e999-46b0-b5f3-aae4fa0041d8"
+    }
+  ],
+  "external_hosts": [],
+  "ui": {
+    "login": {
+      "ok": true,
+      "landed_path": "/dashboard",
+      "token_present": true,
+      "error": null
+    },
+    "hire": {
+      "dialog_opened": true,
+      "name": "Custom Hire Join 32d8a92cde",
+      "card_count_after_reload": 1,
+      "maturity_badge": "STUDENT",
+      "toast_visible": false
+    }
+  },
+  "api": {
+    "creation": {
+      "http_status": 201,
+      "success": true,
+      "agent_id": "95314d21-1f92-5a6a-a062-2ea02e2deab7",
+      "name": "Custom Hire Join 32d8a92cde",
+      "category": "Sales",
+      "operation_id": "agent:create:01e67049-e999-46b0-b5f3-aae4fa0041d8",
+      "audit_id": "agent:create:01e67049-e999-46b0-b5f3-aae4fa0041d8",
+      "verification": {
+        "status": "verified",
+        "effect": "committed",
+        "audit_id": "agent:create:01e67049-e999-46b0-b5f3-aae4fa0041d8"
+      }
+    },
+    "list": {
+      "http_status": 200,
+      "count_total": 2,
+      "count_exact_id": 1,
+      "count_same_name": 1,
+      "exact": {
+        "id": "95314d21-1f92-5a6a-a062-2ea02e2deab7",
+        "name": "Custom Hire Join 32d8a92cde",
+        "description": "Owns inbound leads and the pipeline. Controlled ordinary custom Hire join; drafts everything for approval until promoted.",
+        "status": "student",
+        "last_run": null,
+        "category": "Sales"
+      }
+    }
+  },
+  "db": {
+    "exact_agent_rows": 1,
+    "same_name_rows": 1,
+    "audit_rows_for_operation": 1,
+    "agent": {
+      "id": "95314d21-1f92-5a6a-a062-2ea02e2deab7",
+      "name": "Custom Hire Join 32d8a92cde",
+      "status": "student",
+      "confidence_score": 0.35,
+      "schedule_config": "{}",
+      "configuration": "{}"
+    },
+    "audit": [
+      {
+        "id": "agent:create:01e67049-e999-46b0-b5f3-aae4fa0041d8",
+        "event_type": "create"
+      }
+    ]
+  },
+  "controls": {
+    "exactly_one_post_at_end": true,
+    "exactly_one_response_at_end": true,
+    "one_post": true,
+    "one_response": true,
+    "request_method_post": true,
+    "operation_id_sent": true,
+    "operation_id_receipt_prefix": true,
+    "operation_id_receipt_matches_request": true,
+    "audit_id_matches_operation": true,
+    "verified_receipt": true,
+    "exact_list_row_once": true,
+    "same_name_row_once": true,
+    "db_exact_agent_once": true,
+    "db_same_name_once": true,
+    "db_audit_once": true,
+    "ui_card_once_after_reload": true,
+    "ui_student_badge": true,
+    "db_student": true,
+    "no_promotion": true,
+    "no_scheduler_config": true,
+    "no_provider_host_requested": true,
+    "network_boundary_external_blocked": true
+  },
+  "screenshots": [
+    "01_agents_before_hire.png",
+    "02_hire_dialog.png",
+    "03_after_hire.png",
+    "04_after_reload.png"
+  ],
+  "errors": [],
+  "scheduler_note": "the custom Hire sends an inactive empty schedule_config and run_isolated.launch_server launches with ENABLE_SCHEDULER=false; exactly one agent row/audit and one POST are the duplicate check",
+  "failing_controls": [],
+  "finished_at": "2026-11-10T13:42:47-0500"
+}

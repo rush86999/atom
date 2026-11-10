@@ -1,0 +1,143 @@
+{
+  "gate": "creation receipt binding after-gate",
+  "source_head": "7301110acf5e60f913259884ab3e749b5d9d4abc",
+  "source_dirty": [
+    "M docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/README.md",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/SOURCE_IDENTITY_RECONCILIATION.json",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/SOURCE_IDENTITY_RECONCILIATION.md",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join.py",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/01_agents_before_hire.png",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/02_hire_dialog.png",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/03_after_hire.png",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/04_after_reload.png",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/browser_custom_hire_join.json",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/receipt_binding_after_gate.json",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/browser_custom_hire_join/world_manifest.json",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/receipt_binding_after_gate.cjs",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/root-independent-31a82b316/CREATION_UI31_ROOT_JEST_GATE.json",
+    "?? docs/acceptance/evidence/employee_agent_creation_ui_708d4d6a5/root-independent-31a82b316/CREATION_UI_RECEIPT_BINDING_ROOT_AFTER_31a82b316.json"
+  ],
+  "method": "actual TypeScript module transpiled with existing TypeScript; only apiClient.post doubled; exact backend-shaped nested audit",
+  "required_operation": "agent:create:intent-1",
+  "results": [
+    {
+      "case": "invalid_wrong_operation",
+      "kind": "custom",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "operation id does not match this intent",
+      "ok": true
+    },
+    {
+      "case": "invalid_wrong_operation",
+      "kind": "guided",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "operation id does not match this intent",
+      "ok": true
+    },
+    {
+      "case": "invalid_missing_receipt",
+      "kind": "custom",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "operation id does not match this intent",
+      "ok": true
+    },
+    {
+      "case": "invalid_missing_receipt",
+      "kind": "guided",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "operation id does not match this intent",
+      "ok": true
+    },
+    {
+      "case": "invalid_contradictory_effect",
+      "kind": "custom",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "verification effect is not committed",
+      "ok": true
+    },
+    {
+      "case": "invalid_contradictory_effect",
+      "kind": "guided",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "verification effect is not committed",
+      "ok": true
+    },
+    {
+      "case": "invalid_missing_nested_audit",
+      "kind": "custom",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "verification audit does not match this operation",
+      "ok": true
+    },
+    {
+      "case": "invalid_missing_nested_audit",
+      "kind": "guided",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "verification audit does not match this operation",
+      "ok": true
+    },
+    {
+      "case": "invalid_nested_audit_mismatch",
+      "kind": "custom",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "verification audit does not match this operation",
+      "ok": true
+    },
+    {
+      "case": "invalid_nested_audit_mismatch",
+      "kind": "guided",
+      "expected": "reject",
+      "accepted": false,
+      "code": "UNVERIFIED_CREATE",
+      "problem": "verification audit does not match this operation",
+      "ok": true
+    },
+    {
+      "case": "actual_valid_verified",
+      "kind": "custom",
+      "expected": "accept",
+      "accepted": true,
+      "ok": true
+    },
+    {
+      "case": "actual_valid_verified",
+      "kind": "guided",
+      "expected": "accept",
+      "accepted": true,
+      "ok": true
+    },
+    {
+      "case": "actual_valid_already_applied",
+      "kind": "custom",
+      "expected": "accept",
+      "accepted": true,
+      "ok": true
+    },
+    {
+      "case": "actual_valid_already_applied",
+      "kind": "guided",
+      "expected": "accept",
+      "accepted": true,
+      "ok": true
+    }
+  ],
+  "failing": []
+}

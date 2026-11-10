@@ -1,0 +1,102 @@
+PASS components/Agents/__tests__/GuidedAgentCreator.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to GuidedAgentCreator inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at GuidedAgentCreator (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx:35:42)
+
+      58 |     setSuggestionsLoading(true);
+      59 |     getAutomationSuggestions(3)
+    > 60 |       .then((res) => setSuggestions(res?.suggestions ?? []))
+         |                      ^
+      61 |       .catch(() => setSuggestions([])) // inspiration is optional — never block creation
+      62 |       .finally(() => setSuggestionsLoading(false));
+      63 |   }, [open, suggestions.length, suggestionsLoading]);
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/GuidedAgentCreator.tsx:60:22
+
+    console.error
+      Warning: An update to GuidedAgentCreator inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at GuidedAgentCreator (/private/tmp/atom-goal14-create-ui-join-20261110/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx:35:42)
+
+      60 |       .then((res) => setSuggestions(res?.suggestions ?? []))
+      61 |       .catch(() => setSuggestions([])) // inspiration is optional — never block creation
+    > 62 |       .finally(() => setSuggestionsLoading(false));
+         |                      ^
+      63 |   }, [open, suggestions.length, suggestionsLoading]);
+      64 |
+      65 |   const reset = useCallback(() => {
+
+      at printWarning (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/GuidedAgentCreator.tsx:62:22
+
+PASS components/Agents/__tests__/AgentLaunchGuide.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/canvas/__tests__/AgentAttachModal.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/agents-creation-join.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/agent-creation-retry.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 5 passed, 5 total
+Tests:       51 passed, 51 total
+Snapshots:   0 total
+Time:        2.668 s, estimated 3 s
+Ran all test suites within paths "lib/__tests__/agent-creation-retry.test.ts", "components/Agents/__tests__/AgentLaunchGuide.test.tsx", "components/Agents/__tests__/GuidedAgentCreator.test.tsx", "components/canvas/__tests__/AgentAttachModal.test.tsx", "tests/pages/agents-creation-join.test.tsx".
