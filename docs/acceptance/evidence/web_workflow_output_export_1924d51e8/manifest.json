@@ -9,17 +9,17 @@
     "note": "PR819 reviewed delivery source retained; no changes to frozen workflow handoff branch/evidence."
   },
   "evidence_files": {
-    "README.md": "e0d4eec7784214849558498a4e3fe35830392299b1a5c879653341238a69007d",
-    "boundary/base_export_404_and_raw_results.txt": "2f0364503573dfb8c60c7125a362791358a2da688dc7c534468c03a5ab8eba2b",
-    "fresh_process/fresh_export_bytes_hash.txt": "370ac21753810655c57c83dc374e8c0f491c81007e9804bdf947c71d8ffd98c3",
+    "README.md": "7ff1b92a8c4530321acf585c88433d74f21e3a21f7c55cd9e7bb615c066503d1",
+    "boundary/base_export_404_and_raw_results.proof": "2f0364503573dfb8c60c7125a362791358a2da688dc7c534468c03a5ab8eba2b",
+    "fresh_process/fresh_export_bytes_hash.proof": "370ac21753810655c57c83dc374e8c0f491c81007e9804bdf947c71d8ffd98c3",
     "fresh_process/fresh_process_roundtrip.py": "86af271ac04083fc6b96394fa19320d7226e7c39abd21eba1efded156ee51d4d",
-    "gates/affected_135.txt": "25398b168e08ece3d026ae84b9c33a794cadcfde42396445ed92174be95c4025",
-    "gates/combined_40.txt": "45838fe6c2739e791072657b698ccdd240981510c8777ddf3cef93454b41c88a",
-    "gates/export_suite_10.txt": "71283d43ddb9b0b34eb62d4df392ff9339f4352263f929b43df49e620015a24b",
-    "gates/frontend_42.txt": "df7b1347dee3cd760ebf1a323605f2dab27160c2e6dd97b417ffa9918d140dc3",
-    "gates/root_export_negatives_local_7.txt": "aebb8ccd96e0277c591ebb9cbf529a0003efa33c3902301284b0ca0ce0a41a4e",
+    "gates/affected_135.proof": "25398b168e08ece3d026ae84b9c33a794cadcfde42396445ed92174be95c4025",
+    "gates/combined_40.proof": "45838fe6c2739e791072657b698ccdd240981510c8777ddf3cef93454b41c88a",
+    "gates/export_suite_10.proof": "71283d43ddb9b0b34eb62d4df392ff9339f4352263f929b43df49e620015a24b",
+    "gates/frontend_42.proof": "df7b1347dee3cd760ebf1a323605f2dab27160c2e6dd97b417ffa9918d140dc3",
+    "gates/root_export_negatives_local_7.proof": "aebb8ccd96e0277c591ebb9cbf529a0003efa33c3902301284b0ca0ce0a41a4e",
     "research/REUSE_DECISION.md": "4c3f5a7b6afe71cd113dd09d21a161928e14442ce4b732148348992c222cfac4",
-    "root_controls/root_export_negatives_70cc.controls.txt": "cd8617afe48056a2179fcb83a45c122d9525b6828e204029bd232688eb0c40a4",
+    "root_controls/root_export_negatives_70cc.controls.proof": "cd8617afe48056a2179fcb83a45c122d9525b6828e204029bd232688eb0c40a4",
     "root_controls/root_export_negatives_70cc.review.json": "2af7607b28530d21d61fd69e625f30a0ddaf773a451d3246cc48aa6e8f7d0ac3"
   },
   "fresh_process": {

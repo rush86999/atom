@@ -1,0 +1,13 @@
+BOUNDARY_NO_EXPORT 404 RAW_RESULTS_ONLY ['actions_executed', 'duration_ms', 'end_time', 'errors', 'execution_id', 'results', 'start_time', 'status', 'trigger_data', 'workflow_id']
+.
+=============================== warnings summary ===============================
+root_workflow_output_boundary_test.py::test_execution_details_has_no_supported_export
+  <scratch-path> DeprecationWarning: invalid escape sequence '\%'
+    """
+
+root_workflow_output_boundary_test.py::test_execution_details_has_no_supported_export
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 2 warnings in 3.82s
