@@ -1,0 +1,63 @@
+{
+  "distinct_canvas_ids": [
+    "2253b3b0-b51a-44b5-865a-7f50a1b7b10f"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/context"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/context"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/agents"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/history"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/capability"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/logic"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/capability"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/logic"
+    },
+    {
+      "method": "GET",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f/context"
+    },
+    {
+      "method": "PUT",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=9b17bdca-a78b-4abf-a279-b61176c101b6"
+    },
+    {
+      "method": "PUT",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=ad9ba35e-6e06-4d1b-a3fb-b7b916c76c41"
+    },
+    {
+      "method": "PUT",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=2d3c6e49-be21-4145-b8a4-b2a90d0c061a"
+    },
+    {
+      "method": "PUT",
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=d7d27a07-4112-43fe-906b-a97ecda1df46"
+    }
+  ]
+}

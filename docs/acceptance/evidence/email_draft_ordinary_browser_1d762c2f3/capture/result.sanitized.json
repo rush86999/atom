@@ -1,0 +1,195 @@
+{
+  "admin_fixture_reset": true,
+  "canvas_id": "2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+  "checks_derived": {
+    "current_audit": "874d129f-37c7-4b2d-95e1-fec98a238bf0",
+    "durable_content_exact": true,
+    "email_ui_save_open_reload": true,
+    "exact_canvas": "2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+    "fresh_context_exact": true,
+    "zero_send": true
+  },
+  "initial_harness_assertion_note": "The final driver assertion falsely required every /api/canvas/* path (including email/contacts, email/signature, context, history) to contain the canvas id. Corrected derivation is in request-summary.json; all canvas-id paths are exact and PUTs are exact.",
+  "resume": {
+    "descriptor_db": "<home>",
+    "run_dir": "<scratch>"
+  },
+  "schema": "email-draft-ordinary-ui-2",
+  "source_head": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
+  "step_statuses": [
+    {
+      "checks": {
+        "canvas_admin_raw_null": true,
+        "canvas_scope_default": true,
+        "canvas_type_email": true,
+        "three_old_seed_saves_retained": true
+      },
+      "name": "retained_negative_state_readonly",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "db_path_same": true,
+        "same_run_dir": true
+      },
+      "name": "same_run_resumed",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "ok": true
+      },
+      "name": "backend_health_resume",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "email": true,
+        "password_source_present": "<redacted>",
+        "status_200": true,
+        "token": true
+      },
+      "name": "ordinary_admin_api_login",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "email_type": true,
+        "same_canvas": true
+      },
+      "name": "pre_correction_content_read",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "status_200": true
+      },
+      "name": "seed_shape_correction_put",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "body_exact": true,
+        "cc_exact": true,
+        "disclosed_correction": true,
+        "no_nested_draft": true,
+        "seed_audit_new": true,
+        "subject_exact": true,
+        "to_exact": true
+      },
+      "name": "ordinary_seed_exact",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "login_ok": true,
+        "onboarding_durable": true
+      },
+      "name": "ordinary_ui_login",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "body_exact": true,
+        "cc_exact": true,
+        "subject_exact": true,
+        "to_exact": true
+      },
+      "name": "seed_visible_in_ui",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "body_exact": true,
+        "body_set": true,
+        "cc_cleared": true,
+        "cc_cleared_set": true,
+        "cc_temp_set": true,
+        "subject_exact": true,
+        "subject_set": true,
+        "to_exact": true,
+        "to_set": true
+      },
+      "name": "visible_edit_applied",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "committed": true
+      },
+      "name": "ordinary_ui_edit_autosave_commit",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "audit_is_new": true,
+        "body_exact": true,
+        "cc_cleared": true,
+        "email_view_body": true,
+        "email_view_cc": true,
+        "email_view_subject": true,
+        "email_view_to": true,
+        "no_old_in_view": true,
+        "old_absent": true,
+        "subject_exact": true,
+        "to_exact": true
+      },
+      "name": "current_authoritative_audit_api_exact",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "fresh_audit_content_exact": true,
+        "fresh_audit_old_absent": true,
+        "fresh_latest_audit_is_current": true,
+        "no_foreign_scope": true,
+        "public_get_body": true,
+        "public_get_cc": true,
+        "public_get_subject": true,
+        "public_get_to": true,
+        "reloaded_body_exact": true,
+        "reloaded_cc_cleared": true,
+        "reloaded_old_absent": true,
+        "reloaded_subject_exact": true,
+        "reloaded_to_exact": true,
+        "same_user_login": true
+      },
+      "name": "fresh_context_exact_vs_public_get_and_db",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "all_canvas_requests_exact_canvas": false,
+        "put_payload_ordinary_shape": true,
+        "put_used_exact_canvas": true,
+        "zero_send": true
+      },
+      "name": "zero_send_and_exact_canvas",
+      "status": "FAIL"
+    }
+  ],
+  "stops": {
+    "backend": {
+      "exited": true,
+      "only_own_pid": true,
+      "pid": 30536,
+      "poll": -15,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "was_running": true
+    },
+    "frontend": {
+      "exited": true,
+      "only_own_pid": true,
+      "pid": 30552,
+      "poll": 0,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "was_running": true
+    }
+  }
+}

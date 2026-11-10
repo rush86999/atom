@@ -1,0 +1,151 @@
+{
+  "canvas_id": null,
+  "first_attempt_schema": "email-draft-ordinary-ui-1",
+  "note": "first-attempt step details omitted token/password fields; requests were local example.invalid only",
+  "observed": "three autosave PUTs returned 200 but persisted the OLD seed because the seeded content carried a nested draft",
+  "old_seed_save_audits": [
+    {
+      "action_type": "update",
+      "audit_id": "d50f53ca-722e-4fd2-ac80-e8129ad50525",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:21:06.414169",
+      "has_nested_draft": true,
+      "subject": "Email Draft OLD",
+      "to": "seed@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "17aedd92-9c8f-43ea-8b5a-1187fcede82c",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:22:35.053571",
+      "has_nested_draft": true,
+      "subject": "Email Draft OLD",
+      "to": "seed@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "b8d4719c-2e27-4096-b430-e84b3c7dac3e",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:22:38.209655",
+      "has_nested_draft": true,
+      "subject": "Email Draft OLD",
+      "to": "seed@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "dd77d154-e1cb-4bd3-a2fd-e55dbb5e36fd",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:22:40.386117",
+      "has_nested_draft": true,
+      "subject": "Email Draft OLD",
+      "to": "seed@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "b25a61d6-792e-49b5-a99e-112a59f56151",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:28:57.078264",
+      "has_nested_draft": false,
+      "subject": "Email Draft OLD",
+      "to": "seed@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "a14c47c6-c007-4003-a457-3889bc285a4b",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:30:29.943350",
+      "has_nested_draft": false,
+      "subject": "Email Draft OLD",
+      "to": "alpha@example.invalid, clear@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "9b17bdca-a78b-4abf-a279-b61176c101b6",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:33:26.639384",
+      "has_nested_draft": false,
+      "subject": "Email Draft OLD",
+      "to": "seed@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "ad9ba35e-6e06-4d1b-a3fb-b7b916c76c41",
+      "body": "Old body OLD-1111",
+      "cc": "oldcc@example.invalid",
+      "created_at": "2026-11-10 12:34:59.510913",
+      "has_nested_draft": false,
+      "subject": "Email Draft OLD",
+      "to": "alpha@example.invalid, clear@example.invalid"
+    },
+    {
+      "action_type": "update",
+      "audit_id": "2d3c6e49-be21-4145-b8a4-b2a90d0c061a",
+      "body": "Old body OLD-1111",
+      "cc": "",
+      "created_at": "2026-11-10 12:35:03.738460",
+      "has_nested_draft": false,
+      "subject": "Email Draft OLD",
+      "to": "alpha@example.invalid, clear@example.invalid"
+    }
+  ],
+  "seed_at_first_attempt": {
+    "body": "Old body OLD-1111",
+    "cc": "oldcc@example.invalid",
+    "subject": "Email Draft OLD",
+    "to": "seed@example.invalid"
+  },
+  "steps": [
+    {
+      "checks": {
+        "db_path_same": true,
+        "same_run_dir": true
+      },
+      "name": "same_run_resumed",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "email": true,
+        "health": true,
+        "status": true
+      },
+      "name": "ordinary_admin_api_login",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "canvas_id_present": true,
+        "disclosure": true,
+        "seed_cc": true,
+        "seed_exact": true
+      },
+      "name": "api_seeded_email_canvas",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "login_ok": true,
+        "onboarding": true
+      },
+      "name": "ordinary_ui_login",
+      "status": "PASS"
+    },
+    {
+      "checks": {
+        "cc": true,
+        "old_body": true,
+        "subject": true,
+        "to": true
+      },
+      "name": "seed_visible_in_ui",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "at": 1794314186.342251,
+  "checks": {
+    "fresh_audit_content_exact": true,
+    "fresh_audit_old_absent": true,
+    "fresh_latest_audit_is_current": true,
+    "no_foreign_scope": true,
+    "public_get_body": true,
+    "public_get_cc": true,
+    "public_get_subject": true,
+    "public_get_to": true,
+    "reloaded_body_exact": true,
+    "reloaded_cc_cleared": true,
+    "reloaded_old_absent": true,
+    "reloaded_subject_exact": true,
+    "reloaded_to_exact": true,
+    "same_user_login": true
+  },
+  "details": {
+    "db_after": {
+      "admin": [
+        "92aa7748-9f79-4ad0-bd1d-88e579ae0cb1",
+        "admin@example.com",
+        "active",
+        1,
+        "NULL",
+        "NULL"
+      ],
+      "canvas_scope": [
+        "default",
+        "default",
+        "email"
+      ],
+      "history": [
+        {
+          "action_type": "create",
+          "audit_id": "1d4b112c-5286-41b8-94a0-52fdba9ccb7b",
+          "content_body": null,
+          "content_cc": null,
+          "content_subject": null,
+          "content_to": null,
+          "created_at": "2026-11-10 12:21:06.353338",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "d50f53ca-722e-4fd2-ac80-e8129ad50525",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "seed@example.invalid",
+          "created_at": "2026-11-10 12:21:06.414169",
+          "draft_keys": [
+            "attachments",
+            "body",
+            "cc_emails",
+            "draft_id",
+            "subject",
+            "to_emails"
+          ]
+        },
+        {
+          "action_type": "update",
+          "audit_id": "17aedd92-9c8f-43ea-8b5a-1187fcede82c",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "seed@example.invalid",
+          "created_at": "2026-11-10 12:22:35.053571",
+          "draft_keys": [
+            "attachments",
+            "body",
+            "cc_emails",
+            "draft_id",
+            "subject",
+            "to_emails"
+          ]
+        },
+        {
+          "action_type": "update",
+          "audit_id": "b8d4719c-2e27-4096-b430-e84b3c7dac3e",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "seed@example.invalid",
+          "created_at": "2026-11-10 12:22:38.209655",
+          "draft_keys": [
+            "attachments",
+            "body",
+            "cc_emails",
+            "draft_id",
+            "subject",
+            "to_emails"
+          ]
+        },
+        {
+          "action_type": "update",
+          "audit_id": "dd77d154-e1cb-4bd3-a2fd-e55dbb5e36fd",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "seed@example.invalid",
+          "created_at": "2026-11-10 12:22:40.386117",
+          "draft_keys": [
+            "attachments",
+            "body",
+            "cc_emails",
+            "draft_id",
+            "subject",
+            "to_emails"
+          ]
+        },
+        {
+          "action_type": "update",
+          "audit_id": "b25a61d6-792e-49b5-a99e-112a59f56151",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "seed@example.invalid",
+          "created_at": "2026-11-10 12:28:57.078264",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "a14c47c6-c007-4003-a457-3889bc285a4b",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "alpha@example.invalid, clear@example.invalid",
+          "created_at": "2026-11-10 12:30:29.943350",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "08ac1b34-3ddf-488d-bc7f-4f0ee39d5099",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft CURRENT",
+          "content_to": "alpha@example.invalid, clear@example.invalid",
+          "created_at": "2026-11-10 12:30:33.644883",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "9b17bdca-a78b-4abf-a279-b61176c101b6",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "seed@example.invalid",
+          "created_at": "2026-11-10 12:33:26.639384",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "ad9ba35e-6e06-4d1b-a3fb-b7b916c76c41",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "oldcc@example.invalid",
+          "content_subject": "Email Draft OLD",
+          "content_to": "alpha@example.invalid, clear@example.invalid",
+          "created_at": "2026-11-10 12:34:59.510913",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "2d3c6e49-be21-4145-b8a4-b2a90d0c061a",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "",
+          "content_subject": "Email Draft OLD",
+          "content_to": "alpha@example.invalid, clear@example.invalid",
+          "created_at": "2026-11-10 12:35:03.738460",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "d7d27a07-4112-43fe-906b-a97ecda1df46",
+          "content_body": "Old body OLD-1111",
+          "content_cc": "",
+          "content_subject": "Email Draft CURRENT",
+          "content_to": "alpha@example.invalid, clear@example.invalid",
+          "created_at": "2026-11-10 12:35:06.361913",
+          "draft_keys": null
+        },
+        {
+          "action_type": "update",
+          "audit_id": "874d129f-37c7-4b2d-95e1-fec98a238bf0",
+          "content_body": "Current body NEW-EMAIL-7788",
+          "content_cc": "",
+          "content_subject": "Email Draft CURRENT",
+          "content_to": "alpha@example.invalid, clear@example.invalid",
+          "created_at": "2026-11-10 12:35:10.544248",
+          "draft_keys": null
+        }
+      ]
+    },
+    "latest_audit": {
+      "action_type": "update",
+      "audit_id": "874d129f-37c7-4b2d-95e1-fec98a238bf0",
+      "content_body": "Current body NEW-EMAIL-7788",
+      "content_cc": "",
+      "content_subject": "Email Draft CURRENT",
+      "content_to": "alpha@example.invalid, clear@example.invalid",
+      "created_at": "2026-11-10 12:35:10.544248",
+      "draft_keys": null
+    },
+    "public_get": {
+      "body": "Current body NEW-EMAIL-7788",
+      "cc": "",
+      "subject": "Email Draft CURRENT",
+      "to": "alpha@example.invalid, clear@example.invalid"
+    },
+    "reloaded": {
+      "body": "Current body NEW-EMAIL-7788",
+      "cc": "",
+      "subject": "Email Draft CURRENT",
+      "to": "alpha@example.invalid, clear@example.invalid"
+    }
+  },
+  "name": "fresh_context_exact_vs_public_get_and_db",
+  "status": "PASS"
+}

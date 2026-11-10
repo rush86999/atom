@@ -1,0 +1,82 @@
+{
+  "canvas_id": "2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+  "put_count": 4,
+  "puts": [
+    {
+      "expected_prior_audit_id": "9b17bdca-a78b-4abf-a279-b61176c101b6",
+      "method": "PUT",
+      "post_data": {
+        "body": "Old body OLD-1111",
+        "cc": "oldcc@example.invalid",
+        "subject": "Email Draft OLD",
+        "to": "alpha@example.invalid, clear@example.invalid"
+      },
+      "response_audit_id": "ad9ba35e-6e06-4d1b-a3fb-b7b916c76c41",
+      "response_status": 200,
+      "response_verification": {
+        "effect": "committed",
+        "evidence": "canvas_audit ad9ba35e-6e0 action_type=update content=1505816b4ae5 canvas_id=2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+        "no_change": false,
+        "status": "verified"
+      },
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=9b17bdca-a78b-4abf-a279-b61176c101b6"
+    },
+    {
+      "expected_prior_audit_id": "ad9ba35e-6e06-4d1b-a3fb-b7b916c76c41",
+      "method": "PUT",
+      "post_data": {
+        "body": "Old body OLD-1111",
+        "cc": "",
+        "subject": "Email Draft OLD",
+        "to": "alpha@example.invalid, clear@example.invalid"
+      },
+      "response_audit_id": "2d3c6e49-be21-4145-b8a4-b2a90d0c061a",
+      "response_status": 200,
+      "response_verification": {
+        "effect": "committed",
+        "evidence": "canvas_audit 2d3c6e49-be2 action_type=update content=9554da6664b2 canvas_id=2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+        "no_change": false,
+        "status": "verified"
+      },
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=ad9ba35e-6e06-4d1b-a3fb-b7b916c76c41"
+    },
+    {
+      "expected_prior_audit_id": "2d3c6e49-be21-4145-b8a4-b2a90d0c061a",
+      "method": "PUT",
+      "post_data": {
+        "body": "Old body OLD-1111",
+        "cc": "",
+        "subject": "Email Draft CURRENT",
+        "to": "alpha@example.invalid, clear@example.invalid"
+      },
+      "response_audit_id": "d7d27a07-4112-43fe-906b-a97ecda1df46",
+      "response_status": 200,
+      "response_verification": {
+        "effect": "committed",
+        "evidence": "canvas_audit d7d27a07-411 action_type=update content=0ea6a5692dbc canvas_id=2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+        "no_change": false,
+        "status": "verified"
+      },
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=2d3c6e49-be21-4145-b8a4-b2a90d0c061a"
+    },
+    {
+      "expected_prior_audit_id": "d7d27a07-4112-43fe-906b-a97ecda1df46",
+      "method": "PUT",
+      "post_data": {
+        "body": "Current body NEW-EMAIL-7788",
+        "cc": "",
+        "subject": "Email Draft CURRENT",
+        "to": "alpha@example.invalid, clear@example.invalid"
+      },
+      "response_audit_id": "874d129f-37c7-4b2d-95e1-fec98a238bf0",
+      "response_status": 200,
+      "response_verification": {
+        "effect": "committed",
+        "evidence": "canvas_audit 874d129f-37c action_type=update content=16bac4abfbaa canvas_id=2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+        "no_change": false,
+        "status": "verified"
+      },
+      "url": "http://localhost:8037/api/canvas/2253b3b0-b51a-44b5-865a-7f50a1b7b10f?canvas_type=email&title=&expected_prior_audit_id=d7d27a07-4112-43fe-906b-a97ecda1df46"
+    }
+  ]
+}

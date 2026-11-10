@@ -1,0 +1,33 @@
+source_head: 1d762c2f3daee7746cf2430cd3ae37e8971364f7
+function: core.chat_draft_classifier.normalize_email_content (module-level, no DB)
+
+CASE A - ordinary panel PUT shape (no nested draft):
+{
+ "body": "Current body NEW-EMAIL-7788",
+ "cc": "",
+ "subject": "Email Draft CURRENT",
+ "to": "alpha@example.invalid, clear@example.invalid"
+}
+
+CASE B - first seed carried a legacy nested draft; panel PUT = existing(draft) + new top-level:
+{
+ "body": "Old body OLD-1111",
+ "cc": "oldcc@example.invalid",
+ "draft": {
+  "attachments": [],
+  "body": "Old body OLD-1111",
+  "cc_emails": [
+   "oldcc@example.invalid"
+  ],
+  "draft_id": "5735769c",
+  "subject": "Email Draft OLD",
+  "to_emails": [
+   "seed@example.invalid"
+  ]
+ },
+ "subject": "Email Draft OLD",
+ "to": "seed@example.invalid"
+}
+
+CONCLUSION: a nested draft dict wins over canonical top-level fields, so the first
+seed shape shadowed UI edits. Ordinary shape (CASE A) preserves the edits.

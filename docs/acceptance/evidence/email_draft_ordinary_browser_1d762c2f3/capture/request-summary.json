@@ -1,0 +1,16 @@
+{
+  "all_canvas_path_ids_are_exact": true,
+  "all_put_payloads_ordinary_shape": true,
+  "all_puts_exact_canvas": true,
+  "by_method": {
+    "GET": 99,
+    "POST": 4,
+    "PUT": 4
+  },
+  "distinct_canvas_ids_in_canvas_paths": [
+    "2253b3b0-b51a-44b5-865a-7f50a1b7b10f"
+  ],
+  "send_requests": [],
+  "total_api_requests": 107,
+  "zero_send": true
+}

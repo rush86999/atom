@@ -1,0 +1,105 @@
+A
+ATOM
+CORE
+Dashboard
+Chat
+Workspace
+Data
+Agents
+Learning
+Assignments
+Approvals
+Activity
+PLATFORM
+Settings
+
+Admin User
+
+admin@example.com
+
+No unread notifications
+All Canvases
+Canvas 2253b3b0-b51a-44b5-865a-7f50a1b7b10f
+EMAIL
+Add agent
+LOAD DATA
+Upload file
+Attach an agent to load data.
+DATA OPERATIONS
+Enable table operations
+
+This canvas has no agent yet
+
+Add an agent to collaborate in chat, load data, and train it on this canvas.
+
+Add an agent
+Agent Artifact
+v13
+EMAIL
+▾
+✎ Sig
+Send
+TO:
+CC:
+SUB:
+ATTACHMENTS
+Attach
+B
+I
+U
+Size
+Small
+Normal
+Large
+Huge
+Font
+Aptos
+Calibri
+Arial
+Georgia
+Times New Roman
+Courier New
+Verdana
+Trebuchet MS
+A
+A
+A
+A
+A
+A
+A
+🔗
+▦
+Shading
+No fill
+Navy
+Light blue
+Light gray
+Light amber
+Light green
+Light red
+White
+•≡
+1≡
+⇤
+↔
+⇥
+─
+Clear
+Current body NEW-EMAIL-7788
+History
+Saved
+Mini-App Harness
+Chat
+Training
+Journey
+Autonomy
+Agent Co-Editor
+
+Chat with the agent while editing this canvas
+
+💬 Ask the agent to modify this canvas
+
+e.g. "Add a new row to the spreadsheet" or "Change the chart to a bar chart"
+
+Canvas | Atom

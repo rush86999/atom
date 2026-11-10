@@ -1,0 +1,101 @@
+{
+  "admin_fixture_reset": "existing bootstrap credential reset only; canvas/content/audit unchanged beyond UI edits",
+  "artifact_sha256": {
+    "email-current.page.txt": "b774e135253c00b8006e7690c79febf77ca5bde22c8d6240a3e5504b848e4841",
+    "email-current.png": "854758bea02dcb3146c71e7b1859d373150b39da91d4ff3c8b2476063f78bbc1",
+    "email-reloaded.page.txt": "aaf2ed1a9a1b4a52be27f1a1c152d372e72026921278d149eeadd71f5d9baf06",
+    "email-reloaded.png": "8e796a04731c31895f5cdb1bbbd15adf56eaf0b6c8aa757296df0eb1e9e73e93"
+  },
+  "branch": "codex/web-email-ordinary-browser-20261110",
+  "canvas_id": "2253b3b0-b51a-44b5-865a-7f50a1b7b10f",
+  "current_audit": "874d129f-37c7-4b2d-95e1-fec98a238bf0",
+  "diagnosis": {
+    "pure_function_proof": true,
+    "source_references": true
+  },
+  "evidence_files": {
+    "README.md": "93b02b1c9ef0bf7a6729ecddf3233d60dc6f266daeb1a3b6350e4a5d0457d5c7",
+    "capture/canvas-id-requests.json": "6528b4cb4f51f8e00e10e4f40247444f9dc95dca8f376b0c4c180c79bf782c22",
+    "capture/durable-state.json": "80fe936e8fe953fcec35ccfabfd38224004b20588f08fa34bc36aa64053e42e9",
+    "capture/email-current.page.txt": "b774e135253c00b8006e7690c79febf77ca5bde22c8d6240a3e5504b848e4841",
+    "capture/email-current.png": "854758bea02dcb3146c71e7b1859d373150b39da91d4ff3c8b2476063f78bbc1",
+    "capture/email-reloaded.page.txt": "aaf2ed1a9a1b4a52be27f1a1c152d372e72026921278d149eeadd71f5d9baf06",
+    "capture/email-reloaded.png": "8e796a04731c31895f5cdb1bbbd15adf56eaf0b6c8aa757296df0eb1e9e73e93",
+    "capture/fresh-session.json": "652987f111ddbd32f14c5e2bdba38ef6c4973bd7aa2ceb4462677918fd1851b3",
+    "capture/put-requests.json": "3ef59520789d9b8e46dc541fa2e3dd1492615be3fb7da0a6f47a0138a2f5da73",
+    "capture/request-summary.json": "03b4d43766655dcdf91625007f2fc2250078071fee5bdbc59a28537195c5539c",
+    "capture/result.sanitized.json": "2ad221f165bae1a025a6ced6eb5dcae38e32e82b83d7f788cacdffa16bd407b9",
+    "diagnosis/first-attempt.json": "dc0d36676eadf7fc83470a585948e93876784edc2f725b0a69a6bbbdf5d03a85",
+    "diagnosis/pure-function-proof.txt": "c9da09e1629f8b496903839805b907feddb71d7b6728f4a1f5fc7a581b21213e",
+    "diagnosis/source-references.md": "28e303883424d9d805b2960ce5ad6a25139e7dfef4c19ba849b15020feb967ac"
+  },
+  "final": {
+    "body": "Current body NEW-EMAIL-7788",
+    "cc": "",
+    "subject": "Email Draft CURRENT",
+    "to": "alpha@example.invalid, clear@example.invalid"
+  },
+  "first_attempt_negative": {
+    "classification": "harness seed shape, not product save failure",
+    "saved_old_seed_audits": [
+      "d50f53ca-722e-4fd2-ac80-e8129ad50525",
+      "17aedd92-9c8f-43ea-8b5a-1187fcede82c",
+      "b8d4719c-2e27-4096-b430-e84b3c7dac3e",
+      "dd77d154-e1cb-4bd3-a2fd-e55dbb5e36fd"
+    ]
+  },
+  "fresh_context": {
+    "fresh_db_latest_audit_current": true,
+    "no_foreign_scope": true,
+    "no_stale_draft_resurrection": true,
+    "public_get_exact": true,
+    "same_ordinary_user": true,
+    "visible_fields_exact": true
+  },
+  "kind": "email_draft_ordinary_ui_save_open_reload",
+  "non_claims": [
+    "not general Office/email",
+    "not whole-GOAL-11/app",
+    "no UI create-draft claim",
+    "no product edit",
+    "no PR/merge/CI/goal-index",
+    "no provider/model/send/live DB"
+  ],
+  "product_parity": "matches clean PR829 7fb2645c9; branch deltas evidence/CI only",
+  "reuse_run_dir": true,
+  "run": "run-b25cb62b465c",
+  "scope": {
+    "admin_tenant_id": "NULL",
+    "admin_workspace_id": "NULL",
+    "canvas_tenant_id": "default",
+    "canvas_workspace_id": "default"
+  },
+  "seed": {
+    "body": "Old body OLD-1111",
+    "cc": "oldcc@example.invalid",
+    "subject": "Email Draft OLD",
+    "to": "seed@example.invalid"
+  },
+  "seed_disclosure": "public POST /api/canvas/email/create + PUT seed; no UI-creation claim; no business job",
+  "seed_shape_correction": "same canvas re-seeded to ordinary {to,cc,subject,body} after diagnosing a harness nested-draft seed defect",
+  "send": {
+    "send_button_clicked": false,
+    "send_requests": 0
+  },
+  "source_head": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
+  "status": "passed_bounded_email_draft_ui_slice",
+  "stops": {
+    "backend_exited": true,
+    "frontend_exited": true,
+    "ports_free": true
+  },
+  "ui_save": {
+    "all_put_status_200": true,
+    "all_put_verified": true,
+    "autosave_put_count": 4,
+    "final_payload_ordinary_shape": true,
+    "save_button_clicked": false
+  },
+  "worktree": "/private/tmp/atom-goal11-office-browser-20261110",
+  "world": "office_ordinary_browser_1d762c2f3d_1794309563"
+}
