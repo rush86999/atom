@@ -1,0 +1,35 @@
+{
+  "artifact_policy": {
+    "only_scratch_test_logs": true,
+    "raw_env_db_auth_logs_committed": false
+  },
+  "artifacts": {
+    "README.md": "1f7cb4579c3aafda9f3299d11d40a3c7f06a92c9e414caeb998f78d173505961",
+    "logs/neighborhood-79.log": "c088ffab66d918744cfe1775ef8b56990195ba809af4b0bbab4b1b1e6c7c42ad",
+    "logs/onboarding-scope.log": "f192190302df453112936503854308c672031fc24a4d40dc8a9171033835e509",
+    "logs/repro-after.log": "13a196cbd54b2e3a5d0a191a159272d19dc06f751e91f6fe53b0a70592307b37",
+    "logs/scope-tests.log": "b6d49c78455e3664b89fa2135f80d17dfab7d5b916bb2b52014c34de894d52af",
+    "logs/unrelated-teach-baseline.log": "185b96e6e9e627ebc5236958018fad30a24b9d33c1d037c11e997559562e1212",
+    "logs/unrelated-teach-current.log": "9f60fd35d53425bac2043edb169259c1034828aacf337bf5033f9d2a2093acd0",
+    "original-failure/repro-before.log": "ad97f6683b4361a0fe44f23f9d8eeba1b44867b145a7ce4c632adb663c847a49",
+    "original-failure/repro-before.py": "392a5dec55a6b3edf77c29866812af1c8110c8c3fc5c528587ca12dfea0781fc",
+    "verification.json": "f2881e2ff22dedcb5a49ba47a5f26bf8864f036958491c27eb10aa0e079b6b84"
+  },
+  "branch": "codex/web-maturity-guide-scope-20261110",
+  "executed_source": {
+    "commit": "e8ee987f4a62849ca48aedce79122b9f9cc042d4",
+    "files_sha256": {
+      "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+      "backend/tests/api/test_agent_onboarding_routes.py": "ae4cdb388a0777456fc629d642bf1bee8b956ce49255b1a7691dc0cecc2867c1",
+      "backend/tests/api/test_maturity_guide_scope.py": "2d026ec83610fd461f9d7d3b1a2505b5e7b08c44c0c91ff3cd4607332cf78245"
+    }
+  },
+  "packet": "web_maturity_guide_scope_20261110",
+  "repair_commit": "e8ee987f4a62849ca48aedce79122b9f9cc042d4",
+  "source_before_main": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+  "source_files": {
+    "backend/api/agent_onboarding_routes.py": "06de36fd018198e69f49bee1d48ff8945b03a5094b30c40f2c27a9a7f9c9327c",
+    "backend/tests/api/test_agent_onboarding_routes.py": "ae4cdb388a0777456fc629d642bf1bee8b956ce49255b1a7691dc0cecc2867c1",
+    "backend/tests/api/test_maturity_guide_scope.py": "2d026ec83610fd461f9d7d3b1a2505b5e7b08c44c0c91ff3cd4607332cf78245"
+  }
+}
