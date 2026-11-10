@@ -7,8 +7,9 @@ import { resolveWebAuthSecret } from './lib/web-auth-config';
 const SESSION_COOKIE = 'next-auth.session-token';
 const SECURE_SESSION_COOKIE = `__Secure-${SESSION_COOKIE}`;
 
-// Define public routes that don't require authentication
-const publicRoutes = [
+// Define public pages that don't require authentication. Exact paths only:
+// a prefix rule here would make every /auth/* route (and any lookalike) public.
+const publicPageRoutes = new Set([
   // BUG-120: /dashboard removed from public routes — it's the main
   // authenticated landing page and must require auth. Leaving it public
   // rendered the full app shell for unauthenticated users.
@@ -16,7 +17,14 @@ const publicRoutes = [
   '/auth/signin',
   '/auth/signup',
   '/auth/error',
-];
+  // Genuine password-recovery and email-verification pages. Their forms
+  // submit to the backend, which remains the token/currentUser authority;
+  // page visibility is not reset or verification authority.
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+  '/auth/verification-sent',
+]);
 
 // Define API routes that don't require authentication
 const publicApiRoutes = [
@@ -32,6 +40,16 @@ const publicApiRoutes = [
   '/api/integrations/slack/auth/start',
   '/api/integrations/slack/callback',
 ];
+
+function isPublicPageRoute(pathname: string): boolean {
+  return publicPageRoutes.has(pathname);
+}
+
+function isPublicApiRoute(pathname: string): boolean {
+  return publicApiRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
 
 function isChunkOf(cookieName: string, baseName: string): boolean {
   if (!cookieName.startsWith(`${baseName}.`)) {
@@ -111,15 +129,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Check if the current path is a public route
-  const isPublicRoute = publicRoutes.some(route =>
-    pathname.startsWith(route)
-  );
-
-  // Check if the current path is a public API route
-  const isPublicApiRoute = publicApiRoutes.some(route =>
-    pathname.startsWith(route)
-  );
+  // Public pages use exact matching; public API routes use path-segment
+  // matching. Neither grants blanket /auth or /settings admission.
+  const isPublicRoute = isPublicPageRoute(pathname);
+  const isPublicApiPath = isPublicApiRoute(pathname);
 
   // Forward the auth cookie as a Bearer header for API requests. Pages use
   // plain same-origin `fetch("/api/...")`; the Python backend authenticates
@@ -143,7 +156,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // API routes never redirect to the /login HTML page.
-  if (isPublicApiRoute || pathname.startsWith('/api/')) {
+  if (isPublicApiPath || pathname.startsWith('/api/')) {
     return withAuthHeader();
   }
 

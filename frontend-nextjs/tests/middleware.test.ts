@@ -303,6 +303,45 @@ describe('NextAuth session cookie admission', () => {
   });
 });
 
+describe('public password-recovery and verification pages', () => {
+  test.each([
+    '/auth/forgot-password',
+    '/auth/reset-password?token=nonsecret-probe',
+    '/auth/verify-email?email=user%40example.com',
+    '/auth/verification-sent?email=user%40example.com',
+    '/auth/error',
+    '/auth/signin',
+    '/auth/signup',
+    '/login',
+  ])('%s is reachable without a session', async (path) => {
+    const response = await middleware(
+      makeRequest(`http://localhost:3000${path}`),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
+  test.each([
+    '/auth',
+    '/auth/unknown',
+    '/auth/forgot-password/extra',
+    '/auth/reset-password-evil',
+    '/auth/verify-emailx',
+    '/login-extra',
+    '/settings',
+    '/settings/account',
+    '/settings?token=nonsecret-probe',
+  ])('%s remains gated without a session', async (path) => {
+    const response = await middleware(
+      makeRequest(`http://localhost:3000${path}`),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).not.toBeNull();
+  });
+});
+
 describe('API passthrough', () => {
   test('public API route is not redirected and forwards auth_token', async () => {
     const response = await middleware(
