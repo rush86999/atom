@@ -111,7 +111,7 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T11:14:43.338710+00:00",
+    "updated_at": "2026-11-10T11:33:06.483157+00:00",
     "as_of_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
     "app_complete": false,
     "historical_claims": 143,
@@ -177,12 +177,12 @@
       {
         "owner": "root integration and native CLI",
         "work": "Shared Personal-scope Office/email compatibility",
-        "acceptance": "Repair def47a93d independently passes three real-JWT document default/foreign-scope twins. Cleanup and frozen evidence in progress; no browser or fullGOAL11 acceptance."
+        "acceptance": "Frozen combined runtime1d762c2f3 with CI-only repairb3505b2b3;12 independent cases pass,131 application controls pass,27 restored CI-preservation controls pass. Browser initialDOCX/PPTX downloaded; UIedit durableverified, current-version download pending same-run continuation. No fullGOAL11 acceptance."
       },
       {
         "owner": "graduation native CLI and root verifier",
         "work": "Scoped qualification across all upward writers",
-        "acceptance": "Independent policy-change retry2pass, durable-scope retry2pass, actual-output promotion/replay2pass; frontend90pass/tsc0. Full binding, frozen-source and ordinary-flow acceptance remains open."
+        "acceptance": "Frozen cf2/015 qualification/UI checkpoint:10 independent cases,90 UI tests,tsc0,33 Gitchecks. Follow-through policy/notification5 independent cases pass before finalfreeze. No general model competence/fullgraduation claim."
       }
     ],
     "superseded": [
@@ -234,20 +234,13 @@
     "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
     "next_prepared": "Complete the shared Personal-scope repair, integrated Office/email regression and one ordinary Office export browser continuation; freeze and verify scoped graduation. Preserve original143claims/18goals.",
     "integration_candidate": {
-      "branch": "codex/web-reviewed-integration-20261110",
-      "status": "merged PR824; exact reviewed tree and required post-merge Actions verified",
-      "family_prs": [
-        817,
-        819,
-        820,
-        821,
-        822,
-        823
+      "branch": "codex/web-office-email-personal-reviewed-integration-20261110",
+      "status": "prepared draft; controlled gates verified, hosted checks and ordinary current-version browser download still required",
+      "included_prs": [
+        826,
+        827
       ],
-      "verified_source_artifact_paths": 160,
-      "combined_independent_api_and_ci_passed": 44,
-      "combined_ui_consumer_passed": 147,
-      "original_denominator_unchanged": true
+      "accepted": false
     }
   }
 }
