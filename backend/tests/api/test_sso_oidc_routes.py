@@ -34,7 +34,7 @@ from api import sso_oidc_routes
 from api.sso_oidc_routes import router
 from core.auth import SECRET_KEY, get_current_user
 from core.database import Base, get_db
-from core.models import OAuthState, Tenant, User
+from core.models import OAuthState, SSOConfiguration, Tenant, User
 from core.personal_scope import PERSONAL_TENANT_ID
 from scripts.controlled_oidc_provider import OIDCProvider, _pem
 
@@ -1520,5 +1520,149 @@ def test_concurrent_durable_state_consume_single_use(
         assert fresh.query(User).filter(
             User.email == "sso.user@example.com").count() == 1
         assert fresh.query(OAuthState).count() == 0
+    finally:
+        fresh.close()
+
+
+def test_login_refuses_tenant_active_null(client, provider, db):
+    _save_config(client, provider)
+    tenant = db.query(Tenant).filter_by(id=PERSONAL_TENANT_ID).one()
+    tenant.is_active = None
+    db.commit()
+
+    resp = client.get(
+        "/api/auth/sso/oidc/login", follow_redirects=False)
+
+    assert resp.status_code == 503
+    assert db.query(OAuthState).count() == 0
+
+
+def test_config_fingerprint_changes_on_effective_secret_rotation(db):
+    common = {
+        "issuer_url": "https://issuer.example.invalid",
+        "client_id": "controlled-client",
+        "enabled": True,
+        "default_role": "member",
+        "allowed_domains": ["example.com"],
+    }
+    first = sso_oidc_routes._config_fingerprint(
+        db, {**common, "client_secret": "controlled-first"}, CALLBACK)
+    second = sso_oidc_routes._config_fingerprint(
+        db, {**common, "client_secret": "controlled-second"}, CALLBACK)
+    same = sso_oidc_routes._config_fingerprint(
+        db, {**common, "client_secret": "controlled-first"}, CALLBACK)
+
+    assert first is not None and second is not None
+    assert first == same
+    assert first != second
+
+
+@pytest.mark.parametrize(
+    "change", ["disable_config", "deactivate_tenant", "replace_state_binding"])
+def test_peer_authority_wins_before_state_claim(
+        concurrency_client, provider, monkeypatch, change):
+    client, engine, Session, _db = concurrency_client
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    calls = {"token": 0, "peer": False}
+    original_token = provider.token
+
+    def counted_token(form):
+        calls["token"] += 1
+        return original_token(form)
+
+    monkeypatch.setattr(provider, "token", counted_token)
+
+    def peer_before_claim(conn, cursor, statement, parameters, context,
+                          executemany):
+        lowered = statement.lower()
+        if (calls["peer"]
+                or not lowered.lstrip().startswith("delete")
+                or "oauth_states" not in lowered):
+            return
+        calls["peer"] = True
+        peer = Session()
+        try:
+            if change == "disable_config":
+                peer.query(SSOConfiguration).filter_by(
+                    provider="oidc").one().enabled = False
+            elif change == "deactivate_tenant":
+                peer.query(Tenant).filter_by(
+                    id=PERSONAL_TENANT_ID).one().is_active = False
+            else:
+                state_row = peer.query(OAuthState).filter_by(
+                    provider="oidc").one()
+                state_row.extra_data = {
+                    **state_row.extra_data,
+                    "nonce": "peer-replaced-nonce",
+                }
+            peer.commit()
+        finally:
+            peer.close()
+
+    event.listen(engine, "before_cursor_execute", peer_before_claim)
+    try:
+        response = _callback(client, callback)
+    finally:
+        event.remove(engine, "before_cursor_execute", peer_before_claim)
+
+    fresh = Session()
+    try:
+        new_users = fresh.query(User).filter_by(
+            email="sso.user@example.com").count()
+        retained = fresh.query(OAuthState).filter_by(
+            provider="oidc").count()
+        assert calls["peer"] is True
+        assert response.status_code in (401, 409, 503)
+        assert calls["token"] == 0
+        assert new_users == 0
+        assert retained == 1
+    finally:
+        fresh.close()
+
+
+def test_peer_unchanged_before_state_claim_still_valid(
+        concurrency_client, provider, monkeypatch):
+    client, engine, Session, _db = concurrency_client
+    _save_config(client, provider)
+    callback = _provider_redirect(_start_login(client))
+    calls = {"token": 0, "peer": False}
+    original_token = provider.token
+
+    def counted_token(form):
+        calls["token"] += 1
+        return original_token(form)
+
+    monkeypatch.setattr(provider, "token", counted_token)
+
+    def peer_before_claim(conn, cursor, statement, parameters, context,
+                          executemany):
+        lowered = statement.lower()
+        if (calls["peer"]
+                or not lowered.lstrip().startswith("delete")
+                or "oauth_states" not in lowered):
+            return
+        calls["peer"] = True
+        peer = Session()
+        try:
+            peer.commit()
+        finally:
+            peer.close()
+
+    event.listen(engine, "before_cursor_execute", peer_before_claim)
+    try:
+        response = _callback(client, callback)
+    finally:
+        event.remove(engine, "before_cursor_execute", peer_before_claim)
+
+    fresh = Session()
+    try:
+        assert calls["peer"] is True
+        assert response.status_code == 200
+        assert calls["token"] == 1
+        assert fresh.query(User).filter(
+            User.email == "sso.user@example.com").count() == 1
+        assert fresh.query(OAuthState).filter_by(
+            provider="oidc").count() == 0
     finally:
         fresh.close()

@@ -47,11 +47,17 @@ import httpx
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import delete
+from sqlalchemy import delete, exists, select
 from sqlalchemy.orm import Session
 
-from core.auth import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user
+from core.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    SECRET_KEY,
+    create_access_token,
+    get_current_user,
+)
 from core.database import get_db
+from core.sql_json import json_field_equals
 from core.models import (
     OAuthState,
     SSOConfiguration,
@@ -155,15 +161,28 @@ def _authoritative_tenant_id(db: Session) -> Optional[str]:
             "OIDC tenant resolution failed (error_class=%s)",
             type(exc).__name__)
         return None
-    if tenant is None or getattr(tenant, "is_active", True) is False:
+    if tenant is None or getattr(tenant, "is_active", None) is not True:
         return None
     return tenant_id
 
 
-def _config_fingerprint(
+def _client_secret_commitment(secret: Any) -> str:
+    """Keyed, non-revealing commitment to the effective client secret."""
+    material = (
+        b"atom-oidc-effective-client-secret\0"
+        + str(secret or "").encode("utf-8")
+    )
+    return hmac.new(
+        str(SECRET_KEY or "").encode("utf-8"),
+        material,
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _config_authority(
     db: Session, cfg: Dict[str, Any], redirect_target: str
-) -> Optional[str]:
-    """Freeze the current SSO config generation and exact callback target."""
+) -> Optional[Dict[str, Any]]:
+    """Freeze every config field the callback is allowed to trust."""
     try:
         row = _config_row(db)
     except Exception as exc:  # noqa: BLE001 — unreadable generation fails closed
@@ -178,16 +197,92 @@ def _config_fingerprint(
         "allowed_domains": list(cfg.get("allowed_domains") or []),
         "enabled": bool(cfg.get("enabled")),
         "redirect_uri": str(redirect_target or ""),
+        "client_secret_commitment": _client_secret_commitment(
+            cfg.get("client_secret")),
     }
+    encrypted_secret = None
+    generation_value = None
     if row is not None:
+        generation_value = row.updated_at or row.created_at
         material["generation"] = str(
-            row.updated_at or row.created_at or row.id)
+            generation_value or row.id)
         material["tenant_id"] = str(row.tenant_id or "")
-    return hashlib.sha256(
-        json.dumps(
-            material, sort_keys=True, separators=(",", ":"), default=str,
-        ).encode("utf-8")
-    ).hexdigest()
+        material["config_row_id"] = str(row.id or "")
+        config_payload = row.config if isinstance(row.config, dict) else {}
+        encrypted_secret = config_payload.get("client_secret_encrypted")
+        if not isinstance(encrypted_secret, str):
+            encrypted_secret = None
+    return {
+        "digest": hashlib.sha256(
+            json.dumps(
+                material, sort_keys=True, separators=(",", ":"), default=str,
+            ).encode("utf-8")
+        ).hexdigest(),
+        "row": row,
+        "material": material,
+        "generation_value": generation_value,
+        "encrypted_secret": encrypted_secret,
+    }
+
+
+def _config_fingerprint(
+    db: Session, cfg: Dict[str, Any], redirect_target: str
+) -> Optional[str]:
+    """Freeze the current SSO config generation and exact callback target."""
+    authority = _config_authority(db, cfg, redirect_target)
+    return authority["digest"] if authority is not None else None
+
+
+def _exact(column: Any, value: Any):
+    return column.is_(None) if value is None else column == value
+
+
+def _config_claim_predicate(
+    db: Session, authority: Dict[str, Any], state_tenant_id: Any
+):
+    """Correlated current-config predicate for the atomic state claim."""
+    row = authority["row"]
+    material = authority["material"]
+    if row is None:
+        # Environment-only config: a database row appearing before the claim
+        # means the effective authority source changed.
+        return ~exists(
+            select(SSOConfiguration.id).where(
+                SSOConfiguration.provider == _OIDC_PROVIDER,
+            )
+        )
+
+    predicates = [
+        SSOConfiguration.id == str(row.id),
+        SSOConfiguration.provider == _OIDC_PROVIDER,
+        SSOConfiguration.tenant_id == str(state_tenant_id),
+        SSOConfiguration.enabled.is_(True),
+        json_field_equals(
+            db, SSOConfiguration.config, "$.issuer_url",
+            material["issuer_url"]),
+        json_field_equals(
+            db, SSOConfiguration.config, "$.client_id",
+            material["client_id"]),
+        json_field_equals(
+            db, SSOConfiguration.config, "$.default_role",
+            material["default_role"]),
+        json_field_equals(
+            db, SSOConfiguration.config, "$.allowed_domains",
+            json.dumps(
+                material["allowed_domains"],
+                separators=(",", ":"),
+                default=str,
+            )),
+    ]
+    generation_value = authority.get("generation_value")
+    if generation_value is not None:
+        predicates.append(SSOConfiguration.updated_at == generation_value)
+    encrypted_secret = authority.get("encrypted_secret")
+    if isinstance(encrypted_secret, str):
+        predicates.append(json_field_equals(
+            db, SSOConfiguration.config, "$.client_secret_encrypted",
+            encrypted_secret))
+    return exists(select(SSOConfiguration.id).where(*predicates))
 
 
 # ============================================================================
@@ -773,8 +868,8 @@ def _consume_callback_state(
         logger.warning("OIDC state rejected stage=browser_mismatch")
         raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
 
-    current_config = _config_fingerprint(db, cfg, redirect_target)
-    if not current_config:
+    authority = _config_authority(db, cfg, redirect_target)
+    if authority is None:
         logger.error("OIDC state rejected stage=config_unavailable")
         raise HTTPException(
             status_code=503,
@@ -783,7 +878,7 @@ def _consume_callback_state(
     stored_config = extra_data.get("config_digest")
     if (
         not isinstance(stored_config, str)
-        or not hmac.compare_digest(stored_config, current_config)
+        or not hmac.compare_digest(stored_config, authority["digest"])
     ):
         logger.warning("OIDC state rejected stage=config_changed")
         raise HTTPException(
@@ -815,7 +910,7 @@ def _consume_callback_state(
             status_code=503,
             detail="SSO sign-in could not be completed",
         )
-    if tenant is None or getattr(tenant, "is_active", True) is False:
+    if tenant is None or getattr(tenant, "is_active", None) is not True:
         logger.error("OIDC state rejected stage=tenant_missing")
         raise HTTPException(status_code=503, detail="SSO is unavailable")
 
@@ -825,16 +920,34 @@ def _consume_callback_state(
         raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
 
     now = datetime.now(timezone.utc)
+    active_tenant = exists(
+        select(Tenant.id).where(
+            Tenant.id == OAuthState.tenant_id,
+            Tenant.is_active.is_(True),
+        )
+    )
+    current_config = _config_claim_predicate(
+        db, authority, row.tenant_id)
+    state_snapshot = [
+        OAuthState.id == row.id,
+        OAuthState.state == digest,
+        OAuthState.provider == _OIDC_PROVIDER,
+        _exact(OAuthState.tenant_id, row.tenant_id),
+        _exact(OAuthState.user_id, row.user_id),
+        _exact(OAuthState.redirect_uri, row.redirect_uri),
+        OAuthState.expires_at == row.expires_at,
+        OAuthState.expires_at > now,
+        json_field_equals(
+            db, OAuthState.extra_data, "$.nonce", nonce),
+        json_field_equals(
+            db, OAuthState.extra_data, "$.browser_digest", stored_browser),
+        json_field_equals(
+            db, OAuthState.extra_data, "$.config_digest", stored_config),
+    ]
     try:
         claimed = db.execute(
             delete(OAuthState)
-            .where(
-                OAuthState.id == row.id,
-                OAuthState.state == digest,
-                OAuthState.provider == _OIDC_PROVIDER,
-                OAuthState.redirect_uri == redirect_target,
-                OAuthState.expires_at > now,
-            )
+            .where(*state_snapshot, active_tenant, current_config)
             .execution_options(synchronize_session=False)
         )
     except Exception as exc:  # noqa: BLE001 — unconfirmed delete fails closed
