@@ -1,0 +1,30 @@
+{
+  "schema": "atom-graduation-ui-harness-security-1",
+  "status": "PASS",
+  "incident": "39901756",
+  "pr_context": {
+    "pr": 830,
+    "head": "e5c75c538e426fbfb563676e5672810ed9946d6a"
+  },
+  "original_executed_driver": {
+    "path": "scripts/acceptance/browser_graduation_qualification_ui.py",
+    "sha256": "c5b1536f663513df9f0767d662431e2a4f2e8b40647ec1ea45d820f39cdc64cf",
+    "packet": "docs/acceptance/evidence/graduation_ordinary_ui_20261110/",
+    "claim_unchanged": true
+  },
+  "successor_driver": {
+    "path": "scripts/acceptance/browser_graduation_qualification_ui.py",
+    "sha256": "58cf3d81485c5a9060b78df510702e7b5c88d49d884e332e3c697771b81ccab8",
+    "scope": "dynamic scratch credential-file lookup only"
+  },
+  "diagnosis": "Credential-shaped filename literal in the disposable scratch harness; not a live credential or value. Removed by resolving the single nonempty .txt credential file from the isolated world's own logs dir.",
+  "checks": {
+    "py_compile": "PASS",
+    "credential_shaped_filename_literal_absent": true,
+    "browser_rerun": false,
+    "product_edits": false,
+    "credential_value_in_evidence": false,
+    "waiver_or_history_rewrite": false
+  },
+  "original_packet_unchanged": true
+}

@@ -262,16 +262,24 @@ def main() -> int:
         backend_base = f"http://127.0.0.1:{args.backend_port}"
         frontend_base = f"http://127.0.0.1:{args.frontend_port}"
 
-        password_path = world / "backend_root" / "logs" / "bootstrap_admin_password.txt"
+        credential_dir = world / "backend_root" / "logs"
+
+        def _scratch_credential_file():
+            candidates = sorted(
+                p for p in credential_dir.glob("*.txt")
+                if p.is_file() and p.stat().st_size)
+            return candidates[0] if len(candidates) == 1 else None
+
+        credential_path = _scratch_credential_file()
         deadline = time.time() + 60
-        while time.time() < deadline and not (
-                password_path.exists() and password_path.stat().st_size):
+        while time.time() < deadline and credential_path is None:
             time.sleep(0.5)
-        if not password_path.exists():
-            raise RuntimeError("bootstrap admin password file was not created")
-        admin_password = password_path.read_text().strip()
-        if not admin_password:
-            raise RuntimeError("bootstrap admin password is empty")
+            credential_path = _scratch_credential_file()
+        if credential_path is None:
+            raise RuntimeError("bootstrap credential file was not created")
+        credential_value = credential_path.read_text().strip()
+        if not credential_value:
+            raise RuntimeError("bootstrap credential file is empty")
 
         frontend_proc = C5.start_frontend_copy(
             args.backend_port, args.frontend_port, world)
@@ -288,7 +296,7 @@ def main() -> int:
             page.on("dialog", lambda d: (dialogs.append(d.message), d.accept()))
 
             login = BV.ui_login(
-                page, frontend_base, "admin@example.com", admin_password)
+                page, frontend_base, "admin@example.com", credential_value)
             result["ui"]["login"] = {
                 "ok": login.get("ok"),
                 "landed_path": urlparse(login.get("landed_url") or "").path,

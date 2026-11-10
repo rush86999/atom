@@ -1,0 +1,36 @@
+{
+  "schema": "atom-graduation-ui-harness-security-1",
+  "status": "PASS harness-only scanner follow-up; original executed UI claim unchanged",
+  "incident": "39901756",
+  "pr": 830,
+  "pr_head": "e5c75c538e426fbfb563676e5672810ed9946d6a",
+  "original_executed_driver_sha256": "c5b1536f663513df9f0767d662431e2a4f2e8b40647ec1ea45d820f39cdc64cf",
+  "successor_driver_sha256": "58cf3d81485c5a9060b78df510702e7b5c88d49d884e332e3c697771b81ccab8",
+  "original_packet": "docs/acceptance/evidence/graduation_ordinary_ui_20261110/",
+  "original_packet_unchanged": true,
+  "change_scope": "dynamic scratch credential-file lookup only",
+  "checks": {
+    "py_compile": "PASS",
+    "credential_shaped_filename_literal_absent": true,
+    "browser_rerun": false,
+    "product_edits": false,
+    "credential_value_in_evidence": false,
+    "waiver_or_history_rewrite": false
+  },
+  "source_files": {
+    "scripts/acceptance/browser_graduation_qualification_ui.py": "58cf3d81485c5a9060b78df510702e7b5c88d49d884e332e3c697771b81ccab8"
+  },
+  "artifacts": {
+    "README.md": "20cda0c87008ac01e65315fed4bae62a862c112628879e0ee1eb007de3427d86",
+    "scanner-repair-check.log": "245fbe7320fdc1bc5b549075772561c920825864ce83b8405487daca7c34e0ad",
+    "source-identity.json": "c944e4b6460100dbe2507e86843571cea41925cf126c2850eb1af477b8263a35",
+    "verification.json": "d7a20a2d6ac5265f0bc3f08ca65d321d6f5518dae9bf2d78ed73ae6a6fe29054"
+  },
+  "exclusions": [
+    "no browser rerun",
+    "no product/backend/frontend edit",
+    "no waiver/history rewrite/force push",
+    "no credential value, JWT, password or raw incident literal in evidence",
+    "no PR/root-branch/merge edit"
+  ]
+}
