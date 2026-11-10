@@ -513,6 +513,15 @@ def _claim_canvas_actor(db, actor: Dict[str, Any]) -> bool:
     return True
 
 
+def claim_canvas_actor(db, actor: Dict[str, Any]) -> bool:
+    """Public name for the established canvas actor linearization claim.
+
+    Specialized canvas families reuse this exact guarded User update; no
+    second actor/authority store is introduced.
+    """
+    return _claim_canvas_actor(db, actor)
+
+
 def _optional_identifier(value: Any) -> Optional[str]:
     """Normalize one optional server identifier without inventing a value."""
     text = str(value).strip() if value is not None else ""
