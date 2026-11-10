@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
-import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation } from "lucide-react";
+import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation, Download } from "lucide-react";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
@@ -69,6 +69,8 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     const currentStateRef = useRef(state);
     currentStateRef.current = state;
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [exportingOffice, setExportingOffice] = useState(false);
+    const [officeExportError, setOfficeExportError] = useState<string | null>(null);
     const localContentRef = useRef<string>("");
     // The detail page rebuilds its synthetic lastMessage object on every
     // render — without this key, each re-render (e.g. sending a co-editor
@@ -327,6 +329,74 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
             return false;
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleOfficeExport = async () => {
+        if (!state?.id || exportingOffice) return;
+        setOfficeExportError(null);
+        setExportingOffice(true);
+        try {
+            if (autosaveBlocked) {
+                throw new Error(
+                    "The canvas save is not confirmed. Review the document before downloading.");
+            }
+            // Download only the exact saved editor value. flushAutosave returns
+            // true only after the existing verified save acknowledgement; a
+            // failed/uncertain save leaves the editor dirty and must not
+            // silently export the older server body.
+            if (hasUnsavedChanges || isSaving || autosaveStatus === "pending"
+                || autosaveStatus === "saving") {
+                const confirmed = await flushAutosave({ force: true });
+                if (!confirmed) {
+                    throw new Error(
+                        "The canvas save is not confirmed. Review the document before downloading.");
+                }
+            }
+            const bodyText = extractTextBody(state.data) ?? localContentRef.current ?? "";
+            const presentation = state.component === "markdown"
+                && /^\s*Slide\s+\d+\s*:/mi.test(bodyText);
+            const format = state.component === "document" ? "docx"
+                : presentation ? "pptx" : "docx";
+            const binding = auditBindingRef.current;
+            const expected = binding?.canvasId === state.id && binding?.auditId
+                ? binding.auditId : undefined;
+            const { apiClient } = await import("@/lib/api");
+            const response = await apiClient.get(
+                `/api/canvas/${encodeURIComponent(state.id)}/export/office`,
+                {
+                    params: { format, ...(expected ? { expected_audit_id: expected } : {}) },
+                    responseType: "blob",
+                },
+            );
+            const blob = response.data instanceof Blob
+                ? response.data : new Blob([response.data]);
+            const disposition = response.headers?.["content-disposition"]
+                || response.headers?.get?.("content-disposition") || "";
+            const match = /filename="?([^";]+)"?/i.exec(disposition);
+            const filename = (match?.[1] || `canvas-${state.id}.${format}`)
+                .replace(/[\\/:*?"<>|\r\n]+/g, "_")
+                .slice(0, 160);
+            const url = window.URL.createObjectURL(blob);
+            const link = window.document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.rel = "noopener";
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error: any) {
+            let detail = error?.response?.data;
+            if (detail instanceof Blob) {
+                try { detail = JSON.parse(await detail.text()); } catch { /* keep blob */ }
+            }
+            setOfficeExportError(
+                detail?.detail?.message || detail?.detail?.error
+                || detail?.message || error?.message
+                || "The saved canvas could not be downloaded. Refresh and retry.");
+        } finally {
+            setExportingOffice(false);
         }
     };
 
@@ -921,6 +991,11 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
             </div>
 
             <div className="p-2 border-t flex justify-between items-center px-4 bg-zinc-50 dark:bg-slate-900/30">
+                {officeExportError && (
+                    <div data-testid="canvas-office-export-error" className="text-[10px] text-red-600 dark:text-red-400 px-2">
+                        {officeExportError}
+                    </div>
+                )}
                 <div className="flex gap-4">
                     <button className="text-[10px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1 transition-colors">
                         <History className="h-3 w-3" /> History
@@ -931,6 +1006,22 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                             className={`text-[10px] flex items-center gap-1 transition-colors ${showPreview ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
                         >
                             <Globe className="h-3 w-3" /> {showPreview ? "Edit Mode" : "Preview Mode"}
+                        </button>
+                    )}
+                    {(state.component === "document" || state.component === "markdown") && (
+                        <button
+                            onClick={() => void handleOfficeExport()}
+                            disabled={exportingOffice || isSaving || autosaveBlocked
+                                || autosaveStatus === "saving"}
+                            data-testid="canvas-office-export"
+                            className="text-[10px] flex items-center gap-1 transition-colors disabled:opacity-50 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                            title="Download the exact saved canvas as an Office file"
+                        >
+                            {exportingOffice ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Download className="h-3 w-3" />}
+                            {state.component === "document" ? "Download DOCX"
+                                : /^\s*Slide\s+\d+\s*:/mi.test(extractTextBody(state.data) ?? "")
+                                    ? "Download PPTX" : "Download DOCX"}
                         </button>
                     )}
                 </div>

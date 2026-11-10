@@ -1,0 +1,140 @@
+{
+  "authoritative_repair_commit": "50d11d81154251a7de3dc794bce03177b22a1781",
+  "base": "750f42215229fde8d516c700c6a8de0fd3a5a111",
+  "branch": "codex/web-goal11-canvas-office-export-20261110",
+  "contract": {
+    "artifact_scope_headers": "X-Atom-Artifact-Scope + X-Atom-Business-Result",
+    "determinism": "fixed OPC ZIP timestamps; DOCX and PPTX parent/fresh-child identical bytes",
+    "exact_output_binding": "matching artifact content_sha256 or producer-recorded body digest required; no binding or mismatch refuses",
+    "freshness": "recorded revision/manifest/source/audit/body compared to current canvas",
+    "job_resolution": "Canvas.goal_run_id or exact run provenance.canvas_id via workspace-scoped GoalRunService/TaskLifecycle; audit run_id/assignment/steps are claims only",
+    "receipt_source": "run applied operation records; assignment step flags without an applied operation are unverified",
+    "requirements": "persisted assignment requirements normalized; copied claims may not add/drop/contradict",
+    "route": "GET /api/canvas/{canvas_id}/export/office?format=docx|pptx",
+    "save_intent": "CanvasPanel confirmed autosave before export; dirty/uncertain refuses"
+  },
+  "evidence_files": {
+    "README.md": "693374ede6cc202689a6a27938704518a2568d9d1192ce3bb97a5488b9f0b3b7",
+    "baseline/base_export_route_absent.proof": "634e6321f11c7c95ad13440e5f8c0829e2c138ed9c2be47bc469f1a5daf92a4a",
+    "compat/canvas_api_preexisting_base_3fail.proof": "bbba05a32e7e5ec0a9b30d3e2ea4adfd9ad0b581e75856c2678159cbc1701c1c",
+    "gates/assignment_executor_107.proof": "a2ad937c63a73f1d846e96864c08e949a1111fd22c54b72e1fc984b2f3d998b9",
+    "gates/backend_export_26.proof": "dbc38b3b1da30040510c976eb5a5a623dd493c1d0bd633e6de65a11350f7c390",
+    "gates/canvas_panel_47.proof": "8da58028d7ed7cac8928b9efc070e65fa6abaf59dedd33dd09a75a090209c28e",
+    "gates/office_file_compat_32pass_1pre_existing.proof": "cb53d381c359cb0b41568ff4763af2caa1688748d439b622a228c9c24c19349a",
+    "gates/root_independent_original_fail5.summary": "be8dc6ff23cf12a7c663c072545721c1d54236c85fc283cdb62ffe48f520e04b",
+    "gates/root_independent_original_review.sanitized.json": "26b97386e9b4481e8f0045bda8d1964453ea062348ebb7e83f8f22cb4d7822d5",
+    "gates/root_integrity_six_pass.proof": "7f34d7d44f235a7eb27d4765da08d55a6d5075c8c651f0e5f301a176a73f4fcd",
+    "gates/root_job_binding_pass.proof": "5ebfd0f3360df8d3d05175efbdc28503a3022b71122faf1ae24a56616e3d070e",
+    "gates/root_real_artifact_pass.proof": "0b23a74fa71e4cfbd0278bed6ca5c40acf01d2af873b99b6492d87300d33d48f",
+    "negative/root_job_binding_fail_7af.controls.proof": "6cf693de7ac3849261cc2479595963e45b8c7ee755940dd3e013c46a88836ad8",
+    "negative/root_job_binding_fail_7af.review.sanitized.json": "6267285663492f5abbb253ff5a0cabb1564a7af5d3c89a3fbde49139c0b61210",
+    "reviews/root_integrity_six_pass.review.sanitized.json": "41e3a7cbe13b0e4730b5d2c7e76387b305c0fe7f00f52813c23a0e9d74061e0b",
+    "reviews/root_job_binding_pass.review.sanitized.json": "baeb5f4d108144a948225c7be0ecf93c1cf4482d7846e2dd6a3bd5d4095000d7",
+    "reviews/root_real_artifact_pass.review.sanitized.json": "a14b4dab134baa5af06edf38abb8d803c43f0a51e5d9655268059530d5314677"
+  },
+  "gates": {
+    "assignment_executor": "107 passed",
+    "backend_public_route": "26 passed",
+    "baseline_route": "404 / no route",
+    "canvas_panel": "47 passed",
+    "office_file_compat": "32 passed, 1 pre-existing unrelated failure",
+    "preexisting_canvas_api_submit": "23 failures in broader selection, reproduced at baseline; not this feature",
+    "root_integrity_six": "6 passed",
+    "root_job_binding": "1 passed",
+    "root_real_artifact": "3 passed"
+  },
+  "inspected_runtime": "b9b3ebbb631bf2ced3b71303e765d29cc735c918",
+  "integrity_repair_commit": "7afcf65deabe4dbfde51de93e68b7ea01fedc23f",
+  "kind": "goal11_canvas_office_export_successor_manifest",
+  "non_claims": [
+    "10 independent root cases across 3 bounded runs are not browser or whole-GOAL-11 acceptance.",
+    "No CI/PR/merge; PR number not guessed. PR 824 excludes this feature.",
+    "Root owns independent verification and integration."
+  ],
+  "packet": "docs/acceptance/evidence/goal11_canvas_office_export_50d11d811/",
+  "predecessor": {
+    "original_result": "5 failed, 1 passed in 7.38s; actual_exit 1; same_source true",
+    "packet": "docs/acceptance/evidence/goal11_canvas_office_export_b9b3ebbb6/",
+    "restored_to_commit": "08b5fdfd6d2e4c7fb5782071c64cbf475399bbd8",
+    "status": "withheld_failed_root_5_of_6_integrity_controls"
+  },
+  "redaction": [
+    "Original 0he0pq97 controls.log contains DOCX response bytes; retained privately and not committed.",
+    "Only labelled case/status/header facts and hashes are reproduced.",
+    "No raw DB, tokens, env dumps, binary response bytes or emails."
+  ],
+  "root_capture_head": "76b3465a0c3ce492253020428b32fa3f7d9d4588",
+  "root_evidence": {
+    "attribution_note": "assignment_executor and creation-helper exact hashes are recorded here for independent comparison before stronger frozen attribution.",
+    "independent_case_count": 10,
+    "integrity_six_at_b9": {
+      "actual_exit": 1,
+      "raw_log": "private only; contains dumped DOCX response bytes",
+      "result": "5 failed, 1 passed",
+      "run": "0he0pq97",
+      "same_source": true,
+      "seconds": 7.38,
+      "summary": "gates/root_independent_original_fail5.summary"
+    },
+    "integrity_six_at_repair": {
+      "actual_exit": 0,
+      "result": "6 passed",
+      "run": "yv2q_p3c",
+      "same_source": true,
+      "seconds": 6.62,
+      "source_before": {
+        "backend/api/canvas_routes.py": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+        "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+        "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+        "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5"
+      }
+    },
+    "job_binding_at_7af": {
+      "actual_exit": 1,
+      "controls": "negative/root_job_binding_fail_7af.controls.proof",
+      "result": "1 failed (fake flags + missing job certified)",
+      "review": "negative/root_job_binding_fail_7af.review.sanitized.json",
+      "run": "u5dmjpd8",
+      "same_source": true,
+      "seconds": 4.32
+    },
+    "job_binding_at_repair": {
+      "actual_exit": 0,
+      "controls": "gates/root_job_binding_pass.proof",
+      "result": "1 passed",
+      "review": "reviews/root_job_binding_pass.review.sanitized.json",
+      "run": "ebh0hplc",
+      "same_source": true,
+      "seconds": 3.78
+    },
+    "real_artifact_at_repair": {
+      "actual_exit": 0,
+      "cases": [
+        "genuine canonical quote+artifact exact body -> 200 correct total",
+        "same actual job contradictory document -> 409",
+        "canonical calculation-only/no exact output -> 409"
+      ],
+      "controls": "gates/root_real_artifact_pass.proof",
+      "result": "3 passed",
+      "review": "reviews/root_real_artifact_pass.review.sanitized.json",
+      "run": "40ybdhwv",
+      "same_source": true,
+      "seconds": 5.8
+    },
+    "root_runner_hash_scope": "canvas_routes, office_service, employee_business_outcomes, canvas_authority"
+  },
+  "source_hashes": {
+    "backend/api/canvas_routes.py": "22622d651a0a5f0412deda998d99a7960421c13b8ce132bb70e629acd02e528e",
+    "backend/core/assignment_executor.py": "b5866bf46e8ab457a1138dc584ee639d0bb615b043e6a8ff3d3a5b99ea89b9a6",
+    "backend/tests/helpers/canvas_office_export_child.py": "68b42fe90066a64f95326d97bec7e393ece996f8a3f3c41733466028a206c090",
+    "backend/tests/test_canvas_office_export.py": "a8fe4753c081be904e3866c881642212772dfbb286063a80d136fb35d38d107f",
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "93c3f856d78cfab95d2c2900617ac066e4e5d8e3163ccce76f5346b4edc8a7ca",
+    "frontend-nextjs/components/canvas/__tests__/CanvasPanel.test.tsx": "3cdd1aeaae6120143823dfad19db82cd417a525c062264f219a494314e6fefe0",
+    "root_real_job_fixture.py": "a8fe4753c081be904e3866c881642212772dfbb286063a80d136fb35d38d107f"
+  },
+  "unchanged_neighbor_hashes": {
+    "backend/core/canvas_authority.py": "75e4a11469cfd3ba7b9294e4690f0b61f75368fb5315310bbd214364c669ea2c",
+    "backend/core/employee_business_outcomes.py": "ccbf3e871c25439ce2654889f42144af125d48bf82e8c792ef1f5f3d70327d95",
+    "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5"
+  }
+}
