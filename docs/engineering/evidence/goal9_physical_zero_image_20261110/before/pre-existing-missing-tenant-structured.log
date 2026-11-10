@@ -1,0 +1,73 @@
+
+tests/test_structured_dispatch_policy.py::TestControlALocalReachesEndpoint::test_structured_dispatch_reaches_the_workspace_client
+-------------------------------- live log setup --------------------------------
+2026-11-10 14:26:54 [    INFO] EscalationManager initialized
+2026-11-10 14:26:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:26:54 [    INFO] EscalationManager initialized
+2026-11-10 14:26:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 14:26:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 14:26:54 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 14:26:54 [    INFO] EscalationManager initialized
+2026-11-10 14:26:54 [    INFO] CognitiveTierService initialized for workspace: ws-ctrl
+2026-11-10 14:26:54 [    INFO] LocalOnlyGuard initialized
+2026-11-10 14:26:54 [    INFO] Created OpencodeModelLimits singleton instance
+2026-11-10 14:26:54 [    INFO] BPC cost-priority active (task_type=planning): cheapest capable model local_ctrl1234/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+2026-11-10 14:26:54 [    INFO] BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+2026-11-10 14:26:54 [    INFO] [LearningRouter] auto-mode readiness: 0 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+2026-11-10 14:26:54 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:26:54 [    INFO] [inflight] local_ctrl1234/llama3.1:8b released by 'completion2:planning' after 0.1s
+2026-11-10 14:26:54 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of local_ctrl1234/llama3.1:8b (BudgetReservationRefused)
+2026-11-10 14:26:54 [ WARNING] Structured attempt failed for local_ctrl1234/llama3.1:8b: durable usage intent unavailable
+2026-11-10 14:26:55 [    INFO] Initialized router with 30 models
+2026-11-10 14:26:55 [    INFO] Learning router hydrated 0 feedback rows from DB
+2026-11-10 14:26:55 [    INFO] Learning router singleton initialized
+2026-11-10 14:26:55 [ WARNING] [structured-pool] depth=0 candidates=[('local_ctrl1234', 'llama3.1:8b')] attempted=True credit_failed=[]
+2026-11-10 14:26:55 [ WARNING] structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+2026-11-10 14:26:55 [    INFO] [route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": false, "pool": {"families": {"local_ctrl1234": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-e3ec4c7a3e0d"}
+2026-11-10 14:26:55 [    INFO] BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)
+2026-11-10 14:26:55 [    INFO] Structured generation (free, Managed): local_ctrl1234/llama3.1:8b
+2026-11-10 14:26:55 [    INFO] [inflight] local_ctrl1234/llama3.1:8b released by 'completion2:planning' after 0.0s
+2026-11-10 14:26:55 [   ERROR] Durable usage intent unavailable; refusing structured dispatch of local_ctrl1234/llama3.1:8b (BudgetReservationRefused)
+2026-11-10 14:26:55 [ WARNING] Structured attempt failed for local_ctrl1234/llama3.1:8b: durable usage intent unavailable
+2026-11-10 14:26:55 [ WARNING] [structured-pool] depth=1 candidates=[('local_ctrl1234', 'llama3.1:8b')] attempted=True credit_failed=[]
+2026-11-10 14:26:55 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+2026-11-10 14:26:55 [   ERROR] All structured providers failed after 1 attempt(s). Last error: durable usage intent unavailable
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+<scratch>:220: AssertionError: a schema-valid plan must come back; got None
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_structured_dispatch_policy.py::TestControlALocalReachesEndpoint::test_structured_dispatch_reaches_the_workspace_client
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 failed, 7 warnings in 17.48s ========================

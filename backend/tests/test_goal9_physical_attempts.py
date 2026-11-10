@@ -200,9 +200,12 @@ class _ChatClient:
 
 
 def _stream(handler, model, provider_id, **kwargs):
+    messages = kwargs.pop("messages", None) or [
+        {"role": "user", "content": "hello"}]
+
     async def _collect():
         return [part async for part in handler.stream_completion(
-            [{"role": "user", "content": "hello"}],
+            messages,
             model=model, provider_id=provider_id,
             max_tokens=kwargs.pop("max_tokens", 1000), **kwargs)]
     return asyncio.run(_collect())
@@ -860,6 +863,70 @@ _IMAGE_MESSAGES = [{
          "image_url": {"url": "data:image/png;base64,AAAA"}},
     ],
 }]
+
+
+def test_authoritative_zero_price_image_retains_free_route(
+        host, monkeypatch, tmp_path):
+    """Configured numeric-zero pricing is authoritative: images cost 0 too.
+
+    A fixed per-image token guess is still forbidden; the price contract
+    decides. At $0/token the image token count cannot change the cost, so a
+    genuinely free route must not be refused or downgraded to unknown.
+    """
+    _seed(host, spend=90.0)
+    _pricing(monkeypatch, lambda *a, **k: 0.0)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient(
+            [{"response": _response("FREE IMAGE")}], calls)})
+    result = asyncio.run(handler.chat_completion(
+        _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
+    assert result["choices"][0]["message"]["content"] == "FREE IMAGE"
+    assert len(calls) == 1
+    rows = _attempt_rows(host)
+    assert len(rows) == 1
+    assert rows[0].pricing_status == "free"
+    assert rows[0].reservation_status == "settled"
+    assert float(rows[0].reserved_cost_usd or 0.0) == 0.0
+    assert rows[0].cost_usd == pytest.approx(0.0)
+
+
+def test_authoritative_zero_price_image_streams_free(
+        host, monkeypatch, tmp_path):
+    _seed(host, spend=90.0)
+    _pricing(monkeypatch, lambda *a, **k: 0.0)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _StreamClient(
+            "openai", [{"chunks": [_visible("FREE STREAM IMAGE")]}],
+            calls)})
+    text = "".join(_stream(
+        handler, "gpt-4o", "openai", messages=_IMAGE_MESSAGES))
+    assert text == "FREE STREAM IMAGE"
+    rows = _attempt_rows(host)
+    assert len(rows) == 1
+    assert rows[0].pricing_status == "free"
+    assert rows[0].reservation_status == "settled"
+    assert float(rows[0].reserved_cost_usd or 0.0) == 0.0
+
+
+def test_paid_image_still_refuses_under_hardstop(
+        host, monkeypatch, tmp_path):
+    """A positive configured price keeps the explicit-unknown image refusal."""
+    _seed(host, spend=0.0)
+    _reservation_pricing(monkeypatch, bound_at=7.0, actual=7.0)
+    calls = []
+    handler = _make_handler(
+        monkeypatch, tmp_path, {"openai": ["gpt-4o"]},
+        async_={"openai": _ChatClient(
+            [{"response": _response("MUST NOT RUN")}], calls)})
+    with pytest.raises(Exception):
+        asyncio.run(handler.chat_completion(
+            _IMAGE_MESSAGES, "gpt-4o", "openai", max_tokens=1000))
+    assert calls == []
+    assert _attempt_rows(host) == []
 
 
 def test_multimodal_hardstop_refuses_without_fabricated_image_bound(

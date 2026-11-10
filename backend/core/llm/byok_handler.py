@@ -1206,11 +1206,17 @@ def _serialized_payload_for_bound(
 def _has_inline_image(messages: Any) -> bool:
     """True when the request carries a multimodal image part.
 
-    There is no proven upper bound here for an arbitrary image/resolution/
-    provider combination, so such a request is admitted with an explicit
-    UNKNOWN bound: hard_stop refuses it before dispatch, while no-limit or
-    observe modes still run with the unknown liability retained. A fixed
+    There is no proven token upper bound for an arbitrary image/resolution/
+    provider combination, so an image request is normally admitted with an
+    explicit UNKNOWN bound: hard_stop refuses before dispatch, while
+    no-limit/observe modes run with unknown liability retained. A fixed
     per-image token allowance would be a fabricated bound.
+
+    Authoritative numeric-zero configured pricing is the ONE exception: at
+    $0 per token the image token count cannot change the cost, so a genuinely
+    free route stays free and is not refused. The price contract (not a brand
+    or model-name guess) is what decides; missing/invalid price remains
+    unknown and refuses under hard_stop.
     """
     for message in messages or []:
         content = message.get("content") if isinstance(message, dict) else None
@@ -1220,6 +1226,18 @@ def _has_inline_image(messages: Any) -> bool:
                         and part.get("type") in {"image_url", "input_image"}):
                     return True
     return False
+
+
+def _image_cost_is_unknown(messages: Any, bound: Optional[float]) -> bool:
+    """True only when an image request's cost has no authoritative bound.
+
+    ``bound == 0.0`` is the price contract's authoritative numeric-zero
+    answer: any number of image tokens costs 0 at $0/token, so the route is
+    genuinely free and must not be refused or downgraded to unknown liability.
+    ``None`` (missing/invalid price) or a positive text bound means the image
+    contribution is unbounded and the caller keeps the explicit-unknown path.
+    """
+    return _has_inline_image(messages) and bound != 0.0
 
 
 # Completion cap for plain (non-streaming) completions — same rationale as
@@ -4317,14 +4335,15 @@ class BYOKHandler:
     ) -> Optional[float]:
         """Conservative configured USD bound for ONE paid physical attempt.
 
-        Input tokens use a per-model upper bound: the provider family
-        tokenizer for proven OpenAI ids, otherwise the UTF-8 byte bound that
-        any byte/char-aligned tokenizer cannot exceed. ``input_texts`` should
-        carry the ACTUAL serialized payload (messages/roles/tool schemas); the
-        callers pass ``_serialized_payload_for_bound``. ``schema_text`` and
-        ``extra_text`` add tool schema / request-body fragments. A missing or
-        invalid price returns None so hard-stop refuses rather than silently
-        under-reserving or admitting a fabricated zero.
+        Supported text uses the tokenizer-agnostic UTF-8 byte upper bound: no
+        provider/brand mapping in this repo proves a served model's tokenizer,
+        and every supported byte/char-aligned text tokenizer emits at most one
+        token per input byte. ``input_texts`` should carry the ACTUAL
+        serialized payload (messages/roles/tool schemas); callers pass
+        ``_serialized_payload_for_bound``. ``schema_text`` and ``extra_text``
+        add tool schema / request-body fragments. A missing or invalid price
+        returns None so hard-stop refuses rather than silently under-reserving
+        or admitting a fabricated zero.
         """
         try:
             if isinstance(input_texts, str):
@@ -4411,15 +4430,24 @@ class BYOKHandler:
             schema_text=schema_text,
         )
         if _has_inline_image(messages):
-            # No proven bound exists for arbitrary image/resolution/provider
-            # combinations. Explicit unknown (not a fabricated allowance):
-            # hard_stop refuses before dispatch; observe/no-limit modes run
-            # with the unknown liability retained.
-            logger.warning(
-                "[reservation] multimodal request for %s/%s has no proven "
-                "image token bound; admitting as explicit unknown",
-                provider_id, model)
-            bound = None
+            if bound == 0.0:
+                # Authoritative numeric-zero configured price (the price
+                # contract, not a brand guess): image token count cannot
+                # change a $0 cost, so this genuinely free route stays free.
+                logger.info(
+                    "[reservation] multimodal request for %s/%s has "
+                    "authoritative zero price; known free route retained",
+                    provider_id, model)
+            else:
+                # No proven bound exists for arbitrary image/resolution/
+                # provider combinations. Explicit unknown (not a fabricated
+                # allowance): hard_stop refuses before dispatch; observe/
+                # no-limit modes run with unknown liability retained.
+                logger.warning(
+                    "[reservation] multimodal request for %s/%s has no proven "
+                    "image token bound; admitting as explicit unknown",
+                    provider_id, model)
+                bound = None
         try:
             from core.spend_aggregation_service import begin_llm_usage
 
@@ -4563,6 +4591,7 @@ class BYOKHandler:
         execution_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         known_free: bool = False,
+        durable_unknown: bool = False,
     ) -> tuple[int, int, Optional[float]]:
         usage = _response_usage(response)
         if usage is None:
@@ -4649,7 +4678,11 @@ class BYOKHandler:
                 model_name=model,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
-                cost_usd=cost,
+                # A multimodal attempt whose price has no authoritative zero
+                # bound settles as explicit unknown liability, never a guess
+                # derived from partial token pricing (known free still wins).
+                cost_usd=(
+                    None if durable_unknown and not known_free else cost),
                 agent_id=agent_id,
                 workspace_id=getattr(self, "workspace_id", None),
                 tenant_id=(tenant_id or getattr(self, "tenant_id", None)),
@@ -7478,7 +7511,9 @@ class BYOKHandler:
                             completion_tokens=_usage_value(
                                 usage, "completion_tokens", "output_tokens"),
                             cost_usd=(
-                                None if _request_has_image else observed_cost),
+                                None if _image_cost_is_unknown(
+                                    messages, _reservation_bound)
+                                else observed_cost),
                             agent_id=agent_id,
                             workspace_id=getattr(self, "workspace_id", None),
                             tenant_id=getattr(self, "tenant_id", None),
@@ -7579,7 +7614,7 @@ class BYOKHandler:
                             _t_attempt_id = (
                                 f"{_settlement_request_id}:"
                                 f"{_settlement_attempts[0]}")
-                            self._admit_physical_attempt(
+                            _t_bound = self._admit_physical_attempt(
                                 request_id=_settlement_request_id,
                                 attempt_id=_t_attempt_id,
                                 provider_id=provider_id,
@@ -7611,7 +7646,8 @@ class BYOKHandler:
                                     agent_id=agent_id,
                                     execution_id=execution_id,
                                     chain_id=chain_id,
-                                        unknown=_request_has_image,
+                                        unknown=_image_cost_is_unknown(
+                                            messages, _t_bound),
                                 )
                                 self._last_used_model = model
                                 self._last_used_provider = provider_id
@@ -7658,7 +7694,7 @@ class BYOKHandler:
                                 _fb_attempt_id = (
                                     f"{_settlement_request_id}:"
                                     f"{_settlement_attempts[0]}")
-                                self._admit_physical_attempt(
+                                _fb_bound = self._admit_physical_attempt(
                                     request_id=_settlement_request_id,
                                     attempt_id=_fb_attempt_id,
                                     provider_id=provider_id,
@@ -7693,7 +7729,8 @@ class BYOKHandler:
                                     agent_id=agent_id,
                                     execution_id=execution_id,
                                     chain_id=chain_id,
-                                        unknown=_request_has_image,
+                                        unknown=_image_cost_is_unknown(
+                                            messages, _fb_bound),
                                 )
                                 self._last_used_model = fallback_model
                                 self._last_used_provider = provider_id
@@ -7786,7 +7823,7 @@ class BYOKHandler:
                                     _heal_attempt_id = (
                                         f"{_settlement_request_id}:"
                                         f"{_settlement_attempts[0]}")
-                                    self._admit_physical_attempt(
+                                    _heal_bound = self._admit_physical_attempt(
                                         request_id=_settlement_request_id,
                                         attempt_id=_heal_attempt_id,
                                         provider_id=provider_id,
@@ -7849,7 +7886,8 @@ class BYOKHandler:
                                         agent_id=agent_id,
                                         execution_id=execution_id,
                                         chain_id=chain_id,
-                                        unknown=_request_has_image,
+                                        unknown=_image_cost_is_unknown(
+                                            messages, _heal_bound),
                                     )
                                     self._last_used_model = model
                                     self._last_used_provider = provider_id
@@ -7894,7 +7932,7 @@ class BYOKHandler:
                                 _paid_attempt_id = (
                                     f"{_settlement_request_id}:"
                                     f"{_settlement_attempts[0]}")
-                                self._admit_physical_attempt(
+                                _paid_bound = self._admit_physical_attempt(
                                     request_id=_settlement_request_id,
                                     attempt_id=_paid_attempt_id,
                                     provider_id=provider_id,
@@ -7952,7 +7990,8 @@ class BYOKHandler:
                                     agent_id=agent_id,
                                     execution_id=execution_id,
                                     chain_id=chain_id,
-                                        unknown=_request_has_image,
+                                        unknown=_image_cost_is_unknown(
+                                            messages, _paid_bound),
                                 )
                                 self._last_used_model = paid_model
                                 self._last_used_provider = provider_id
@@ -8061,7 +8100,7 @@ class BYOKHandler:
                         _sweep_attempt_id = (
                             f"{_settlement_request_id}:"
                             f"{_settlement_attempts[0]}")
-                        self._admit_physical_attempt(
+                        _sweep_bound = self._admit_physical_attempt(
                             request_id=_settlement_request_id,
                             attempt_id=_sweep_attempt_id,
                             provider_id=_sp,
@@ -8092,7 +8131,8 @@ class BYOKHandler:
                             agent_id=agent_id,
                             execution_id=execution_id,
                             chain_id=chain_id,
-                                        unknown=_request_has_image,
+                                        unknown=_image_cost_is_unknown(
+                                            messages, _sweep_bound),
                         )
                         logger.warning(
                             "completion ladder sweep SUCCEEDED on %s/%s",
@@ -9795,11 +9835,6 @@ class BYOKHandler:
                             _structured_attempt_id = (
                                 f"{_structured_settlement_request_id}:"
                                 f"{_attempt_count}")
-                            _structured_reservation_texts = (
-                                [str(m.get("content") or "") for m in messages]
-                                if messages else
-                                [system_instruction or "", prompt]
-                            )
                             _structured_schema_text = None
                             try:
                                 if hasattr(response_model, "model_json_schema"):
@@ -9815,33 +9850,39 @@ class BYOKHandler:
                                     os.getenv(
                                         "ATOM_STRUCTURED_MAX_TOKENS", "6000"))
                             )
-                            _structured_reservation_bound = (
-                                self._estimate_reservation_bound(
-                                    provider_id, model,
-                                    _structured_reservation_texts,
-                                    _structured_reservation_output,
-                                    schema_text=_structured_schema_text))
+                            # Same per-physical-attempt admission as the
+                            # chat/stream/ordinary slices: bound the ACTUAL
+                            # payload (messages/roles/tool shape), schema and
+                            # this attempt's cap; multimodal requests only
+                            # stay free on an authoritative numeric-zero price.
+                            _structured_dispatch_messages = (
+                                _create_kwargs.get("messages")
+                                or messages
+                                or [{"role": "user", "content": prompt}]
+                            )
                             try:
-                                from core.spend_aggregation_service import (
-                                    begin_llm_usage,
+                                _structured_reservation_bound = (
+                                    self._admit_physical_attempt(
+                                        request_id=(
+                                            _structured_settlement_request_id),
+                                        attempt_id=_structured_attempt_id,
+                                        provider_id=provider_id,
+                                        model=model,
+                                        messages=_structured_dispatch_messages,
+                                        max_output_tokens=(
+                                            _structured_reservation_output),
+                                        agent_id=agent_id,
+                                        chain_id=chain_id,
+                                        schema_text=_structured_schema_text,
+                                        extra_kwargs={
+                                            k: v for k, v in
+                                            _create_kwargs.items()
+                                            if k not in
+                                            ("messages", "model", "prompt")
+                                        },
+                                    )
                                 )
-
-                                begin_llm_usage(
-                                    provider_id=provider_id,
-                                    model_name=model,
-                                    agent_id=agent_id,
-                                    workspace_id=getattr(
-                                        self, "workspace_id", None),
-                                    tenant_id=getattr(self, "tenant_id", None),
-                                    chain_id=chain_id,
-                                    request_id=(
-                                        _structured_settlement_request_id),
-                                    attempt_id=_structured_attempt_id,
-                                    reserved_cost_usd=(
-                                        _structured_reservation_bound),
-                                    enforce_budget=True,
-                                )
-                            except Exception as intent_err:
+                            except _AccountingBlockedError as intent_err:
                                 _release_once()
                                 logger.error(
                                     "Durable usage intent unavailable; "
@@ -9851,6 +9892,10 @@ class BYOKHandler:
                                 raise _DurableUsageIntentUnavailable(
                                     "durable usage intent unavailable"
                                 ) from None
+                            _structured_cost_unknown = (
+                                _image_cost_is_unknown(
+                                    _structured_dispatch_messages,
+                                    _structured_reservation_bound))
                             # PLAN-ATTEMPT ATTRIBUTION, BEFORE THE
                             # BLOCKING CALL (verifier work order, round
                             # 19): the completion trace below emits only
@@ -9956,6 +10001,10 @@ class BYOKHandler:
                                     is_managed_service=is_managed,
                                     request_id=_structured_settlement_request_id,
                                     attempt_id=_structured_attempt_id,
+                                    durable_unknown=(
+                                        _structured_cost_unknown),
+                                    known_free=(
+                                        _structured_reservation_bound == 0.0),
                                 )
                             )
                             if _structured_output_missing(result):
@@ -12363,9 +12412,12 @@ class BYOKHandler:
                             model_name=model,
                             prompt_tokens=prompt_tokens or 0,
                             completion_tokens=completion_tokens or 0,
-                            # A multimodal attempt has no proven image bound;
-                            # keep its settlement explicitly unknown.
-                            cost_usd=(None if _request_has_image else cost),
+                            # A multimodal attempt is unknown only when its
+                            # price has no authoritative zero bound.
+                            cost_usd=(
+                                None if _image_cost_is_unknown(
+                                    messages, _chat_reservation_bound)
+                                else cost),
                             agent_id=agent_id,
                             workspace_id=getattr(self, "workspace_id", None),
                             tenant_id=getattr(self, "tenant_id", None),
@@ -12487,7 +12539,8 @@ class BYOKHandler:
                             request_id=_settlement_request_id,
                             attempt_id=_t1_attempt_id,
                             agent_id=agent_id,
-                            unknown=_request_has_image,
+                            unknown=_image_cost_is_unknown(
+                                messages, _t1_bound),
                         )
                         self._clear_model_cooldown(attempt_provider_id, model)
                         last_error = None
@@ -12575,7 +12628,7 @@ class BYOKHandler:
                                 _heal_attempt_id = (
                                     f"{_settlement_request_id}:"
                                     f"{_attempt_seq[0]}")
-                                self._admit_physical_attempt(
+                                _chat_heal_bound = self._admit_physical_attempt(
                                     request_id=_settlement_request_id,
                                     attempt_id=_heal_attempt_id,
                                     provider_id=attempt_provider_id,
@@ -12633,7 +12686,8 @@ class BYOKHandler:
                                     request_id=_settlement_request_id,
                                     attempt_id=_heal_attempt_id,
                                     agent_id=agent_id,
-                                    unknown=_request_has_image,
+                                    unknown=_image_cost_is_unknown(
+                                        messages, _chat_heal_bound),
                                 )
                                 self._last_used_model = model
                                 self._last_used_provider = attempt_provider_id
@@ -12697,7 +12751,7 @@ class BYOKHandler:
                             _paid_attempt_id = (
                                 f"{_settlement_request_id}:"
                                 f"{_attempt_seq[0]}")
-                            self._admit_physical_attempt(
+                            _chat_paid_bound = self._admit_physical_attempt(
                                 request_id=_settlement_request_id,
                                 attempt_id=_paid_attempt_id,
                                 provider_id=attempt_provider_id,
@@ -12787,7 +12841,8 @@ class BYOKHandler:
                                 request_id=_settlement_request_id,
                                 attempt_id=_paid_attempt_id,
                                 agent_id=agent_id,
-                                unknown=_request_has_image,
+                                unknown=_image_cost_is_unknown(
+                                    messages, _chat_paid_bound),
                             )
                             self._last_used_model = paid_model
                             self._last_used_provider = attempt_provider_id

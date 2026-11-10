@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime, timedelta
 import json
 import logging
+import math
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -154,18 +155,26 @@ class DynamicPricingFetcher:
                 # Transform to our format
                 pricing = {}
                 for model_name, model_data in data.items():
-                    if isinstance(model_data, dict):
-                        pricing[model_name] = {
-                            "input_cost_per_token": model_data.get("input_cost_per_token", 0),
-                            "output_cost_per_token": model_data.get("output_cost_per_token", 0),
-                            "max_tokens": model_data.get("max_tokens", 0),
-                            "max_input_tokens": model_data.get("max_input_tokens", 0),
-                            "max_output_tokens": model_data.get("max_output_tokens", 0),
-                            "litellm_provider": model_data.get("litellm_provider", "unknown"),
-                            "mode": model_data.get("mode", "chat"),
-                            "source": "litellm",
-                            "supports_cache": model_data.get("supports_cache", False),  # Cache support metadata
-                        }
+                    if not isinstance(model_data, dict):
+                        continue
+                    # Never fabricate a $0 rate by defaulting a missing one.
+                    if not self.rates_are_material({
+                            "input_cost_per_token": model_data.get(
+                                "input_cost_per_token"),
+                            "output_cost_per_token": model_data.get(
+                                "output_cost_per_token")}):
+                        continue
+                    pricing[model_name] = {
+                        "input_cost_per_token": model_data["input_cost_per_token"],
+                        "output_cost_per_token": model_data["output_cost_per_token"],
+                        "max_tokens": model_data.get("max_tokens", 0),
+                        "max_input_tokens": model_data.get("max_input_tokens", 0),
+                        "max_output_tokens": model_data.get("max_output_tokens", 0),
+                        "litellm_provider": model_data.get("litellm_provider", "unknown"),
+                        "mode": model_data.get("mode", "chat"),
+                        "source": "litellm",
+                        "supports_cache": model_data.get("supports_cache", False),  # Cache support metadata
+                    }
 
                 # Add MiniMax models fallback if not in LiteLLM yet
                 for _m3 in ("MiniMax-M3", "MiniMax-M3-highspeed"):
@@ -260,10 +269,14 @@ class DynamicPricingFetcher:
                 for model in data.get("data", []):
                     model_id = model.get("id", "")
                     model_pricing = model.get("pricing", {})
-                    
+                    if not self.rates_are_material({
+                            "input_cost_per_token": model_pricing.get("prompt"),
+                            "output_cost_per_token": model_pricing.get(
+                                "completion")}):
+                        continue
                     pricing[model_id] = {
-                        "input_cost_per_token": float(model_pricing.get("prompt", 0)),
-                        "output_cost_per_token": float(model_pricing.get("completion", 0)),
+                        "input_cost_per_token": float(model_pricing["prompt"]),
+                        "output_cost_per_token": float(model_pricing["completion"]),
                         "max_tokens": model.get("context_length", 0),
                         "name": model.get("name", model_id),
                         "description": model.get("description", ""),
@@ -622,16 +635,48 @@ class DynamicPricingFetcher:
         
         return comparison
     
+    @staticmethod
+    def rates_are_material(pricing: Any) -> bool:
+        """True only when BOTH per-token rates are explicit valid numbers.
+
+        Missing rates, ``None``, bools (``False`` is numerically 0), negative
+        values and non-finite values are INVALID pricing material, not free.
+        ``pricing.get(rate, 0)`` used to turn a missing/partial entry into an
+        authoritative-looking $0 and arithmetic could even cancel a negative
+        input rate against a positive output rate. The correct-price no-
+        fabricated-free gate requires unknown here so hard_stop refuses.
+        """
+        if not isinstance(pricing, dict):
+            return False
+        for key in ("input_cost_per_token", "output_cost_per_token"):
+            value = pricing.get(key)
+            if value is None or isinstance(value, bool):
+                return False
+            try:
+                rate = float(value)
+            except (TypeError, ValueError):
+                return False
+            if not math.isfinite(rate) or rate < 0:
+                return False
+        return True
+
     def estimate_cost(self, model_name: str, input_tokens: int, output_tokens: int) -> Optional[float]:
-        """Estimate cost for a specific request"""
+        """Estimate cost for a specific request.
+
+        Returns ``None`` (unknown) unless the configured entry carries explicit
+        finite non-negative material for BOTH rates. A genuine explicit 0/0
+        entry remains authoritative free; absence is never free.
+        """
         pricing = self.get_model_price(model_name)
-        if not pricing:
+        if not pricing or not self.rates_are_material(pricing):
             return None
 
-        input_cost = pricing.get("input_cost_per_token", 0) * input_tokens
-        output_cost = pricing.get("output_cost_per_token", 0) * output_tokens
-
-        return input_cost + output_cost
+        input_cost = float(pricing["input_cost_per_token"]) * input_tokens
+        output_cost = float(pricing["output_cost_per_token"]) * output_tokens
+        total = input_cost + output_cost
+        if not math.isfinite(total) or total < 0:
+            return None
+        return total
 
     def model_supports_cache(self, model_name: str) -> bool:
         """
