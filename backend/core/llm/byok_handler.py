@@ -6372,6 +6372,7 @@ class BYOKHandler:
         messages: Optional[List[Dict[str, Any]]] = None,  # Full conversation (chat path)
         max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
         estimated_tokens: Optional[int] = None,  # MEASURED input tokens, when the caller has them
+        execution_id: Optional[str] = None,  # Optional server-owned execution attribution
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -6953,7 +6954,9 @@ class BYOKHandler:
                             "Durable usage intent unavailable; refusing "
                             "dispatch of %s/%s (%s)",
                             provider_id, model, type(intent_err).__name__)
-                        continue
+                        # A ledger/scope failure is not a provider failure:
+                        # do not silently fall through to another route.
+                        break
 
                     try:
                         response = await _to_thread_safe(
@@ -10522,6 +10525,12 @@ class BYOKHandler:
                 stream_prompt = str(_m.get("content", ""))
                 break
         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
+        # The learning-router decision id is optional (None when the router is
+        # off). Settlement still needs a unique server-owned request identity:
+        # reusing "None:stream:request" made every stream collide on the
+        # ledger's unique attempt_id.
+        _stream_identity = (
+            stream_decision_id or f"stream-{uuid.uuid4().hex}")
         # Streaming token/cost usage is not currently exposed by every
         # provider stream. Reserve a conservative configured bound before the
         # stream; it remains an active liability until authoritative
@@ -10539,8 +10548,8 @@ class BYOKHandler:
                 agent_id=agent_id,
                 workspace_id=getattr(self, "workspace_id", None),
                 tenant_id=getattr(self, "tenant_id", None),
-                request_id=stream_decision_id,
-                attempt_id=f"{stream_decision_id}:stream:request",
+                request_id=_stream_identity,
+                attempt_id=f"{_stream_identity}:stream:request",
                 reserved_cost_usd=_stream_reservation_bound,
                 enforce_budget=True,
             )
@@ -11620,7 +11629,9 @@ class BYOKHandler:
                         "completion dispatch of %s/%s (%s)",
                         attempt_provider_id, model,
                         type(intent_err).__name__)
-                    continue
+                    # Accounting/scope failure must not trigger a hidden
+                    # fallback to another provider/model.
+                    break
                 try:
                     response = await client.chat.completions.create(**_attempt_kwargs)
                 finally:
