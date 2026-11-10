@@ -125,5 +125,81 @@
     "Source74f017752: configured Flash test-only extension independently12passed;4new controls beyond retained8; controlled7/30day late status/answer/currentauthority, not realsoak or browser/modelquality."
   ],
   "obsolete_queue_correction": "Only803/804 currently open. Historical756/759/760/782/783/784/785/798/799/800/801 all MERGED at recorded remote refs; merge state does not broaden their tested scope.",
-  "multiday_correction": "Existing main already includes3/14-day and repeatedtwo-week controls in test_generic_information_multiday_contract.py. New work only extends fresh-session status/no-polling,7/30-day same-job trigger and current-authority negatives; it is not a newfeature or generalsoak."
+  "multiday_correction": "Existing main already includes3/14-day and repeatedtwo-week controls in test_generic_information_multiday_contract.py. New work only extends fresh-session status/no-polling,7/30-day same-job trigger and current-authority negatives; it is not a newfeature or generalsoak.",
+  "lead_verified_followthrough_2026_11_09": {
+    "scope": "Operational successor; historical claim records and their original evidence are unchanged. Main web first, mobile last.",
+    "denominator": {
+      "historical_claims": 143,
+      "goal_map_rows": 18,
+      "app_complete": false
+    },
+    "merged": [
+      {
+        "pr": 803,
+        "merge": "c8f8183e8fa3bbfb5a1332e4f5a2f1058db09c0b",
+        "scope": "canonical recovery/logout/current backend principal; controlled HTTP restart proof, production-cookie defect explicitly separate"
+      },
+      {
+        "pr": 805,
+        "merge": "482ced8f40f179cf34108e0bc7df4ba44029698f",
+        "scope": "test-only 7/30-day controlled-clock wait and late-authority extension; actual prospective main12pass; not physical soak"
+      }
+    ],
+    "submitted": [
+      {
+        "pr": 804,
+        "head": "02db8d5c1ded4478ec3ad56df28fbda8f184c321",
+        "scope": "truthful skills catalogue/shared proxy; reconciled actual main; native27pass; fresh CI required"
+      },
+      {
+        "pr": 806,
+        "head": "cc693d6462c61fed33bd343b404041029594ef44",
+        "scope": "production-cookie policy and actual optimized HTTPS frontend restart/session isolation; SDK45pass; fresh CI required"
+      },
+      {
+        "pr": 807,
+        "head": "c20d2726b504b940028795b672d728ed7d04b668",
+        "scope": "production TypeScript enforced; actual full optimized build0/native2pass; tree identical to frozen proof; draft dependency804/806"
+      },
+      {
+        "pr": 808,
+        "head": "35ee3b588",
+        "scope": "Production protected-page SDK-cookie navigation; independent3 probes/58 SDK/71 UI controls; actual combined strict production build0 at5248098bb; no actual new browser server run. Exact CI/review/dependency merge gates remain."
+      }
+    ],
+    "sso": {
+      "admission_source": "a7ed7a96737b4751bfa256b2c285cf6fdb8bf23d",
+      "independent_normal_fixture_tests": 69,
+      "evidence": "docs/acceptance/evidence/web_sso_account_admission_a7ed7a967/",
+      "state": "bounded admission verified, whole SSO incomplete",
+      "next_required": [
+        "durable login state across backend restart with initiating-browser binding; native CLI successor active",
+        "canonical safe handoff to the configured web origin and ordinary UI session, not backend localStorage-only redirect",
+        "safe configured-provider UI and current-authority readback"
+      ],
+      "not_qualified": [
+        "live identity provider",
+        "general SSO",
+        "browser journey"
+      ],
+      "identity_source": "6a21e1d7e989184fc89f524b61a6360a969972fa",
+      "identity_evidence": "docs/acceptance/evidence/web_sso_verified_identity_6a21e1d7e/",
+      "independent_exact_callback_probes": 4,
+      "bounded_identity_status": "Signed verified email, exact UserInfo subject and exact opaque-subject twins independently pass. Preserved negatives remain at their original sources."
+    },
+    "performance_reconciliation": {
+      "historical_missing_public_reproducer_statement": "superseded only for cache-only command availability",
+      "existing_source": "dd2610502",
+      "command": "scripts/benchmark_governance.py",
+      "independent_tests": 37,
+      "scope": "source-bound cache-only CLI correctness and DB isolation; not full governance/HTTP performance or universal throughput"
+    },
+    "delivery_policy": "Refresh actual PR refs and all required checks before any merge; no inherited green after head change; reuse unchanged source-bound proof; no duplicate browser campaign for ancestry/docs-only changes.",
+    "active_web_session_producer": {
+      "finding": "Ordinary login/signup helpers manually write raw backend JWT into next-auth.session-token, rather than establish the installed SDK encrypted web session. Distinct from the corrected middleware consumer.",
+      "implementation": "Bounded economical native CLI successor on codex/web-login-session-producer-20261109",
+      "required": "Use existing backend-authoritative Credentials bridge without another password login; validate any supplied bearer at canonical current-user endpoint; SDK alone owns encrypted session cookies; preserve existing direct API compatibility and challenge/refusal safety.",
+      "not_complete": true
+    }
+  }
 }
