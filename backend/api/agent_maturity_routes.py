@@ -36,6 +36,7 @@ from core.models import (
 from core.security.rbac import user_meets_role
 from core.proposal_service import ProposalNotFoundError, ProposalService
 from core.student_training_service import (
+    DirtyCallerWorkError,
     InsufficientTrainingEvidenceError,
     StudentTrainingService,
     TrainingAuthorityError,
@@ -410,8 +411,13 @@ async def complete_training_session(
     )
     try:
         result = await StudentTrainingService(db).complete_training_session(
-            session_id=session_id, outcome=outcome
+            session_id=session_id, outcome=outcome, actor_id=current_user.id
         )
+    except DirtyCallerWorkError as e:
+        raise HTTPException(status_code=409, detail={
+            "code": "DIRTY_CALLER_WORK",
+            "message": str(e),
+        })
     except InsufficientTrainingEvidenceError as e:
         # 422 with the live counts so the panel can render "1/3 recorded
         # runs" instead of a generic failure.

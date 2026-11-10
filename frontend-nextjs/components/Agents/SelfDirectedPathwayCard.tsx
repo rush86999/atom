@@ -151,6 +151,12 @@ export function SelfDirectedPathwayCard({
       {!ready && progress.readiness.reason && !compact && (
         <p className="text-[10px] text-muted-foreground">{progress.readiness.reason}</p>
       )}
+      {progress.assessment?.required
+        && progress.assessment.allowed !== true && (
+        <p className="text-[10px] text-amber-700 dark:text-amber-400">
+          Capability qualification review required before promotion.
+        </p>
+      )}
 
       {ready && onPromote && (
         <Button

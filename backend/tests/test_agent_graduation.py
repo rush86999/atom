@@ -815,3 +815,6 @@ class TestSupervisionValidationCoverage:
 
         # Should be low due to poor metrics
         assert score < 50
+
+
+pytestmark = pytest.mark.usefixtures("experience_only_qualification_exception")

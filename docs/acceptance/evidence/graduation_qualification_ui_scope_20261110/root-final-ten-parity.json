@@ -1,0 +1,14 @@
+{
+  "frozen": "cf2c7c707",
+  "review": "/private/tmp/root-graduation-cf2-frozen-independent-20261110-ksm_s7i4/review.json",
+  "actual_exit": 0,
+  "same_source": true,
+  "checks": {
+    "backend/api/episode_routes.py": true,
+    "backend/core/agent_graduation_service.py": true,
+    "backend/core/auth.py": true,
+    "backend/core/promotion_policy_service.py": true,
+    "backend/core/agent_decision_write_service.py": true,
+    "backend/core/runtime_settings.py": true
+  }
+}

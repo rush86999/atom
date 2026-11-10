@@ -1,0 +1,39 @@
+{
+  "schema": "atom-pr831-trainingpanel-async-1",
+  "status": "PASS test-only CI unblock",
+  "product_source": "346b9a6c5a230812ed8ab08ac814483e8cf9b1f9",
+  "base_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "pr_merge_commit": "0267d57233110cf03f8bdfeae89c86d9c917d387",
+  "changed_file": "frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx",
+  "test_file_before_sha256": "25186c86008db9b9518087ba090845494ad75d7ecc2985b844bb4987e4a8f2ab",
+  "test_file_after_sha256": "5083fc7c25815f40e3f09ccc5963f971f0ea34d65bc00d8aa3a1f114042f1a4d",
+  "component_changed": false,
+  "component_sha256": "f72b9aac6160a112c5ece154f2eecc81b146e9d462f919c6f0173dcbb8260869",
+  "before": {
+    "result": "2 failed / 135 passed / 137 total",
+    "failed_cases": [
+      "TrainingPanel \u203a an unconfirmed promotion shows the next action without a graduation notice",
+      "Qualification assessment UI \u203a request uses only the selected task/output bundle"
+    ],
+    "root_log_sha256": "029fc02cbfa1736e8ac29ff1a253d3ac8aa7739e785f6ad22e37fcc6a56c8a87",
+    "excerpt": "before-failure-excerpt.log"
+  },
+  "after": {
+    "trainingpanel": "33 passed",
+    "six_file_ci_selection": "137 passed",
+    "trainingpanel_repeats": [
+      "33 passed",
+      "33 passed",
+      "33 passed"
+    ],
+    "tsc": "exit 0 (--noEmit --skipLibCheck)"
+  },
+  "deferred_controls": [
+    "unconfirmed promotion: initial unknown disabled, no dispatch, then resolved valid one click, rejection next action and no graduation notice",
+    "selected bundle: initial picker shell has zero checkboxes/disabled request, no dispatch, then two checkboxes and one selected-bundle request",
+    "failed/stale twins: initial unknown no dispatch, then resolved label and blocked controls",
+    "session completion waits for enabled control"
+  ],
+  "no_skips_xfails_or_assertion_weakening": true,
+  "product_change": false
+}

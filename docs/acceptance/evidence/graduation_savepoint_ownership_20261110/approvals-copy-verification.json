@@ -1,0 +1,8 @@
+{
+  "scope": "Existing approvals walkthrough copy; removes fixed-count automatic-promotion promise",
+  "tests": "17 passed, 17 total",
+  "source_file": "frontend-nextjs/pages/approvals.tsx",
+  "source_sha256": "be2b6d36003ce1252400043809d3c76009089e05cc1cdde420b2a003d2a4f583",
+  "test_log_sha256": "6270d59ef04d13abdbdec7ee4e6202049612756d6d26c6a634370bf31e9a8d33",
+  "browser_boundary": "Original6da browser source unchanged; no successor browser claim"
+}

@@ -1,0 +1,173 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 06:59:40 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 06:59:41 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:59:41 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:59:41 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:59:41 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 06:59:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 06:59:41 [    INFO] MCP Service initialized
+
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_supervised_pass_requires_qualification_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-10 06:59:41 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Agent agent-unqualified passed the supervised legacy exam; legacy statistics never qualify
+PASSED                                                                   [ 11%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:59:41 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 06:59:41 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 06:59:41 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 22%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_updates_agent_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Session session_123 completed. Confidence boost: 0.100 (0.750 → 0.850), Promoted: False
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:59:41 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 06:59:41 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 06:59:41 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 33%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_promotes_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Session session_123 completed. Confidence boost: 0.100 (0.890 → 0.990), Promoted: True
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:59:41 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 06:59:41 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 06:59:41 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 44%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_does_not_promote_without_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Session session_123 completed. Confidence boost: 0.100 (0.890 → 0.990), Promoted: False
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:59:41 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 06:59:41 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 06:59:41 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 55%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_creates_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:59:41 [    INFO] Initiated two-way learning for session session_123
+2026-11-10 06:59:41 [   ERROR] Failed to create supervision episode: 'Mock' object is not iterable
+2026-11-10 06:59:41 [   ERROR] Error processing supervision feedback: coroutine raised StopIteration
+PASSED                                                                   [ 66%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_validates_session_status PASSED [ 77%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_episode_creation 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:59:41 [    INFO] Initiated two-way learning for session session_123
+PASSED                                                                   [ 88%]
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_two_way_learning 
+-------------------------------- live log call ---------------------------------
+2026-11-10 06:59:41 [    INFO] Session session_123 completed. Confidence boost: 0.075 (0.750 → 0.825), Promoted: False
+2026-11-10 06:59:41 [    INFO] EscalationManager initialized
+2026-11-10 06:59:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 06:59:41 [    INFO] Initiated supervision episode creation for session session_123
+2026-11-10 06:59:41 [    INFO] Initiated two-way learning for session session_123
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_two_way_learning
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:2489: RuntimeWarning: coroutine 'EpisodeSegmentationService.create_supervision_episode' was never awaited
+    kwargs = {}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/core/test_supervision_service.py::TestSessionCompletion::test_complete_supervision_triggers_two_way_learning
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:2489: RuntimeWarning: coroutine 'SupervisionService._process_supervision_feedback' was never awaited
+    kwargs = {}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+../../../../usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/pathlib.py:542
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/pathlib.py:542: RuntimeWarning: coroutine 'EpisodeSegmentationService.create_supervision_episode' was never awaited
+    self._str = self._format_parsed_parts(self._drv, self._root,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/pathlib.py:542
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/pathlib.py:542: RuntimeWarning: coroutine 'SupervisionService._process_supervision_feedback' was never awaited
+    self._str = self._format_parsed_parts(self._drv, self._root,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 9 passed, 9 warnings in 16.00s ========================

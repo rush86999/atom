@@ -2037,3 +2037,55 @@ def fastapi_app():
     yield app
 
 
+
+
+@pytest.fixture
+def experience_only_qualification_exception(monkeypatch):
+    """Explicit test-only owner exception for legacy experience-only tests.
+
+    Production default remains qualification-required. The exception names
+    the exact legacy test agent ids; it is not a global allow-all and is
+    never read from a mutable agent category/name.
+    """
+    policy = {
+        "schema_version": "atom-graduation-assessment-policy-1",
+        "revision": "test-experience-only-1",
+        "default_required": True,
+        "tiers": {"intern": True, "supervised": True, "autonomous": True},
+        "exceptions": {
+            "legacy": {
+                "allowed": True,
+                "agent_ids": [
+                    "student_agent_123",
+                    "agent-001",
+                    "graduate",
+                    "agent_123",
+                    "agent-1",
+                    "a1",
+                ],
+                "domains": [],
+                "reason": "Test-only explicit legacy continuity exception for named fixture agents.",
+                "state": "legacy_unassessed",
+            },
+            "manual": {
+                "allowed": False,
+                "agent_ids": [],
+                "domains": [],
+                "state": "manual_override",
+            },
+            "system": {
+                "allowed": False,
+                "agent_ids": [],
+                "domains": [],
+                "state": "system_exempt",
+            },
+        },
+        "evaluator": "human_review",
+        "rubric_version": "heldout-v1",
+        "source_revision": "agent-evidence-v1",
+    }
+    monkeypatch.setenv(
+        "ATOM_GRADUATION_ASSESSMENT_POLICY",
+        json.dumps(policy),
+    )
+    return policy
