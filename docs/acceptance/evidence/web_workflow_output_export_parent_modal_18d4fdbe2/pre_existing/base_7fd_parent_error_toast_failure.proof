@@ -1,0 +1,165 @@
+jest-haste-map: Watchman crawl failed. Retrying once with node crawler.
+  Usually this happens when watchman isn't running. Create an empty `.watchmanconfig` file in your project's root folder or initialize a git or hg repository in your project.
+  Error: Watchman error: watchman::QueryExecError: query failed: synchronization failed: syncToNow: timed out waiting for cookie file to be observed by watcher within 60000 milliseconds: Operation timed out. Make sure watchman is running for this project. See https://facebook.github.io/watchman/docs/troubleshooting.
+FAIL components/Workflow/__tests__/WorkflowAutomation.test.tsx
+  ● WorkflowAutomation › shows error toast when workflow execution fails
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"description": "Failed to execute workflow", "title": "Error", "variant": "error"}
+    Received: {"description": "nope", "title": "Error", "variant": "error"}
+
+    Number of calls: 1
+
+    Ignored nodes: comments, script, style
+    [36m<html>[39m
+      [36m<head />[39m
+      [36m<body[39m
+        [33mstyle[39m=[32m"overflow: unset;"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"p-8 space-y-8"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex justify-between items-start"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-1"[39m
+              [36m>[39m
+                [36m<h1[39m
+                  [33mclass[39m=[32m"text-3xl font-bold tracking-tight"[39m
+                [36m>[39m
+                  [0mWorkflow Automation[0m
+                [36m</h1>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-gray-500 dark:text-gray-400"[39m
+                [36m>[39m
+                  [0mAutomate your tasks and processes across all connected services[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex space-x-2"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-10 py-2 px-4"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-panels-top-left w-4 h-4 mr-2"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<rect[39m
+                      [33mheight[39m=[32m"18"[39m
+                      [33mrx[39m=[32m"2"[39m
+                      [33mwidth[39m=[32m"18"[39m
+                      [33mx[39m=[32m"3"[39m
+                      [33my[39m=[32m"3"[39m
+                    [36m/>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M3 9h18"[39m
+                    [36m/>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M9 21V9"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mVisual Builder[0m
+                [36m</button>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary-600 text-white hover:bg-primary-700 h-10 py-2 px-4"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-plus w-4 h-4 mr-2"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M5 12h14"[39m
+                    [36m/>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 5v14"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mCreate Workflow[0m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<form[39m
+              [33mclass[39m=[32m"mb-6 flex items-center space-x-2"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33maria-label[39m=[32m"AI workflow prompt"[39m
+                [33mclass[39m=[32m"flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"[39m
+                [33mplaceholder[39m=[32m"Describe a workflow to generate with AI (e.g. send a daily digest)"[39m
+                [33mvalue[39m=[32m""[39m
+              [36m/>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary-600 text-white hover:bg-primary-700 h-10 py-2 px-4"[39m
+                [33mtype[39m=[32m"submit"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-sparkles w-4 h-4 mr-2"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M20 2v4"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M22 4h-4"[39m
+                  [36m/>[39m
+                  [36m<circle[39m
+                    [33mcx[39m=[32m"4"[39m
+                    [33mcy[39m=[32m"20"[39m
+                    [33mr[39m=[32m"2"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0mGenerate with AI[0m
+              [36m</button>[39m
+            [36m</for...
+
+      794 |
+      795 |     await waitFor(() => {
+    > 796 |       expect(mockToast).toHaveBeenCalledWith(
+          |                         ^
+      797 |         expect.objectContaining({
+      798 |           title: 'Error',
+      799 |           description: 'Failed to execute workflow',
+
+      at components/Workflow/__tests__/WorkflowAutomation.test.tsx:796:25
+      at runWithExpensiveErrorDiagnosticsDisabled (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at checkRealTimersCallback (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at Timeout.task [as _onTimeout] (../../atom-web-task-project-20261109/frontend-nextjs/node_modules/jsdom/lib/jsdom/browser/Window.js:579:19)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 42 skipped, 43 total
+Snapshots:   0 total
+Time:        3.144 s
