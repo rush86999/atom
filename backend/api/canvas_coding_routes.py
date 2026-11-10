@@ -38,13 +38,22 @@ class AddDiffRequest(BaseModel):
     new_content: str
 
 
+def _raise_service_error(result: dict, default_code: str, default_message: str) -> None:
+    """Map a typed service refusal to its real HTTP status."""
+    raise router.error_response(
+        error_code=result.get("error_code") or default_code,
+        message=result.get("error") or default_message,
+        status_code=int(result.get("http_status") or 400),
+    )
+
+
 @router.post("/create")
 async def create_coding_canvas(
     request: CreateCodingRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new coding canvas."""
+    """Create a new coding canvas for the authenticated actor."""
     service = CodingCanvasService(db)
     result = service.create_coding_canvas(
         user_id=str(current_user.id),  # Override body-supplied user_id for security
@@ -55,10 +64,10 @@ async def create_coding_canvas(
         layout=request.layout
     )
     if not result.get("success"):
-        raise router.error_response(
-            error_code="CODING_CANVAS_CREATE_FAILED",
-            message=result.get("error", "Failed to create coding canvas"),
-            status_code=400
+        _raise_service_error(
+            result,
+            "CODING_CANVAS_CREATE_FAILED",
+            "Failed to create coding canvas",
         )
 
     return router.success_response(
@@ -84,11 +93,8 @@ async def add_file(
         language=request.language
     )
     if not result.get("success"):
-        raise router.error_response(
-            error_code="ADD_FILE_FAILED",
-            message=result.get("error", "Failed to add file"),
-            status_code=400
-        )
+        _raise_service_error(
+            result, "ADD_FILE_FAILED", "Failed to add file")
 
     return router.success_response(
         data=result,
@@ -113,11 +119,8 @@ async def add_diff(
         new_content=request.new_content
     )
     if not result.get("success"):
-        raise router.error_response(
-            error_code="ADD_DIFF_FAILED",
-            message=result.get("error", "Failed to add diff"),
-            status_code=400
-        )
+        _raise_service_error(
+            result, "ADD_DIFF_FAILED", "Failed to add diff")
 
     return router.success_response(
         data=result,
@@ -126,24 +129,18 @@ async def add_diff(
 
 
 @router.get("/{canvas_id}")
-async def get_coding_canvas(canvas_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Get a coding canvas."""
-    from sqlalchemy import desc
-
-    from core.models import CanvasAudit
-
-    audit = db.query(CanvasAudit).filter(
-        CanvasAudit.canvas_id == canvas_id,
-        CanvasAudit.canvas_type == "coding"
-    ).order_by(desc(CanvasAudit.created_at)).first()
-
-    if not audit:
-        raise router.not_found_error(
-            resource="CodingCanvas",
-            resource_id=canvas_id
-        )
-
+async def get_coding_canvas(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a coding canvas for the current authorized actor."""
+    service = CodingCanvasService(db)
+    result = service.get_coding_canvas(canvas_id, current_user.id)
+    if not result.get("success"):
+        _raise_service_error(
+            result, "CODING_CANVAS_READ_FAILED", "Coding canvas could not be read")
     return router.success_response(
-        data=audit.details_json or {},
+        data=result.get("data") or {},
         message="Coding canvas retrieved successfully"
     )
