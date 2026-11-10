@@ -5,6 +5,20 @@
     "live_exercised": false,
     "result": "55/55 passed"
   },
+  "artifacts": {
+    "README.md": "175ad706fa3c9cf86e7a4b486fa50429364a3ef31fe7916a1e3a5929ad1367a5",
+    "browser_auth_episode.py": "a69af452759cdbf6d341821ef134ac9d657ecb7c4fe198e7188dce04d346e849",
+    "owner-marker.json": "490a6c25aa2b131b889a835c9c5348f4e8757d37a73ef4b69b7c9dce46c6e12e",
+    "screenshots/01-signup.png": "4c0a70fc1532f686666470b2838dbd4b5da745ac7da7f7cd8e3d9e080e62cac6",
+    "screenshots/02-dashboard-after-registration.png": "d0479d7f302270e5e449093a30e75ef24810512a790c29b791eec735d8f14327",
+    "screenshots/03-onboarding-welcome.png": "a0b90b0b055f12871ce685f6867c6ffb6e5e76f9fb80d98f42760bd3ae884251",
+    "screenshots/04-settings.png": "8f0b32a82b8724b4956891ac24ca6bb21805f2f7b8a6f4f946efbeeccc2f1037",
+    "screenshots/05-login-default-dashboard.png": "b131960bfa54be4fa6034a38a13aa7d548eb969e12e91f424b78f58c376d343d",
+    "screenshots/06-auth-signin-dashboard.png": "c35fe0959b18f32536c9705a33e80b1a1d1a46d57bef5869909cc9b7156c42fc",
+    "screenshots/07-deep-link-settings.png": "8f0b32a82b8724b4956891ac24ca6bb21805f2f7b8a6f4f946efbeeccc2f1037",
+    "summary.json": "2a2352b61028f3220e84014a2a9bf00ba91079d881965cf29eb09492a75f0dc4",
+    "verification.json": "e030c570725ce90d19b736f248efd11f185b853378fa2b636853f6ce0c0597cd"
+  },
   "checks": {
     "browser_network": {
       "console_error_count": 16,
@@ -154,6 +168,7 @@
     "resource_pressure_abort": false,
     "source": "3673b07bfc28a9541237a5bebe085c49ad6155ba"
   },
+  "executed_source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
   "files": [
     {
       "bytes": 5108,
@@ -235,10 +250,32 @@
   ],
   "private_evidence": "0700 scratch worlds; not committed",
   "product_edits_in_packet": false,
+  "runtime_source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
   "source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
   "source_attribution": {
     "frozen_runtime_source": "3673b07bfc28a9541237a5bebe085c49ad6155ba",
     "prior_merged_tree_reference": "PR809 c0427e520 / a60 tree; runtime not relabeled",
     "producer_chain": "5670d7451 + 3673b07bf combined branch"
+  },
+  "source_files": {
+    "backend/api/onboarding_routes.py": "53f83f6087efe8418d32cbe5c9b40659d30edf999a3c38250156afda2efff3f5",
+    "backend/core/auth.py": "af2701e37da93b4f974c869c4ca74ef03d0e6dad7411fcec470f3c18c4744de7",
+    "backend/core/auth_endpoints.py": "875c653b7bd89f198de7fe7f2de4a1633d7326d409ddb75d2d2023829621c1e5",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/main_api_app.py": "323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "frontend-nextjs/lib/backend-credentials.ts": "3122f059c7648274dcdb4ce00370d36d3f545212b3e1a81f1e14b49d7ec45c77",
+    "frontend-nextjs/lib/backend-current-session.ts": "52221f9369121f03359ccdd434dee4b5830eb0a47c1b713ee3f9982111678550",
+    "frontend-nextjs/lib/backendAuth.ts": "67eca04083e05bd001c90c36ef27d872695fb678f9ea4117269de99e88134ecc",
+    "frontend-nextjs/lib/registration.ts": "9a302edcbe01bd55a6211cecdbd1071e95475e3ffe9651440555b3e4d1585790",
+    "frontend-nextjs/lib/web-auth-config.ts": "19cd8f8fe88d5a58c1b8c25b334c1ad02de535e4ab905a9faac60cab3d17c86b",
+    "frontend-nextjs/middleware.ts": "004a6f93400054f0caee291e5fefcbbdc5af109cecba86e01dc872a26179923b",
+    "frontend-nextjs/next.config.js": "1aef8231e3001ec84b1455b54beccbc815722d1f06f029ad1e8ef3f8c51d3d0f",
+    "frontend-nextjs/pages/api/auth/[...nextauth].ts": "9154f9466c84efa71811c1369b1bff9e0855e201b5b2f58aeb3392e817ffde72",
+    "frontend-nextjs/pages/auth/forgot-password.tsx": "0d25988863a624508252e5c57eb1cd66a2b5083ae87fe8f05d01503d56eb74f7",
+    "frontend-nextjs/pages/auth/reset-password.tsx": "ae770cb1dd5d0272c0c5e9b26ced27b155674fbd1ee524ff8df305d308bfde43",
+    "frontend-nextjs/pages/auth/signin.tsx": "42da95e7ec3d70da16fcd2002980383bacaff281236479d35adaf26a1ba82429",
+    "frontend-nextjs/pages/auth/signup.tsx": "b80000068296bb11863964360ac58465b5926cf13c857bc096c96f5de88be947",
+    "frontend-nextjs/pages/login.tsx": "bd834e289c685704d4ead9ee615c536cde09c5c2f3c383f3bd0e3e48a50d2670"
   }
 }
