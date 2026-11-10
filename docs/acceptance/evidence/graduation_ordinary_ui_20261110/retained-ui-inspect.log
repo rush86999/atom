@@ -1,0 +1,367 @@
+world /private/tmp/atom-web-graduation-qualification-join-20261110/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315411_4d66ed51fe
+run /private/tmp/atom-web-graduation-qualification-join-20261110/backend/data/acceptance_worlds/grad_ordinary_ui_6da_1794315411_4d66ed51fe/runs/run-9c939f4aeb4d
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds
+[server] healthy on :8067 (pid 42038, world identity verified: ec69e24f4385-dirty.d48ca, seatbelt, credential-free)
+login 200
+
+PATH /api/episodes/graduation/readiness/4cca507d-fe5c-43e6-bf2c-cd158f32bd62 STATUS 200
+{
+  "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+  "current_level": "student",
+  "readiness_score": 0.899,
+  "threshold_met": true,
+  "zero_intervention_ratio": 1.0,
+  "avg_constitutional_score": 0.9,
+  "avg_confidence_score": 0.62,
+  "success_rate": 1.0,
+  "episodes_analyzed": 10,
+  "supervision_success_rate": 0.0,
+  "breakdown": {
+    "target_level": "intern",
+    "threshold": 0.7,
+    "episodes_by_outcome": {
+      "success": 10
+    },
+    "total_interventions": 0,
+    "avg_step_efficiency": 1.0,
+    "constitutional_recorded": 10,
+    "supervision_metrics": {
+      "total_proposals": 0,
+      "approved_proposals": 0,
+      "rejected_proposals": 0,
+      "execution_success_rate": 0.0,
+      "approval_rate": 0.0,
+      "supervision_success_rate": 0.0,
+      "supervisor_type_breakdown": {
+        "user": 0,
+        "autonomous_agent": 0
+      }
+    },
+    "skill_metrics": {
+      "unique_skill_count": 0,
+      "skill_diversity_score": 0.0,
+      "avg_skill_success_rate": 0.0,
+      "total_skill_executions": 0,
+      "top_skills": []
+    },
+    "proposal_quality_metrics": {
+      "proposal_episode_count": 0,
+      "avg_proposal_quality": 0.0,
+      "high_quality_proposal_count": 0,
+      "proposal_quality_score": 0.0
+    },
+    "weights": {
+      "base": {
+        "zero_intervention": 0.35,
+        "constitutional": 0.25,
+        "confidence": 0.2,
+        "success": 0.2,
+        "supervision": 0.0,
+        "skill_diversity": 0.0,
+        "proposal_quality": 0.0
+      },
+      "applied": {
+        "zero_intervention": 0.35,
+        "constitutional": 0.25,
+        "confidence": 0.2,
+        "success": 0.2
+      },
+      "excluded_no_evidence": []
+    }
+  },
+  "current_maturity": "student",
+  "target_maturity": "INTERN",
+  "ready": true,
+  "score": 89.9,
+  "episode_count": 10,
+  "total_human_interventions": 0,
+  "intervention_rate": 0.0,
+  "gaps": [],
+  "recommendation": "Agent ready for promotion to INTERN. Score: 89.9/100",
+  "assessment": {
+    "required": true,
+    "policy_revision": "1",
+    "policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+    "policy_source": "default",
+    "policy_row_updated_at": null,
+    "candidate_capability_qualified": true,
+    "allowed": true,
+    "state": "valid",
+    "receipt_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+    "reviewed_by": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+    "review_action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+    "source_revision": "d7f0661874c7f2712cddf2ec611eabd4035b960138ef9a0656b5d472e50cc805",
+    "receipt_fingerprint": "4dded4816912a3ee8dcef167ce3a49e063a892f30d6412ff984f2903969efafb",
+    "review_fingerprint": "ba3b10fce20687cff139a7981b1d46fc4633072bf431fda2a171b2ccaa56bbc1",
+    "message": "A passed scoped capability qualification receipt is recorded.",
+    "next_action": null
+  },
+  "assessment_evidence": [
+    {
+      "bundle_id": "bundle:4d66ed51fe-ep-09",
+      "episode_id": "4d66ed51fe-ep-09",
+      "task_preview": "Controlled held-out work 9 for 4d66ed51fe",
+      "output_preview": "Controlled actual durable output 9 for 4d66ed51fe",
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-09"
+        },
+        {
+          "kind": "agent_execution",
+          "id": "4d66ed51fe-exec-09"
+        }
+      ],
+      "source_revision": "d7f0661874c7f2712cddf2ec611eabd4035b960138ef9a0656b5d472e50cc805"
+    },
+    {
+      "bundle_id": "bundle:4d66ed51fe-ep-08",
+      "episode_id": "4d66ed51fe-ep-08",
+      "task_preview": "Controlled held-out work 8 for 4d66ed51fe",
+      "output_preview": "Controlled actual durable output 8 for 4d66ed51fe",
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-08"
+        },
+        {
+          "kind": "agent_execution",
+          "id": "4d66ed51fe-exec-08"
+        }
+      ],
+      "source_revision": "621cfec9a94c29299f95a09155454855038a51cd59869f4549546ef06747037a"
+    },
+    {
+      "bundle_id": "bundle:4d66ed51fe-ep-07",
+      "episode_id": "4d66ed51fe-ep-07",
+      "task_preview": "Controlled held-out work 7 for 4d66ed51fe",
+      "output_preview": "Controlled actual durable output 7 for 4d66ed51fe",
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-07"
+        },
+        {
+          "kind": "agent_execution",
+          "id": "4d66ed51fe-exec-07"
+        }
+      ],
+      "source_revision": "6f5256be639b59a693f14a5821ac9686367ed9a3362b4ef461cbf274c7ded2f9"
+    },
+    {
+      "bundle_id": "bundle:4d66ed51fe-ep-06",
+      "episode_id": "4d66ed51fe-ep-06",
+      "task_preview": "Controlled held-out work 6 for 4d66ed51fe",
+      "output_preview": "Controlled actual durable output 6 for 4d66ed51fe",
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-06"
+        },
+        {
+          "kind": "agent_execution",
+          "id": "4d66ed51fe-exec-06"
+        }
+      ],
+      "source_revision": "728c1c635fe300b34fd656027838da447c326ce4e7cfb9fea7d5ae5fd1dff367"
+    },
+    {
+      "bundle_id": "bundle:4d66ed51fe-ep-05",
+      "episode_id": "4d66ed51fe-ep-05",
+      "task_preview": "Controlled held-out work 5 for 4d66ed51fe",
+      "output_preview": "Controlled actual durable output 5 for 4d66ed51fe",
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-05"
+        },
+        {
+          "kind": "agent_execution",
+          "id": "4d66ed51fe-exec-05"
+        }
+      ],
+      "source_revision": "1d056e23546f5fa234e94943dd548a25cb09d846d63a4c29d9f9d4a3f8280ef6"
+    },
+    {
+      "bundle_id": "bundle:4d66ed51fe-ep-04",
+      "episode_id": "4d66ed51fe-ep-04",
+      "task_preview": "Controlled held-out work 4 for 4d66ed51fe",
+      "output_preview": "Controlled actual durable output 4 for 4d66ed51fe",
+      "evidence_refs": [
+        {
+          "kind": "agent_episode",
+          "id": "4d66ed51fe-ep-04"
+   
+
+PATH /api/maturity/training/self-directed STATUS 200
+{
+  "agents": [
+    {
+      "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+      "agent_name": "Graduation UI Candidate 4d66ed51fe",
+      "category": "operations",
+      "tier": "student",
+      "confidence": 0.35,
+      "evidence": {
+        "episodes": 10,
+        "successes": 10,
+        "success_ratio": 1.0,
+        "required_episodes": 10
+      },
+      "episode_progress": 1.0,
+      "success_ratio_ok": true,
+      "confidence_ok": false,
+      "evidence_floor_met": true,
+      "ready_for_review": false,
+      "assessment": {
+        "required": true,
+        "policy_revision": "1",
+        "policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+        "policy_source": "default",
+        "policy_row_updated_at": null,
+        "candidate_capability_qualified": true,
+        "allowed": true,
+        "state": "valid",
+        "receipt_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+        "reviewed_by": "e260f8b0-e322-4590-8a47-40b6f01c5dc6",
+        "review_action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+        "source_revision": "d7f0661874c7f2712cddf2ec611eabd4035b960138ef9a0656b5d472e50cc805",
+        "receipt_fingerprint": "4dded4816912a3ee8dcef167ce3a49e063a892f30d6412ff984f2903969efafb",
+        "review_fingerprint": "ba3b10fce20687cff139a7981b1d46fc4633072bf431fda2a171b2ccaa56bbc1",
+        "message": "A passed scoped capability qualification receipt is recorded.",
+        "next_action": null
+      },
+      "completed_sessions": 0,
+      "trigger_health": {
+        "blocked_triggers": 0,
+        "last_fired_at": null,
+        "last_trigger_type": null,
+        "last_trigger_source": null
+      },
+      "readiness": {
+        "ready": false,
+        "pathway": null,
+        "reason": "no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions | [self_directed] needs 0/3 completed training sessions",
+        "required_training_sessions": 3,
+        "required_episodes": 10,
+        "success_ratio": 1.0
+      },
+      "recent_episodes": [
+        {
+          "id": "4d66ed51fe-ep-09",
+          "task": "Controlled held-out work 9 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:07:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-08",
+          "task": "Controlled held-out work 8 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:06:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-07",
+          "task": "Controlled held-out work 7 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:05:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-06",
+          "task": "Controlled held-out work 6 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:04:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-05",
+          "task": "Controlled held-out work 5 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:03:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-04",
+          "task": "Controlled held-out work 4 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:02:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-03",
+          "task": "Controlled held-out work 3 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:01:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-02",
+          "task": "Controlled held-out work 2 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T13:00:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-01",
+          "task": "Controlled held-out work 1 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T12:59:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        },
+        {
+          "id": "4d66ed51fe-ep-00",
+          "task": "Controlled held-out work 0 for 4d66ed51fe",
+          "outcome": "success",
+          "success": true,
+          "started_at": "2026-11-09T12:58:40.276311",
+          "human_interventions": 0,
+          "maturity_at_time": "student",
+          "canvas_ids": []
+        }
+      ],
+      "guidance": [
+        {
+          "label": "Real work recorded: 10/10 episodes",
+          "done": true,
+          "detail": "Every piece of real work the agent completes is outcome-tracked here \u2014 successes and failures alike."
+        },
+        {
+          "label": "Success ratio: 100% (needs \u2265 70%)",
+          "done": true,
+          "detail": "Derived from execution results, not self-reported \u2014 failed tool calls and errors count against it."
+        },
+        {
+          "label": "Confidence \u2265 50%: 35%",
+          "done": false,
+          "detail

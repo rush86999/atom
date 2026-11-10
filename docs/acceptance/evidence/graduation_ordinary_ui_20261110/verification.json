@@ -1,0 +1,165 @@
+{
+  "schema": "atom-graduation-ordinary-ui-verification-1",
+  "status": "PASS",
+  "at": "2026-11-10T13:20:00Z",
+  "exact_ids": {
+    "product_source": "6da3374abd2fdd2d88df5cfae1635f4d495301d8",
+    "world": "grad_ordinary_ui_6da_1794315411_4d66ed51fe",
+    "run_dir": "runs/run-9c939f4aeb4d",
+    "agent_id": "4cca507d-fe5c-43e6-bf2c-cd158f32bd62",
+    "canvas_id": "507e8792-6976-4cd5-840e-fea764f94af0",
+    "action_id": "9a19f509-86a2-4770-a016-4f913e25542d",
+    "receipt_id": "qualification:9a19f509-86a2-4770-a016-4f913e25542d",
+    "promotion_history_id": "1177d21d-9164-415b-a2cc-9d9223002213",
+    "notification_id": "6969f91c-2ccf-4711-a1cf-71f146d890bf",
+    "admin_id": "e260f8b0-e322-4590-8a47-40b6f01c5dc6"
+  },
+  "product_source_unchanged": true,
+  "frontend_parity_vs_6da": {
+    "changed_files": 0,
+    "prior_ui_packet": "docs/acceptance/evidence/graduation_qualification_ui_scope_20261110/"
+  },
+  "release_profile": {
+    "agents": "enabled",
+    "canvas": "enabled",
+    "approvals": "enabled; nav=false; min_role=team_lead",
+    "deferred_force_enabled": false
+  },
+  "ui_sequence": [
+    "ordinary /login",
+    "ordinary onboarding wizard",
+    "/agents unique card + Teach",
+    "/canvas/{id}?side=training missing assessment + no promote",
+    "explicit evidence checkbox + Request qualification review",
+    "one pending HITL bound to target/policy/rubric/evidence",
+    "/approvals card task/output/rubric + Approve",
+    "valid qualified state + one enabled promote control",
+    "actual promote click -> INTERN",
+    "fresh reload INTERN, no pending copy"
+  ],
+  "assertions": {
+    "initial_readiness_ready": true,
+    "initial_readiness_score": 89.9,
+    "initial_assessment_state": "unresolved_missing",
+    "initial_ui_state": "Review needed",
+    "initial_promote_controls": 0,
+    "selected_evidence": [
+      {
+        "kind": "agent_episode",
+        "id": "4d66ed51fe-ep-09"
+      },
+      {
+        "kind": "agent_execution",
+        "id": "4d66ed51fe-exec-09"
+      }
+    ],
+    "pending_hitl_count": 1,
+    "pending_target_level": "INTERN",
+    "pending_policy_revision": "1",
+    "pending_policy_digest": "f2069edfffa1b481c0b3d456058cadae507e7d26fa0676a819c3fd450c1bcd13",
+    "pending_rubric_ids": [
+      "task_context",
+      "actual_output",
+      "task_completion",
+      "scope",
+      "safety"
+    ],
+    "agent_before_approval": {
+      "status": "student",
+      "last_exam_id": null
+    },
+    "approvals_card_task_output_rubric": true,
+    "receipt_count": 1,
+    "receipt_kind": "capability_qualification",
+    "receipt_candidate_capability_qualified": true,
+    "valid_ui_state": "Qualified",
+    "valid_ui_pending_copy": 0,
+    "valid_promote_controls": 1,
+    "promotion_http_status": 200,
+    "promoted": true,
+    "agent_after": {
+      "status": "intern",
+      "promotion_count": 1
+    },
+    "promotion_history_exam_id_matches": true,
+    "graduation_notification_count": 1,
+    "fresh_reload_tier": "INTERN",
+    "fresh_reload_pending_copy": 0,
+    "post_promotion_assessment_state": "unresolved_scope",
+    "post_promotion_note": "The student->intern receipt is transition-bound; after promotion it is no longer current for the next tier. The fresh UI shows INTERN with no pending-review copy, and the DB matches."
+  },
+  "fixture_seed_disclosure": {
+    "agent_created_via_public_api": "/api/agents/custom",
+    "controlled_task_output_records": {
+      "agent_executions": 10,
+      "agent_episodes": 10,
+      "artifacts": 1,
+      "episode_segments": 1,
+      "id_prefix": "4d66ed51fe-"
+    },
+    "exposure_preconditions_added_after_initial_ui_capture": {
+      "training_sessions": [
+        "4d66ed51fe-training-session-0",
+        "4d66ed51fe-training-session-1",
+        "4d66ed51fe-training-session-2"
+      ],
+      "agent_confidence": {
+        "before": 0.35,
+        "after": 0.62
+      },
+      "reason": "student self-directed card requires 3 completed sessions and confidence >= 0.5"
+    },
+    "not_seeded": [
+      "graduation_exams",
+      "approved HITL",
+      "qualification receipt",
+      "last_exam_id",
+      "promoted status",
+      "policy exception"
+    ],
+    "hitl_and_receipt_source": "ordinary UI request + Approve actions",
+    "promotion_source": "ordinary UI promote control",
+    "model_competence_claim": false
+  },
+  "initial_run6_failure": {
+    "status": "FAIL",
+    "reached": "missing -> pending -> approvals -> valid qualified",
+    "failed_at": "no promote control",
+    "cause": "self-directed ready_for_review required 3 completed training sessions and confidence >= 0.5; those exposure preconditions were not yet present",
+    "preserved_files": [
+      "journey-initial-run6.json",
+      "ui-run-initial.log",
+      "screenshots/training-missing.png",
+      "screenshots/training-pending.png",
+      "screenshots/approvals-qualification.png"
+    ]
+  },
+  "safety": {
+    "world_storage_preflight": "OK; canonical local root via symlink; no maintenance lock",
+    "heavy_gate": "used",
+    "owned_ports": [
+      8066,
+      3000,
+      8067
+    ],
+    "servers_stopped": true,
+    "model_provider_call": false,
+    "external_email_or_send": false,
+    "live_db": false,
+    "product_edits": false,
+    "credentials_in_evidence": false
+  },
+  "source_files": {
+    "scripts/acceptance/browser_graduation_qualification_ui.py": "c5b1536f663513df9f0767d662431e2a4f2e8b40647ec1ea45d820f39cdc64cf",
+    "frontend-nextjs/components/canvas/TrainingPanel.tsx": "f72b9aac6160a112c5ece154f2eecc81b146e9d462f919c6f0173dcbb8260869",
+    "frontend-nextjs/components/Agents/AgentMaturityGuide.tsx": "a837e203f2ce6dba9ab7bc59905bb9644bdc51560174d9c901070796ffe09f6f",
+    "frontend-nextjs/pages/approvals.tsx": "a6e20172d8af91495ec1ce91eddc6d581cdf34bdbd76233ceee748e9ad353a1d",
+    "frontend-nextjs/pages/agents/index.tsx": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+    "frontend-nextjs/lib/maturity-api.ts": "c3de570835e6e925ff2360bcad2a1bb09042a13771f5001853e09fd67e88732d",
+    "backend/core/agent_graduation_service.py": "dcb9478c0bc283d6d6f0604f5e53afcfd3e4a586eed957a844b431d24ceeb4f4",
+    "backend/core/promotion_policy_service.py": "4d9702ed993c724de86e38c344c358c22fae6e8d4aa0edf90218d839b0adb766",
+    "backend/core/self_directed_progress.py": "0b37a891917c4e24a366f194528d47801662ca51e6482ce78a334959f385bfe2",
+    "backend/api/agent_maturity_routes.py": "317340816de0e1f9402279aecc69f6237c9811bc338db1f843bbcab3592b9c91",
+    "backend/core/product_profile.py": "e441aa5957f3be845119b94c7ffc281a8379fe00bf81243a3427eebac4a8c5cb"
+  }
+}
