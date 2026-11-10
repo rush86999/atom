@@ -1,0 +1,16 @@
+{
+  "artifacts": {
+    "README.md": "cbd86e0e2292ab03afcb900aecfd3c41df0a16220f62baac62def0a690fc86f4",
+    "native.log": "e5fe52fe4bda93075e54ee1a2e3b5184c6fed3fc333375f755bfe23086507361",
+    "native_result.xml": "5618a767a2218383345da3f1fd99ca848f84c2f608c285af2fe7afd333a93f94",
+    "process.log": "64770985fba4d134a875cc4e28b1bef2f336f7311ce2ce37bb0918997352c0fb",
+    "process_result.xml": "c6f0913cae7f45e3056e5613ba3117461fc9820357bdf0b05babe3fe85acc1d2"
+  },
+  "executed_source": "7a7092aaa88cf56effdb548c9e0697a096a6d5ed",
+  "source_files": {
+    "backend/api/agent_routes.py": "cd47c8cfb4df219117b37f081f6d7cf7fd44c6a639d7ffa267f85ccd82d80201",
+    "backend/core/information_wait.py": "42d0baf59a90f8fe19fb99acefecf1d2a8f39f58e19695f8eb7db80626ef17a8",
+    "backend/tests/test_generic_information_wait_recovery_authority.py": "e08401c57872c6950c303b1d36eda096cba4aab93a9a1792804f7ed240f5f477",
+    "backend/tests/test_lead_recovery_personal_authority.py": "d031811f1a53b3860542c8531bd5921ff4d0cf7616944c3b40f0941a8ed88ca8"
+  }
+}
