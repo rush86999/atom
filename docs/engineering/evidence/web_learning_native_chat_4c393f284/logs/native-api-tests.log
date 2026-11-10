@@ -1,0 +1,81 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 00:13:00 [ WARNING] 🧪 pytest detected: honoring explicit non-dev test DB (sqlite:////private/tmp/root-learning-native-chat-scratch-mCnU4S/scratch.db)
+2026-11-10 00:13:00 [    INFO] Async database support enabled
+2026-11-10 00:13:00 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-10 00:13:00 [    INFO] ℹ️ No distributed cache configured. Using Local Memory Cache only.
+
+tests/api/test_conversation_learning_native_chat.py::test_native_positive_email_positive_and_typed_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:02 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/api/test_conversation_learning_native_chat.py::test_typed_collision_twins_and_unknown_kind 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 400 Bad Request"
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads/chat-a85fedcd/candidates?source_kind=native_chat "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads/chat-a85fedcd/candidates?source_kind=email "HTTP/1.1 200 OK"
+2026-11-10 00:13:02 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-8b5d504e06034846?thread_id=chat-a85fedcd&source_kind=email "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+tests/api/test_conversation_learning_native_chat.py::test_foreign_inactive_and_deleted_native 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:03 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads "HTTP/1.1 200 OK"
+2026-11-10 00:13:03 [ WARNING] Rejected token for non-active user user-i-c9aa0aea (status=inactive)
+2026-11-10 00:13:03 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads "HTTP/1.1 401 Unauthorized"
+2026-11-10 00:13:03 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/api/test_conversation_learning_native_chat.py::test_assistant_not_authority_and_native_stale_confirm_promote 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 400 Bad Request"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads/chat-9b77d571/candidates?source_kind=native_chat "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-4153b3713b9f4947?thread_id=chat-9b77d571&source_kind=email "HTTP/1.1 404 Not Found"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-4153b3713b9f4947/promote "HTTP/1.1 404 Not Found"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-4153b3713b9f4947/confirm "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-4153b3713b9f4947/promote "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-4153b3713b9f4947?thread_id=chat-9b77d571&source_kind=native_chat "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-4153b3713b9f4947/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/api/test_conversation_learning_native_chat.py::test_native_boundaries_truthful_total_and_last_at 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:04 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/threads "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-11-10 00:13:04 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/api/test_conversation_learning_native_chat.py::test_user_role_alone_is_not_authored_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:05 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 400 Bad Request"
+2026-11-10 00:13:05 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 400 Bad Request"
+2026-11-10 00:13:05 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 400 Bad Request"
+2026-11-10 00:13:05 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 60%]
+tests/api/test_conversation_learning_native_chat.py::test_genuine_unquoted_user_message_with_empty_excerpt_is_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:06 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_conversation_learning_native_chat.py::test_native_reorder_invalidates_stale_review 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:06 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-11-10 00:13:06 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-b5eb746f874d49c2/confirm "HTTP/1.1 200 OK"
+2026-11-10 00:13:06 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+2026-11-10 00:13:06 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-b5eb746f874d49c2?thread_id=chat-2682327d&source_kind=native_chat "HTTP/1.1 200 OK"
+2026-11-10 00:13:06 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates/lc-b5eb746f874d49c2/confirm "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 80%]
+tests/api/test_conversation_learning_native_chat.py::test_native_reorder_uses_actual_role_order 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:07 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/evidence "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/api/test_conversation_learning_native_chat.py::test_restart_readback_preserves_source_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:13:08 [    INFO] HTTP Request: POST http://testserver/api/conversation-learning/candidates "HTTP/1.1 200 OK"
+2026-11-10 00:13:08 [    INFO] HTTP Request: GET http://testserver/api/conversation-learning/candidates/lc-57d78b3e01de4a30?thread_id=chat-6ad7f16b&source_kind=native_chat "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+============================== 10 passed in 9.04s ==============================

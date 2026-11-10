@@ -1,0 +1,26 @@
+{
+  "actual_cause": "UNKNOWN; page text/verify-token body not captured before timeout",
+  "candidate_lesson_writes": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"#password\") to be visible\n",
+  "error_type": "TimeoutError",
+  "learning_page_reached": false,
+  "no_retry": true,
+  "overall": "FAILED",
+  "password_reset_completed": false,
+  "phase": "ordinary forgot-password reset page",
+  "post_run_readback": {
+    "candidate_event_kinds": [
+      "learning_candidate_created",
+      "learning_candidate_confirmed",
+      "learning_candidate_promoted"
+    ],
+    "candidate_events": 3,
+    "candidate_events_sha256": "b31554b9b80d949d56e1bb9a680399ad71b3cac30792ffdf0afec3a08efdbc49",
+    "lesson_config_sha256": "6303d506522d794f48c6a827b50839dbd3dba4809939ca5a5a79c1a6fb1801ac",
+    "lesson_count": 1,
+    "lesson_entry_id": "76b60e582e504e7a9e90f7b68ade8660"
+  },
+  "reset_token_present": "retained DB evidence: unused and unexpired at run time",
+  "run_log_sha256": "2bfc36d0a0e9407f9f1add320a9dbf1256dbce9c08f003a3232088f1bcb35914",
+  "verify_token_backend_status": 200
+}

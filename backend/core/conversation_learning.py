@@ -30,7 +30,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.assignment_plan import canonical_sha256
@@ -38,6 +38,10 @@ from core.assignment_plan import canonical_sha256
 logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = "conversation-learning-1"
+
+SOURCE_KIND_EMAIL = "email"
+SOURCE_KIND_NATIVE_CHAT = "native_chat"
+SOURCE_KINDS = {SOURCE_KIND_EMAIL, SOURCE_KIND_NATIVE_CHAT}
 
 REFERENCE_RELATIONS = {
     "attachment",
@@ -201,6 +205,8 @@ class AttachmentEvidence(BaseModel):
 class MessageEvidence(BaseModel):
     message_id: str
     provider: str = ""
+    source_kind: str = SOURCE_KIND_EMAIL
+    role: str = ""
     revision: str = ""
     content_sha256: str = ""
     mailbox_owner: str = ""
@@ -219,7 +225,9 @@ class MessageEvidence(BaseModel):
 
     @model_validator(mode="after")
     def _derive_segments(self):
-        if not self.authored_segments and self.body:
+        if (not self.authored_segments and self.body
+                and not (self.source_kind == SOURCE_KIND_NATIVE_CHAT
+                         and self.role != "user")):
             authored, quoted = split_authored_quoted(self.body)
             self.authored_segments = [authored] if authored else []
             if not self.quoted_segments and quoted:
@@ -317,6 +325,7 @@ class EvidenceCoverage(BaseModel):
     resources_known: bool = True
     source_access: str = "available"
     message_count: int = 0
+    messages_loaded: int = 0
     max_reference_depth: int = 1
     depth_reached: int = 0
     message_limit: int = 200
@@ -330,6 +339,9 @@ class ConversationEvidence(BaseModel):
     workspace_id: str
     tenant_id: str = ""
     account_id: str = ""
+    source_kind: str = SOURCE_KIND_EMAIL
+    source_scope: str = "workspace"
+    source_revision: str = ""
     thread_id: str
     messages: List[MessageEvidence] = Field(default_factory=list)
     resources: List[ResourceBinding] = Field(default_factory=list)
@@ -388,6 +400,10 @@ class LearningCandidate(BaseModel):
     workspace_id: str
     tenant_id: str = ""
     agent_id: str
+    source_kind: str = SOURCE_KIND_EMAIL
+    source_scope: str = "workspace"
+    source_owner_id: str = ""
+    source_revision: str = ""
     thread_id: str
     proposed_lesson: str
     intended_outcome: str = ""
@@ -1141,8 +1157,19 @@ def candidate_readiness(candidate: LearningCandidate) -> Dict[str, Any]:
         dep for dep in dependencies
         if dep.required and dep.status not in ("resolved", "not_applicable")
     ]
+    source_ready = True
+    if candidate.source_kind == SOURCE_KIND_NATIVE_CHAT:
+        coverage = candidate.evidence_coverage if isinstance(
+            candidate.evidence_coverage, dict) else {}
+        source_ready = bool(
+            coverage.get("source_access") == "available"
+            and coverage.get("messages_known") is True
+            and coverage.get("messages_truncated") is not True
+            and candidate.source_revision
+        )
     review_ready = (
-        not blocking
+        source_ready
+        and not blocking
         and candidate.method_status in ("explicit", "not_applicable")
         and bool(candidate.proposed_lesson.strip())
         and bool(candidate.applies_to or candidate.context)
@@ -1162,6 +1189,22 @@ def candidate_readiness(candidate: LearningCandidate) -> Dict[str, Any]:
         "dependencies": dependencies,
         "blocking": blocking,
     }
+
+
+def candidate_visible_to_user(candidate: LearningCandidate,
+                               user_id: str) -> bool:
+    """One shared candidate-access decision for every review surface.
+
+    Private (user-global) sources belong to their persisted server-owned
+    owner. A missing owner fails closed: old/ambiguous rows need fresh review
+    rather than being blessed by a workspace peer. Workspace-scoped email
+    candidates keep their historical workspace/tenant policy.
+    """
+    if (str(candidate.source_kind or "") != SOURCE_KIND_NATIVE_CHAT
+            and str(candidate.source_scope or "") != "user_global"):
+        return True
+    owner = str(candidate.source_owner_id or "")
+    return bool(owner) and owner == str(user_id or "")
 
 
 def _candidate_digest(candidate: LearningCandidate) -> str:
@@ -1212,6 +1255,8 @@ def _candidate_digest(candidate: LearningCandidate) -> str:
     # Backward-compatible identity: older candidates predate these fields and
     # must keep their stored digest. Only a non-empty new field changes the
     # payload, which is exactly when the candidate content changed.
+    if candidate.source_owner_id:
+        payload["source_owner_id"] = candidate.source_owner_id
     if candidate.format_spec:
         payload["format_spec"] = candidate.format_spec
     if candidate.conditions:
@@ -1249,6 +1294,14 @@ def validate_authority(
         raise ValueError("authority_message_not_found")
     if message.source_access_status != "available":
         raise ValueError("authority_message_unavailable")
+    if (evidence.source_kind == SOURCE_KIND_NATIVE_CHAT
+            and str(message.role or "") != "user"):
+        raise ValueError("authority_not_user_authored")
+    # Role alone is not a teaching grant. The message must contain an actual
+    # authored segment (not quoted text, not an empty body), even when the
+    # caller omitted the excerpt and only named the message.
+    if not message.authored_text:
+        raise ValueError("authority_no_authored_segment")
     wanted = _bounded(excerpt, 500)
     lesson = _bounded(proposed_lesson, 2000)
     if lesson and _PERMISSION_EXPANSION_RE.search(lesson):
@@ -1305,6 +1358,10 @@ def build_candidate(
         workspace_id=str(workspace_id or ""),
         tenant_id=str(tenant_id or ""),
         agent_id=str(agent_id or ""),
+        source_kind=(evidence.source_kind if evidence else SOURCE_KIND_EMAIL),
+        source_scope=(evidence.source_scope if evidence else "workspace"),
+        source_owner_id=(evidence.account_id if evidence else ""),
+        source_revision=(evidence.source_revision if evidence else ""),
         thread_id=str(thread_id or ""),
         proposed_lesson=_bounded(proposed_lesson, 2000),
         intended_outcome=_bounded(
@@ -1393,6 +1450,7 @@ def load_candidate(
     db: Session,
     thread_id: str,
     candidate_id: str,
+    source_kind: str = SOURCE_KIND_EMAIL,
 ) -> Optional[LearningCandidate]:
     from core.models import ConversationEvent
 
@@ -1418,6 +1476,8 @@ def load_candidate(
             continue
         if str(raw.get("candidate_id") or "") != str(candidate_id or ""):
             continue
+        if str(raw.get("source_kind") or SOURCE_KIND_EMAIL) != str(source_kind):
+            continue
         try:
             latest = LearningCandidate.model_validate(raw)
         except Exception:
@@ -1431,6 +1491,7 @@ def list_candidates(
     *,
     workspace_id: str = "",
     tenant_id: str = "",
+    source_kind: str = SOURCE_KIND_EMAIL,
 ) -> List[LearningCandidate]:
     from core.models import ConversationEvent
 
@@ -1457,6 +1518,8 @@ def list_candidates(
         try:
             candidate = LearningCandidate.model_validate(raw)
         except Exception:
+            continue
+        if str(candidate.source_kind or SOURCE_KIND_EMAIL) != str(source_kind):
             continue
         if workspace_id and candidate.workspace_id != str(workspace_id):
             continue
@@ -1734,6 +1797,10 @@ def promote_candidate(
             "revision": candidate.revision,
             "digest": _candidate_digest(candidate),
             "thread_id": candidate.thread_id,
+            "source_kind": candidate.source_kind,
+            "source_scope": candidate.source_scope,
+            "source_owner_id": candidate.source_owner_id,
+            "source_revision": candidate.source_revision,
             "agent_id": candidate.agent_id,
             "workspace_id": candidate.workspace_id,
             "tenant_id": candidate.tenant_id,
@@ -1986,6 +2053,23 @@ def _mark_promoted_lesson_stale(
         logger.debug("promoted lesson revalidation mark skipped: %s", exc)
 
 
+def revalidate_source_candidate(
+    db: Session,
+    candidate: LearningCandidate,
+    *,
+    reason: str,
+) -> LearningCandidate:
+    """Native source changed/deleted: invalidate review and mark lesson stale.
+
+    The promoted human-reviewed lesson remains in the journal with provenance;
+    the normal get_agent_lessons consumer skips it while revalidation is
+    required. This is the same staleness channel used by resource changes.
+    """
+    if candidate.promoted_entry_id:
+        _mark_promoted_lesson_stale(db, candidate, reason)
+    return invalidate_candidate(db, candidate, reason=reason)
+
+
 def revalidate_candidate(
     db: Session,
     candidate: LearningCandidate,
@@ -2030,6 +2114,11 @@ def review_payload(candidate: LearningCandidate) -> Dict[str, Any]:
         "revision": candidate.revision,
         "digest": _candidate_digest(candidate),
         "review_ready": readiness["review_ready"],
+        "source_kind": candidate.source_kind,
+        "source_scope": candidate.source_scope,
+        "source_owner_id": candidate.source_owner_id,
+        "source_revision": candidate.source_revision,
+        "evidence_coverage": candidate.evidence_coverage,
         "proposed_lesson": candidate.proposed_lesson,
         "where_it_applies": {
             "applies_to": list(candidate.applies_to),
@@ -2418,6 +2507,7 @@ def list_email_threads(
             audit.created_at.isoformat() if audit.created_at else "")
         entry = threads.setdefault(thread_id, {
             "thread_id": thread_id,
+            "source_kind": SOURCE_KIND_EMAIL,
             "subject": subject[:200],
             "message_count": 0,
             "last_at": last_at,
@@ -2542,6 +2632,7 @@ def collect_email_thread_evidence(
         resources_known=True,
         source_access="available" if seen_thread else "missing",
         message_count=len(messages_by_id),
+        messages_loaded=len(messages_by_id),
         max_reference_depth=1,
         depth_reached=0,
         message_limit=audit_limit,
@@ -2550,13 +2641,268 @@ def collect_email_thread_evidence(
             "No persisted email canvas audit matched this thread; the "
             "evidence package is not authoritative."],
     )
+    email_messages = list(messages_by_id.values())
     evidence = ConversationEvidence(
         workspace_id=workspace_id,
         tenant_id=tenant_id,
         account_id=user_id,
+        source_kind=SOURCE_KIND_EMAIL,
+        source_scope="email_canvas_workspace",
+        source_revision=_source_revision(
+            SOURCE_KIND_EMAIL, str(thread_id or ""), user_id,
+            workspace_id, tenant_id, email_messages),
         thread_id=str(thread_id or ""),
-        messages=list(messages_by_id.values()),
+        messages=email_messages,
         resources=resources,
         coverage=coverage,
     )
     return resolve_reference_edges(evidence, resources)
+
+
+def _source_revision(
+    source_kind: str,
+    thread_id: str,
+    owner_id: str,
+    workspace_id: str,
+    tenant_id: str,
+    messages: Sequence[MessageEvidence],
+) -> str:
+    """Hash identity/order/roles/current content/scope; no read timestamps."""
+    digest = hashlib.sha256()
+    digest.update(json.dumps({
+        "source_kind": source_kind,
+        "thread_id": str(thread_id or ""),
+        "owner_id": str(owner_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "tenant_id": str(tenant_id or ""),
+    }, sort_keys=True).encode("utf-8"))
+    for message in messages:
+        digest.update(json.dumps({
+            "message_id": str(message.message_id or ""),
+            "role": str(message.role or ""),
+            "content_sha256": str(message.content_sha256 or ""),
+        }, sort_keys=True).encode("utf-8"))
+    return digest.hexdigest()
+
+
+def normalize_source_kind(value: Any) -> str:
+    kind = str(value or SOURCE_KIND_EMAIL).strip().lower()
+    if kind not in SOURCE_KINDS:
+        raise ValueError("unknown_source_kind")
+    return kind
+
+
+def list_native_chat_threads(
+    db: Session,
+    user: Any,
+    *,
+    limit: int = 50,
+) -> List[Dict[str, Any]]:
+    """Ordinary ChatSession threads owned by the current active user.
+
+    Scope contract: ChatSession stores only owner (no tenant/workspace column);
+    in the personal single-tenant app a session is intentionally user-global.
+    Metadata is display-only and never authority. No fake email identity and
+    no GoalRun internal decisions are projected.
+    """
+    from core.models import ChatMessage, ChatSession
+
+    user_id = str(getattr(user, "id", "") or "")
+    if not user_id:
+        return []
+    sessions = (
+        db.query(ChatSession)
+        .filter(ChatSession.user_id == user_id)
+        .order_by(ChatSession.updated_at.desc(), ChatSession.id.desc())
+        .limit(max(1, int(limit or 50)))
+        .all()
+    )
+    out: List[Dict[str, Any]] = []
+    for session in sessions:
+        total = int(
+            db.query(func.count(ChatMessage.id))
+            .filter(ChatMessage.conversation_id == str(session.id))
+            .scalar() or 0
+        )
+        if total == 0:
+            continue
+        last = (
+            db.query(ChatMessage)
+            .filter(ChatMessage.conversation_id == str(session.id))
+            .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+            .first()
+        )
+        last_at = (last.created_at.isoformat()
+                   if last is not None and last.created_at else "")
+        out.append({
+            "thread_id": str(session.id),
+            "source_kind": SOURCE_KIND_NATIVE_CHAT,
+            "subject": (str(session.title or "Untitled chat"))[:200],
+            "message_count": total,
+            "last_at": last_at,
+        })
+    return out
+
+
+def collect_native_chat_thread_evidence(
+    db: Session,
+    user: Any,
+    thread_id: str,
+    *,
+    message_limit: int = 200,
+    catalog_limit: int = 400,
+) -> ConversationEvidence:
+    """Build evidence from one ordinary ChatSession/ChatMessage thread.
+
+    Scope contract: the session is authorized by its stored owner and the
+    current active user; ChatSession has no tenant/workspace column, so this
+    adapter explicitly reports source_scope='user_global' and does not claim
+    source-workspace isolation. ChatMessage tenant is not used as session
+    authority. Metadata is display-only and never authority. A missing/deleted
+    session is missing coverage and never falls back to email.
+    """
+    from core.models import ChatMessage, ChatSession, DatasetEntry
+
+    workspace_id = str(getattr(user, "workspace_id", "") or "default")
+    tenant_id = str(getattr(user, "tenant_id", "") or "default")
+    user_id = str(getattr(user, "id", "") or "")
+    session = (
+        db.query(ChatSession)
+        .filter(
+            ChatSession.id == str(thread_id or ""),
+            ChatSession.user_id == user_id,
+        )
+        .first()
+    )
+    if session is None:
+        return ConversationEvidence(
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            account_id=user_id,
+            source_kind=SOURCE_KIND_NATIVE_CHAT,
+            source_scope="user_global",
+            source_revision="",
+            thread_id=str(thread_id or ""),
+            messages=[],
+            resources=[],
+            coverage=EvidenceCoverage(
+                messages_known=False,
+                messages_truncated=False,
+                attachments_complete=True,
+                resources_known=False,
+                source_access="missing",
+                message_count=0,
+                max_reference_depth=1,
+                depth_reached=0,
+                message_limit=message_limit,
+                resource_limit=catalog_limit,
+                notes=["Native chat session is missing or not owned by the current user."],
+            ),
+        )
+    total = int(
+        db.query(func.count(ChatMessage.id))
+        .filter(ChatMessage.conversation_id == str(session.id))
+        .scalar() or 0
+    )
+    rows = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.conversation_id == str(session.id))
+        .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
+        .limit(message_limit + 1)
+        .all()
+    )
+    truncated = total > message_limit
+    loaded = rows[:message_limit]
+    last = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.conversation_id == str(session.id))
+        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+        .first()
+    )
+    messages: List[MessageEvidence] = []
+    for row in loaded:
+        role = str(row.role or "").strip().lower()
+        body = str(row.content or "")
+        messages.append(MessageEvidence(
+            message_id=str(row.id),
+            provider=SOURCE_KIND_NATIVE_CHAT,
+            source_kind=SOURCE_KIND_NATIVE_CHAT,
+            role=role,
+            mailbox_owner=user_id,
+            sender="",
+            recipients=[],
+            cc=[],
+            sent_at=row.created_at.isoformat() if row.created_at else "",
+            received_at=row.created_at.isoformat() if row.created_at else "",
+            body=body,
+            # The shared segmenter decides authored vs quoted for a user
+            # message; role=user never bypasses quoted-text refusal.
+            authored_segments=[],
+            quoted_segments=[],
+            source_access_status="available",
+        ))
+    catalog_rows = (
+        db.query(DatasetEntry)
+        .filter(
+            _scope_column(DatasetEntry.workspace_id, workspace_id),
+            _scope_column(DatasetEntry.tenant_id, tenant_id),
+        )
+        .order_by(DatasetEntry.ingested_at.desc())
+        .limit(catalog_limit)
+        .all()
+    )
+    resources = [_resource_from_dataset_entry(row) for row in catalog_rows]
+    coverage = EvidenceCoverage(
+        messages_known=total > 0,
+        messages_truncated=truncated,
+        attachments_complete=True,
+        resources_known=True,
+        source_access=("available" if total > 0 else "missing"),
+        message_count=total,
+        messages_loaded=len(messages),
+        max_reference_depth=1,
+        depth_reached=0,
+        message_limit=message_limit,
+        resource_limit=catalog_limit,
+        notes=([] if not truncated else [
+            f"Native chat has {total} messages; only the first {message_limit} were loaded."])
+        if total else ["Native chat session has no messages."],
+    )
+    evidence = ConversationEvidence(
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        account_id=user_id,
+        source_kind=SOURCE_KIND_NATIVE_CHAT,
+        source_scope="user_global",
+        source_revision=_source_revision(
+            SOURCE_KIND_NATIVE_CHAT, str(session.id), user_id,
+            workspace_id, tenant_id, messages),
+        thread_id=str(session.id),
+        messages=messages,
+        resources=resources,
+        coverage=coverage,
+    )
+    return resolve_reference_edges(evidence, resources)
+
+
+def list_learning_threads(db: Session, user: Any, *,
+                          limit: int = 50) -> List[Dict[str, Any]]:
+    """Merge typed email and native-chat sources; never prefix-decide."""
+    rows = list_email_threads(db, user, limit=limit)
+    rows.extend(list_native_chat_threads(db, user, limit=limit))
+    return sorted(
+        rows, key=lambda item: str(item.get("last_at") or ""), reverse=True
+    )[:max(1, int(limit or 50))]
+
+
+def collect_thread_evidence(
+    db: Session,
+    user: Any,
+    thread_id: str,
+    source_kind: str = SOURCE_KIND_EMAIL,
+) -> ConversationEvidence:
+    """Dispatch on explicit source kind; unknown/missing never falls back."""
+    kind = normalize_source_kind(source_kind)
+    if kind == SOURCE_KIND_NATIVE_CHAT:
+        return collect_native_chat_thread_evidence(db, user, thread_id)
+    return collect_email_thread_evidence(db, user, thread_id)

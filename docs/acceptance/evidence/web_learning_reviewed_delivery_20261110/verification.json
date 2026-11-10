@@ -1,0 +1,43 @@
+{
+  "at": "2026-11-10T06:30:41.637523+00:00",
+  "base_main": "310e72aecd1a4041a35af6ac093379d39b93556b",
+  "source_files": [
+    {
+      "path": "backend/api/conversation_learning_routes.py",
+      "same_accepted_bytes": true
+    },
+    {
+      "path": "backend/core/conversation_learning.py",
+      "same_accepted_bytes": true
+    },
+    {
+      "path": "backend/tests/api/test_conversation_learning_native_chat.py",
+      "same_accepted_bytes": true
+    },
+    {
+      "path": "frontend-nextjs/components/learning/ConversationLearningReview.tsx",
+      "same_accepted_bytes": true
+    },
+    {
+      "path": "frontend-nextjs/components/learning/__tests__/ConversationLearningReview.test.tsx",
+      "same_accepted_bytes": true
+    },
+    {
+      "path": "frontend-nextjs/lib/conversation-learning-api.ts",
+      "same_accepted_bytes": true
+    },
+    {
+      "path": "frontend-nextjs/pages/learning.tsx",
+      "same_accepted_bytes": true
+    },
+    {
+      "path": "frontend-nextjs/tests/pages/learning.test.tsx",
+      "same_accepted_bytes": true
+    }
+  ],
+  "independent_packet": "26/26 source/artifact checks match;10originalfalsechecks preserved",
+  "scope": "limited actualUI operations/restart/durability, not full-harness green or general judgment",
+  "historical_negative_captures": "preserved at original identities",
+  "goal_scope": "143claims18rows unchanged; mainwebfirstmobilelast; app_completefalse",
+  "checks_pending": "delivery CI and persistent native-learning CI addition"
+}

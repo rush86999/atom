@@ -1,0 +1,226 @@
+{
+  "accepted_learning_commit": "33b8e99317bc0563b153d379f177a133c0a0a914",
+  "canonical": {
+    "decoded_sdk_matches_me": true,
+    "me_matches_db": true,
+    "me_matches_session": true,
+    "me_status": 200,
+    "no_duplicate_email": true,
+    "one_user_row": true,
+    "same_backend_generation": true,
+    "sdk_cookie_encrypted_not_raw": true,
+    "sdk_cookie_http_only": true,
+    "session_status": 200,
+    "workspace_bound": true,
+    "workspace_ids_match": true
+  },
+  "captured_at": "2026-11-10T06:09Z",
+  "checkpoint_provenance": {
+    "candidate_created": {
+      "file": "safe-checkpoint-candidate_created.private.json",
+      "sha256": "de8d03516ffe51c44d167cdd063bbfb609e9e070e7bb60ecbd06f4673ee9ed56"
+    },
+    "canonical": {
+      "file": "safe-checkpoint-canonical.private.json",
+      "sha256": "80fb6a60f4acf7edf01d0c7284e67645a6455bc2e99ea1ce4d3fc1021be6b471"
+    },
+    "confirm_ready": {
+      "file": "safe-checkpoint-confirm_ready.private.json",
+      "sha256": "6254f375e7f6dd871327cc42be5125bc7e5d29106d070ab9ef7b35a548e4a098"
+    },
+    "confirmed": {
+      "file": "safe-checkpoint-confirmed.private.json",
+      "sha256": "b281df2f0b7a45e3a76bd67e463ff21059c01cffbaae9b4de674a8323f2a2829"
+    },
+    "final": {
+      "file": "safe-checkpoint-final.private.json",
+      "sha256": "4ee98656753e4433d189979cc7618a935a01d4b6ca6fc13907042ee7b3f6f66a"
+    },
+    "lessons": {
+      "file": "safe-checkpoint-lessons.private.json",
+      "sha256": "b4016221c4c8c10ce15c63247abb78f1a77a94dc3316f73ae0abb45dbcaefc2f"
+    },
+    "onboarding": {
+      "file": "safe-checkpoint-onboarding.private.json",
+      "sha256": "a0faec3fcd656f87f5d5000a2d44d3f4d380a40cb546da4ee947610300097497"
+    },
+    "promote_ready": {
+      "file": "safe-checkpoint-promote_ready.private.json",
+      "sha256": "12e4b236b9f8d423c695461f9ed886408ebf112fcd0e0928ebdfb5f8b6d5fd48"
+    },
+    "promoted": {
+      "file": "safe-checkpoint-promoted.private.json",
+      "sha256": "91d9ee21920382c6b221af7809033ae38491efca1b252eb9a09d2de26890214c"
+    },
+    "reload_after_restart": {
+      "file": "safe-checkpoint-reload_after_restart.private.json",
+      "sha256": "0ff71a8a902b0fc74c1e1d98fda26c9e3c7fc9f9be9b71c611fe02199b9e3605"
+    },
+    "reload_before_restart": {
+      "file": "safe-checkpoint-reload_before_restart.private.json",
+      "sha256": "30cebc984e8c3579446eaae5946d62021e807ff3ab46c7ac8fdf7ed6467c6057"
+    },
+    "restart": {
+      "file": "safe-checkpoint-restart.private.json",
+      "sha256": "d8afacdcafaf34009a58c137ef88a433f9c6acbfbf30f5e7ae0142142888cdcf"
+    },
+    "seed": {
+      "file": "safe-checkpoint-seed.private.json",
+      "sha256": "b06ae4e4e31ac03b17f03c642a922a3f444435befc38108b5dc3f70c51ea4b8d"
+    },
+    "selection": {
+      "file": "safe-checkpoint-selection.private.json",
+      "sha256": "46fbe3e5ac841fb815492b86852be7aa0a31fcbc22c125cd723fc0328c816729"
+    },
+    "signup": {
+      "file": "safe-checkpoint-signup.private.json",
+      "sha256": "be57dd968f6e7e8eb9a6bad296b3003735f959d5d221af80bf382aef31d83a0a"
+    }
+  },
+  "confirm": {
+    "candidate_id": "lc-0f7e8850ce3a4eed",
+    "confirmed_revision": 1,
+    "request_expected_revision": 1,
+    "response_status": 200,
+    "status": "confirmed"
+  },
+  "create": {
+    "authority_message_id": "msg-user-f6f140ae17c74e37b35c675f654943b1",
+    "blocking": [],
+    "candidate_id": "lc-0f7e8850ce3a4eed",
+    "digest": "d47fac67409858311c79727bc612d63f016861e417f0d833518147d24fbe9c7a",
+    "response_status": 200,
+    "revision": 1,
+    "source_kind": "native_chat",
+    "source_revision": "948f9a454417d538d106297fa6c243f1a33a9a53d3c4d2c113bac318394d9789",
+    "source_scope": "user_global",
+    "status": "review_ready"
+  },
+  "final_verifier": {
+    "failed_checks": [
+      "screenshot_confirmed",
+      "screenshot_draft",
+      "screenshot_promoted",
+      "screenshot_reload_after",
+      "ui_before_candidate_present",
+      "ui_before_list_lesson",
+      "ui_before_list_promoted_entry_id",
+      "ui_before_list_revision",
+      "ui_before_list_status",
+      "ui_before_visible_matches_list"
+    ],
+    "false_check_count": 10,
+    "overall": "FAILED; not relabeled",
+    "true_check_count": 131
+  },
+  "fixture_seed": {
+    "agent_owner_matches_canonical": true,
+    "agent_scope_matches_canonical": true,
+    "assistant_content_matches": true,
+    "disclosure": "one synthetic owned ChatSession + user/assistant messages and one scoped StudentAgent through real SQL after signup; not model chat generation",
+    "fixture_labeled": true,
+    "message_roles": [
+      "user",
+      "assistant"
+    ],
+    "session_owner_matches_canonical": true,
+    "user_content_matches": true
+  },
+  "identities": {
+    "agent_id": "agent-e0bc0d73ea804e41bd2260824475db78",
+    "candidate_id": "lc-0f7e8850ce3a4eed",
+    "lesson_entry_id": "76b60e582e504e7a9e90f7b68ade8660",
+    "raw_email_committed": false,
+    "raw_user_id_committed": false,
+    "raw_workspace_or_tenant_committed": false,
+    "source_owner_sha256": "5809e1e5b0183664ff102982610996a1cfed109c2a8a9f26410196ea8302e34c",
+    "thread_id": "chat-94abc4dd83974c90afc685018043e578"
+  },
+  "kind": "sanitized_retained_ui_milestone_observations",
+  "lesson_readback": {
+    "count": 1,
+    "exact_lesson_present": true,
+    "exact_lesson_text": "When reporting a result, include evidence links.",
+    "provenance_candidate_id": "lc-0f7e8850ce3a4eed",
+    "provenance_source_kind": "native_chat",
+    "provenance_source_owner_sha256": "5809e1e5b0183664ff102982610996a1cfed109c2a8a9f26410196ea8302e34c",
+    "provenance_source_revision": "948f9a454417d538d106297fa6c243f1a33a9a53d3c4d2c113bac318394d9789",
+    "provenance_thread_id": "chat-94abc4dd83974c90afc685018043e578",
+    "returned_lesson_id": "76b60e582e504e7a9e90f7b68ade8660",
+    "revalidation_required": false
+  },
+  "onboarding": {
+    "completed_via_ui": true,
+    "present": true
+  },
+  "packet_prepared_at": "2026-11-10T06:23:51Z",
+  "private_receipts": {
+    "failure_checkpoint_sha256": "097f8e957b53113a53b1501873f2e8c6bed983c0f1bb18240aeb32829a84e156",
+    "failure_private_sha256": "5589f564c46938b28ef7f0ddb987935022509f3e9ec1e4df2e609688535ee7cd",
+    "full_failure_screenshot_commit": "NO - synthetic identity visible; private receipt only",
+    "full_failure_screenshot_sha256": "22efb137a632da3de6654499ea0e73c97c68fe93daddd283a7512b1fed711cd8"
+  },
+  "private_world_receipt": "/private/tmp/root-web-learning-world-a5lqiv_l",
+  "promote": {
+    "candidate_id": "lc-0f7e8850ce3a4eed",
+    "lesson_id": "76b60e582e504e7a9e90f7b68ade8660",
+    "response_status": 200,
+    "source_kind": "native_chat",
+    "source_revision": "948f9a454417d538d106297fa6c243f1a33a9a53d3c4d2c113bac318394d9789",
+    "status": "promoted"
+  },
+  "reload_after_restart": {
+    "candidate_id": "lc-0f7e8850ce3a4eed",
+    "digest": "d47fac67409858311c79727bc612d63f016861e417f0d833518147d24fbe9c7a",
+    "lesson_id": "76b60e582e504e7a9e90f7b68ade8660",
+    "revision": 1,
+    "source_kind": "native_chat",
+    "source_revision": "948f9a454417d538d106297fa6c243f1a33a9a53d3c4d2c113bac318394d9789",
+    "status": "promoted"
+  },
+  "reload_before_restart": {
+    "candidate_id": "lc-0f7e8850ce3a4eed",
+    "digest": "d47fac67409858311c79727bc612d63f016861e417f0d833518147d24fbe9c7a",
+    "lesson_id": "76b60e582e504e7a9e90f7b68ade8660",
+    "revision": 1,
+    "source_kind": "native_chat",
+    "source_revision": "948f9a454417d538d106297fa6c243f1a33a9a53d3c4d2c113bac318394d9789",
+    "status": "promoted"
+  },
+  "restart": {
+    "after_me_matches_db": true,
+    "after_me_status": 200,
+    "backend_stopped": true,
+    "head_match": true,
+    "health_status": 200,
+    "new_pid_differs": true,
+    "port_closed": true,
+    "source_hashes_match": true
+  },
+  "schema_version": 1,
+  "selection": {
+    "employee_option_label": "Learning Fixture Agent \u00b7 student",
+    "thread_option_label": "Chat \u00b7 Learning fixture chat \u00b7 2 message(s)",
+    "typed_chat": true
+  },
+  "signup": {
+    "landed_dashboard": true,
+    "no_duplicate_email": true,
+    "register_calls": 1,
+    "total_users_after": 2,
+    "total_users_before": 1,
+    "user_rows": 1,
+    "workspace_bound": true
+  },
+  "source_commit": "e5d2fdb323273a2436b39a6c224b14a116cd8bbe",
+  "visible_after_restart": {
+    "candidate_present": true,
+    "list_lesson": "When reporting a result, include evidence links.",
+    "list_revision": 1,
+    "list_status": "promoted",
+    "promoted_entry_id": "76b60e582e504e7a9e90f7b68ade8660",
+    "visible_lesson": "When reporting a result, include evidence links.",
+    "visible_revision": 1,
+    "visible_status": "promoted"
+  }
+}
