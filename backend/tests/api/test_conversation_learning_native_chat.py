@@ -15,8 +15,8 @@ from api.conversation_learning_routes import router
 from core.auth import create_access_token
 from core.database import Base, get_db
 from core.models import (
-    AgentRegistry, Canvas, CanvasAudit, ChatMessage, ChatSession, Tenant, User,
-    Workspace,
+    AgentRegistry, Canvas, CanvasAudit, ChatMessage, ChatSession,
+    ConversationEvent, Tenant, User, Workspace,
 )
 
 
@@ -35,6 +35,7 @@ class World:
         self.foreign_tenant = f"tenant-f-{s}"
         self.foreign_ws = f"ws-f-{s}"
         self.foreign_user = f"user-f-{s}"
+        self.peer = f"user-p-{s}"
         self.inactive = f"user-i-{s}"
         self.chat = f"chat-{s}"
         self.foreign_chat = f"chat-f-{s}"
@@ -63,6 +64,10 @@ class World:
                 User(id=self.foreign_user, tenant_id=self.foreign_tenant,
                      email=f"f-{s}@example.com", first_name="F", last_name="User",
                      role="member", status="active", workspace_id=self.foreign_ws,
+                     is_active=True),
+                User(id=self.peer, tenant_id=self.tenant,
+                     email=f"p-{s}@example.com", first_name="P", last_name="Peer",
+                     role="member", status="active", workspace_id=self.ws,
                      is_active=True),
                 User(id=self.inactive, tenant_id=self.tenant,
                      email=f"i-{s}@example.com", first_name="I", last_name="User",
@@ -327,6 +332,7 @@ def test_assistant_not_authority_and_native_stale_confirm_promote(world):
     provenance = lesson["details"]["conversation_learning"]
     assert provenance["source_kind"] == "native_chat"
     assert provenance["source_revision"] == candidate["source_revision"]
+    assert provenance["source_owner_id"] == world.user
     assert provenance["thread_id"] == world.chat
     with world.Session() as db:
         row = db.query(ChatMessage).filter(ChatMessage.id == world.user_msg).one()
@@ -353,6 +359,122 @@ def test_assistant_not_authority_and_native_stale_confirm_promote(world):
                                             "reviewer": "owner", "expected_revision": confirmed["revision"],
                                             "expected_digest": confirmed["digest"]})
     assert promote_deleted.status_code == 409
+
+
+def _event_count(world) -> int:
+    with world.Session() as db:
+        return db.query(ConversationEvent).filter_by(
+            conversation_id=world.chat).count()
+
+
+def _owner_candidate(world):
+    with world.client() as c:
+        created = world.call(c, "post",
+                             "/api/conversation-learning/candidates",
+                             world.token(world.user),
+                             json=_candidate_payload(world, world.user_msg))
+    assert created.status_code == 200, created.text
+    return created.json()["candidate"]
+
+
+def test_same_workspace_peer_cannot_read_or_reject_private_candidate(world):
+    candidate = _owner_candidate(world)
+    before = _event_count(world)
+    with world.client() as c:
+        read = world.call(
+            c, "get",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}",
+            world.token(world.peer),
+            params={"thread_id": world.chat,
+                    "source_kind": "native_chat"})
+        reject = world.call(
+            c, "post",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}/reject",
+            world.token(world.peer),
+            json={"thread_id": world.chat,
+                  "source_kind": "native_chat",
+                  "reviewer": "peer",
+                  "reason": "synthetic unauthorized attempt"})
+    assert read.status_code == 404, read.text
+    assert reject.status_code == 404, reject.text
+    assert _event_count(world) == before
+
+
+def test_same_workspace_peer_cannot_list_or_mutate_private_candidate(world):
+    payload = _candidate_payload(world, world.user_msg)
+    payload["method_status"] = "unresolved"
+    with world.client() as c:
+        created = world.call(c, "post",
+                             "/api/conversation-learning/candidates",
+                             world.token(world.user), json=payload)
+    assert created.status_code == 200, created.text
+    candidate = created.json()["candidate"]
+    dependency_id = candidate["dependencies"][0]["dependency_id"]
+    before = _event_count(world)
+    peer = world.token(world.peer)
+    body = {"thread_id": world.chat, "source_kind": "native_chat"}
+    with world.client() as c:
+        listed = world.call(
+            c, "get",
+            f"/api/conversation-learning/threads/{world.chat}/candidates",
+            peer, params={"source_kind": "native_chat"})
+        revise = world.call(
+            c, "post",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}/revise",
+            peer, json={**body, "proposed_lesson": "Peer rewrite"})
+        resolve = world.call(
+            c, "post",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}/resolve",
+            peer, json={**body, "dependency_id": dependency_id,
+                        "value": "peer", "confirmed_by": "peer"})
+        confirm = world.call(
+            c, "post",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}/confirm",
+            peer, json={**body, "reviewer": "peer",
+                        "expected_revision": candidate["revision"]})
+        promote = world.call(
+            c, "post",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}/promote",
+            peer, json={**body, "reviewer": "peer",
+                        "expected_revision": candidate["revision"],
+                        "expected_digest": candidate["digest"]})
+        apply = world.call(
+            c, "post",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}/apply",
+            peer, json={**body, "rows": []})
+    assert listed.status_code == 200
+    assert listed.json()["candidates"] == []
+    for response in (revise, resolve, confirm, promote, apply):
+        assert response.status_code == 404, response.text
+    assert _event_count(world) == before
+    owner = world.token(world.user)
+    with world.client() as c:
+        own = world.call(
+            c, "get",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}",
+            owner, params={"thread_id": world.chat,
+                           "source_kind": "native_chat"})
+    assert own.status_code == 200, own.text
+
+
+def test_missing_native_owner_fails_closed_for_owner_too(world):
+    candidate = _owner_candidate(world)
+    with world.Session() as db:
+        row = db.query(ConversationEvent).filter(
+            ConversationEvent.conversation_id == world.chat).order_by(
+                ConversationEvent.created_at.desc()).first()
+        payload = json.loads(row.payload_json)
+        payload["candidate"]["source_owner_id"] = ""
+        row.payload_json = json.dumps(payload)
+        db.commit()
+    with world.client() as c:
+        read = world.call(
+            c, "get",
+            f"/api/conversation-learning/candidates/{candidate['candidate_id']}",
+            world.token(world.user),
+            params={"thread_id": world.chat,
+                    "source_kind": "native_chat"})
+    assert read.status_code == 404, read.text
 
 
 def test_native_boundaries_truthful_total_and_last_at(world):

@@ -402,6 +402,7 @@ class LearningCandidate(BaseModel):
     agent_id: str
     source_kind: str = SOURCE_KIND_EMAIL
     source_scope: str = "workspace"
+    source_owner_id: str = ""
     source_revision: str = ""
     thread_id: str
     proposed_lesson: str
@@ -1190,6 +1191,22 @@ def candidate_readiness(candidate: LearningCandidate) -> Dict[str, Any]:
     }
 
 
+def candidate_visible_to_user(candidate: LearningCandidate,
+                               user_id: str) -> bool:
+    """One shared candidate-access decision for every review surface.
+
+    Private (user-global) sources belong to their persisted server-owned
+    owner. A missing owner fails closed: old/ambiguous rows need fresh review
+    rather than being blessed by a workspace peer. Workspace-scoped email
+    candidates keep their historical workspace/tenant policy.
+    """
+    if (str(candidate.source_kind or "") != SOURCE_KIND_NATIVE_CHAT
+            and str(candidate.source_scope or "") != "user_global"):
+        return True
+    owner = str(candidate.source_owner_id or "")
+    return bool(owner) and owner == str(user_id or "")
+
+
 def _candidate_digest(candidate: LearningCandidate) -> str:
     payload = {
         "schema": SCHEMA_VERSION,
@@ -1238,6 +1255,8 @@ def _candidate_digest(candidate: LearningCandidate) -> str:
     # Backward-compatible identity: older candidates predate these fields and
     # must keep their stored digest. Only a non-empty new field changes the
     # payload, which is exactly when the candidate content changed.
+    if candidate.source_owner_id:
+        payload["source_owner_id"] = candidate.source_owner_id
     if candidate.format_spec:
         payload["format_spec"] = candidate.format_spec
     if candidate.conditions:
@@ -1341,6 +1360,7 @@ def build_candidate(
         agent_id=str(agent_id or ""),
         source_kind=(evidence.source_kind if evidence else SOURCE_KIND_EMAIL),
         source_scope=(evidence.source_scope if evidence else "workspace"),
+        source_owner_id=(evidence.account_id if evidence else ""),
         source_revision=(evidence.source_revision if evidence else ""),
         thread_id=str(thread_id or ""),
         proposed_lesson=_bounded(proposed_lesson, 2000),
@@ -1779,6 +1799,7 @@ def promote_candidate(
             "thread_id": candidate.thread_id,
             "source_kind": candidate.source_kind,
             "source_scope": candidate.source_scope,
+            "source_owner_id": candidate.source_owner_id,
             "source_revision": candidate.source_revision,
             "agent_id": candidate.agent_id,
             "workspace_id": candidate.workspace_id,
@@ -2095,6 +2116,7 @@ def review_payload(candidate: LearningCandidate) -> Dict[str, Any]:
         "review_ready": readiness["review_ready"],
         "source_kind": candidate.source_kind,
         "source_scope": candidate.source_scope,
+        "source_owner_id": candidate.source_owner_id,
         "source_revision": candidate.source_revision,
         "evidence_coverage": candidate.evidence_coverage,
         "proposed_lesson": candidate.proposed_lesson,
