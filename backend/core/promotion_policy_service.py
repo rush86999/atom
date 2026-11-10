@@ -265,6 +265,8 @@ DEFAULT_RUBRIC_CRITERIA = [
      "label": "Task/context is inspectable and scoped to this agent and tier"},
     {"id": "actual_output",
      "label": "Actual durable output is present and reviewable"},
+    {"id": "task_completion",
+     "label": "Task objective is completed; output is correct against the expected/evidence result"},
     {"id": "scope",
      "label": "Evidence matches the exact tenant/workspace/policy/source"},
     {"id": "safety",

@@ -1237,3 +1237,112 @@ def test_blank_policy_identity_and_rubric_are_invalid(world, monkeypatch):
             with pytest.raises(AssessmentPolicyError) as exc:
                 get_assessment_policy(db)
             assert exc.value.state == "configuration_required"
+
+
+def test_pending_review_exact_duplicate_reuses_same_action(world):
+    client = world.client()
+    sup = world.token(SUPERVISOR)
+    first = request_review(client, sup)
+    second = request_review(client, sup)
+    assert first["status"] == 200 and second["status"] == 200
+    assert first["json"]["data"]["action_id"] == second["json"]["data"]["action_id"]
+    assert second["json"]["data"]["idempotent"] is True
+    with world.Session() as db:
+        assert db.query(func.count(HITLAction.id)).scalar() == 1
+
+
+def test_pending_review_policy_change_creates_fresh_review_and_old_fails_closed(world):
+    client = world.client()
+    sup, admin = world.token(SUPERVISOR), world.token(ADMIN)
+    first = request_review(client, sup)
+    assert first["status"] == 200
+    old_id = first["json"]["data"]["action_id"]
+
+    _set_db_policy(world, _legacy_policy(False))
+    second = request_review(client, sup)
+    assert second["status"] == 200, second
+    new_id = second["json"]["data"]["action_id"]
+    assert new_id != old_id
+    assert second["json"]["data"]["idempotent"] is False
+    with world.Session() as db:
+        assert db.query(func.count(HITLAction.id)).scalar() == 2
+        assert db.get(HITLAction, old_id).status == HITLActionStatus.PENDING.value
+
+    # The old review is stale against the current policy and must fail closed.
+    old_approval = approve(client, admin, old_id)
+    assert old_approval["status"] == 409, old_approval
+    with world.Session() as db:
+        assert db.query(func.count(GraduationExam.id)).scalar() == 0
+
+    # The fresh review matches the current policy and can be approved.
+    assert approve(client, admin, new_id)["status"] == 200
+    assert promote(client, sup)["status"] == 200
+
+
+@pytest.mark.parametrize("move", [
+    "tenant", "workspace", "missing_tenant", "missing_workspace",
+    "wrong_type_tenant", "wrong_type_workspace",
+])
+def test_pending_review_moved_scope_is_not_reused(world, move):
+    client = world.client()
+    sup, admin = world.token(SUPERVISOR), world.token(ADMIN)
+    first = request_review(client, sup)
+    assert first["status"] == 200
+    old_id = first["json"]["data"]["action_id"]
+    with world.Session() as db:
+        row = db.get(HITLAction, old_id)
+        if move == "tenant":
+            row.tenant_id = OTHER
+        elif move == "workspace":
+            row.workspace_id = WS_B
+        elif move == "missing_tenant":
+            row.tenant_id = None
+        elif move == "missing_workspace":
+            row.workspace_id = None
+        elif move == "wrong_type_tenant":
+            row.tenant_id = 0
+        else:
+            row.workspace_id = 0
+        db.commit()
+
+    # Readiness must not advertise the moved row as a current pending review.
+    readiness = call(
+        client, "GET",
+        f"/api/episodes/graduation/readiness/{AGENT}?target_maturity=INTERN",
+        sup,
+    )
+    assert readiness["status"] == 200
+    assert readiness["json"]["assessment"].get("review_action_id") is None
+
+    second = request_review(client, sup)
+    assert second["status"] == 200, second
+    new_id = second["json"]["data"]["action_id"]
+    assert new_id != old_id
+    assert second["json"]["data"]["idempotent"] is False
+    with world.Session() as db:
+        assert db.query(func.count(HITLAction.id)).scalar() == 2
+        moved = db.get(HITLAction, old_id)
+        assert moved.status == HITLActionStatus.PENDING.value
+        if move == "tenant":
+            assert str(moved.tenant_id) == OTHER
+        elif move == "workspace":
+            assert str(moved.workspace_id) == WS_B
+        elif move == "missing_tenant":
+            assert moved.tenant_id is None
+        elif move == "missing_workspace":
+            assert moved.workspace_id is None
+        elif move == "wrong_type_tenant":
+            assert str(moved.tenant_id) == "0"
+        else:
+            assert str(moved.workspace_id) == "0"
+
+    # The moved old row remains fail-closed. The approvals route scope-filters
+    # a foreign row to a truthful 404; a reachable-but-stale row is 409. In
+    # neither case may the old row be decided or produce an exam.
+    old_approval = approve(client, admin, old_id)
+    assert old_approval["status"] in (404, 409), old_approval
+    with world.Session() as db:
+        assert db.get(HITLAction, old_id).status == HITLActionStatus.PENDING.value
+        assert db.query(func.count(GraduationExam.id)).scalar() == 0
+    assert approve(client, admin, new_id)["status"] == 200
+    assert promote(client, sup)["status"] == 200

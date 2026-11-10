@@ -2192,6 +2192,56 @@ def find_qualification_receipt(
     }
 
 
+def _durable_scope_matches(value: Any, expected: str) -> bool:
+    """Durable HITL scope columns are authority material.
+
+    Only an exact string match counts: a moved row, a missing (None) value,
+    or a wrong-type value (integer/container) is never reusable.
+    """
+    return isinstance(value, str) and value == str(expected or "")
+
+
+def _pending_review_is_current(
+    db: Session,
+    row: HITLAction,
+    agent: AgentRegistry,
+    target_level: str,
+    policy_bundle: Dict[str, Any],
+    tenant_id: str,
+    workspace_id: str,
+) -> bool:
+    """Only a pending review matching the complete current material counts."""
+    if str(row.agent_id or "") != str(agent.id):
+        return False
+    if not _durable_scope_matches(row.tenant_id, tenant_id):
+        return False
+    if not _durable_scope_matches(row.workspace_id, workspace_id):
+        return False
+    params = dict(row.params or {})
+    policy = policy_bundle["policy"]
+    expected = {
+        "schema": QUALIFICATION_REVIEW_SCHEMA,
+        "agent_id": str(agent.id),
+        "current_level": str(agent.status or "").lower(),
+        "target_level": str(target_level or "").upper(),
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "policy_revision": policy_bundle["revision"],
+        "policy_digest": policy_bundle.get("digest"),
+        "rubric_version": policy.rubric_version,
+        "rubric_criteria": [
+            item.model_dump() for item in policy.rubric_criteria],
+    }
+    if any(params.get(key) != value for key, value in expected.items()):
+        return False
+    ok, _normalized, source_revision, _error = validate_qualification_evidence(
+        db, agent, params.get("evidence_refs"),
+        tenant_id=tenant_id, workspace_id=workspace_id,
+        rubric_version=policy.rubric_version,
+    )
+    return bool(ok and params.get("source_revision") == source_revision)
+
+
 def evaluate_qualification_gate(
     db: Session,
     agent: AgentRegistry,
@@ -2267,7 +2317,7 @@ def evaluate_qualification_gate(
             "next_action": None,
         }
 
-    pending = (
+    pending_rows = (
         db.query(HITLAction)
         .filter(
             HITLAction.action_type == QUALIFICATION_REVIEW_ACTION,
@@ -2275,8 +2325,16 @@ def evaluate_qualification_gate(
             HITLAction.status == HITLActionStatus.PENDING.value,
         )
         .order_by(HITLAction.created_at.desc())
-        .first()
+        .all()
     )
+    tenant_id = resolve_tenant_id(agent)
+    workspace_id = resolve_workspace_id(agent)
+    pending = next((
+        row for row in pending_rows
+        if _pending_review_is_current(
+            db, row, agent, target_level, policy_bundle,
+            tenant_id, workspace_id)
+    ), None)
     action_id = str(pending.id) if pending is not None else None
     state = str(receipt.get("state") or "unresolved_missing")
     message = str(receipt.get("message") or "Capability qualification is unresolved.")
@@ -2431,6 +2489,22 @@ def request_qualification_review(
             str((evidence_error or {}).get("state") or "unresolved_scope"),
             str((evidence_error or {}).get("message") or "Invalid evidence."),
         )
+    rubric_criteria = [item.model_dump() for item in policy.rubric_criteria]
+    expected_pending = {
+        "schema": QUALIFICATION_REVIEW_SCHEMA,
+        "agent_id": str(agent.id),
+        "current_level": current,
+        "target_level": target,
+        "tenant_id": str(tenant_id or ""),
+        "workspace_id": str(workspace_id or ""),
+        "policy_revision": policy_bundle["revision"],
+        "policy_digest": policy_bundle.get("digest"),
+        "rubric_version": rubric,
+        "rubric_criteria": rubric_criteria,
+        "source_revision": source_revision,
+        "evidence_refs": normalized,
+        "requested_by": str(requested_by or ""),
+    }
     existing = (
         db.query(HITLAction)
         .filter(
@@ -2442,9 +2516,20 @@ def request_qualification_review(
         .all()
     )
     for row in existing:
+        # Durable row scope is authority material, not just params: a peer
+        # moving tenant/workspace (or a missing/wrong-type value) must never
+        # make a foreign/moved row reusable.
+        if str(row.agent_id or "") != str(agent.id):
+            continue
+        if not _durable_scope_matches(row.tenant_id, tenant_id):
+            continue
+        if not _durable_scope_matches(row.workspace_id, workspace_id):
+            continue
         params = dict(row.params or {})
-        if (str(params.get("target_level") or "").lower() == target.lower()
-                and params.get("source_revision") == source_revision):
+        # Exact duplicate only: a policy/rubric/scope/source/evidence or
+        # requester change must produce a fresh review, never reuse a stale
+        # pending row that would fail closed on approval.
+        if all(params.get(key) == value for key, value in expected_pending.items()):
             return {
                 "action_id": str(row.id),
                 "state": "pending_review",
@@ -2452,7 +2537,6 @@ def request_qualification_review(
                 "source_revision": source_revision,
                 "idempotent": True,
             }
-    rubric_criteria = [item.model_dump() for item in policy.rubric_criteria]
     params = {
         "schema": QUALIFICATION_REVIEW_SCHEMA,
         "agent_id": str(agent.id),
@@ -2827,7 +2911,8 @@ def qualification_cas_predicates(
             and current_policy.get("row_updated_at") is not None):
         guards.append(exists().where(
             RuntimeSetting.key == ASSESSMENT_POLICY_KEY,
-            RuntimeSetting.updated_at == current_policy["row_updated_at"],
+            cast(RuntimeSetting.updated_at, String) == str(
+                current_policy["row_updated_at"]),
             RuntimeSetting.value_json == current_policy["raw_value"],
         ))
     elif current_policy.get("source") == "default":
