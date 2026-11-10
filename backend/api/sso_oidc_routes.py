@@ -17,11 +17,19 @@ Verification approach:
     becoming a session.
 
 Token delivery to the frontend:
-    ``frontend-nextjs/lib/backendAuth.ts`` and ``lib/identity.ts`` read the
-    session token from localStorage keys ``auth_token`` and ``token``
-    (see backendAuth.ts lines ~62-63). The callback therefore returns a
-    small HTML page that stores the JWT under both keys and then redirects
-    to ``/?sso=success``.
+    The legacy ``/login`` + ``/callback`` pair is retained for direct
+    backend API compatibility only: it returns a backend-origin HTML page
+    that stores the backend JWT in localStorage and redirects to the
+    backend root. That flow is explicitly not the same-origin browser web
+    handoff and is not claimed as complete web/browser SSO.
+
+    The ``/web/login`` + ``/web/callback`` + ``/web/exchange`` routes are
+    the browser handoff: the OIDC callback returns only an opaque one-use
+    browser-bound code to the configured ``APP_URL`` origin, and the
+    exchange returns the ordinary backend bearer as JSON after current
+    User/config/tenant authority is atomically claimed. The existing
+    NextAuth SDK bridge (``establishWebSession`` +
+    ``persistBackendToken``) then owns the web session and raw API token.
 
 State management:
     The OAuth2 ``state`` parameter is a random 256-bit token. Only its
@@ -33,6 +41,7 @@ State management:
     processes; comparisons are constant-time and the state is consumed
     before any provider code exchange.
 """
+import base64
 import hashlib
 import hmac
 import json
@@ -42,10 +51,11 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+from urllib.parse import unquote, urlencode, urlsplit
 
 import httpx
 from fastapi import Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, exists, select
 from sqlalchemy.orm import Session
@@ -54,8 +64,10 @@ from core.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     SECRET_KEY,
     create_access_token,
+    credential_session_binding,
     get_current_user,
 )
+from core.config import get_config
 from core.database import get_db
 from core.sql_json import json_field_equals
 from core.models import (
@@ -96,6 +108,12 @@ _jwks_cache: Dict[str, tuple] = {}
 _STATE_TTL = 600
 _STATE_COOKIE_DEVELOPMENT = "atom_oidc_state"
 _STATE_COOKIE_SECURE = "__Host-atom_oidc_state"
+_WEB_LOGIN_PURPOSE = "oidc_web_login"
+_WEB_HANDOFF_PROVIDER = "oidc_web_handoff"
+_WEB_HANDOFF_TTL = 120
+_WEB_CALLBACK_PATH = "/api/auth/sso/oidc/web/callback"
+_WEB_LANDING_PATH = "/auth/sso/callback"
+_WEB_SOURCE_SECRET_PREFIX = b"atom-oidc-web-handoff-credential\0"
 
 # Retired in-memory store. Kept only as an inert compatibility symbol for
 # external test harnesses that clear it; the durable state path never reads or
@@ -132,6 +150,137 @@ def _state_expired(row: OAuthState) -> bool:
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     return datetime.now(timezone.utc) >= expires_at
+
+
+def _trusted_web_origin() -> Optional[str]:
+    """Return the configured web origin, or None for any ambiguous value."""
+    try:
+        raw = get_config().server.app_url
+    except Exception:  # noqa: BLE001 — missing configuration fails closed
+        return None
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = urlsplit(raw.strip())
+        port = parsed.port
+    except ValueError:
+        return None
+    scheme = str(parsed.scheme or "").lower()
+    host = str(parsed.hostname or "").lower()
+    if scheme not in {"http", "https"} or not host:
+        return None
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        return None
+    if parsed.path not in ("", "/"):
+        return None
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    default_port = (scheme == "https" and port == 443) or (
+        scheme == "http" and port == 80)
+    netloc = host if port is None or default_port else f"{host}:{port}"
+    return f"{scheme}://{netloc}"
+
+
+def _safe_return_to(value: Any) -> Optional[str]:
+    """Validate a same-origin relative post-login target."""
+    if not isinstance(value, str):
+        return None
+    if not value or len(value) > 2048 or value != value.strip():
+        return None
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        return None
+    if "\\" in value:
+        return None
+    if not value.startswith("/") or value.startswith("//"):
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc or parsed.fragment:
+        return None
+
+    decoded = value
+    for _ in range(3):
+        next_value = unquote(decoded)
+        if next_value == decoded:
+            break
+        decoded = next_value
+    else:
+        return None
+    if decoded != decoded.strip():
+        return None
+    if any(ord(char) < 32 or ord(char) == 127 for char in decoded):
+        return None
+    if "\\" in decoded:
+        return None
+    if not decoded.startswith("/") or decoded.startswith("//"):
+        return None
+    decoded_parsed = urlsplit(decoded)
+    if decoded_parsed.scheme or decoded_parsed.netloc:
+        return None
+    path = str(decoded_parsed.path or "")
+    if any(segment in {".", ".."} for segment in path.split("/")):
+        return None
+    lower_path = path.lower()
+    for blocked in ("/api/auth", "/auth", "/login"):
+        if lower_path == blocked or lower_path.startswith(blocked + "/"):
+            return None
+    return value
+
+
+def _pkce_pair(metadata: Dict[str, Any]) -> tuple:
+    """Return an S256 verifier/challenge, refusing advertised downgrade."""
+    methods = metadata.get("code_challenge_methods_supported")
+    if methods is not None:
+        if not isinstance(methods, (list, tuple)) or "S256" not in {
+                str(method) for method in methods}:
+            raise ValueError("OIDC provider does not announce PKCE S256")
+    verifier = secrets.token_urlsafe(64)
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode("utf-8")).digest()
+    ).rstrip(b"=").decode("ascii")
+    return verifier, challenge
+
+
+def _credential_commitment(user: User) -> str:
+    """Keyed, non-revealing commitment to the exact current credential."""
+    binding = credential_session_binding(user)
+    return hmac.new(
+        str(SECRET_KEY or "").encode("utf-8"),
+        _WEB_SOURCE_SECRET_PREFIX + binding.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _user_snapshot_digest(user: User) -> str:
+    material = {
+        "id": str(user.id or ""),
+        "email": str(user.email or ""),
+        "status": str(user.status or ""),
+        "is_active": user.is_active is True,
+        "role": str(user.role or ""),
+        "tenant_id": user.tenant_id,
+        "workspace_id": user.workspace_id,
+    }
+    return hashlib.sha256(
+        json.dumps(
+            material, sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _user_claim_predicate(user: User):
+    """Correlated exact current User row for an atomic handoff exchange."""
+    return exists(
+        select(User.id).where(
+            User.id == str(user.id),
+            User.email == str(user.email or ""),
+            User.status == str(user.status or ""),
+            User.is_active.is_(True),
+            User.role == str(user.role or ""),
+            _exact(User.tenant_id, user.tenant_id),
+            _exact(User.workspace_id, user.workspace_id),
+            _exact(User.hashed_password, user.hashed_password),
+        )
+    )
 
 
 def _config_row(db: Session) -> Optional[SSOConfiguration]:
@@ -812,7 +961,10 @@ def _consume_callback_state(
     state: Optional[str],
     cfg: Dict[str, Any],
     redirect_target: str,
-) -> str:
+    *,
+    purpose: Optional[str] = None,
+    required_metadata: tuple = (),
+) -> Dict[str, Any]:
     """Validate and atomically consume the durable browser-bound state.
 
     The conditional DELETE is the single-use arbiter across processes and
@@ -859,6 +1011,17 @@ def _consume_callback_state(
         logger.warning("OIDC state rejected stage=browser_missing")
         raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
     extra_data = row.extra_data if isinstance(row.extra_data, dict) else {}
+    if purpose is not None and extra_data.get("purpose") != purpose:
+        logger.warning("OIDC state rejected stage=purpose")
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
+    metadata_values: Dict[str, str] = {}
+    for key in required_metadata:
+        value = extra_data.get(key)
+        if not isinstance(value, str) or not value:
+            logger.warning("OIDC state rejected stage=metadata")
+            raise HTTPException(
+                status_code=401, detail="Invalid or expired SSO state")
+        metadata_values[key] = value
     stored_browser = extra_data.get("browser_digest")
     if (
         not isinstance(stored_browser, str)
@@ -919,6 +1082,8 @@ def _consume_callback_state(
         logger.warning("OIDC state rejected stage=nonce_missing")
         raise HTTPException(status_code=401, detail="Invalid or expired SSO state")
 
+    accepted_tenant_id = row.tenant_id
+    accepted_redirect_uri = row.redirect_uri
     now = datetime.now(timezone.utc)
     active_tenant = exists(
         select(Tenant.id).where(
@@ -927,7 +1092,7 @@ def _consume_callback_state(
         )
     )
     current_config = _config_claim_predicate(
-        db, authority, row.tenant_id)
+        db, authority, accepted_tenant_id)
     state_snapshot = [
         OAuthState.id == row.id,
         OAuthState.state == digest,
@@ -944,6 +1109,9 @@ def _consume_callback_state(
         json_field_equals(
             db, OAuthState.extra_data, "$.config_digest", stored_config),
     ]
+    for key, value in metadata_values.items():
+        state_snapshot.append(json_field_equals(
+            db, OAuthState.extra_data, f"$.{key}", value))
     try:
         claimed = db.execute(
             delete(OAuthState)
@@ -974,7 +1142,105 @@ def _consume_callback_state(
             status_code=503,
             detail="SSO sign-in could not be completed",
         )
-    return nonce
+    return {
+        "nonce": nonce,
+        "tenant_id": accepted_tenant_id,
+        "redirect_uri": accepted_redirect_uri,
+        "browser_digest": stored_browser,
+        "config_digest": stored_config,
+        "extra_data": extra_data,
+    }
+
+
+def _admit_oidc_user(
+    db: Session,
+    claims: Dict[str, Any],
+    userinfo: Dict[str, Any],
+    cfg: Dict[str, Any],
+) -> User:
+    """Resolve or JIT-provision the canonical User without issuing a JWT."""
+    identity = _resolve_verified_identity(claims, userinfo)
+    if identity is None:
+        logger.warning(
+            "OIDC callback rejected: no verified, subject-bound email identity")
+        raise HTTPException(
+            status_code=401,
+            detail="SSO identity does not include a verified email address",
+        )
+    email = identity["email"]
+
+    allowed = cfg.get("allowed_domains") or []
+    if allowed:
+        domain = email.rsplit("@", 1)[-1]
+        if domain not in [d.strip().lower() for d in allowed if d.strip()]:
+            logger.warning(
+                "OIDC login rejected: email domain not allowed (domain=%r)",
+                domain)
+            raise HTTPException(
+                status_code=403,
+                detail="Email domain is not permitted for SSO login",
+            )
+
+    from sqlalchemy import func
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == email)
+        .populate_existing()
+        .first()
+    )
+    if user:
+        if not _existing_user_is_active(user):
+            logger.warning(
+                "OIDC callback refused: existing account is not active "
+                "(user_id=%s)", user.id)
+            raise HTTPException(
+                status_code=403,
+                detail="Account is not active for SSO sign-in",
+            )
+        try:
+            user = _claim_existing_user_admission(db, user)
+        except Exception as exc:  # noqa: BLE001 — DB errors fail closed
+            db.rollback()
+            logger.error(
+                "OIDC existing-account admission failed (error_class=%s)",
+                type(exc).__name__)
+            raise HTTPException(
+                status_code=503,
+                detail="SSO sign-in could not be completed",
+            )
+        if user is None:
+            raise HTTPException(
+                status_code=409,
+                detail="SSO account authorization changed. Sign in again.",
+            )
+        return user
+
+    user = User(
+        email=email,
+        hashed_password=None,  # SSO-provisioned users have no local password
+        first_name=identity["first_name"][:255],
+        last_name=identity["last_name"][:255],
+        role=cfg.get("default_role") or UserRole.MEMBER.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+        tenant_id=PERSONAL_TENANT_ID,
+        last_login=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    logger.info(
+        "OIDC auto-provisioned user (email=%r, role=%s)", email, user.role)
+    try:
+        db.flush()
+    except Exception as exc:  # noqa: BLE001 — DB errors fail closed
+        db.rollback()
+        logger.error(
+            "OIDC auto-provisioning failed (error_class=%s)",
+            type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+    return user
 
 
 @router.get("/callback")
@@ -997,8 +1263,9 @@ async def oidc_callback(
     # browser cookie, current config generation and exact callback target, then
     # atomically consumed before any upstream code exchange.
     redirect_target = _redirect_uri(request)
-    expected_nonce = _consume_callback_state(
+    claimed_state = _consume_callback_state(
         db, request, state, cfg, redirect_target)
+    expected_nonce = claimed_state["nonce"]
 
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
@@ -1071,127 +1338,29 @@ async def oidc_callback(
     except ValueError:
         userinfo = {}
 
-    identity = _resolve_verified_identity(claims, userinfo)
-    if identity is None:
-        logger.warning(
-            "OIDC callback rejected: no verified, subject-bound email identity")
+    user = _admit_oidc_user(db, claims, userinfo, cfg)
+
+    # Same JWT session helper the normal login endpoint uses
+    # (core/auth_endpoints.py login_for_access_token). The admission and JIT
+    # insert are still uncommitted; this single commit either admits both the
+    # user change and the session or rolls all of it back.
+    from datetime import timedelta
+    try:
+        access_jwt = create_access_token(
+            data={"sub": user.id},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+            user=user,
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — uncertain commit fails closed
+        db.rollback()
+        logger.error(
+            "OIDC session commit failed (error_class=%s)",
+            type(exc).__name__)
         raise HTTPException(
-            status_code=401,
-            detail="SSO identity does not include a verified email address",
+            status_code=503,
+            detail="SSO sign-in could not be completed",
         )
-    email = identity["email"]
-
-    allowed = cfg.get("allowed_domains") or []
-    if allowed:
-        domain = email.rsplit("@", 1)[-1]
-        if domain not in [d.strip().lower() for d in allowed if d.strip()]:
-            logger.warning("OIDC login rejected: email domain not allowed (domain=%r)", domain)
-            raise HTTPException(status_code=403, detail="Email domain is not permitted for SSO login")
-
-    from sqlalchemy import func
-    user = (
-        db.query(User)
-        .filter(func.lower(User.email) == email)
-        .populate_existing()
-        .first()
-    )
-    if user:
-        # External SSO proves who the IdP authenticated; it does not own the
-        # local account lifecycle. An existing suspended/pending/deleted/
-        # disabled/unknown account, or an active row with is_active=False,
-        # stays exactly as the local authority left it.
-        if not _existing_user_is_active(user):
-            logger.warning(
-                "OIDC callback refused: existing account is not active "
-                "(user_id=%s)", user.id)
-            raise HTTPException(
-                status_code=403,
-                detail="Account is not active for SSO sign-in",
-            )
-        try:
-            user = _claim_existing_user_admission(db, user)
-        except Exception as exc:  # noqa: BLE001 — DB errors fail closed
-            db.rollback()
-            logger.error(
-                "OIDC existing-account admission failed (error_class=%s)",
-                type(exc).__name__)
-            raise HTTPException(
-                status_code=503,
-                detail="SSO sign-in could not be completed",
-            )
-        if user is None:
-            raise HTTPException(
-                status_code=409,
-                detail="SSO account authorization changed. Sign in again.",
-            )
-
-        # Issue the session from the row that won the claim, before commit.
-        # A failed/uncertain commit discards the token instead of returning a
-        # credential that was never durably admitted.
-        from datetime import timedelta
-        try:
-            access_jwt = create_access_token(
-                data={"sub": user.id},
-                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-                user=user,
-            )
-            db.commit()
-        except Exception as exc:  # noqa: BLE001 — uncertain commit fails closed
-            db.rollback()
-            logger.error(
-                "OIDC existing-account session commit failed (error_class=%s)",
-                type(exc).__name__)
-            raise HTTPException(
-                status_code=503,
-                detail="SSO sign-in could not be completed",
-            )
-    else:
-        # NOTE: the User model has no auth_provider column; nothing is stored
-        # on the row to mark SSO provenance (adding a migration is out of scope).
-        from datetime import datetime, timezone
-        user = User(
-            email=email,
-            hashed_password=None,  # SSO-provisioned users have no local password
-            first_name=identity["first_name"][:255],
-            last_name=identity["last_name"][:255],
-            role=cfg.get("default_role") or UserRole.MEMBER.value,
-            status=UserStatus.ACTIVE.value,
-            is_active=True,
-            tenant_id=PERSONAL_TENANT_ID,
-            last_login=datetime.now(timezone.utc),
-        )
-        db.add(user)
-        logger.info("OIDC auto-provisioned user (email=%r, role=%s)", email, user.role)
-        try:
-            db.commit()
-            db.refresh(user)
-        except Exception as exc:  # noqa: BLE001 — DB errors fail closed
-            db.rollback()
-            logger.error(
-                "OIDC auto-provisioning failed (error_class=%s)",
-                type(exc).__name__)
-            raise HTTPException(
-                status_code=503,
-                detail="SSO sign-in could not be completed",
-            )
-
-        # Same JWT session helper the normal login endpoint uses
-        # (core/auth_endpoints.py login_for_access_token).
-        from datetime import timedelta
-        try:
-            access_jwt = create_access_token(
-                data={"sub": user.id},
-                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-                user=user,
-            )
-        except Exception as exc:  # noqa: BLE001 — credential binding failure
-            logger.error(
-                "OIDC session issuance failed (error_class=%s)",
-                type(exc).__name__)
-            raise HTTPException(
-                status_code=503,
-                detail="SSO sign-in could not be completed",
-            )
 
     import json as _json
     html = _CALLBACK_HTML.format(
@@ -1199,6 +1368,548 @@ async def oidc_callback(
         redirect="/?sso=success",
     )
     response = HTMLResponse(content=html)
+    response.delete_cookie(
+        key=_state_cookie_name(request),
+        path="/",
+        secure=_state_cookie_secure(request),
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+# ============================================================================
+# Same-origin browser web handoff
+# ============================================================================
+
+_WEB_LOGIN_METADATA = (
+    "purpose",
+    "source_origin",
+    "return_to",
+    "web_callback_url",
+    "pkce_verifier_encrypted",
+    "pkce_method",
+)
+
+_WEB_HANDOFF_METADATA = (
+    "purpose",
+    "browser_digest",
+    "config_digest",
+    "source_origin",
+    "return_to",
+    "web_callback_url",
+    "user_digest",
+    "credential_commitment",
+)
+
+
+class WebExchangeRequest(BaseModel):
+    code: str = Field(..., min_length=16, max_length=512)
+
+
+def _web_error_redirect(web_origin: str, code: str) -> RedirectResponse:
+    response = RedirectResponse(
+        url=f"{web_origin}/login?{urlencode({'sso_error': code})}",
+        status_code=302,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+async def _exchange_oidc_code(
+    cfg: Dict[str, Any],
+    metadata: Dict[str, Any],
+    code: str,
+    redirect_target: str,
+    code_verifier: Optional[str] = None,
+) -> Dict[str, Any]:
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": redirect_target,
+        "client_id": cfg["client_id"],
+        "client_secret": cfg["client_secret"],
+    }
+    if code_verifier:
+        data["code_verifier"] = code_verifier
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            token_resp = await client.post(
+                metadata["token_endpoint"],
+                data=data,
+                headers={"Accept": "application/json"},
+            )
+            token_resp.raise_for_status()
+            tokens = token_resp.json()
+    except httpx.HTTPError:
+        logger.error("OIDC token exchange failed (stage=web_exchange)")
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to complete SSO exchange",
+        )
+    except ValueError:
+        logger.error("OIDC token response is not JSON (stage=web_exchange)")
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to complete SSO exchange",
+        )
+    if not isinstance(tokens, dict):
+        raise HTTPException(
+            status_code=502, detail="Failed to complete SSO exchange")
+    return tokens
+
+
+async def _fetch_oidc_userinfo(
+    metadata: Dict[str, Any], access_token: str
+) -> Dict[str, Any]:
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            ui_resp = await client.get(
+                metadata["userinfo_endpoint"],
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            ui_resp.raise_for_status()
+            userinfo = ui_resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "OIDC userinfo unavailable; using verified ID-token claims: %s",
+            exc)
+        return {}
+    except ValueError:
+        return {}
+    return userinfo if isinstance(userinfo, dict) else {}
+
+
+@router.get("/web/login")
+async def oidc_web_login(
+    request: Request,
+    return_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Start a same-origin browser OIDC flow with PKCE and a durable state."""
+    web_origin = _trusted_web_origin()
+    if not web_origin:
+        raise HTTPException(status_code=503, detail="SSO web origin is unavailable")
+    target = "/dashboard" if return_to is None else _safe_return_to(return_to)
+    if target is None:
+        raise HTTPException(status_code=400, detail="Invalid return target")
+
+    cfg = _resolve_config(db)
+    if not cfg:
+        raise HTTPException(
+            status_code=409,
+            detail="SSO is not configured. An administrator must configure OIDC SSO first.",
+        )
+    if not cfg.get("enabled"):
+        raise HTTPException(status_code=503, detail="SSO is disabled")
+    tenant_id = _authoritative_tenant_id(db)
+    if not tenant_id:
+        logger.error("OIDC web login refused: authoritative tenant unavailable")
+        raise HTTPException(status_code=503, detail="SSO is unavailable")
+
+    try:
+        metadata = await _get_discovery_document(cfg["issuer_url"])
+    except Exception as e:
+        logger.error(
+            "OIDC discovery failed for issuer (issuer=%r, error=%s)",
+            cfg["issuer_url"], e)
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to contact SSO identity provider",
+        )
+    try:
+        verifier, challenge = _pkce_pair(metadata)
+    except ValueError:
+        logger.error("OIDC web login refused: PKCE S256 unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail="SSO provider does not support PKCE S256",
+        )
+
+    redirect_target = f"{web_origin}{_WEB_CALLBACK_PATH}"
+    config_digest = _config_fingerprint(db, cfg, redirect_target)
+    if not config_digest:
+        raise HTTPException(status_code=503, detail="SSO is unavailable")
+
+    state = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
+    browser_binding = secrets.token_urlsafe(32)
+    state_row = OAuthState(
+        tenant_id=tenant_id,
+        user_id=None,
+        state=_state_digest(state),
+        provider=_OIDC_PROVIDER,
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=_STATE_TTL),
+        redirect_uri=redirect_target,
+        extra_data={
+            "purpose": _WEB_LOGIN_PURPOSE,
+            "nonce": nonce,
+            "browser_digest": _state_digest(browser_binding),
+            "config_digest": config_digest,
+            "source_origin": web_origin,
+            "return_to": target,
+            "web_callback_url": redirect_target,
+            "pkce_verifier_encrypted": encrypt_token(verifier),
+            "pkce_method": "S256",
+        },
+    )
+    try:
+        db.add(state_row)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — state must be durable before redirect
+        db.rollback()
+        logger.error(
+            "OIDC web state persistence failed "
+            "(stage=web_login_commit, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be started",
+        )
+
+    params = {
+        "response_type": "code",
+        "client_id": cfg["client_id"],
+        "redirect_uri": redirect_target,
+        "scope": "openid email profile",
+        "state": state,
+        "nonce": nonce,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+    }
+    authorize_url = metadata["authorization_endpoint"] + "?" + urlencode(params)
+    response = RedirectResponse(url=authorize_url, status_code=302)
+    response.set_cookie(
+        key=_state_cookie_name(request),
+        value=browser_binding,
+        max_age=_STATE_TTL,
+        path="/",
+        secure=_state_cookie_secure(request),
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+@router.get("/web/callback")
+async def oidc_web_callback(
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Complete OIDC and redirect the browser with an opaque handoff code."""
+    web_origin = _trusted_web_origin()
+    if not web_origin:
+        raise HTTPException(status_code=503, detail="SSO web origin is unavailable")
+    if error:
+        return _web_error_redirect(web_origin, "provider_error")
+
+    cfg = _resolve_config(db)
+    if not cfg or not cfg.get("enabled"):
+        return _web_error_redirect(web_origin, "unavailable")
+
+    redirect_target = f"{web_origin}{_WEB_CALLBACK_PATH}"
+    try:
+        claimed_state = _consume_callback_state(
+            db,
+            request,
+            state,
+            cfg,
+            redirect_target,
+            purpose=_WEB_LOGIN_PURPOSE,
+            required_metadata=_WEB_LOGIN_METADATA,
+        )
+    except HTTPException as exc:
+        if exc.status_code == 409:
+            return _web_error_redirect(web_origin, "authority_changed")
+        if exc.status_code == 401:
+            return _web_error_redirect(web_origin, "invalid_state")
+        return _web_error_redirect(web_origin, "unavailable")
+
+    if not code:
+        return _web_error_redirect(web_origin, "missing_code")
+
+    if claimed_state["extra_data"].get("pkce_method") != "S256":
+        db.rollback()
+        return _web_error_redirect(web_origin, "invalid_state")
+    try:
+        verifier = decrypt_token(
+            claimed_state["extra_data"].get("pkce_verifier_encrypted"))
+    except Exception:  # noqa: BLE001 — unreadable verifier fails closed
+        logger.warning("OIDC web PKCE verifier unavailable")
+        return _web_error_redirect(web_origin, "invalid_state")
+    try:
+        metadata = await _get_discovery_document(cfg["issuer_url"])
+        jwks = await _get_jwks(metadata["jwks_uri"])
+        tokens = await _exchange_oidc_code(
+            cfg, metadata, code, redirect_target, code_verifier=verifier)
+    except HTTPException:
+        return _web_error_redirect(web_origin, "unavailable")
+    except (httpx.HTTPError, ValueError):
+        logger.warning("OIDC web exchange preparation failed")
+        return _web_error_redirect(web_origin, "unavailable")
+
+    try:
+        claims = _verify_id_token(
+            tokens.get("id_token"),
+            cfg,
+            metadata,
+            jwks,
+            claimed_state["nonce"],
+        )
+    except ValueError:
+        logger.warning("OIDC web ID token rejected")
+        return _web_error_redirect(web_origin, "invalid_identity")
+
+    access_token = tokens.get("access_token")
+    if not access_token:
+        return _web_error_redirect(web_origin, "unavailable")
+    userinfo = await _fetch_oidc_userinfo(metadata, access_token)
+
+    try:
+        user = _admit_oidc_user(db, claims, userinfo, cfg)
+    except HTTPException as exc:
+        db.rollback()
+        if exc.status_code in (401, 403):
+            return _web_error_redirect(web_origin, "account_refused")
+        if exc.status_code == 409:
+            return _web_error_redirect(web_origin, "authority_changed")
+        return _web_error_redirect(web_origin, "unavailable")
+
+    authority = _config_authority(db, cfg, redirect_target)
+    source_origin = claimed_state["extra_data"].get("source_origin")
+    return_to = claimed_state["extra_data"].get("return_to")
+    web_callback_url = claimed_state["extra_data"].get("web_callback_url")
+    if (
+        authority is None
+        or not hmac.compare_digest(
+            authority["digest"], claimed_state["config_digest"])
+        or source_origin != web_origin
+        or web_callback_url != redirect_target
+        or _safe_return_to(return_to) != return_to
+    ):
+        db.rollback()
+        logger.warning("OIDC web handoff rejected: authority changed")
+        return _web_error_redirect(web_origin, "authority_changed")
+
+    handoff_code = secrets.token_urlsafe(32)
+    handoff_url = f"{web_origin}{_WEB_LANDING_PATH}"
+    handoff_row = OAuthState(
+        tenant_id=claimed_state["tenant_id"],
+        user_id=user.id,
+        state=_state_digest(handoff_code),
+        provider=_WEB_HANDOFF_PROVIDER,
+        expires_at=datetime.now(timezone.utc) + timedelta(
+            seconds=_WEB_HANDOFF_TTL),
+        redirect_uri=handoff_url,
+        extra_data={
+            "purpose": _WEB_HANDOFF_PROVIDER,
+            "browser_digest": claimed_state["browser_digest"],
+            "config_digest": claimed_state["config_digest"],
+            "source_origin": web_origin,
+            "return_to": return_to,
+            "web_callback_url": handoff_url,
+            "user_digest": _user_snapshot_digest(user),
+            "credential_commitment": _credential_commitment(user),
+        },
+    )
+    try:
+        db.add(handoff_row)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — uncertain handoff fails closed
+        db.rollback()
+        logger.error(
+            "OIDC web handoff persistence failed "
+            "(stage=web_handoff_commit, error_class=%s)", type(exc).__name__)
+        return _web_error_redirect(web_origin, "unavailable")
+
+    response = RedirectResponse(
+        url=f"{handoff_url}?{urlencode({'code': handoff_code})}",
+        status_code=302,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@router.post("/web/exchange")
+async def oidc_web_exchange(
+    payload: WebExchangeRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Exchange an opaque browser-bound handoff code for a backend bearer."""
+    web_origin = _trusted_web_origin()
+    if not web_origin:
+        raise HTTPException(status_code=503, detail="SSO web origin is unavailable")
+    if request.headers.get("origin") != web_origin:
+        raise HTTPException(status_code=403, detail="Origin is not permitted")
+
+    digest = _state_digest(payload.code)
+    try:
+        row = (
+            db.query(OAuthState)
+            .filter(
+                OAuthState.state == digest,
+                OAuthState.provider == _WEB_HANDOFF_PROVIDER,
+            )
+            .populate_existing()
+            .first()
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.error(
+            "OIDC web handoff lookup failed "
+            "(stage=exchange_lookup, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+    if row is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+    if not hmac.compare_digest(str(row.state or ""), digest):
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+    if _state_expired(row):
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+
+    cookie_value = request.cookies.get(_state_cookie_name(request))
+    if not cookie_value:
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+    extra_data = row.extra_data if isinstance(row.extra_data, dict) else {}
+    handoff_metadata: Dict[str, str] = {}
+    for key in _WEB_HANDOFF_METADATA:
+        value = extra_data.get(key)
+        if not isinstance(value, str) or not value:
+            raise HTTPException(
+                status_code=401, detail="Invalid or expired SSO handoff")
+        handoff_metadata[key] = value
+    if handoff_metadata["purpose"] != _WEB_HANDOFF_PROVIDER:
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+    stored_browser = handoff_metadata["browser_digest"]
+    if (
+        not isinstance(stored_browser, str)
+        or not hmac.compare_digest(
+            stored_browser, _state_digest(cookie_value))
+    ):
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+
+    if handoff_metadata["source_origin"] != web_origin:
+        raise HTTPException(status_code=409, detail="SSO authority changed")
+    if handoff_metadata["web_callback_url"] != f"{web_origin}{_WEB_LANDING_PATH}":
+        raise HTTPException(status_code=409, detail="SSO authority changed")
+    if row.redirect_uri != f"{web_origin}{_WEB_LANDING_PATH}":
+        raise HTTPException(status_code=409, detail="SSO authority changed")
+    return_to = handoff_metadata["return_to"]
+    if _safe_return_to(return_to) != return_to:
+        raise HTTPException(status_code=409, detail="SSO authority changed")
+
+    cfg = _resolve_config(db)
+    if not cfg or not cfg.get("enabled"):
+        raise HTTPException(status_code=503, detail="SSO is unavailable")
+    authority = _config_authority(
+        db, cfg, f"{web_origin}{_WEB_CALLBACK_PATH}")
+    stored_config = handoff_metadata["config_digest"]
+    if (
+        authority is None
+        or not isinstance(stored_config, str)
+        or not hmac.compare_digest(stored_config, authority["digest"])
+    ):
+        raise HTTPException(status_code=409, detail="SSO authority changed")
+
+    user = (
+        db.query(User)
+        .filter(User.id == str(row.user_id or ""))
+        .populate_existing()
+        .first()
+    )
+    if user is None or not _existing_user_is_active(user):
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+    stored_user_digest = handoff_metadata["user_digest"]
+    stored_credential = handoff_metadata["credential_commitment"]
+    if (
+        not hmac.compare_digest(
+            stored_user_digest, _user_snapshot_digest(user))
+        or not hmac.compare_digest(
+            stored_credential, _credential_commitment(user))
+    ):
+        raise HTTPException(status_code=409, detail="SSO authority changed")
+
+    now = datetime.now(timezone.utc)
+    active_tenant = exists(
+        select(Tenant.id).where(
+            Tenant.id == OAuthState.tenant_id,
+            Tenant.is_active.is_(True),
+        )
+    )
+    current_config = _config_claim_predicate(
+        db, authority, row.tenant_id)
+    state_snapshot = [
+        OAuthState.id == row.id,
+        OAuthState.state == digest,
+        OAuthState.provider == _WEB_HANDOFF_PROVIDER,
+        _exact(OAuthState.tenant_id, row.tenant_id),
+        _exact(OAuthState.user_id, row.user_id),
+        _exact(OAuthState.redirect_uri, row.redirect_uri),
+        OAuthState.expires_at == row.expires_at,
+        OAuthState.expires_at > now,
+    ]
+    for key in _WEB_HANDOFF_METADATA:
+        state_snapshot.append(json_field_equals(
+            db, OAuthState.extra_data, f"$.{key}", handoff_metadata[key]))
+    try:
+        claimed = db.execute(
+            delete(OAuthState)
+            .where(
+                *state_snapshot,
+                active_tenant,
+                current_config,
+                _user_claim_predicate(user),
+            )
+            .execution_options(synchronize_session=False)
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.error(
+            "OIDC web handoff claim failed "
+            "(stage=exchange_delete, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+    if claimed.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=401, detail="Invalid or expired SSO handoff")
+
+    email = user.email
+    try:
+        access_token = create_access_token(
+            data={"sub": user.id},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+            user=user,
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — uncertain commit yields no token
+        db.rollback()
+        logger.error(
+            "OIDC web handoff commit failed "
+            "(stage=exchange_commit, error_class=%s)", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="SSO sign-in could not be completed",
+        )
+
+    response = JSONResponse(
+        content={
+            "access_token": access_token,
+            "token_type": "bearer",
+            "email": email,
+            "return_to": return_to,
+        }
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
     response.delete_cookie(
         key=_state_cookie_name(request),
         path="/",
