@@ -585,3 +585,52 @@ def test_full_profile_keeps_tasks_link(env, monkeypatch):
         action.get("url") == "/tasks"
         for action in result.get("suggested_actions", [])
     )
+
+
+def test_atom_title_naming_provider_without_platform_is_local(env):
+    result = __import__("asyncio").run(handle_task_intent(
+        "CREATE_TASK",
+        {"title": "Prepare Asana training notes"},
+        ChatRequest(message="Create local task", user_id=env["user"].id),
+        current_user=env["user"],
+        db=env["db"],
+    ))
+    assert result["success"] is True
+    fresh = env["Session"]()
+    try:
+        row = fresh.query(UserTask).one()
+        assert row.title == "Prepare Asana training notes"
+    finally:
+        fresh.close()
+
+
+def test_atom_explicit_local_platform_with_provider_word_title_is_local(env):
+    result = __import__("asyncio").run(handle_task_intent(
+        "CREATE_TASK",
+        {"title": "Asana training notes", "platform": "local"},
+        ChatRequest(message="Create local task", user_id=env["user"].id),
+        current_user=env["user"],
+        db=env["db"],
+    ))
+    assert result["success"] is True
+    fresh = env["Session"]()
+    try:
+        assert fresh.query(UserTask).one().title == "Asana training notes"
+    finally:
+        fresh.close()
+
+
+def test_atom_explicit_external_platform_refuses_without_local_fallback(env):
+    result = __import__("asyncio").run(handle_task_intent(
+        "CREATE_TASK",
+        {"title": "Provider task", "platform": "asana"},
+        ChatRequest(message="Create Asana task", user_id=env["user"].id),
+        current_user=env["user"],
+        db=env["db"],
+    ))
+    assert result["success"] is False
+    fresh = env["Session"]()
+    try:
+        assert fresh.query(UserTask).count() == 0
+    finally:
+        fresh.close()

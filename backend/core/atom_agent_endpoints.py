@@ -1496,10 +1496,11 @@ async def handle_task_intent(
     if intent == "CREATE_TASK":
         try:
             title = str(entities.get("title") or "New Task").strip()
-            requested_platform = str(entities.get("platform") or "").strip().lower()
-            if not requested_platform:
-                requested_platform = (
-                    "asana" if "asana" in title.lower() else "local")
+            # Structured intent/registry material is the only provider
+            # authority. A vendor word in a title is not a request to that
+            # provider; generic chat tasks default to the local durable store.
+            requested_platform = str(
+                entities.get("platform") or "local").strip().lower()
             if requested_platform != "local":
                 return {
                     "success": False,
