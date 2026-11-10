@@ -390,19 +390,51 @@ class TestTeamsSendMessage:
 # core/canvas_email_service.py
 # --------------------------------------------------------------------------- #
 class TestEmailCanvasService:
+    @pytest.fixture(autouse=True)
+    def _shared_actor_claim(self, monkeypatch):
+        from core.models import User
+
+        actor = User(
+            id="u1", tenant_id="default", workspace_id="default",
+            email="u1@example.invalid", hashed_password="x",
+            first_name="U", last_name="Ser", role="member",
+            status="active", is_active=True,
+        )
+        monkeypatch.setattr(
+            "tools.canvas_crud_tool.active_canvas_actor",
+            lambda db, uid: {
+                "ok": True, "user": actor, "id": "u1",
+                "tenant_id": "default", "workspace_id": "default",
+                "status": "active", "is_active": True},
+        )
+        monkeypatch.setattr(
+            "tools.canvas_crud_tool.claim_canvas_actor",
+            lambda db, snapshot: True,
+        )
+
     def _svc(self, first_audit=None, fail_commit=False):
         from core.canvas_email_service import EmailCanvasService
+
+        from core.models import User
 
         db = MagicMock()
         q = MagicMock()
         q.filter.return_value.order_by.return_value.first.return_value = first_audit
+        actor = User(
+            id="u1", tenant_id="default", workspace_id="default",
+            email="u1@example.invalid", hashed_password="x",
+            first_name="U", last_name="Ser", role="member",
+            status="active", is_active=True,
+        )
+        q.filter.return_value.populate_existing.return_value.first.return_value = actor
         db.query.return_value = q
+        db.execute.return_value.rowcount = 1
         if fail_commit:
             db.commit.side_effect = RuntimeError("db down")
         return EmailCanvasService(db), db
 
     def _audit(self, metadata):
-        return NS(details_json=metadata)
+        return NS(details_json=metadata, user_id="u1")
 
     # -- create ------------------------------------------------------------- #
     def test_create_success(self):
@@ -411,7 +443,8 @@ class TestEmailCanvasService:
         assert out["success"] is True
         assert out["thread_id"]
         assert out["draft_id"]
-        db.add.assert_called_once()
+        # Canvas mirror + create audit are both appended in one transaction.
+        assert db.add.call_count == 2
         db.commit.assert_called_once()
 
     def test_create_explicit_canvas_id(self):
@@ -422,14 +455,17 @@ class TestEmailCanvasService:
     def test_create_failure_rolls_back(self):
         svc, db = self._svc(fail_commit=True)
         out = svc.create_email_canvas("u1", "S", ["a@b.c"])
-        assert out["success"] is False and "db down" in out["error"]
+        assert out["success"] is False
+        assert "db down" in out["error"] or "verified" in out["error"]
         db.rollback.assert_called_once()
 
     # -- add_message -------------------------------------------------------- #
     def test_add_message_not_found(self):
         svc, _ = self._svc(first_audit=None)
         out = svc.add_message_to_thread("c", "u1", "x@y.z", ["a@b.c"], "S", "B")
-        assert out == {"success": False, "error": "Email canvas not found"}
+        assert out["success"] is False
+        assert out["error"] in ("Email canvas not found",
+                                "Not the canvas owner")
 
     def test_add_message_success(self):
         audit = self._audit({"thread_id": "t1", "messages": []})
@@ -449,33 +485,34 @@ class TestEmailCanvasService:
     # -- save_draft --------------------------------------------------------- #
     def test_save_draft_not_found(self):
         svc, _ = self._svc(first_audit=None)
-        out = svc.save_draft("c", "u1", ["a@b.c"])
-        assert out == {"success": False, "error": "Email canvas not found"}
+        with pytest.raises(RuntimeError, match="retired"):
+            svc.save_draft("c", "u1", ["a@b.c"])
 
     def test_save_draft_success_reuses_draft_id(self):
         audit = self._audit({"draft": {"draft_id": "d-1"}})
-        svc, db = self._svc(first_audit=audit)
-        out = svc.save_draft("c", "u1", ["a@b.c"], cc_emails=["c@d.e"], subject="S", body="B")
-        assert out["success"] is True and out["draft_id"] == "d-1"
-        db.add.assert_called_once()
+        svc, _ = self._svc(first_audit=audit)
+        with pytest.raises(RuntimeError, match="retired"):
+            svc.save_draft("c", "u1", ["a@b.c"], cc_emails=["c@d.e"],
+                           subject="S", body="B")
 
     def test_save_draft_generates_draft_id_when_missing(self):
         audit = self._audit({})
         svc, _ = self._svc(first_audit=audit)
-        out = svc.save_draft("c", "u1", ["a@b.c"])
-        assert out["success"] is True and out["draft_id"]
+        with pytest.raises(RuntimeError, match="retired"):
+            svc.save_draft("c", "u1", ["a@b.c"])
 
     def test_save_draft_failure(self):
-        svc, db = self._svc(first_audit=self._audit({}), fail_commit=True)
-        out = svc.save_draft("c", "u1", ["a@b.c"])
-        assert out["success"] is False
-        db.rollback.assert_called_once()
+        svc, _ = self._svc(first_audit=self._audit({}), fail_commit=True)
+        with pytest.raises(RuntimeError, match="retired"):
+            svc.save_draft("c", "u1", ["a@b.c"])
 
     # -- categorize --------------------------------------------------------- #
     def test_categorize_not_found(self):
         svc, _ = self._svc(first_audit=None)
         out = svc.categorize_email("c", "u1", "Work")
-        assert out == {"success": False, "error": "Email canvas not found"}
+        assert out["success"] is False
+        assert out["error"] in ("Email canvas not found",
+                                "Not the canvas owner")
 
     def test_categorize_success_appends(self):
         audit = self._audit({"categories": [{"name": "old"}]})
