@@ -591,7 +591,8 @@ def test_create_null_raw_scope_move_has_zero_effects(world, monkeypatch, moved):
         assert db.query(Canvas).filter(Canvas.created_by == personal).count() == 0
 
 
-def test_active_personal_default_create_is_ordinary_put_editable(world):
+@pytest.mark.parametrize("raw_scope", ["default", None], ids=["explicit-default", "bootstrap-null"])
+def test_active_personal_default_create_is_ordinary_put_editable(world, raw_scope):
     from core.models import User
 
     personal = "personal-default"
@@ -603,7 +604,7 @@ def test_active_personal_default_create_is_ordinary_put_editable(world):
             db.add(Workspace(id="default", name="Default",
                              tenant_id="default"))
         db.add(User(
-            id=personal, tenant_id="default", workspace_id="default",
+            id=personal, tenant_id=raw_scope, workspace_id=raw_scope,
             email=f"{personal}@example.invalid", hashed_password="x",
             first_name="P", last_name="User", role="member",
             status="active", is_active=True))
@@ -628,3 +629,8 @@ def test_active_personal_default_create_is_ordinary_put_editable(world):
     assert put.status_code == 200, put.text
     assert _email_get(client, canvas_id).json()["draft"]["body"] == (
         "personal body")
+
+    with world.Session() as db:
+        actor = db.get(User, personal)
+        assert actor.tenant_id == raw_scope
+        assert actor.workspace_id == raw_scope
