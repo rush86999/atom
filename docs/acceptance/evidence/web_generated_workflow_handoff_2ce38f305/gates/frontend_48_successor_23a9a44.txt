@@ -1,0 +1,11 @@
+jest-haste-map: Watchman crawl failed. Retrying once with node crawler.
+  Usually this happens when watchman isn't running. Create an empty `.watchmanconfig` file in your project's root folder or initialize a git or hg repository in your project.
+  Error: Watchman error: watchman::QueryExecError: query failed: synchronization failed: syncToNow: timed out waiting for cookie file to be observed by watcher within 60000 milliseconds: Operation timed out. Make sure watchman is running for this project. See https://facebook.github.io/watchman/docs/troubleshooting.
+PASS components/Automations/__tests__/test-agent-workflow-generator.test.tsx
+PASS tests/pages/automations-page.test.tsx
+PASS tests/automations/test-workflow-scheduler.test.tsx
+
+Test Suites: 3 passed, 3 total
+Tests:       48 passed, 48 total
+Snapshots:   0 total
+Time:        2.645 s, estimated 3 s

@@ -1,0 +1,31 @@
+.......FF                                                                [100%]
+=================================== FAILURES ===================================
+____ test_generated_execution_readback_preserves_deployment_scope[history] _____
+../../root-workflow-handoff-independent-20261110.py:105: in test_generated_execution_readback_preserves_deployment_scope
+    assert response.status_code==404,response.text
+E   AssertionError: [{"execution_id":"30991eb9-f0a6-4f37-944c-75dba4cb8c94","workflow_id":"ai_wf_47111126a355","trigger_data":{},"start_time":"2026-11-10T06:25:23","end_time":"2026-11-10T01:25:23.534532","status":"completed","actions_executed":[],"errors":[],"results":{"start":{"status":"completed","trigger":"manual","execution_time_ms":0.07081031799316406},"lookup":{"status":"completed","matches":[],"execution_time_ms":1.6930103302001953}},"duration_ms":0.0}]
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+WARNING  core.token_storage:token_storage.py:31 Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+WARNING  core.workflow_notifier:workflow_notifier.py:85 WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+____ test_generated_execution_readback_preserves_deployment_scope[details] _____
+../../root-workflow-handoff-independent-20261110.py:105: in test_generated_execution_readback_preserves_deployment_scope
+    assert response.status_code==404,response.text
+E   AssertionError: {"execution_id":"a6cab3a1-a583-4729-97a6-f0690878a816","workflow_id":"ai_wf_2dd025320d26","trigger_data":{},"start_time":"2026-11-10T06:25:24","end_time":"2026-11-10T01:25:24.823229","status":"completed","actions_executed":[],"errors":[],"results":{"start":{"status":"completed","trigger":"manual","execution_time_ms":0.015974044799804688},"lookup":{"status":"completed","matches":[],"execution_time_ms":1.692056655883789}},"duration_ms":0.0}
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17: 18 warnings
+  <scratch-path> DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+root-workflow-handoff-independent-20261110.py::test_generated_execution_readback_preserves_deployment_scope[history]
+  <scratch-path> DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-workflow-handoff-independent-20261110.py::test_generated_execution_readback_preserves_deployment_scope[history]
+FAILED ../../root-workflow-handoff-independent-20261110.py::test_generated_execution_readback_preserves_deployment_scope[details]
+2 failed, 7 passed, 19 warnings in 9.49s
