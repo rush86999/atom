@@ -396,15 +396,24 @@ class SupervisionService:
                     commit_qualified_transition,
                 )
 
-                promotion = commit_qualified_transition(
-                    self.db,
-                    agent_id=agent.id,
-                    target_level="AUTONOMOUS",
-                    actor_id=actor_id or getattr(agent, "user_id", None),
-                    readiness={"ready": True, "gaps": []},
-                    source="supervision_completion",
-                    promotion_type="automatic",
-                )
+                try:
+                    promotion = commit_qualified_transition(
+                        self.db,
+                        agent_id=agent.id,
+                        target_level="AUTONOMOUS",
+                        actor_id=actor_id or getattr(agent, "user_id", None),
+                        readiness={"ready": True, "gaps": []},
+                        source="supervision_completion",
+                        promotion_type="automatic",
+                    )
+                except Exception as exc:  # noqa: BLE001 — completion stays truthful
+                    logger.warning(
+                        "Supervision promotion gate failed for %s: %s",
+                        agent.id, type(exc).__name__)
+                    promotion = {
+                        "status": "not_applied",
+                        "reason": "gate_error",
+                    }
                 promoted = promotion.get("status") in (
                     "verified", "already_applied")
                 self.db.refresh(agent)

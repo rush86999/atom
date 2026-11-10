@@ -398,7 +398,11 @@ def caller_work_pending(db: Session, owned: tuple = ()) -> bool:
         # Unit tests sometimes pass a Mock session; there is no real caller
         # transaction to preserve.
         return False
-    if db.info.get("atom_uncommitted_writes"):
+    info = getattr(db, "info", None)
+    if not isinstance(info, dict):
+        # Mock(spec=Session) passes isinstance but has no real Session.info.
+        return False
+    if info.get("atom_uncommitted_writes"):
         # A prior flush already moved caller work into the transaction;
         # Session.dirty is empty but committing would still persist it.
         return True

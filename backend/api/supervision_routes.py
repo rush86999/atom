@@ -267,8 +267,12 @@ async def complete_supervision_session(
             "duration_seconds": outcome.duration_seconds,
             "intervention_count": outcome.intervention_count,
             "confidence_boost": outcome.confidence_boost,
-            "promoted": outcome.promoted,
-            "promotion": outcome.promotion,
+            "promoted": bool(getattr(outcome, "promoted", False)),
+            "promotion": (
+                getattr(outcome, "promotion", None)
+                if isinstance(getattr(outcome, "promotion", None), dict)
+                else None
+            ),
         }
 
     except SupervisionDirtyCallerWorkError as e:
