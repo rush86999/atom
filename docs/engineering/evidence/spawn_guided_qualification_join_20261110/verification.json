@@ -1,0 +1,39 @@
+{
+  "source_ref": "cea73ac362f9191edcf1c1b15a8ed73c807d7d48",
+  "test_execution": "Staged merged files tested, then frozen without source changes; source hashes below equal committed bytes. No browser served-source identity is claimed.",
+  "result": "155 passed",
+  "original_source": "4512d2908",
+  "original_evidence": "bd6fb7256",
+  "independent_original": {
+    "controls": 16,
+    "Git_checks": 33
+  },
+  "CI_union": [
+    {
+      "parent": "bd6fb7256",
+      "job_properties_preserved": true,
+      "all_step_names": true,
+      "backend_steps_and_manifest_exact": true
+    },
+    {
+      "parent": "38dae97a6",
+      "job_properties_preserved": true,
+      "all_step_names": true,
+      "backend_steps_and_manifest_exact": true
+    }
+  ],
+  "scope": [
+    "spawn public route/MCP",
+    "custom/guided exact receipt and null material",
+    "graduation qualification",
+    "HITL review",
+    "publicworkflow and separateprocess scheduled resume",
+    "three actual SQL actor-claim interleavings preserving peer winners"
+  ],
+  "open": [
+    "Ordinary web creation join",
+    "Served model quality",
+    "PostgreSQL/soak",
+    "Wholeappcompletion"
+  ]
+}
