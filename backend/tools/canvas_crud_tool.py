@@ -965,6 +965,164 @@ def deleted_canvas_ids(db, canvas_ids) -> set:
     return {cid for cid, action in newest.items() if action == "delete"}
 
 
+def _body_from_details(details: Any) -> tuple[bool, Any]:
+    """Return (key_present, value) preserving falsy-but-valid bodies."""
+    if not isinstance(details, dict):
+        return False, None
+    if "content" in details:
+        return True, details.get("content")
+    if "data" in details:
+        return True, details.get("data")
+    return False, None
+
+
+_VISIBLE_SCAN_BATCH = 200
+
+
+def visible_canvas_material(db: Any, canvas_id: str) -> Dict[str, Any]:
+    """Resolve exactly what ``read_canvas`` serves, for read AND restore.
+
+    The audit trail is scanned in the same ``created_at DESC, id DESC`` order
+    the reader uses. Content-bearing rows at the SAME timestamp as the newest
+    event row remain eligible (the old reader's ``created_at < latest``
+    fallback skipped them). The fallback streams bounded keyset-like batches
+    with no total cap: a body behind more than 10/50 event or metadata rows is
+    still found. Event-only actions use the existing ``_EVENT_ONLY_ACTIONS``
+    contract; sent-email rows are normally contentless and are skipped by
+    key presence, not by a second drifting action list. Falsy bodies
+    (``""``/``0``/``[]``/``{}``) are preserved by key presence, not truthiness.
+    """
+    from core.models import Canvas, CanvasAudit
+    from sqlalchemy import desc
+
+    latest = _latest_canvas_audit(db, canvas_id)
+    if latest is None:
+        return {"success": False, "error": f"Canvas {canvas_id} not found"}
+    latest_action = str(latest.action_type or "")
+    if latest_action == "delete":
+        return {
+            "success": False,
+            "error": "Canvas has been deleted",
+            "deleted": True,
+        }
+
+    latest_details = dict(latest.details_json or {})
+    details = dict(latest_details)
+    audit_canvas_type = latest.canvas_type
+    content_audit = None
+
+    # The latest body row IS the content provenance. Event-only rows are not
+    # authorship even if a payload happens to carry a body-shaped key.
+    if latest_action not in _EVENT_ONLY_ACTIONS:
+        found, raw_content = _body_from_details(latest_details)
+        if found:
+            content_audit = latest
+    else:
+        found, raw_content = False, None
+
+    if not found:
+        # Stream in bounded batches; no total cap and no all-versions
+        # materialization before the first content row is found.
+        rows = (
+            db.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == canvas_id)
+            .order_by(desc(CanvasAudit.created_at), desc(CanvasAudit.id))
+            .yield_per(_VISIBLE_SCAN_BATCH)
+        )
+        for row in rows:
+            if str(row.id) == str(latest.id):
+                continue
+            if str(row.action_type or "") in (
+                    ("delete",) + _EVENT_ONLY_ACTIONS):
+                continue
+            row_details = dict(row.details_json or {})
+            row_found, row_content = _body_from_details(row_details)
+            if not row_found:
+                continue
+            content_audit = row
+            details = dict(row_details)
+            if latest_details.get("type_pinned"):
+                details["type_pinned"] = latest_details["type_pinned"]
+            audit_canvas_type = row.canvas_type
+            raw_content = row_content
+            found = True
+            break
+
+    if not found:
+        canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        if canvas_row is not None and canvas_row.content is not None:
+            raw_content = canvas_row.content
+            content_audit = None
+
+    # Preserve the reader's falsy-body contract: a present-but-None body
+    # falls back to the details shape, exactly as before.
+    content = raw_content if raw_content is not None else details
+
+    # Email draft-state read (same normalization as the reader).
+    try:
+        _draft = details.get("draft")
+        if (
+            isinstance(content, dict)
+            and isinstance(_draft, dict)
+            and isinstance(content.get("body"), str)
+            and not content.get("body").strip()
+            and str(_draft.get("body") or "").strip()
+        ):
+            content = {
+                **content,
+                "body": _draft.get("body"),
+                "subject": content.get("subject")
+                or _draft.get("subject")
+                or "",
+                "to": content.get("to")
+                or ", ".join(_draft.get("to_emails") or []),
+            }
+    except Exception:  # noqa: BLE001 — read normalization only
+        pass
+
+    # Office snapshot refresh (same as the reader).
+    try:
+        if (isinstance(content, dict)
+                and content.get("office_file")
+                and str(content.get("format") or "").lower() in ("xlsx", "xlsm")
+                and not content.get("sheets_complete")):
+            from core.office_sync_service import OfficeSyncService
+
+            fresh = OfficeSyncService._read_structured_content(
+                str(content["office_file"]))
+            if fresh:
+                content = {**content, **fresh}
+    except Exception as office_err:  # noqa: BLE001 — read fallback only
+        logger.debug(f"office snapshot refresh skipped: {office_err}")
+
+    from core.chat_draft_classifier import coerce_email_canvas
+
+    if details.get("type_pinned"):
+        canvas_type = audit_canvas_type
+    else:
+        canvas_type, content = coerce_email_canvas(audit_canvas_type, content)
+
+    return {
+        "success": True,
+        "latest": latest,
+        "latest_details": latest_details,
+        "content_audit": content_audit,
+        "details": details,
+        "content": content,
+        "title": details.get("title"),
+        "canvas_type": canvas_type,
+        "action_type": latest.action_type,
+        "audit_id": str(content_audit.id) if content_audit else None,
+        "revision_audit_id": str(latest.id),
+        "operation_id": (details or {}).get("operation_id"),
+        "review_status": (details or {}).get("review_status", "unknown"),
+        "created_at": (
+            content_audit.created_at.isoformat()
+            if content_audit and content_audit.created_at else None
+        ),
+    }
+
+
 async def read_canvas(
     user_id: str,
     canvas_id: str,
@@ -980,169 +1138,29 @@ async def read_canvas(
     """
     try:
         from core.database import get_db_session
-        from core.models import Canvas, CanvasAudit
-        from sqlalchemy import desc
 
         with get_db_session() as db:
             # IDOR guard: only the owner may read this canvas.
             if not _verify_canvas_owner(db, canvas_id, user_id):
                 return {"success": False, "error": f"Canvas {canvas_id} not found"}
 
-            audit = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id,
-            ).order_by(
-                desc(CanvasAudit.created_at), desc(CanvasAudit.id),
-            ).first()
-
-            if not audit:
-                return {"success": False, "error": f"Canvas {canvas_id} not found"}
-
-            # Skip if the latest action was a delete.
-            if audit.action_type == "delete":
-                return {"success": False, "error": "Canvas has been deleted", "deleted": True}
-
-            content_audit = audit
-            details = audit.details_json or {}
-            audit_canvas_type = audit.canvas_type
-            # Preserve falsy-but-valid content ("" / [] / 0): the old `or`
-            # chain replaced empty content with the whole details dict, so an
-            # empty doc/email body came back as {"title": ..., "content": ...}
-            # instead of the empty string.
-            raw_content = details.get("content")
-            if raw_content is None:
-                raw_content = details.get("data")
-            if raw_content is None and not (
-                "content" in details or "data" in details
-            ):
-                # The latest row carries no body key — but that row may be an
-                # EVENT stamp, not the content history: email_send /
-                # email_send_attempt rows (canvas_email_service.record_send)
-                # append after every send without content. Falling back
-                # straight to the Canvas.content column here served the
-                # creation-era snapshot and made the real draft vanish after
-                # any send attempt (observed 2026-08-31). The audit trail is
-                # the content history: scan back to the latest row that
-                # actually carries a body.
-                content_rows = (
-                    db.query(CanvasAudit)
-                    .filter(
-                        CanvasAudit.canvas_id == canvas_id,
-                        CanvasAudit.created_at < audit.created_at,
-                    )
-                    .order_by(desc(CanvasAudit.created_at))
-                    .limit(10)
-                    .all()
-                )
-                for row in content_rows:
-                    row_details = row.details_json or {}
-                    if "content" in row_details:
-                        raw_content = row_details.get("content")
-                    elif "data" in row_details:
-                        raw_content = row_details.get("data")
-                    else:
-                        continue
-                    # The event row carries no title/type of its own — the
-                    # content row is the provenance for both. A type pin on
-                    # the NEWEST row still outranks the older row's choice.
-                    details = {
-                        **row_details,
-                        **({"type_pinned": details["type_pinned"]} if details.get("type_pinned") else {}),
-                    }
-                    audit_canvas_type = row.canvas_type
-                    content_audit = row
-                    break
-            if raw_content is None and "content" not in details and "data" not in details:
-                # No content-bearing row in the recent history either —
-                # legacy canvas whose body lives only on the Canvas row.
-                # Fall back to the Canvas.content column so the page renders
-                # the document instead of showing the details
-                # metadata ({source, title}) as if it were the body.
-                canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-                if canvas_row is not None and canvas_row.content is not None:
-                    raw_content = canvas_row.content
-                    content_audit = None
-            content = raw_content if raw_content is not None else details
-
-            # EMAIL DRAFT-STATE READ (2026-10-03, the taught-employee job
-            # step 7): EmailCanvasService.save_draft appends a save_draft
-            # audit whose `content` is the EMPTY draft shell while the
-            # real body lives under details["draft"]["body"]. Serving that
-            # shell made every agent turn see an empty draft on any
-            # panel-typical email canvas (the Halton quote: the employee
-            # answered "the quote isn't in front of me" for a fully seeded
-            # quote). Read shape, not history: when the served content is
-            # a blank email body and the draft carries the actual body,
-            # the draft IS the content.
-            try:
-                _draft = details.get("draft")
-                if (
-                    isinstance(content, dict)
-                    and isinstance(_draft, dict)
-                    and isinstance(content.get("body"), str)
-                    and not content.get("body").strip()
-                    and str(_draft.get("body") or "").strip()
-                ):
-                    content = {
-                        **content,
-                        "body": _draft.get("body"),
-                        "subject": content.get("subject")
-                        or _draft.get("subject")
-                        or "",
-                        "to": content.get("to")
-                        or ", ".join(_draft.get("to_emails") or []),
-                    }
-            except Exception:  # noqa: BLE001 — read normalization only
-                pass
-
-            # Office snapshot refresh: a pre-upgrade workbook snapshot can
-            # carry a truncated sheet array with no dimensions. The file is
-            # authoritative — re-read it once and return the complete used
-            # range instead of trusting the stale display window forever.
-            try:
-                if (isinstance(content, dict)
-                        and content.get("office_file")
-                        and str(content.get("format") or "").lower() in ("xlsx", "xlsm")
-                        and not content.get("sheets_complete")):
-                    from core.office_sync_service import OfficeSyncService
-
-                    fresh = OfficeSyncService._read_structured_content(
-                        str(content["office_file"]))
-                    if fresh:
-                        content = {**content, **fresh}
-            except Exception as office_err:  # noqa: BLE001 — read fallback only
-                logger.debug(f"office snapshot refresh skipped: {office_err}")
-
-            # Email-draft normalization: canvases created before the
-            # classifier existed (and EmailCanvasService's draft-details
-            # shape) render on /canvas/{id} as documents/raw JSON with no
-            # To/Subject fields or Send button. The audit trail stays
-            # append-only — the read normalizes the shape, it never
-            # rewrites history. A user-pinned type (manual retype in the
-            # UI) is exempt: their choice outranks the classifier, forever.
-            from core.chat_draft_classifier import coerce_email_canvas
-
-            if details.get("type_pinned"):
-                canvas_type = audit.canvas_type
-            else:
-                canvas_type, content = coerce_email_canvas(audit_canvas_type, content)
-
+            material = visible_canvas_material(db, canvas_id)
+            if not material.get("success"):
+                return material
             return {
                 "success": True,
                 "canvas_id": canvas_id,
-                "canvas_type": canvas_type,
-                "content": content,
-                "title": details.get("title"),
-                "action_type": audit.action_type,
-                "audit_id": content_audit.id if content_audit else None,
+                "canvas_type": material["canvas_type"],
+                "content": material["content"],
+                "title": material["title"],
+                "action_type": material["action_type"],
+                "audit_id": material["audit_id"],
                 # Content provenance can predate an event row. Conditional
                 # writes must bind the actual latest revision, not that body.
-                "revision_audit_id": str(audit.id),
-                "operation_id": (details or {}).get("operation_id"),
-                "review_status": (details or {}).get("review_status", "unknown"),
-                "created_at": (
-                    content_audit.created_at.isoformat()
-                    if content_audit and content_audit.created_at else None
-                ),
+                "revision_audit_id": material["revision_audit_id"],
+                "operation_id": material.get("operation_id"),
+                "review_status": material.get("review_status", "unknown"),
+                "created_at": material.get("created_at"),
             }
     except Exception as e:
         logger.error(f"Canvas read failed: {e}")
@@ -1984,37 +2002,43 @@ async def restore_canvas_version(
                 return {"success": False, "write_outcome": write_outcome,
                         "error": "Version carries no restorable content"}
 
-            # Use the established created_at,id ordering helper. The previous
-            # local query ordered only by created_at, so same-second rows tied
-            # and the no-op guard could mistake an older row for the current
-            # revision that read_canvas actually serves.
-            latest = _latest_canvas_audit(db, canvas_id)
-            if not latest:
+            # Resolve exactly the material read_canvas serves. This is the
+            # same shared selection used by the reader: same-time content rows
+            # are eligible, event-only rows never become content, falsy bodies
+            # are preserved, and the scan is not capped at 10/50 rows.
+            material = visible_canvas_material(db, canvas_id)
+            if not material.get("success"):
+                if material.get("deleted"):
+                    return {"success": False, "write_outcome": write_outcome,
+                            "error": "Cannot update a deleted canvas"}
                 return {"success": False, "write_outcome": write_outcome,
                         "error": f"Canvas {canvas_id} not found"}
-            if latest.action_type == "delete":
-                return {"success": False, "write_outcome": write_outcome,
-                        "error": "Cannot update a deleted canvas"}
 
+            latest = material["latest"]
             latest_details = dict(latest.details_json or {})
+            visible_details = dict(material.get("details") or {})
+            visible_content = material.get("content")
+            visible_title = material.get("title")
+            visible_type = material.get("canvas_type")
 
-            # No-op guard uses the content ACTUALLY VISIBLE to a read, not an
-            # event stamp with no body. latest_canvas_content_audit is the
-            # existing shared content-history helper used by lifecycle reads.
-            visible_audit = latest_canvas_content_audit(db, canvas_id)
-            visible_details = (
-                dict(visible_audit.details_json or {})
-                if visible_audit is not None else {})
-            latest_body = visible_details.get("content", visible_details.get("data"))
-            if latest_body is None and visible_audit is None:
-                # Legacy body may exist only on the Canvas row; read_canvas
-                # falls back there when the audit history has no body row.
-                latest_body = (
-                    canvas_row.content
-                    if canvas_row is not None and canvas_row.content is not None
-                    else None
-                )
-            if latest_body is not None and content == latest_body:
+            # Canonical target material. A visible type pin outranks an
+            # event-stamp latest row that carries no pin.
+            if (visible_details.get("type_pinned")
+                    and not latest_details.get("type_pinned")):
+                canvas_type = visible_type
+                content = target_details.get("content", target_details.get("data"))
+            else:
+                canvas_type, content = canonical_restore_content(latest, target)
+
+            # No-change is ALL restored material: canonical body, resolved
+            # type/pin policy, and an explicitly supplied title. A missing
+            # title key preserves the existing current title semantics.
+            target_has_title = "title" in target_details
+            target_title = target_details.get("title")
+            title_matches = (not target_has_title) or (target_title == visible_title)
+            if (content == visible_content
+                    and canvas_type == visible_type
+                    and title_matches):
                 return {
                     "success": True,
                     # Nothing appended, and nothing to append: VERIFIED zero
@@ -2026,11 +2050,8 @@ async def restore_canvas_version(
                     "message": "Canvas is already at that version — nothing restored",
                 }
 
-            canvas_type, content = canonical_restore_content(latest, target)
-
             # Base the new row on the LATEST details (preserves send metadata,
-            # pins, learning-loop state), then override content/title and mark
-            # the provenance.
+            # pins, learning-loop state), then override restored material.
             new_details = dict(latest_details)
             new_details.pop("operation_id", None)
             new_details.pop("evidence_refs", None)
@@ -2039,8 +2060,18 @@ async def restore_canvas_version(
             new_details["review_status"] = "accepted"
             if operation_id:
                 new_details["operation_id"] = operation_id
-            if target_details.get("title"):
-                new_details["title"] = target_details["title"]
+            if target_has_title:
+                # Explicit title semantics, including an intentional empty
+                # title, are restored exactly. A missing key preserves the
+                # current title (or the visible content row's title when the
+                # latest row was a contentless event).
+                new_details["title"] = target_title
+            elif ("title" not in new_details
+                    and visible_details.get("title") is not None):
+                new_details["title"] = visible_details["title"]
+            if (visible_details.get("type_pinned")
+                    and not new_details.get("type_pinned")):
+                new_details["type_pinned"] = visible_details["type_pinned"]
             new_details["restored_from"] = {
                 "audit_id": target.id,
                 "created_at": target.created_at.isoformat() if target.created_at else None,
