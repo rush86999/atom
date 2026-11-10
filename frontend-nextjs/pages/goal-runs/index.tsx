@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -6,7 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Target, Clock, CheckCircle2, XCircle, PauseCircle, Rocket } from "lucide-react";
-import { listGoalRuns, listGoals, GoalRun, GoalRunStatus, Goal } from "@/lib/goal-run-api";
+import {
+    getGoalUtility,
+    listGoalRuns,
+    listGoals,
+    GoalRun,
+    GoalRunStatus,
+    Goal,
+    GoalUtility,
+    UtilityMetric,
+} from "@/lib/goal-run-api";
 import { useUserRole, meetsRole, MEMBER_MIN_LEVEL } from "@/lib/user-role";
 import StartGoalRunDialog from "@/components/goals/StartGoalRunDialog";
 
@@ -32,6 +41,17 @@ const STATUS_BADGE: Record<GoalRunStatus, { variant: "default" | "secondary" | "
 };
 
 const TERMINAL: GoalRunStatus[] = ["achieved", "failed", "cancelled"];
+
+const UTILITY_METRIC_LABELS: Record<UtilityMetric, string> = {
+    human_interventions: "Human interventions",
+    steps_executed: "Steps executed",
+    replan_count: "Replans",
+};
+
+const utilityErrorText = (err: unknown): string => {
+    const message = (err as { message?: string })?.message;
+    return message || "Could not load utility ranking; showing the last known state.";
+};
 
 /** "email_reply" → "email reply" for the waiting badge. */
 const prettyEvent = (event?: string) =>
@@ -64,6 +84,11 @@ export default function GoalRunsIndexPage() {
     const [error, setError] = useState<string | null>(null);
     const [includeTerminal, setIncludeTerminal] = useState(true);
     const [startOpen, setStartOpen] = useState(false);
+    const [utilityByGoal, setUtilityByGoal] = useState<Record<string, GoalUtility>>({});
+    const [utilityGoals, setUtilityGoals] = useState<Goal[]>([]);
+    const [utilityErrors, setUtilityErrors] = useState<Record<string, string>>({});
+    const [utilityLoading, setUtilityLoading] = useState(false);
+    const utilityRequest = useRef(0);
 
     const load = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -75,10 +100,52 @@ export default function GoalRunsIndexPage() {
             setRuns(rows);
             setGoalTitles(Object.fromEntries(goals.map((g) => [g.id, g.title])));
             setError(null);
+
+            const targetGoals = goals.filter((goal) => goal.utility_target);
+            const requestId = ++utilityRequest.current;
+            setUtilityGoals(targetGoals);
+            if (!targetGoals.length) {
+                setUtilityByGoal({});
+                setUtilityErrors({});
+                setUtilityLoading(false);
+                return;
+            }
+            setUtilityLoading(true);
+            const settled = await Promise.allSettled(
+                targetGoals.map(async (goal) => ({
+                    goalId: goal.id,
+                    utility: await getGoalUtility(goal.id),
+                })),
+            );
+            if (requestId !== utilityRequest.current) return;
+            const targetIds = new Set(targetGoals.map((goal) => goal.id));
+            const nextErrors: Record<string, string> = {};
+            settled.forEach((result, index) => {
+                const goalId = targetGoals[index].id;
+                if (result.status === "rejected") {
+                    // Preserve the legitimate last known ranking. The UI marks
+                    // it stale and never presents the old winner as fresh.
+                    nextErrors[goalId] = utilityErrorText(result.reason);
+                }
+            });
+            setUtilityByGoal((previous) => {
+                const next: Record<string, GoalUtility> = {};
+                targetIds.forEach((goalId) => {
+                    if (previous[goalId]) next[goalId] = previous[goalId];
+                });
+                settled.forEach((result, index) => {
+                    if (result.status === "fulfilled" && result.value.utility.target) {
+                        next[result.value.goalId] = result.value.utility;
+                    }
+                });
+                return next;
+            });
+            setUtilityErrors(nextErrors);
         } catch (e: any) {
             if (!silent) setError(e?.message || "Failed to load goal runs");
         } finally {
             if (!silent) setLoading(false);
+            setUtilityLoading(false);
         }
     }, [includeTerminal]);
 
@@ -137,6 +204,125 @@ export default function GoalRunsIndexPage() {
                     onStarted={(runId) => { void router.push(`/goal-runs/${runId}`); }}
                 />
             )}
+
+            {utilityGoals.length ? (
+                <div className="mb-6 space-y-3" data-testid="activity-utility-summary">
+                    <div>
+                        <h2 className="text-sm font-semibold">Goal utility</h2>
+                        <p className="text-xs text-muted-foreground">
+                            Deterministic ranking of completed runs. Members can read;
+                            only a supervisor can change a target on the run detail.
+                        </p>
+                    </div>
+                    {utilityGoals.map((goal) => {
+                        const utility = utilityByGoal[goal.id];
+                        const target = utility?.target ?? goal.utility_target;
+                        const error = utilityErrors[goal.id];
+                        const eligible = (utility?.ranking || []).filter((entry) => entry.eligible);
+                        const withheld = (utility?.ranking || []).filter((entry) => !entry.eligible);
+                        const title = goalTitles[goal.id] || goal.title || `Goal ${goal.id.slice(0, 8)}…`;
+                        return (
+                            <Card key={goal.id} data-testid={`activity-utility-${goal.id}`}
+                                  className={error ? "border-amber-300" : undefined}>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
+                                        <Target className="h-4 w-4" /> {title}
+                                        {target ? (
+                                            <Badge variant="secondary">
+                                                {UTILITY_METRIC_LABELS[target.metric]
+                                                    || target.metric}
+                                            </Badge>
+                                        ) : null}
+                                        {target ? (
+                                            <span className="text-xs font-normal text-muted-foreground">
+                                                {target.direction === "minimize"
+                                                    ? "lower is better"
+                                                    : "higher is better"}
+                                            </span>
+                                        ) : null}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                    {error ? (
+                                        <p className="text-xs text-amber-700"
+                                           data-testid="activity-utility-error">
+                                            {error} Last known ranking is shown below,
+                                            not as a fresh result.
+                                        </p>
+                                    ) : null}
+                                    {!utility && utilityLoading ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            Loading utility ranking…
+                                        </p>
+                                    ) : null}
+                                    {utility ? (
+                                        <p className="text-xs text-muted-foreground"
+                                           data-testid="activity-utility-count">
+                                            {utility.eligible_count} eligible
+                                            {utility.winner && !error
+                                                ? ` · winner ${utility.winner}`
+                                                : ""}
+                                        </p>
+                                    ) : null}
+                                    {eligible.length === 0 && utility ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            No eligible completed trajectory yet.
+                                        </p>
+                                    ) : (
+                                        <ol className="space-y-1">
+                                            {eligible.map((entry) => (
+                                                <li key={entry.id}
+                                                    className="flex items-center justify-between gap-3 text-xs"
+                                                    data-testid="activity-utility-entry">
+                                                    <span className="flex items-center gap-2">
+                                                        <Badge variant="outline">
+                                                            #{entry.rank}
+                                                        </Badge>
+                                                        <span className="font-mono">
+                                                            {entry.id}
+                                                        </span>
+                                                        {entry.id === utility?.winner && !error ? (
+                                                            <Badge variant="secondary"
+                                                                   data-testid="activity-utility-winner">
+                                                                best
+                                                            </Badge>
+                                                        ) : null}
+                                                    </span>
+                                                    <span className="text-muted-foreground">
+                                                        {target
+                                                            ? UTILITY_METRIC_LABELS[target.metric]
+                                                            : "utility"}{" "}
+                                                        {entry.utility ?? "unknown"}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    )}
+                                    {withheld.length > 0 ? (
+                                        <div className="border-t pt-2"
+                                             data-testid="activity-utility-withheld">
+                                            <p className="text-xs font-medium text-muted-foreground">
+                                                Not ranked
+                                            </p>
+                                            <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                {withheld.map((entry) => (
+                                                    <li key={entry.id}>
+                                                        <span className="font-mono">
+                                                            {entry.id}
+                                                        </span>
+                                                        {" · "}
+                                                        {entry.reason.replace(/_/g, " ")}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ) : null}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                </div>
+            ) : null}
 
             {loading ? (
                 <div className="flex items-center gap-2 text-muted-foreground" data-testid="goal-runs-loading">
