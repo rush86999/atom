@@ -64,7 +64,8 @@ class World:
             return create_access_token({"sub": user.id}, user=user)
 
     def create_canvas(self, *, owner=None, tenant=None, workspace=None,
-                      content=None, thread_id=None, attachments=None):
+                      content=None, thread_id=None, attachments=None,
+                      draft=None):
         cid = f"canvas-{uuid.uuid4().hex[:10]}"
         aid = f"audit-{uuid.uuid4().hex[:10]}"
         owner = owner or self.owner
@@ -76,7 +77,7 @@ class World:
             "canvas_type": "email", "component_type": "compose_form",
             "subject": "Draft", "layout": "conversation",
             "thread_id": thread_id or str(uuid.uuid4()),
-            "draft": {
+            "draft": draft if draft is not None else {
                 "draft_id": str(uuid.uuid4()), "to_emails": [],
                 "cc_emails": [], "subject": "Draft", "body": "",
                 "attachments": list(attachments or []),
@@ -454,6 +455,87 @@ def test_generic_put_explicit_empty_does_not_resurrect_native_values(
     view2 = _email_get(client, canvas_id).json()
     assert view2["draft"]["body"] == "after clear"
     assert view2["draft"]["attachments"] == []
+
+
+def test_generic_put_with_stale_nested_draft_keeps_top_level_edits(world):
+    """The ordinary panel spreads the loaded payload (including a stale
+    nested draft) and writes the visible top-level fields. Top-level key
+    presence must win, or every edit is silently reverted to the seed."""
+    canvas_id, create_audit = world.create_canvas(thread_id="thread-stale")
+    client = _client(world)
+    native = _save(client, canvas_id, prior=create_audit,
+                   to=["old@example.invalid"], cc=["oldcc@example.invalid"],
+                   subject="Email Draft OLD", body="Old body OLD-1111")
+    assert native.status_code == 200, native.text
+    prior = world.latest_audit_id(canvas_id)
+    stale_draft = dict(world.fresh(canvas_id)["content"]["draft"])
+    assert stale_draft["body"] == "Old body OLD-1111"
+
+    put = client.put(
+        f"/api/canvas/{canvas_id}?canvas_type=email",
+        params={"expected_prior_audit_id": prior},
+        json={"to": "alpha@example.invalid, clear@example.invalid", "cc": "",
+              "subject": "Email Draft CURRENT",
+              "body": "Current body NEW-EMAIL-7788",
+              "attachments": [], "thread_id": "thread-stale",
+              "draft": stale_draft})
+    assert put.status_code == 200, put.text
+
+    view = _email_get(client, canvas_id).json()
+    assert view["draft"]["to_emails"] == [
+        "alpha@example.invalid", "clear@example.invalid"]
+    assert view["draft"]["cc_emails"] == []
+    assert view["draft"]["subject"] == "Email Draft CURRENT"
+    assert view["draft"]["body"] == "Current body NEW-EMAIL-7788"
+
+    fresh = world.fresh(canvas_id)
+    assert fresh["content"]["to"] == (
+        "alpha@example.invalid, clear@example.invalid")
+    assert fresh["content"]["cc"] == ""
+    assert fresh["content"]["subject"] == "Email Draft CURRENT"
+    assert fresh["content"]["body"] == "Current body NEW-EMAIL-7788"
+    # The nested view is refreshed, so a later reader cannot resurrect OLD.
+    assert fresh["content"]["draft"]["to_emails"] == [
+        "alpha@example.invalid", "clear@example.invalid"]
+    assert fresh["content"]["draft"]["cc_emails"] == []
+    assert fresh["content"]["draft"]["subject"] == "Email Draft CURRENT"
+    assert fresh["content"]["draft"]["body"] == "Current body NEW-EMAIL-7788"
+
+
+def test_readback_explicit_empty_does_not_resurrect_stale_details_draft(world):
+    """A present-but-empty canonical field is an explicit value. Stale
+    ``details.draft`` metadata from an older writer must not fill it back in
+    on read."""
+    stale_draft = {
+        "draft_id": "draft-stale",
+        "to_emails": ["stale@example.invalid"],
+        "cc_emails": ["stalecc@example.invalid"],
+        "subject": "Stale Subject",
+        "body": "Stale Body",
+        "attachments": [],
+    }
+    canvas_id, create_audit = world.create_canvas(
+        content={"to": "", "cc": "", "subject": "", "body": ""},
+        draft=stale_draft)
+    client = _client(world)
+    put = client.put(
+        f"/api/canvas/{canvas_id}?canvas_type=email",
+        params={"expected_prior_audit_id": create_audit},
+        json={"to": "", "cc": "", "subject": "", "body": "",
+              "attachments": []})
+    assert put.status_code == 200, put.text
+
+    view = _email_get(client, canvas_id).json()
+    assert view["draft"]["to_emails"] == []
+    assert view["draft"]["cc_emails"] == []
+    assert view["draft"]["subject"] == ""
+    assert view["draft"]["body"] == ""
+
+    fresh = world.fresh(canvas_id)
+    assert fresh["content"]["to"] == ""
+    assert fresh["content"]["cc"] == ""
+    assert fresh["content"]["subject"] == ""
+    assert fresh["content"]["body"] == ""
 
 
 def test_native_attachment_identity_is_preserved_without_duplication(world):

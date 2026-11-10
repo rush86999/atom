@@ -1,0 +1,21 @@
+Source-bound pre-fix negative (no DB, no provider, no browser)
+==============================================================
+
+Base commit: 013209bfab6d4d48e1b377e5781ad1be33f12b94
+Old function extracted from: git show 013209bfa:backend/core/chat_draft_classifier.py
+Old file sha256: a529128002dff8c2836a153c7f0eb6ed6a0a8c72415083b07b7daa14b5d0953f
+Old function source sha256: see source/source-hashes.json old_function_sha256
+
+Realistic content: canonical top-level fields CURRENT + a stale legacy nested draft OLD.
+
+OLD_PRECEDENCE {'to': 'old@example.invalid', 'cc': 'oldcc@example.invalid', 'subject': 'Email Draft OLD', 'body': 'Old body OLD-1111'}
+NEW_PRECEDENCE {'to': 'alpha@example.invalid, clear@example.invalid', 'cc': '', 'subject': 'Email Draft CURRENT', 'body': 'Current body NEW-EMAIL-7788'}
+OLD_RETURNS_STALE True
+NEW_RETURNS_CURRENT True
+
+This matches the first email UI episode: the panel sent the visible CURRENT
+top-level fields plus the loaded nested draft, and the old normalizer persisted
+the nested OLD values on three 200 OK autosaves (audits d50f53ca, 17aedd92,
+b8d4719c, dd77d154). Classification: real source/contract defect in the
+general normalizer, not merely a harness seed artifact. The original UI packet
+013209bfa is preserved unchanged.
