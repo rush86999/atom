@@ -161,7 +161,7 @@
       "admission_source": "a7ed7a96737b4751bfa256b2c285cf6fdb8bf23d",
       "independent_normal_fixture_tests": 89,
       "evidence": "docs/acceptance/evidence/web_sso_account_admission_a7ed7a967/",
-      "state": "Backend controlled handoff and shared classifier import repair independently verified; frontend SSO bridge implementation active and ordinary SSO browser gate remains open.",
+      "state": "Backend handoff independently123+10 pass; controlled UI source134 reached exact Settings/SDK, but shared middleware overwrites no-referrer. Privacy repair and redirect-aware restart/capture selftests active; complete browser acceptance remains open.",
       "next_required": [
         "safe same-origin web handoff into the existing encrypted SDK session",
         "ordinary controlled-provider browser SSO journey",
@@ -278,7 +278,15 @@
         "task": "Preserve143/18 scope, independently verify/integrate source-bound deliveries, CI model-free; web first/mobile last."
       }
     ],
-    "observed_at": "2026-11-10T01:28:08.159769+00:00"
+    "observed_at": "2026-11-10T01:28:08.159769+00:00",
+    "durable_chat_tasks": {
+      "source": "f5a2413ce07bfd180b64ca58d861f9b9898cb9a5",
+      "state": "Independently verified controlled consumer/API scope; not merged to main or browser-qualified",
+      "root_normal_tests": 28,
+      "root_original_probes": 3,
+      "evidence": "docs/acceptance/evidence/web_chat_task_durability_f5a2413ce/",
+      "negative_source": "3ae90bfaf265f3e952b4ce4ad8dbf6290e2ba3ff"
+    }
   },
   "operational_snapshot_rule": "Top-level historical PR/readback fields retain their original snapshot. Latest operational status is lead_verified_followthrough_2026_11_09; no historical evidence is reattributed."
 }
