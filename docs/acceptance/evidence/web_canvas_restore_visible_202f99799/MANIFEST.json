@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "kind": "canvas_restore_visible_material_evidence_manifest",
+  "title": "Canvas restore visible-material repair — 202f99799",
+  "status": "submitted_withheld_not_accepted",
+  "executed_source": "202f99799",
+  "source_files": {
+    "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249",
+    "backend/tests/api/test_web_canvas_restore_ordering.py": "55b8101aabf3375f91bfd1d4e12a276e1fc9ae89197240afbb16322296530724",
+    "backend/tests/test_oracle_direct_canvas_writes.py": "ca2fba11e273c5613e0264ca8561b2111e58926c72827bf8d1e04bd013fb3c6c"
+  },
+  "artifacts": {
+    "README.md": "779e617410cb54cdfdb3a7ae5a1d6e1e42d6771b0032afed6e7f8e32837cc446",
+    "verification.json": "3dad83d1b826cafee86038ba589e381e81114e7322cd3c58459b2ad93c1dfa30"
+  }
+}
