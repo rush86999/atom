@@ -1,0 +1,34 @@
+{
+  "source_before": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "source_after": "82b29cfcc7c6ad46c605c59328476fbb157b38aa",
+  "same_source": true,
+  "results": [
+    {
+      "command": [
+        "/usr/local/bin/python3.11",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "pytest_freezegun",
+        "-p",
+        "no:randomly",
+        "tests/api/test_web_canvas_authority.py"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "/usr/local/bin/python3.11",
+        "-m",
+        "pytest",
+        "-q",
+        "--noconftest",
+        "-p",
+        "no:randomly",
+        "/private/tmp/root-canvas-authority-fixed-independent-20261110.py"
+      ],
+      "exit": 0
+    }
+  ]
+}
