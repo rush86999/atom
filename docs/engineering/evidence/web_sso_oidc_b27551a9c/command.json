@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python3",
+    "browser_sso_oidc.py"
+  ],
+  "executed_by": "root independent episode",
+  "harness": "browser_sso_oidc.py",
+  "harness_sha256": "5228fb27ab7acc6dcd74ff0608c04e641ba4c129524630268978daac8fd75bb4",
+  "note": "Private paths are execution provenance only; no raw log content is published.",
+  "private_harness_logs": [
+    "/private/tmp/root-web-sso-oidc-world-3c0erbp_/build.private.log",
+    "/private/tmp/root-web-sso-oidc-world-3c0erbp_/backend.private.log",
+    "/private/tmp/root-web-sso-oidc-world-3c0erbp_/backend.restart1.private.log",
+    "/private/tmp/root-web-sso-oidc-world-3c0erbp_/frontend.private.log"
+  ],
+  "private_world": "/private/tmp/root-web-sso-oidc-world-3c0erbp_",
+  "raw_logs_published": false,
+  "source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3"
+}

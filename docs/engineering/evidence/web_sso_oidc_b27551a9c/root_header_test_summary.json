@@ -1,0 +1,13 @@
+{
+  "controller": "root",
+  "deselected": 120,
+  "failed": 0,
+  "independent": true,
+  "passed": 37,
+  "private_log": "/private/tmp/root-referrer-independent-20261109-jvpp7ua5/tests.log",
+  "raw_log_published": false,
+  "repair_commit": "86053d3a7",
+  "scope": "35 Referrer-Policy preservation cases across both security-header variants plus 2 real-router SSO callback/exchange controls",
+  "selected": 37,
+  "source": "86053d3a70627065784819a41273939775c65e1c"
+}

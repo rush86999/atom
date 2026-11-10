@@ -205,5 +205,134 @@
       "807": 809,
       "808": 809
     }
+  },
+  "candidate_sso_browser_proof_2026_11_10": {
+    "candidate_source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+    "candidate_is_main": false,
+    "includes_verified_task_implementation": "f5a2413ce07bfd180b64ca58d861f9b9898cb9a5",
+    "referrer_repair_source": "86053d3a70627065784819a41273939775c65e1c",
+    "evidence_packet": "docs/engineering/evidence/web_sso_oidc_b27551a9c/",
+    "harness_sha256": "5228fb27ab7acc6dcd74ff0608c04e641ba4c129524630268978daac8fd75bb4",
+    "browser_boundary_checks": 31,
+    "browser_boundary_checks_not_32": true,
+    "all_boundary_checks_true": true,
+    "restart_extension": {
+      "gated_at_owned_issuer_302_before_write": true,
+      "same_world_source_environment": true,
+      "issuer_gate_entered_before_302": true,
+      "issuer_gate_released_after_restart": true,
+      "restart_health": true,
+      "exchange_after_restart": true,
+      "restart_extension_ok": true,
+      "restart_gap": false,
+      "old_process_terminal": true,
+      "restart_attempt": 1
+    },
+    "logout_assertions": 4,
+    "logout": {
+      "sdk_cookie_absent": true,
+      "raw_token_absent": true,
+      "session_user_absent": true,
+      "explicit_logout_marker": true
+    },
+    "settings": {
+      "exact_path_query": "/settings?sso=verified",
+      "reload_exact_path_query": true,
+      "access_token_in_url": false
+    },
+    "headers": {
+      "GET /api/auth/sso/oidc/web/callback": {
+        "status": 302,
+        "cache_control": "no-store",
+        "referrer_policy": "no-referrer"
+      },
+      "GET /auth/sso/callback": {
+        "status": 200,
+        "cache_control": "no-store",
+        "referrer_policy": "no-referrer"
+      },
+      "POST /api/auth/sso/oidc/web/exchange": {
+        "status": 200,
+        "cache_control": "no-store",
+        "referrer_policy": "no-referrer"
+      }
+    },
+    "root_independent_review": "docs/engineering/evidence/web_sso_oidc_b27551a9c/root_independent_review.json",
+    "root_header_test": {
+      "source": "86053d3a70627065784819a41273939775c65e1c",
+      "selected_passed": 37,
+      "failed": 0,
+      "deselected": 120,
+      "summary": "docs/engineering/evidence/web_sso_oidc_b27551a9c/root_header_test_summary.json"
+    },
+    "root_readonly_sql": {
+      "one_canonical_sso_account": true,
+      "hashed_password_column": "hashed_password",
+      "hashed_password_null": true,
+      "role": "member",
+      "status": "active",
+      "nextauth_adapter_tables": [],
+      "total_scratch_users": 2
+    },
+    "controlled_scope": {
+      "http_loopback_only": true,
+      "tls_claimed": false,
+      "live_identity_provider": false,
+      "controlled_local_oidc_issuer": true,
+      "pkce_s256": true,
+      "env_oidc_config_first_class": true,
+      "admin_config_api_403_workspace_admin": true,
+      "no_role_status_onboarding_grant": true,
+      "no_injected_cookie_storage_or_session": true,
+      "no_mocked_auth_handler": true,
+      "runtime_testing": 1,
+      "import_phase_testing": 0,
+      "explicit_scratch_database": true,
+      "live_database": false,
+      "optimized_next_build": true
+    },
+    "task_durability_packet": "docs/acceptance/evidence/web_chat_task_durability_f5a2413ce/",
+    "sso_backend_packet": "docs/acceptance/evidence/web_sso_handoff_100ac3d99/",
+    "canonical_goal_index": "docs/engineering/APP_GOALS_INDEX.json",
+    "canonical_counts_retained": {
+      "historical_claims": 143,
+      "goal_map_rows": 18,
+      "app_complete": false
+    },
+    "preserved_negatives": [
+      "/private/tmp/root-web-sso-oidc-world-6ajr8f6j",
+      "/private/tmp/root-web-sso-oidc-world-1y0gecfl",
+      "/private/tmp/root-web-sso-oidc-world-5wfunhu6"
+    ],
+    "preserved_positive_history": "source-134 Settings/session/SDK/zero-password positives remain attributed to their original source and are not relabelled",
+    "baseline_note": "the post-commit stash push/pop incident was not a valid baseline and is excluded; this packet makes no worker baseline claim",
+    "not_qualified": [
+      "live identity provider or consent",
+      "deployed TLS/production transport",
+      "PostgreSQL concurrency or soak",
+      "general SSO beyond one controlled user boundary",
+      "Tasks browser acceptance from the controlled task durability packet",
+      "whole-app completion or historical rescore"
+    ],
+    "root_integration_gate": {
+      "source": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+      "source_before": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+      "source_after": "b27551a9cb78ca080e97d4e8955bef49a1e220e3",
+      "same_source": true,
+      "exit": 0,
+      "passed": 65,
+      "failed": 0,
+      "deselected": 120,
+      "warnings": 378,
+      "seconds": 44.47,
+      "normal_repository_conftest": true,
+      "isolated_scratch": true,
+      "includes": {
+        "referrer_policy_controls": 35,
+        "real_router_sso_header_controls": 2,
+        "durable_task_tests": 28
+      },
+      "summary": "docs/engineering/evidence/web_sso_oidc_b27551a9c/root_integration_gate_summary.json"
+    }
   }
 }
