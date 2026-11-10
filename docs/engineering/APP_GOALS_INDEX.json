@@ -111,7 +111,7 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T04:47:42.135962+00:00",
+    "updated_at": "2026-11-10T05:01:27.986556+00:00",
     "as_of_main": "e2cbff5b989c482040d61c210e74be7f8840668d",
     "app_complete": false,
     "historical_claims": 143,
@@ -142,14 +142,14 @@
     ],
     "active": [
       {
-        "owner": "backend native CLI",
+        "owner": "root delivery",
         "work": "Training-proposal authority repair",
-        "acceptance": "withheld: independent null-agent-scope disclosure and expired-review probes must pass"
+        "acceptance": "Independently verified controlled public-API/SQLite scope at8b9309213; integrated source identity confirmed; pending PR/hosted CI, no broad graduation claim"
       },
       {
         "owner": "frontend native CLI",
-        "work": "Native-chat conversation learning reproduction and shared-pipeline design",
-        "acceptance": "source gap only until actual public API reproduction; no new lesson store or silent bulk training"
+        "work": "Native-chat conversation learning adapter in existing reviewed-lesson pipeline",
+        "acceptance": "Public API omission reproduced; typed source implementation active, not accepted"
       }
     ],
     "superseded": [
