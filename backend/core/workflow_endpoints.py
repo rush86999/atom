@@ -2623,6 +2623,256 @@ def _export_token(value: Any, fallback: str) -> str:
     return (token[:48] or fallback)
 
 
+_EXPORT_SECRET_KEY_HINTS = (
+    "password", "passwd", "secret", "token", "api_key", "apikey",
+    "authorization", "credential", "private_key", "access_key",
+)
+_EXPORT_TOKEN_VALUE = re.compile(
+    r"(?i)(?:sk-[a-z0-9]{8,}|ghp_[a-z0-9]{8,}|akia[0-9a-z]{12,}|"
+    r"xox[baprs]-[a-z0-9-]{8,}|bearer\s+[a-z0-9._-]{8,})")
+_EXPORT_LOCAL_PATH = re.compile(
+    r"^(?:/(?:Users|home|private|tmp|var|opt|mnt|srv)/|"
+    r"[A-Za-z]:\\|file://)")
+
+
+def _export_sensitive_fields(value: Any, path: str = "results") -> List[str]:
+    """Return field paths containing credential-shaped material or local paths."""
+    found: List[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            name = str(key)
+            child = f"{path}.{name}"
+            lowered = name.lower()
+            if any(hint in lowered for hint in _EXPORT_SECRET_KEY_HINTS):
+                found.append(child)
+                continue
+            found.extend(_export_sensitive_fields(item, child))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found.extend(_export_sensitive_fields(item, f"{path}[{index}]"))
+    elif isinstance(value, str):
+        if _EXPORT_TOKEN_VALUE.search(value) or _EXPORT_LOCAL_PATH.match(value):
+            found.append(path)
+    return found
+
+
+def _export_completion_contract(
+    db: Session, row: Any,
+) -> Dict[str, Any]:
+    """Validate the execution against its canonical compiled definition.
+
+    Completion is not trusted from the row's top-level status. The persisted
+    compiled step list is the authority for required coverage; history and
+    outputs must be well-formed, unique, known and mutually consistent.
+    """
+    from advanced_workflow_orchestrator import WorkflowStatus
+    from core.models import Workflow
+
+    workflow = db.query(Workflow).filter(
+        Workflow.id == str(row.workflow_id)).first()
+    if workflow is None:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_definition_unavailable",
+            "message": "the canonical workflow definition is unavailable; no "
+                       "completion document is offered",
+        })
+    configuration = workflow.configuration
+    raw_steps = configuration.get("steps") if isinstance(
+        configuration, dict) else None
+    if not isinstance(raw_steps, list) or not raw_steps:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_definition_malformed",
+            "message": "the canonical definition has no step contract",
+        })
+    expected: Dict[str, Dict[str, Any]] = {}
+    order: List[str] = []
+    optional: set = set()
+    for raw in raw_steps:
+        if not isinstance(raw, dict):
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_definition_malformed",
+                "message": "the canonical definition contains a malformed step",
+            })
+        step_id = str(raw.get("step_id") or "").strip()
+        if not step_id or step_id in expected:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_definition_malformed",
+                "message": "the canonical definition has a missing or duplicate "
+                           "step identity",
+            })
+        expected[step_id] = raw
+        order.append(step_id)
+        if bool((raw.get("parameters") or {}).get("optional")):
+            optional.add(step_id)
+
+    allowed_execution = {WorkflowStatus.COMPLETED.value}
+    allowed_steps = {"completed", "success"}
+    if str(row.status or "").lower() not in allowed_execution:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_not_completed",
+            "status": str(row.status or "unknown"),
+            "message": "only a completed execution has a downloadable result",
+        })
+    if row.error:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_has_error",
+            "message": "the execution recorded an error; no success document "
+                       "is available",
+        })
+
+    context = _safe_json(row.context)
+    history = context.get("execution_history") if isinstance(
+        context, dict) else None
+    if not isinstance(history, list) or not history:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_history_missing",
+            "message": "the execution has no complete step history",
+        })
+    by_step: Dict[str, Any] = {}
+    unknowns = []
+    for entry in history:
+        if not isinstance(entry, dict):
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_history_malformed",
+                "message": "a step history entry has no identity",
+            })
+        step_id = str(entry.get("step_id") or entry.get("step") or "").strip()
+        if not step_id:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_history_malformed",
+                "message": "a step history entry has no step identity",
+            })
+        if step_id in by_step:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_history_contradictory",
+                "message": "a step appears more than once in the history",
+                "step_id": step_id,
+            })
+        if step_id not in expected:
+            unknowns.append(step_id)
+            continue
+        step_status = str(entry.get("status") or "").strip().lower()
+        if not step_status:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_history_malformed",
+                "message": "a step has no status",
+                "step_id": step_id,
+            })
+        if step_status not in allowed_steps:
+            if step_status == "skipped" and step_id in optional:
+                pass
+            else:
+                raise HTTPException(status_code=409, detail={
+                    "error": "execution_not_completed",
+                    "step_id": step_id,
+                    "step_status": step_status,
+                    "message": "the execution contains a non-successful step",
+                })
+        by_step[step_id] = {
+            "step_id": step_id,
+            "step_type": expected[step_id].get("step_type"),
+            "status": step_status,
+            "error": (str(entry.get("error"))[:500]
+                      if entry.get("error") else None),
+        }
+    if unknowns:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_history_unknown_step",
+            "message": "the execution history contains steps outside the "
+                       "canonical definition",
+            "step_ids": sorted(unknowns),
+        })
+    missing = [
+        step_id for step_id in order
+        if step_id not in by_step and step_id not in optional
+    ]
+    if missing:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_partial",
+            "message": "the execution history does not cover every required "
+                       "canonical step",
+            "missing_step_ids": missing,
+        })
+
+    try:
+        outputs = json.loads(row.outputs or "{}")
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_output_unreadable",
+            "message": "the persisted output is unreadable",
+        }) from exc
+    if not isinstance(outputs, dict) or not outputs:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_has_no_output",
+            "message": "the completed execution has no final business output",
+        })
+    unknown_outputs = sorted(set(outputs) - set(expected))
+    if unknown_outputs:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_output_unknown_step",
+            "message": "the final output contains steps outside the canonical "
+                       "definition",
+            "step_ids": unknown_outputs,
+        })
+    for step_id in order:
+        if step_id not in by_step:
+            if step_id in optional:
+                continue
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_output_partial",
+                "message": "a required canonical step has no final output",
+                "step_id": step_id,
+            })
+        if step_id not in outputs:
+            if by_step[step_id]["status"] == "skipped":
+                continue
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_output_partial",
+                "message": "a completed step has no final output",
+                "step_id": step_id,
+            })
+        value = outputs[step_id]
+        if not isinstance(value, dict):
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_output_contradictory",
+                "message": "a step output is not a result object",
+                "step_id": step_id,
+            })
+        output_status = str(value.get("status") or "").strip().lower()
+        if output_status not in allowed_steps:
+            if output_status == "skipped" and step_id in optional:
+                continue
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_output_contradictory",
+                "message": "a step output status is not a known success state",
+                "step_id": step_id,
+                "step_status": output_status or "missing",
+            })
+        if output_status != by_step[step_id]["status"]:
+            raise HTTPException(status_code=409, detail={
+                "error": "execution_output_contradictory",
+                "message": "a step history status and final output disagree",
+                "step_id": step_id,
+            })
+
+    sensitive = _export_sensitive_fields(outputs)
+    if sensitive:
+        raise HTTPException(status_code=409, detail={
+            "error": "execution_output_sensitive",
+            "message": "the output contains credential-shaped fields or local "
+                       "paths; export is refused rather than silently "
+                       "rewriting business values",
+            "fields": sorted(set(sensitive)),
+        })
+    return {
+        "workflow": workflow,
+        "configuration": configuration,
+        "outputs": outputs,
+        "steps": [by_step[step_id] for step_id in order if step_id in by_step],
+        "definition_steps": order,
+    }
+
+
 @router.get("/workflows/executions/{execution_id}/export")
 async def export_execution_result(
     execution_id: str,
@@ -2657,80 +2907,16 @@ async def export_execution_result(
             # authority; do not fall back to a workspace/global grant.
             raise HTTPException(status_code=404, detail="Execution not found")
 
-    status = str(row.status or "").lower()
-    if status != "completed":
-        raise HTTPException(status_code=409, detail={
-            "error": "execution_not_completed",
-            "status": status or "unknown",
-            "message": "only a completed execution has a downloadable result",
-        })
-    if row.error:
-        raise HTTPException(status_code=409, detail={
-            "error": "execution_has_error",
-            "message": "the execution recorded an error; no success document "
-                       "is available",
-        })
-
-    context = _safe_json(row.context)
-    history = context.get("execution_history") if isinstance(
-        context, dict) else None
-    if not isinstance(history, list) or not history:
-        raise HTTPException(status_code=409, detail={
-            "error": "execution_history_missing",
-            "message": "the execution has no complete step history; a partial "
-                       "document is not offered",
-        })
-    failure_statuses = {
-        "failed", "error", "cancelled", "canceled", "running",
-        "waiting_approval", "pending", "partial",
-    }
-    steps = []
-    for entry in history:
-        if not isinstance(entry, dict):
-            continue
-        step_status = str(entry.get("status") or "").lower()
-        if not step_status:
-            raise HTTPException(status_code=409, detail={
-                "error": "execution_partial",
-                "message": "a step has no completed status; a partial document "
-                           "is not offered",
-            })
-        if step_status in failure_statuses:
-            raise HTTPException(status_code=409, detail={
-                "error": "execution_not_completed",
-                "step_id": entry.get("step_id"),
-                "step_status": step_status,
-                "message": "the execution contains a non-successful step; no "
-                           "success document is available",
-            })
-        steps.append({
-            "step_id": entry.get("step_id") or entry.get("step"),
-            "step_type": entry.get("step_type"),
-            "status": step_status,
-            "error": (str(entry.get("error"))[:500]
-                      if entry.get("error") else None),
-        })
-
-    try:
-        outputs = json.loads(row.outputs or "{}")
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=409, detail={
-            "error": "execution_output_unreadable",
-            "message": "the persisted output is unreadable; no document is "
-                       "offered",
-        }) from exc
-    if not isinstance(outputs, dict) or not outputs:
-        raise HTTPException(status_code=409, detail={
-            "error": "execution_has_no_output",
-            "message": "the completed execution has no final business output",
-        })
-    for value in outputs.values():
-        if isinstance(value, dict) and str(
-                value.get("status") or "").lower() in failure_statuses:
-            raise HTTPException(status_code=409, detail={
-                "error": "execution_not_completed",
-                "message": "the final output contains a non-successful step",
-            })
+    contract = _export_completion_contract(db, row)
+    outputs = contract["outputs"]
+    steps = contract["steps"]
+    workflow = contract["workflow"]
+    configuration = contract["configuration"]
+    generation = (configuration.get("generation")
+                  if isinstance(configuration, dict) else None)
+    executor_agent_id = (
+        generation.get("requested_executor_agent_id")
+        if isinstance(generation, dict) else None)
 
     def iso(value):
         return value.isoformat() if value is not None else None
@@ -2740,21 +2926,30 @@ async def export_execution_result(
         "execution": {
             "execution_id": row.execution_id,
             "workflow_id": row.workflow_id,
-            "status": status,
+            "status": str(row.status or "").lower(),
             "created_at": iso(row.created_at),
             "completed_at": iso(row.completed_at),
             "user_id": row.user_id,
             "owner_id": row.owner_id,
         },
-        "workflow": {"workflow_id": row.workflow_id},
+        "workflow": {
+            "workflow_id": row.workflow_id,
+            "name": getattr(workflow, "name", None),
+        },
         "results": outputs,
         "steps": steps,
         "provenance": {
             "source": "durable_workflow_execution",
             "result_field": "outputs",
-            "document_version": 1,
+            "document_version": 2,
+            "completion_contract": "compiled-step-coverage-v1",
             "workflow_id": row.workflow_id,
             "execution_id": row.execution_id,
+            "definition_digest": (
+                configuration.get("definition_digest")
+                if isinstance(configuration, dict) else None),
+            "definition_status": getattr(workflow, "status", None),
+            "executor_agent_id": executor_agent_id,
         },
     }
     body = (json.dumps(

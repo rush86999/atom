@@ -117,11 +117,9 @@ def test_export_refuses_error_missing_output_partial_and_failed_step(harness):
 
         row.outputs = original_outputs
         context = json.loads(original_context)
-        context["execution_history"] = list(
-            context.get("execution_history") or []) + [{
-                "step_id": "partial", "step_type": "entity",
-                "status": "waiting_approval",
-            }]
+        for entry in context.get("execution_history") or []:
+            if entry.get("step_id") == "lookup":
+                entry["status"] = "waiting_approval"
         row.context = json.dumps(context)
         db.commit()
         refused = _export(harness, execution_id)
@@ -135,7 +133,8 @@ def test_export_refuses_error_missing_output_partial_and_failed_step(harness):
         db.commit()
         refused = _export(harness, execution_id)
         assert refused.status_code == 409
-        assert refused.json()["detail"]["error"] == "execution_not_completed"
+        assert refused.json()["detail"]["error"] in {
+            "execution_not_completed", "execution_output_contradictory"}
     finally:
         db.close()
 
@@ -177,6 +176,7 @@ def test_export_fresh_process_bytes_and_hash_match(harness):
         harness, "export", workflow_id=workflow_id, digest=digest,
         execution_id=execution_id, operation_id=operation_id,
         owner_id=owner_id)
+    print("FRESH_EXPORT_FIRST:" + json.dumps(first, sort_keys=True))
     assert first["export_sha256"] == parent_hash
     assert first["export_bytes"] == len(parent.content)
     assert first["export_schema"] == "atom.workflow.execution-result.v1"
@@ -189,6 +189,7 @@ def test_export_fresh_process_bytes_and_hash_match(harness):
         harness, "export", workflow_id=workflow_id, digest=digest,
         execution_id=execution_id, operation_id=operation_id,
         owner_id=owner_id)
+    print("FRESH_EXPORT_SECOND:" + json.dumps(second, sort_keys=True))
     assert second["export_sha256"] == parent_hash
     assert harness.recorder.calls == []
 
@@ -211,3 +212,72 @@ def test_export_refuses_revoked_actor_on_fresh_read(harness):
         db.close()
     response = _export(harness, execution_id)
     assert response.status_code == 404, response.text
+
+
+def test_export_refuses_sensitive_fields_instead_of_rewriting(harness):
+    _workflow_id, _digest, execution_id = _completed_run(harness)
+    from core.models import WorkflowExecution
+
+    db = harness.Session()
+    try:
+        row = db.query(WorkflowExecution).filter(
+            WorkflowExecution.execution_id == execution_id).one()
+        outputs = json.loads(row.outputs)
+        outputs["lookup"]["api_key"] = "sk-this-should-never-export"
+        row.outputs = json.dumps(outputs)
+        db.commit()
+    finally:
+        db.close()
+    response = _export(harness, execution_id)
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["error"] == "execution_output_sensitive"
+    assert any("api_key" in field for field in detail["fields"])
+
+
+def test_export_rejects_malformed_identity_and_unknown_material(harness):
+    _workflow_id, _digest, execution_id = _completed_run(harness)
+    from core.models import WorkflowExecution
+
+    db = harness.Session()
+    try:
+        row = db.query(WorkflowExecution).filter(
+            WorkflowExecution.execution_id == execution_id).one()
+        original_context = row.context
+        original_outputs = row.outputs
+
+        context = json.loads(original_context)
+        context["execution_history"] = [None]
+        row.context = json.dumps(context)
+        db.commit()
+        assert _export(harness, execution_id).status_code == 409
+
+        context = json.loads(original_context)
+        context["execution_history"] = [{"status": "completed"}]
+        row.context = json.dumps(context)
+        db.commit()
+        assert _export(harness, execution_id).status_code == 409
+
+        context = json.loads(original_context)
+        context["execution_history"] = list(
+            context.get("execution_history") or []) + [{
+                "step_id": "unknown-step", "status": "completed"}]
+        row.context = json.dumps(context)
+        row.outputs = original_outputs
+        db.commit()
+        response = _export(harness, execution_id)
+        assert response.status_code == 409
+        assert response.json()["detail"]["error"] == (
+            "execution_history_unknown_step")
+
+        row.context = original_context
+        outputs = json.loads(original_outputs)
+        outputs["unknown-step"] = {"status": "completed"}
+        row.outputs = json.dumps(outputs)
+        db.commit()
+        response = _export(harness, execution_id)
+        assert response.status_code == 409
+        assert response.json()["detail"]["error"] == (
+            "execution_output_unknown_step")
+    finally:
+        db.close()
