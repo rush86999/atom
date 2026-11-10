@@ -9,7 +9,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle, Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { registerWithBackend } from "@/lib/registration";
-import { persistBackendToken } from "@/lib/backendAuth";
+import {
+  establishWebSession,
+  persistBackendToken,
+} from "@/lib/backendAuth";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -18,6 +21,7 @@ export default function SignUp() {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
   const { toast } = useToast();
@@ -73,8 +77,20 @@ export default function SignUp() {
         last_name: lastName,
       });
 
-      // The backend returns a token on registration — persist it and go
-      // straight in instead of forcing a redundant sign-in.
+      // Registration already issued this bearer. The SDK must validate it
+      // and write the encrypted session; never persist a raw session cookie.
+      try {
+        await establishWebSession(data.access_token);
+      } catch {
+        // Do not repeat registration. The account exists, but the browser has
+        // no verified web session, so require an explicit sign-in.
+        setAccountCreated(true);
+        setError(
+          "Your account was created, but the web session could not be established. Please sign in.",
+        );
+        return;
+      }
+
       persistBackendToken(data.access_token);
       toast({
         title: "Welcome to ATOM!",
@@ -196,9 +212,11 @@ export default function SignUp() {
             <Button
               type="submit"
               className="w-full h-12 text-base"
-              disabled={isLoading}
+              disabled={isLoading || accountCreated}
             >
-              {isLoading ? (
+              {accountCreated ? (
+                "Account Created — Please Sign In"
+              ) : isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating account...

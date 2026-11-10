@@ -3,7 +3,16 @@
  * persistBackendToken storage behavior.
  */
 
-import { loginWithBackend, persistBackendToken } from '../backendAuth';
+import { signIn } from 'next-auth/react';
+import {
+  establishWebSession,
+  loginWithBackend,
+  persistBackendToken,
+} from '../backendAuth';
+
+jest.mock('next-auth/react', () => ({
+  signIn: jest.fn(),
+}));
 
 const mockFetch = jest.fn();
 
@@ -11,6 +20,12 @@ describe('lib/backendAuth', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (global as any).fetch = mockFetch;
+    (signIn as jest.Mock).mockResolvedValue({
+      ok: true,
+      error: null,
+      status: 200,
+      url: null,
+    });
   });
 
   const jsonResponse = (ok: boolean, data: any, status = ok ? 200 : 401) => ({
@@ -82,6 +97,56 @@ describe('lib/backendAuth', () => {
   });
 });
 
+describe('lib/backendAuth establishWebSession', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (signIn as jest.Mock).mockResolvedValue({
+      ok: true,
+      error: null,
+      status: 200,
+      url: null,
+    });
+  });
+
+  it('awaits the installed SDK credentials sign-in with the issued bearer', async () => {
+    await establishWebSession('issued-bearer');
+    const call = (signIn as jest.Mock).mock.calls[0];
+    expect(call[0]).toBe('credentials');
+    expect(call[1].redirect).toBe(false);
+    expect(call[1].backendToken === 'issued-bearer').toBe(true);
+  });
+
+  it.each(['', '   ', 'not a single token'])(
+    'refuses malformed bearer %j without dispatching signIn',
+    async (token) => {
+      await expect(establishWebSession(token)).rejects.toThrow(
+        'Unable to establish a secure web session',
+      );
+      expect(signIn).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [{ ok: false, error: null }],
+    [{ ok: true, error: 'CredentialsSignin' }],
+    [undefined],
+  ])('refuses an unsuccessful SDK response %j', async (result) => {
+    (signIn as jest.Mock).mockResolvedValue(result);
+    await expect(establishWebSession('issued-bearer')).rejects.toThrow(
+      'Unable to establish a secure web session',
+    );
+  });
+
+  it('maps a transport failure to a sanitized refusal', async () => {
+    (signIn as jest.Mock).mockRejectedValue(
+      new Error('private transport failure'),
+    );
+    await expect(establishWebSession('issued-bearer')).rejects.toThrow(
+      'Unable to establish a secure web session',
+    );
+  });
+});
+
 describe('lib/backendAuth persistBackendToken', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -90,12 +155,13 @@ describe('lib/backendAuth persistBackendToken', () => {
     document.cookie = 'next-auth.session-token=; path=/; max-age=0';
   });
 
-  it('persists the token to localStorage and cookies in the browser', () => {
+  it('persists the raw token for direct backend API callers only', () => {
     persistBackendToken('tok-1');
     expect(global.localStorage.getItem('auth_token')).toBe('tok-1');
     expect(global.localStorage.getItem('token')).toBe('tok-1');
     expect(global.localStorage.getItem('atom_explicit_logout')).toBeNull();
     expect(document.cookie).toContain('auth_token=tok-1');
-    expect(document.cookie).toContain('next-auth.session-token=tok-1');
+    // The SDK owns every session-token name and encryption format.
+    expect(document.cookie).not.toContain('next-auth.session-token');
   });
 });

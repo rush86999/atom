@@ -48,3 +48,56 @@ it('cancels the refused identity response without leaving an unbounded body',asy
  expect(await createBackendCredentialsAuthorize(()=>'/backend')(credentials)).toBeNull();
  expect((fetch as jest.Mock).mock.calls[1][1].signal.aborted).toBe(true);
 });
+
+const currentIdentity={id:'canonical',email:'canonical@example.invalid',status:'active',role:'member',workspace_id:'workspace',tenant_id:'tenant'};
+
+it('validates an explicit issued backendToken against /me without another login',async()=>{
+ (fetch as jest.Mock).mockResolvedValue(response(currentIdentity));
+ const user=await createBackendCredentialsAuthorize(()=>'/backend/')({backendToken:'fixture-issued',email:credentials.email,password:credentials.password});
+ expect(user).toMatchObject({id:'canonical',email:'canonical@example.invalid',role:'member',workspace_id:'workspace',tenant_id:'tenant'});
+ expect(user?.token === 'fixture-issued').toBe(true);
+ expect(user?.access_token === 'fixture-issued').toBe(true);
+ expect(fetch).toHaveBeenCalledTimes(1);
+ expect((fetch as jest.Mock).mock.calls[0][0]).toBe('/backend/api/auth/me');
+ expect((fetch as jest.Mock).mock.calls[0][1].headers.Authorization === 'Bearer fixture-issued').toBe(true);
+});
+
+it('refuses an invalid explicit token without falling back to password login',async()=>{
+ (fetch as jest.Mock).mockResolvedValue(response({detail:'expired'},401));
+ expect(await createBackendCredentialsAuthorize(()=>'/backend')({backendToken:'expired-token',email:credentials.email,password:credentials.password})).toBeNull();
+ expect(fetch).toHaveBeenCalledTimes(1);
+ expect((fetch as jest.Mock).mock.calls[0][0]).toBe('/backend/api/auth/me');
+});
+
+it.each([
+ [{backendToken:''}],
+ [{backendToken:'   '}],
+ [{backendToken:'not a single token'}],
+])('refuses malformed explicit token without dispatch %j',async(c)=>{
+ expect(await createBackendCredentialsAuthorize(()=>'/backend')(c as any)).toBeNull();
+ expect(fetch).not.toHaveBeenCalled();
+});
+
+it.each([
+ ['revoked',403,{detail:'revoked'}],
+ ['expired',401,{detail:'expired'}],
+ ['no-current-identity',200,{id:'canonical',email:'canonical@example.invalid',status:'inactive'}],
+ ['missing-id',200,{email:'canonical@example.invalid',status:'active'}],
+ ['missing-email',200,{id:'canonical',status:'active'}],
+ ['non-object',200,null],
+])('explicit token refuses %s',async(_name,status,body)=>{
+ (fetch as jest.Mock).mockResolvedValue(response(body,status as number));
+ expect(await createBackendCredentialsAuthorize(()=>'/backend')({backendToken:'fixture-issued'})).toBeNull();
+ expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('bounds explicit token identity read and never echoes the token',async()=>{
+ jest.useFakeTimers();
+ (fetch as jest.Mock).mockImplementation((_url,options)=>new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('private transport failure')))));
+ const pending=createBackendCredentialsAuthorize(()=>'/backend')({backendToken:'fixture-issued'});
+ await jest.advanceTimersByTimeAsync(10000);
+ expect(await pending).toBeNull();
+ expect(fetch).toHaveBeenCalledTimes(1);
+ expect(jest.getTimerCount()).toBe(0);
+ expect(JSON.stringify(warn.mock.calls).includes('fixture-issued')).toBe(false);
+});

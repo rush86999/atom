@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { loginWithBackend, persistBackendToken } from '../lib/backendAuth';
+import {
+    establishWebSession,
+    loginWithBackend,
+    persistBackendToken,
+} from '../lib/backendAuth';
 import { registerWithBackend } from '../lib/registration';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -11,6 +15,8 @@ export default function LoginPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [isTwoFactorRequired, setIsTwoFactorRequired] = useState(false);
+    const [totpCode, setTotpCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [ssoLoading, setSsoLoading] = useState(false);
     const [ssoError, setSsoError] = useState('');
@@ -69,7 +75,21 @@ export default function LoginPage() {
 
         try {
             if (isLogin) {
-                const data = await loginWithBackend(formData.email, formData.password);
+                const data = await loginWithBackend(
+                    formData.email,
+                    formData.password,
+                    totpCode || undefined,
+                );
+                // A real challenge is not a session: keep the form and never
+                // persist a token until the TOTP code is accepted.
+                if (data.two_factor_required) {
+                    setIsTwoFactorRequired(true);
+                    setError('');
+                    return;
+                }
+                // The backend login already issued this bearer. Validate it
+                // through the installed SDK instead of running another login.
+                await establishWebSession(data.access_token);
                 persistBackendToken(data.access_token, formData.email);
                 router.push(safeDest);
             } else {
@@ -86,12 +106,25 @@ export default function LoginPage() {
                     first_name: formData.first_name,
                     last_name: formData.last_name,
                 });
-                // #7 fix: was logging the full JWT to console — capturable by
-                // browser extensions, shared screens, forwarded logs.
+                try {
+                    await establishWebSession(data.access_token);
+                } catch {
+                    // The account exists but the browser has no verified web
+                    // session. Return to sign-in rather than registering again.
+                    setIsLogin(true);
+                    setConfirmPassword('');
+                    setError(
+                        'Your account was created, but the web session could not be established. Please sign in.',
+                    );
+                    return;
+                }
                 persistBackendToken(data.access_token, formData.email);
                 router.push(safeDest);
             }
         } catch (err: any) {
+            if (err.message === 'Invalid 2FA code') {
+                setTotpCode('');
+            }
             setError(err.message || 'An error occurred');
         } finally {
             setLoading(false);
@@ -213,6 +246,28 @@ export default function LoginPage() {
                             )}
                         </div>
 
+                        {isLogin && isTwoFactorRequired && (
+                            <div>
+                                <label htmlFor="totp_code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Security Code
+                                </label>
+                                <input
+                                    id="totp_code"
+                                    type="text"
+                                    required
+                                    autoComplete="one-time-code"
+                                    data-testid="login-totp-input"
+                                    value={totpCode}
+                                    onChange={(e) => setTotpCode(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                    placeholder="Enter 6-digit code"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Enter the code from your authenticator app.
+                                </p>
+                            </div>
+                        )}
+
                         {!isLogin && (
                             <div>
                                 <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -278,6 +333,8 @@ export default function LoginPage() {
                             data-testid="login-toggle-mode"
                             onClick={() => {
                                 setIsLogin(!isLogin);
+                                setIsTwoFactorRequired(false);
+                                setTotpCode('');
                                 setError('');
                                 setConfirmPassword('');
                             }}
