@@ -1,0 +1,54 @@
+{
+  "base_commit": "b0a5c04e7069fae43b74f2cac91699fcb741e673",
+  "branch": "codex/goal9-durable-settlement-20261110",
+  "current_main": "0d5132c2e060a5f2ac338bca143c5e138e607658",
+  "date": "2026-11-10",
+  "files": {
+    "backend/core/agent_governance_service.py": {
+      "after_sha256": "a6dbbad7b1e9b541701a5c87f09fcec4605dddb55a589ea337dda27d74932eda",
+      "before_sha256": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e",
+      "changed": true
+    },
+    "backend/core/budget_enforcement_service.py": {
+      "after_sha256": "ac189b391430a5dbaf77999610417dc8a620cd93e32c5d856448b272f116117c",
+      "before_sha256": "17495d4454c25c4dc161a40970ba896a7f9b8ac8849ff6dccd6dfecbd2648dc4",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "223ae2f0d945cb750b2f750d8d8bc39146deb1ce82c44d989211110dbeccff53",
+      "before_sha256": "0ccc3eca8a65c7f23e2aeb90881f5c6dd0994dd65ec66ecc6ced57633de32063",
+      "changed": true
+    },
+    "backend/core/models.py": {
+      "after_sha256": "a3a03bf75d4f0122c11b5606c377443afd7d5780cb25c5a85697ec15ceded933",
+      "before_sha256": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+      "changed": true
+    },
+    "backend/core/spend_aggregation_service.py": {
+      "after_sha256": "6f6e51c9dd96eaa2c1ddccf3eee040764ddab6b571e5193853547820c507fe32",
+      "before_sha256": "884992ce9d211ddfcf06c28fc5d56e81424c241a6f9f5aa0a91d67af405243b3",
+      "changed": true
+    },
+    "backend/tests/test_goal9_budget_ledger_negative.py": {
+      "after_sha256": null,
+      "before_sha256": "409be71dd0a9a5333d57cf5afb7cb22ad91c5c049e45889dd1d8054097d454a8",
+      "changed": true
+    },
+    "backend/tests/test_goal9_durable_settlement.py": {
+      "after_sha256": "a2dccdc7a5b1533066d18fb27120a24a3ac19795affa466a53b578b6f2c4936b",
+      "before_sha256": null,
+      "changed": true
+    }
+  },
+  "migration_ddl": "migration.sql",
+  "note": "TokenUsage is the single authoritative durable ledger; in-memory tracker remains diagnostic; atomic reservation deferred",
+  "product_files_changed": [
+    "backend/core/models.py",
+    "backend/core/spend_aggregation_service.py",
+    "backend/core/budget_enforcement_service.py",
+    "backend/core/agent_governance_service.py",
+    "backend/core/llm/byok_handler.py"
+  ],
+  "schema": "goal9_durable_settlement_hardstop_source",
+  "test_only_negative_retained": "retained_negative/pre-fix.test.py"
+}

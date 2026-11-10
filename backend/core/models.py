@@ -1565,24 +1565,40 @@ class AgentModelMetrics(Base):
 class TokenUsage(Base):
     """
     Track token and cost usage per agent (Phase 4).
+
+    Also serves as the single durable LLM usage ledger for budget accounting.
+    ``agent_id``/``tenant_id`` are nullable for legitimate non-agent calls;
+    ``cost_usd`` is NULL for unpriced/unknown usage (an explicit liability),
+    and 0.0 only for known-free calls. ``attempt_id`` is the server-owned
+    idempotency key for one provider attempt.
     """
     __tablename__ = "token_usage"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
-    tenant_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
     execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
     chain_id = Column(String, ForeignKey("delegation_chains.id"), nullable=True, index=True) # Phase 10
-    
+
+    # Exact provider/model and server-owned request/attempt identity.
+    provider_id = Column(String(100), nullable=True, index=True)
+    request_id = Column(String(255), nullable=True, index=True)
+    attempt_id = Column(String(255), nullable=True, unique=True, index=True)
+
     prompt_tokens = Column(Integer, default=0)
     completion_tokens = Column(Integer, default=0)
     total_tokens = Column(Integer, default=0)
     billed = Column(Boolean, default=False)
-    cost_usd = Column(Float, default=0.0)
+    # None = unpriced/unknown liability; 0.0 = known free.
+    cost_usd = Column(Float, nullable=True, default=0.0)
+    # Explicit authority for the cost meaning; unknown is never treated as
+    # known-free even when the numeric column is 0.
+    pricing_status = Column(String(20), nullable=False, default="priced", index=True)
     memory_mb = Column(Float, default=0.0)  # Track memory usage for governance metrics
-    model_name = Column(String, nullable=False)
+    model_name = Column(String, nullable=True)
     timestamp = Column(DateTime, default=func.now())
+
 
 class UserIdentity(Base):
     __tablename__ = "user_identities"

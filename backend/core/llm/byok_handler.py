@@ -4163,6 +4163,10 @@ class BYOKHandler:
         complexity: Any = None,
         is_managed_service: bool = True,
         include_savings: bool = False,
+        request_id: Optional[str] = None,
+        attempt_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> tuple[int, int, Optional[float]]:
         usage = _response_usage(response)
         if usage is None:
@@ -4205,6 +4209,29 @@ class BYOKHandler:
             )
         except Exception as cost_err:
             logger.warning(f"Could not record LLM usage: {cost_err}")
+        # Durable authoritative settlement (TokenUsage is the ledger
+        # SpendAggregation reads). The in-memory tracker above remains a
+        # diagnostic cache. cost=None is an explicit unpriced liability;
+        # 0.0 is known free. attempt_id makes replay idempotent.
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+                cost_usd=cost,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=(tenant_id or getattr(self, "tenant_id", None)),
+                execution_id=execution_id,
+                chain_id=chain_id,
+                request_id=request_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as settle_err:
+            logger.error("LLM durable usage settlement failed: %s", settle_err)
         self._track_rate_usage(
             provider_id,
             input_tokens=input_tokens,
@@ -6631,6 +6658,8 @@ class BYOKHandler:
             # otherwise every retry stacked another image or another copy of
             # the user's text onto the same conversation.
             _pristine_messages = [dict(m) for m in messages] if messages else None
+            _settlement_request_id = str(uuid.uuid4())
+            _settlement_attempt = 0
             for provider_id, model in options:
                 if provider_id in failed_providers:
                     continue
@@ -6828,6 +6857,7 @@ class BYOKHandler:
                     self._clear_model_cooldown(provider_id, model)
 
                     if not getattr(response, "choices", None):
+                        _settlement_attempt += 1
                         _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
                             self._record_provider_usage(
                                 provider_id,
@@ -6838,6 +6868,10 @@ class BYOKHandler:
                                 complexity=complexity,
                                 is_managed_service=is_managed,
                                 include_savings=True,
+                                request_id=_settlement_request_id,
+                                attempt_id=(
+                                    f"{_settlement_request_id}:"
+                                    f"{_settlement_attempt}"),
                             )
                         )
                         raise _EmptyCompletionError(
@@ -6845,6 +6879,7 @@ class BYOKHandler:
                     result = response.choices[0].message.content
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
                     if _visible_content_missing(result):
+                        _settlement_attempt += 1
                         _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
                             self._record_provider_usage(
                                 provider_id,
@@ -6855,6 +6890,10 @@ class BYOKHandler:
                                 complexity=complexity,
                                 is_managed_service=is_managed,
                                 include_savings=True,
+                                request_id=_settlement_request_id,
+                                attempt_id=(
+                                    f"{_settlement_request_id}:"
+                                    f"{_settlement_attempt}"),
                             )
                         )
                         # An empty visible payload is a FAILED attempt, not a
@@ -9153,18 +9192,22 @@ class BYOKHandler:
                             _record_structured_latency(
                                 provider_id, model,
                                 time.time() - _structured_start)
-                            if _structured_output_missing(result):
-                                _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
-                                    self._record_provider_usage(
-                                        provider_id,
-                                        model,
-                                        result,
-                                        agent_id=agent_id,
-                                        chain_id=chain_id,
-                                        complexity=complexity,
-                                        is_managed_service=is_managed,
-                                    )
+                            _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                                self._record_provider_usage(
+                                    provider_id,
+                                    model,
+                                    result,
+                                    agent_id=agent_id,
+                                    chain_id=chain_id,
+                                    complexity=complexity,
+                                    is_managed_service=is_managed,
+                                    request_id=route_trace_id,
+                                    attempt_id=(
+                                        f"{route_trace_id or 'structured'}:"
+                                        f"{_attempt_count}"),
                                 )
+                            )
+                            if _structured_output_missing(result):
                                 self._bench_model(provider_id, model)
                                 self._trace_structured_route(
                                     route_trace_id, provider_id, model,
@@ -10285,6 +10328,27 @@ class BYOKHandler:
                 stream_prompt = str(_m.get("content", ""))
                 break
         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
+        # Streaming token/cost usage is not currently exposed by every
+        # provider stream. Record an explicit unpriced liability for the
+        # request (never 0); a hard stop refuses until it is reconciled.
+        try:
+            from core.spend_aggregation_service import record_llm_usage
+
+            record_llm_usage(
+                provider_id=provider_id,
+                model_name=model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                cost_usd=None,
+                agent_id=agent_id,
+                workspace_id=getattr(self, "workspace_id", None),
+                tenant_id=getattr(self, "tenant_id", None),
+                request_id=stream_decision_id,
+                attempt_id=f"{stream_decision_id}:stream:request",
+            )
+        except Exception as stream_settle_err:
+            logger.error(
+                "Stream usage settlement failed: %s", stream_settle_err)
 
         # P4 prompt-taint gate (shadow by default; blocks under enforce).
         _taint_block = self._llm_taint_check(
@@ -11233,6 +11297,8 @@ class BYOKHandler:
                 prompt_str = content if isinstance(content, str) else str(content)
                 break
         decision_id = self._stash_decision_features(prompt_str, task_type)
+        _settlement_request_id = str(decision_id or uuid.uuid4())
+        _settlement_attempt = 0
 
         # P4 prompt-taint gate (shadow by default; GatewayBlockedError maps to
         # a 4xx by the gateway's error mapping).
@@ -11329,6 +11395,7 @@ class BYOKHandler:
 
                 choice = response.choices[0] if getattr(response, "choices", None) else None
                 if not _completion_has_payload(choice):
+                    _settlement_attempt += 1
                     _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
                         self._record_provider_usage(
                             attempt_provider_id,
@@ -11337,6 +11404,10 @@ class BYOKHandler:
                             agent_id=agent_id,
                             complexity=self.analyze_query_complexity(
                                 prompt_str, task_type),
+                            request_id=_settlement_request_id,
+                            attempt_id=(
+                                f"{_settlement_request_id}:"
+                                f"{_settlement_attempt}"),
                         )
                     )
                     self._bench_model(attempt_provider_id, model)
@@ -11381,6 +11452,28 @@ class BYOKHandler:
                         )
                     except Exception as cost_err:
                         logger.warning(f"Could not record LLM usage: {cost_err}")
+                    _settlement_attempt += 1
+                    try:
+                        from core.spend_aggregation_service import record_llm_usage
+
+                        record_llm_usage(
+                            provider_id=attempt_provider_id,
+                            model_name=model,
+                            prompt_tokens=prompt_tokens or 0,
+                            completion_tokens=completion_tokens or 0,
+                            cost_usd=cost,
+                            agent_id=agent_id,
+                            workspace_id=getattr(self, "workspace_id", None),
+                            tenant_id=getattr(self, "tenant_id", None),
+                            request_id=_settlement_request_id,
+                            attempt_id=(
+                                f"{_settlement_request_id}:"
+                                f"{_settlement_attempt}"),
+                        )
+                    except Exception as settle_err:
+                        logger.error(
+                            "LLM durable usage settlement failed: %s",
+                            settle_err)
 
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                 self._record_auth_success(attempt_provider_id, model)

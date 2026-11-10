@@ -108,16 +108,33 @@ class BudgetEnforcementService:
             }
         """
         try:
+            enforcement_mode = self._get_enforcement_mode(tenant_id)
+        except Exception:
+            # An unreadable mode is not evidence of observe-only policy.
+            # Preserve the historical soft-stop default for that case.
+            enforcement_mode = BudgetEnforcementMode.SOFT_STOP
+        try:
             # Get current spend from SpendAggregationService
             spend_result = self.spend_service.update_tenant_spend(
                 tenant_id, persist=False)
 
             if "error" in spend_result:
-                # Fail-open: allow action if spend check fails
                 logger.warning(
                     f"[BudgetEnforcementService] Unable to verify spend for tenant {tenant_id}: "
                     f"{spend_result.get('error')}"
                 )
+                if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+                    return {
+                        "allowed": False,
+                        "reason": (
+                            "Budget status unavailable; hard_stop refuses "
+                            "until the spend ledger is readable."),
+                        "enforcement_mode": enforcement_mode,
+                        "status_code": "BUDGET_STATUS_UNAVAILABLE",
+                        "current_spend_usd": 0.0,
+                        "budget_limit_usd": 0.0,
+                        "utilization_percent": 0.0
+                    }
                 return {
                     "allowed": True,
                     "reason": "Unable to verify spend",
@@ -131,8 +148,31 @@ class BudgetEnforcementService:
             budget_limit = spend_result.get("budget_limit_usd", 0.0)
             utilization = spend_result.get("utilization_percent", 0.0)
 
-            # Get enforcement mode from tenant.settings
-            enforcement_mode = self._get_enforcement_mode(tenant_id)
+            # Unknown pricing is a liability, not zero-cost work. A hard stop
+            # refuses until it is reconciled; observe/warn modes may continue.
+            try:
+                unpriced_rows = self.spend_service.get_unpriced_usage(
+                    tenant_id)
+            except Exception:
+                unpriced_rows = 0
+            if unpriced_rows:
+                logger.warning(
+                    "[BudgetEnforcementService] %s unpriced usage row(s) "
+                    "for tenant %s", unpriced_rows, tenant_id)
+                if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+                    return {
+                        "allowed": False,
+                        "reason": (
+                            f"{unpriced_rows} unpriced usage row(s) require "
+                            "reconciliation; hard_stop refuses until cost "
+                            "is settled."),
+                        "enforcement_mode": enforcement_mode,
+                        "status_code": "BUDGET_UNPRICED_USAGE",
+                        "unpriced_usage_rows": unpriced_rows,
+                        "current_spend_usd": current_spend,
+                        "budget_limit_usd": budget_limit,
+                        "utilization_percent": utilization
+                    }
 
             # Check if budget exceeded
             # A zero/unset limit means "no budget configured" — treat it as
@@ -251,7 +291,18 @@ class BudgetEnforcementService:
 
         except Exception as e:
             logger.error(f"[BudgetEnforcementService] Error checking budget: {str(e)}")
-            # Fail-open on errors
+            if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+                return {
+                    "allowed": False,
+                    "reason": (
+                        "Budget status unavailable; hard_stop refuses until "
+                        "the spend ledger is readable."),
+                    "enforcement_mode": enforcement_mode,
+                    "status_code": "BUDGET_STATUS_UNAVAILABLE",
+                    "current_spend_usd": 0.0,
+                    "budget_limit_usd": 0.0,
+                    "utilization_percent": 0.0
+                }
             return {
                 "allowed": True,
                 "reason": "Unable to verify spend",

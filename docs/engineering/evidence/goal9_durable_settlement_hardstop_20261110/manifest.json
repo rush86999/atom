@@ -1,0 +1,37 @@
+{
+  "authoritative_ledger": "TokenUsage",
+  "base_commit": "b0a5c04e7069fae43b74f2cac91699fcb741e673",
+  "branch": "codex/goal9-durable-settlement-20261110",
+  "date": "2026-11-10",
+  "deferred": "atomic concurrent reservation; check alone non-atomic; no new cap claim",
+  "evidence_files": {
+    "README.md": "b9620cbd9fece0ad95add717fb9e33ac0b7c33af0e6b1858a9550b9c78eac77d",
+    "gates/affected.log": "b7abb9fa4406918d3e03b260b76d257f37eb30f225299074f4a130a564fbc8a0",
+    "gates/focused.log": "1edc95b386b1c99686146023b2e77999a0552b30abdccfaa59ea3ff7c22a9ce7",
+    "migration.sql": "29ac3e0eda1f3cc9cc1d331cb501c27052c695572229b78bc1e7b81c48af2a6f",
+    "retained_negative/pre-fix-negative.log": "a9b994477da1cbd288b7fd1871a04daf705f0fa102fb9dedb1604323f773d6fd",
+    "retained_negative/pre-fix.test.py": "409be71dd0a9a5333d57cf5afb7cb22ad91c5c049e45889dd1d8054097d454a8",
+    "source/fix.diff": "960111969f23e56fd411d5360e83e9ebea583e62cc99467644c2341b53553bab",
+    "source/source-hashes.json": "81d32a2e7bbb53d01d95abaffd366c6ee3cd4f9a210560c4ff560025be50cca7"
+  },
+  "gates": {
+    "affected": "200 passed",
+    "focused": "12 passed",
+    "provider_model_live_db": false,
+    "scratch": "SQLite only"
+  },
+  "in_memory_tracker": "diagnostic/cache only",
+  "kind": "goal9_durable_settlement_hardstop",
+  "migration": "migration.sql, reversible DDL, not applied",
+  "product_changes": [
+    "nullable agent/tenant/model + provider/request/attempt id + pricing_status on TokenUsage",
+    "record_llm_usage idempotent settlement in dedicated session",
+    "settlement from BYOK usage paths + stream unknown",
+    "hard-stop fail-closed on unreadable/unpriced; observe/warn preserved",
+    "governance refusal status code preservation"
+  ],
+  "retained_negative": "retained_negative/pre-fix.test.py + pre-fix-negative.log (verbatim from b0a5c04e)",
+  "root_review_required": true,
+  "status": "tested_candidate_ready_for_root_review",
+  "target_main": "0d5132c2e060a5f2ac338bca143c5e138e607658"
+}

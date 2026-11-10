@@ -1,0 +1,810 @@
+diff --git a/backend/core/agent_governance_service.py b/backend/core/agent_governance_service.py
+index 3fb103e65..05c0bd450 100644
+--- a/backend/core/agent_governance_service.py
++++ b/backend/core/agent_governance_service.py
+@@ -761,7 +761,8 @@ class AgentGovernanceService:
+             "requires_human_approval": (
+                 budget_check.get("enforcement_mode") == "approval"),
+             "enforcement_mode": budget_check.get("enforcement_mode"),
+-            "status_code": "BUDGET_EXCEEDED",
++            "status_code": (
++                budget_check.get("status_code") or "BUDGET_EXCEEDED"),
+         }
+ 
+     def _check_budget_sync(
+diff --git a/backend/core/budget_enforcement_service.py b/backend/core/budget_enforcement_service.py
+index cc1e82b07..38e50e189 100644
+--- a/backend/core/budget_enforcement_service.py
++++ b/backend/core/budget_enforcement_service.py
+@@ -107,17 +107,34 @@ class BudgetEnforcementService:
+                 "utilization_percent": float
+             }
+         """
++        try:
++            enforcement_mode = self._get_enforcement_mode(tenant_id)
++        except Exception:
++            # An unreadable mode is not evidence of observe-only policy.
++            # Preserve the historical soft-stop default for that case.
++            enforcement_mode = BudgetEnforcementMode.SOFT_STOP
+         try:
+             # Get current spend from SpendAggregationService
+             spend_result = self.spend_service.update_tenant_spend(
+                 tenant_id, persist=False)
+ 
+             if "error" in spend_result:
+-                # Fail-open: allow action if spend check fails
+                 logger.warning(
+                     f"[BudgetEnforcementService] Unable to verify spend for tenant {tenant_id}: "
+                     f"{spend_result.get('error')}"
+                 )
++                if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
++                    return {
++                        "allowed": False,
++                        "reason": (
++                            "Budget status unavailable; hard_stop refuses "
++                            "until the spend ledger is readable."),
++                        "enforcement_mode": enforcement_mode,
++                        "status_code": "BUDGET_STATUS_UNAVAILABLE",
++                        "current_spend_usd": 0.0,
++                        "budget_limit_usd": 0.0,
++                        "utilization_percent": 0.0
++                    }
+                 return {
+                     "allowed": True,
+                     "reason": "Unable to verify spend",
+@@ -131,8 +148,31 @@ class BudgetEnforcementService:
+             budget_limit = spend_result.get("budget_limit_usd", 0.0)
+             utilization = spend_result.get("utilization_percent", 0.0)
+ 
+-            # Get enforcement mode from tenant.settings
+-            enforcement_mode = self._get_enforcement_mode(tenant_id)
++            # Unknown pricing is a liability, not zero-cost work. A hard stop
++            # refuses until it is reconciled; observe/warn modes may continue.
++            try:
++                unpriced_rows = self.spend_service.get_unpriced_usage(
++                    tenant_id)
++            except Exception:
++                unpriced_rows = 0
++            if unpriced_rows:
++                logger.warning(
++                    "[BudgetEnforcementService] %s unpriced usage row(s) "
++                    "for tenant %s", unpriced_rows, tenant_id)
++                if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
++                    return {
++                        "allowed": False,
++                        "reason": (
++                            f"{unpriced_rows} unpriced usage row(s) require "
++                            "reconciliation; hard_stop refuses until cost "
++                            "is settled."),
++                        "enforcement_mode": enforcement_mode,
++                        "status_code": "BUDGET_UNPRICED_USAGE",
++                        "unpriced_usage_rows": unpriced_rows,
++                        "current_spend_usd": current_spend,
++                        "budget_limit_usd": budget_limit,
++                        "utilization_percent": utilization
++                    }
+ 
+             # Check if budget exceeded
+             # A zero/unset limit means "no budget configured" — treat it as
+@@ -251,7 +291,18 @@ class BudgetEnforcementService:
+ 
+         except Exception as e:
+             logger.error(f"[BudgetEnforcementService] Error checking budget: {str(e)}")
+-            # Fail-open on errors
++            if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
++                return {
++                    "allowed": False,
++                    "reason": (
++                        "Budget status unavailable; hard_stop refuses until "
++                        "the spend ledger is readable."),
++                    "enforcement_mode": enforcement_mode,
++                    "status_code": "BUDGET_STATUS_UNAVAILABLE",
++                    "current_spend_usd": 0.0,
++                    "budget_limit_usd": 0.0,
++                    "utilization_percent": 0.0
++                }
+             return {
+                 "allowed": True,
+                 "reason": "Unable to verify spend",
+diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
+index 028548b57..33a014b12 100644
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -4163,6 +4163,10 @@ class BYOKHandler:
+         complexity: Any = None,
+         is_managed_service: bool = True,
+         include_savings: bool = False,
++        request_id: Optional[str] = None,
++        attempt_id: Optional[str] = None,
++        execution_id: Optional[str] = None,
++        tenant_id: Optional[str] = None,
+     ) -> tuple[int, int, Optional[float]]:
+         usage = _response_usage(response)
+         if usage is None:
+@@ -4205,6 +4209,29 @@ class BYOKHandler:
+             )
+         except Exception as cost_err:
+             logger.warning(f"Could not record LLM usage: {cost_err}")
++        # Durable authoritative settlement (TokenUsage is the ledger
++        # SpendAggregation reads). The in-memory tracker above remains a
++        # diagnostic cache. cost=None is an explicit unpriced liability;
++        # 0.0 is known free. attempt_id makes replay idempotent.
++        try:
++            from core.spend_aggregation_service import record_llm_usage
++
++            record_llm_usage(
++                provider_id=provider_id,
++                model_name=model,
++                prompt_tokens=input_tokens,
++                completion_tokens=output_tokens,
++                cost_usd=cost,
++                agent_id=agent_id,
++                workspace_id=getattr(self, "workspace_id", None),
++                tenant_id=(tenant_id or getattr(self, "tenant_id", None)),
++                execution_id=execution_id,
++                chain_id=chain_id,
++                request_id=request_id,
++                attempt_id=attempt_id,
++            )
++        except Exception as settle_err:
++            logger.error("LLM durable usage settlement failed: %s", settle_err)
+         self._track_rate_usage(
+             provider_id,
+             input_tokens=input_tokens,
+@@ -6631,6 +6658,8 @@ class BYOKHandler:
+             # otherwise every retry stacked another image or another copy of
+             # the user's text onto the same conversation.
+             _pristine_messages = [dict(m) for m in messages] if messages else None
++            _settlement_request_id = str(uuid.uuid4())
++            _settlement_attempt = 0
+             for provider_id, model in options:
+                 if provider_id in failed_providers:
+                     continue
+@@ -6828,6 +6857,7 @@ class BYOKHandler:
+                     self._clear_model_cooldown(provider_id, model)
+ 
+                     if not getattr(response, "choices", None):
++                        _settlement_attempt += 1
+                         _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                             self._record_provider_usage(
+                                 provider_id,
+@@ -6838,6 +6868,10 @@ class BYOKHandler:
+                                 complexity=complexity,
+                                 is_managed_service=is_managed,
+                                 include_savings=True,
++                                request_id=_settlement_request_id,
++                                attempt_id=(
++                                    f"{_settlement_request_id}:"
++                                    f"{_settlement_attempt}"),
+                             )
+                         )
+                         raise _EmptyCompletionError(
+@@ -6845,6 +6879,7 @@ class BYOKHandler:
+                     result = response.choices[0].message.content
+                     finish_reason = getattr(response.choices[0], "finish_reason", None)
+                     if _visible_content_missing(result):
++                        _settlement_attempt += 1
+                         _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                             self._record_provider_usage(
+                                 provider_id,
+@@ -6855,6 +6890,10 @@ class BYOKHandler:
+                                 complexity=complexity,
+                                 is_managed_service=is_managed,
+                                 include_savings=True,
++                                request_id=_settlement_request_id,
++                                attempt_id=(
++                                    f"{_settlement_request_id}:"
++                                    f"{_settlement_attempt}"),
+                             )
+                         )
+                         # An empty visible payload is a FAILED attempt, not a
+@@ -9153,18 +9192,22 @@ class BYOKHandler:
+                             _record_structured_latency(
+                                 provider_id, model,
+                                 time.time() - _structured_start)
+-                            if _structured_output_missing(result):
+-                                _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+-                                    self._record_provider_usage(
+-                                        provider_id,
+-                                        model,
+-                                        result,
+-                                        agent_id=agent_id,
+-                                        chain_id=chain_id,
+-                                        complexity=complexity,
+-                                        is_managed_service=is_managed,
+-                                    )
++                            _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
++                                self._record_provider_usage(
++                                    provider_id,
++                                    model,
++                                    result,
++                                    agent_id=agent_id,
++                                    chain_id=chain_id,
++                                    complexity=complexity,
++                                    is_managed_service=is_managed,
++                                    request_id=route_trace_id,
++                                    attempt_id=(
++                                        f"{route_trace_id or 'structured'}:"
++                                        f"{_attempt_count}"),
+                                 )
++                            )
++                            if _structured_output_missing(result):
+                                 self._bench_model(provider_id, model)
+                                 self._trace_structured_route(
+                                     route_trace_id, provider_id, model,
+@@ -10285,6 +10328,27 @@ class BYOKHandler:
+                 stream_prompt = str(_m.get("content", ""))
+                 break
+         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
++        # Streaming token/cost usage is not currently exposed by every
++        # provider stream. Record an explicit unpriced liability for the
++        # request (never 0); a hard stop refuses until it is reconciled.
++        try:
++            from core.spend_aggregation_service import record_llm_usage
++
++            record_llm_usage(
++                provider_id=provider_id,
++                model_name=model,
++                prompt_tokens=0,
++                completion_tokens=0,
++                cost_usd=None,
++                agent_id=agent_id,
++                workspace_id=getattr(self, "workspace_id", None),
++                tenant_id=getattr(self, "tenant_id", None),
++                request_id=stream_decision_id,
++                attempt_id=f"{stream_decision_id}:stream:request",
++            )
++        except Exception as stream_settle_err:
++            logger.error(
++                "Stream usage settlement failed: %s", stream_settle_err)
+ 
+         # P4 prompt-taint gate (shadow by default; blocks under enforce).
+         _taint_block = self._llm_taint_check(
+@@ -11233,6 +11297,8 @@ class BYOKHandler:
+                 prompt_str = content if isinstance(content, str) else str(content)
+                 break
+         decision_id = self._stash_decision_features(prompt_str, task_type)
++        _settlement_request_id = str(decision_id or uuid.uuid4())
++        _settlement_attempt = 0
+ 
+         # P4 prompt-taint gate (shadow by default; GatewayBlockedError maps to
+         # a 4xx by the gateway's error mapping).
+@@ -11329,6 +11395,7 @@ class BYOKHandler:
+ 
+                 choice = response.choices[0] if getattr(response, "choices", None) else None
+                 if not _completion_has_payload(choice):
++                    _settlement_attempt += 1
+                     _attempt_input_tokens, _attempt_output_tokens, _attempt_cost = (
+                         self._record_provider_usage(
+                             attempt_provider_id,
+@@ -11337,6 +11404,10 @@ class BYOKHandler:
+                             agent_id=agent_id,
+                             complexity=self.analyze_query_complexity(
+                                 prompt_str, task_type),
++                            request_id=_settlement_request_id,
++                            attempt_id=(
++                                f"{_settlement_request_id}:"
++                                f"{_settlement_attempt}"),
+                         )
+                     )
+                     self._bench_model(attempt_provider_id, model)
+@@ -11381,6 +11452,28 @@ class BYOKHandler:
+                         )
+                     except Exception as cost_err:
+                         logger.warning(f"Could not record LLM usage: {cost_err}")
++                    _settlement_attempt += 1
++                    try:
++                        from core.spend_aggregation_service import record_llm_usage
++
++                        record_llm_usage(
++                            provider_id=attempt_provider_id,
++                            model_name=model,
++                            prompt_tokens=prompt_tokens or 0,
++                            completion_tokens=completion_tokens or 0,
++                            cost_usd=cost,
++                            agent_id=agent_id,
++                            workspace_id=getattr(self, "workspace_id", None),
++                            tenant_id=getattr(self, "tenant_id", None),
++                            request_id=_settlement_request_id,
++                            attempt_id=(
++                                f"{_settlement_request_id}:"
++                                f"{_settlement_attempt}"),
++                        )
++                    except Exception as settle_err:
++                        logger.error(
++                            "LLM durable usage settlement failed: %s",
++                            settle_err)
+ 
+                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                 self._record_auth_success(attempt_provider_id, model)
+diff --git a/backend/core/models.py b/backend/core/models.py
+index 403113778..8b9d2e95a 100644
+--- a/backend/core/models.py
++++ b/backend/core/models.py
+@@ -1565,25 +1565,41 @@ class AgentModelMetrics(Base):
+ class TokenUsage(Base):
+     """
+     Track token and cost usage per agent (Phase 4).
++
++    Also serves as the single durable LLM usage ledger for budget accounting.
++    ``agent_id``/``tenant_id`` are nullable for legitimate non-agent calls;
++    ``cost_usd`` is NULL for unpriced/unknown usage (an explicit liability),
++    and 0.0 only for known-free calls. ``attempt_id`` is the server-owned
++    idempotency key for one provider attempt.
+     """
+     __tablename__ = "token_usage"
+     
+     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
++    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
+-    tenant_id = Column(String, nullable=False, index=True)
++    tenant_id = Column(String, nullable=True, index=True)
+     execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
+     chain_id = Column(String, ForeignKey("delegation_chains.id"), nullable=True, index=True) # Phase 10
+-    
++
++    # Exact provider/model and server-owned request/attempt identity.
++    provider_id = Column(String(100), nullable=True, index=True)
++    request_id = Column(String(255), nullable=True, index=True)
++    attempt_id = Column(String(255), nullable=True, unique=True, index=True)
++
+     prompt_tokens = Column(Integer, default=0)
+     completion_tokens = Column(Integer, default=0)
+     total_tokens = Column(Integer, default=0)
+     billed = Column(Boolean, default=False)
+-    cost_usd = Column(Float, default=0.0)
++    # None = unpriced/unknown liability; 0.0 = known free.
++    cost_usd = Column(Float, nullable=True, default=0.0)
++    # Explicit authority for the cost meaning; unknown is never treated as
++    # known-free even when the numeric column is 0.
++    pricing_status = Column(String(20), nullable=False, default="priced", index=True)
+     memory_mb = Column(Float, default=0.0)  # Track memory usage for governance metrics
+-    model_name = Column(String, nullable=False)
++    model_name = Column(String, nullable=True)
+     timestamp = Column(DateTime, default=func.now())
+ 
++
+ class UserIdentity(Base):
+     __tablename__ = "user_identities"
+     __table_args__ = (
+diff --git a/backend/core/spend_aggregation_service.py b/backend/core/spend_aggregation_service.py
+index c1db967df..fe8c153f3 100644
+--- a/backend/core/spend_aggregation_service.py
++++ b/backend/core/spend_aggregation_service.py
+@@ -11,17 +11,107 @@ New Phase 10 Features:
+ """
+ import logging
+ import json
++import uuid
+ from typing import Dict, Any, Optional
+ from datetime import date, datetime, timedelta
+ from decimal import Decimal
+ from sqlalchemy.orm import Session
+-from sqlalchemy import func, and_
++from sqlalchemy import func, and_, or_
++from sqlalchemy.exc import IntegrityError
+ 
+ from core.models import Tenant, ACUConsumption, TokenUsage, TenantSetting
+ 
+ logger = logging.getLogger(__name__)
+ 
+ 
++def record_llm_usage(
++    *,
++    provider_id: Optional[str],
++    model_name: Optional[str],
++    prompt_tokens: int = 0,
++    completion_tokens: int = 0,
++    cost_usd: Optional[float] = None,
++    agent_id: Optional[str] = None,
++    workspace_id: Optional[str] = None,
++    tenant_id: Optional[str] = None,
++    execution_id: Optional[str] = None,
++    chain_id: Optional[str] = None,
++    request_id: Optional[str] = None,
++    attempt_id: Optional[str] = None,
++) -> str:
++    """Settle one actual LLM provider attempt into the durable usage ledger.
++
++    ``TokenUsage`` is the single ledger SpendAggregation already reads. This
++    helper does not create a parallel store. ``cost_usd=None`` means
++    unpriced/unknown (an explicit liability); ``0.0`` means known free.
++    ``attempt_id`` is the server-owned idempotency key: replaying the same
++    attempt returns the existing row; a different material under the same key
++    is a conflict, never a second charge.
++
++    Uses a dedicated session so it can never commit a caller's business work.
++    """
++    # Resolve the current SessionLocal at call time so scratch/test database
++    # patches apply instead of a stale module-level binding.
++    from core.database import SessionLocal
++
++    session = SessionLocal()
++    try:
++        if attempt_id:
++            existing = session.query(TokenUsage).filter(
++                TokenUsage.attempt_id == str(attempt_id)).first()
++            if existing is not None:
++                same = (
++                    existing.provider_id == provider_id
++                    and existing.model_name == model_name
++                    and int(existing.prompt_tokens or 0) == int(prompt_tokens or 0)
++                    and int(existing.completion_tokens or 0) == int(completion_tokens or 0)
++                    and existing.cost_usd == cost_usd
++                    and existing.agent_id == agent_id
++                    and existing.workspace_id == workspace_id
++                    and existing.tenant_id == tenant_id
++                )
++                if not same:
++                    raise ValueError(
++                        f"attempt_id {attempt_id!r} already settled with "
++                        "different usage material")
++                return str(existing.id)
++        row = TokenUsage(
++            id=str(uuid.uuid4()),
++            agent_id=agent_id,
++            workspace_id=workspace_id,
++            tenant_id=tenant_id,
++            execution_id=execution_id,
++            chain_id=chain_id,
++            provider_id=provider_id,
++            request_id=request_id,
++            attempt_id=str(attempt_id) if attempt_id else None,
++            prompt_tokens=int(prompt_tokens or 0),
++            completion_tokens=int(completion_tokens or 0),
++            total_tokens=int(prompt_tokens or 0) + int(completion_tokens or 0),
++            billed=True,
++            cost_usd=cost_usd,
++            pricing_status=(
++                "unknown" if cost_usd is None
++                else "free" if float(cost_usd) == 0.0
++                else "priced"),
++            model_name=model_name,
++        )
++        session.add(row)
++        session.commit()
++        return str(row.id)
++    except IntegrityError:
++        session.rollback()
++        if attempt_id:
++            existing = session.query(TokenUsage).filter(
++                TokenUsage.attempt_id == str(attempt_id)).first()
++            if existing is not None:
++                return str(existing.id)
++        raise
++    finally:
++        session.close()
++
++
++
+ class SpendAggregationService:
+     """
+     Spend aggregation service for unified budget tracking.
+@@ -124,6 +214,35 @@ class SpendAggregationService:
+             logger.warning(f"[SpendAggregationService] Error calculating fleet spend for chain {chain_id}: {e}")
+             return 0.0
+ 
++    def get_unpriced_usage(
++        self, tenant_id: str, start_date: Optional[date] = None,
++        end_date: Optional[date] = None,
++    ) -> int:
++        """Count durable rows whose cost is unknown (NULL), distinct from free 0.
++
++        These are unpriced liabilities, not zero-cost work. A hard-stop budget
++        must refuse or require reconciliation while this count is non-zero.
++        Rows without a tenant are not attributed to any tenant budget.
++        """
++        try:
++            today = date.today()
++            start = start_date or date(today.year, today.month, 1)
++            end = end_date or today
++            start_dt = datetime.combine(start, datetime.min.time())
++            end_dt = datetime.combine(end, datetime.max.time())
++            return int(self.db.query(func.count(TokenUsage.id)).filter(
++                TokenUsage.tenant_id == tenant_id,
++                or_(TokenUsage.pricing_status == "unknown",
++                    TokenUsage.cost_usd.is_(None)),
++                TokenUsage.timestamp >= start_dt,
++                TokenUsage.timestamp <= end_dt,
++            ).scalar() or 0)
++        except Exception as e:
++            logger.warning(
++                f"[SpendAggregationService] unpriced usage read failed for "
++                f"{tenant_id}: {e}")
++            return 0
++
+     def update_tenant_spend(
+         self, tenant_id: str, *, persist: bool = True,
+     ) -> Dict[str, Any]:
+diff --git a/backend/tests/test_goal9_durable_settlement.py b/backend/tests/test_goal9_durable_settlement.py
+new file mode 100644
+index 000000000..a43f40185
+--- /dev/null
++++ b/backend/tests/test_goal9_durable_settlement.py
+@@ -0,0 +1,285 @@
++"""Goal 9 durable settlement + hard-stop fail-closed controls.
++
++Scratch SQLite only; doubled LLM response and controlled pricing stub. The
++real `BYOKHandler._record_provider_usage` settlement writes the durable
++`TokenUsage` ledger that SpendAggregation/admission reads. The real
++`AgentGovernanceService` admission path is used.
++
++Retained negative evidence (pre-fix in-memory-only settlement, hard-stop
++fail-open) is in the packet's `retained_negative/`; this file asserts the
++fixed contract. The conditional harness 104 twin remains explicitly
++harness-authored.
++"""
++from __future__ import annotations
++
++import asyncio
++import json
++from datetime import datetime
++from pathlib import Path
++
++import pytest
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++
++from tests.test_oracle_mini_app_host_mutations import USER, host
++from core.agent_governance_service import AgentGovernanceService
++from core.budget_enforcement_service import BudgetEnforcementService
++from core.llm.byok_handler import BYOKHandler
++from core.llm_usage_tracker import llm_usage_tracker
++from core.models import AgentRegistry, Tenant, TenantSetting, TokenUsage, Workspace
++from core.spend_aggregation_service import SpendAggregationService, record_llm_usage
++
++TENANT = "tenant-goal9"
++WORKSPACE = "ws-goal9"
++AGENT = "agent-goal9"
++
++
++def _seed(host, *, limit: float = 100.0, mode: str = "hard_stop",
++          spend: float = 90.0) -> None:
++    with host.Session() as db:
++        db.add(Tenant(id=TENANT, name="Goal9 operator", subdomain="goal9-budget"))
++        db.add(Workspace(id=WORKSPACE, name="Goal9 workspace", tenant_id=TENANT))
++        db.add(AgentRegistry(
++            id=AGENT, name="Budget consumer", category="Operations",
++            module_path="core.generic_agent", class_name="GenericAgent",
++            user_id=USER, workspace_id=WORKSPACE, tenant_id=TENANT,
++            status="autonomous", confidence_score=0.99))
++        db.add(TenantSetting(
++            tenant_id=TENANT, setting_key="billing",
++            setting_value=json.dumps({
++                "budget_limit_usd": limit,
++                "enforcement": {"mode": mode},
++            })))
++        if spend:
++            db.add(TokenUsage(
++                agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
++                model_name="controlled-no-provider", cost_usd=spend,
++                timestamp=datetime.now()))
++        db.commit()
++    llm_usage_tracker.reset_usage(WORKSPACE)
++
++
++def _admit(host) -> dict:
++    with host.Session() as db:
++        return asyncio.run(AgentGovernanceService(
++            db, workspace_id=WORKSPACE, tenant_id=TENANT,
++        ).can_perform_action_async(AGENT, "llm_react_step"))
++
++
++def _ledger(host) -> float:
++    with host.Session() as db:
++        return float(SpendAggregationService(db).update_tenant_spend(
++            TENANT, persist=False)["current_spend_usd"])
++
++
++def _unpriced(host) -> int:
++    with host.Session() as db:
++        return SpendAggregationService(db).get_unpriced_usage(TENANT)
++
++
++def _settle(monkeypatch, *, attempt_id: str, cost: float = 7.0,
++            request_id: str | None = None, agent_id: str | None = AGENT,
++            tenant_id: str | None = TENANT,
++            workspace_id: str | None = WORKSPACE,
++            provider_id: str = "controlled",
++            model: str = "controlled-model") -> float:
++    """Real production settlement path; no provider/network."""
++    from core.llm import byok_handler
++
++    class _Pricing:
++        def estimate_cost(self, model_name, input_tokens, output_tokens):
++            return cost
++
++    monkeypatch.setattr(byok_handler, "get_pricing_fetcher", lambda: _Pricing())
++    monkeypatch.setattr(BYOKHandler, "_track_rate_usage", lambda *a, **k: None)
++    handler = object.__new__(BYOKHandler)
++    handler.workspace_id = workspace_id
++    handler.tenant_id = tenant_id
++    response = {"usage": {"prompt_tokens": 100, "completion_tokens": 0}}
++    _in, _out, settled = handler._record_provider_usage(
++        provider_id, model, response, agent_id=agent_id,
++        request_id=request_id or attempt_id, attempt_id=attempt_id)
++    assert settled == cost
++    return settled
++
++
++def _settle_unknown(monkeypatch, *, attempt_id: str) -> None:
++    """Real settlement with an unavailable price; cost must remain unknown."""
++    from core.llm import byok_handler
++
++    def _bad_fetcher():
++        raise RuntimeError("pricing unavailable")
++
++    monkeypatch.setattr(byok_handler, "get_pricing_fetcher", _bad_fetcher)
++    monkeypatch.setattr(BYOKHandler, "_track_rate_usage", lambda *a, **k: None)
++    handler = object.__new__(BYOKHandler)
++    handler.workspace_id = WORKSPACE
++    handler.tenant_id = TENANT
++    _in, _out, cost = handler._record_provider_usage(
++        "controlled", "controlled-model",
++        {"usage": {"prompt_tokens": 100, "completion_tokens": 0}},
++        agent_id=AGENT, request_id=attempt_id, attempt_id=attempt_id)
++    assert cost is None
++
++
++def test_90_97_104_durable_settlement_then_refuses(host, monkeypatch):
++    _seed(host, spend=90.0)
++    _settle(monkeypatch, attempt_id="a1", cost=7.0)
++    assert _ledger(host) == pytest.approx(97.0)
++    _settle(monkeypatch, attempt_id="a2", cost=7.0)
++    assert _ledger(host) == pytest.approx(104.0)
++    refused = _admit(host)
++    assert refused["allowed"] is False
++    assert refused.get("status_code") == "BUDGET_EXCEEDED"
++
++
++def test_duplicate_attempt_id_is_idempotent(host, monkeypatch):
++    _seed(host, spend=90.0)
++    _settle(monkeypatch, attempt_id="dup", cost=7.0)
++    _settle(monkeypatch, attempt_id="dup", cost=7.0)
++    assert _ledger(host) == pytest.approx(97.0)
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "dup").count() == 1
++
++
++def test_multiple_paid_attempts_count_separately(host, monkeypatch):
++    _seed(host, spend=90.0)
++    _settle(monkeypatch, attempt_id="a1", cost=7.0)
++    _settle(monkeypatch, attempt_id="a2", cost=7.0)
++    assert _ledger(host) == pytest.approx(104.0)
++    assert _unpriced(host) == 0
++
++
++def test_restart_reads_durable_ledger(host, monkeypatch):
++    _seed(host, spend=90.0)
++    _settle(monkeypatch, attempt_id="a1", cost=7.0)
++    assert _ledger(host) == pytest.approx(97.0)
++    # New engine/session from the same scratch file = process-restart read.
++    engine = create_engine(str(host.engine.url))
++    Session = sessionmaker(bind=engine, expire_on_commit=False)
++    with Session() as db:
++        assert SpendAggregationService(db).update_tenant_spend(
++            TENANT, persist=False)["current_spend_usd"] == pytest.approx(97.0)
++    engine.dispose()
++
++
++def test_scope_is_tenant_bound(host, monkeypatch):
++    _seed(host, spend=0.0)
++    with host.Session() as db:
++        db.add(Tenant(id="other-tenant", name="Other",
++                      subdomain="other-goal9"))
++        db.commit()
++    _settle(monkeypatch, attempt_id="a1", cost=7.0)
++    with host.Session() as db:
++        assert SpendAggregationService(db).update_tenant_spend(
++            "other-tenant", persist=False)["current_spend_usd"] == pytest.approx(0.0)
++
++
++def test_agent_and_non_agent_settle_without_inventing_identity(
++        host, monkeypatch):
++    _seed(host, spend=0.0)
++    _settle(monkeypatch, attempt_id="agent-1", cost=7.0)
++    _settle(monkeypatch, attempt_id="nonagent-1", cost=7.0, agent_id=None)
++    with host.Session() as db:
++        rows = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == TENANT).order_by(TokenUsage.attempt_id).all()
++        assert {r.attempt_id: r.agent_id for r in rows} == {
++            "agent-1": AGENT, "nonagent-1": None}
++    assert _ledger(host) == pytest.approx(14.0)
++    # Unknown tenant is not invented/defaulted; it remains unattributed.
++    record_llm_usage(
++        provider_id="controlled", model_name="controlled-model",
++        prompt_tokens=1, completion_tokens=0, cost_usd=3.0,
++        agent_id=None, workspace_id=None, tenant_id=None,
++        attempt_id="tenantless-1")
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "tenantless-1").one()
++        assert row.tenant_id is None
++    assert _ledger(host) == pytest.approx(14.0)
++
++
++def test_unknown_is_liability_not_zero_and_hard_stop_refuses(
++        host, monkeypatch):
++    _seed(host, spend=90.0)
++    _settle_unknown(monkeypatch, attempt_id="unknown-1")
++    assert _ledger(host) == pytest.approx(90.0)  # NULL does not sum as 0
++    assert _unpriced(host) == 1
++    refused = _admit(host)
++    assert refused["allowed"] is False
++    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
++
++
++def test_known_free_zero_is_allowed(host, monkeypatch):
++    _seed(host, spend=90.0)
++    _settle(monkeypatch, attempt_id="free-1", cost=0.0)
++    assert _ledger(host) == pytest.approx(90.0)
++    assert _unpriced(host) == 0
++    assert _admit(host)["allowed"] is True
++
++
++def test_hard_stop_unreadable_refuses_alert_only_observes(
++        host, monkeypatch):
++    _seed(host, spend=90.0, mode="hard_stop")
++    monkeypatch.setattr(
++        SpendAggregationService, "update_tenant_spend",
++        lambda *a, **k: {"error": "unreadable ledger"})
++    with host.Session() as db:
++        refused = BudgetEnforcementService(db).check_budget_before_action_sync(
++            TENANT, AGENT, "llm_react_step")
++    assert refused["allowed"] is False
++    assert refused.get("status_code") == "BUDGET_STATUS_UNAVAILABLE"
++
++    with host.Session() as db:
++        setting = db.query(TenantSetting).filter(
++            TenantSetting.tenant_id == TENANT).one()
++        setting.setting_value = json.dumps({
++            "budget_limit_usd": 100.0,
++            "enforcement": {"mode": "alert_only"},
++        })
++        db.commit()
++    with host.Session() as db:
++        observed = BudgetEnforcementService(db).check_budget_before_action_sync(
++            TENANT, AGENT, "llm_react_step")
++    assert observed["allowed"] is True
++
++
++def test_failed_semantic_attempt_cost_is_recorded(host, monkeypatch):
++    """No quality/grounding verdict filters actual paid work."""
++    _seed(host, spend=90.0)
++    _settle(monkeypatch, attempt_id="failed-semantic-1", cost=7.0)
++    assert _ledger(host) == pytest.approx(97.0)
++
++
++def test_conditional_harness_104_twin_preserved(host):
++    """Harness-authored settlement twin, explicitly not production evidence."""
++    _seed(host, spend=90.0)
++    assert _admit(host)["allowed"] is True
++    assert _admit(host)["allowed"] is True
++    with host.Session() as db:
++        for _ in range(2):
++            db.add(TokenUsage(
++                agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
++                model_name="controlled-no-provider", cost_usd=7.0,
++                timestamp=datetime.now()))
++        db.commit()
++        ledger = SpendAggregationService(db).update_tenant_spend(
++            TENANT, persist=False)
++    assert ledger["current_spend_usd"] == pytest.approx(104.0)
++    refused = _admit(host)
++    assert refused["allowed"] is False
++
++
++def test_normal_budget_valid_twin(host):
++    _seed(host, spend=50.0)
++    assert _admit(host)["allowed"] is True
++    with host.Session() as db:
++        db.add(TokenUsage(
++            agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
++            model_name="controlled-no-provider", cost_usd=50.0,
++            timestamp=datetime.now()))
++        db.commit()
++    refused = _admit(host)
++    assert refused["allowed"] is False
++    assert refused.get("status_code") == "BUDGET_EXCEEDED"

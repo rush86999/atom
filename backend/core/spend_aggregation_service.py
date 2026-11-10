@@ -11,15 +11,105 @@ New Phase 10 Features:
 """
 import logging
 import json
+import uuid
 from typing import Dict, Any, Optional
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_
+from sqlalchemy.exc import IntegrityError
 
 from core.models import Tenant, ACUConsumption, TokenUsage, TenantSetting
 
 logger = logging.getLogger(__name__)
+
+
+def record_llm_usage(
+    *,
+    provider_id: Optional[str],
+    model_name: Optional[str],
+    prompt_tokens: int = 0,
+    completion_tokens: int = 0,
+    cost_usd: Optional[float] = None,
+    agent_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
+    chain_id: Optional[str] = None,
+    request_id: Optional[str] = None,
+    attempt_id: Optional[str] = None,
+) -> str:
+    """Settle one actual LLM provider attempt into the durable usage ledger.
+
+    ``TokenUsage`` is the single ledger SpendAggregation already reads. This
+    helper does not create a parallel store. ``cost_usd=None`` means
+    unpriced/unknown (an explicit liability); ``0.0`` means known free.
+    ``attempt_id`` is the server-owned idempotency key: replaying the same
+    attempt returns the existing row; a different material under the same key
+    is a conflict, never a second charge.
+
+    Uses a dedicated session so it can never commit a caller's business work.
+    """
+    # Resolve the current SessionLocal at call time so scratch/test database
+    # patches apply instead of a stale module-level binding.
+    from core.database import SessionLocal
+
+    session = SessionLocal()
+    try:
+        if attempt_id:
+            existing = session.query(TokenUsage).filter(
+                TokenUsage.attempt_id == str(attempt_id)).first()
+            if existing is not None:
+                same = (
+                    existing.provider_id == provider_id
+                    and existing.model_name == model_name
+                    and int(existing.prompt_tokens or 0) == int(prompt_tokens or 0)
+                    and int(existing.completion_tokens or 0) == int(completion_tokens or 0)
+                    and existing.cost_usd == cost_usd
+                    and existing.agent_id == agent_id
+                    and existing.workspace_id == workspace_id
+                    and existing.tenant_id == tenant_id
+                )
+                if not same:
+                    raise ValueError(
+                        f"attempt_id {attempt_id!r} already settled with "
+                        "different usage material")
+                return str(existing.id)
+        row = TokenUsage(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            execution_id=execution_id,
+            chain_id=chain_id,
+            provider_id=provider_id,
+            request_id=request_id,
+            attempt_id=str(attempt_id) if attempt_id else None,
+            prompt_tokens=int(prompt_tokens or 0),
+            completion_tokens=int(completion_tokens or 0),
+            total_tokens=int(prompt_tokens or 0) + int(completion_tokens or 0),
+            billed=True,
+            cost_usd=cost_usd,
+            pricing_status=(
+                "unknown" if cost_usd is None
+                else "free" if float(cost_usd) == 0.0
+                else "priced"),
+            model_name=model_name,
+        )
+        session.add(row)
+        session.commit()
+        return str(row.id)
+    except IntegrityError:
+        session.rollback()
+        if attempt_id:
+            existing = session.query(TokenUsage).filter(
+                TokenUsage.attempt_id == str(attempt_id)).first()
+            if existing is not None:
+                return str(existing.id)
+        raise
+    finally:
+        session.close()
+
 
 
 class SpendAggregationService:
@@ -123,6 +213,35 @@ class SpendAggregationService:
         except Exception as e:
             logger.warning(f"[SpendAggregationService] Error calculating fleet spend for chain {chain_id}: {e}")
             return 0.0
+
+    def get_unpriced_usage(
+        self, tenant_id: str, start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> int:
+        """Count durable rows whose cost is unknown (NULL), distinct from free 0.
+
+        These are unpriced liabilities, not zero-cost work. A hard-stop budget
+        must refuse or require reconciliation while this count is non-zero.
+        Rows without a tenant are not attributed to any tenant budget.
+        """
+        try:
+            today = date.today()
+            start = start_date or date(today.year, today.month, 1)
+            end = end_date or today
+            start_dt = datetime.combine(start, datetime.min.time())
+            end_dt = datetime.combine(end, datetime.max.time())
+            return int(self.db.query(func.count(TokenUsage.id)).filter(
+                TokenUsage.tenant_id == tenant_id,
+                or_(TokenUsage.pricing_status == "unknown",
+                    TokenUsage.cost_usd.is_(None)),
+                TokenUsage.timestamp >= start_dt,
+                TokenUsage.timestamp <= end_dt,
+            ).scalar() or 0)
+        except Exception as e:
+            logger.warning(
+                f"[SpendAggregationService] unpriced usage read failed for "
+                f"{tenant_id}: {e}")
+            return 0
 
     def update_tenant_spend(
         self, tenant_id: str, *, persist: bool = True,
