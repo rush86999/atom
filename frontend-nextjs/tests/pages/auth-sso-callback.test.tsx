@@ -308,6 +308,49 @@ describe('SSO callback one-shot exchange', () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  test('SDK resolving after unmount cannot persist or navigate', async () => {
+    const sdk = deferred<void>();
+    (establishWebSession as jest.Mock).mockImplementationOnce(() => sdk.promise);
+    const router = routerFor('opaque-code');
+    (useRouter as jest.Mock).mockReturnValue(router);
+    const view = render(<SsoCallbackPage />);
+    await waitFor(() =>
+      expect(establishWebSession).toHaveBeenCalledTimes(1),
+    );
+
+    view.unmount();
+    sdk.resolve();
+    await flush();
+
+    expect(persistBackendToken).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  test('SDK resolving after the code becomes invalid cannot persist or navigate', async () => {
+    const sdk = deferred<void>();
+    (establishWebSession as jest.Mock).mockImplementationOnce(() => sdk.promise);
+    const first = routerFor('opaque-code-a');
+    (useRouter as jest.Mock).mockReturnValue(first);
+    const view = render(<SsoCallbackPage />);
+    await waitFor(() =>
+      expect(establishWebSession).toHaveBeenCalledTimes(1),
+    );
+
+    const invalid = routerFor(undefined);
+    (useRouter as jest.Mock).mockReturnValue(invalid);
+    view.rerender(<SsoCallbackPage />);
+    await waitFor(() =>
+      expect(invalid.replace).toHaveBeenCalledWith('/login?sso_error=sso_failed'),
+    );
+
+    sdk.resolve();
+    await flush();
+
+    expect(persistBackendToken).not.toHaveBeenCalled();
+    expect(first.replace).not.toHaveBeenCalledWith('/settings?tab=account');
+    expect(invalid.replace).toHaveBeenCalledTimes(1);
+  });
+
   test('serializes SDK establishment so a late old-code SDK cannot overwrite the new code', async () => {
     const firstSdk = deferred<void>();
     (establishWebSession as jest.Mock)
