@@ -15,7 +15,7 @@
       "changed": true
     },
     "backend/core/llm/byok_handler.py": {
-      "after_sha256": "223ae2f0d945cb750b2f750d8d8bc39146deb1ce82c44d989211110dbeccff53",
+      "after_sha256": "4bb2ef679bb763bdc196c2134f6c6ffe56dc3997b97f0811141359ef10b08ac7",
       "before_sha256": "0ccc3eca8a65c7f23e2aeb90881f5c6dd0994dd65ec66ecc6ced57633de32063",
       "changed": true
     },
@@ -35,13 +35,13 @@
       "changed": true
     },
     "backend/tests/test_goal9_durable_settlement.py": {
-      "after_sha256": "a2dccdc7a5b1533066d18fb27120a24a3ac19795affa466a53b578b6f2c4936b",
+      "after_sha256": "1599c68ea39184496f777eea21b4b74e3f7688852131a7748d85755fe2814e52",
       "before_sha256": null,
       "changed": true
     }
   },
   "migration_ddl": "migration.sql",
-  "note": "TokenUsage is the single authoritative durable ledger; in-memory tracker remains diagnostic; atomic reservation deferred",
+  "note": "TokenUsage authoritative; in-memory diagnostic; atomic reservation deferred",
   "product_files_changed": [
     "backend/core/models.py",
     "backend/core/spend_aggregation_service.py",

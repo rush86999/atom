@@ -4170,6 +4170,28 @@ class BYOKHandler:
     ) -> tuple[int, int, Optional[float]]:
         usage = _response_usage(response)
         if usage is None:
+            # The response carried no usage. Do not silently drop the
+            # attempt: record an explicit unpriced liability (never 0).
+            try:
+                from core.spend_aggregation_service import record_llm_usage
+
+                record_llm_usage(
+                    provider_id=provider_id,
+                    model_name=model,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    cost_usd=None,
+                    agent_id=agent_id,
+                    workspace_id=getattr(self, "workspace_id", None),
+                    tenant_id=(tenant_id or getattr(self, "tenant_id", None)),
+                    execution_id=execution_id,
+                    chain_id=chain_id,
+                    request_id=request_id,
+                    attempt_id=attempt_id,
+                )
+            except Exception as settle_err:
+                logger.error(
+                    "LLM unknown-usage settlement failed: %s", settle_err)
             return 0, 0, None
         input_tokens = _usage_value(usage, "prompt_tokens", "input_tokens")
         output_tokens = _usage_value(

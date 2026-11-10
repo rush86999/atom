@@ -1,55 +1,59 @@
 
 tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses 
 -------------------------------- live log setup --------------------------------
-2026-11-10 09:06:09 [    INFO] EscalationManager initialized
-2026-11-10 09:06:09 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 09:06:09 [    INFO] EscalationManager initialized
-2026-11-10 09:06:09 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 09:06:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 09:06:09 [    INFO] AgentTaskRegistry initialized
+2026-11-10 09:14:40 [    INFO] EscalationManager initialized
+2026-11-10 09:14:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:14:40 [    INFO] EscalationManager initialized
+2026-11-10 09:14:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:14:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:14:40 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:09 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:06:09 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [  8%]
+2026-11-10 09:14:41 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:14:41 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  7%]
 tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:10 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:06:10 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [ 16%]
+2026-11-10 09:14:41 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:14:41 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 15%]
 tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:11 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:06:11 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [ 25%]
+2026-11-10 09:14:42 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:14:42 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 23%]
 tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:11 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [ 33%]
+2026-11-10 09:14:43 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 30%]
 tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:12 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [ 41%]
+2026-11-10 09:14:44 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 38%]
 tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:13 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:06:13 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [ 50%]
+2026-11-10 09:14:44 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:14:44 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 46%]
 tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:13 [ WARNING] Could not attribute LLM cost: pricing unavailable
-2026-11-10 09:06:13 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
-PASSED                                                                   [ 58%]
-tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [ 66%]
+2026-11-10 09:14:45 [ WARNING] Could not attribute LLM cost: pricing unavailable
+2026-11-10 09:14:45 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 53%]
+tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [ 61%]
 tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:15 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
-2026-11-10 09:06:15 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
-PASSED                                                                   [ 75%]
+2026-11-10 09:14:46 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 09:14:46 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+PASSED                                                                   [ 69%]
 tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:06:16 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [ 83%]
-tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [ 91%]
+2026-11-10 09:14:47 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [ 76%]
+tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:14:48 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+PASSED                                                                   [ 84%]
+tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [ 92%]
 tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [100%]
 
 =============================== warnings summary ===============================
@@ -57,7 +61,7 @@ tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [10
   /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
     self.import_plugin(import_spec)
 
-../../root-py311-plugins/pytest_freezegun.py:17: 24 warnings
+../../root-py311-plugins/pytest_freezegun.py:17: 26 warnings
   <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -82,4 +86,4 @@ tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [10
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 12 passed, 29 warnings in 24.58s =======================
+======================= 13 passed, 31 warnings in 24.65s =======================

@@ -252,6 +252,22 @@ def test_failed_semantic_attempt_cost_is_recorded(host, monkeypatch):
     assert _ledger(host) == pytest.approx(97.0)
 
 
+def test_missing_usage_is_unknown_not_omitted(host, monkeypatch):
+    _seed(host, spend=90.0)
+    monkeypatch.setattr(BYOKHandler, "_track_rate_usage", lambda *a, **k: None)
+    handler = object.__new__(BYOKHandler)
+    handler.workspace_id = WORKSPACE
+    handler.tenant_id = TENANT
+    _in, _out, cost = handler._record_provider_usage(
+        "controlled", "controlled-model", {},
+        agent_id=AGENT, request_id="no-usage", attempt_id="no-usage")
+    assert cost is None
+    assert _unpriced(host) == 1
+    refused = _admit(host)
+    assert refused["allowed"] is False
+    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
+
+
 def test_conditional_harness_104_twin_preserved(host):
     """Harness-authored settlement twin, explicitly not production evidence."""
     _seed(host, spend=90.0)

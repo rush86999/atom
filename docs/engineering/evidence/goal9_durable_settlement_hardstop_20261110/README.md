@@ -105,7 +105,7 @@ the DDL through the normal process.
 
 ## Failure-first verification (scratch)
 
-`backend/tests/test_goal9_durable_settlement.py` (12 tests):
+`backend/tests/test_goal9_durable_settlement.py` (13 tests):
 
 - 90 durable + 7 settlement = 97; second 7 = 104; next hard-stop admission
   refuses (`BUDGET_EXCEEDED`). Each request alone fits; joint exceeds.
@@ -117,6 +117,7 @@ the DDL through the normal process.
   remains NULL, not defaulted.
 - Unknown price (`cost=None`) is `unpriced` (ledger sum unchanged; hard-stop
   refuses `BUDGET_UNPRICED_USAGE`); known free `0.0` is allowed.
+- A response with no usage fields is recorded as explicit unknown, not dropped.
 - Hard-stop unreadable ledger refuses `BUDGET_STATUS_UNAVAILABLE`;
   `alert_only` still observes/allows.
 - Failed-semantic paid attempt still records its cost (no quality filter).
@@ -125,10 +126,10 @@ the DDL through the normal process.
 
 Gates:
 
-- focused: **12 passed**, exit 0 (`gates/focused.log`)
+- focused: **13 passed**, exit 0 (`gates/focused.log`)
 - affected budget selection (new file + real MCP budget authority + caller
   transaction + service + concurrent checks + budget control + governance
-  matrix): **200 passed**, exit 0 (`gates/affected.log`)
+  matrix): **201 passed**, exit 0 (`gates/affected.log`)
 
 ## Retained original negative / conditional twin
 

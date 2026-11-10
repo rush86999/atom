@@ -1,58 +1,62 @@
 
 tests/test_goal9_durable_settlement.py::test_90_97_104_durable_settlement_then_refuses 
 -------------------------------- live log setup --------------------------------
-2026-11-10 09:10:43 [    INFO] AgentTaskRegistry initialized
+2026-11-10 09:13:31 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:44 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:10:44 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:32 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:32 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  0%]
 tests/test_goal9_durable_settlement.py::test_duplicate_attempt_id_is_idempotent 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:45 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:10:45 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [  1%]
+2026-11-10 09:13:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:33 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  0%]
 tests/test_goal9_durable_settlement.py::test_multiple_paid_attempts_count_separately 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:45 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:10:45 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  1%]
 tests/test_goal9_durable_settlement.py::test_restart_reads_durable_ledger 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:46 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [  2%]
+2026-11-10 09:13:34 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  1%]
 tests/test_goal9_durable_settlement.py::test_scope_is_tenant_bound 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:47 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:35 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
 PASSED                                                                   [  2%]
 tests/test_goal9_durable_settlement.py::test_agent_and_non_agent_settle_without_inventing_identity 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:47 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-2026-11-10 09:10:47 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
-PASSED                                                                   [  3%]
+2026-11-10 09:13:36 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:36 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  2%]
 tests/test_goal9_durable_settlement.py::test_unknown_is_liability_not_zero_and_hard_stop_refuses 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:48 [ WARNING] Could not attribute LLM cost: pricing unavailable
-2026-11-10 09:10:48 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
+2026-11-10 09:13:37 [ WARNING] Could not attribute LLM cost: pricing unavailable
+2026-11-10 09:13:37 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
 PASSED                                                                   [  3%]
-tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [  4%]
+tests/test_goal9_durable_settlement.py::test_known_free_zero_is_allowed PASSED [  3%]
 tests/test_goal9_durable_settlement.py::test_hard_stop_unreadable_refuses_alert_only_observes 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
-2026-11-10 09:10:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 09:13:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
+2026-11-10 09:13:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-goal9: unreadable ledger
 PASSED                                                                   [  4%]
 tests/test_goal9_durable_settlement.py::test_failed_semantic_attempt_cost_is_recorded 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:50 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+2026-11-10 09:13:39 [    INFO] LLM Cost Attributed: controlled-model - $7.000000 (Saved: $0.000000)
+PASSED                                                                   [  4%]
+tests/test_goal9_durable_settlement.py::test_missing_usage_is_unknown_not_omitted 
+-------------------------------- live log call ---------------------------------
+2026-11-10 09:13:40 [ WARNING] [BudgetEnforcementService] 1 unpriced usage row(s) for tenant tenant-goal9
 PASSED                                                                   [  5%]
 tests/test_goal9_durable_settlement.py::test_conditional_harness_104_twin_preserved PASSED [  5%]
 tests/test_goal9_durable_settlement.py::test_normal_budget_valid_twin PASSED [  6%]
 tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[allowed] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:52 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+2026-11-10 09:13:42 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
 PASSED                                                                   [  6%]
 tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[capability_denied] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:10:53 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+2026-11-10 09:13:43 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
 PASSED                                                                   [  7%]
 tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[hard_stop] PASSED [  7%]
 tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[reviewable_hard_stop] PASSED [  8%]
@@ -80,13 +84,13 @@ tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_com
 tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-True] PASSED [ 19%]
 tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-False] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:11 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
-2026-11-10 09:11:11 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+2026-11-10 09:14:02 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-10 09:14:02 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
 PASSED                                                                   [ 19%]
 tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-True] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
-2026-11-10 09:11:12 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+2026-11-10 09:14:03 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
 PASSED                                                                   [ 20%]
 tests/test_budget_caller_transaction_contract.py::test_explicit_rollup_writer_still_persists_cache PASSED [ 20%]
 tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementServiceInit::test_init_with_db PASSED [ 21%]
@@ -94,100 +98,100 @@ tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementSer
 tests/core/services/test_budget_enforcement_service.py::TestBudgetEnforcementServiceInit::test_close_closes_db PASSED [ 22%]
 tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_within_limit 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 22%]
 tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_exceeds_limit 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 23%]
 tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fractional_amounts_propagate 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 23%]
 tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fleet_aggregate_limit 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
-2026-11-10 09:11:12 [ WARNING] Fleet aggregate budget exceeded for chain chain-1: $60.00 >= $50.00
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] Fleet aggregate budget exceeded for chain chain-1: $60.00 >= $50.00
 PASSED                                                                   [ 24%]
 tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_fail_open_on_spend_error 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
-2026-11-10 09:11:12 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: aggregation unavailable
+2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
+2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: aggregation unavailable
 PASSED                                                                   [ 24%]
 tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_unexpected_exception_fails_open 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
-2026-11-10 09:11:12 [   ERROR] [BudgetEnforcementService] Error checking budget: db exploded
+2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: the JSON object must be str, bytes or bytearray, not Mock
+2026-11-10 09:14:03 [   ERROR] [BudgetEnforcementService] Error checking budget: db exploded
 PASSED                                                                   [ 25%]
 tests/core/services/test_budget_enforcement_service.py::TestCheckBudget::test_check_budget_utilization_boundary 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 25%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_with_valid_override_allows 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 26%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_without_override_blocks 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 26%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_tenant_not_found PASSED [ 27%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_persists_setting 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [    INFO] [BudgetEnforcementService] Budget override set for tenant tenant-1 by user admin-1, expires at 2026-11-10T15:11:12.726351+00:00
+2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Budget override set for tenant tenant-1 by user admin-1, expires at 2026-11-10T15:14:03.860005+00:00
 PASSED                                                                   [ 27%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_set_budget_override_rollback_on_error 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [   ERROR] [BudgetEnforcementService] Error setting override: DB error
+2026-11-10 09:14:03 [   ERROR] [BudgetEnforcementService] Error setting override: DB error
 PASSED                                                                   [ 28%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpend::test_approval_mode_expired_override_blocks 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 28%]
 tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_soft_stop_notifies 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [    INFO] [BudgetEnforcementService] Soft-stop enforced for tenant tenant-1
+2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Soft-stop enforced for tenant tenant-1
 PASSED                                                                   [ 29%]
 tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_hard_stop_cancels_episodes 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [    INFO] [BudgetEnforcementService] Hard-stop enforced for tenant tenant-1: 3 episodes cancelled
+2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Hard-stop enforced for tenant tenant-1: 3 episodes cancelled
 PASSED                                                                   [ 29%]
 tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_alert_only_takes_no_action 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [    INFO] [BudgetEnforcementService] Alert-only mode for tenant tenant-1, no enforcement action taken
+2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Alert-only mode for tenant tenant-1, no enforcement action taken
 PASSED                                                                   [ 30%]
 tests/core/services/test_budget_enforcement_service.py::TestRecordSpend::test_enforce_budget_tenant_not_found PASSED [ 30%]
 tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_reads_setting PASSED [ 31%]
 tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_defaults_to_soft_stop 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant tenant-1, defaulting to soft_stop
+2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant tenant-1, defaulting to soft_stop
 PASSED                                                                   [ 31%]
 tests/core/services/test_budget_enforcement_service.py::TestGetBudgetStatus::test_get_enforcement_mode_malformed_json_defaults 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
 PASSED                                                                   [ 32%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_active_episode_allowed_to_complete 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 32%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_no_active_episode_blocked 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 33%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_has_active_episodes_db_error_fails_closed_to_no_active 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [   ERROR] [BudgetEnforcementService] Error checking active episodes: lock timeout
+2026-11-10 09:14:03 [   ERROR] [BudgetEnforcementService] Error checking active episodes: lock timeout
 PASSED                                                                   [ 33%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendLocked::test_has_active_episodes_counts_running PASSED [ 34%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_with_future_expiry_valid PASSED [ 34%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_with_past_expiry_invalid PASSED [ 35%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_override_missing_or_malformed_expiry_invalid 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [BudgetEnforcementService] Error validating override: Invalid isoformat string: 'not-a-date'
+2026-11-10 09:14:03 [ WARNING] [BudgetEnforcementService] Error validating override: Invalid isoformat string: 'not-a-date'
 PASSED                                                                   [ 35%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_clear_enforcement_state_removes_override 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [    INFO] [BudgetEnforcementService] Cleared enforcement override for tenant tenant-1 (billing cycle reset)
+2026-11-10 09:14:03 [    INFO] [BudgetEnforcementService] Cleared enforcement override for tenant tenant-1 (billing cycle reset)
 PASSED                                                                   [ 36%]
 tests/core/services/test_budget_enforcement_service.py::TestApproveSpendWithRetry::test_clear_enforcement_state_without_override_noop PASSED [ 36%]
 tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_insufficient_budget_error PASSED [ 37%]
@@ -195,71 +199,71 @@ tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_b
 tests/core/services/test_budget_enforcement_service.py::TestBudgetErrors::test_concurrent_modification_error PASSED [ 38%]
 tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_alert_only_still_allows 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 38%]
 tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_hard_stop_blocks_everything 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 39%]
 tests/core/services/test_budget_enforcement_service.py::TestBudgetStatusTransitions::test_soft_stop_blocks_new_episodes 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 39%]
 tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_zero_budget_means_unconfigured_allows 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 40%]
 tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_zero_remaining_blocks 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 40%]
 tests/core/services/test_budget_enforcement_service.py::TestEdgeCases::test_just_under_limit_allowed 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:12 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+2026-11-10 09:14:03 [ WARNING] [SpendAggregationService] unpriced usage read failed for tenant-1: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
 PASSED                                                                   [ 41%]
 tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_allowed_under_budget PASSED [ 41%]
 tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_hard_stop_blocks_all PASSED [ 42%]
 tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentBudgetChecks::test_concurrent_checks_alert_only_allows_over_budget PASSED [ 42%]
 tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentFleetAggregate::test_fleet_aggregate_cap_blocks_concurrent_checks 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
-2026-11-10 09:11:15 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794319875741896000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
+2026-11-10 09:14:06 [ WARNING] Fleet aggregate budget exceeded for chain chain_intg_1794320046696460000: $100.00 >= $100.00
 PASSED                                                                   [ 43%]
 tests/integration/budget/test_concurrent_budget_checks.py::TestConcurrentFleetAggregate::test_fleet_aggregate_under_cap_allows PASSED [ 43%]
 tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop PASSED [ 44%]
 tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [ 44%]
 tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:16 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
+2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
 PASSED                                                                   [ 45%]
 tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [ 45%]
 tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [ 46%]
 tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:16 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
+2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
 PASSED                                                                   [ 46%]
 tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [ 47%]
 tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok PASSED [ 47%]
 tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [ 48%]
 tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:16 [ WARNING] Budget pre-check failed (fail-open): DB down
+2026-11-10 09:14:07 [ WARNING] Budget pre-check failed (fail-open): DB down
 PASSED                                                                   [ 48%]
 tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [ 49%]
 tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:16 [    INFO] Agent TestAgent (agent-1) starting task: do something
-2026-11-10 09:11:16 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_start execution=31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be): (sqlite3.OperationalError) no such table: saas_audit_logs
+2026-11-10 09:14:07 [    INFO] Agent TestAgent (agent-1) starting task: do something
+2026-11-10 09:14:07 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_start execution=d260b2d1-22bd-4f59-8c71-ac824fdef91d): (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('fcbc224b-228f-482b-b287-d627d445fbaf', 'agent_action', 'low', 'none', '2026-11-10 14:11:16.493346', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be"}', 1, None)]
+[parameters: ('d362f96c-2f26-4318-bdf3-1216796896be', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.510231', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 1, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 Traceback (most recent call last):
   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
@@ -326,37 +330,37 @@ Traceback (most recent call last):
     cursor.execute(statement, parameters)
 sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('fcbc224b-228f-482b-b287-d627d445fbaf', 'agent_action', 'low', 'none', '2026-11-10 14:11:16.493346', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be"}', 1, None)]
+[parameters: ('d362f96c-2f26-4318-bdf3-1216796896be', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.510231', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_start', 'Agent TestAgent starting task', '{"task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 1, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:11:16 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+2026-11-10 09:14:07 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
 [SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
 FROM runtime_settings 
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:11:16 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+2026-11-10 09:14:07 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
 [SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
 FROM runtime_settings 
 WHERE runtime_settings."key" = ?]
 [parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:11:16 [    INFO] EscalationManager initialized
-2026-11-10 09:11:16 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 09:11:16 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+2026-11-10 09:14:07 [    INFO] EscalationManager initialized
+2026-11-10 09:14:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 09:14:07 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
 [SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
 FROM model_catalog 
 WHERE model_catalog.exclude_from_general_routing = 1]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:11:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 09:11:16 [    INFO] LanceDBHandler initialized. ID: 6375498256. LANCEDB_AVAILABLE: True
-2026-11-10 09:11:16 [    INFO] Lazy loading LanceDB connection...
-2026-11-10 09:11:16 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
-2026-11-10 09:11:16 [    INFO] LanceDB connected successfully
-2026-11-10 09:11:16 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
-2026-11-10 09:11:16 [ WARNING] Failed to generate self-critique: object Mock can't be used in 'await' expression
-2026-11-10 09:11:16 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_complete execution=31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be): (sqlite3.OperationalError) no such table: saas_audit_logs
+2026-11-10 09:14:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 09:14:07 [    INFO] LanceDBHandler initialized. ID: 6380316816. LANCEDB_AVAILABLE: True
+2026-11-10 09:14:07 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 09:14:07 [    INFO] Connecting to LanceDB at <scratch> with storage_options=None
+2026-11-10 09:14:07 [    INFO] LanceDB connected successfully
+2026-11-10 09:14:07 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
+2026-11-10 09:14:07 [ WARNING] Failed to generate self-critique: object Mock can't be used in 'await' expression
+2026-11-10 09:14:07 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=execution_complete execution=d260b2d1-22bd-4f59-8c71-ac824fdef91d): (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('82e7ed3a-c69b-4aae-8aad-61051a5e4bba', 'agent_action', 'low', 'none', '2026-11-10 14:11:16.551759', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be"}', 0, None)]
+[parameters: ('e9ac1300-7b3e-4f01-9678-ea18c24b1206', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.599051', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 0, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 Traceback (most recent call last):
   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
@@ -423,24 +427,24 @@ Traceback (most recent call last):
     cursor.execute(statement, parameters)
 sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
-[parameters: ('82e7ed3a-c69b-4aae-8aad-61051a5e4bba', 'agent_action', 'low', 'none', '2026-11-10 14:11:16.551759', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be"}', 0, None)]
+[parameters: ('e9ac1300-7b3e-4f01-9678-ea18c24b1206', 'agent_action', 'low', 'none', '2026-11-10 14:14:07.599051', None, None, None, 'ws-1', None, None, 'agent-1', 'execution_complete', 'Agent TestAgent finished with status failed', '{"status": "failed", "steps": 0, "task_input": "do something", "agent_id": "agent-1", "agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"}', 0, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:11:16 [   ERROR] AUDIT COMPLETENESS CHECK FAILED for 31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be: (sqlite3.OperationalError) no such table: saas_audit_logs
+2026-11-10 09:14:07 [   ERROR] AUDIT COMPLETENESS CHECK FAILED for d260b2d1-22bd-4f59-8c71-ac824fdef91d: (sqlite3.OperationalError) no such table: saas_audit_logs
 [SQL: SELECT count(*) AS count_1 
 FROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message 
 FROM saas_audit_logs 
 WHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]
-[parameters: ('agent_action', 'llm_call', '%"agent_execution_id": "31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be"%')]
+[parameters: ('agent_action', 'llm_call', '%"agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"%')]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-10 09:11:16 [   ERROR] AUDIT GAP for execution 31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be: {'complete': False, 'execution_id': '31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be', 'expected_events': 0, 'actual_events': 0, 'error': '(sqlite3.OperationalError) no such table: saas_audit_logs\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message \nFROM saas_audit_logs \nWHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]\n[parameters: (\'agent_action\', \'llm_call\', \'%"agent_execution_id": "31b34db7-52a9-4ac6-a78b-c8e5f5e8b9be"%\')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)'}
+2026-11-10 09:14:07 [   ERROR] AUDIT GAP for execution d260b2d1-22bd-4f59-8c71-ac824fdef91d: {'complete': False, 'execution_id': 'd260b2d1-22bd-4f59-8c71-ac824fdef91d', 'expected_events': 0, 'actual_events': 0, 'error': '(sqlite3.OperationalError) no such table: saas_audit_logs\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message \nFROM saas_audit_logs \nWHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]\n[parameters: (\'agent_action\', \'llm_call\', \'%"agent_execution_id": "d260b2d1-22bd-4f59-8c71-ac824fdef91d"%\')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)'}
 PASSED                                                                   [ 49%]
 tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:16 [ WARNING] [BudgetEnforcementService] <Mock name='mock.get_unpriced_usage()' id='6377894352'> unpriced usage row(s) for tenant tenant-unset
+2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] <Mock name='mock.get_unpriced_usage()' id='6380575312'> unpriced usage row(s) for tenant tenant-unset
 PASSED                                                                   [ 50%]
 tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget 
 -------------------------------- live log call ---------------------------------
-2026-11-10 09:11:16 [ WARNING] [BudgetEnforcementService] <Mock name='mock.get_unpriced_usage()' id='6375436944'> unpriced usage row(s) for tenant tenant-unset
+2026-11-10 09:14:07 [ WARNING] [BudgetEnforcementService] <Mock name='mock.get_unpriced_usage()' id='6383470480'> unpriced usage row(s) for tenant tenant-unset
 PASSED                                                                   [ 50%]
 tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [ 51%]
 tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [ 51%]
@@ -579,7 +583,7 @@ api/admin_routes.py:1017
   <scratch>:1017: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
     conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
 
-../../root-py311-plugins/pytest_freezegun.py:17: 400 warnings
+../../root-py311-plugins/pytest_freezegun.py:17: 402 warnings
   <scratch>:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -604,4 +608,4 @@ api/admin_routes.py:1017
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====================== 200 passed, 413 warnings in 54.40s ======================
+====================== 201 passed, 415 warnings in 57.30s ======================
