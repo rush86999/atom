@@ -1,0 +1,652 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 00:34:13 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved 
+-------------------------------- live log setup --------------------------------
+2026-11-10 00:34:14 [    INFO] EscalationManager initialized
+2026-11-10 00:34:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:14 [    INFO] EscalationManager initialized
+2026-11-10 00:34:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:14 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [  2%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [  3%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [  4%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [  5%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [  6%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [  7%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [  8%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 10%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 11%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 12%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 13%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 14%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 15%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 16%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 17%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 19%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 20%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 21%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 22%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 23%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 24%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 25%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 26%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 28%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 29%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [ 30%]
+tests/api/test_web_canvas_authority.py::test_owner_sheets_and_coding_positive_twins 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:16 [    INFO] Created spreadsheet canvas 9fadb9f1-bec3-467a-aacb-4463cc4fb224: Owner Sheet
+2026-11-10 00:34:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:16 [    INFO] HTTP Request: GET http://testserver/api/canvas/sheets/9fadb9f1-bec3-467a-aacb-4463cc4fb224 "HTTP/1.1 200 OK"
+2026-11-10 00:34:17 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/9fadb9f1-bec3-467a-aacb-4463cc4fb224/cell "HTTP/1.1 200 OK"
+2026-11-10 00:34:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/9fadb9f1-bec3-467a-aacb-4463cc4fb224/chart "HTTP/1.1 200 OK"
+2026-11-10 00:34:17 [    INFO] Created coding canvas 54511a9d-55a3-487b-bbdb-03cb48714a8c: owner/repo
+2026-11-10 00:34:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/coding/54511a9d-55a3-487b-bbdb-03cb48714a8c "HTTP/1.1 200 OK"
+2026-11-10 00:34:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/54511a9d-55a3-487b-bbdb-03cb48714a8c/file "HTTP/1.1 200 OK"
+2026-11-10 00:34:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/54511a9d-55a3-487b-bbdb-03cb48714a8c/diff "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/api/test_web_canvas_authority.py::test_same_tenant_peer_sheets_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:17 [    INFO] Created spreadsheet canvas dc3e9616-7648-44f3-b376-69591aa034a8: Owner Sheet
+2026-11-10 00:34:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:17 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas dc3e9616-7648-44f3-b376-69591aa034a8 not found
+2026-11-10 00:34:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/sheets/dc3e9616-7648-44f3-b376-69591aa034a8 "HTTP/1.1 404 Not Found"
+2026-11-10 00:34:17 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas dc3e9616-7648-44f3-b376-69591aa034a8 not found
+2026-11-10 00:34:17 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/dc3e9616-7648-44f3-b376-69591aa034a8/cell "HTTP/1.1 404 Not Found"
+2026-11-10 00:34:17 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas dc3e9616-7648-44f3-b376-69591aa034a8 not found
+2026-11-10 00:34:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/dc3e9616-7648-44f3-b376-69591aa034a8/chart "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 32%]
+tests/api/test_web_canvas_authority.py::test_same_tenant_peer_coding_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:18 [    INFO] Created coding canvas d2d38ead-62e7-4557-8bc0-9cddf6f88d25: owner/repo
+2026-11-10 00:34:18 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:18 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas d2d38ead-62e7-4557-8bc0-9cddf6f88d25 not found
+2026-11-10 00:34:18 [    INFO] HTTP Request: GET http://testserver/api/canvas/coding/d2d38ead-62e7-4557-8bc0-9cddf6f88d25 "HTTP/1.1 404 Not Found"
+2026-11-10 00:34:18 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas d2d38ead-62e7-4557-8bc0-9cddf6f88d25 not found
+2026-11-10 00:34:18 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/d2d38ead-62e7-4557-8bc0-9cddf6f88d25/file "HTTP/1.1 404 Not Found"
+2026-11-10 00:34:18 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas d2d38ead-62e7-4557-8bc0-9cddf6f88d25 not found
+2026-11-10 00:34:18 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/d2d38ead-62e7-4557-8bc0-9cddf6f88d25/diff "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/api/test_web_canvas_authority.py::test_inactive_actor_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:19 [    INFO] Created spreadsheet canvas 78fe7d8f-3407-431a-b5cf-ed2a75dd8dc7: Owner Sheet
+2026-11-10 00:34:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:19 [    INFO] Created coding canvas c73fab3d-c0af-4f7e-a3c6-76430c2ca890: owner/repo
+2026-11-10 00:34:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:19 [ WARNING] Rejected token for non-active user inactive (status=suspended)
+2026-11-10 00:34:19 [    INFO] HTTP Request: GET http://testserver/api/canvas/sheets/78fe7d8f-3407-431a-b5cf-ed2a75dd8dc7 "HTTP/1.1 401 Unauthorized"
+2026-11-10 00:34:19 [ WARNING] Rejected token for non-active user inactive (status=suspended)
+2026-11-10 00:34:19 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/78fe7d8f-3407-431a-b5cf-ed2a75dd8dc7/cell "HTTP/1.1 401 Unauthorized"
+2026-11-10 00:34:19 [ WARNING] Rejected token for non-active user inactive (status=suspended)
+2026-11-10 00:34:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/c73fab3d-c0af-4f7e-a3c6-76430c2ca890/file "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 34%]
+tests/api/test_web_canvas_authority.py::test_same_scope_coeditor_still_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:20 [    INFO] Created spreadsheet canvas f53a91cc-441a-4ae9-9885-af7d3712f937: Owner Sheet
+2026-11-10 00:34:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:20 [    INFO] HTTP Request: GET http://testserver/api/canvas/sheets/f53a91cc-441a-4ae9-9885-af7d3712f937 "HTTP/1.1 200 OK"
+2026-11-10 00:34:20 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/f53a91cc-441a-4ae9-9885-af7d3712f937/cell "HTTP/1.1 200 OK"
+2026-11-10 00:34:20 [    INFO] Created coding canvas 48d6d377-3861-450e-8240-42163fb56f20: owner/repo
+2026-11-10 00:34:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:20 [    INFO] HTTP Request: GET http://testserver/api/canvas/coding/48d6d377-3861-450e-8240-42163fb56f20 "HTTP/1.1 200 OK"
+2026-11-10 00:34:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/48d6d377-3861-450e-8240-42163fb56f20/file "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/api/test_web_canvas_authority.py::test_foreign_scope_coeditor_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:20 [    INFO] Created spreadsheet canvas 11ca4d28-1d8e-4e0e-84cc-5917e56cb829: Owner Sheet
+2026-11-10 00:34:20 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:20 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+2026-11-10 00:34:20 [    INFO] HTTP Request: GET http://testserver/api/canvas/sheets/11ca4d28-1d8e-4e0e-84cc-5917e56cb829 "HTTP/1.1 403 Forbidden"
+2026-11-10 00:34:20 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+2026-11-10 00:34:20 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/11ca4d28-1d8e-4e0e-84cc-5917e56cb829/cell "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 37%]
+tests/api/test_web_canvas_authority.py::test_create_collision_same_family_cross_family_and_same_owner 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:21 [    INFO] Created spreadsheet canvas 46f3b8e1-0012-4e42-9319-8cbcd36ea381: Owner Sheet
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:21 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 46f3b8e1-0012-4e42-9319-8cbcd36ea381 already exists
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 409 Conflict"
+2026-11-10 00:34:21 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 46f3b8e1-0012-4e42-9319-8cbcd36ea381 already exists
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 409 Conflict"
+2026-11-10 00:34:21 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id 46f3b8e1-0012-4e42-9319-8cbcd36ea381 already exists
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 409 Conflict"
+2026-11-10 00:34:21 [    INFO] Created coding canvas e61b62f5-cd32-45e2-bf11-dc7d5f3b49b3: owner/repo
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:21 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id e61b62f5-cd32-45e2-bf11-dc7d5f3b49b3 already exists
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 409 Conflict"
+2026-11-10 00:34:21 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id e61b62f5-cd32-45e2-bf11-dc7d5f3b49b3 already exists
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 409 Conflict"
+2026-11-10 00:34:21 [    INFO] Created spreadsheet canvas fresh-explicit-id: Fresh
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:21 [ WARNING] API Error: CANVAS_ID_CONFLICT - Canvas id fresh-explicit-id already exists
+2026-11-10 00:34:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/api/test_web_canvas_authority.py::test_body_user_id_is_not_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:22 [    INFO] Created spreadsheet canvas 6907b1ea-945b-4121-a100-597c97aecd67: Body Spoof
+2026-11-10 00:34:22 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:22 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/6907b1ea-945b-4121-a100-597c97aecd67/cell "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/api/test_web_canvas_authority.py::test_direct_service_calls_cannot_bypass_route_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:23 [    INFO] Created spreadsheet canvas 4b14bb83-f5cc-459d-aefb-d1639bfdb3dd: Owner Sheet
+2026-11-10 00:34:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:23 [    INFO] Created coding canvas 0f47cfe0-d654-4835-a926-56eaaac792a4: owner/repo
+2026-11-10 00:34:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/coding/create "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/api/test_web_canvas_authority.py::test_missing_and_no_tenant_actor_refused_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:23 [ WARNING] API Error: CANVAS_ACTOR_SCOPE_MISSING - Acting user has no tenant scope
+2026-11-10 00:34:23 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 41%]
+tests/api/test_web_canvas_authority.py::test_stale_actor_deactivation_before_claim_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:24 [    INFO] Created spreadsheet canvas 83af2d06-ea41-41e7-bacd-80fe74b73144: Owner Sheet
+2026-11-10 00:34:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:24 [ WARNING] API Error: CANVAS_AUTHORITY_CHANGED - Actor authority changed before canvas write
+2026-11-10 00:34:24 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/83af2d06-ea41-41e7-bacd-80fe74b73144/cell "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 42%]
+tests/api/test_web_canvas_authority.py::test_target_canvas_scope_move_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:25 [    INFO] Created spreadsheet canvas e88acbcf-f166-4940-a489-498f34aec881: Owner Sheet
+2026-11-10 00:34:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:25 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+2026-11-10 00:34:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/e88acbcf-f166-4940-a489-498f34aec881/cell "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 43%]
+tests/api/test_web_canvas_authority.py::test_legacy_audit_only_target_scope_move_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:26 [ WARNING] API Error: CANVAS_NOT_AUTHORIZED - Canvas belongs to a different tenant
+2026-11-10 00:34:26 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/legacy-audit-only/cell "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 44%]
+tests/api/test_web_canvas_authority.py::test_canvas_scope_move_between_check_and_cas_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:27 [    INFO] Created spreadsheet canvas b2f90a3e-783d-46a1-bdf5-bb5dd0d98452: Owner Sheet
+2026-11-10 00:34:27 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:27 [ WARNING] API Error: CANVAS_TARGET_CHANGED - Canvas target changed before write
+2026-11-10 00:34:27 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/b2f90a3e-783d-46a1-bdf5-bb5dd0d98452/cell "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 46%]
+tests/api/test_web_canvas_authority.py::test_audit_only_append_between_check_and_cas_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:27 [ WARNING] API Error: CANVAS_TARGET_CHANGED - Canvas target changed before write
+2026-11-10 00:34:27 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/legacy-race/cell "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 47%]
+tests/api/test_web_canvas_authority.py::test_concurrent_same_id_create_has_one_winner 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:28 [    INFO] Created spreadsheet canvas race-same-id: Race Sheet
+PASSED                                                                   [ 48%]
+tests/api/test_web_canvas_authority.py::test_fresh_session_and_child_process_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:29 [    INFO] Created spreadsheet canvas 65dd0f3b-767b-4f20-a17d-78c9fdb178e2: Owner Sheet
+2026-11-10 00:34:29 [    INFO] HTTP Request: POST http://testserver/api/canvas/sheets/create "HTTP/1.1 200 OK"
+2026-11-10 00:34:29 [    INFO] HTTP Request: PUT http://testserver/api/canvas/sheets/65dd0f3b-767b-4f20-a17d-78c9fdb178e2/cell "HTTP/1.1 200 OK"
+2026-11-10 00:34:29 [    INFO] HTTP Request: GET http://testserver/api/canvas/sheets/65dd0f3b-767b-4f20-a17d-78c9fdb178e2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/api/test_web_canvas_restore_ordering.py::test_same_second_tie_restore_appends_after_authoritative_bad_edit 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:restore-owner'. type='canvas:update'
+2026-11-10 00:34:30 [    INFO] Restored canvas cv-tie to version a-000-good (docs) — appended as a new version
+PASSED                                                                   [ 50%]
+tests/api/test_web_canvas_restore_ordering.py::test_contentless_latest_and_genuine_nochange_append_nothing PASSED [ 51%]
+tests/api/test_web_canvas_restore_ordering.py::test_event_only_row_between_versions_restore_is_append_only 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:restore-owner'. type='canvas:update'
+2026-11-10 00:34:32 [    INFO] Restored canvas cv-event-between to version a-000-good (docs) — appended as a new version
+PASSED                                                                   [ 52%]
+tests/api/test_web_canvas_restore_ordering.py::test_foreign_restore_refused_zero_effect PASSED [ 53%]
+tests/api/test_web_canvas_restore_ordering.py::test_equal_body_different_title_restores_requested_title 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:restore-owner'. type='canvas:update'
+2026-11-10 00:34:33 [    INFO] Restored canvas root-title to version a-old (docs) — appended as a new version
+PASSED                                                                   [ 55%]
+tests/api/test_web_canvas_restore_ordering.py::test_tied_contentless_event_cannot_false_nochange PASSED [ 56%]
+tests/api/test_web_canvas_restore_ordering.py::test_genuine_current_body_and_title_nochange_zero_effect PASSED [ 57%]
+tests/api/test_web_canvas_restore_ordering.py::test_explicit_empty_title_is_restored_not_dropped 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:restore-owner'. type='canvas:update'
+2026-11-10 00:34:35 [    INFO] Restored canvas root-empty-title to version a-old (docs) — appended as a new version
+PASSED                                                                   [ 58%]
+tests/api/test_web_canvas_restore_ordering.py::test_body_behind_more_than_fifty_event_stamps_is_still_visible 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:restore-owner'. type='canvas:update'
+2026-11-10 00:34:36 [    INFO] Restored canvas root-long-events to version a-good (docs) — appended as a new version
+PASSED                                                                   [ 59%]
+tests/api/test_web_canvas_restore_ordering.py::test_repeat_restore_after_success_is_nochange_without_second_row 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:restore-owner'. type='canvas:update'
+2026-11-10 00:34:36 [    INFO] Restored canvas root-repeat to version a-old (docs) — appended as a new version
+PASSED                                                                   [ 60%]
+tests/api/test_web_canvas_restore_ordering.py::test_ordinary_read_reports_actual_body_audit_id_and_timestamp PASSED [ 61%]
+tests/api/test_web_canvas_restore_ordering.py::test_falsy_body_is_preserved_and_provenanced[empty-string] PASSED [ 62%]
+tests/api/test_web_canvas_restore_ordering.py::test_falsy_body_is_preserved_and_provenanced[zero] PASSED [ 64%]
+tests/api/test_web_canvas_restore_ordering.py::test_falsy_body_is_preserved_and_provenanced[empty-list] PASSED [ 65%]
+tests/api/test_web_canvas_restore_ordering.py::test_falsy_body_is_preserved_and_provenanced[empty-dict] PASSED [ 66%]
+tests/api/test_web_canvas_restore_ordering.py::test_latest_submit_event_with_body_does_not_hide_older_content PASSED [ 67%]
+tests/api/test_document_library_pagination.py::test_pages_are_globally_ordered_disjoint_and_complete 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:41 [    INFO] EscalationManager initialized
+2026-11-10 00:34:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:41 [    INFO] LanceDBHandler initialized. ID: 5807162768. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:41 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:41 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_pages_are_globally_ordere0/store/ws-54c9dbe26e21 with storage_options=None
+2026-11-10 00:34:42 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:42 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:42 [    INFO] Creating isolated LanceDBHandler for workspace: ws-54c9dbe26e21 at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_pages_are_globally_ordere0/store/ws-54c9dbe26e21
+2026-11-10 00:34:42 [    INFO] EscalationManager initialized
+2026-11-10 00:34:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:42 [    INFO] LanceDBHandler initialized. ID: 5808567248. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:42 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_pages_are_globally_ordere0/store/ws-54c9dbe26e21 with storage_options=None
+2026-11-10 00:34:42 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:42 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+2026-11-10 00:34:42 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=100&offset=100 "HTTP/1.1 200 OK"
+2026-11-10 00:34:42 [    INFO] EscalationManager initialized
+2026-11-10 00:34:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:42 [    INFO] LanceDBHandler initialized. ID: 5807730896. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:42 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_pages_are_globally_ordere0/store/ws-54c9dbe26e21 with storage_options=None
+2026-11-10 00:34:42 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 68%]
+tests/api/test_document_library_pagination.py::test_equal_timestamp_tiebreak_and_fresh_handler_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:43 [    INFO] EscalationManager initialized
+2026-11-10 00:34:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:43 [    INFO] LanceDBHandler initialized. ID: 5811919632. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:43 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_equal_timestamp_tiebreak_0/store/ws-41c28d1e11d1 with storage_options=None
+2026-11-10 00:34:43 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:43 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:43 [    INFO] Creating isolated LanceDBHandler for workspace: ws-41c28d1e11d1 at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_equal_timestamp_tiebreak_0/store/ws-41c28d1e11d1
+2026-11-10 00:34:43 [    INFO] EscalationManager initialized
+2026-11-10 00:34:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:43 [    INFO] LanceDBHandler initialized. ID: 5807638736. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:43 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_equal_timestamp_tiebreak_0/store/ws-41c28d1e11d1 with storage_options=None
+2026-11-10 00:34:43 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:43 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=2&offset=0 "HTTP/1.1 200 OK"
+2026-11-10 00:34:43 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=2&offset=2 "HTTP/1.1 200 OK"
+2026-11-10 00:34:43 [    INFO] EscalationManager initialized
+2026-11-10 00:34:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:43 [    INFO] LanceDBHandler initialized. ID: 5806587536. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:43 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_equal_timestamp_tiebreak_0/store/ws-41c28d1e11d1 with storage_options=None
+2026-11-10 00:34:43 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 69%]
+tests/api/test_document_library_pagination.py::test_boundary_sizes[0-0-None-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:43 [    INFO] EscalationManager initialized
+2026-11-10 00:34:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:43 [    INFO] LanceDBHandler initialized. ID: 5806107344. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:43 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_0_0_None_F0/store/ws-e2b380c10a56 with storage_options=None
+2026-11-10 00:34:43 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:43 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:43 [    INFO] Creating isolated LanceDBHandler for workspace: ws-e2b380c10a56 at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_0_0_None_F0/store/ws-e2b380c10a56
+2026-11-10 00:34:43 [    INFO] EscalationManager initialized
+2026-11-10 00:34:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:43 [    INFO] LanceDBHandler initialized. ID: 5806012368. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:43 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_0_0_None_F0/store/ws-e2b380c10a56 with storage_options=None
+2026-11-10 00:34:43 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:43 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+2026-11-10 00:34:43 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=100&offset=200 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_document_library_pagination.py::test_boundary_sizes[1-1-None-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:44 [    INFO] EscalationManager initialized
+2026-11-10 00:34:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:44 [    INFO] LanceDBHandler initialized. ID: 5805353680. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:44 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:44 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_1_1_None_F0/store/ws-7657f7c17659 with storage_options=None
+2026-11-10 00:34:44 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:44 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:44 [    INFO] Creating isolated LanceDBHandler for workspace: ws-7657f7c17659 at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_1_1_None_F0/store/ws-7657f7c17659
+2026-11-10 00:34:44 [    INFO] EscalationManager initialized
+2026-11-10 00:34:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:44 [    INFO] LanceDBHandler initialized. ID: 5806238608. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:44 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:44 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_1_1_None_F0/store/ws-7657f7c17659 with storage_options=None
+2026-11-10 00:34:44 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:44 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+2026-11-10 00:34:44 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=100&offset=200 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/api/test_document_library_pagination.py::test_boundary_sizes[100-100-None-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:45 [    INFO] EscalationManager initialized
+2026-11-10 00:34:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:45 [    INFO] LanceDBHandler initialized. ID: 5804534480. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:45 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:45 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_100_100_No0/store/ws-909c4aaff381 with storage_options=None
+2026-11-10 00:34:45 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:45 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:45 [    INFO] Creating isolated LanceDBHandler for workspace: ws-909c4aaff381 at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_100_100_No0/store/ws-909c4aaff381
+2026-11-10 00:34:45 [    INFO] EscalationManager initialized
+2026-11-10 00:34:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:45 [    INFO] LanceDBHandler initialized. ID: 5804530448. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:45 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:45 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_100_100_No0/store/ws-909c4aaff381 with storage_options=None
+2026-11-10 00:34:45 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:45 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+2026-11-10 00:34:45 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=100&offset=200 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/api/test_document_library_pagination.py::test_boundary_sizes[101-100-1-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:46 [    INFO] EscalationManager initialized
+2026-11-10 00:34:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:46 [    INFO] LanceDBHandler initialized. ID: 5805299856. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:46 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:46 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_101_100_1_0/store/ws-c8c8a2c907aa with storage_options=None
+2026-11-10 00:34:46 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:46 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:46 [    INFO] Creating isolated LanceDBHandler for workspace: ws-c8c8a2c907aa at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_101_100_1_0/store/ws-c8c8a2c907aa
+2026-11-10 00:34:46 [    INFO] EscalationManager initialized
+2026-11-10 00:34:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:46 [    INFO] LanceDBHandler initialized. ID: 5804933904. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:46 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:46 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_boundary_sizes_101_100_1_0/store/ws-c8c8a2c907aa with storage_options=None
+2026-11-10 00:34:46 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:46 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+2026-11-10 00:34:46 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=100&offset=100 "HTTP/1.1 200 OK"
+2026-11-10 00:34:46 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=100&offset=200 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/api/test_document_library_pagination.py::test_limit_cap_and_validation 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:46 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=101 "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 00:34:46 [    INFO] HTTP Request: GET http://testserver/api/documents?limit=0 "HTTP/1.1 422 Unprocessable Entity"
+2026-11-10 00:34:46 [    INFO] HTTP Request: GET http://testserver/api/documents?offset=-1 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 75%]
+tests/api/test_document_library_pagination.py::test_foreign_distractors_scope_and_normal_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:47 [    INFO] EscalationManager initialized
+2026-11-10 00:34:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:47 [    INFO] LanceDBHandler initialized. ID: 5801913040. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:47 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_foreign_distractors_scope0/store/ws-96817252e4ef with storage_options=None
+2026-11-10 00:34:47 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:47 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:47 [    INFO] EscalationManager initialized
+2026-11-10 00:34:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:47 [    INFO] LanceDBHandler initialized. ID: 5804367312. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:47 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_foreign_distractors_scope0/store/ws-3e5364c53282 with storage_options=None
+2026-11-10 00:34:47 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:47 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:47 [    INFO] EscalationManager initialized
+2026-11-10 00:34:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:47 [    INFO] LanceDBHandler initialized. ID: 5802158352. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:47 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_foreign_distractors_scope0/store/default_shared with storage_options=None
+2026-11-10 00:34:47 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:47 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:47 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 401 Unauthorized"
+2026-11-10 00:34:47 [ WARNING] Rejected token for non-active user user-3-26ede290 (status=inactive)
+2026-11-10 00:34:47 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 401 Unauthorized"
+2026-11-10 00:34:47 [    INFO] Creating isolated LanceDBHandler for workspace: ws-96817252e4ef at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_foreign_distractors_scope0/store/ws-96817252e4ef
+2026-11-10 00:34:47 [    INFO] EscalationManager initialized
+2026-11-10 00:34:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:47 [    INFO] LanceDBHandler initialized. ID: 5801614288. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:47 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_foreign_distractors_scope0/store/ws-96817252e4ef with storage_options=None
+2026-11-10 00:34:47 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:47 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+2026-11-10 00:34:47 [    INFO] Creating isolated LanceDBHandler for workspace: ws-3e5364c53282 at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_foreign_distractors_scope0/store/ws-3e5364c53282
+2026-11-10 00:34:47 [    INFO] EscalationManager initialized
+2026-11-10 00:34:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:47 [    INFO] LanceDBHandler initialized. ID: 5804679120. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:47 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_foreign_distractors_scope0/store/ws-3e5364c53282 with storage_options=None
+2026-11-10 00:34:47 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:47 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/api/test_document_library_pagination.py::test_native_ordering_failure_is_unavailable_not_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:48 [    INFO] EscalationManager initialized
+2026-11-10 00:34:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:48 [    INFO] LanceDBHandler initialized. ID: 5804363152. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:48 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_native_ordering_failure_i0/store/ws-35d79a240369 with storage_options=None
+2026-11-10 00:34:48 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:48 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:48 [    INFO] EscalationManager initialized
+2026-11-10 00:34:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:48 [    INFO] LanceDBHandler initialized. ID: 5804363152. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:48 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_native_ordering_failure_i0/store/ws-35d79a240369 with storage_options=None
+2026-11-10 00:34:48 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 77%]
+tests/api/test_document_library_pagination.py::test_count_failure_is_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:48 [    INFO] EscalationManager initialized
+2026-11-10 00:34:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:48 [    INFO] LanceDBHandler initialized. ID: 5797908304. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:48 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_count_failure_is_unavaila0/store/ws-0cfe8404566f with storage_options=None
+2026-11-10 00:34:48 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:48 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:48 [    INFO] EscalationManager initialized
+2026-11-10 00:34:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:48 [    INFO] LanceDBHandler initialized. ID: 5802143632. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:48 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_count_failure_is_unavaila0/store/ws-0cfe8404566f with storage_options=None
+2026-11-10 00:34:48 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 78%]
+tests/api/test_document_library_pagination.py::test_api_reports_503_when_native_listing_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:49 [    INFO] EscalationManager initialized
+2026-11-10 00:34:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:49 [    INFO] LanceDBHandler initialized. ID: 5798067728. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:49 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:49 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_api_reports_503_when_nati0/store/ws-35efd7550feb with storage_options=None
+2026-11-10 00:34:49 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:49 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:49 [    INFO] EscalationManager initialized
+2026-11-10 00:34:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:49 [    INFO] LanceDBHandler initialized. ID: 5807400080. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:49 [    INFO] Creating isolated LanceDBHandler for workspace: ws-35efd7550feb at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_api_reports_503_when_nati0/store/ws-35efd7550feb
+2026-11-10 00:34:49 [    INFO] EscalationManager initialized
+2026-11-10 00:34:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:49 [    INFO] LanceDBHandler initialized. ID: 5802184720. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:49 [   ERROR] Document listing unavailable: forced native ordering failure
+2026-11-10 00:34:49 [ WARNING] API Error: DOCUMENT_LISTING_UNAVAILABLE - Document listing is temporarily unavailable. Retry shortly.
+2026-11-10 00:34:49 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 79%]
+tests/api/test_document_library_pagination.py::test_valid_empty_library_is_200_not_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:50 [    INFO] Creating isolated LanceDBHandler for workspace: ws-22c78c32665f at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_valid_empty_library_is_200/store/ws-22c78c32665f
+2026-11-10 00:34:50 [    INFO] EscalationManager initialized
+2026-11-10 00:34:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:50 [    INFO] LanceDBHandler initialized. ID: 5797059152. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:50 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:50 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_valid_empty_library_is_200/store/ws-22c78c32665f with storage_options=None
+2026-11-10 00:34:50 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:50 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/api/test_document_library_pagination.py::test_zero_length_page_never_self_loops 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:50 [    INFO] EscalationManager initialized
+2026-11-10 00:34:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:50 [    INFO] LanceDBHandler initialized. ID: 5808485520. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:50 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:50 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_zero_length_page_never_se0/store/ws-edf99b9de14e with storage_options=None
+2026-11-10 00:34:50 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:50 [    INFO] Table 'documents' created successfully
+2026-11-10 00:34:50 [    INFO] EscalationManager initialized
+2026-11-10 00:34:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:50 [    INFO] LanceDBHandler initialized. ID: 5800983376. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:50 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:50 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-287/test_zero_length_page_never_se0/store/ws-edf99b9de14e with storage_options=None
+2026-11-10 00:34:50 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 82%]
+tests/api/test_web_training_proposal_authority.py::test_member_same_scope_reads_but_cannot_review 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:51 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 200 OK"
+2026-11-10 00:34:51 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals/proposal-a "HTTP/1.1 200 OK"
+2026-11-10 00:34:51 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/reject "HTTP/1.1 403 Forbidden"
+2026-11-10 00:34:51 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 83%]
+tests/api/test_web_training_proposal_authority.py::test_supervisor_scope_list_detail_and_foreign_review_refusal 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:52 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 200 OK"
+2026-11-10 00:34:52 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals/proposal-b "HTTP/1.1 404 Not Found"
+2026-11-10 00:34:52 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-b/reject "HTTP/1.1 404 Not Found"
+2026-11-10 00:34:52 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-b/approve "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 84%]
+tests/api/test_web_training_proposal_authority.py::test_contradictory_proposal_agent_tenant_is_absent 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:53 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 200 OK"
+2026-11-10 00:34:53 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals/proposal-contradict "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 85%]
+tests/api/test_web_training_proposal_authority.py::test_legacy_null_agent_scope_remains_readable 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:54 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 200 OK"
+2026-11-10 00:34:54 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals/proposal-null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_web_training_proposal_authority.py::test_inactive_demoted_and_moved_actor_refuse_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:54 [ WARNING] Rejected token for non-active user inactive-a (status=suspended)
+2026-11-10 00:34:54 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 401 Unauthorized"
+2026-11-10 00:34:54 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/reject "HTTP/1.1 403 Forbidden"
+2026-11-10 00:34:54 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals/proposal-a "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 87%]
+tests/api/test_web_training_proposal_authority.py::test_approve_creates_one_session_and_duplicate_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:55 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-10 00:34:55 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 00:34:55 [    INFO] EscalationManager initialized
+2026-11-10 00:34:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:55 [    INFO] LanceDBHandler initialized. ID: 5817591568. LANCEDB_AVAILABLE: True
+2026-11-10 00:34:55 [    INFO] EscalationManager initialized
+2026-11-10 00:34:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:55 [    INFO] EscalationManager initialized
+2026-11-10 00:34:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 00:34:55 [    INFO] EscalationManager initialized
+2026-11-10 00:34:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 00:34:55 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 00:34:55 [    INFO] Connecting to LanceDB at /private/tmp/atom-ci-reviewed-web-regressions-20261110/backend/data/atom_memory/default with storage_options=None
+2026-11-10 00:34:55 [    INFO] LanceDB connected successfully
+2026-11-10 00:34:55 [    INFO] Session mini-canvas created: 22f59ea7-9ebf-49b0-86a2-508da55c4085 for training 1533967e-9d9a-4975-a2cc-212c8c647d57
+2026-11-10 00:34:55 [    INFO] spawned 2 role canvases for session 1533967e-9d9a-4975-a2cc-212c8c647d57 (template=operations)
+2026-11-10 00:34:55 [    INFO] Approved training proposal proposal-a, created session 1533967e-9d9a-4975-a2cc-212c8c647d57, duration: 4.0 hours, ends: 2026-11-10T12:34:55.703592
+2026-11-10 00:34:55 [    INFO] Training approved: proposal=proposal-a session=1533967e-9d9a-4975-a2cc-212c8c647d57 approved_by=lead-a
+2026-11-10 00:34:55 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 200 OK"
+2026-11-10 00:34:55 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 88%]
+tests/api/test_web_training_proposal_authority.py::test_approve_false_rejects_without_session_and_duplicate_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:56 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 200 OK"
+2026-11-10 00:34:56 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 89%]
+tests/api/test_web_training_proposal_authority.py::test_terminal_and_wrong_type_cannot_start_session 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:57 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-terminal/approve "HTTP/1.1 409 Conflict"
+2026-11-10 00:34:57 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-action/approve "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 91%]
+tests/api/test_web_training_proposal_authority.py::test_direct_service_consumers_enforce_scope_and_role PASSED [ 92%]
+tests/api/test_web_training_proposal_authority.py::test_competing_proposal_material_is_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:59 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 93%]
+tests/api/test_web_training_proposal_authority.py::test_moved_agent_target_is_refused_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:34:59 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 94%]
+tests/api/test_web_training_proposal_authority.py::test_fresh_child_process_readback_exact_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:35:00 [    INFO] Session mini-canvas created: fe757fb4-f915-41d1-b3e5-efac40ea3e6a for training e0a9a325-be1a-4c31-b126-1da922caa359
+2026-11-10 00:35:00 [    INFO] spawned 2 role canvases for session e0a9a325-be1a-4c31-b126-1da922caa359 (template=operations)
+2026-11-10 00:35:00 [    INFO] Approved training proposal proposal-a, created session e0a9a325-be1a-4c31-b126-1da922caa359, duration: 4.0 hours, ends: 2026-11-10T12:35:00.446826
+2026-11-10 00:35:00 [    INFO] Training approved: proposal=proposal-a session=e0a9a325-be1a-4c31-b126-1da922caa359 approved_by=lead-a
+2026-11-10 00:35:00 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/api/test_web_training_proposal_authority.py::test_null_agent_does_not_hide_foreign_proposal_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:35:01 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 200 OK"
+2026-11-10 00:35:01 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals/proposal-null-foreign "HTTP/1.1 404 Not Found"
+2026-11-10 00:35:01 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 200 OK"
+2026-11-10 00:35:01 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals/proposal-null-foreign "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/api/test_web_training_proposal_authority.py::test_expired_approval_refused_and_rejection_terminalizes 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:35:02 [    INFO] HTTP Request: GET http://testserver/api/maturity/training/proposals "HTTP/1.1 200 OK"
+2026-11-10 00:35:02 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-expired/approve "HTTP/1.1 409 Conflict"
+2026-11-10 00:35:02 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-expired/reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/api/test_web_training_proposal_authority.py::test_peer_expiry_change_before_claim_wins 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:35:03 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-a/approve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 98%]
+tests/api/test_web_training_proposal_authority.py::test_expired_approve_false_rejection_is_explicit_no_session 
+-------------------------------- live log call ---------------------------------
+2026-11-10 00:35:04 [    INFO] HTTP Request: POST http://testserver/api/maturity/training/proposals/proposal-expired/approve "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 178 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved
+  /private/tmp/atom-ci-reviewed-web-regressions-20261110/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 89 passed, 184 warnings in 66.48s (0:01:06) ==================

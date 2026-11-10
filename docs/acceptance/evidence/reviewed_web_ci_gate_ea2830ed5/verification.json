@@ -1,0 +1,56 @@
+{
+  "kind": "persistent_reviewed_web_regression_gate",
+  "status": "local_gate_passed_pending_hosted_CI",
+  "capture_head": "482423a9687fe0bf55cb6f5fddf573a17ea3f1f9",
+  "executed_source_bytes_ref": "ea2830ed5ce798b2898d4555c76aaf27aa498409",
+  "source_binding": "The two CI files were uncommitted during capture and frozen byte-identically at this ref; the capture Git HEAD is preserved separately. No result is relabelled as a new test run.",
+  "actual_exit": 0,
+  "result": "89 passed in66.48s",
+  "includes": "existing CI preservation contract plus four real API/SQLite/Lance boundary matrices; no prior gate removed",
+  "command": [
+    "/usr/local/bin/python3.11",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-ci-reviewed-web-regressions-20261110/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/python3.11",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "no:randomly",
+    "tests/test_ci_backend_lane_contract.py",
+    "tests/api/test_web_canvas_authority.py",
+    "tests/api/test_web_canvas_restore_ordering.py",
+    "tests/api/test_document_library_pagination.py",
+    "tests/api/test_web_training_proposal_authority.py",
+    "--tb=short",
+    "--timeout=300",
+    "--timeout-method=thread"
+  ],
+  "source_before": {
+    ".github/workflows/ci.yml": "7da90bdba1719353de6d6a4fd115e0ca12a23d7d85ec48390853f2cd8fa45d18",
+    "backend/tests/fixtures/ci_backend_additions.json": "41feea98c85e26064ad451b6f90bffe72b9444fa804bd40fa39ff1c12c257da7"
+  },
+  "source_after": {
+    ".github/workflows/ci.yml": "7da90bdba1719353de6d6a4fd115e0ca12a23d7d85ec48390853f2cd8fa45d18",
+    "backend/tests/fixtures/ci_backend_additions.json": "41feea98c85e26064ad451b6f90bffe72b9444fa804bd40fa39ff1c12c257da7"
+  },
+  "same_source": true,
+  "dependencies": {
+    "canvas": 813,
+    "documents": 815,
+    "training": 816
+  },
+  "limits": [
+    "Local Python3.11 controls, not hosted Linux qualification yet",
+    "Real scratch data only; HF/transformers offline; no live provider/model/credential/spend/send/deployment",
+    "Original pre-parallel ledger unchanged; one additive entry only; backend-oracle lane shape unchanged",
+    "No repeated browser or served-model campaign"
+  ],
+  "log_sha256": "1908d7e9ebd1b690be5fd138efa2ec760e0b0b2375a8a27542df76ad98278e90"
+}

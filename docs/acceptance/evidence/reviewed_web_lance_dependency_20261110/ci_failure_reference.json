@@ -1,0 +1,20 @@
+{
+  "explicit_ci_error": "core/lancedb_handler.py:1799: from lance.dataset import ColumnOrdering -> ModuleNotFoundError: No module named 'lance'",
+  "failed_tests": [
+    "test_pages_are_globally_ordered_disjoint_and_complete",
+    "test_equal_timestamp_tiebreak_and_fresh_handler_readback",
+    "test_boundary_sizes[0-0-None-False]",
+    "test_boundary_sizes[1-1-None-False]",
+    "test_boundary_sizes[100-100-None-False]",
+    "test_boundary_sizes[101-100-1-True]",
+    "test_foreign_distractors_scope_and_normal_auth",
+    "test_zero_length_page_never_self_loops"
+  ],
+  "preserved_not_relabelled": true,
+  "public_api_effect": "GET /api/documents returned typed 503 DOCUMENT_LISTING_UNAVAILABLE",
+  "result": "8 failed, 54 passed in 138.56s",
+  "root_log_path": "/private/tmp/root-pr817-backend-core-failed-20261110.log",
+  "root_log_sha256": "228e34894585bf5fdb760b47337bb34f18ef7a30d3eeb25c18c03d1e5cf32e82",
+  "source": "hosted PR817 exact 36f9a5909ade46e0505bf83a7de3380f717ddd54",
+  "workflow_step": "Run reviewed web authority and library regression controls"
+}
