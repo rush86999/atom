@@ -1,0 +1,44 @@
+{
+  "authoritative_ledger": "TokenUsage",
+  "base_commit": "df3b7747b32dcbedb36422e9869d2be03575454a",
+  "branch": "codex/goal9-atomic-cap-20261110",
+  "date": "2026-11-10",
+  "evidence_files": {
+    "README.md": "acf8d8ef353bb0716b3b5af90080708c9ffe96c770dcf71b22a878f9f1b8619a",
+    "gates/affected.log": "df1e1d58c368ec9e0635544baeeb1c6e329caaabeceb102500a045f2de1d579c",
+    "gates/ci-lane.log": "098ac17c5feabb0e528dd976f02b950612c00791d9ec22669cceb8b824ea0f2b",
+    "gates/consumer.log": "4893e5de795c972e19940c16e38888a595a3093aadd6545ee60dc64889778b95",
+    "gates/focused.log": "618ac879e3b34355a71e57338be77d8f7b6f7f618ef9769cc2f504e79efc279e",
+    "gates/ordinary-consumer.log": "c5f8011944c44123528af2e58dc4a08a1af818bc735211405b358339e927a12d",
+    "gates/root-probe-fixed.log": "4b2e7e31dffd8df6a9a2a4acc76b1d80368540c4a21af2ae435d5da0fde79886",
+    "gates/root-probe-observation.json": "dcf5d8e106007855758129e029a6a6e8d5a172b1e194c3428a2c0b15f305c372",
+    "migration.sql": "b587600db7a20d56c5f17b98103ca7e8133d803f95e3d094f6437e080fdfde81",
+    "retained_negative/atomic_cap_gap.log": "a19c37daa2ee4132933450495b4011abab22952f23831872df184c927f8b71a5",
+    "retained_negative/atomic_cap_gap.py": "e0bd0ac5583e7ae6159cf5ce002093364c3e37f87852b390e8749a22e93f915d",
+    "retained_negative/root-success-prefix.log": "e0fba12492cf6a5fdaba13846d7f303978b54abb24c4bb70a935326960e38948",
+    "retained_negative/root-success-review.json": "f28ec67d276d2f42e470cd401559a1cd0dfdefa2a42b8c116d8aa937bc869e8e",
+    "source/fix.diff": "97b71bb0d88399380485213cc418bc25cf269183ca607768a830d2377f074d68",
+    "source/source-hashes.json": "2aaa2a3da9cce9bf0659fc431a7781d949680d9820cc05b86bcb50f895c1910a"
+  },
+  "gates": {
+    "affected": "379 passed",
+    "atomic_consumer": "30 passed",
+    "ci_lane": "27 passed",
+    "focused": "142 passed",
+    "ordinary_consumer": "1 passed",
+    "postgres_runtime_qualified": false,
+    "root_probe": "2 passed",
+    "scratch": "SQLite only"
+  },
+  "historical": "143 claims / 18 goals unchanged",
+  "kind": "goal9_atomic_cap",
+  "migration": "migration.sql, reversible DDL, not applied",
+  "retained_negative": [
+    "retained_negative/atomic_cap_gap.py",
+    "retained_negative/atomic_cap_gap.log",
+    "retained_negative/root-success-review.json",
+    "retained_negative/root-success-prefix.log"
+  ],
+  "root_review_required": true,
+  "status": "tested_candidate_ready_for_root_review"
+}

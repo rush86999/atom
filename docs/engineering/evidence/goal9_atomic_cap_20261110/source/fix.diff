@@ -1,0 +1,1894 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 6a4dbff6f..48ede3e6c 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -479,6 +479,27 @@ jobs:
+ 
+           '
+ 
++      - name: Run durable LLM settlement and existing-database upgrade controls
++        env:
++          TESTING: "1"
++          PYTEST_CURRENT_TEST: "goal9_ci_settlement"
++          DATABASE_URL: "sqlite:///test_ci_goal9_settlement.db"
++          SECRET_KEY: "ci-test-secret-key"
++          ENVIRONMENT: "development"
++        run: |
++          python -m pytest tests/test_goal9_durable_settlement.py tests/test_goal9_token_usage_upgrade.py -q --tb=short --timeout=300 --timeout-method=thread
++
++      - name: Run atomic hard-stop reservation and dispatch identity controls
++        env:
++          TESTING: "1"
++          PYTEST_CURRENT_TEST: "goal9_ci_atomic_cap"
++          DATABASE_URL: "sqlite:///test_ci_goal9_atomic_cap.db"
++          ATOM_DATA_DIR: "${{ runner.temp }}/atom-goal9-atomic"
++          SECRET_KEY: "ci-test-secret-key"
++          ENVIRONMENT: "development"
++        run: |
++          python -m pytest tests/test_goal9_atomic_cap.py tests/test_goal9_ci_execution_contract.py -q --tb=short --timeout=300 --timeout-method=thread
++
+   backend-oracle:
+     runs-on: ubuntu-latest
+     defaults:
+diff --git a/backend/core/budget_enforcement_service.py b/backend/core/budget_enforcement_service.py
+index 46d01a454..c3e320f32 100644
+--- a/backend/core/budget_enforcement_service.py
++++ b/backend/core/budget_enforcement_service.py
+@@ -21,7 +21,10 @@ from sqlalchemy import func
+ 
+ from core.models import Tenant, AgentExecution, TenantSetting
+ from core.database import SessionLocal
+-from core.spend_aggregation_service import SpendAggregationService
++from core.spend_aggregation_service import (
++    SpendAggregationService,
++    read_billing_policy,
++)
+ from core.notification_service import NotificationService
+ 
+ logger = logging.getLogger(__name__)
+@@ -197,7 +200,14 @@ class BudgetEnforcementService:
+ 
+             current_spend = spend_result.get("current_spend_usd", 0.0)
+             budget_limit = spend_result.get("budget_limit_usd", 0.0)
++            reserved_spend = spend_result.get("reserved_spend_usd", 0.0)
++            committed_spend = spend_result.get(
++                "committed_spend_usd", current_spend)
+             utilization = spend_result.get("utilization_percent", 0.0)
++            if not isinstance(reserved_spend, (int, float)):
++                reserved_spend = 0.0
++            if not isinstance(committed_spend, (int, float)):
++                committed_spend = current_spend
+             # Unknown-cost liabilities travel WITH the spend read; a read
+             # failure already surfaced as spend_result["error"] above.
+             unattributed_rows = spend_result.get(
+@@ -256,7 +266,7 @@ class BudgetEnforcementService:
+             # moment any spend existed.
+             budget_configured = budget_limit > 0
+             budget_exceeded = budget_configured and (
+-                utilization >= 100.0 or current_spend >= budget_limit
++                utilization >= 100.0 or committed_spend >= budget_limit
+             )
+ 
+             if not budget_exceeded:
+@@ -525,29 +535,12 @@ class BudgetEnforcementService:
+         via the budget setting API.
+         """
+         try:
+-            existing_setting = self.db.query(TenantSetting).filter(
+-                TenantSetting.tenant_id == tenant_id,
+-                TenantSetting.setting_key == 'billing'
+-            ).first()
+-
+-            if existing_setting and existing_setting.setting_value:
+-                settings_dict = json.loads(existing_setting.setting_value)
+-                enforcement = settings_dict.get('enforcement', {})
+-                mode = enforcement.get('mode', BudgetEnforcementMode.SOFT_STOP)
+-
+-                # Validate mode
+-                if mode not in BudgetEnforcementMode.ALL:
+-                    logger.warning(
+-                        f"[BudgetEnforcementService] Invalid enforcement mode '{mode}' "
+-                        f"for tenant {tenant_id}, defaulting to soft_stop"
+-                    )
+-                    return BudgetEnforcementMode.SOFT_STOP
+-
+-                return mode
+-
+-        except (json.JSONDecodeError, TypeError) as e:
+-            logger.warning(f"[BudgetEnforcementService] Error reading enforcement mode: {e}")
+-
++            _limit, mode = read_billing_policy(
++                self.db, tenant_id, strict=False)
++            return mode
++        except Exception as e:
++            logger.warning(
++                f"[BudgetEnforcementService] Error reading enforcement mode: {e}")
+         return BudgetEnforcementMode.SOFT_STOP
+ 
+     def _get_budget_override(self, tenant_id: str) -> Optional[Dict]:
+diff --git a/backend/core/llm/byok_handler.py b/backend/core/llm/byok_handler.py
+index a8d102bc2..eabf69af6 100644
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -4156,6 +4156,62 @@ class BYOKHandler:
+         except Exception:
+             logger.debug("Rate usage tracking failed (non-fatal)", exc_info=True)
+ 
++    def _estimate_reservation_bound(
++        self,
++        provider_id: str,
++        model: str,
++        input_texts,
++        max_output_tokens: Optional[int],
++        schema_text: Optional[str] = None,
++    ) -> Optional[float]:
++        """Conservative configured USD bound for one paid attempt.
++
++        Inputs use the existing token counter (exact when tiktoken is
++        available); the fallback uses UTF-8 byte length as an upper bound,
++        plus explicit message/schema overhead. Output uses the request's
++        completion cap. The pricing contract then estimates the cost; a
++        missing price returns None so hard-stop refuses rather than silently
++        under-reserving.
++        """
++        try:
++            from core.llm.prompt_budget import count_tokens
++
++            if isinstance(input_texts, str):
++                input_texts = [input_texts]
++            input_tokens_upper = 0
++            for text in input_texts:
++                text = str(text or "")
++                counted, exact = count_tokens(text)
++                if not exact:
++                    counted = max(counted, len(text.encode("utf-8")))
++                input_tokens_upper += counted
++            input_tokens_upper += int(os.getenv(
++                "ATOM_LLM_RESERVATION_OVERHEAD_TOKENS", "256"))
++            input_tokens_upper += 8 * max(1, len(input_texts))
++            if schema_text:
++                schema_count, schema_exact = count_tokens(str(schema_text))
++                if not schema_exact:
++                    schema_count = max(
++                        schema_count, len(str(schema_text).encode("utf-8")))
++                input_tokens_upper += schema_count
++            input_tokens_upper = max(1, input_tokens_upper)
++
++            output_tokens = max(
++                1, int(max_output_tokens or _DEFAULT_COMPLETION_MAX_TOKENS))
++            fetcher = get_pricing_fetcher()
++            cost = fetcher.estimate_cost(
++                model, input_tokens_upper, output_tokens)
++            if cost is None:
++                cost = get_llm_cost(
++                    model, input_tokens_upper, output_tokens)
++            if cost is None:
++                return None
++            margin = float(
++                os.getenv("ATOM_LLM_RESERVATION_MARGIN", "1.25"))
++            return max(0.0, float(cost) * max(1.0, margin))
++        except Exception:
++            return None
++
+     def _record_provider_usage(
+         self,
+         provider_id: str,
+@@ -6316,6 +6372,7 @@ class BYOKHandler:
+         messages: Optional[List[Dict[str, Any]]] = None,  # Full conversation (chat path)
+         max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
+         estimated_tokens: Optional[int] = None,  # MEASURED input tokens, when the caller has them
++        execution_id: Optional[str] = None,  # Optional server-owned execution attribution
+     ) -> str:
+         """
+         Generate a response using cost-optimized provider routing.
+@@ -6869,6 +6926,10 @@ class BYOKHandler:
+                     _settlement_attempt += 1
+                     _attempt_id = (
+                         f"{_settlement_request_id}:{_settlement_attempt}")
++                    _reservation_bound = self._estimate_reservation_bound(
++                        provider_id, model,
++                        [str(m.get("content") or "") for m in messages],
++                        _cap)
+                     try:
+                         from core.spend_aggregation_service import (
+                             begin_llm_usage,
+@@ -6884,6 +6945,8 @@ class BYOKHandler:
+                             chain_id=chain_id,
+                             request_id=_settlement_request_id,
+                             attempt_id=_attempt_id,
++                            reserved_cost_usd=_reservation_bound,
++                            enforce_budget=True,
+                         )
+                     except Exception as intent_err:
+                         _release_once()
+@@ -6891,7 +6954,9 @@ class BYOKHandler:
+                             "Durable usage intent unavailable; refusing "
+                             "dispatch of %s/%s (%s)",
+                             provider_id, model, type(intent_err).__name__)
+-                        continue
++                        # A ledger/scope failure is not a provider failure:
++                        # do not silently fall through to another route.
++                        break
+ 
+                     try:
+                         response = await _to_thread_safe(
+@@ -7055,6 +7120,39 @@ class BYOKHandler:
+                     # Log for analytics
+                     logger.info(f"BYOK Logic: complexity={complexity.value}, provider={provider_id}, model={model}")
+ 
++                    # Durable authoritative settlement of THIS success attempt.
++                    # The pre-dispatch reservation/intent row is the exact
++                    # attempt; settle it once via the existing ledger helper.
++                    # Missing usage or pricing remains explicit uncertain
++                    # liability, never a fabricated 0 or an automatic release.
++                    # The inline tracker/cache/rate/feedback above are kept as
++                    # the cache/feedback surface and are not duplicated here.
++                    try:
++                        from core.spend_aggregation_service import (
++                            record_llm_usage,
++                        )
++
++                        record_llm_usage(
++                            provider_id=provider_id,
++                            model_name=model,
++                            prompt_tokens=_usage_value(
++                                usage, "prompt_tokens", "input_tokens"),
++                            completion_tokens=_usage_value(
++                                usage, "completion_tokens", "output_tokens"),
++                            cost_usd=observed_cost,
++                            agent_id=agent_id,
++                            workspace_id=getattr(self, "workspace_id", None),
++                            tenant_id=getattr(self, "tenant_id", None),
++                            execution_id=execution_id,
++                            chain_id=chain_id,
++                            request_id=_settlement_request_id,
++                            attempt_id=_attempt_id,
++                        )
++                    except Exception as settle_err:
++                        logger.error(
++                            "LLM durable usage settlement failed (%s)",
++                            type(settle_err).__name__)
++
+                     # Phase 226.4-04: Record successful API call for health monitoring
+                     latency_ms = (time.time() - request_start) * 1000
+                     self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+@@ -9168,6 +9266,32 @@ class BYOKHandler:
+                             _structured_attempt_id = (
+                                 f"{_structured_settlement_request_id}:"
+                                 f"{_attempt_count}")
++                            _structured_reservation_texts = (
++                                [str(m.get("content") or "") for m in messages]
++                                if messages else
++                                [system_instruction or "", prompt]
++                            )
++                            _structured_schema_text = None
++                            try:
++                                if hasattr(response_model, "model_json_schema"):
++                                    _structured_schema_text = json.dumps(
++                                        response_model.model_json_schema(),
++                                        default=str)
++                                else:
++                                    _structured_schema_text = str(response_model)
++                            except Exception:
++                                _structured_schema_text = None
++                            _structured_reservation_output = (
++                                int(max_tokens) if max_tokens else int(
++                                    os.getenv(
++                                        "ATOM_STRUCTURED_MAX_TOKENS", "6000"))
++                            )
++                            _structured_reservation_bound = (
++                                self._estimate_reservation_bound(
++                                    provider_id, model,
++                                    _structured_reservation_texts,
++                                    _structured_reservation_output,
++                                    schema_text=_structured_schema_text))
+                             try:
+                                 from core.spend_aggregation_service import (
+                                     begin_llm_usage,
+@@ -9184,6 +9308,9 @@ class BYOKHandler:
+                                     request_id=(
+                                         _structured_settlement_request_id),
+                                     attempt_id=_structured_attempt_id,
++                                    reserved_cost_usd=(
++                                        _structured_reservation_bound),
++                                    enforce_budget=True,
+                                 )
+                             except Exception as intent_err:
+                                 _release_once()
+@@ -10431,32 +10558,42 @@ class BYOKHandler:
+                 stream_prompt = str(_m.get("content", ""))
+                 break
+         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
++        # The learning-router decision id is optional (None when the router is
++        # off). Settlement still needs a unique server-owned request identity:
++        # reusing "None:stream:request" made every stream collide on the
++        # ledger's unique attempt_id.
++        _stream_identity = (
++            stream_decision_id or f"stream-{uuid.uuid4().hex}")
+         # Streaming token/cost usage is not currently exposed by every
+-        # provider stream. Record an explicit unpriced liability for the
+-        # request (never 0); a hard stop refuses until it is reconciled.
++        # provider stream. Reserve a conservative configured bound before the
++        # stream; it remains an active liability until authoritative
++        # reconciliation (never auto-released as zero).
++        _stream_reservation_bound = self._estimate_reservation_bound(
++            provider_id, model,
++            [str(m.get("content") or "") for m in messages],
++            max_tokens or _DEFAULT_COMPLETION_MAX_TOKENS)
+         try:
+-            from core.spend_aggregation_service import record_llm_usage
++            from core.spend_aggregation_service import begin_llm_usage
+ 
+-            record_llm_usage(
++            begin_llm_usage(
+                 provider_id=provider_id,
+                 model_name=model,
+-                prompt_tokens=0,
+-                completion_tokens=0,
+-                cost_usd=None,
+                 agent_id=agent_id,
+                 workspace_id=getattr(self, "workspace_id", None),
+                 tenant_id=getattr(self, "tenant_id", None),
+-                request_id=stream_decision_id,
+-                attempt_id=f"{stream_decision_id}:stream:request",
++                request_id=_stream_identity,
++                attempt_id=f"{_stream_identity}:stream:request",
++                reserved_cost_usd=_stream_reservation_bound,
++                enforce_budget=True,
+             )
+         except Exception as stream_settle_err:
+             logger.error(
+-                "Stream usage settlement failed (%s)",
++                "Stream usage reservation failed (%s)",
+                 type(stream_settle_err).__name__)
+-            # No durable unknown/paid-liability intent: do not start the
+-            # stream. Never silently stream an unaccounted paid call.
++            # No durable reservation: do not start the stream. Never silently
++            # stream an unaccounted paid call.
+             raise RuntimeError(
+-                "durable stream usage intent unavailable") from None
++                "durable stream usage reservation unavailable") from None
+ 
+         # P4 prompt-taint gate (shadow by default; blocks under enforce).
+         _taint_block = self._llm_taint_check(
+@@ -11495,6 +11632,11 @@ class BYOKHandler:
+                 _settlement_attempt += 1
+                 _attempt_id = (
+                     f"{_settlement_request_id}:{_settlement_attempt}")
++                _chat_reservation_bound = self._estimate_reservation_bound(
++                    attempt_provider_id, model,
++                    [str(m.get("content") or "") for m in messages],
++                    _attempt_kwargs.get("max_tokens")
++                    or _DEFAULT_COMPLETION_MAX_TOKENS)
+                 try:
+                     from core.spend_aggregation_service import (
+                         begin_llm_usage,
+@@ -11508,6 +11650,8 @@ class BYOKHandler:
+                         tenant_id=getattr(self, "tenant_id", None),
+                         request_id=_settlement_request_id,
+                         attempt_id=_attempt_id,
++                        reserved_cost_usd=_chat_reservation_bound,
++                        enforce_budget=True,
+                     )
+                 except Exception as intent_err:
+                     self._release_model_attempt(
+@@ -11518,7 +11662,9 @@ class BYOKHandler:
+                         "completion dispatch of %s/%s (%s)",
+                         attempt_provider_id, model,
+                         type(intent_err).__name__)
+-                    continue
++                    # Accounting/scope failure must not trigger a hidden
++                    # fallback to another provider/model.
++                    break
+                 try:
+                     response = await client.chat.completions.create(**_attempt_kwargs)
+                 finally:
+diff --git a/backend/core/models.py b/backend/core/models.py
+index 5661a0d7e..ee1fea107 100644
+--- a/backend/core/models.py
++++ b/backend/core/models.py
+@@ -1595,6 +1595,13 @@ class TokenUsage(Base):
+     # Explicit authority for the cost meaning; unknown is never treated as
+     # known-free even when the numeric column is 0.
+     pricing_status = Column(String(20), nullable=False, default="priced", index=True)
++    # Atomic admission reservation over the SAME durable ledger. A row is
++    # ``reservation_status="active"`` before provider dispatch and carries the
++    # conservative bounded cost; settlement changes it to ``settled`` (known
++    # actual) or ``uncertain`` (liability retained). No second budget store.
++    reserved_cost_usd = Column(Float, nullable=True)
++    reservation_status = Column(
++        String(20), nullable=False, default="none", index=True)
+     memory_mb = Column(Float, default=0.0)  # Track memory usage for governance metrics
+     model_name = Column(String, nullable=True)
+     timestamp = Column(DateTime, default=func.now())
+diff --git a/backend/core/spend_aggregation_service.py b/backend/core/spend_aggregation_service.py
+index b640c7078..b9fe7fcd4 100644
+--- a/backend/core/spend_aggregation_service.py
++++ b/backend/core/spend_aggregation_service.py
+@@ -11,12 +11,13 @@ New Phase 10 Features:
+ """
+ import logging
+ import json
++import math
+ import uuid
+ from typing import Dict, Any, Optional
+ from datetime import date, datetime, timedelta
+ from decimal import Decimal
+ from sqlalchemy.orm import Session
+-from sqlalchemy import func, and_, or_, update
++from sqlalchemy import func, and_, or_, update, text
+ from sqlalchemy.exc import IntegrityError
+ 
+ from core.models import Tenant, ACUConsumption, TokenUsage, TenantSetting
+@@ -40,6 +41,15 @@ class DurableUsageIntentError(RuntimeError):
+     """A paid dispatch could not persist its durable unknown/liability intent."""
+ 
+ 
++class BudgetReservationRefused(RuntimeError):
++    """Atomic hard-stop admission refused the reservation before dispatch."""
++
++    def __init__(self, reason: str, *, status_code: str = "BUDGET_EXCEEDED"):
++        self.reason = reason
++        self.status_code = status_code
++        super().__init__(reason)
++
++
+ def settlement_failure_reason() -> Optional[str]:
+     """Reason a prior settlement write failed, or None when healthy."""
+     return _SETTLEMENT_FAILURE_REASON
+@@ -52,6 +62,147 @@ def clear_settlement_failure() -> None:
+ 
+ 
+ 
++class BudgetPolicyUnavailable(RuntimeError):
++    """The configured billing policy cannot be read/validated safely."""
++
++
++_VALID_MODES = {"alert_only", "soft_stop", "hard_stop", "approval"}
++
++
++def read_billing_policy(
++    session: Session, tenant_id: str, *, strict: bool = False,
++) -> tuple[float, str]:
++    """One reader for the existing billing limit + enforcement mode.
++
++    ``strict=True`` (the reservation path) raises ``BudgetPolicyUnavailable``
++    for a malformed/contradictory configured policy instead of collapsing an
++    invalid cap to 0/unlimited. ``strict=False`` preserves the historical
++    lenient defaults for existing callers/tests. A genuinely absent policy
++    (no row / no limit) remains the intended no-limit/observe default.
++    """
++    tenant = session.query(Tenant).filter(Tenant.id == tenant_id).first()
++    if tenant is None:
++        # The single-tenant default scope has no Tenant row by design; that is
++        # an intentional no-limit/observe policy, not an unreadable configured
++        # policy. A missing NON-default tenant is an unresolved/misconfigured
++        # scope and must fail closed under strict admission.
++        if strict and tenant_id != "default":
++            raise BudgetPolicyUnavailable("tenant not found")
++        return 0.0, "soft_stop"
++
++    limit = getattr(tenant, "budget_limit_usd", None)
++    if limit is not None:
++        try:
++            limit = float(limit)
++        except (TypeError, ValueError):
++            if strict:
++                raise BudgetPolicyUnavailable("invalid tenant budget limit")
++            limit = None
++        if limit is not None and (
++                not math.isfinite(limit) or limit < 0):
++            if strict:
++                raise BudgetPolicyUnavailable("invalid tenant budget limit")
++            limit = None
++
++    mode = "soft_stop"
++    row = session.query(TenantSetting).filter(
++        TenantSetting.tenant_id == tenant_id,
++        TenantSetting.setting_key == "billing",
++    ).first()
++    if row is None:
++        return float(limit or 0.0), mode
++    if not row.setting_value:
++        if strict:
++            raise BudgetPolicyUnavailable("empty billing policy")
++        return float(limit or 0.0), mode
++    try:
++        data = json.loads(row.setting_value)
++    except (TypeError, ValueError, json.JSONDecodeError):
++        if strict:
++            raise BudgetPolicyUnavailable("unreadable billing policy")
++        return float(limit or 0.0), mode
++    if not isinstance(data, dict):
++        if strict:
++            raise BudgetPolicyUnavailable("invalid billing policy")
++        return float(limit or 0.0), mode
++
++    raw_limit = data.get("budget_limit_usd")
++    if raw_limit is not None:
++        try:
++            parsed_limit = float(raw_limit)
++        except (TypeError, ValueError):
++            if strict:
++                raise BudgetPolicyUnavailable("invalid billing cap")
++            parsed_limit = None
++        if parsed_limit is not None:
++            if not math.isfinite(parsed_limit) or parsed_limit < 0:
++                if strict:
++                    raise BudgetPolicyUnavailable("invalid billing cap")
++            else:
++                limit = parsed_limit
++
++    enforcement = data.get("enforcement")
++    if enforcement is not None and not isinstance(enforcement, dict):
++        if strict:
++            raise BudgetPolicyUnavailable("invalid enforcement policy")
++        enforcement = {}
++    raw_mode = (enforcement or {}).get("mode")
++    if raw_mode is not None:
++        if not isinstance(raw_mode, str) or raw_mode not in _VALID_MODES:
++            if strict:
++                raise BudgetPolicyUnavailable("invalid enforcement mode")
++            logger.warning(
++                "Invalid enforcement mode %r for tenant %s; using soft_stop",
++                raw_mode, tenant_id)
++        else:
++            mode = raw_mode
++    return float(limit or 0.0), mode
++
++
++def _admission_totals(
++    session: Session, tenant_id: str,
++) -> tuple[float, float]:
++    """Return (actual, active_reserved) in the configured cycle window."""
++    today = date.today()
++    cycle_start = date(today.year, today.month, 1)
++    spend = SpendAggregationService(session).get_total_spend(
++        tenant_id=tenant_id, start_date=cycle_start, end_date=today)
++    if "error" in spend:
++        raise RuntimeError("spend read failed")
++    start_dt = datetime.combine(cycle_start, datetime.min.time())
++    end_dt = datetime.combine(today, datetime.max.time())
++    reserved = session.query(func.sum(TokenUsage.reserved_cost_usd)).filter(
++        TokenUsage.tenant_id == tenant_id,
++        TokenUsage.reservation_status.in_(("active", "uncertain")),
++        TokenUsage.timestamp >= start_dt,
++        TokenUsage.timestamp <= end_dt,
++    ).scalar()
++    return float(spend["total_spend_usd"]), float(reserved or 0.0)
++
++
++def _lock_tenant_for_admission(session: Session, tenant_id: str) -> None:
++    """Serialize Postgres reservations on the existing tenant row.
++
++    SQLite has one writer at a time; the reservation INSERT/flush acquires that
++    write lock, so the following sum sees every committed reservation.
++    """
++    try:
++        dialect = session.get_bind().dialect.name
++    except Exception:
++        dialect = ""
++    if dialect == "postgresql":
++        session.query(Tenant).filter(
++            Tenant.id == tenant_id).with_for_update().first()
++    elif dialect == "sqlite":
++        # Acquire the single writer lock BEFORE the read/sum. A deferred
++        # read-then-write would keep a stale snapshot and could admit two
++        # reservations against 90. BEGIN IMMEDIATE waits for the other writer
++        # and then the following query sees its committed row.
++        conn = session.connection()
++        conn.exec_driver_sql("PRAGMA busy_timeout=30000")
++        conn.exec_driver_sql("BEGIN IMMEDIATE")
++
++
+ def begin_llm_usage(
+     *,
+     provider_id: Optional[str],
+@@ -63,22 +214,31 @@ def begin_llm_usage(
+     chain_id: Optional[str] = None,
+     request_id: Optional[str] = None,
+     attempt_id: str,
++    reserved_cost_usd: Optional[float] = None,
++    enforce_budget: bool = False,
+ ) -> str:
+-    """Persist a durable unknown/liability row BEFORE a paid provider dispatch.
+-
+-    This is the pending-intent use of the existing ``TokenUsage`` ledger, not a
+-    parallel store. The row is ``pricing_status=unknown`` / ``cost_usd=NULL`` /
+-    ``billed=False`` with the exact server-owned attempt id. If the provider is
+-    paid but settlement cannot be written, this row survives and a hard stop
+-    keeps refusing across restart until reconciliation. A later
+-    ``record_llm_usage(attempt_id=...)`` settles this exact row once; it is
+-    never deleted/released on timeout or failure.
++    """Persist the durable paid-liability/reservation row BEFORE dispatch.
++
++    This is the pending-intent/reservation use of the existing ``TokenUsage``
++    ledger, not a parallel store. For a production dispatch, the caller passes
++    ``enforce_budget=True`` and a conservative ``reserved_cost_usd`` bound.
++    Under configured hard_stop, the INSERT is the serialization point (SQLite
++    write lock) or follows a Tenant ``FOR UPDATE`` lock (Postgres), then the
++    transaction sums actual + active reservations. A loser rolls back and
++    raises ``BudgetReservationRefused`` before any provider call.
++
++    A failed settlement write leaves the active reservation/unknown row in
++    place; a restart reads it, so the liability is not forgotten. Timeout or
++    uncertain usage never auto-releases it. A later ``record_llm_usage``
++    settles this exact row once.
+     """
+     from core.database import SessionLocal
+ 
+     session = None
+     try:
+         session = SessionLocal()
++        if tenant_id:
++            _lock_tenant_for_admission(session, tenant_id)
+         existing = session.query(TokenUsage).filter(
+             TokenUsage.attempt_id == str(attempt_id)).first()
+         if existing is not None:
+@@ -112,11 +272,50 @@ def begin_llm_usage(
+             billed=False,
+             cost_usd=None,
+             pricing_status="unknown",
++            reserved_cost_usd=(
++                reserved_cost_usd if enforce_budget else 0.0),
++            reservation_status=("active" if enforce_budget else "none"),
+             model_name=model_name,
+         )
+         session.add(row)
++        # Flush first: on SQLite this takes the single writer lock, so a
++        # concurrent reservation waits and then sees this committed row.
++        session.flush()
++        if enforce_budget and tenant_id:
++            try:
++                limit, mode = read_billing_policy(
++                    session, tenant_id, strict=True)
++            except BudgetPolicyUnavailable:
++                raise BudgetReservationRefused(
++                    "billing policy unavailable",
++                    status_code="BUDGET_STATUS_UNAVAILABLE") from None
++            if mode == "hard_stop" and limit > 0:
++                if reserved_cost_usd is None:
++                    raise BudgetReservationRefused(
++                        "unknown pricing; hard_stop cannot reserve a bounded "
++                        "cost", status_code="BUDGET_UNPRICED_USAGE")
++                try:
++                    actual, active_reserved = _admission_totals(
++                        session, tenant_id)
++                except Exception:
++                    raise BudgetReservationRefused(
++                        "budget state unavailable",
++                        status_code="BUDGET_STATUS_UNAVAILABLE") from None
++                if actual + active_reserved > limit + 1e-9:
++                    raise BudgetReservationRefused(
++                        "atomic budget reservation would exceed the configured "
++                        f"limit ({actual + active_reserved:.4f} > "
++                        f"{limit:.4f})",
++                        status_code="BUDGET_EXCEEDED")
+         session.commit()
+         return str(row.id)
++    except BudgetReservationRefused:
++        if session is not None:
++            try:
++                session.rollback()
++            except Exception:
++                pass
++        raise
+     except Exception as intent_err:
+         # Do not put SQL/params in the degraded reason or log.
+         mark_settlement_failure(
+@@ -233,6 +432,8 @@ def _settle_pending_intent(
+             TokenUsage.chain_id == chain_id,
+             TokenUsage.pricing_status == "unknown",
+             TokenUsage.cost_usd.is_(None),
++            TokenUsage.reserved_cost_usd == existing.reserved_cost_usd,
++            TokenUsage.reservation_status == existing.reservation_status,
+         )
+         .values(
+             prompt_tokens=int(prompt_tokens or 0),
+@@ -240,6 +441,10 @@ def _settle_pending_intent(
+             total_tokens=int(prompt_tokens or 0) + int(completion_tokens or 0),
+             cost_usd=cost_usd,
+             pricing_status=_usage_pricing_status(cost_usd),
++            reserved_cost_usd=(
++                existing.reserved_cost_usd if cost_usd is None else 0.0),
++            reservation_status=(
++                "uncertain" if cost_usd is None else "settled"),
+             billed=True,
+         )
+         .execution_options(synchronize_session=False)
+@@ -410,28 +615,17 @@ class SpendAggregationService:
+ 
+         This is the admin-configured source (set via the budget control API at
+         api/admin/budget_routes.py). Returns 0.0 if unset (meaning no limit).
++        Delegates to the one billing-policy reader so the limit/mode parsing
++        cannot drift from the reservation path.
+         """
+         try:
+-            from core.models import TenantSetting
+-            import json
+-
+-            row = (
+-                self.db.query(TenantSetting)
+-                .filter(
+-                    TenantSetting.tenant_id == tenant_id,
+-                    TenantSetting.setting_key == "billing",
+-                )
+-                .first()
+-            )
+-            if row and row.setting_value:
+-                data = json.loads(row.setting_value)
+-                if isinstance(data, dict):
+-                    limit = data.get("budget_limit_usd")
+-                    if limit is not None:
+-                        return float(limit)
++            limit, _mode = read_billing_policy(
++                self.db, tenant_id, strict=False)
++            return float(limit)
+         except Exception as e:
+-            logger.debug(f"Could not read budget limit from settings for {tenant_id}: {e}")
+-        return 0.0
++            logger.debug(
++                f"Could not read budget limit from settings for {tenant_id}: {e}")
++            return 0.0
+ 
+     def get_total_spend(
+         self,
+@@ -519,6 +713,12 @@ class SpendAggregationService:
+                 TokenUsage.tenant_id == tenant_id,
+                 or_(TokenUsage.pricing_status == "unknown",
+                     TokenUsage.cost_usd.is_(None)),
++                # An active reservation with a known bound is a committed
++                # reservation, not an unpriced actual; it is counted in
++                # committed_spend_usd. An active reservation with no bound
++                # remains an unpriced liability and is counted here.
++                or_(TokenUsage.reservation_status != "active",
++                    TokenUsage.reserved_cost_usd.is_(None)),
+                 TokenUsage.timestamp >= start_dt,
+                 TokenUsage.timestamp <= end_dt,
+             ).scalar() or 0)
+@@ -609,7 +809,6 @@ class SpendAggregationService:
+             if not budget_limit:
+                 budget_limit = self._budget_limit_from_setting(tenant_id)
+             budget_limit = float(budget_limit or 0.0)
+-            utilization_percent = (current_spend_usd / budget_limit * 100) if budget_limit > 0 else 0.0
+             # Unknown-cost liabilities travel WITH the spend read so a hard
+             # stop cannot allow on a spend number that silently omits them.
+             # A read failure here becomes {"error": ...} above, which the
+@@ -618,14 +817,32 @@ class SpendAggregationService:
+             # previous result shape.
+             unpriced_usage_rows = 0
+             unattributed_unpriced_rows = 0
++            reserved_spend_usd = 0.0
+             if include_liabilities:
++                start_dt = datetime.combine(cycle_start, datetime.min.time())
++                end_dt = datetime.combine(today, datetime.max.time())
++                reserved_result = self.db.query(
++                    func.sum(TokenUsage.reserved_cost_usd)
++                ).filter(
++                    TokenUsage.tenant_id == tenant_id,
++                    TokenUsage.reservation_status.in_(("active", "uncertain")),
++                    TokenUsage.timestamp >= start_dt,
++                    TokenUsage.timestamp <= end_dt,
++                ).scalar()
++                reserved_spend_usd = float(reserved_result or 0.0)
+                 unpriced_usage_rows = self.get_unpriced_usage(tenant_id)
+                 unattributed_unpriced_rows = (
+                     self.get_unattributed_unpriced())
++            committed_spend_usd = current_spend_usd + reserved_spend_usd
++            utilization_percent = (
++                committed_spend_usd / budget_limit * 100
++                if budget_limit > 0 else 0.0)
+ 
+             return {
+                 "tenant_id": tenant_id,
+                 "current_spend_usd": round(current_spend_usd, 4),
++                "reserved_spend_usd": round(reserved_spend_usd, 4),
++                "committed_spend_usd": round(committed_spend_usd, 4),
+                 "total_spend_usd": round(total_spend_usd, 4),
+                 "budget_limit_usd": budget_limit,
+                 "utilization_percent": round(utilization_percent, 2),
+diff --git a/backend/core/sqlite_schema_repair.py b/backend/core/sqlite_schema_repair.py
+index a55d08ecc..270d897e1 100644
+--- a/backend/core/sqlite_schema_repair.py
++++ b/backend/core/sqlite_schema_repair.py
+@@ -139,7 +139,8 @@ def ensure_token_usage_upgrade(engine: Any) -> None:
+         needs_columns = any(
+             name not in columns
+             for name in ("provider_id", "request_id", "attempt_id",
+-                         "pricing_status")
++                         "pricing_status", "reserved_cost_usd",
++                         "reservation_status")
+         )
+         if not needs_nullable and not needs_columns:
+             _REPAIRED.add(key)
+@@ -162,6 +163,8 @@ def ensure_token_usage_upgrade(engine: Any) -> None:
+             ("billed", "BOOLEAN"),
+             ("cost_usd", "FLOAT"),
+             ("pricing_status", "VARCHAR(20) NOT NULL DEFAULT 'priced'"),
++            ("reserved_cost_usd", "FLOAT DEFAULT 0.0"),
++            ("reservation_status", "VARCHAR(20) NOT NULL DEFAULT 'none'"),
+             ("memory_mb", "FLOAT"),
+             ("model_name", "VARCHAR"),
+             ("timestamp", "DATETIME"),
+@@ -254,6 +257,7 @@ def ensure_token_usage_upgrade(engine: Any) -> None:
+                 ("ix_token_usage_provider_id", "provider_id"),
+                 ("ix_token_usage_request_id", "request_id"),
+                 ("ix_token_usage_pricing_status", "pricing_status"),
++                ("ix_token_usage_reservation_status", "reservation_status"),
+             ):
+                 conn.exec_driver_sql(
+                     f"CREATE INDEX IF NOT EXISTS {name} "
+diff --git a/backend/tests/fixtures/ci_backend_additions.json b/backend/tests/fixtures/ci_backend_additions.json
+index 20faac5e1..10525c1b4 100644
+--- a/backend/tests/fixtures/ci_backend_additions.json
++++ b/backend/tests/fixtures/ci_backend_additions.json
+@@ -122,5 +122,28 @@
+       "ENVIRONMENT": "development"
+     },
+     "run": "python -m pytest tests/api/test_maturity_guide_scope.py tests/api/test_agent_onboarding_routes.py -q --tb=short --timeout=300 --timeout-method=thread\n"
++  },
++  {
++    "name": "Run durable LLM settlement and existing-database upgrade controls",
++    "env": {
++      "TESTING": "1",
++      "PYTEST_CURRENT_TEST": "goal9_ci_settlement",
++      "DATABASE_URL": "sqlite:///test_ci_goal9_settlement.db",
++      "SECRET_KEY": "ci-test-secret-key",
++      "ENVIRONMENT": "development"
++    },
++    "run": "python -m pytest tests/test_goal9_durable_settlement.py tests/test_goal9_token_usage_upgrade.py -q --tb=short --timeout=300 --timeout-method=thread\n"
++  },
++  {
++    "name": "Run atomic hard-stop reservation and dispatch identity controls",
++    "env": {
++      "TESTING": "1",
++      "PYTEST_CURRENT_TEST": "goal9_ci_atomic_cap",
++      "DATABASE_URL": "sqlite:///test_ci_goal9_atomic_cap.db",
++      "ATOM_DATA_DIR": "${{ runner.temp }}/atom-goal9-atomic",
++      "SECRET_KEY": "ci-test-secret-key",
++      "ENVIRONMENT": "development"
++    },
++    "run": "python -m pytest tests/test_goal9_atomic_cap.py tests/test_goal9_ci_execution_contract.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+   }
+ ]
+diff --git a/backend/tests/test_goal9_atomic_cap.py b/backend/tests/test_goal9_atomic_cap.py
+new file mode 100644
+index 000000000..cf123eba4
+--- /dev/null
++++ b/backend/tests/test_goal9_atomic_cap.py
+@@ -0,0 +1,586 @@
++"""Goal 9 atomic hard-stop admission/reservation controls.
++
++Scratch SQLite + real ledger/transaction only. The reservation is a
++``TokenUsage`` row written before provider dispatch; the INSERT/flush is the
++SQLite serialization point (Postgres uses ``Tenant ... FOR UPDATE``). Actual
++settlement reconciles that exact row once. No second budget store/router.
++"""
++from __future__ import annotations
++
++import asyncio
++import json
++import threading
++from datetime import datetime
++
++import pytest
++from sqlalchemy import create_engine, inspect, text
++from sqlalchemy.orm import sessionmaker
++
++from tests.test_oracle_mini_app_host_mutations import USER, host
++from core.agent_governance_service import AgentGovernanceService
++from core.models import AgentRegistry, Tenant, TenantSetting, TokenUsage, User, Workspace
++from core.spend_aggregation_service import (
++    BudgetReservationRefused,
++    SpendAggregationService,
++    begin_llm_usage,
++    clear_settlement_failure,
++    record_llm_usage,
++)
++
++TENANT = "tenant-goal9-atomic"
++WORKSPACE = "ws-goal9-atomic"
++AGENT = "agent-goal9-atomic"
++TENANT_B = "tenant-goal9-atomic-b"
++WORKSPACE_B = "ws-goal9-atomic-b"
++AGENT_B = "agent-goal9-atomic-b"
++
++
++@pytest.fixture(autouse=True)
++def _clear_process_markers():
++    from core import sqlite_schema_repair as repair
++    clear_settlement_failure()
++    repair._clear_token_usage_upgrade_failure()
++    yield
++    clear_settlement_failure()
++    repair._clear_token_usage_upgrade_failure()
++
++
++def _seed_scope(host, tenant, workspace, agent, *, spend=0.0, limit=100.0,
++                mode="hard_stop"):
++    with host.Session() as db:
++        if db.query(Tenant).filter(Tenant.id == tenant).first() is None:
++            db.add(Tenant(id=tenant, name=tenant, subdomain=tenant))
++            db.add(Workspace(id=workspace, name=workspace, tenant_id=tenant))
++            db.add(AgentRegistry(
++                id=agent, name=agent, category="Operations",
++                module_path="core.generic_agent", class_name="GenericAgent",
++                user_id=USER, workspace_id=workspace, tenant_id=tenant,
++                status="autonomous", confidence_score=0.99))
++            db.add(TenantSetting(
++                tenant_id=tenant, setting_key="billing",
++                setting_value=json.dumps({
++                    "budget_limit_usd": limit,
++                    "enforcement": {"mode": mode},
++                })))
++        if spend:
++            db.add(TokenUsage(
++                agent_id=agent, workspace_id=workspace, tenant_id=tenant,
++                model_name="controlled-no-provider", cost_usd=spend,
++                pricing_status="priced", reservation_status="none",
++                timestamp=datetime.now()))
++        db.commit()
++
++
++def _seed(host, *, spend=90.0, limit=100.0, mode="hard_stop"):
++    _seed_scope(host, TENANT, WORKSPACE, AGENT,
++                spend=spend, limit=limit, mode=mode)
++    _seed_scope(host, TENANT_B, WORKSPACE_B, AGENT_B,
++                spend=0.0, limit=limit, mode=mode)
++
++
++def _set_billing(host, value, *, tenant=TENANT):
++    with host.Session() as db:
++        row = db.query(TenantSetting).filter(
++            TenantSetting.tenant_id == tenant).first()
++        raw = value if isinstance(value, str) else json.dumps(value)
++        if row is None:
++            db.add(TenantSetting(
++                tenant_id=tenant, setting_key="billing",
++                setting_value=raw))
++        else:
++            row.setting_value = raw
++        db.commit()
++
++
++def _reserve(attempt_id, bound, *, tenant=TENANT, workspace=WORKSPACE,
++             agent=AGENT, provider="openai", model="gpt-4o-mini"):
++    return begin_llm_usage(
++        provider_id=provider, model_name=model,
++        agent_id=agent, workspace_id=workspace, tenant_id=tenant,
++        request_id=attempt_id, attempt_id=attempt_id,
++        reserved_cost_usd=bound, enforce_budget=True)
++
++
++def _settle(attempt_id, cost, *, tenant=TENANT, workspace=WORKSPACE,
++            agent=AGENT, provider="openai", model="gpt-4o-mini",
++            prompt_tokens=100, completion_tokens=0):
++    return record_llm_usage(
++        provider_id=provider, model_name=model,
++        prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
++        cost_usd=cost, agent_id=agent, workspace_id=workspace,
++        tenant_id=tenant, request_id=attempt_id, attempt_id=attempt_id)
++
++
++def _spend(host, tenant=TENANT):
++    with host.Session() as db:
++        return SpendAggregationService(db).update_tenant_spend(
++            tenant, persist=False, include_liabilities=True)
++
++
++def _admit(host, tenant=TENANT, workspace=WORKSPACE, agent=AGENT):
++    with host.Session() as db:
++        return asyncio.run(AgentGovernanceService(
++            db, workspace_id=workspace, tenant_id=tenant,
++        ).can_perform_action_async(agent, "llm_react_step"))
++
++
++def test_concurrent_two_seven_reservations_one_refuses(host):
++    _seed(host, spend=90.0)
++    barrier = threading.Barrier(2)
++    results = []
++
++    def _run(attempt_id):
++        barrier.wait(timeout=10)
++        try:
++            _reserve(attempt_id, 7.0)
++            results.append(("ok", attempt_id))
++        except BudgetReservationRefused as exc:
++            results.append(("refused", exc.status_code))
++        except Exception as exc:  # pragma: no cover - diagnostic
++            results.append(("error", type(exc).__name__, str(exc)))
++
++    threads = [threading.Thread(target=_run, args=(f"concurrent-{i}",))
++               for i in range(2)]
++    for thread in threads:
++        thread.start()
++    for thread in threads:
++        thread.join(timeout=20)
++    assert [t.is_alive() for t in threads] == [False, False]
++
++    oks = [r for r in results if r[0] == "ok"]
++    refused = [r for r in results if r[0] == "refused"]
++    assert len(oks) == 1, results
++    assert len(refused) == 1, results
++    assert refused[0][1] == "BUDGET_EXCEEDED"
++    spend = _spend(host)
++    assert spend["current_spend_usd"] == pytest.approx(90.0)
++    assert spend["reserved_spend_usd"] == pytest.approx(7.0)
++    assert spend["committed_spend_usd"] == pytest.approx(97.0)
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == TENANT,
++            TokenUsage.reservation_status == "active").count() == 1
++
++
++def test_single_reservation_settles_actual_7_to_97(host):
++    _seed(host, spend=90.0)
++    _reserve("single-1", 7.0)
++    _settle("single-1", 7.0)
++    spend = _spend(host)
++    assert spend["current_spend_usd"] == pytest.approx(97.0)
++    assert spend["reserved_spend_usd"] == pytest.approx(0.0)
++    assert spend["committed_spend_usd"] == pytest.approx(97.0)
++    assert _admit(host)["allowed"] is True
++
++
++def test_second_reservation_after_97_refuses(host):
++    _seed(host, spend=90.0)
++    _reserve("second-1", 7.0)
++    _settle("second-1", 7.0)
++    with pytest.raises(BudgetReservationRefused) as exc:
++        _reserve("second-2", 7.0)
++    assert exc.value.status_code == "BUDGET_EXCEEDED"
++    assert _spend(host)["committed_spend_usd"] == pytest.approx(97.0)
++
++
++def test_actual_less_than_reservation_releases_difference(host):
++    _seed(host, spend=90.0)
++    _reserve("release-1", 7.0)
++    _settle("release-1", 3.0)
++    assert _spend(host)["committed_spend_usd"] == pytest.approx(93.0)
++    _reserve("release-2", 7.0)
++    assert _spend(host)["committed_spend_usd"] == pytest.approx(100.0)
++    with pytest.raises(BudgetReservationRefused):
++        _reserve("release-3", 0.01)
++
++
++def test_scope_isolation_between_tenants(host):
++    _seed(host, spend=90.0)
++    _reserve("scope-a", 7.0)
++    assert _spend(host, TENANT)["committed_spend_usd"] == pytest.approx(97.0)
++    assert _spend(host, TENANT_B)["committed_spend_usd"] == pytest.approx(0.0)
++    _reserve("scope-b", 7.0, tenant=TENANT_B,
++             workspace=WORKSPACE_B, agent=AGENT_B)
++    assert _spend(host, TENANT_B)["committed_spend_usd"] == pytest.approx(7.0)
++    assert _spend(host, TENANT)["committed_spend_usd"] == pytest.approx(97.0)
++
++
++def test_duplicate_reservation_idempotent_and_binding_conflict(host):
++    _seed(host, spend=90.0)
++    first = _reserve("dup-reserve", 7.0)
++    second = _reserve("dup-reserve", 7.0)
++    assert first == second
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "dup-reserve").count() == 1
++    with pytest.raises(Exception):
++        _reserve("dup-reserve", 7.0, tenant=TENANT_B,
++                 workspace=WORKSPACE_B, agent=AGENT_B)
++    with pytest.raises(Exception):
++        begin_llm_usage(
++            provider_id="openai", model_name="gpt-4o-mini",
++            agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
++            execution_id="different-execution", request_id="dup-reserve",
++            attempt_id="dup-reserve", reserved_cost_usd=7.0,
++            enforce_budget=True)
++
++
++def test_restart_active_reservation_blocks_new_reservation(host):
++    _seed(host, spend=90.0)
++    _reserve("restart-atomic", 7.0)
++    engine = create_engine(str(host.engine.url))
++    Session = sessionmaker(bind=engine, expire_on_commit=False)
++    with Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "restart-atomic").one()
++        assert row.reservation_status == "active"
++        assert float(row.reserved_cost_usd) == pytest.approx(7.0)
++    engine.dispose()
++    with pytest.raises(BudgetReservationRefused):
++        _reserve("restart-atomic-2", 7.0)
++
++
++def test_reservation_write_failure_refuses_provider_dispatch(host, monkeypatch):
++    _seed(host, spend=90.0)
++    from tests.test_goal9_durable_settlement import _structured_handler
++
++    handler, calls = _structured_handler(monkeypatch)
++    handler.workspace_id = WORKSPACE
++    handler.tenant_id = TENANT
++
++    def _db_down():
++        raise RuntimeError("reservation store unavailable")
++
++    monkeypatch.setattr("core.database.SessionLocal", _db_down)
++    result = asyncio.run(handler.generate_structured_response(
++        prompt="same prompt",
++        system_instruction="Return JSON",
++        response_model=dict,
++        task_type="analysis",
++        allow_moa=False,
++        route_trace_id=None,
++    ))
++    assert result is None
++    assert calls["count"] == 0
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == TENANT,
++            TokenUsage.attempt_id.isnot(None)).count() == 0
++
++
++def test_known_free_zero_reservation_allowed(host):
++    _seed(host, spend=90.0)
++    _reserve("free-atomic", 0.0)
++    _settle("free-atomic", 0.0)
++    spend = _spend(host)
++    assert spend["committed_spend_usd"] == pytest.approx(90.0)
++    assert spend["unpriced_usage_rows"] == 0
++    assert _admit(host)["allowed"] is True
++
++
++def test_unknown_pricing_hard_stop_refuses_soft_stop_allows(host):
++    _seed(host, spend=90.0)
++    with pytest.raises(BudgetReservationRefused) as exc:
++        _reserve("unknown-price", None)
++    assert exc.value.status_code == "BUDGET_UNPRICED_USAGE"
++    with host.Session() as db:
++        setting = db.query(TenantSetting).filter(
++            TenantSetting.tenant_id == TENANT).one()
++        setting.setting_value = json.dumps({
++            "budget_limit_usd": 100.0,
++            "enforcement": {"mode": "alert_only"},
++        })
++        db.commit()
++    _reserve("unknown-price-soft", None)
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "unknown-price-soft").one()
++        assert row.reservation_status == "active"
++        assert row.reserved_cost_usd is None
++
++
++def test_timeout_uncertain_reservation_is_retained(host):
++    _seed(host, spend=90.0)
++    _reserve("timeout-1", 7.0)
++    # No settlement / no release: the reservation is the retained liability.
++    assert _spend(host)["committed_spend_usd"] == pytest.approx(97.0)
++    with pytest.raises(BudgetReservationRefused):
++        _reserve("timeout-2", 7.0)
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "timeout-1").one()
++        assert row.reservation_status == "active"
++        assert float(row.reserved_cost_usd) == pytest.approx(7.0)
++        assert row.cost_usd is None
++
++
++def test_exact_attempt_settles_once_and_conflict_refused(host, monkeypatch):
++    _seed(host, spend=90.0)
++    from core import spend_aggregation_service as spend_module
++
++    monkeypatch.setattr(spend_module, "_SETTLEMENT_FAILURE_REASON", None)
++    intent_id = _reserve("exact-1", 7.0)
++    settled_id = _settle("exact-1", 7.0)
++    assert settled_id == intent_id
++    assert _settle("exact-1", 7.0) == intent_id
++    with pytest.raises(ValueError):
++        _settle("exact-1", 9.0)
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "exact-1").count() == 1
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "exact-1").one()
++        assert row.cost_usd == pytest.approx(7.0)
++        assert row.reservation_status == "settled"
++        assert row.reserved_cost_usd == pytest.approx(0.0)
++
++
++def test_concurrent_structured_only_one_provider_call(host, monkeypatch):
++    """Two real structured consumers race; only the reservation winner
++    reaches the doubled provider. The loser is refused before dispatch."""
++    _seed(host, spend=90.0)
++    from tests.test_goal9_durable_settlement import _structured_handler
++
++    monkeypatch.setenv("ATOM_LLM_RESERVATION_MARGIN", "1.0")
++    handler, calls = _structured_handler(monkeypatch)
++    # The shared durable-test helper defaults to its own scope; bind this
++    # production consumer to the atomic scratch tenant that has the cap.
++    handler.workspace_id = WORKSPACE
++    handler.tenant_id = TENANT
++    barrier = threading.Barrier(2)
++    results = []
++
++    def _run():
++        barrier.wait(timeout=10)
++        try:
++            result = asyncio.run(handler.generate_structured_response(
++                prompt="same prompt",
++                system_instruction="Return JSON",
++                response_model=dict,
++                task_type="analysis",
++                allow_moa=False,
++                route_trace_id=None,
++            ))
++            results.append(("returned", result is not None))
++        except Exception as exc:  # pragma: no cover - diagnostic
++            results.append(("raised", type(exc).__name__))
++
++    threads = [threading.Thread(target=_run) for _ in range(2)]
++    for thread in threads:
++        thread.start()
++    for thread in threads:
++        thread.join(timeout=25)
++    assert [t.is_alive() for t in threads] == [False, False]
++    assert calls["count"] == 1, results
++    assert sum(1 for r in results if r[0] == "returned" and r[1]) == 1
++    spend = _spend(host)
++    assert spend["current_spend_usd"] == pytest.approx(97.0)
++    assert spend["committed_spend_usd"] <= 100.0 + 1e-6
++
++
++def test_invalid_or_unreadable_policy_fails_closed(host):
++    _seed(host, spend=90.0)
++    cases = [
++        "{not-json",
++        {"budget_limit_usd": -1, "enforcement": {"mode": "hard_stop"}},
++        {"budget_limit_usd": float("nan"),
++         "enforcement": {"mode": "hard_stop"}},
++        {"budget_limit_usd": float("inf"),
++         "enforcement": {"mode": "hard_stop"}},
++        {"budget_limit_usd": 100, "enforcement": {"mode": "not-a-mode"}},
++        {"budget_limit_usd": "not-a-number",
++         "enforcement": {"mode": "hard_stop"}},
++    ]
++    for index, value in enumerate(cases):
++        _set_billing(host, value)
++        with pytest.raises(BudgetReservationRefused) as exc:
++            _reserve(f"bad-policy-{index}", 7.0)
++        assert exc.value.status_code == "BUDGET_STATUS_UNAVAILABLE", value
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == TENANT,
++            TokenUsage.reservation_status == "active").count() == 0
++
++
++def test_database_read_failure_fails_closed(host, monkeypatch):
++    _seed(host, spend=90.0)
++
++    def _broken_spend(*args, **kwargs):
++        return {"error": "spend read failed"}
++
++    monkeypatch.setattr(
++        SpendAggregationService, "get_total_spend", _broken_spend)
++    with pytest.raises(BudgetReservationRefused) as exc:
++        _reserve("db-read-fail", 7.0)
++    assert exc.value.status_code == "BUDGET_STATUS_UNAVAILABLE"
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == TENANT,
++            TokenUsage.reservation_status == "active").count() == 0
++
++
++def test_unresolved_scope_reservation_remains_unattributed_liability(host):
++    _seed(host, spend=90.0)
++    begin_llm_usage(
++        provider_id="openai", model_name="gpt-4o-mini",
++        agent_id=None, workspace_id=None, tenant_id=None,
++        request_id="tenantless-reserve", attempt_id="tenantless-reserve",
++        reserved_cost_usd=7.0, enforce_budget=True)
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "tenantless-reserve").one()
++        assert row.tenant_id is None
++        assert row.reservation_status == "active"
++        assert float(row.reserved_cost_usd) == pytest.approx(7.0)
++    refused = _admit(host)
++    assert refused["allowed"] is False
++    assert refused.get("status_code") == "BUDGET_UNATTRIBUTED_USAGE"
++
++
++def test_no_limit_or_observe_policy_is_not_blanket_denied(host):
++    _seed(host, spend=0.0)
++    # Remove the configured policy entirely: intended no-limit default.
++    with host.Session() as db:
++        row = db.query(TenantSetting).filter(
++            TenantSetting.tenant_id == TENANT_B).one()
++        db.delete(row)
++        db.commit()
++    _reserve("no-limit", 7.0, tenant=TENANT_B,
++             workspace=WORKSPACE_B, agent=AGENT_B)
++    # Explicit observe mode with a valid cap still reserves without a hard
++    # stop refusal.
++    _set_billing(host, {
++        "budget_limit_usd": 100,
++        "enforcement": {"mode": "alert_only"},
++    }, tenant=TENANT_B)
++    _reserve("observe", 7.0, tenant=TENANT_B,
++             workspace=WORKSPACE_B, agent=AGENT_B)
++    assert _spend(host, TENANT_B)["reserved_spend_usd"] == pytest.approx(14.0)
++
++
++def test_budget_revision_after_reservation_keeps_liability(host):
++    _seed(host, spend=90.0)
++    _reserve("revision-1", 7.0)
++    _set_billing(host, {
++        "budget_limit_usd": 50,
++        "enforcement": {"mode": "hard_stop"},
++    })
++    assert _spend(host)["committed_spend_usd"] == pytest.approx(97.0)
++    with pytest.raises(BudgetReservationRefused):
++        _reserve("revision-2", 7.0)
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "revision-1").one().reservation_status == (
++                "active")
++
++
++def test_reservation_bound_covers_unicode_schema_and_output(host, monkeypatch):
++    from core.llm import byok_handler, prompt_budget
++
++    recorded = {}
++
++    class _Pricing:
++        def estimate_cost(self, model, input_tokens, output_tokens):
++            recorded["model"] = model
++            recorded["input_tokens"] = input_tokens
++            recorded["output_tokens"] = output_tokens
++            return 1.0
++
++    monkeypatch.setattr(
++        byok_handler, "get_pricing_fetcher", lambda: _Pricing())
++    # Force the non-exact fallback: the helper must use UTF-8 bytes, not a
++    # nominal chars/4 estimate.
++    monkeypatch.setattr(
++        prompt_budget, "count_tokens",
++        lambda text: (max(1, len(str(text or "")) // 4), False))
++    handler = object.__new__(byok_handler.BYOKHandler)
++    bound = handler._estimate_reservation_bound(
++        "openai", "gpt-4o-mini",
++        ["é" * 10, "hello"], 100,
++        schema_text='{"type":"object"}')
++    assert bound == pytest.approx(1.25)
++    expected_min = (
++        len(("é" * 10).encode("utf-8"))
++        + len("hello".encode("utf-8"))
++        + len('{"type":"object"}'.encode("utf-8"))
++        + 256 + 16)
++    assert recorded["input_tokens"] >= expected_min
++    assert recorded["output_tokens"] == 100
++
++
++def test_route_binding_conflict_refused(host):
++    _seed(host, spend=90.0)
++    _reserve("route-1", 7.0, provider="openai", model="gpt-4o-mini")
++    with pytest.raises(Exception):
++        _settle("route-1", 7.0, provider="other", model="other-model")
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "route-1").one()
++        assert row.reservation_status == "active"
++        assert row.provider_id == "openai"
++        assert row.model_name == "gpt-4o-mini"
++
++
++def test_reservation_does_not_commit_caller_work(host):
++    _seed(host, spend=90.0)
++    caller = host.Session()
++    try:
++        user = caller.get(User, USER)
++        old_name = user.first_name
++        user.first_name = "caller-pending"
++        # Pending edit in the caller's identity map only: no SQLite write
++        # lock is held, so the separate reservation session can proceed.
++        _reserve("caller-tx", 7.0)
++        with host.Session() as observer:
++            assert observer.get(User, USER).first_name == old_name
++    finally:
++        caller.rollback()
++        caller.close()
++
++
++def test_default_scope_without_tenant_is_intentional_no_limit(host):
++    _seed(host, spend=0.0)
++    begin_llm_usage(
++        provider_id="openai", model_name="gpt-4o-mini",
++        agent_id=None, workspace_id="default", tenant_id="default",
++        request_id="default-scope", attempt_id="default-scope",
++        reserved_cost_usd=7.0, enforce_budget=True)
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "default-scope").one()
++        assert row.tenant_id == "default"
++        assert row.reservation_status == "active"
++        assert float(row.reserved_cost_usd) == pytest.approx(7.0)
++
++
++def test_supported_upgrade_adds_reservation_columns_preserving_old_rows(
++        tmp_path, monkeypatch):
++    from tests.test_goal9_token_usage_upgrade import (
++        _old_schema, _run_supported_startup_upgrade,
++    )
++    from core import sqlite_schema_repair as repair
++
++    engine = create_engine(f"sqlite:///{tmp_path / 'atomic-upgrade.db'}")
++    _old_schema(engine)
++    _run_supported_startup_upgrade(engine, monkeypatch)
++    cols = {c["name"]: c for c in inspect(engine).get_columns("token_usage")}
++    assert "reserved_cost_usd" in cols
++    assert "reservation_status" in cols
++    with engine.connect() as conn:
++        rows = conn.execute(text(
++            "SELECT id, reservation_status, reserved_cost_usd "
++            "FROM token_usage ORDER BY id")).fetchall()
++        assert rows == [
++            ("old-1", "none", 0.0),
++            ("old-2", "none", 0.0),
++        ]
++        fks = {r[2] for r in conn.exec_driver_sql(
++            "PRAGMA foreign_key_list('token_usage')").fetchall()}
++        assert {"agent_registry", "workspaces", "agent_executions",
++                "delegation_chains"}.issubset(fks)
++    repair._REPAIRED.clear()
++    repair.repair_known_drift()
++    with engine.connect() as conn:
++        assert conn.execute(text(
++            "SELECT COUNT(*) FROM token_usage")).scalar() == 2
++    engine.dispose()
+diff --git a/backend/tests/test_goal9_ci_execution_contract.py b/backend/tests/test_goal9_ci_execution_contract.py
+new file mode 100644
+index 000000000..96a826552
+--- /dev/null
++++ b/backend/tests/test_goal9_ci_execution_contract.py
+@@ -0,0 +1,371 @@
++"""Focused CI-repair contract for ordinary BYOK dispatch attribution.
++
++The c3 backend-core failure was a real `NameError` in the ordinary
++`generate_response` path: the durable pre-dispatch intent referenced
++`execution_id` before the consumer contract had that parameter. These twins
++drive the real doubled ordinary transport with a real scratch TokenUsage
++ledger and assert the optional execution context is either absent (None) or
++used exactly, with no hidden provider fallback when the intent cannot persist.
++"""
++from __future__ import annotations
++
++import asyncio
++import json
++from datetime import datetime
++from types import SimpleNamespace
++from unittest.mock import MagicMock
++
++import pytest
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++
++from tests.test_oracle_mini_app_host_mutations import host
++from tests._llm_route_catalog import install_route_catalog
++from core.budget_enforcement_service import BudgetEnforcementService
++from core.llm.byok_handler import AwaitableResult, BYOKHandler
++from core.models import Tenant, TenantSetting, TokenUsage, Workspace
++from core.spend_aggregation_service import (
++    BudgetReservationRefused,
++    SpendAggregationService,
++    begin_llm_usage,
++    clear_settlement_failure,
++    record_llm_usage,
++)
++
++
++def _response(content: str):
++    response = MagicMock()
++    response.choices = [MagicMock()]
++    response.choices[0].message.content = content
++    response.choices[0].finish_reason = "stop"
++    response.usage = MagicMock()
++    response.usage.prompt_tokens = 10
++    response.usage.completion_tokens = 5
++    return response
++
++
++@pytest.fixture
++def ordinary_handler(host, monkeypatch, tmp_path):
++    manager = MagicMock()
++    manager.is_configured.return_value = True
++    manager.get_api_key.return_value = "scratch-key"
++    manager.get_tenant_api_key.return_value = "scratch-key"
++    monkeypatch.setattr(
++        "core.llm.byok_handler.get_byok_manager", lambda: manager)
++    install_route_catalog(monkeypatch, tmp_path, {
++        "opencode-go": ["deepseek-v4-flash", "deepseek-v4-flash-free"],
++        "openai": ["gpt-4o"],
++    })
++    tenant_id = "tenant-goal9-ci-scope"
++    workspace_id = "ws-goal9-ci-scope"
++    with host.Session() as db:
++        db.add(Tenant(id=tenant_id, name=tenant_id, subdomain="goal9-ci-scope"))
++        db.add(Workspace(id=workspace_id, name=workspace_id,
++                         tenant_id=tenant_id))
++        db.commit()
++    handler = BYOKHandler()
++    handler.workspace_id = workspace_id
++    handler.tenant_id = tenant_id
++    handler.clients = {"opencode-go": MagicMock()}
++    handler.async_clients = {}
++    handler.get_ranked_providers = lambda *a, **k: AwaitableResult(
++        [("opencode-go", "deepseek-v4-flash")])
++    handler.clients["opencode-go"].chat.completions.create.return_value = (
++        _response("ordinary ok"))
++    return handler
++
++
++def _latest_usage(host):
++    with host.Session() as db:
++        return db.query(TokenUsage).filter(
++            TokenUsage.provider_id == "opencode-go",
++            TokenUsage.model_name == "deepseek-v4-flash",
++        ).order_by(TokenUsage.timestamp.desc()).first()
++
++
++def test_generate_response_without_execution_context_uses_none(
++        host, ordinary_handler):
++    result = asyncio.run(ordinary_handler.generate_response(
++        prompt="What is 2+2?",
++        system_instruction="You are helpful",
++        temperature=0.7,
++    ))
++    assert result == "ordinary ok"
++    assert ordinary_handler.clients[
++        "opencode-go"].chat.completions.create.call_count == 1
++    row = _latest_usage(host)
++    assert row is not None
++    assert row.execution_id is None
++    assert row.attempt_id
++    assert row.workspace_id == "ws-goal9-ci-scope"
++    assert row.tenant_id == "tenant-goal9-ci-scope"
++
++
++def test_generate_response_with_execution_context_attribution(
++        host, ordinary_handler):
++    result = asyncio.run(ordinary_handler.generate_response(
++        prompt="What is 2+2?",
++        system_instruction="You are helpful",
++        execution_id="exec-ci-123",
++    ))
++    assert result == "ordinary ok"
++    row = _latest_usage(host)
++    assert row is not None
++    assert row.execution_id == "exec-ci-123"
++    assert row.workspace_id == "ws-goal9-ci-scope"
++    assert row.tenant_id == "tenant-goal9-ci-scope"
++
++
++def test_intent_failure_does_not_fallback_to_second_provider(
++        host, ordinary_handler, monkeypatch):
++    ordinary_handler.clients["openai"] = MagicMock()
++    ordinary_handler.clients["openai"].chat.completions.create.return_value = (
++        _response("hidden fallback"))
++    ordinary_handler.get_ranked_providers = lambda *a, **k: AwaitableResult([
++        ("opencode-go", "deepseek-v4-flash"),
++        ("openai", "gpt-4o"),
++    ])
++    from core import spend_aggregation_service as spend_module
++
++    def _intent_down(*args, **kwargs):
++        raise RuntimeError("intent store unavailable")
++
++    monkeypatch.setattr(spend_module, "begin_llm_usage", _intent_down)
++    try:
++        result = asyncio.run(ordinary_handler.generate_response(
++            prompt="What is 2+2?",
++            system_instruction="You are helpful",
++        ))
++    except Exception:
++        result = None
++    assert result != "hidden fallback"
++    assert ordinary_handler.clients[
++        "opencode-go"].chat.completions.create.call_count == 0
++    assert ordinary_handler.clients[
++        "openai"].chat.completions.create.call_count == 0
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.attempt_id.isnot(None)).count() == 0
++
++
++def test_two_ordinary_successes_settle_ledger_once(
++        host, ordinary_handler, monkeypatch):
++    from core.llm import byok_handler
++
++    tenant_id = ordinary_handler.tenant_id
++    workspace_id = ordinary_handler.workspace_id
++    monkeypatch.setattr(
++        byok_handler, "get_pricing_fetcher",
++        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: 0.25))
++    client = ordinary_handler.clients["opencode-go"]
++    client.chat.completions.create.return_value = _response(
++        "independent ordinary")
++
++    for prompt in ("First independent call", "Second independent call"):
++        assert asyncio.run(ordinary_handler.generate_response(prompt)) == (
++            "independent ordinary")
++    assert client.chat.completions.create.call_count == 2
++
++    with host.Session() as db:
++        rows = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == tenant_id).all()
++        assert len(rows) == 2
++        assert len({r.attempt_id for r in rows}) == 2
++        assert len({r.request_id for r in rows}) == 2
++        assert all(r.billed is True for r in rows)
++        assert all(r.cost_usd == pytest.approx(0.25) for r in rows)
++        assert all(r.pricing_status == "priced" for r in rows)
++        assert all(
++            r.prompt_tokens == 10 and r.completion_tokens == 5 for r in rows)
++        assert all(r.execution_id is None for r in rows)
++        assert all(r.workspace_id == workspace_id for r in rows)
++        assert all(r.reservation_status == "settled" for r in rows)
++        assert all(r.reserved_cost_usd == pytest.approx(0.0) for r in rows)
++        first = rows[0]
++
++    with host.Session() as db:
++        spend = SpendAggregationService(db).update_tenant_spend(
++            tenant_id, persist=False)
++    assert spend["current_spend_usd"] == pytest.approx(0.5)
++
++    replay_id = record_llm_usage(
++        provider_id=first.provider_id,
++        model_name=first.model_name,
++        prompt_tokens=10,
++        completion_tokens=5,
++        cost_usd=0.25,
++        agent_id=first.agent_id,
++        workspace_id=first.workspace_id,
++        tenant_id=first.tenant_id,
++        execution_id=first.execution_id,
++        chain_id=first.chain_id,
++        request_id=first.request_id,
++        attempt_id=first.attempt_id,
++    )
++    assert replay_id == first.id
++    with host.Session() as db:
++        assert db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == tenant_id).count() == 2
++
++
++def test_missing_usage_is_uncertain_liability_not_released(
++        host, ordinary_handler, monkeypatch):
++    from core.llm import byok_handler
++
++    tenant_id = ordinary_handler.tenant_id
++    monkeypatch.setattr(
++        byok_handler, "get_pricing_fetcher",
++        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: 0.25))
++    ordinary_handler.clients[
++        "opencode-go"].chat.completions.create.return_value = SimpleNamespace(
++            choices=[SimpleNamespace(
++                message=SimpleNamespace(
++                    content="no usage", reasoning_content=None),
++                finish_reason="stop")])
++    assert asyncio.run(ordinary_handler.generate_response(
++        "No usage in response")) == "no usage"
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == tenant_id).one()
++        assert row.billed is True
++        assert row.cost_usd is None
++        assert row.pricing_status == "unknown"
++        assert row.prompt_tokens == 0
++        assert row.completion_tokens == 0
++        assert row.reservation_status == "uncertain"
++        assert row.reserved_cost_usd and row.reserved_cost_usd > 0
++
++
++def test_success_settlement_failure_keeps_reserved_liability_across_restart(
++        host, ordinary_handler, monkeypatch):
++    from core.llm import byok_handler
++    from core import spend_aggregation_service as spend_module
++
++    tenant_id = ordinary_handler.tenant_id
++    workspace_id = ordinary_handler.workspace_id
++    with host.Session() as db:
++        db.add(TenantSetting(
++            tenant_id=tenant_id,
++            setting_key="billing",
++            setting_value=json.dumps({
++                "budget_limit_usd": 100,
++                "enforcement": {"mode": "hard_stop"},
++            })))
++        db.add(TokenUsage(
++            agent_id=None, workspace_id=workspace_id, tenant_id=tenant_id,
++            model_name="controlled-seed", cost_usd=98.0,
++            pricing_status="priced", reservation_status="none",
++            timestamp=datetime.now()))
++        db.commit()
++    monkeypatch.setattr(
++        byok_handler, "get_pricing_fetcher",
++        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: 1.6))
++    ordinary_handler.clients["opencode-go"].chat.completions.create.return_value = (
++        _response("settlement failure still returns"))
++
++    def _settlement_down(*args, **kwargs):
++        raise RuntimeError("controlled settlement write failure")
++
++    monkeypatch.setattr(
++        spend_module, "record_llm_usage", _settlement_down)
++    assert asyncio.run(ordinary_handler.generate_response(
++        "settlement failure")) == "settlement failure still returns"
++
++    with host.Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == tenant_id,
++            TokenUsage.attempt_id.isnot(None)).one()
++        assert row.billed is False
++        assert row.cost_usd is None
++        assert row.reservation_status == "active"
++        assert row.reserved_cost_usd == pytest.approx(2.0)
++
++    clear_settlement_failure()
++    with host.Session() as db:
++        refused = BudgetEnforcementService(
++            db).check_budget_before_action_sync(
++                tenant_id, "ci-agent", "llm")
++        assert refused["allowed"] is False
++    with pytest.raises(BudgetReservationRefused):
++        begin_llm_usage(
++            provider_id="opencode-go", model_name="deepseek-v4-flash",
++            agent_id=None, workspace_id=workspace_id, tenant_id=tenant_id,
++            request_id="post-failure", attempt_id="post-failure",
++            reserved_cost_usd=0.01, enforce_budget=True)
++
++    engine = create_engine(str(host.engine.url))
++    Session = sessionmaker(bind=engine, expire_on_commit=False)
++    with Session() as db:
++        row = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == tenant_id,
++            TokenUsage.reservation_status == "active").one()
++        assert row.billed is False
++        assert row.reserved_cost_usd == pytest.approx(2.0)
++        refused = BudgetEnforcementService(
++            db).check_budget_before_action_sync(
++                tenant_id, "ci-agent", "llm")
++        assert refused["allowed"] is False
++    engine.dispose()
++
++
++def test_concurrent_ordinary_cap_90_plus_7_plus_7(
++        host, ordinary_handler, monkeypatch):
++    """Two real ordinary consumers race at 90/100 with 7-bound attempts:
++    exactly one provider call, one settled 7, committed 97, no overspend."""
++    import threading
++
++    from core.llm import byok_handler
++
++    tenant_id = ordinary_handler.tenant_id
++    workspace_id = ordinary_handler.workspace_id
++    with host.Session() as db:
++        db.add(TenantSetting(
++            tenant_id=tenant_id,
++            setting_key="billing",
++            setting_value=json.dumps({
++                "budget_limit_usd": 100,
++                "enforcement": {"mode": "hard_stop"},
++            })))
++        db.add(TokenUsage(
++            agent_id=None, workspace_id=workspace_id, tenant_id=tenant_id,
++            model_name="controlled-seed", cost_usd=90.0,
++            pricing_status="priced", reservation_status="none",
++            timestamp=datetime.now()))
++        db.commit()
++    monkeypatch.setenv("ATOM_LLM_RESERVATION_MARGIN", "1.0")
++    monkeypatch.setattr(
++        byok_handler, "get_pricing_fetcher",
++        lambda: SimpleNamespace(estimate_cost=lambda *a, **k: 7.0))
++    client = ordinary_handler.clients["opencode-go"]
++    client.chat.completions.create.return_value = _response("winner")
++    barrier = threading.Barrier(2)
++    results = []
++
++    def _run():
++        barrier.wait(timeout=10)
++        try:
++            results.append(("returned", asyncio.run(
++                ordinary_handler.generate_response("concurrent ordinary"))))
++        except Exception as exc:  # pragma: no cover - diagnostic
++            results.append(("raised", type(exc).__name__))
++
++    threads = [threading.Thread(target=_run) for _ in range(2)]
++    for thread in threads:
++        thread.start()
++    for thread in threads:
++        thread.join(timeout=25)
++    assert [t.is_alive() for t in threads] == [False, False]
++    assert client.chat.completions.create.call_count == 1, results
++    assert sum(1 for r in results if r[0] == "returned" and r[1] == "winner") == 1
++    with host.Session() as db:
++        rows = db.query(TokenUsage).filter(
++            TokenUsage.tenant_id == tenant_id,
++            TokenUsage.attempt_id.isnot(None)).all()
++        assert len(rows) == 1
++        assert rows[0].billed is True
++        assert rows[0].cost_usd == pytest.approx(7.0)
++        spend = SpendAggregationService(db).update_tenant_spend(
++            tenant_id, persist=False)
++    assert spend["current_spend_usd"] == pytest.approx(97.0)
++    assert spend["reserved_spend_usd"] == pytest.approx(0.0)
++    assert spend["committed_spend_usd"] == pytest.approx(97.0)
+diff --git a/backend/tests/test_goal9_durable_settlement.py b/backend/tests/test_goal9_durable_settlement.py
+index 767ae290a..2c717b17b 100644
+--- a/backend/tests/test_goal9_durable_settlement.py
++++ b/backend/tests/test_goal9_durable_settlement.py
+@@ -36,6 +36,7 @@ from core.models import (
+     Workspace,
+ )
+ from core.spend_aggregation_service import (
++    BudgetReservationRefused,
+     SpendAggregationService,
+     begin_llm_usage,
+     record_llm_usage,
+@@ -665,16 +666,31 @@ def test_durable_intent_survives_restart_when_settlement_write_fails(
+         assert pending.billed is False
+         assert pending.pricing_status == "unknown"
+         assert pending.cost_usd is None
++        assert pending.reservation_status == "active"
++        assert pending.reserved_cost_usd and pending.reserved_cost_usd > 0
+         assert pending.attempt_id
+         attempt_id = pending.attempt_id
++        reserved_bound = float(pending.reserved_cost_usd)
+ 
+-    refused = _admit(host)
+-    assert refused["allowed"] is False
+-    assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
++    with host.Session() as db:
++        committed = SpendAggregationService(db).update_tenant_spend(
++            TENANT, persist=False, include_liabilities=True)
++    assert committed["committed_spend_usd"] == pytest.approx(
++        90.0 + reserved_bound, abs=1e-6)
++
++    # The active reservation is a real liability: a new 7-ish dispatch must
++    # refuse before provider dispatch even though the simple spend read is
++    # still below the cap.
++    with pytest.raises(BudgetReservationRefused):
++        begin_llm_usage(
++            provider_id="openai", model_name="gpt-4o-mini",
++            agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
++            request_id="restart-new", attempt_id="restart-new",
++            reserved_cost_usd=reserved_bound, enforce_budget=True)
+ 
+     # Simulate a process restart: clear process-local markers and read the
+-    # SAME scratch DB through a fresh engine/session. The durable pending
+-    # intent must still prevent the paid charge from being forgotten.
++    # SAME scratch DB through a fresh engine/session. The durable active
++    # reservation must still be present and still refuse a new reservation.
+     spend_module.clear_settlement_failure()
+     repair._clear_token_usage_upgrade_failure()
+     engine = create_engine(str(host.engine.url))
+@@ -685,11 +701,17 @@ def test_durable_intent_survives_restart_when_settlement_write_fails(
+         assert pending.billed is False
+         assert pending.pricing_status == "unknown"
+         assert pending.cost_usd is None
+-        refused = asyncio.run(AgentGovernanceService(
+-            db, workspace_id=WORKSPACE, tenant_id=TENANT,
+-        ).can_perform_action_async(AGENT, "llm_react_step"))
+-        assert refused["allowed"] is False
+-        assert refused.get("status_code") == "BUDGET_UNPRICED_USAGE"
++        assert pending.reservation_status == "active"
++        assert float(pending.reserved_cost_usd) == pytest.approx(
++            reserved_bound)
++        assert db.query(TokenUsage).filter(
++            TokenUsage.attempt_id == "restart-new").count() == 0
++    with pytest.raises(BudgetReservationRefused):
++        begin_llm_usage(
++            provider_id="openai", model_name="gpt-4o-mini",
++            agent_id=AGENT, workspace_id=WORKSPACE, tenant_id=TENANT,
++            request_id="restart-new-2", attempt_id="restart-new-2",
++            reserved_cost_usd=reserved_bound, enforce_budget=True)
+     engine.dispose()
+ 
+ 

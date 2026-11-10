@@ -528,13 +528,29 @@ def test_reservation_does_not_commit_caller_work(host):
         user = caller.get(User, USER)
         old_name = user.first_name
         user.first_name = "caller-pending"
-        caller.flush()
+        # Pending edit in the caller's identity map only: no SQLite write
+        # lock is held, so the separate reservation session can proceed.
         _reserve("caller-tx", 7.0)
         with host.Session() as observer:
             assert observer.get(User, USER).first_name == old_name
     finally:
         caller.rollback()
         caller.close()
+
+
+def test_default_scope_without_tenant_is_intentional_no_limit(host):
+    _seed(host, spend=0.0)
+    begin_llm_usage(
+        provider_id="openai", model_name="gpt-4o-mini",
+        agent_id=None, workspace_id="default", tenant_id="default",
+        request_id="default-scope", attempt_id="default-scope",
+        reserved_cost_usd=7.0, enforce_budget=True)
+    with host.Session() as db:
+        row = db.query(TokenUsage).filter(
+            TokenUsage.attempt_id == "default-scope").one()
+        assert row.tenant_id == "default"
+        assert row.reservation_status == "active"
+        assert float(row.reserved_cost_usd) == pytest.approx(7.0)
 
 
 def test_supported_upgrade_adds_reservation_columns_preserving_old_rows(

@@ -1,0 +1,72 @@
+{
+  "base_commit": "df3b7747b32dcbedb36422e9869d2be03575454a",
+  "branch": "codex/goal9-atomic-cap-20261110",
+  "date": "2026-11-10",
+  "files": {
+    ".github/workflows/ci.yml": {
+      "after_sha256": "7e53abbfcb62ad3121bcd91c6093a91197b8f4891a039f6db7a07433c3f572b5",
+      "before_sha256": "dd984ac3c56e5ed437f9a4331a90d00c229344b83872f44fc15a69f562b18cc0",
+      "changed": true
+    },
+    "backend/core/budget_enforcement_service.py": {
+      "after_sha256": "f5c408338f40e8a727813377023a8c1169898fe4071c7e1a05cbc36fb1ec25ef",
+      "before_sha256": "6a28d39ef3020a6a320212c1cc8bead5d79ea312a82c95d6bcc00245b9f4bbb6",
+      "changed": true
+    },
+    "backend/core/llm/byok_handler.py": {
+      "after_sha256": "e396c0561e9bdcfa690638bd9f8246cc0dd13a0fb7f197977e43f465a1560321",
+      "before_sha256": "768fe04febc170bea282db06d026fce1617531ea5ec997104252031a298c07e4",
+      "changed": true
+    },
+    "backend/core/models.py": {
+      "after_sha256": "b0f61491ae307ddd1e5697a6d45042eb172cda1d3fb6e2c1b143f97555228c79",
+      "before_sha256": "1286442ff5236bf3ac23eff6ea541934e414f4855a533bc5ce67e9a4450d8c00",
+      "changed": true
+    },
+    "backend/core/spend_aggregation_service.py": {
+      "after_sha256": "bad80e079fbe0857497e154b6381deacd92ec12284cae841298f7e321272a28c",
+      "before_sha256": "c97a22a32221d71e5d7926b4a18252e07096d3c5129ddbef932e1f0a3b1c99d0",
+      "changed": true
+    },
+    "backend/core/sqlite_schema_repair.py": {
+      "after_sha256": "16d36b988570a534544ba03b3a398186ce8e2be727d19a9ccb1dfcba52875237",
+      "before_sha256": "e157d0cde091506d811dc244b9cc3448bfcc9582e91c154e4bbb37f51c0db106",
+      "changed": true
+    },
+    "backend/tests/fixtures/ci_backend_additions.json": {
+      "after_sha256": "1a42c5f3bd54103fc26184a8b2dbf8cd575ea01596929588e6af053f3cff7949",
+      "before_sha256": "8d0e1583c4cd1c8c1ec30eaa2ea741000d7d0e74cb03f0dfa63609281ec3100e",
+      "changed": true
+    },
+    "backend/tests/test_goal9_atomic_cap.py": {
+      "after_sha256": "dd76160dea698800854a7721bd89643edb9613434a7d6806d3440dbdf2a12ce8",
+      "before_sha256": null,
+      "changed": true
+    },
+    "backend/tests/test_goal9_ci_execution_contract.py": {
+      "after_sha256": "8a073c45a47c11095e72894a6ca21513050b5803e53c8aa9c008cc2e12c9ec0d",
+      "before_sha256": null,
+      "changed": true
+    },
+    "backend/tests/test_goal9_durable_settlement.py": {
+      "after_sha256": "a65fda39ba3371d3b85a589060320b3b4cc63b349d6ff690e7dd1afbb95ef75d",
+      "before_sha256": "1048e9e06d3a8452c3653a8f6a8a63a5ca5da77f69c10b2fccf428915a20164e",
+      "changed": true
+    }
+  },
+  "migration_ddl": "migration.sql",
+  "note": "TokenUsage reservation/CAS; conservative bound; strict policy; ordinary success settlement; additive CI ledger",
+  "product_files_changed": [
+    ".github/workflows/ci.yml",
+    "backend/core/budget_enforcement_service.py",
+    "backend/core/llm/byok_handler.py",
+    "backend/core/models.py",
+    "backend/core/spend_aggregation_service.py",
+    "backend/core/sqlite_schema_repair.py",
+    "backend/tests/fixtures/ci_backend_additions.json",
+    "backend/tests/test_goal9_atomic_cap.py",
+    "backend/tests/test_goal9_ci_execution_contract.py",
+    "backend/tests/test_goal9_durable_settlement.py"
+  ],
+  "schema": "goal9_atomic_cap_source"
+}

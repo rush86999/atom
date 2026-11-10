@@ -7120,6 +7120,39 @@ class BYOKHandler:
                     # Log for analytics
                     logger.info(f"BYOK Logic: complexity={complexity.value}, provider={provider_id}, model={model}")
 
+                    # Durable authoritative settlement of THIS success attempt.
+                    # The pre-dispatch reservation/intent row is the exact
+                    # attempt; settle it once via the existing ledger helper.
+                    # Missing usage or pricing remains explicit uncertain
+                    # liability, never a fabricated 0 or an automatic release.
+                    # The inline tracker/cache/rate/feedback above are kept as
+                    # the cache/feedback surface and are not duplicated here.
+                    try:
+                        from core.spend_aggregation_service import (
+                            record_llm_usage,
+                        )
+
+                        record_llm_usage(
+                            provider_id=provider_id,
+                            model_name=model,
+                            prompt_tokens=_usage_value(
+                                usage, "prompt_tokens", "input_tokens"),
+                            completion_tokens=_usage_value(
+                                usage, "completion_tokens", "output_tokens"),
+                            cost_usd=observed_cost,
+                            agent_id=agent_id,
+                            workspace_id=getattr(self, "workspace_id", None),
+                            tenant_id=getattr(self, "tenant_id", None),
+                            execution_id=execution_id,
+                            chain_id=chain_id,
+                            request_id=_settlement_request_id,
+                            attempt_id=_attempt_id,
+                        )
+                    except Exception as settle_err:
+                        logger.error(
+                            "LLM durable usage settlement failed (%s)",
+                            type(settle_err).__name__)
+
                     # Phase 226.4-04: Record successful API call for health monitoring
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)

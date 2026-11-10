@@ -82,7 +82,11 @@ def read_billing_policy(
     """
     tenant = session.query(Tenant).filter(Tenant.id == tenant_id).first()
     if tenant is None:
-        if strict:
+        # The single-tenant default scope has no Tenant row by design; that is
+        # an intentional no-limit/observe policy, not an unreadable configured
+        # policy. A missing NON-default tenant is an unresolved/misconfigured
+        # scope and must fail closed under strict admission.
+        if strict and tenant_id != "default":
             raise BudgetPolicyUnavailable("tenant not found")
         return 0.0, "soft_stop"
 
