@@ -112,3 +112,5 @@ Independent native review: `/private/tmp/savepoint-ownership-independent-review-
 
 ## Addendum: next verified checkpoint
 Final permanent gate completed121/121, actual exit0/same_source=true at31ub0c6n. Email worker finished/pushedf2789bef93394fda4cab28d7c270899a11c4986f: initial110pass/2pre-existing-dictfailures; aligned focused9pass. Full repaired selection and root independent review remain needed before829integration/merge. Root ordinary approvals-copy test remains pending; frontend copy not part of backend acceptance.
+
+Approvals walkthrough copy test finished17/17. Copy now describes actual readiness plus scoped capability review and successful promotion, rather than fixed3sessions/automaticpromotion. Existing6da UI capture is unchanged. Root backend121 checkpoint pushed2e856973d; current email native follow-through supervisor43668/prefix root-email-legacy-full-regression-20261110 is active.

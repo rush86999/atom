@@ -151,15 +151,17 @@ const TrainingGuide: React.FC = () => {
                         click <span className="text-sky-400 font-medium">Complete Training Session</span>.
                     </li>
                     <li>
-                        <span className="font-medium text-gray-100">Repeat ×3</span> — promotion needs
-                        3 supervised sessions plus work episodes at a ≥ 0.7 success ratio (thresholds
-                        auto-tune per domain as history builds).
+                        <span className="font-medium text-gray-100">Build relevant experience</span> —
+                        complete the training and work requirements shown in the agent’s readiness
+                        panel. Requirements can vary with the current policy and domain history.
                     </li>
                     <li>
-                        <span className="font-medium text-gray-100">Graduation</span> — when the gate
-                        clears, the agent is promoted to INTERN automatically: it may then run, asking
-                        your approval per automated action, and it can help mentor the next hire in
-                        this domain.
+                        <span className="font-medium text-gray-100">Review capability before graduation</span> —
+                        experience alone does not qualify an agent. Select its actual task evidence,
+                        request a qualification review, and inspect the work against the rubric in
+                        Approvals. A valid review and the remaining readiness requirements are needed
+                        before promotion, unless the owner has explicitly configured an exception for
+                        that agent. The new tier’s permissions apply only after promotion succeeds.
                     </li>
                 </ol>
             )}
