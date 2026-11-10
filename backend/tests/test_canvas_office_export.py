@@ -211,7 +211,7 @@ def test_export_stable_in_fresh_child_process(world, tmp_path):
     })
     completed = subprocess.run(
         [sys.executable, str(helper), str(world.engine.url), canvas_id,
-         audit_id, world.user, world.tenant, world.ws],
+         audit_id, world.user, world.tenant, world.ws, "docx"],
         cwd=str(Path(__file__).resolve().parents[1]),
         env=env, capture_output=True, text=True, timeout=120)
     assert completed.returncode == 0, (
@@ -224,6 +224,89 @@ def test_export_stable_in_fresh_child_process(world, tmp_path):
     print("CHILD_EXPORT", payload)
     assert payload["sha256"] == hashlib.sha256(parent.content).hexdigest()
     assert payload["status"] == 200
+
+
+def test_presentation_stable_in_fresh_child_process(world, tmp_path):
+    content = (
+        "Slide 1: Opening\n- Alpha\n- Beta\nNotes: speaker note one\n\n"
+        "Slide 2: Numbers\n| A | B |\n|---|---|\n| 1 | 2 |\n"
+        "Notes: speaker note two")
+    canvas_id, audit_id = world.create_canvas(
+        canvas_type="markdown", title="Fresh Deck", content=content)
+    parent = _export(world.client(), canvas_id, "pptx",
+                     expected_audit_id=audit_id)
+    assert parent.status_code == 200, parent.text
+    from pptx import Presentation as PptxPresentation
+    deck = PptxPresentation(io.BytesIO(parent.content))
+    assert len(deck.slides) == 2
+    titles = [s.shapes.title.text if s.shapes.title is not None else ""
+              for s in deck.slides]
+    assert titles == ["Opening", "Numbers"]
+    assert any("Alpha" in shape.text_frame.text
+               for shape in deck.slides[0].shapes
+               if getattr(shape, "has_text_frame", False))
+    table = next(shape.table for shape in deck.slides[1].shapes
+                 if getattr(shape, "has_table", False))
+    assert [[c.text for c in row.cells] for row in table.rows] == [
+        ["A", "B"], ["1", "2"]]
+    assert "speaker note one" in deck.slides[0].notes_slide.notes_text_frame.text
+    assert "speaker note two" in deck.slides[1].notes_slide.notes_text_frame.text
+
+    before_audits = None
+    with world.Session() as db:
+        before_audits = db.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == canvas_id).count()
+    helper = Path(__file__).resolve().parent / "helpers" / "canvas_office_export_child.py"
+    env = os.environ.copy()
+    env.update({
+        "TESTING": "1",
+        "PYTEST_VERSION": "canvas-export-pptx-child",
+        "DATABASE_URL": str(world.engine.url),
+        "ATOM_OFFICE_DIR": str(tmp_path / "office-child-pptx"),
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1])
+        + os.pathsep + env.get("PYTHONPATH", ""),
+    })
+    completed = subprocess.run(
+        [sys.executable, str(helper), str(world.engine.url), canvas_id,
+         audit_id, world.user, world.tenant, world.ws, "pptx"],
+        cwd=str(Path(__file__).resolve().parents[1]),
+        env=env, capture_output=True, text=True, timeout=120)
+    assert completed.returncode == 0, (
+        completed.stdout + "\n" + completed.stderr)
+    payload = json.loads(
+        completed.stdout.splitlines()[-1].split("RESULT_JSON:", 1)[1])
+    assert payload["sha256"] == hashlib.sha256(parent.content).hexdigest()
+    assert payload["format"] == "pptx"
+    assert payload["slide_count"] == 2
+    assert [item["title"] for item in payload["slides"]] == [
+        "Opening", "Numbers"]
+    assert "Alpha" in payload["slides"][0]["body"]
+    assert payload["slides"][1]["tables"] == [
+        [["A", "B"], ["1", "2"]]]
+    assert "speaker note one" in payload["slides"][0]["notes"]
+    assert payload["model_calls"] is False
+    with world.Session() as db:
+        after_audits = db.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == canvas_id).count()
+    assert after_audits == before_audits
+
+
+def test_default_office_dir_is_anchored_across_launch_cwd(world, monkeypatch):
+    repo_root = Path(__file__).resolve().parents[2]
+    backend_dir = Path(__file__).resolve().parents[1]
+    monkeypatch.delenv("ATOM_OFFICE_DIR", raising=False)
+    canvas_id, audit_id = world.create_canvas()
+
+    monkeypatch.chdir(repo_root)
+    root_export = _export(world.client(), canvas_id, "docx",
+                          expected_audit_id=audit_id)
+    assert root_export.status_code == 200, root_export.text
+
+    monkeypatch.chdir(backend_dir)
+    backend_export = _export(world.client(), canvas_id, "docx",
+                             expected_audit_id=audit_id)
+    assert backend_export.status_code == 200, backend_export.text
+    assert backend_export.content == root_export.content
 
 
 @pytest.fixture()
