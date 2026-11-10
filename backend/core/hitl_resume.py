@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 _GOAL_RUN_ACTIONS = {"goal_run_decision", "goal_run_checkpoint"}
 _ASSIGNMENT_ACTIONS = {"assignment_approval"}
 _CHAT_OBLIGATION_ACTIONS = {"chat_request_obligation"}
+_GUIDED_CREATE_ACTIONS = {"create_agent"}
 _AGENT_INFORMATION_ACTIONS = {
     "agent_information_request", "agent_missing_information"}
 
@@ -75,6 +76,37 @@ def preflight_hitl_decision(
         action = _load_action(action_id)
     if action is None:
         return {"valid": False, "reason": "action_not_found"}
+    if _action_field(action, "action_type") == "create_agent":
+        from core.guided_automation_service import (
+            GUIDED_CREATE_REVIEW_SCHEMA,
+            guided_create_review_digest,
+        )
+
+        if modified_params:
+            return {
+                "valid": False,
+                "reason": "review_material_immutable",
+                "message": (
+                    "A guided-create review cannot be rewritten during "
+                    "approval; reject and request a fresh review."),
+            }
+        params = _action_field(action, "params") or {}
+        if params.get("schema") != GUIDED_CREATE_REVIEW_SCHEMA:
+            return {
+                "valid": False,
+                "reason": "review_schema_invalid",
+                "message": (
+                    "The guided-create review schema is missing or unknown."),
+            }
+        if params.get("review_digest") != guided_create_review_digest(params):
+            return {
+                "valid": False,
+                "reason": "review_material_mismatch",
+                "message": (
+                    "The reviewed guided-create material changed; request a "
+                    "fresh review."),
+            }
+        return {"valid": True}
     if _action_field(action, "action_type") != "goal_run_decision":
         return {"valid": True}
 
@@ -461,6 +493,149 @@ async def _resume_workflow(action: Dict[str, Any], approved: bool,
             "status": "RUNNING" if ok else "PAUSED"}
 
 
+async def _resume_guided_create(
+    action: Dict[str, Any],
+    approved: bool,
+    reviewer_id: Optional[str],
+    guidance: Optional[str],
+) -> Dict[str, Any]:
+    """Create the exact reviewed guided agent after an existing HITL approval.
+
+    This is not a second review engine: the approvals route already made and
+    persisted the human decision. Here we reauthorize the current reviewer and
+    acting parent, verify the reviewed intent digest, and use the shared
+    create decision writer for one durable agent + receipt.
+    """
+    from core.agent_decision_write_service import create_agent
+    from core.database import get_db_session
+    from core.guided_automation_service import (
+        GUIDED_CREATE_REVIEW_SCHEMA,
+        guided_create_review_digest,
+    )
+    from core.models import AgentRegistry, User, UserRole
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    params = dict(action.get("params") or {})
+    if not approved:
+        return {"handled": True, "resumed": False, "kind": "guided_create",
+                "status": "rejected"}
+    if str(action.get("status") or "") != "approved":
+        return {"handled": True, "resumed": False, "kind": "guided_create",
+                "reason": "action_not_approved",
+                "status": action.get("status")}
+    if str(params.get("schema") or "") != GUIDED_CREATE_REVIEW_SCHEMA:
+        return {"handled": True, "resumed": False, "kind": "guided_create",
+                "reason": "review_schema_invalid"}
+    if params.get("review_digest") != guided_create_review_digest(params):
+        return {"handled": True, "resumed": False, "kind": "guided_create",
+                "reason": "review_material_mismatch"}
+    if not reviewer_id:
+        return {"handled": True, "resumed": False, "kind": "guided_create",
+                "reason": "current_reviewer_required"}
+
+    action_tenant = str(params.get("tenant_id") or "")
+    action_workspace = str(params.get("workspace_id") or "")
+    with get_db_session() as db:
+        reviewer = (
+            db.query(User).filter(User.id == str(reviewer_id)).first()
+        )
+        if reviewer is None:
+            return {"handled": True, "resumed": False,
+                    "kind": "guided_create",
+                    "reason": "current_reviewer_required"}
+        if (
+            resolve_tenant_id(reviewer) != action_tenant
+            or resolve_workspace_id(reviewer) != action_workspace
+        ):
+            return {"handled": True, "resumed": False,
+                    "kind": "guided_create",
+                    "reason": "review_scope_changed"}
+
+        parent_agent_id = params.get("acting_agent_id")
+        parent_authority = None
+        if parent_agent_id:
+            parent = (
+                db.query(AgentRegistry)
+                .filter(AgentRegistry.id == str(parent_agent_id))
+                .populate_existing()
+                .first()
+            )
+            if parent is None:
+                return {"handled": True, "resumed": False,
+                        "kind": "guided_create",
+                        "reason": "acting_agent_missing"}
+            if (
+                resolve_tenant_id(parent) != action_tenant
+                or resolve_workspace_id(parent) != action_workspace
+            ):
+                return {"handled": True, "resumed": False,
+                        "kind": "guided_create",
+                        "reason": "acting_agent_scope_changed"}
+            parent_authority = {
+                "id": str(parent.id),
+                "tenant_id": parent.tenant_id,
+                "workspace_id": parent.workspace_id,
+                "status": parent.status,
+                "confidence_score": parent.confidence_score,
+                "enabled": parent.enabled,
+                "last_exam_id": parent.last_exam_id,
+                "configuration": parent.configuration,
+                "capabilities": parent.capabilities,
+            }
+
+        result = create_agent(
+            db,
+            actor=reviewer,
+            name=str(params.get("name") or ""),
+            category=str(params.get("category") or ""),
+            description=params.get("description"),
+            configuration=params.get("configuration"),
+            schedule_config=params.get("schedule_config"),
+            confidence_score=0.1,
+            user_id=str(params.get("created_by_user") or ""),
+            parent_agent_id=parent_agent_id,
+            parent_authority=parent_authority,
+            capabilities=params.get("capabilities"),
+            minimum_role=UserRole.GUEST,
+            authority_label="GUIDED_CREATE_APPROVAL",
+            operation_id=f"guided-hitl:{action['id']}",
+        )
+        status = result.get("status")
+        if status in ("verified", "already_applied"):
+            data = result.get("data") or {}
+            if status == "verified":
+                schedule_config = params.get("schedule_config")
+                if (
+                    isinstance(schedule_config, dict)
+                    and schedule_config.get("active")
+                ):
+                    try:
+                        from core.scheduler import AgentScheduler
+                        AgentScheduler.get_instance().schedule_agent(
+                            data.get("agent_id"), schedule_config)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning(
+                            "Guided HITL schedule failed for %s: %s",
+                            data.get("agent_id"), exc)
+            return {
+                "handled": True,
+                "resumed": True,
+                "kind": "guided_create",
+                "agent_id": data.get("agent_id"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "verification": data.get("verification"),
+            }
+        return {
+            "handled": True,
+            "resumed": False,
+            "kind": "guided_create",
+            "reason": result.get("error_code") or status,
+            "error": result.get("error"),
+            "verification": result.get("verification"),
+        }
+
+
 async def resume_after_hitl_decision(
     action_id: str,
     approved: bool,
@@ -494,6 +669,9 @@ async def resume_after_hitl_decision(
                 action, approved, reviewer_id, guidance)
         elif action["action_type"] in _CHAT_OBLIGATION_ACTIONS:
             result = await _resume_chat_obligation(
+                action, approved, reviewer_id, guidance)
+        elif action["action_type"] in _GUIDED_CREATE_ACTIONS:
+            result = await _resume_guided_create(
                 action, approved, reviewer_id, guidance)
         elif (action.get("params") or {}).get("execution_id"):
             result = await _resume_workflow(action, approved, guidance)

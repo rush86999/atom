@@ -12,6 +12,7 @@ reference, and same-scope acting-agent approval.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
 from api.agent_onboarding_routes import router as onboarding_router
+from api.approvals_routes import router as approvals_router
 from core.auth import create_access_token
 from core.database import Base, get_db
 from core.models import (
@@ -60,13 +62,18 @@ class FakeGuidedFactory:
 
 
 @pytest.fixture
-def world(tmp_path: Path):
+def world(tmp_path: Path, monkeypatch):
     engine = create_engine(
         f"sqlite:///{tmp_path / 'guided.db'}",
         connect_args={"check_same_thread": False},
     )
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine, expire_on_commit=False)
+    # The public approvals route's intervention/resume services use the
+    # process SessionLocal. Point it at this scratch world so the real route
+    # and the resume bridge see the same durable HITL row.
+    import core.database as database
+    monkeypatch.setattr(database, "SessionLocal", Session)
     with Session() as db:
         db.add_all([
             Tenant(id="company", name="Company", subdomain="company",
@@ -91,6 +98,14 @@ def world(tmp_path: Path):
                  email="foreign@example.test", hashed_password="x",
                  first_name="F", last_name="V", role="member",
                  status="active", is_active=True),
+            User(id="reviewer", tenant_id="company", workspace_id="ws-a",
+                 email="reviewer@example.test", hashed_password="x",
+                 first_name="R", last_name="V", role="team_lead",
+                 status="active", is_active=True),
+            User(id="foreign-reviewer", tenant_id="other", workspace_id="ws-b",
+                 email="foreign-reviewer@example.test", hashed_password="x",
+                 first_name="F", last_name="R", role="team_lead",
+                 status="active", is_active=True),
         ])
         db.add_all([
             AgentRegistry(
@@ -107,12 +122,13 @@ def world(tmp_path: Path):
             ),
         ])
         db.commit()
-    return {"engine": engine, "Session": Session}
+    return {"engine": engine, "Session": Session, "db_url": engine.url}
 
 
 def _client(world):
     app = FastAPI()
     app.include_router(onboarding_router)
+    app.include_router(approvals_router)
 
     def override():
         db = world["Session"]()
@@ -633,3 +649,232 @@ def test_guided_create_replay_after_parent_material_change_conflicts(
             AgentRegistry.id == agent_id).scalar() == 1
         assert db.query(func.count(AuditLog.id)).filter(
             AuditLog.id == "agent:create:guided-parent-replay").scalar() == 1
+
+
+def _queue_guided_hitl(
+    world, monkeypatch, operation_id="guided-hitl-queue",
+    schedule_config=None,
+):
+    with world["Session"]() as db:
+        agent = db.get(AgentRegistry, "acting-agent")
+        agent.status = "student"
+        db.commit()
+    _factory(monkeypatch)
+    client = _client(world)
+    token = _token(world, "member")
+    body = {
+        "goal": "Queue a reviewed guided helper",
+        "acting_agent_id": "acting-agent",
+    }
+    if schedule_config is not None:
+        body["schedule_config"] = schedule_config
+    response = _post(client, token, body, operation_id=operation_id)
+    assert response.status_code == 202, response.text
+    data = response.json()["data"]
+    assert data["status"] == "pending_approval"
+    return data["hitl_action_id"]
+
+
+def _decide_approval(
+    client, token, action_id, decision="approved", modified_params=None,
+):
+    payload = {"decision": decision}
+    if modified_params is not None:
+        payload["modified_params"] = modified_params
+    return client.post(
+        f"/api/agents/approvals/{action_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json=payload,
+    )
+
+
+def test_guided_hitl_approval_creates_one_reviewed_agent(world, monkeypatch):
+    scheduled = []
+
+    class FakeScheduler:
+        def schedule_agent(self, agent_id, schedule_config):
+            scheduled.append((agent_id, dict(schedule_config)))
+
+    from core.scheduler import AgentScheduler
+
+    monkeypatch.setattr(AgentScheduler, "get_instance", lambda: FakeScheduler())
+    action_id = _queue_guided_hitl(
+        world, monkeypatch,
+        schedule_config={"active": True, "cron": "0 * * * *"},
+    )
+    client = _client(world)
+    reviewer_token = _token(world, "reviewer")
+    response = _decide_approval(client, reviewer_token, action_id)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    resume = body["resume"]
+    assert resume["resumed"] is True, body
+    assert resume["kind"] == "guided_create"
+    agent_id = resume["agent_id"]
+
+    with world["Session"]() as db:
+        agent = db.get(AgentRegistry, agent_id)
+        assert agent.name == BLUEPRINT["name"]
+        assert agent.category == BLUEPRINT["category"]
+        assert agent.capabilities == BLUEPRINT["capabilities"]
+        assert agent.configuration["role"] == "ops_coordinator"
+        assert agent.configuration["learning"]["teacher_agent_id"] == (
+            "atom_main")
+        assert agent.status == "student"
+        assert float(agent.confidence_score) == pytest.approx(0.1)
+        assert agent.user_id == "member"
+        assert agent.parent_agent_id == "acting-agent"
+        assert agent.tenant_id == "company"
+        assert agent.workspace_id == "ws-a"
+        audit = db.get(
+            AuditLog, f"agent:create:guided-hitl:{action_id}")
+        assert audit is not None
+        assert audit.action == "agent_created"
+        assert audit.user_id == "reviewer"
+        assert audit.tenant_id == "company"
+        row = db.get(HITLAction, action_id)
+        assert row.status == "approved"
+        assert row.reviewed_by == "reviewer"
+    assert scheduled == [(agent_id, {"active": True, "cron": "0 * * * *"})]
+
+    # Direct duplicate resume is idempotent: one child, one receipt, one
+    # schedule even if the durable continuation is replayed.
+    from core.hitl_resume import resume_after_hitl_decision
+
+    replay = asyncio.run(resume_after_hitl_decision(
+        action_id, approved=True, reviewer_id="reviewer"))
+    assert replay["resumed"] is True, replay
+    assert replay["agent_id"] == agent_id
+    with world["Session"]() as db:
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.id == agent_id).scalar() == 1
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 1
+    assert len(scheduled) == 1
+
+    duplicate = _decide_approval(client, reviewer_token, action_id)
+    assert duplicate.status_code == 400, duplicate.text
+    with world["Session"]() as db:
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.id == agent_id).scalar() == 1
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 1
+    assert len(scheduled) == 1
+
+
+def test_guided_hitl_rejection_creates_nothing(world, monkeypatch):
+    action_id = _queue_guided_hitl(world, monkeypatch)
+    client = _client(world)
+    reviewer_token = _token(world, "reviewer")
+    response = _decide_approval(
+        client, reviewer_token, action_id, decision="rejected")
+    assert response.status_code == 200, response.text
+    resume = response.json()["resume"]
+    assert resume["resumed"] is False
+    assert resume["kind"] == "guided_create"
+    assert resume["status"] == "rejected"
+    with world["Session"]() as db:
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
+        assert db.get(HITLAction, action_id).status == "rejected"
+
+
+def test_guided_hitl_expired_does_not_create(world, monkeypatch):
+    action_id = _queue_guided_hitl(world, monkeypatch)
+    with world["Session"]() as db:
+        row = db.get(HITLAction, action_id)
+        row.status = "expired"
+        db.commit()
+    from core.hitl_resume import resume_after_hitl_decision
+
+    result = asyncio.run(resume_after_hitl_decision(
+        action_id, approved=True, reviewer_id="reviewer"))
+    assert result["resumed"] is False
+    assert result["reason"] == "action_not_approved"
+    with world["Session"]() as db:
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
+
+
+def test_guided_hitl_wrong_scope_reviewer_is_refused(world, monkeypatch):
+    action_id = _queue_guided_hitl(world, monkeypatch)
+    client = _client(world)
+    foreign_token = _token(world, "foreign-reviewer")
+    response = _decide_approval(client, foreign_token, action_id)
+    assert response.status_code == 404, response.text
+    with world["Session"]() as db:
+        assert db.get(HITLAction, action_id).status == "pending"
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.name == BLUEPRINT["name"]).scalar() == 0
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
+
+
+def test_guided_hitl_modified_material_is_refused(world, monkeypatch):
+    action_id = _queue_guided_hitl(world, monkeypatch)
+    client = _client(world)
+    reviewer_token = _token(world, "reviewer")
+    response = _decide_approval(
+        client, reviewer_token, action_id,
+        modified_params={"name": "Tampered Name"})
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["reason"] == "review_material_immutable"
+    with world["Session"]() as db:
+        assert db.get(HITLAction, action_id).status == "pending"
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.name == "Tampered Name").scalar() == 0
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
+
+
+def test_guided_hitl_stored_material_mismatch_is_refused(
+        world, monkeypatch):
+    action_id = _queue_guided_hitl(world, monkeypatch)
+    with world["Session"]() as db:
+        row = db.get(HITLAction, action_id)
+        params = dict(row.params or {})
+        params["name"] = "Tampered Stored Name"
+        row.params = params
+        db.commit()
+    client = _client(world)
+    reviewer_token = _token(world, "reviewer")
+    response = _decide_approval(client, reviewer_token, action_id)
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["reason"] == "review_material_mismatch"
+    with world["Session"]() as db:
+        assert db.get(HITLAction, action_id).status == "pending"
+        assert db.query(func.count(AgentRegistry.id)).filter(
+            AgentRegistry.name == "Tampered Stored Name").scalar() == 0
+        assert db.query(func.count(AuditLog.id)).filter(
+            AuditLog.id == f"agent:create:guided-hitl:{action_id}").scalar() == 0
+
+
+def test_guided_hitl_approval_survives_fresh_session(world, monkeypatch):
+    action_id = _queue_guided_hitl(world, monkeypatch)
+    world["engine"].dispose()
+    fresh_engine = create_engine(
+        str(world["db_url"]),
+        connect_args={"check_same_thread": False},
+    )
+    FreshSession = sessionmaker(bind=fresh_engine, expire_on_commit=False)
+    world["engine"] = fresh_engine
+    world["Session"] = FreshSession
+    import core.database as database
+
+    monkeypatch.setattr(database, "SessionLocal", FreshSession)
+    client = _client(world)
+    reviewer_token = _token(world, "reviewer")
+    response = _decide_approval(client, reviewer_token, action_id)
+    assert response.status_code == 200, response.text
+    resume = response.json()["resume"]
+    assert resume["resumed"] is True, resume
+    with world["Session"]() as db:
+        agent = db.get(AgentRegistry, resume["agent_id"])
+        assert agent is not None
+        assert agent.parent_agent_id == "acting-agent"
+        assert db.get(
+            AuditLog, f"agent:create:guided-hitl:{action_id}") is not None

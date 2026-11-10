@@ -23,8 +23,10 @@ from core.auth import User, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.guided_automation_service import (
+    GUIDED_CREATE_REVIEW_SCHEMA,
     get_automation_suggestion_service,
     get_guided_agent_factory,
+    guided_create_review_digest,
 )
 from core.models import AgentRegistry, AgentStatus, UserRole
 from core.personal_scope import resolve_tenant_id, resolve_workspace_id
@@ -96,6 +98,24 @@ async def create_guided_agent(
     workspace_id = getattr(current_user, "workspace_id", None) or "default"
     tenant_id = getattr(current_user, "tenant_id", None) or "default"
 
+    # --- Design the agent from the goal ---
+    factory = get_guided_agent_factory()
+    blueprint = await factory.design_agent(goal=req.goal, context=req.context)
+
+    configuration = blueprint.get("configuration") or {}
+    if not isinstance(configuration, dict):
+        configuration = {}
+    # Role-based student: the role drives curriculum and observation
+    # relevance; learning contract declares both pathways (teacher +
+    # observation), and the Atom meta agent is the designated teacher.
+    role = _role_for(blueprint)
+    configuration["role"] = role
+    configuration["learning"] = {
+        "teacher_agent_id": "atom_main",
+        "pathways": ["teacher", "observation"],
+        "curriculum": ROLE_CURRICULUM.get(role, []),
+    }
+
     # --- Trust/maturity gate for agent-initiated creation ---
     if req.acting_agent_id:
         governance = ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
@@ -116,28 +136,39 @@ async def create_guided_agent(
         allowed = decision.get("allowed", False) if isinstance(decision, dict) else bool(decision)
         if not allowed:
             reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Trust policy requires human approval for agent creation"
+            created_by = str(getattr(current_user, "id", "unknown"))
+            review_params = {
+                "schema": GUIDED_CREATE_REVIEW_SCHEMA,
+                "goal": req.goal,
+                "context": req.context,
+                "name": blueprint["name"],
+                "description": blueprint.get("description"),
+                "category": blueprint["category"],
+                "capabilities": blueprint.get("capabilities"),
+                "configuration": configuration,
+                "template": blueprint.get("template"),
+                "schedule_config": req.schedule_config,
+                "acting_agent_id": req.acting_agent_id,
+                "created_by_user": created_by,
+                "tenant_id": tenant_id,
+                "workspace_id": workspace_id,
+            }
+            review_params["review_digest"] = guided_create_review_digest(
+                review_params)
             hitl_action_id = None
             try:
                 hitl_action_id = governance.request_approval(
                     agent_id=req.acting_agent_id,
                     action_type="create_agent",
-                    params={
-                        "goal": req.goal,
-                        "context": req.context,
-                        "created_by_user": str(getattr(current_user, "id", "unknown")),
-                        "tenant_id": tenant_id,
-                        "workspace_id": workspace_id,
-                        "acting_agent_id": req.acting_agent_id,
-                        "schedule_config": req.schedule_config,
-                    },
+                    params=review_params,
                     reason=reason,
                     execution_context={
                         "workspace_id": workspace_id,
                         "tenant_id": tenant_id,
-                        "actor_id": str(getattr(current_user, "id", "unknown")),
-                        "user_id": str(getattr(current_user, "id", "unknown")),
+                        "actor_id": created_by,
+                        "user_id": created_by,
                     },
-                    user_id=str(getattr(current_user, "id", "unknown")),
+                    user_id=created_by,
                 )
             except Exception as e:
                 logger.error(f"Failed to create HITL action for guided agent creation: {e}")
@@ -154,24 +185,6 @@ async def create_guided_agent(
                     message="Agent creation requires human approval — request queued for review",
                 ),
             )
-
-    # --- Design the agent from the goal ---
-    factory = get_guided_agent_factory()
-    blueprint = await factory.design_agent(goal=req.goal, context=req.context)
-
-    configuration = blueprint.get("configuration") or {}
-    if not isinstance(configuration, dict):
-        configuration = {}
-    # Role-based student: the role drives curriculum and observation
-    # relevance; learning contract declares both pathways (teacher +
-    # observation), and the Atom meta agent is the designated teacher.
-    role = _role_for(blueprint)
-    configuration["role"] = role
-    configuration["learning"] = {
-        "teacher_agent_id": "atom_main",
-        "pathways": ["teacher", "observation"],
-        "curriculum": ROLE_CURRICULUM.get(role, []),
-    }
 
     parent_authority = None
     if req.acting_agent_id:

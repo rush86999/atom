@@ -186,8 +186,15 @@ class TestAgentInitiatedCreation:
         _current_test_user = employee_user
 
         self._acting_agent(db_session, "agent-student-1", "student")
+        llm = _llm_mock(
+            '''{"name": "Reviewed Helper", "description": "Needs review", '''
+            '''"category": "Operations", "capabilities": ["cleanup"], '''
+            '''"template": "ops_coordinator", "configuration": {"system_prompt": "Help"}}'''
+        )
         gov = self._governance(db_session, allowed=False)
-        with patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
+        with patch("api.agent_onboarding_routes.get_guided_agent_factory",
+                   return_value=_factory_with_llm(llm)), \
+             patch("api.agent_onboarding_routes.ServiceFactory.get_governance_service", return_value=gov):
             resp = client.post(
                 "/api/agents/guided",
                 json={"goal": "delete old records automatically", "acting_agent_id": "agent-student-1"},
