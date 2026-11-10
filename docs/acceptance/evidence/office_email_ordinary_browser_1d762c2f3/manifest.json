@@ -10,15 +10,20 @@
     "capture/canvas-current.page.txt": "b5e7f46ba7d3e90214366217f7d00338d4354382a0e08130dccf9c7fe059a153",
     "capture/canvas-current.png": "ff76fe1591e7d8b2b39558cba3959219858a85a013453cd5e229cfff4ec58560",
     "capture/continuation.result.json": "98781f8793268391eda93631946c755a4ba5a2c73aa5369d177c68e42336f396",
+    "capture/docx-current.docx": "54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038",
     "capture/package.semantic.json": "515256a955be73c8b9f821b79041e4fb98326498f0d6560a91472d13c7d6d799",
     "capture/requests.json": "8ac0ba6c51c90b870082e31f4bcc5a609e96da4be12f4ad6859c133737f809c6",
     "capture/root_readback.sanitized.json": "0107bbbf551e1c844404222c858476a9b4b9fe92ffceae8f2ce63e273e4cb8f6",
+    "partial/docx-initial.docx": "f3f8e0ae5ea3a7c6508df58da38ea2978acabd1032818d873b10d60b0b01f03a",
     "partial/docx-initial.page.txt": "db4b75060d78de23d0efbf62a520aaaf61fa0d6dafbad67a025dd90903e00b2a",
     "partial/docx-initial.png": "f03d93c89a30ec30459510c9b5b524f42b4688035daef46b37f0a017ac51e485",
     "partial/initial.result.json": "d1fdb211b88db0f852353dc7bf5f8c1179a104548c1353e5f0e91430b03e177a",
     "partial/pptx-initial.page.txt": "b940814a2284853e6e0613f5b001ff26bac9f776a7a24b1a5d27085271e91b78",
     "partial/pptx-initial.png": "1703c1d972c22cc613c413315cf4d428d1636b086ec7aa642e4f0a4ed02c6d19",
+    "partial/pptx-initial.pptx": "64a322f1986987a738ec496c66900996b417cd30115356c16f3333315dd08ad4",
     "partial/save-click-timeout.proof": "3858f78e1f3beab46bf1c755c987745dc932a8941da06009fd8e05ce1ebe45b2",
+    "root_independent/artifact_verification.json": "7bc0b11e6df832719dd537ea5347ad601253354e89af3e6fe0878beea5a87fbf",
+    "root_independent/current-docx-page-1.png": "42eee92f668e397a80cbb0ebf5a78e63d6ada9bacd976e6d4336abe9df3efd97",
     "root_integrated/controls.proof": "8f27fc4c1e7eed91a3427361f3d8df75bb0d7013f798f19d9f31a5a27deb8691",
     "root_integrated/review.sanitized.json": "7c99b3a23b3a4469de833373566710c2e27e164f90ebc14164142c75acf226ca"
   },
@@ -38,7 +43,27 @@
     "result": "12 controls PASS 12.10s",
     "source": "/private/tmp/root-office-email-integrated-independent-20261110-seuk_ifc/review.json"
   },
+  "root_packaging_followthrough": {
+    "actual_office_outputs_added": 3,
+    "browser_rerun": false,
+    "independent_render_pages": 1,
+    "no_artifact_regeneration": true,
+    "retained_text_files_added": 3,
+    "served_source_checks": 9
+  },
   "run": "run-b25cb62b465c",
+  "runtime_source": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
+  "source_files": {
+    "backend/api/canvas_routes.py": "1fb9fdcd4a50265d15d390b4dc8eeb4550ba80513a63e8dc81daa18b6582198d",
+    "backend/core/canvas_authority.py": "bc90f12b2c16a097d0d0d893e492f30f27e40721f2b64d5205e294d9209bbebf",
+    "backend/core/canvas_write_service.py": "bd0822c9bb6f42e3625d9c1d1d0ba72af03a6f573ffd822521faf4cffae97bc5",
+    "backend/core/office_service.py": "46a9e27f6cd4bd0553b8d29c6576e80ccc6301fbb808234e236912a0296ec9c5",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/tools/canvas_crud_tool.py": "a1604af58149bef61a45d9260a0e10abf1e59396ae4ccf0cd88c9581d4eb2249",
+    "frontend-nextjs/components/canvas/CanvasPanel.tsx": "f7956566575b6a4d0fb44b528b620a7a6f2fa53abb894fc80b29e201597c48e9",
+    "frontend-nextjs/hooks/useCanvasAutosave.ts": "3a20ef00a7789529a5cecf06fff643f1eb40257f1f785aa8a1b5c26338e42d3f",
+    "frontend-nextjs/pages/canvas/[id].tsx": "16655e66f2708d4961fb4e2846afe6bedbf4aa629eea5f5631edfbba5f0ca57e"
+  },
   "source_head": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
   "status": "passed_one_supported_docx_continuation",
   "world": "office_ordinary_browser_1d762c2f3d_1794309563"

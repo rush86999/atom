@@ -1,0 +1,65 @@
+{
+  "read_only": true,
+  "browser_source": "1d762c2f3daee7746cf2430cd3ae37e8971364f7",
+  "reviewed_candidate": "7fb2645c9",
+  "same_retained_run": true,
+  "current_audit_matches": true,
+  "docx_sha256": "54a56ad39838bee306a606e59eec51694d49932d95084b33554122685211a038",
+  "browser_api_physical_bytes_match": true,
+  "current_text_and_table_verified": true,
+  "rendered_pages": 1,
+  "visual_review": "Page1 readable; current body, bullets and table visible; no clipping or overlap. Existing app styling retained.",
+  "exported_source_checks": [
+    {
+      "path": "backend/core/canvas_authority.py",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "backend/api/canvas_routes.py",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "backend/core/office_service.py",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "backend/core/canvas_write_service.py",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "backend/tools/canvas_crud_tool.py",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "backend/core/personal_scope.py",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "frontend-nextjs/components/canvas/CanvasPanel.tsx",
+      "source_location": "frontend_snapshot",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "frontend-nextjs/hooks/useCanvasAutosave.ts",
+      "source_location": "frontend_snapshot",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    },
+    {
+      "path": "frontend-nextjs/pages/canvas/[id].tsx",
+      "source_location": "frontend_snapshot",
+      "exported_file_exists": true,
+      "matches_reviewed_candidate": true
+    }
+  ],
+  "original_save_timeout_retained": true,
+  "whole_goal11_complete": false,
+  "frontend_mapping_note": "Frontend is served from existing launcher frontend_snapshot, separate from the backend-only code export."
+}
