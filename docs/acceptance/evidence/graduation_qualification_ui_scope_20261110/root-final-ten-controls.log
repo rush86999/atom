@@ -1,0 +1,19 @@
+..........                                                               [100%]
+=============================== warnings summary ===============================
+api/episode_routes.py:417
+  /private/tmp/atom-web-graduation-qualification-join-20261110/backend/api/episode_routes.py:417: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+../../root-py311-plugins/pytest_freezegun.py:17: 20 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+root-graduation-positive-replay-independent-20261110.py::test_reviewed_actual_output_unlocks_exact_promotion
+root-graduation-positive-replay-independent-20261110.py::test_exact_receipt_replay_and_changed_material_refusal
+  /usr/local/lib/python3.11/site-packages/_pytest/stash.py:108: RuntimeWarning: coroutine 'NotificationService.send_notification' was never awaited
+    del self._storage[key]
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+10 passed, 23 warnings in 15.51s

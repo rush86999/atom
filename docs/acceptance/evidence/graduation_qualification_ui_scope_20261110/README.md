@@ -1,13 +1,14 @@
 # Graduation qualification UI truth + pending-review scope fix (2026-11-10)
 
 Status: focused checkpoint for independent root verification. This is **not** a
-claim that graduation or the whole application is complete.
+claim that graduation or the whole application is complete, and it makes no
+model-competence claim.
 
 ## What this checkpoint covers
 
 - **Backend frozen baseline:** `498f3d22d410932c1d4b24546d52db9fc8e8e109`
   (root's original four counterexamples passed there).
-- **Backend successor:** `cf2c7c707d81af2d5ebf5bf78d75a34190a35d95`
+- **Backend successor / final frozen source:** `cf2c7c707d81af2d5ebf5bf78d75a34190a35d95`
   (authorized finite pending-policy / durable-scope repair + semantic
   task-completion rubric criterion). No other backend policy expansion.
 - **Frontend successor:** `015515ad140c642185a652915a52b1740bac9dc4`
@@ -19,16 +20,37 @@ claim that graduation or the whole application is complete.
 
 | Gate | Command | Result |
 |---|---|---|
+| **Root final 10-case gate at frozen `cf2c7c707`** | 6 probe files: pending policy, moved review scope, actual-output positive + fresh-session replay, inactive request, history-only, upward writers | **10 passed, exit 0, same_source true, 6/6 source parity** |
 | Backend qualification controls | scratch SQLite, `pytest tests/api/test_graduation_qualification_join.py -q` | **34 passed** |
-| Pending exact-duplicate + moved/wrong-type scope | focused selection of the same file | **7 passed** |
+| Pending exact-duplicate + moved/missing/wrong-type scope | focused selection of the same file | **7 passed** |
 | Frontend type gate | Node20, `tsc --noEmit --incremental false` | **exit 0** |
 | Frontend UI/API suites | Jest TrainingPanel, AgentMaturityGuide, SelfDirectedPathwayCard, Approvals, maturity-api | **90 passed** |
-| Root pending-policy probe (final source) | `/private/tmp/root-graduation-pending-policy-independent-20261110.py` | **2 passed** |
-| Root pending-scope probe (final source) | `/private/tmp/root-graduation-pending-scope-independent-20261110.py` | **2 passed** |
-| Original frozen-498 counterexamples (final source) | history-only, inactive request, upward writers | **4 passed** (2 + 2) |
+| Local supporting reruns at final source | pending-policy and pending-scope probes | **2 + 2 passed** (supporting, not the root proof) |
+| Original frozen-498 counterexamples | history-only, inactive request, upward writers | **4 passed** (supporting regression check) |
 
-Logs are in this directory. The backend gate used a fresh scratch SQLite
-database and `TESTING=1`; it never touched the live development database.
+The authoritative frozen-source proof is the **root final 10-case gate**:
+`root-final-ten-review.json`, `root-final-ten-controls.log`, and
+`root-final-ten-parity.json`. It records `actual_exit: 0`, `same_source: true`,
+and exact parity for all six captured sources at `cf2c7c707`.
+
+Earlier root individual runs are retained honestly as **intermediate**, not as
+the frozen-source proof:
+
+- `/private/tmp/root-graduation-pending-policy-independent-20261110-2rm1rfnn`
+  passed at predecessor source `4f018a...`, before the final durable-scope type
+  guard; no exact `cf2` parity.
+- `/private/tmp/root-graduation-pending-scope-independent-20261110-j869ues3`
+  passed at predecessor source `3ce805...`, before the final durable-scope type
+  guard; no exact `cf2` parity.
+
+The earlier pre-repair failures are also preserved, not erased:
+`/private/tmp/root-graduation-pending-policy-independent-20261110-yutjctot`
+(1 FAIL / 1 PASS) and
+`/private/tmp/root-graduation-pending-scope-independent-20261110-jd6_7uox`
+(2 FAIL). Their review JSON is copied here for the record.
+
+The backend gate used a fresh scratch SQLite database and `TESTING=1`; it never
+touched the live development database.
 
 ## Pending-review repair (root counterexamples)
 
@@ -75,12 +97,10 @@ Exact duplicates still reuse the same action id (no needless second review).
   are accepted schema fields but are **not used** by `tier_required` or
   `scoped_exception`. They must not be advertised as effective exemptions.
   Resolving them would require a separate root-authorized policy change.
-- **No full-graduation or app-completion claim.** This packet binds the scoped
-  qualification join/UI checkpoint only.
-- Earlier root captures are preserved, not erased:
-  `/private/tmp/root-graduation-pending-policy-independent-20261110-yutjctot`
-  (1 FAIL / 1 PASS before repair) and
-  `/private/tmp/root-graduation-pending-scope-independent-20261110-jd6_7uox`
-  (2 FAIL before repair). Their review JSON is copied here for the record.
-- Root's independent reviews at predecessor source hashes are preserved; this
-  packet also includes same-source reruns at the final tree.
+- **No full-graduation, app-completion, or model-competence claim.** This packet
+  binds the scoped qualification join/UI checkpoint only.
+- **Disclosed warnings:** the final 10-case controls log contains
+  `RuntimeWarning: coroutine 'NotificationService.send_notification' was never
+  awaited` for the positive-replay cases. These warnings are disclosed as-is;
+  they are not hidden or suppressed, and the promotion behavior was still
+  committed and verified by the gate.

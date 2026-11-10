@@ -1,6 +1,6 @@
 {
   "schema": "atom-graduation-qualification-ui-scope-1",
-  "status": "focused checkpoint submitted for independent root verification; no full-graduation or app-completion claim",
+  "status": "focused checkpoint submitted for independent root verification; authoritative frozen-source proof is the root final 10-case gate; no full-graduation, app-completion, or model-competence claim",
   "branch": "codex/web-graduation-qualification-join-20261110",
   "worktree": "/private/tmp/atom-web-graduation-qualification-join-20261110",
   "commits": {
@@ -129,35 +129,50 @@
       "result": "90 passed",
       "log": "frontend-jest-90.log"
     },
-    "root_pending_policy_final_source": {
+    "root_final_ten_frozen_cf2": {
+      "command": "bounded gate; pytest pending-policy + pending-scope + positive-replay + inactive-request + history-only + upward-writers probes -q",
+      "result": "10 passed, exit 0, same_source true, 6/6 source parity",
+      "review": "root-final-ten-review.json",
+      "controls": "root-final-ten-controls.log",
+      "parity": "root-final-ten-parity.json",
+      "authoritative_for_frozen_source": true
+    },
+    "local_pending_policy_supporting_final_source": {
       "command": "bounded gate; pytest /private/tmp/root-graduation-pending-policy-independent-20261110.py -q",
       "result": "2 passed",
-      "log": "root-pending-policy-final.log"
+      "log": "root-pending-policy-final.log",
+      "classification": "local supporting rerun at final source; not root independent and not the frozen-source proof"
     },
-    "root_pending_scope_final_source": {
+    "local_pending_scope_supporting_final_source": {
       "command": "bounded gate; pytest /private/tmp/root-graduation-pending-scope-independent-20261110.py -q",
       "result": "2 passed",
-      "log": "root-pending-scope-final.log"
+      "log": "root-pending-scope-final.log",
+      "classification": "local supporting rerun at final source; not root independent and not the frozen-source proof"
     },
-    "root_original_counterexamples_final_source": {
+    "local_original_counterexamples_supporting_final_source": {
       "command": "bounded gate; history-only + inactive-request + upward-writers probes",
       "result": "4 passed (2 + 2)",
       "logs": [
         "root-original-history-inactive-final.log",
         "root-original-upward-writers-final.log"
-      ]
+      ],
+      "classification": "local supporting rerun at final source; not root independent and not the frozen-source proof"
     }
   },
   "root_independent_reviews": {
     "pending_policy_predecessor": {
       "review": "root-pending-policy-review.json",
       "result": "2 passed",
-      "note": "root independent run at predecessor source 4f018a...; final tree only tightens durable scope typing and reruns 2 passed"
+      "note": "root independent run at predecessor source 4f018a...; final tree only tightens durable scope typing and reruns 2 passed",
+      "authoritative_for_frozen_source": false,
+      "classification": "intermediate; precedes final durable-scope type guard; no exact cf2 source parity"
     },
     "pending_scope_predecessor": {
       "review": "root-pending-scope-review.json",
       "result": "2 passed",
-      "note": "root independent run at predecessor source 3ce805...; final tree reruns 2 passed"
+      "note": "root independent run at predecessor source 3ce805...; final tree reruns 2 passed",
+      "authoritative_for_frozen_source": false,
+      "classification": "intermediate; precedes final durable-scope type guard; no exact cf2 source parity"
     },
     "pending_scope_earlier_failure": {
       "review": "root-pending-scope-earlier-fail.json",
@@ -167,6 +182,16 @@
     "pending_policy_earlier_failure": {
       "world": "/private/tmp/root-graduation-pending-policy-independent-20261110-yutjctot",
       "result": "1 failed / 1 passed before repair; preserved, not erased"
+    },
+    "final_ten_frozen_cf2": {
+      "review": "root-final-ten-review.json",
+      "controls": "root-final-ten-controls.log",
+      "parity": "root-final-ten-parity.json",
+      "result": "10 passed",
+      "actual_exit": 0,
+      "same_source": true,
+      "source_parity": "6/6 captured sources match cf2c7c707",
+      "authoritative_for_frozen_source": true
     }
   },
   "repair_contract": {
@@ -198,15 +223,19 @@
     "no live DB, PostgreSQL, provider, model, browser, credential, send, or spend",
     "no new engine, store, lifecycle, judge, CI yaml, goal index, PR, or merge",
     "no full-graduation or app-completion claim",
-    "no test deletion, skip, xfail, or production mock bypass"
+    "no test deletion, skip, xfail, or production mock bypass",
+    "no full-graduation, app-completion, or model-competence claim"
   ],
   "artifacts": {
-    "README.md": "43df6bbaec23f6accc4483a8194e85b847f1bf69d173b30fe5506dabbeabbeaf",
+    "README.md": "f6fe34035cc6d06cf8f45b470f1c122333c7e86ce6db964f567aa1a58d4f54ea",
     "backend-pending-scope-7.log": "3e09429658d08070b61da86dbebf7b38627c5820630a52d91951117b1a8fb25c",
     "backend-qualification-34.log": "5bad4f10b0e9e4c5d29ab278b1c27a10155864ac772c5817c0f1c9688c311f8f",
     "frontend-jest-90.log": "a4fb85865c10487a138ea84003a3a3287664ab24e3fb88e280bebddd413971c9",
     "frontend-tsc-exit.log": "ff640a80cb4ea9a8916e7e49a48309503d6c8a559378b2b306598b45fd24e366",
     "frontend-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "root-final-ten-controls.log": "d929c7fd2df2c08e313c7449d0046a019dc004077f7de292ff4dcf80da2c98e8",
+    "root-final-ten-parity.json": "a53e453d5f91bca54da087c465082e39ae680130e9804a8c07834a1b28ef13d1",
+    "root-final-ten-review.json": "d64b51d5828109ad58de96cf3c68a9b04b5ef21f7f07b82ffe5ae98f90b5d58e",
     "root-original-history-inactive-final.log": "47476da1dd79313f3692989d79ab5a82e915157d7da82c774e65c046c283906a",
     "root-original-upward-writers-final.log": "54d80d72171008ac95a165b1b02d8deb6ec79d56a72f4be47c5ab08b54c8a352",
     "root-pending-policy-final.log": "54d80d72171008ac95a165b1b02d8deb6ec79d56a72f4be47c5ab08b54c8a352",
@@ -214,6 +243,9 @@
     "root-pending-scope-earlier-fail.json": "d5c9311e1ff9365ad053ee88c77c85aaf4cbd79ea6b75e837da193021e8dab61",
     "root-pending-scope-final.log": "a7dc0b20d6a11655cb12f1c9fb9b349684405b690674dd392c59ddde27d6d07e",
     "root-pending-scope-review.json": "cba070ab7acf6044fe9d6f5fac7789ab82c76d7fc97282439b16b3670464b2c4",
-    "verification.json": "797fe6e14225a94fac8396cc5d821ffee550265ccb462c353a458949b069b808"
-  }
+    "verification.json": "ae745cdb030080e911005ddb89176fe635a7056d3dbcda395aa81f63f97529f0"
+  },
+  "disclosed_warnings": [
+    "RuntimeWarning: coroutine 'NotificationService.send_notification' was never awaited in the final 10-case positive-replay cases; disclosed as-is, not hidden or suppressed."
+  ]
 }
