@@ -1,0 +1,165 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-10 03:43:36 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:43:36 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:43:36 [    INFO] EscalationManager initialized
+2026-11-10 03:43:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:43:36 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:43:36 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:43:36 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:43:36 [    INFO] EscalationManager initialized
+2026-11-10 03:43:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:43:36 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-10 03:43:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 03:43:36 [    INFO] MCP Service initialized
+
+tests/test_canvas_office_export.py::test_generated_document_exports_real_docx_with_stable_bytes 
+-------------------------------- live log setup --------------------------------
+2026-11-10 03:43:37 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:38 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-3d8def268e/export/office?format=docx&expected_audit_id=audit-896454291d "HTTP/1.1 200 OK"
+2026-11-10 03:43:38 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-3d8def268e/export/office?format=docx&expected_audit_id=audit-896454291d "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_canvas_office_export.py::test_generated_presentation_exports_real_pptx 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:38 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-e76ee76c1d/export/office?format=pptx&expected_audit_id=audit-d120415c12 "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_canvas_office_export.py::test_export_refuses_stale_foreign_withheld_empty_and_wrong_format 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:39 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-c5a8198b02/export/office?format=docx&expected_audit_id=different-audit "HTTP/1.1 409 Conflict"
+2026-11-10 03:43:39 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-c5a8198b02/export/office?format=docx "HTTP/1.1 404 Not Found"
+2026-11-10 03:43:39 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-e814187326/export/office?format=docx&expected_audit_id=audit-59c0ae578c "HTTP/1.1 409 Conflict"
+2026-11-10 03:43:39 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-8cbbe9f30e/export/office?format=docx&expected_audit_id=audit-7780dedf03 "HTTP/1.1 409 Conflict"
+2026-11-10 03:43:39 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-c5a8198b02/export/office?format=pptx&expected_audit_id=audit-b6f99c628b "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_canvas_office_export.py::test_export_stable_in_fresh_child_process 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:40 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-456c874bfa/export/office?format=docx&expected_audit_id=audit-693b1a878e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_canvas_office_export.py::test_presentation_stable_in_fresh_child_process 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:44 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-4a92fcada3/export/office?format=pptx&expected_audit_id=audit-17e0208433 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_canvas_office_export.py::test_default_office_dir_is_anchored_across_launch_cwd 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:48 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-114cfb6c9a/export/office?format=docx&expected_audit_id=audit-2bfdad713f "HTTP/1.1 200 OK"
+2026-11-10 03:43:48 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-114cfb6c9a/export/office?format=docx&expected_audit_id=audit-2bfdad713f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_canvas_office_export.py::test_export_rechecks_source_and_retries_on_concurrent_save 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:49 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-5b8814210c/export/office?format=docx&expected_audit_id=audit-b71abe0988 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/test_canvas_office_export.py::test_export_has_no_canvas_or_business_write_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:50 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-372c8c4cc1/export/office?format=docx&expected_audit_id=audit-27c1166a1a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_canvas_office_export.py::test_validators_refuse_wrong_same_shape_docx_and_missing_pptx_body PASSED [ 42%]
+tests/test_canvas_office_export.py::test_export_renderer_error_never_echoes_local_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:51 [ WARNING] Canvas office export renderer refused (stage=render)
+2026-11-10 03:43:51 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-4bf382f4b4/export/office?format=docx&expected_audit_id=audit-dac211d87a "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 47%]
+tests/test_canvas_office_export.py::test_export_refuses_unresolved_assignment_business_result 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:51 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-3188bfd9b3/export/office?format=docx&expected_audit_id=audit-230a1b536b "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 52%]
+tests/test_canvas_office_export.py::test_nonempty_business_requirements_cannot_vanish 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:52 [ WARNING] Canvas export business requirement unreadable (class=ValueError)
+2026-11-10 03:43:52 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-6eb5699408/export/office?format=docx&expected_audit_id=audit-7d8e0108cf "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[malformed] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:53 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-8e629f5d3a/export/office?format=docx&expected_audit_id=audit-e36e4da374 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 61%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[non_list] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:54 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-fbb6189db5/export/office?format=docx&expected_audit_id=audit-6e27dcd775 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 66%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[unknown] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:55 [ WARNING] Canvas export business requirement unreadable (class=ValueError)
+2026-11-10 03:43:55 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-ec58e55315/export/office?format=docx&expected_audit_id=audit-ddbe289c78 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 71%]
+tests/test_canvas_office_export.py::test_malformed_or_contradictory_business_requirements_fail_closed[contradictory] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:55 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-9899241a3e/export/office?format=docx&expected_audit_id=audit-64c3911ac1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 76%]
+tests/test_canvas_office_export.py::test_valid_bound_business_result_still_exports_with_receipts[top_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:56 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-f06b7de346/export/office?format=docx&expected_audit_id=audit-10daeab17f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_canvas_office_export.py::test_valid_bound_business_result_still_exports_with_receipts[nested] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:57 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-0601f21f5c/export/office?format=docx&expected_audit_id=audit-d3a04da6c3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_canvas_office_export.py::test_renderer_cannot_reorder_or_demote_exported_docx[section_order] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:57 [ WARNING] Canvas office export failed (stage=render_or_validate, class=ValueError)
+2026-11-10 03:43:57 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-f2f7e54e2f/export/office?format=docx&expected_audit_id=audit-6570b783bc "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 90%]
+tests/test_canvas_office_export.py::test_renderer_cannot_reorder_or_demote_exported_docx[heading_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:58 [ WARNING] Canvas office export failed (stage=render_or_validate, class=ValueError)
+2026-11-10 03:43:58 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-ca66c5774a/export/office?format=docx&expected_audit_id=audit-f6ed32b91e "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 95%]
+tests/test_canvas_office_export.py::test_export_rechecks_revoked_actor_with_fresh_authoritative_state 
+-------------------------------- live log call ---------------------------------
+2026-11-10 03:43:59 [    INFO] HTTP Request: GET http://testserver/api/canvas/canvas-c2276486f3/export/office?format=docx&expected_audit_id=audit-2da96c27cc "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 21 passed, 5 warnings in 38.44s ========================

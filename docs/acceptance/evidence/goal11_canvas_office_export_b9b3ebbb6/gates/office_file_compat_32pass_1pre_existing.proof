@@ -3,36 +3,36 @@
 
 tests/test_office_canvas_binding.py::test_office_path_key_matches_relative_and_absolute 
 -------------------------------- live log setup --------------------------------
-2026-11-10 03:15:16 [    INFO] EscalationManager initialized
-2026-11-10 03:15:16 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 03:15:16 [    INFO] EscalationManager initialized
-2026-11-10 03:15:16 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 03:15:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 03:15:16 [    INFO] AgentTaskRegistry initialized
+2026-11-10 03:42:49 [    INFO] EscalationManager initialized
+2026-11-10 03:42:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:42:49 [    INFO] EscalationManager initialized
+2026-11-10 03:42:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:42:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 03:42:49 [    INFO] AgentTaskRegistry initialized
 PASSED                                                                   [  3%]
 tests/test_office_canvas_binding.py::test_office_draft_binds_absolute_path 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:16 [    INFO] MCP Service initialized
-2026-11-10 03:15:17 [    INFO] ComputerUseAgent initialized for tenant default
-2026-11-10 03:15:17 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
-2026-11-10 03:15:17 [    INFO] No token storage file found, starting empty
-2026-11-10 03:15:18 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
-2026-11-10 03:15:18 [    INFO] EscalationManager initialized
-2026-11-10 03:15:18 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 03:15:18 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
-2026-11-10 03:15:18 [    INFO] EscalationManager initialized
-2026-11-10 03:15:18 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 03:15:18 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-10 03:15:18 [    INFO] Slack Enhanced Service initialized
-2026-11-10 03:15:18 [    INFO] Loaded 0 persisted sessions from file.
-2026-11-10 03:15:18 [    INFO] EscalationManager initialized
-2026-11-10 03:15:18 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 03:15:18 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
-2026-11-10 03:15:18 [    INFO] EscalationManager initialized
-2026-11-10 03:15:18 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 03:15:18 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
-2026-11-10 03:15:18 [    INFO] Slack Enhanced Service initialized
-2026-11-10 03:15:18 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 03:42:49 [    INFO] MCP Service initialized
+2026-11-10 03:42:49 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-10 03:42:50 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-10 03:42:50 [    INFO] No token storage file found, starting empty
+2026-11-10 03:42:50 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-10 03:42:50 [    INFO] EscalationManager initialized
+2026-11-10 03:42:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:42:50 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 03:42:50 [    INFO] EscalationManager initialized
+2026-11-10 03:42:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:42:50 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:42:50 [    INFO] Slack Enhanced Service initialized
+2026-11-10 03:42:50 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-10 03:42:50 [    INFO] EscalationManager initialized
+2026-11-10 03:42:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:42:50 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-10 03:42:50 [    INFO] EscalationManager initialized
+2026-11-10 03:42:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:42:50 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-10 03:42:50 [    INFO] Slack Enhanced Service initialized
+2026-11-10 03:42:50 [    INFO] Loaded 0 persisted sessions from file.
 PASSED                                                                   [  6%]
 tests/test_office_canvas_binding.py::test_notify_file_canvases_matches_legacy_relative_binding PASSED [  9%]
 tests/test_office_canvas_binding.py::test_ensure_canvas_for_file_reuses_and_repairs_legacy_row PASSED [ 12%]
@@ -45,89 +45,59 @@ tests/test_office_canvas_coediting.py::TestStructuredContent::test_docx_snapshot
 tests/test_office_canvas_coediting.py::TestStructuredContent::test_pptx_snapshot_lists_slides PASSED [ 33%]
 tests/test_office_canvas_coediting.py::TestStructuredContent::test_sync_result_includes_snapshot 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:19 [    INFO] WorkbookRuntime initialized: engine=libreoffice
-2026-11-10 03:15:20 [    INFO] Rendered book.xlsx to HTML via LibreOffice
-2026-11-10 03:15:20 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
-2026-11-10 03:15:20 [    INFO] EscalationManager initialized
-2026-11-10 03:15:20 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-10 03:15:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-10 03:15:20 [    INFO] LanceDBHandler initialized. ID: 5719377232. LANCEDB_AVAILABLE: True
-2026-11-10 03:15:20 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
-2026-11-10 03:15:20 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp29z194c5.xlsx
-2026-11-10 03:15:20 [    INFO] Lazy loading LanceDB connection...
-2026-11-10 03:15:20 [    INFO] Connecting to LanceDB at <scratch-path> with storage_options=None
-2026-11-10 03:15:20 [    INFO] LanceDB connected successfully
-2026-11-10 03:15:21 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
-2026-11-10 03:15:21 [    INFO] Table 'documents' created successfully
-2026-11-10 03:15:21 [    INFO] Document added to 'documents': doc_4e2f3b02c6dbcc476c9c83bc
-2026-11-10 03:15:21 [    INFO] Ingested book.xlsx (157 chars) from office_canvas
+2026-11-10 03:42:51 [    INFO] WorkbookRuntime initialized: engine=libreoffice
+2026-11-10 03:42:52 [    INFO] Rendered book.xlsx to HTML via LibreOffice
+2026-11-10 03:42:52 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-10 03:42:52 [    INFO] EscalationManager initialized
+2026-11-10 03:42:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 03:42:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 03:42:52 [    INFO] LanceDBHandler initialized. ID: 5737205520. LANCEDB_AVAILABLE: True
+2026-11-10 03:42:52 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 03:42:52 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpdoc5a99c.xlsx
+2026-11-10 03:42:52 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 03:42:52 [    INFO] Connecting to LanceDB at <scratch-path> with storage_options=None
+2026-11-10 03:42:52 [    INFO] LanceDB connected successfully
 PASSED                                                                   [ 36%]
-tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_edit_preserves_table_and_styles 
--------------------------------- live log call ---------------------------------
-2026-11-10 03:15:21 [    INFO] Document added to 'documents': doc_523e5abc5968218fc5ce2a71
-2026-11-10 03:15:21 [    INFO] Ingested report.docx (157 chars) from office_canvas
-PASSED                                                                   [ 39%]
-tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_appended_lines_added_with_paragraph 
--------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [    INFO] Document added to 'documents': doc_d0d642f3b9a900d9e4589cbb
-2026-11-10 03:15:22 [    INFO] Ingested report.docx (69 chars) from office_canvas
-PASSED                                                                   [ 42%]
-tests/test_office_canvas_coediting.py::TestPptxSync::test_slide_text_edit_round_trips 
--------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [    INFO] Document added to 'documents': doc_b671388fe525ee2fba5ef3c1
-2026-11-10 03:15:22 [    INFO] Ingested deck.pptx (34 chars) from office_canvas
-PASSED                                                                   [ 45%]
-tests/test_office_canvas_coediting.py::TestPptxSync::test_add_slide_creates_slide 
--------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [    INFO] Document added to 'documents': doc_8cbf2d61da60807dcccfcf29
-2026-11-10 03:15:22 [    INFO] Ingested deck.pptx (72 chars) from office_canvas
-PASSED                                                                   [ 48%]
+tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_edit_preserves_table_and_styles PASSED [ 39%]
+tests/test_office_canvas_coediting.py::TestDocxNonDestructiveSync::test_appended_lines_added_with_paragraph PASSED [ 42%]
+tests/test_office_canvas_coediting.py::TestPptxSync::test_slide_text_edit_round_trips PASSED [ 45%]
+tests/test_office_canvas_coediting.py::TestPptxSync::test_add_slide_creates_slide PASSED [ 48%]
 tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[xlsx_file-office_excel-xlsx] 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
-2026-11-10 03:15:22 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpbwslrh4n.xlsx
-2026-11-10 03:15:22 [    INFO] Document added to 'documents': doc_d54c9d7051acbb0228c99783
-2026-11-10 03:15:22 [    INFO] Ingested book.xlsx (156 chars) from office_canvas
+2026-11-10 03:42:53 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 03:42:53 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpz6cn6tia.xlsx
 PASSED                                                                   [ 51%]
-tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[docx_file-office_word-docx] 
--------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [    INFO] Document added to 'documents': doc_9f4d76cc1cf68245b2fd022c
-2026-11-10 03:15:22 [    INFO] Ingested report.docx (68 chars) from office_canvas
-PASSED                                                                   [ 54%]
-tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[pptx_file-office_pptx-pptx] 
--------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [    INFO] Document added to 'documents': doc_5414428f7efbec8bb648f1df
-2026-11-10 03:15:22 [    INFO] Ingested deck.pptx (44 chars) from office_canvas
-PASSED                                                                   [ 57%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[docx_file-office_word-docx] PASSED [ 54%]
+tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_component_names_and_structured_data[pptx_file-office_pptx-pptx] PASSED [ 57%]
 tests/test_office_canvas_coediting.py::TestBroadcastPayload::test_broadcast_reaches_both_channels 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
-2026-11-10 03:15:22 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpcw59loq2.xlsx
+2026-11-10 03:42:53 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 03:42:53 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmphf6q5arh.xlsx
 PASSED                                                                   [ 60%]
 tests/test_office_canvas_coediting.py::TestPresentPersistence::test_present_creates_bound_canvas_row 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_10ea8d1dc6ab'. type='canvas:update'
-2026-11-10 03:15:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 03:42:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_f5a8ab4657e4'. type='canvas:update'
+2026-11-10 03:42:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
 PASSED                                                                   [ 63%]
 tests/test_office_canvas_coediting.py::TestPresentPersistence::test_present_reuses_existing_binding 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_67af78772155'. type='canvas:update'
-2026-11-10 03:15:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
-2026-11-10 03:15:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_67af78772155'. type='canvas:update'
-2026-11-10 03:15:22 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 03:42:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_25805edd3db3'. type='canvas:update'
+2026-11-10 03:42:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 03:42:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_25805edd3db3'. type='canvas:update'
+2026-11-10 03:42:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
 PASSED                                                                   [ 66%]
 tests/test_office_canvas_coediting.py::TestPresentPersistence::test_explicit_canvas_id_respected FAILED [ 69%]
 tests/test_office_canvas_coediting.py::TestPresentPersistence::test_canvas_types_per_format 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_8ed93b771654'. type='canvas:update'
-2026-11-10 03:15:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
-2026-11-10 03:15:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_56ccb9d13fab'. type='canvas:update'
-2026-11-10 03:15:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 03:42:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_148994d3336a'. type='canvas:update'
+2026-11-10 03:42:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
+2026-11-10 03:42:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:canvas_801984c8340c'. type='canvas:update'
+2026-11-10 03:42:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-pres'. type='canvas:update'
 PASSED                                                                   [ 72%]
 tests/test_office_canvas_coediting.py::TestNotifyFileCanvases::test_agent_write_notifies_bound_canvas 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:23 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
-2026-11-10 03:15:23 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmppmmna6ra.xlsx
+2026-11-10 03:42:54 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 03:42:54 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp2fsu9gwk.xlsx
 PASSED                                                                   [ 75%]
 tests/test_office_canvas_coediting.py::TestNotifyFileCanvases::test_unbound_files_notify_nothing PASSED [ 78%]
 tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_write_excel_cell_notifies PASSED [ 81%]
@@ -136,22 +106,18 @@ tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_modify_word
 tests/test_office_canvas_coediting.py::TestAgentToolNotifyHook::test_modify_pptx_notifies PASSED [ 90%]
 tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_cell_edit_refreshes_canvas_content 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:24 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
-2026-11-10 03:15:24 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpr6sbesnq.xlsx
-2026-11-10 03:15:24 [    INFO] Document added to 'documents': doc_9315872a5500d213e62a4b95
-2026-11-10 03:15:24 [    INFO] Ingested book.xlsx (157 chars) from office_canvas
+2026-11-10 03:42:55 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 03:42:55 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpn5_kzwxy.xlsx
 PASSED                                                                   [ 93%]
 tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_broadcast_persists_html_for_rest_clients 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:24 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
-2026-11-10 03:15:24 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp0bjgd7r3.xlsx
+2026-11-10 03:42:55 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 03:42:55 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpk3wuum2i.xlsx
 PASSED                                                                   [ 96%]
 tests/test_office_canvas_coediting.py::TestSyncUpdatesCanvasRow::test_magicmock_db_is_tolerated 
 -------------------------------- live log call ---------------------------------
-2026-11-10 03:15:24 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
-2026-11-10 03:15:24 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpunfnzshh.xlsx
-2026-11-10 03:15:24 [    INFO] Document added to 'documents': doc_af3dec2ba9967ef16242c459
-2026-11-10 03:15:24 [    INFO] Ingested book.xlsx (156 chars) from office_canvas
+2026-11-10 03:42:55 [    INFO] sheet datasets: skipped for book.xlsx (no_tabular_content)
+2026-11-10 03:42:55 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpxzcl6eih.xlsx
 PASSED                                                                   [100%]
 
 =================================== FAILURES ===================================
@@ -192,4 +158,4 @@ FAILED tests/test_office_canvas_coediting.py::TestPresentPersistence::test_expli
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================== 1 failed, 32 passed, 6 warnings in 25.33s ===================
+================== 1 failed, 32 passed, 6 warnings in 22.77s ===================
