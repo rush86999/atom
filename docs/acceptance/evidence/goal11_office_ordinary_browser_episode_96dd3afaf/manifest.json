@@ -1,0 +1,78 @@
+{
+  "actions_not_taken": [
+    "no product source edit",
+    "no repair loop",
+    "no provider/model/send/live DB",
+    "no cookie/token/JWT/private DB evidence"
+  ],
+  "backend_frontend": "started; real admin login/onboarding PASS",
+  "branch": "codex/web-goal11-office-ordinary-browser-20261110",
+  "database_readback": {
+    "descriptor_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/office_ordinary_browser_96dd3afaf6_1794307192/runs/run-b98fa7605360/data/atom.db",
+    "health_path": "/private/tmp/atom-goal11-office-browser-20261110/backend/data/acceptance_worlds/office_ordinary_browser_96dd3afaf6_1794307192/runs/run-b98fa7605360/data/atom.db",
+    "mode": "uri mode=ro",
+    "note": "no-table/path mismatch would be harness evidence; here users/canvases/canvas_audit were read from the exact launched descriptor DB",
+    "samefile": true,
+    "tables_present": true,
+    "verified": true
+  },
+  "evidence_files": {
+    "README.md": "e0357921c4cc8248fc2ca931186d3cb9f52e563e462863f041285ae6d7065879",
+    "capture/frontend_export_failure.proof": "d600cad24280d3825a40f17ed1d3fb8f98a874f5709d1ae22045682828a0ef78",
+    "capture/result.summary.json": "2bfb6faf224a7d96814bdadb261aa9f1b4fc130da55957c425c009131a559740",
+    "capture/scope_readback.json": "5a9fecf4cbec035880764a617a445850431551661aca6b6106b82313bf76070c",
+    "capture/server_export_failure.proof": "c9b4098d62ed485f0d9b4f4a9e84a434f9ef9b3aedd1bea8bca169eed55513c1",
+    "capture/world_identity.json": "9d576054fe17ed8d2bfdd4da2217d88d1e4698ddc5ea788f945577d1c15c817c"
+  },
+  "failure": {
+    "admin_raw_scope": {
+      "tenant_id": null,
+      "workspace_id": null
+    },
+    "canvas_scope": "default",
+    "control": "visible Download DOCX",
+    "download": false,
+    "request": "GET /api/canvas/{id}/export/office?format=docx&expected_audit_id=...",
+    "status": 403
+  },
+  "kind": "goal11_office_ordinary_browser_episode_negative",
+  "non_claims": [
+    "no DOCX/PPTX download/package/edit proof",
+    "no general Office/browser/whole-GOAL-11 claim"
+  ],
+  "seeded": "document DOCX + markdown SlideN PPTX via authorized public Canvas APIs",
+  "source_head": "96dd3afaf6a519848c04265db7249454020d7e85",
+  "source_proof": "PASS at 96dd",
+  "status": "product_boundary_failure_no_download",
+  "storage_guard": "PASS with ATOM_WORLD_STORAGE_PATHS=/Users/rushiparikh/projects/atom/backend/config",
+  "worktree": "/private/tmp/atom-goal11-office-browser-20261110",
+  "world": "office_ordinary_browser_96dd3afaf6_1794307192",
+  "world_build": "PASS",
+  "world_build_identity": {
+    "manifest": {
+      "code_snapshot_sha256": "d2107dac900c46cbfad4c194b1e90d7152fe2067f12bc47da69b44b7d87ed97b",
+      "fixture_source": {
+        "explicit": false,
+        "mode": "api-seeded-fixture",
+        "note": "default: schema-provisioned API-seeded fixture; no dev rows copied"
+      },
+      "network_boundary_verified": {
+        "external_blocked": true,
+        "loopback": true
+      },
+      "source_revision": null
+    },
+    "marker": {
+      "account": "Normal bootstrap admin created by the existing core.admin_bootstrap path and signed in through the real form. No token/cookie seed and no broad role was granted.",
+      "created_at": "2026-11-10T05:40:00-0500",
+      "embedding": "The upload uses the product's default local FastEmbed provider and the pre-existing model cache. Only local index-write availability is claimed; no provider or embedding-quality claim is made.",
+      "fixture": "SYNTHETIC USER FILE: a generated plain-text document with recognizable head/tail markers. It is not business data, not a model result and not a fabricated UI response.",
+      "kind": "ordinary_stored_text_export",
+      "not_original_binary": true,
+      "schema": "atom-document-stored-export-ui-world-1",
+      "source_sha": "96dd3afaf6a519848c04265db7249454020d7e85",
+      "world": "office_ordinary_browser_96dd3afaf6_1794307192"
+    }
+  },
+  "world_root": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds"
+}

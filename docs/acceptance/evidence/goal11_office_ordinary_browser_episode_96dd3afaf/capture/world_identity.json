@@ -1,0 +1,26 @@
+{
+  "manifest": {
+    "code_snapshot_sha256": "d2107dac900c46cbfad4c194b1e90d7152fe2067f12bc47da69b44b7d87ed97b",
+    "fixture_source": {
+      "explicit": false,
+      "mode": "api-seeded-fixture",
+      "note": "default: schema-provisioned API-seeded fixture; no dev rows copied"
+    },
+    "network_boundary_verified": {
+      "external_blocked": true,
+      "loopback": true
+    },
+    "source_revision": null
+  },
+  "marker": {
+    "account": "Normal bootstrap admin created by the existing core.admin_bootstrap path and signed in through the real form. No token/cookie seed and no broad role was granted.",
+    "created_at": "2026-11-10T05:40:00-0500",
+    "embedding": "The upload uses the product's default local FastEmbed provider and the pre-existing model cache. Only local index-write availability is claimed; no provider or embedding-quality claim is made.",
+    "fixture": "SYNTHETIC USER FILE: a generated plain-text document with recognizable head/tail markers. It is not business data, not a model result and not a fabricated UI response.",
+    "kind": "ordinary_stored_text_export",
+    "not_original_binary": true,
+    "schema": "atom-document-stored-export-ui-world-1",
+    "source_sha": "96dd3afaf6a519848c04265db7249454020d7e85",
+    "world": "office_ordinary_browser_96dd3afaf6_1794307192"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "admin_rows": [
+    [
+      "fea13e7d-1556-46b0-8a40-e9eff29903c0",
+      "admin@example.com",
+      "active",
+      1,
+      "NULL",
+      "NULL",
+      "workspace_admin"
+    ]
+  ],
+  "canvas_rows": [
+    [
+      "159081e9-8a82-417f-b755-6248bbef5212",
+      "default",
+      "default",
+      "fea13e7d-1556-46b0-8a40-e9eff29903c0",
+      "document",
+      "active"
+    ],
+    [
+      "e54fd96a-e941-4724-a242-fb90c1ecb15e",
+      "default",
+      "default",
+      "fea13e7d-1556-46b0-8a40-e9eff29903c0",
+      "markdown",
+      "active"
+    ]
+  ],
+  "latest_audits": [
+    [
+      "a2ac1874-97c1-476f-9be4-68d8bb61ded4",
+      "e54fd96a-e941-4724-a242-fb90c1ecb15e",
+      "default",
+      "fea13e7d-1556-46b0-8a40-e9eff29903c0",
+      "update"
+    ],
+    [
+      "ae5ecc67-eb90-45c8-86c6-98bf15978363",
+      "e54fd96a-e941-4724-a242-fb90c1ecb15e",
+      "default",
+      "fea13e7d-1556-46b0-8a40-e9eff29903c0",
+      "create"
+    ],
+    [
+      "ff79f334-bff2-4117-b784-2b375b53cdf4",
+      "159081e9-8a82-417f-b755-6248bbef5212",
+      "default",
+      "fea13e7d-1556-46b0-8a40-e9eff29903c0",
+      "update"
+    ],
+    [
+      "268cca61-72ad-4565-b03f-d82ea0a16a66",
+      "159081e9-8a82-417f-b755-6248bbef5212",
+      "default",
+      "fea13e7d-1556-46b0-8a40-e9eff29903c0",
+      "create"
+    ]
+  ],
+  "verification": {
+    "descriptor_db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/office_ordinary_browser_96dd3afaf6_1794307192/runs/run-b98fa7605360/data/atom.db",
+    "health_db_path": "/private/tmp/atom-goal11-office-browser-20261110/backend/data/acceptance_worlds/office_ordinary_browser_96dd3afaf6_1794307192/runs/run-b98fa7605360/data/atom.db",
+    "query_only": 0,
+    "run_db_path": "backend/data/acceptance_worlds/office_ordinary_browser_96dd3afaf6_1794307192/runs/run-b98fa7605360/data/atom.db",
+    "samefile_health_descriptor": true,
+    "samefile_run_descriptor": true,
+    "sqlite_uri": "file:<descriptor_db_path>?mode=ro"
+  }
+}
