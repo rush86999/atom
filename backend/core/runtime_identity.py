@@ -91,6 +91,9 @@ class RuntimeIdentity:
     #: False when dirty state could not be read; source_id then carries an
     #: explicit -unverified suffix rather than implying clean.
     dirty_known: bool = True
+    #: Counts from the actual code_manifest tree verification (export only).
+    export_verified_files: int = 0
+    export_loaded_files: int = 0
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -115,6 +118,8 @@ class RuntimeIdentity:
             "git_toplevel": self.git_toplevel,
             "ancestor_git_toplevel": self.ancestor_git_toplevel,
             "dirty_known": self.dirty_known,
+            "export_verified_files": self.export_verified_files,
+            "export_loaded_files": self.export_loaded_files,
         }
 
     def headers(self) -> Dict[str, str]:
@@ -165,14 +170,152 @@ def _sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
-def _read_export_metadata(repo_dir: str) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+def _safe_manifest_relpath(key: Any) -> Optional[str]:
+    if not isinstance(key, str) or not key:
+        return None
+    if key.startswith("/") or "\\" in key:
+        return None
+    parts = key.split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        return None
+    return "/".join(parts)
+
+
+def _within(child: str, root: str) -> bool:
+    try:
+        child_real = os.path.realpath(child)
+        root_real = os.path.realpath(root)
+        return os.path.commonpath([child_real, root_real]) == root_real
+    except (OSError, ValueError):
+        return False
+
+
+def _verify_export_tree(
+    repo_dir: str, backend_dir: str, code_manifest: Dict[str, Any]
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Verify the ACTUAL loaded/exported bytes against the existing manifest.
+
+    ``run_isolated`` writes ``code_manifest.json`` with one SHA256 per file in
+    the immutable export (paths relative to the export's code root). Reusing
+    that contract here is what prevents a modified export from keeping the
+    original clean identity: shapes/non-empty checks alone do not bind bytes.
+    """
+    repo_real = os.path.realpath(repo_dir)
+    backend_real = os.path.realpath(backend_dir)
+    if not _within(backend_real, repo_real):
+        return None, "loaded backend path escapes the export root"
+
+    code_candidate = os.path.join(repo_dir, "code")
+    code_root = code_candidate if os.path.isdir(code_candidate) else repo_dir
+    if not _within(code_root, repo_dir):
+        return None, "export code root escapes the export root"
+
+    manifest_loaded: set[str] = set()
+    hash_cache: Dict[str, str] = {}
+    verified = 0
+
+    def digest(path: str) -> str:
+        real = os.path.realpath(path)
+        if real not in hash_cache:
+            hash_cache[real] = _sha256_file(real)
+        return hash_cache[real]
+
+    for key, expected in code_manifest.items():
+        rel = _safe_manifest_relpath(key)
+        if rel is None:
+            return None, f"export manifest has an unsafe path: {key!r}"
+        if not isinstance(expected, str) or not _HEX64.fullmatch(
+                expected.strip().lower()):
+            return None, f"export manifest has an invalid hash for {rel}"
+        expected_sha = expected.strip().lower()
+        export_path = os.path.join(code_root, *rel.split("/"))
+        if not _within(export_path, code_root):
+            return None, f"export manifest path escapes the code root: {rel}"
+        if not os.path.isfile(export_path):
+            return None, f"export file is missing: {rel}"
+        export_real = os.path.realpath(export_path)
+        if not _within(export_real, code_root):
+            return None, f"export file resolves outside the code root: {rel}"
+        if digest(export_real) != expected_sha:
+            return None, f"export file content changed: {rel}"
+
+        if rel == "backend" or rel.startswith("backend/"):
+            loaded_rel = rel[len("backend/"):] if rel.startswith("backend/") else ""
+            if not loaded_rel:
+                return None, "export manifest has an invalid backend entry"
+            # The runner's farm deliberately replaces these mutable/runtime
+            # directories with world data/logs, so they are export content but
+            # not loaded code. The export hash above still verifies them.
+            if loaded_rel == "data" or loaded_rel.startswith("data/") or \
+                    loaded_rel == "logs" or loaded_rel.startswith("logs/"):
+                verified += 1
+                continue
+            loaded_path = os.path.join(backend_dir, *loaded_rel.split("/"))
+            if not os.path.isfile(loaded_path):
+                return None, f"loaded export file is missing: {rel}"
+            loaded_real = os.path.realpath(loaded_path)
+            if loaded_real != export_real:
+                return None, (
+                    f"loaded farm does not point at the verified export: {rel}")
+            if digest(loaded_real) != expected_sha:
+                return None, f"loaded export file content changed: {rel}"
+            manifest_loaded.add(loaded_rel)
+        verified += 1
+
+    # The loaded backend must contain exactly the manifest's backend files,
+    # apart from runtime data/log directories. This catches added/removed
+    # loaded files and unrelated farm content.
+    loaded_files: set[str] = set()
+    for root, dirs, files in os.walk(backend_dir, followlinks=True):
+        rel_root = os.path.relpath(root, backend_dir)
+        if rel_root == ".":
+            dirs[:] = [d for d in dirs if d not in ("data", "logs")]
+        for name in files:
+            full = os.path.join(root, name)
+            if os.path.isfile(full):
+                loaded_files.add(os.path.relpath(full, backend_dir))
+    # Runtime-created files beside the farm are not code and are not in the
+    # export manifest. Ignore only that narrow class; an added .py (or any
+    # other file) is still drift.
+    def _runtime_artifact(rel: str) -> bool:
+        parts = rel.split("/")
+        if any(part == "__pycache__" for part in parts):
+            return True
+        name = parts[-1]
+        return (
+            name.startswith(".env")
+            or name.endswith((".pyc", ".pyo", ".log", ".pid"))
+            or name.endswith((".db", ".db-wal", ".db-shm", ".sqlite", ".sqlite3"))
+        )
+
+    missing = sorted(manifest_loaded - loaded_files)
+    extra = sorted(
+        rel for rel in (loaded_files - manifest_loaded)
+        if not _runtime_artifact(rel))
+    if missing or extra:
+        return None, (
+            "loaded export tree does not match code_manifest "
+            f"(missing={missing[:3]} extra={extra[:3]})")
+
+    return {
+        "verified_files": verified,
+        "loaded_files": len(manifest_loaded),
+        "code_root": code_root,
+    }, None
+
+
+def _read_export_metadata(
+    repo_dir: str, backend_dir: str
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
     """Read the existing world/export metadata contract, never invent one.
 
     run_isolated verifies the exported tree against ``code_manifest.json`` and
     pins the export tar in ``MANIFEST.json`` before launch. Runtime identity
-    reuses those two files as metadata; it does not create a second provenance
+    reuses those two files as metadata and re-verifies the ACTUAL loaded tree
+    against the per-file manifest; it does not create a second provenance
     store and it does not inspect an ancestor Git checkout.
     """
+    repo_real = os.path.realpath(repo_dir)
     manifest_path = os.path.join(repo_dir, "MANIFEST.json")
     code_manifest_path = os.path.join(repo_dir, "code_manifest.json")
     if not os.path.isfile(manifest_path):
@@ -183,6 +326,9 @@ def _read_export_metadata(repo_dir: str) -> tuple[Optional[Dict[str, Any]], Opti
         return None, (
             "loaded source is not a Git checkout and export metadata is missing "
             "code_manifest.json")
+    if not _within(manifest_path, repo_real) or not _within(
+            code_manifest_path, repo_real):
+        return None, "export metadata resolves outside the export root"
     try:
         with open(manifest_path, "r", encoding="utf-8") as fh:
             manifest = json.load(fh)
@@ -212,13 +358,20 @@ def _read_export_metadata(repo_dir: str) -> tuple[Optional[Dict[str, Any]], Opti
             code_manifest = json.load(fh)
     except Exception as exc:  # noqa: BLE001
         return None, f"export code_manifest.json is unreadable/malformed: {type(exc).__name__}"
-    if not isinstance(code_manifest, (dict, list)) or not code_manifest:
+    if not isinstance(code_manifest, dict) or not code_manifest:
         return None, "export code_manifest.json is empty or malformed"
+
+    verified, verify_error = _verify_export_tree(
+        repo_dir, backend_dir, code_manifest)
+    if verified is None:
+        return None, verify_error
 
     return {
         "export_sha256": export_sha,
         "export_manifest_sha256": _sha256_file(manifest_path),
         "code_manifest_sha256": _sha256_file(code_manifest_path),
+        "verified_files": verified["verified_files"],
+        "loaded_files": verified["loaded_files"],
     }, None
 
 
@@ -256,6 +409,8 @@ def capture_runtime_identity(cwd: Optional[str] = None) -> RuntimeIdentity:
     code_manifest_sha = None
     git_toplevel = None
     ancestor_toplevel = None
+    verified_files = 0
+    loaded_files = 0
 
     # Git may answer from an ancestor checkout when the loaded source is an
     # export nested beneath it. Trust Git only when its top-level IS the
@@ -303,12 +458,14 @@ def capture_runtime_identity(cwd: Optional[str] = None) -> RuntimeIdentity:
         # Do NOT use the ancestor checkout. An export/install is identifiable
         # only through its verified export metadata; otherwise report unknown.
         ancestor_toplevel = observed_toplevel or None
-        export_meta, export_error = _read_export_metadata(repo_dir)
+        export_meta, export_error = _read_export_metadata(repo_dir, backend_dir)
         if export_meta:
             identity_kind = "export"
             export_sha = export_meta["export_sha256"]
             export_manifest_sha = export_meta["export_manifest_sha256"]
             code_manifest_sha = export_meta["code_manifest_sha256"]
+            verified_files = export_meta["verified_files"]
+            loaded_files = export_meta["loaded_files"]
             revision = "unknown"
             dirty_known = True
             dirty = False
@@ -362,6 +519,8 @@ def capture_runtime_identity(cwd: Optional[str] = None) -> RuntimeIdentity:
         git_toplevel=git_toplevel,
         ancestor_git_toplevel=ancestor_toplevel,
         dirty_known=dirty_known,
+        export_verified_files=verified_files,
+        export_loaded_files=loaded_files,
     )
     logger.info(
         "runtime identity: kind=%s source_id=%s revision=%s dirty=%s "
