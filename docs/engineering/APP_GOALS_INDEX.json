@@ -111,8 +111,8 @@
     "current_state": "Evidence-backed progression and implemented authority/approval controls remain bounded; universal autonomous competence is not verified."
   },
   "quick_reference": {
-    "updated_at": "2026-11-10T06:30:41.635439+00:00",
-    "as_of_main": "310e72aecd1a4041a35af6ac093379d39b93556b",
+    "updated_at": "2026-11-10T07:33:51.949469+00:00",
+    "as_of_main": "750f42215229fde8d516c700c6a8de0fd3a5a111",
     "app_complete": false,
     "historical_claims": 143,
     "goal_rows": 18,
@@ -140,26 +140,41 @@
       {
         "pr": 816,
         "revision": "310e72aec",
-        "scope": "Training proposal authority and expiry; controlled public API/SQLite scope, all13 exact-head checks green; post-merge CI pending"
+        "scope": "Training proposal authority and expiry; controlled public API/SQLite scope; exact-head and post-merge CI verified green."
+      },
+      {
+        "pr": 818,
+        "revision": "750f42215",
+        "scope": "Reviewed native-chat learning: controlled API/component and ordinary UI operations plus restart durability. Original full browser verifier retains10 failed capture checks. Exact all13 PR checks and merged-union tree verified; post-merge CI pending."
       }
     ],
     "submitted": [
       {
         "pr": 817,
-        "head": "36f9a5909",
-        "scope": "Persistent web regression gate; hosted54pass8fail exposed missing pylance dependency in normal install. Repair active; failed head not mergeable for acceptance."
+        "head": "5cbc21781",
+        "scope": "Persistent web authority/document/training controls plus normal-install pylance dependency repair; original failing head retained. Learning-main CI union preserved27/27 ledger controls; new exact-head hosted checks pending."
+      },
+      {
+        "pr": 819,
+        "head": "2beccb819",
+        "scope": "Governed generated-workflow manual handoff; independent10 refusal/race controls and actual fresh-process roundtrip pass. Frozen source23a9a4496/evidence0560bd16a retained; new integration-head CI pending. No live model/browser/PG/soak claim."
+      },
+      {
+        "pr": 820,
+        "head": "d264ab465",
+        "scope": "Presence override authority/state CAS, receipt and uncertain UI preservation; root3 independent controls pass,6sources/13artifacts Git-verified. New integration-head CI pending; bounded ORACLE family only."
       }
     ],
     "active": [
       {
-        "owner": "frontend native CLI",
-        "work": "Native-chat reviewed learning, ordinary Learning UI and real backend restart",
-        "acceptance": "Controlled API/SQLite/component plus actual UI create/confirm/promote/restart and durable lesson readback at e5d2fdb32, evidence1bc476a51. Original full browser verifier FAILED10 capture checks; supplement failed auth selector. Packet26 hashes independently verified; clean delivery being prepared, no full teaching/model-quality claim."
+        "owner": "backend native CLI",
+        "work": "Workflow execution result export",
+        "acceptance": "Runtime1c876b5f6 binds exact executed definition and required step coverage. Independent original7 refusals and new definition-binding probe1 pass. Both historical negatives retained. JSON format only; ordinary parent-modal controls in progress; not submitted/whole artifact goal complete."
       },
       {
-        "owner": "backend native CLI",
-        "work": "Generated workflow handoff to existing catalog and canonical engine",
-        "acceptance": "Implementation in progress; shared-store failure, stale writer and uncertainty controls required; no runtime acceptance or deployment claim."
+        "owner": "frontend native CLI",
+        "work": "Activity utility ranking visibility",
+        "acceptance": "Initial05ca1e72b controlled45 tests pass but WITHHELD: independent2 controls expose a cleared-target stale winner and older-load overwrite. Same worker repairs existing consumer; no new router/store/engine and no overall GOAL02 completion."
       }
     ],
     "superseded": [
@@ -174,6 +189,6 @@
       }
     ],
     "execution_rules": "Continue finite work while model-free CI observers run; preserve exact-source evidence and original negative captures. Merge only independently verified exact heads with all13 checks green. Mobile last; no narrower core-only completion.",
-    "next_prepared": "Workflow output/export consumer boundary after current workflow handoff; reconcile ownership and existing evidence first."
+    "next_prepared": "Finish independent review and exact-head CI of current main-web deliveries; retain the full143-claim/18-goal audit and choose the next substantive unclosed requirement after ownership/evidence reconciliation."
   }
 }
