@@ -1,0 +1,13 @@
+{
+  "pid": 9449,
+  "world": "/private/tmp/root-native-learning-authority-repaired-20261110-66_65ypx",
+  "source_hashes": {
+    "core/conversation_learning.py": "4e3f2a584f13d262e51f4b1306881d29a5cf84f28c12138f576603d64eab3c46",
+    "api/conversation_learning_routes.py": "b151e144350f9c5a18b40a4624f371e0d0832d9796a8ac9937a0c9eb651e2a37"
+  },
+  "probe": "/private/tmp/root-native-learning-authority-heldout-20261110.py",
+  "assertions_unchanged": true,
+  "passed": true,
+  "source_unchanged_during_run": true,
+  "log_sha256": "2667c8a97bc58bfdc4b4364bde7cd55951cc4310727b312619eb65b99ee095d8"
+}

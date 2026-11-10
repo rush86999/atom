@@ -1,0 +1,57 @@
+{
+  "artifact_policy": {
+    "historical_harness_bytes_archived": false,
+    "ignored_private_logs_committed": false,
+    "logs_provenance": "copied from already tracked accepted predecessor packets; no private runtime logs committed",
+    "raw_private_world_db_auth_env_mail_logs_committed": false,
+    "sanitized_ui_observations_only": true
+  },
+  "artifacts": {
+    "README.md": "5d940948fb3a86b9c03f44dec393fc9adc185880775fc7a3fffe061fb4524edb",
+    "api/component_api_controls.json": "374978d22c06d7b643194b3cb33473c2e8bc1ee9f0c4f22b89fbc4461fc8beed",
+    "api/source_map.json": "9cb8da14637d90e0c98a9c1486c90983631924e9a569df71b5a9b662d6705c9d",
+    "logs/authority-probe.log": "0523362e8bf31843fe171257bf90a3d3753f5bb0ba3880db30501d2babad8bb2",
+    "logs/combined-backend.log": "3342330512f6c9b677813cc582d8cbd3882a477a933dc41cad0c25147f4a2891",
+    "logs/eslint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/frontend-tests.log": "9b8f9bb9a0cc7f37ec10dbd356dba873fd8f3d919160f17ecf819265b0d7bd5f",
+    "logs/native-api-tests.log": "366a2a96974c56fa009c365604982d004360ae40af8f6c27b5978aa1aaa38b35",
+    "logs/root-owner-probe-positive.log": "529dcd0f881a8a55e4989e2123c22318427391ceac58ea5f09863bb0f3ace6b0",
+    "logs/tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "root-proofs/controlled_acceptance.json": "c24e534ae50baa34a51cbfa0ac8e98d12e2408164d18381a419754fa6fd89e01",
+    "root-proofs/durability_readback.json": "96b331e4107edbc9f146aeb2779a33be0fd7aa144846eca6a4ad62e6ea58f5e6",
+    "root-proofs/integration_independent.json": "ae6121a2728972e86b607d8de6de9fe825181214a62613ff6bf2e7f5345525a4",
+    "ui/negative_refusals.json": "002933aa327f55b5e274e4688604f103042a4a7fda509790567d1b9c693fab82",
+    "ui/safe_observations.json": "d2e16389a81a0aaaf2823bbebd22c1d2d7f308d92a6a9c0b91bcb75665890c1e",
+    "ui/supplemental_result.json": "db4e9f233507602e0994f084069c42e6b26daf7b01aa19e523262182e00acb5d",
+    "ui/verifier_result.json": "0eccca74082bbbe871075b24c808611313faa1731b098f9023c2f9a455c41580",
+    "verification.json": "be2ea256c9c46bbdfabb55a58676512f439b7be9157c983712f8517d9adc054e"
+  },
+  "branch": "codex/web-learning-native-chat-20261110",
+  "captured_at": "2026-11-10T06:09Z",
+  "executed_source": {
+    "accepted_learning_commit": "33b8e99317bc0563b153d379f177a133c0a0a914",
+    "commit": "e5d2fdb323273a2436b39a6c224b14a116cd8bbe",
+    "files_sha256": {
+      "backend/api/conversation_learning_routes.py": "ed1ba00370f324adb3d22050d72b0f0caaf723ba2c2b4255fe887d7f376ed790",
+      "backend/core/conversation_learning.py": "5da358acd6e2e236e6a95cefbd5420da3b1f1111d9df71891abe61c9db0359f3",
+      "backend/tests/api/test_conversation_learning_native_chat.py": "3b5cc6db5d04978639792f5cdd0578e43c159d2286363ecc5e79f10f0a22ba2a",
+      "frontend-nextjs/components/learning/ConversationLearningReview.tsx": "edc62a4cdf1980a113bb14df30c3046c8380084025c40d2017f6bd4f01569419",
+      "frontend-nextjs/components/learning/__tests__/ConversationLearningReview.test.tsx": "81f3c8da2483e03b088747298de7fee114591a72c97e2f40aadc7ee67b04de4c",
+      "frontend-nextjs/lib/conversation-learning-api.ts": "7b07393d9f2eafb82c8b28013ed488b6f7f5b409ebec5630717f5ea9cb2a5a1d",
+      "frontend-nextjs/pages/learning.tsx": "2a9323e51b84602c981306e1497447171c0eb63fe7d6625208a31429e003e678",
+      "frontend-nextjs/tests/pages/learning.test.tsx": "bb8185e4fe92e6afb6319dc2789f38a2c30340bc58a1e1f21a6e87cbf9b39192"
+    }
+  },
+  "packet": "web_learning_native_chat_ui_e5d2fdb32",
+  "packet_prepared_at": "2026-11-10T06:23:51Z",
+  "source_files": {
+    "backend/api/conversation_learning_routes.py": "ed1ba00370f324adb3d22050d72b0f0caaf723ba2c2b4255fe887d7f376ed790",
+    "backend/core/conversation_learning.py": "5da358acd6e2e236e6a95cefbd5420da3b1f1111d9df71891abe61c9db0359f3",
+    "backend/tests/api/test_conversation_learning_native_chat.py": "3b5cc6db5d04978639792f5cdd0578e43c159d2286363ecc5e79f10f0a22ba2a",
+    "frontend-nextjs/components/learning/ConversationLearningReview.tsx": "edc62a4cdf1980a113bb14df30c3046c8380084025c40d2017f6bd4f01569419",
+    "frontend-nextjs/components/learning/__tests__/ConversationLearningReview.test.tsx": "81f3c8da2483e03b088747298de7fee114591a72c97e2f40aadc7ee67b04de4c",
+    "frontend-nextjs/lib/conversation-learning-api.ts": "7b07393d9f2eafb82c8b28013ed488b6f7f5b409ebec5630717f5ea9cb2a5a1d",
+    "frontend-nextjs/pages/learning.tsx": "2a9323e51b84602c981306e1497447171c0eb63fe7d6625208a31429e003e678",
+    "frontend-nextjs/tests/pages/learning.test.tsx": "bb8185e4fe92e6afb6319dc2789f38a2c30340bc58a1e1f21a6e87cbf9b39192"
+  }
+}

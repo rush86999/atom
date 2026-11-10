@@ -1,0 +1,45 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+__ test_same_workspace_peer_cannot_read_or_invalidate_private_chat_candidate ___
+
+world = <test_conversation_learning_native_chat.World object at 0x135e63dd0>
+
+    def test_same_workspace_peer_cannot_read_or_invalidate_private_chat_candidate(world):
+        cid,before=setup_owner_candidate_and_peer(world)
+        with world.client() as c:
+            r=world.call(c,'get',f'/api/conversation-learning/candidates/{cid}',world.token('same-workspace-peer'),params={'thread_id':world.chat,'source_kind':'native_chat'})
+        with world.Session() as db:after=db.query(ConversationEvent).filter_by(conversation_id=world.chat).count()
+>       assert r.status_code==404,{'status':r.status_code,'events_before':before,'events_after':after}
+E       AssertionError: {'events_after': 2, 'events_before': 1, 'status': 200}
+E       assert 200 == 404
+E        +  where 200 = <Response [200 OK]>.status_code
+
+../../root-native-learning-owner-heldout-20261110.py:22: AssertionError
+________ test_same_workspace_peer_cannot_reject_private_chat_candidate _________
+
+world = <test_conversation_learning_native_chat.World object at 0x137e37310>
+
+    def test_same_workspace_peer_cannot_reject_private_chat_candidate(world):
+        cid,before=setup_owner_candidate_and_peer(world)
+        with world.client() as c:
+            r=world.call(c,'post',f'/api/conversation-learning/candidates/{cid}/reject',world.token('same-workspace-peer'),json={'thread_id':world.chat,'source_kind':'native_chat','reviewer':'peer','reason':'synthetic unauthorized attempt'})
+        with world.Session() as db:after=db.query(ConversationEvent).filter_by(conversation_id=world.chat).count()
+>       assert r.status_code==404,{'status':r.status_code,'events_before':before,'events_after':after}
+E       AssertionError: {'events_after': 2, 'events_before': 1, 'status': 200}
+E       assert 200 == 404
+E        +  where 200 = <Response [200 OK]>.status_code
+
+../../root-native-learning-owner-heldout-20261110.py:30: AssertionError
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root-native-learning-owner-heldout-20261110.py::test_same_workspace_peer_cannot_read_or_invalidate_private_chat_candidate
+FAILED ../../root-native-learning-owner-heldout-20261110.py::test_same_workspace_peer_cannot_reject_private_chat_candidate
+2 failed, 4 warnings in 3.44s

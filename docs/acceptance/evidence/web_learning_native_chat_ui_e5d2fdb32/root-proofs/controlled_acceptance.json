@@ -1,0 +1,13 @@
+{
+  "status": "accepted_controlled_API_SQLite_component_scope_pending_browser_and_delivery",
+  "product": "33b8e99317bc0563b153d379f177a133c0a0a914",
+  "evidence": "4c2642c5cb7f745845401db3aa220ff6ae893ab6",
+  "independent_original_probes": "4 passed in4.76s, frozen source hashes match",
+  "packet_checks": 19,
+  "limits": [
+    "No ordinary UI/browser qualification yet",
+    "Native source is user-global, not stored per-workspace",
+    "Freshness revalidation is on review/load/promote touch, not a background watcher",
+    "No general lesson/model-quality or full teaching-goal completion"
+  ]
+}

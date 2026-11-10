@@ -1,0 +1,48 @@
+{
+  "accepted_learning_commit": "33b8e99317bc0563b153d379f177a133c0a0a914",
+  "all_eight_match_accepted_and_integrated": true,
+  "files": [
+    {
+      "path": "backend/core/conversation_learning.py",
+      "same_accepted_and_integrated": true,
+      "sha256": "5da358acd6e2e236e6a95cefbd5420da3b1f1111d9df71891abe61c9db0359f3"
+    },
+    {
+      "path": "backend/api/conversation_learning_routes.py",
+      "same_accepted_and_integrated": true,
+      "sha256": "ed1ba00370f324adb3d22050d72b0f0caaf723ba2c2b4255fe887d7f376ed790"
+    },
+    {
+      "path": "backend/tests/api/test_conversation_learning_native_chat.py",
+      "same_accepted_and_integrated": true,
+      "sha256": "3b5cc6db5d04978639792f5cdd0578e43c159d2286363ecc5e79f10f0a22ba2a"
+    },
+    {
+      "path": "frontend-nextjs/lib/conversation-learning-api.ts",
+      "same_accepted_and_integrated": true,
+      "sha256": "7b07393d9f2eafb82c8b28013ed488b6f7f5b409ebec5630717f5ea9cb2a5a1d"
+    },
+    {
+      "path": "frontend-nextjs/components/learning/ConversationLearningReview.tsx",
+      "same_accepted_and_integrated": true,
+      "sha256": "edc62a4cdf1980a113bb14df30c3046c8380084025c40d2017f6bd4f01569419"
+    },
+    {
+      "path": "frontend-nextjs/pages/learning.tsx",
+      "same_accepted_and_integrated": true,
+      "sha256": "2a9323e51b84602c981306e1497447171c0eb63fe7d6625208a31429e003e678"
+    },
+    {
+      "path": "frontend-nextjs/tests/pages/learning.test.tsx",
+      "same_accepted_and_integrated": true,
+      "sha256": "bb8185e4fe92e6afb6319dc2789f38a2c30340bc58a1e1f21a6e87cbf9b39192"
+    },
+    {
+      "path": "frontend-nextjs/components/learning/__tests__/ConversationLearningReview.test.tsx",
+      "same_accepted_and_integrated": true,
+      "sha256": "81f3c8da2483e03b088747298de7fee114591a72c97e2f40aadc7ee67b04de4c"
+    }
+  ],
+  "root_proof": "root-proofs/integration_independent.json",
+  "source_commit": "e5d2fdb323273a2436b39a6c224b14a116cd8bbe"
+}
