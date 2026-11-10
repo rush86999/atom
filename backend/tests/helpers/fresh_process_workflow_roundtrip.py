@@ -12,8 +12,10 @@ Usage (parent supplies the same scratch paths):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import sys
 
 
@@ -23,7 +25,7 @@ def _fail(message: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("run", "verify"))
+    parser.add_argument("mode", choices=("run", "verify", "export"))
     parser.add_argument("--db-url", required=True)
     parser.add_argument("--catalog", required=True)
     parser.add_argument("--user-id", required=True)
@@ -147,6 +149,12 @@ def main() -> int:
         "owner_user_id": args.owner_id or None,
         "scheduler_jobs": None,
         "model_calls": False,
+        "export_sha256": None,
+        "export_bytes": None,
+        "export_filename": None,
+        "export_schema": None,
+        "export_execution_id": None,
+        "export_workflow_id": None,
     }
 
     rows = client.get("/api/v1/workflows/workflows")
@@ -194,7 +202,7 @@ def main() -> int:
             item.get("execution_id") for item in history.json()]
         if result["execution_ids"] != [result["execution_id"]]:
             _fail(f"unexpected execution rows: {result['execution_ids']}")
-    else:
+    elif args.mode == "verify":
         if not args.execution_id:
             _fail("verify mode requires --execution-id")
         detail = client.get(
@@ -233,6 +241,27 @@ def main() -> int:
         if replay_jobs.status_code != 200 or replay_jobs.json() != []:
             _fail(f"replay created a scheduler job: {replay_jobs.text[:300]}")
         result["scheduler_jobs"] = replay_jobs.json()
+
+    if args.mode == "export":
+        if not args.execution_id:
+            _fail("export mode requires --execution-id")
+        exported = client.get(
+            f"/api/v1/workflows/workflows/executions/{args.execution_id}/export")
+        if exported.status_code != 200:
+            _fail(f"export failed: {exported.status_code} "
+                  f"{exported.text[:500]}")
+        body = exported.content
+        result["export_sha256"] = hashlib.sha256(body).hexdigest()
+        result["export_bytes"] = len(body)
+        disposition = exported.headers.get("content-disposition") or ""
+        match = re.search(r'filename="?([^";]+)"?', disposition, re.I)
+        result["export_filename"] = match.group(1) if match else None
+        document = json.loads(body.decode("utf-8"))
+        result["export_schema"] = document.get("schema")
+        result["export_execution_id"] = (document.get("execution") or {}).get(
+            "execution_id")
+        result["export_workflow_id"] = (document.get("workflow") or {}).get(
+            "workflow_id")
 
     print("RESULT_JSON:" + json.dumps(result, sort_keys=True))
     return 0

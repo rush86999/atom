@@ -205,4 +205,100 @@ describe('ExecutionDetailView', () => {
       expect(requestedUrl).toBe('/api/v1/workflows/executions/exec-1');
     });
   });
+
+  it('downloads completed execution results as a JSON blob', async () => {
+    const completed = { ...executionDetail, status: 'completed' };
+    const exportUrl = '/api/v1/workflows/workflows/executions/exec-1/export';
+    server.use(
+      rest.get(executionUrl, (req, res, ctx) => res(ctx.json(completed))),
+      rest.get(exportUrl, (req, res, ctx) =>
+        res(
+          ctx.status(200),
+          ctx.set('Content-Type', 'application/json'),
+          ctx.set(
+            'Content-Disposition',
+            'attachment; filename="workflow-wf-1-execution-exec-1.json"',
+          ),
+          ctx.body('{"schema":"atom.workflow.execution-result.v1"}'),
+        ),
+      ),
+    );
+    const createObjectURL = jest.fn(() => 'blob:workflow-result');
+    const revokeObjectURL = jest.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectURL,
+    });
+    let downloadedName = '';
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloadedName = this.download;
+      });
+    const user = userEvent.setup();
+    render(<ExecutionDetailView executionId="exec-1" onBack={mockOnBack} />);
+
+    const button = await screen.findByRole('button', { name: /download results/i });
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+    });
+    expect(downloadedName).toBe('workflow-wf-1-execution-exec-1.json');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:workflow-result');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    clickSpy.mockRestore();
+  });
+
+  it('shows the server refusal when export is not available', async () => {
+    const completed = { ...executionDetail, status: 'completed' };
+    const exportUrl = '/api/v1/workflows/workflows/executions/exec-1/export';
+    server.use(
+      rest.get(executionUrl, (req, res, ctx) => res(ctx.json(completed))),
+      rest.get(exportUrl, (req, res, ctx) =>
+        res(
+          ctx.status(409),
+          ctx.json({
+            detail: {
+              error: 'execution_has_no_output',
+              message: 'the completed execution has no final business output',
+            },
+          }),
+        ),
+      ),
+    );
+    const createObjectURL = jest.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    });
+    const user = userEvent.setup();
+    render(<ExecutionDetailView executionId="exec-1" onBack={mockOnBack} />);
+
+    await user.click(
+      await screen.findByRole('button', { name: /download results/i }),
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByText('the completed execution has no final business output'),
+      ).toBeInTheDocument();
+    });
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('disables download for a non-completed execution', async () => {
+    server.use(
+      rest.get(executionUrl, (req, res, ctx) =>
+        res(ctx.json({ ...executionDetail, status: 'failed' })),
+      ),
+    );
+    render(<ExecutionDetailView executionId="exec-1" onBack={mockOnBack} />);
+
+    const button = await screen.findByRole('button', { name: /download results/i });
+    expect(button).toBeDisabled();
+  });
 });
